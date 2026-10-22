@@ -5,7 +5,9 @@ const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
 async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
+const verifiedCache=new Map();
 async function verifiedStoredPrediction(key){
+ if(verifiedCache.has(key))return verifiedCache.get(key);
  const path='data/site_prediction_snapshots/'+key+'.json';
  let commits=[],page=1;
  for(;page<=10;page++){
@@ -35,7 +37,9 @@ async function verifiedStoredPrediction(key){
  const mode=raw.default_display_mode;
  if(mode!=='tail'||!verifiedTicketArray(raw.modes?.[mode]?.tickets?.map(t=>t.combo)))throw Error('PREDICTIONS_INVALID');
  const tickets=raw.modes[mode].tickets.map(t=>t.combo);
- return {tickets,odds:Object.fromEntries(raw.modes[mode].tickets.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds])),deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:raw.prediction_kind+' / '+raw.mode_policy,created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
+ const verified={tickets,odds:Object.fromEntries(raw.modes[mode].tickets.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds])),deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:raw.prediction_kind+' / '+raw.mode_policy,created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
+ verifiedCache.set(key,verified);
+ return verified;
 }
 async function loadPredictions(){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
