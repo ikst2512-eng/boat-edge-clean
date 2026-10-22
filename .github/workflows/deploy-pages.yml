@@ -125,7 +125,7 @@ jobs:
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:race.racers.slice(0,4),beforeinfo:null});
               await page.locator('#retryPrediction').click();
               await page.locator('.view-tabs [data-view="card"]').click();
-              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),{timeout:12000});
+              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),null,{timeout:12000});
               if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
