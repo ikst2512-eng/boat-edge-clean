@@ -88,10 +88,10 @@ jobs:
               const race={schema_version:'boat-edge-race-v5',race_key:key,meta:{date:'2026-10-22',venue_code:'12',race_no:1,deadline:'15:16',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false},source_audit:{race_card:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'},beforeinfo:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'}},racers,beforeinfo:{racers:racers.map(r=>({lane:r.lane,exhibition_time:6.8,tilt:-0.5})),start_exhibition:racers.map(r=>({lane:r.lane,st:'.05'}))}};
               const combos=['1-2-3','1-2-4','1-3-2','1-3-4','1-4-2','1-4-3','2-1-3','2-1-4','2-3-1','2-3-4'];
               const pred={race_key:key,schema_version:'boat-edge-server-site-final-v123',prediction_kind:'SITE_REFERENCE_V122',venue_code:'12',race_no:1,deadline:'15:16',first_saved_at:'2026-10-22T06:11:00Z',race_sha256:'b'.repeat(64),odds_sha256:'c'.repeat(64),guards:{results_seen:false,unlock:false,scoring:false},default_display_mode:'tail',modes:{tail:{tickets:combos.map((combo,i)=>({combo,p:10-i,odds:10+i}))}}};
-              let raceText=JSON.stringify(race);const predText=JSON.stringify(pred);
+              let raceText=JSON.stringify(race);const predText=JSON.stringify(pred);let predictionUnavailable=false;
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 const url=route.request().url();
-                const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',races:[{race_no:1}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?predText:null;
+                const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',races:[{race_no:1}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?(predictionUnavailable?null:predText):null;
                 return route.fulfill(body?{status:200,contentType:'application/json',body}:{status:404,body:'{}'});
               });
               await page.route('https://api.github.com/**',route=>{
@@ -129,7 +129,7 @@ jobs:
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
               // Missing prediction must not clear a previously rendered racecard.
-              await page.route('https://raw.githubusercontent.com/**/data/site_prediction_snapshots/**',route=>route.fulfill({status:404,body:'{}'}));
+              predictionUnavailable=true;
               await page.locator('.view-tabs [data-view="forecast"]').click();
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
