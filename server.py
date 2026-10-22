@@ -143,6 +143,48 @@ def get_odds(params):
         INFLIGHT.discard(key)
     return result
 
+
+def get_predictions(params):
+    hd = params.get("hd", [""])[0]
+    jcd = params.get("jcd", [""])[0]
+    rno = params.get("rno", [""])[0]
+    if not (re.fullmatch(r"20[0-9]{6}", hd) and re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]", jcd) and re.fullmatch(r"[1-9]|1[0-2]", rno)):
+        return 400, {"ok": False, "message": "日付・場・レース番号が不正です。"}
+    try:
+        datetime.strptime(hd, "%Y%m%d")
+    except ValueError:
+        return 400, {"ok": False, "message": "日付が不正です。"}
+    source = ROOT / "predictions.json"
+    if not source.exists():
+        return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "検証済み予想データは未配信です。"}
+    try:
+        if source.stat().st_size > 3000000:
+            raise ValueError("prediction feed too large")
+        payload = json.loads(source.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("bad feed")
+        key = hd + "-" + jcd + "-" + rno
+        record = payload.get(key)
+        if not isinstance(record, dict):
+            return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "選択したレースの予想データはありません。"}
+        raw = record.get("predictions")
+        if not isinstance(raw, list) or len(raw) < 10:
+            raise ValueError("fewer than 10 predictions")
+        tickets = []
+        for item in raw[:10]:
+            ticket = item.get("ticket") if isinstance(item, dict) else None
+            if not isinstance(ticket, str) or not re.fullmatch(r"[1-6]-[1-6]-[1-6]", ticket):
+                raise ValueError("invalid ticket")
+            if len(set(ticket.split("-"))) != 3 or ticket in tickets:
+                raise ValueError("duplicate ticket")
+            tickets.append(ticket)
+        if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
+            raise ValueError("feed missing validation metadata")
+        return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
+    except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+        logging.warning("prediction_feed_invalid %s", type(exc).__name__)
+        return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
@@ -155,6 +197,10 @@ class Handler(BaseHTTPRequestHandler):
             status, kind = 200, "text/plain; charset=utf-8"
         elif path == "/api/odds":
             status, data = get_odds(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
+        elif path == "/api/predictions":
+            status, data = get_predictions(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
         elif path == "/favicon.ico":
