@@ -177,6 +177,6 @@ async function loadPredictions(force=false){
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
-  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースの保存予想はまだ公開されていません。':reason==='SOURCE_HTTP_404'?'初回保存原本を取得できません。':reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'?'通信または配信元の応答に問題があります。再読み込みをお試しください。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
+  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'予想原本の照合先がアクセス制限中です。出走表・展示はそのまま確認できます。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースには保存済みの独自予想がありません。出走表・展示は確認できます。':reason==='FREEZE_TIME_NOT_PROVEN'||reason==='FIRST_COMMIT_UNCONFIRMED'||reason==='FIRST_ADD_UNCONFIRMED'?'予想の締切前保存記録を証明できないため、買い目は表示しません。':reason==='SNAPSHOT_CHANGED_SINCE_FIRST_ADD'?'予想の初回保存原本と現在の原本が一致しないため、買い目は表示しません。':reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'?'予想データの通信に問題があります。出走表・展示はそのまま確認できます。':'予想原本の検証が完了しないため、買い目は表示しません。';
  }
 };setView(activeView);render();</script></body></html>
