@@ -102,7 +102,7 @@ jobs:
         continue-on-error: false
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
           node - <<'JS'
           const { chromium } = require('playwright');
           const cors={'access-control-allow-origin':'*'};
