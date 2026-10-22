@@ -100,6 +100,7 @@ def parse_official_odds_table(html):
                     return odds
             except (ValueError, IndexError, TypeError):
                 continue
+    logging.warning("odds_matrix_shape_mismatch tables=%s sample_row_widths=%s", len(parser.tables), [list(map(len, rows[:6])) for rows in parser.tables[:3]])
     raise ValueError("Official odds table could not be parsed as 120 unique combinations")
 
 def get_odds(params):
