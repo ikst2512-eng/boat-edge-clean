@@ -22,7 +22,7 @@ async function verifiedStoredPrediction(key){
  const raw=JSON.parse(firstText);
  if(raw.race_key!==key||raw.schema_version!=='boat-edge-server-site-final-v123'||raw.prediction_kind!=='SITE_REFERENCE_V122'||raw.venue_code!==p(s.venue+1)||Number(raw.race_no)!==s.race)throw Error('RACE_OR_MODEL_MISMATCH');
  if(raw.guards?.results_seen!==false||raw.guards?.unlock!==false||raw.guards?.scoring!==false)throw Error('UNSAFE_SOURCE');
- if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(raw.deadline))throw Error('DEADLINE_INVALID');
+ if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.deadline))throw Error('DEADLINE_INVALID');
  const limit=Date.parse(s.date+'T'+raw.deadline+':00+09:00'),saved=Date.parse(raw.first_saved_at),added=Date.parse(commit.commit?.committer?.date);
  if(![limit,saved,added].every(Number.isFinite)||saved>added||added>=limit||limit-saved<120000||limit-saved>600000||limit-added<120000||limit-added>600000)throw Error('FREEZE_TIME_NOT_PROVEN');
  const mode=raw.default_display_mode;
