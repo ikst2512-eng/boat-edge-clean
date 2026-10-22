@@ -119,10 +119,12 @@ async function loadHeldVenues(force=false){
   status.textContent='開催情報を取得できません（全24場から選択可能）';
  }
 }
+let displayedRaceKey='';
 async function loadRaceData(force=false){
  const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
  const key=sameRaceKey(),status=document.getElementById('raceDataStatus'),body=document.getElementById('raceDataRows'),source=document.getElementById('raceDataSource');
- if(!force){body.replaceChildren();source.textContent='';}status.textContent=force&&body.children.length?'更新情報を確認中（表示中の出走表を保持）…':'保存済み出走表を確認中…';
+ const preserve=force&&displayedRaceKey===key&&body.children.length>0;
+ if(!preserve){body.replaceChildren();source.textContent='';displayedRaceKey='';}status.textContent=preserve?'更新情報を確認中（表示中の出走表を保持）…':'保存済み出走表を確認中…';
  try{
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
@@ -154,12 +156,13 @@ async function loadRaceData(force=false){
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
   const stamp=raw.source_audit.race_card.fetched_at;
+  displayedRaceKey=key;
   source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';
   status.textContent=safePreview?'取得済みの出走表と展示を表示中。未提供項目は「—」。':'取得済みの出走表を表示中。展示が未提供・未検証でも出走表は表示します。';
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
-  if(body.children.length){status.textContent='更新情報を確認できませんでした。前回表示した出走表を保持しています。';return;}
+  if(preserve&&displayedRaceKey===key&&body.children.length){status.textContent='更新情報を確認できませんでした。前回表示した出走表を保持しています。';return;}
   status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
  }
 }
