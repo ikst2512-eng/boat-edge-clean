@@ -128,6 +128,13 @@ jobs:
               if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
+              // Missing prediction must not clear a previously rendered racecard.
+              await page.route('https://raw.githubusercontent.com/**/data/site_prediction_snapshots/**',route=>route.fulfill({status:404,body:'{}'}));
+              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
+              await page.locator('.view-tabs [data-view="card"]').click();
+              if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
               if(errors.length)throw Error('Browser JavaScript errors: '+errors.join('; '));
               console.log('BROWSER_SMOKE_PASS 24 venues, 12 races, race change, Top3/5/10 toggles, no official links');
             } finally {await browser.close();}
