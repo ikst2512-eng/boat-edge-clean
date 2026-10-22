@@ -12,7 +12,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify odds parser
-        run: python test_odds_parser.py
+        run: |
+          python test_odds_parser.py
+          python test_predictions.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
