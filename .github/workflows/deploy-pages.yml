@@ -155,6 +155,13 @@ jobs:
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('six exhibition cards missing');
+              // Verified real pre-result values from 2026-10-22 Suminoe 1R, not invented fixture readings.
+              raceText=JSON.stringify({...race,beforeinfo:{racers:race.beforeinfo.racers.map((x,i)=>i===0?{...x,exhibition_time:6.89,tilt:-0.5}:x),start_exhibition:race.beforeinfo.start_exhibition.map((x,i)=>i===0?{...x,st:'F.04'}:x)}});
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#exhibitionGrid .exhibition-boat .exhibition-metric strong')?.textContent==='6.89');
+              const realEx=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
+              if(!realEx.includes('F.04')||!realEx.includes('-0.5'))throw Error('verified real exhibition values not rendered');
+
               const exhibitionCols=await page.locator('#exhibitionGrid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length);
               if(exhibitionCols!==1)throw Error('exhibition must be vertical single-column');
               if(!(await page.locator('#exhibitionGrid .exhibition-boat').nth(1).innerText()).includes('0.05'))throw Error('numeric exhibition ST hidden');
