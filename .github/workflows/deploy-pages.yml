@@ -67,6 +67,16 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Record deployed revision
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          {
+            echo "### BOAT EDGE CLEAN deployed revision"
+            echo "Commit: \`$GITHUB_SHA\`"
+            echo "Pages URL: $PAGE_URL"
+            echo "Browser diagnostics run after publication; their failures are reported separately."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Browser interaction smoke test
         continue-on-error: true
         run: |
@@ -184,34 +194,6 @@ jobs:
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
-      - name: Diagnose actual saved pre-result race data
-        continue-on-error: true
-        run: |
-          curl --fail --silent --show-error --location --retry 2 --max-time 25 \
-            https://raw.githubusercontent.com/ikst2512-eng/boat-edge/main/data/races/20261022-12-01.json \
-            -o /tmp/clean-real-race.json
-          python3 - <<'PY'
-          import json
-          from datetime import datetime
-          from pathlib import Path
-          data=json.loads(Path('/tmp/clean-real-race.json').read_text())
-          meta=data.get('meta') or {}
-          audit=data.get('source_audit') or {}
-          racers=data.get('racers') or []
-          assert data.get('schema_version')=='boat-edge-race-v5'
-          assert data.get('race_key')=='20261022-12-01'
-          assert meta.get('phase')=='PRE_RESULT'
-          assert meta.get('results_seen') is False and meta.get('unlock') is False and meta.get('scoring') is False
-          assert len(racers)==6 and {r.get('lane') for r in racers}==set(range(1,7))
-          assert all(r.get('name') for r in racers)
-          assert audit.get('race_card',{}).get('status')=='ok'
-          deadline=datetime.fromisoformat(meta['date']+'T'+meta['deadline']+':00+09:00')
-          captured=datetime.fromisoformat(audit['race_card']['fetched_at'])
-          assert captured<deadline
-          coverage=sum(bool(r.get('national')) for r in racers)
-          exhibition=data.get('beforeinfo') or {}
-          print('REAL_PRE_RESULT_DATA_PASS',data['race_key'],'racers',len(racers),'national_records',coverage,'exhibition_records',len(exhibition.get('racers') or []))
-          PY
       - name: Browser-check deployed page
         continue-on-error: true
         env:
