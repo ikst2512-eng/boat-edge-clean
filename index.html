@@ -57,11 +57,14 @@ async function loadRaceData(){
   if(!response.ok)throw Error('HTTP_'+response.status);
   const raw=await response.json();
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
-  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false)throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
+  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
+  const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
+  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline)throw Error('CARD_AFTER_DEADLINE');
+  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline;
   const racers=raw.racers;
   if(!Array.isArray(racers)||racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||racers.some(r=>!Number.isInteger(r.lane)||r.lane<1||r.lane>6||typeof r.name!=='string'||!r.name))throw Error('INCOMPLETE_RACE_CARD');
-  const preview=raw.source_audit?.beforeinfo?.status==='ok'&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
-  const starts=raw.source_audit?.beforeinfo?.status==='ok'&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
+  const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
+  const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
   const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—';
   const byLane=(a,lane)=>a.find(x=>x.lane===lane)||{};
   racers.slice().sort((a,b)=>a.lane-b.lane).forEach(r=>{
@@ -69,9 +72,9 @@ async function loadRaceData(){
    const values=[String(r.lane),r.name+' / '+(r.class||'—'),txt(r.national?.win_rate),txt(r.local?.win_rate),txt(r.avg_st),txt(r.motor?.quinella_rate)+(Number.isFinite(r.motor?.quinella_rate)?'%':''),txt(ex.exhibition_time),typeof st.st==='string'?st.st:'—'];
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
-  const stamp=raw.source_audit?.race_card?.fetched_at||raw.meta?.updated_at;
+  const stamp=raw.source_audit.race_card.fetched_at;
   source.textContent='データ元：BOAT EDGE事前保存原本'+(stamp?'｜収集 '+stamp:'')+'｜未取得値は「—」';
-  status.textContent='6艇の事前情報を表示中。展示欄は保存されている場合のみ表示。';
+  status.textContent=safePreview?'6艇の事前情報・締切前展示を表示中。':'6艇の締切前出走表を表示中。展示データは未検証。';
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   status.textContent='このレースの検証可能な事前出走表は表示できません。公式出走表をご確認ください。';
