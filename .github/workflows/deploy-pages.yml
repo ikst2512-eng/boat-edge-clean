@@ -171,6 +171,13 @@ jobs:
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('取得対象時間外'));
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('out-of-window exhibition removed lane cards');
+              // Real saved PRE_RESULT values from 2026-10-22 Suminoe 1R:
+              // lane 1 exhibition 6.89, tilt -0.5 and ST F.04.
+              raceText=JSON.stringify({...race,beforeinfo:{...race.beforeinfo,racers:race.beforeinfo.racers.map((r,i)=>i===0?{...r,exhibition_time:6.89,tilt:-0.5}:r),start_exhibition:race.beforeinfo.start_exhibition.map((r,i)=>i===0?{...r,st:'F.04'}:r)}});
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'));
+              const realFirst=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
+              if(!realFirst.includes('6.89')||!realFirst.includes('-0.5')||!realFirst.includes('F.04'))throw Error('saved real exhibition values not rendered in vertical card');
               // Partial venue coverage: missing beforeinfo and two racer records must not hide the racecard.
               // An incomplete exhibition row must not clear an otherwise valid card.
               const oddPreview={...race,beforeinfo:{...race.beforeinfo,racers:[null,...race.beforeinfo.racers]}};
