@@ -42,7 +42,7 @@ async function loadPredictions(){
    const res=await fetch('/api/predictions?hd='+s.date.replaceAll('-','')+'&jcd='+p(s.venue+1)+'&rno='+s.race,{cache:'no-store'});
    if(res.ok){
     const data=await res.json();
-    if(data.ok&&data.status==='available'&&data.verified===true&&verifiedTicketArray(data.predictions)){
+    if(data.ok&&data.status==='research'&&verifiedTicketArray(data.predictions)){confirmed={tickets:data.predictions,version:data.model_version||'全国勝率補正',created:data.generated_at||'',proof:'研究用・未検証',research:true};}\n    else if(data.ok&&data.status==='available'&&data.verified===true&&verifiedTicketArray(data.predictions)){
      confirmed={tickets:data.predictions,version:data.model_version||'既存モデル',created:data.generated_at||'',proof:'配信API'};
     }
    }
@@ -50,7 +50,7 @@ async function loadPredictions(){
   if(!confirmed)confirmed=await verifiedStoredPrediction(key);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   predictionTickets=confirmed.tickets;
-  label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+confirmed.created+'｜根拠 '+confirmed.proof;
+  label.textContent=confirmed.research?'研究予想（未検証・回収率未確認）｜'+confirmed.version+'｜作成 '+confirmed.created:'保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+confirmed.created+'｜根拠 '+confirmed.proof;
   drawPredictions();
  }catch(e){
   if(token!==window.predictionRequestId)return;
