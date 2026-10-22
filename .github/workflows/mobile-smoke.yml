@@ -28,6 +28,12 @@ jobs:
               await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
+              if(await page.locator('#forecast [data-top]').count()!==3)throw Error('Prediction Top3/5/10 tabs missing');
+              await page.locator('#forecast [data-top="5"]').click();
+              if(!(await page.locator('#forecast [data-top="5"]').getAttribute('class')||'').includes('on'))throw Error('Prediction Top5 selector failed');
+              await page.locator('#forecast [data-top="10"]').click();
+              if(!(await page.locator('#forecast [data-top="10"]').getAttribute('class')||'').includes('on'))throw Error('Prediction Top10 selector failed');
+              await page.locator('#forecast [data-top="3"]').click();
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(0).click();
               await page.locator('#day').fill('2026-10-22');
