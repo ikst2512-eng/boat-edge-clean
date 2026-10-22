@@ -163,21 +163,24 @@ async function loadRaceData(force=false){
   status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
  }
 }
+let displayedPredictionKey='';
 async function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
- predictionTickets=[];predictionOdds={};predictionProbabilities={};document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();
+ const key=sameRaceKey(),retain=force&&displayedPredictionKey===key&&predictionTickets.length>0;
+ if(!retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
  const label=document.getElementById('predictionStatus');
- label.textContent='既存モデルの保存予想と初回Git記録を照合中…';
- const key=sameRaceKey();
+ label.textContent=retain?'予想を再確認中（検証済みの表示を保持）…':'既存モデルの保存予想と初回Git記録を照合中…';
  try{
   const confirmed=await verifiedStoredPrediction(key,force);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
-  predictionTickets=confirmed.tickets;predictionOdds=confirmed.odds;predictionProbabilities=confirmed.probabilities;const sources=document.getElementById('sourceMeta');const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='締切 '+confirmed.deadline+'｜評価 '+(confirmed.grade||'未記録')+'｜モデル内指標 '+(Number.isFinite(confirmed.confidence)?confirmed.confidence:'未記録')+'（的中率の保証ではありません）｜オッズは保存時点';
+  displayedPredictionKey=key;predictionTickets=confirmed.tickets;predictionOdds=confirmed.odds;predictionProbabilities=confirmed.probabilities;const sources=document.getElementById('sourceMeta');const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='締切 '+confirmed.deadline+'｜評価 '+(confirmed.grade||'未記録')+'｜モデル内指標 '+(Number.isFinite(confirmed.confidence)?confirmed.confidence:'未記録')+'（的中率の保証ではありません）｜オッズは保存時点';
   label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
+  if(retain&&(reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'||reason==='FIRST_COMMIT_UNCONFIRMED')){label.textContent='再取得できませんでした。前回検証済みの予想を表示中（最新データではありません）。';return;}
+  if(retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
   label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'予想原本の照合先がアクセス制限中です。出走表・展示はそのまま確認できます。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースには保存済みの独自予想がありません。出走表・展示は確認できます。':reason==='FREEZE_TIME_NOT_PROVEN'||reason==='FIRST_COMMIT_UNCONFIRMED'||reason==='FIRST_ADD_UNCONFIRMED'?'予想の締切前保存記録を証明できないため、買い目は表示しません。':reason==='SNAPSHOT_CHANGED_SINCE_FIRST_ADD'?'予想の初回保存原本と現在の原本が一致しないため、買い目は表示しません。':reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'?'予想データの通信に問題があります。出走表・展示はそのまま確認できます。':'予想原本の検証が完了しないため、買い目は表示しません。';
  }
 };setView(activeView);render();</script></body></html>
