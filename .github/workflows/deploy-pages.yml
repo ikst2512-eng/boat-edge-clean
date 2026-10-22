@@ -222,6 +222,7 @@ jobs:
               }
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 3 tabs)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
@@ -235,11 +236,13 @@ jobs:
             if curl --fail --silent --show-error --location --max-time 20 "$PAGE_URL" -o /tmp/clean-deployed.html; then
               if cmp -s public/index.html /tmp/clean-deployed.html; then
                 echo "Public page byte-identical PASS: $PAGE_URL"
+                echo "Public HTML: **PASS** (byte-identical to deployed revision)" >> "$GITHUB_STEP_SUMMARY"
                 sha256sum public/index.html
                 exit 0
               fi
             fi
             sleep 10
           done
+          echo "Public HTML: **FAIL / UNCONFIRMED** (unavailable or differs from deployed revision)" >> "$GITHUB_STEP_SUMMARY"
           echo "Public page verification FAIL: deployed HTML differs from current index.html or is unavailable: $PAGE_URL" >&2
           exit 1
