@@ -135,6 +135,14 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
               await page.locator('.view-tabs [data-view="card"]').click();
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
+              // Switching races during pending requests must leave only the latest selection on screen.
+              await page.locator('#races button').nth(1).click();
+              await page.locator('#races button').first().click();
+              await page.waitForFunction(()=>document.querySelector('#raceMeta')?.textContent.includes('1R'));
+              if(!(await page.locator('#raceMeta').innerText()).includes('住之江'))throw Error('stale race selection');
+              if(await page.locator('#races button.on').count()!==1)throw Error('multiple selected race buttons');
+              if(await page.locator('#venues button.on').count()!==1)throw Error('multiple selected venue buttons');
+
               if(errors.length)throw Error('Browser JavaScript errors: '+errors.join('; '));
               console.log('BROWSER_SMOKE_PASS 24 venues, 12 races, race change, Top3/5/10 toggles, no official links');
             } finally {await browser.close();}
