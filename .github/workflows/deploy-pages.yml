@@ -143,7 +143,7 @@ jobs:
               // A failed forced refresh must retain an already shown six-lane table.
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 if(route.request().url().includes(racePath))return route.fulfill({status:503,body:'temporary outage'});
-                return route.continue();
+                return route.fallback();
               });
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus').textContent.includes('前回表示した出走表'));
