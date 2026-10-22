@@ -186,7 +186,7 @@ async function loadRaceData(force=false){
   const stamp=raw.source_audit.race_card.fetched_at;
   displayedRaceKey=key;
   source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';
-  status.textContent=safePreview?'取得済みの出走表と展示を表示中。未提供項目は「—」。':'取得済みの出走表を表示中。展示が未提供・未検証でも出走表は表示します。';
+  status.textContent=safePreview?'取得済みの出走表と展示を表示中。未提供項目は「—」。':raw.source_audit?.beforeinfo?.status==='not_in_window'?'出走表を表示中。展示は取得対象時間外の記録です（未公開・未提供の確定ではありません）。':'取得済みの出走表を表示中。展示が未提供・未検証でも出走表は表示します。';
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
