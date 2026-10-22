@@ -136,6 +136,15 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
               await page.locator('.view-tabs [data-view="card"]').click();
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
+              // A failed forced refresh must retain an already shown six-lane table.
+              await page.route('https://raw.githubusercontent.com/**',route=>{
+                if(route.request().url().includes(racePath))return route.fulfill({status:503,body:'temporary outage'});
+                return route.continue();
+              });
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus').textContent.includes('前回表示した出走表'));
+              if(await page.locator('#raceDataRows tr').count()!==6)throw Error('failed refresh erased racecard');
+
               // Switching races during pending requests must leave only the latest selection on screen.
               await page.locator('#races button').nth(1).click();
               await page.locator('#races button').first().click();
