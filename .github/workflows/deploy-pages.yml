@@ -116,6 +116,12 @@ jobs:
               }
               // Partial venue coverage: missing beforeinfo and two racer records must not hide the racecard.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:race.racers.slice(0,4),beforeinfo:null});
+              // An incomplete exhibition row must not clear an otherwise valid card.
+              const oddPreview={...race,beforeinfo:{...race.beforeinfo,racers:[null,...race.beforeinfo.racers]}};
+              raceText=JSON.stringify(oddPreview);
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示を表示中'));
+              raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:race.racers.slice(0,4),beforeinfo:null});
               await page.locator('#retryPrediction').click();
               await page.locator('.view-tabs [data-view="card"]').click();
               await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),{timeout:12000});
