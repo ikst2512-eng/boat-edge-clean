@@ -261,7 +261,7 @@ jobs:
               const first=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
               if(!first.includes('F.04')||!first.includes('-0.5'))throw Error('Real Suminoe JSON mismatch');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Real JSON six lanes missing');
-              if(await page.locator('#exhibitionGrid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).length)!==1)throw Error('Real JSON exhibition is not vertical');
+              if(await page.locator('#exhibitionGrid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length)!==1)throw Error('Real JSON exhibition is not vertical');
               console.log('REAL_SAVED_EXHIBITION_BROWSER_PASS',url.toString());
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
