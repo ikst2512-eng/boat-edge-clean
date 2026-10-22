@@ -13,3 +13,17 @@ jobs:
           python-version: '3.12'
       - name: Verify odds parser
         run: python test_odds_parser.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify inline website JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text()
+          scripts = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, re.S | re.I)
+          assert len(scripts) == 1 and scripts[0].strip(), 'Expected one inline app script'
+          Path('/tmp/boat-edge-site.js').write_text(scripts[0])
+          PY
+          node --check /tmp/boat-edge-site.js
