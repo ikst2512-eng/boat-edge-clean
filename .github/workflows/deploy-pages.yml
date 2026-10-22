@@ -80,6 +80,32 @@ jobs:
                 if(!await page.locator('[data-top="'+n+'"]').evaluate(el=>el.classList.contains('on')))throw Error('Top tab failed: '+n);
               }
               if(await page.locator('a[href*="boatrace.jp"]').count())throw Error('unwanted official link');
+              // Verified fixture: the UI must render real-format pre-result data, not a placeholder.
+              const sha='a'.repeat(40), key='20261022-12-01';
+              const racePath='data/races/'+key+'.json', predPath='data/site_prediction_snapshots/'+key+'.json';
+              const racers=Array.from({length:6},(_,i)=>({lane:i+1,name:'テスト選手'+(i+1),class:'B1',avg_st:0.16,F:0,L:0,national:{win_rate:5.1,quinella_rate:35,trio_rate:52},local:{win_rate:5.2,quinella_rate:33,trio_rate:51},motor:{no:i+10,quinella_rate:32,trio_rate:50},boat:{no:i+20,quinella_rate:30,trio_rate:49}}));
+              const race={schema_version:'boat-edge-race-v5',race_key:key,meta:{date:'2026-10-22',venue_code:'12',race_no:1,deadline:'15:16',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false},source_audit:{race_card:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'},beforeinfo:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'}},racers,beforeinfo:{racers:racers.map(r=>({lane:r.lane,exhibition_time:6.8,tilt:-0.5})),start_exhibition:racers.map(r=>({lane:r.lane,st:'.05'}))}};
+              const combos=['1-2-3','1-2-4','1-3-2','1-3-4','1-4-2','1-4-3','2-1-3','2-1-4','2-3-1','2-3-4'];
+              const pred={race_key:key,schema_version:'boat-edge-server-site-final-v123',prediction_kind:'SITE_REFERENCE_V122',venue_code:'12',race_no:1,deadline:'15:16',first_saved_at:'2026-10-22T06:11:00Z',race_sha256:'b'.repeat(64),odds_sha256:'c'.repeat(64),guards:{results_seen:false,unlock:false,scoring:false},default_display_mode:'tail',modes:{tail:{tickets:combos.map((combo,i)=>({combo,p:10-i,odds:10+i}))}}};
+              const raceText=JSON.stringify(race),predText=JSON.stringify(pred);
+              await page.route('https://raw.githubusercontent.com/**',route=>{
+                const url=route.request().url();
+                const body=url.includes(racePath)?raceText:url.includes(predPath)?predText:null;
+                return route.fulfill(body?{status:200,contentType:'application/json',body}:{status:404,body:'{}'});
+              });
+              await page.route('https://api.github.com/**',route=>{
+                const url=route.request().url(),path=url.includes(encodeURIComponent(racePath))||url.includes(racePath)?racePath:predPath;
+                const body=url.includes('/commits?')?[{sha}]:{files:[{filename:path,status:'added'}],commit:{committer:{date:'2026-10-22T06:13:00Z'}}};
+                return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
+              });
+              await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22&venue=12&race=1');
+              await page.locator('#raceDataRows tr').first().waitFor({timeout:12000});
+              if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
+              await page.locator('#predictionRows .prediction-row').first().waitFor({timeout:12000});
+              for(const n of [3,5,10]){
+                await page.locator('[data-top="'+n+'"]').click();
+                if(await page.locator('#predictionRows .prediction-row').count()!==n)throw Error('Top'+n+' rendered count mismatch');
+              }
               if(errors.length)throw Error('Browser JavaScript errors: '+errors.join('; '));
               console.log('BROWSER_SMOKE_PASS 24 venues, 12 races, race change, Top3/5/10 toggles, no official links');
             } finally {await browser.close();}
