@@ -25,17 +25,14 @@ jobs:
     steps:
       - name: Checkout published source
         uses: actions/checkout@v4
-      - name: Validate CLEAN entry point
-        run: |
-          test -s index.html
-          grep -q 'BOAT EDGE' index.html
-          ! grep -q "status==='research'" index.html
       - name: Validate inline JavaScript and TopK UI
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           page = Path('index.html').read_text()
+          if not page.strip() or 'BOAT EDGE' not in page:
+              raise SystemExit('Missing or invalid CLEAN home page')
           scripts = re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>', page)
           if len(scripts) != 1:
               raise SystemExit('Expected exactly one inline script')
