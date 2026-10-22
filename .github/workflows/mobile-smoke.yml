@@ -34,6 +34,14 @@ jobs:
               await page.locator('#refresh').click();
               await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
               if(await page.locator('#oddsData .chosen').count()!==120)throw Error('Missing odds cells');
+              if(await page.locator('#oddsData .odds-group').count()!==6)throw Error('Expected six first-boat sections');
+              for(let i=0;i<6;i++){
+                const group=page.locator('#oddsData .odds-group').nth(i);
+                if(await group.locator('.odds-cell').count()!==20)throw Error('Expected 20 tickets for boat '+(i+1));
+                if(!(await group.locator('h3').innerText()).includes((i+1)+'号艇'))throw Error('Boat heading mismatch');
+              }
+              if(!(await page.locator('#oddsStatus').innerText()).includes('日本時間'))throw Error('Japanese time label missing');
+              if(!(await page.locator('#oddsData .odds-cell strong').first().innerText()).includes('倍'))throw Error('Odds not visually separated');
               // Switching race must invalidate previously displayed odds.
               await page.locator('#races button').nth(1).click();
               if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds remain after race change');
