@@ -129,6 +129,10 @@ jobs:
               if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
+              // Rechecking an already verified prediction must not duplicate its metadata.
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済'));
+              if(await page.locator('#sourceMeta .source-chip').count()!==1)throw Error('duplicate prediction metadata chips');
               // Missing prediction must not clear a previously rendered racecard.
               predictionUnavailable=true;
               await page.locator('.view-tabs [data-view="forecast"]').click();
