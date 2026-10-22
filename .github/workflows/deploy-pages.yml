@@ -177,6 +177,8 @@ jobs:
               await page.locator('.view-tabs [data-view="card"]').click();
               await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),null,{timeout:12000});
               if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
+              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('missing beforeinfo removed exhibition lane cards');
+              if((await page.locator('#exhibitionGrid .exhibition-boat').first().locator('.exhibition-metric strong').allInnerTexts()).some(v=>v!=='—'))throw Error('unverified exhibition value leaked into cards');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
               // Rechecking an already verified prediction must not duplicate its metadata.
