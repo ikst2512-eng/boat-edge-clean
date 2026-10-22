@@ -41,8 +41,9 @@ async function verifiedStoredPrediction(key,force=false){
  if(raw.modes[mode].tickets.some(t=>!Number.isFinite(t.p)||t.p<0||t.p>100))throw Error('PREDICTION_SCORE_INVALID');
  if(raw.modes[mode].tickets.some(t=>t.odds!==undefined&&(!Number.isFinite(t.odds)||t.odds<=0)))throw Error('ODDS_INVALID');
  if(raw.modes[mode].tickets.some(t=>t.stake_yen!==undefined&&(!Number.isInteger(t.stake_yen)||t.stake_yen<0)))throw Error('STAKE_INVALID');
- const tickets=raw.modes[mode].tickets.map(t=>t.combo);
- const verified={tickets,odds:Object.fromEntries(raw.modes[mode].tickets.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds])),deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:raw.prediction_kind+' / '+raw.mode_policy,created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
+ const ordered=raw.modes[mode].tickets.slice().sort((a,b)=>b.p-a.p);
+ const tickets=ordered.map(t=>t.combo);
+ const verified={tickets,odds:Object.fromEntries(ordered.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds])),deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:raw.prediction_kind+' / '+raw.mode_policy,created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
  verifiedCache.set(key,verified);
  return verified;
 }
