@@ -83,7 +83,8 @@ async function loadRaceData(force=false){
   const addedAt=Date.parse(commit.commit?.committer?.date);
   if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||!Number.isFinite(addedAt)||cardAt>addedAt||addedAt>=deadline)throw Error('CARD_FIRST_GIT_NOT_PREDEADLINE');
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<=addedAt&&previewAt<deadline;
-  verifiedRaceCache.set(key,{...raw,verifiedPreview:safePreview,verifiedFirstCommit:first.sha});
+  raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:first.sha};
+  verifiedRaceCache.set(key,raw);
   }
   const safePreview=raw.verifiedPreview;
   const racers=raw.racers;
