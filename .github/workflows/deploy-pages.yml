@@ -75,6 +75,7 @@ jobs:
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(4).click();
               if(!((await page.locator('#raceMeta').innerText()).includes('住之江')&&(await page.locator('#raceMeta').innerText()).includes('5R')))throw Error('race selection failed');
+              await page.locator('.view-tabs [data-view="forecast"]').click();
               for(const n of [3,5,10]){
                 await page.locator('[data-top="'+n+'"]').click();
                 if(!await page.locator('[data-top="'+n+'"]').evaluate(el=>el.classList.contains('on')))throw Error('Top tab failed: '+n);
