@@ -44,6 +44,16 @@ async function loadPredictions(){
   drawPredictions();
  }catch(e){
   if(token!==window.predictionRequestId)return;
+  try{
+   const r=await fetch('/api/predictions?hd='+s.date.replaceAll('-','')+'&jcd='+p(s.venue+1)+'&rno='+s.race,{cache:'no-store'});
+   const data=await r.json();
+   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+   if(r.ok&&data.ok&&data.status==='research'&&verifiedTicketArray(data.predictions)){
+    predictionTickets=data.predictions;
+    label.textContent='研究予想（未検証・回収率未確認）｜全国勝率モデル｜'+data.generated_at;
+    drawPredictions();return;
+   }
+  }catch(_){} 
   label.textContent=e.message==='SOURCE_HTTP_404'||e.message==='SNAPSHOT_UNAVAILABLE'||e.message==='FIRST_COMMIT_UNCONFIRMED'?'このレースの保存予想は未確認です。':'予想の原本・締切前保存証拠を確認できないため、買い目を表示しません。';
  }
 };render();</script></body></html>
