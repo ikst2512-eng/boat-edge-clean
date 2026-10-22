@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 ROOT = Path(__file__).resolve().parent
 LOCK = threading.Lock()
 CACHE = {}
+INFLIGHT = set()
 ALL_TICKETS = {"-".join(map(str, p)) for p in permutations(range(1, 7), 3)}
 TICKET_RE = re.compile(r"(?<![0-9])([1-6])\s*[-－]\s*([1-6])\s*[-－]\s*([1-6])\s*(?:[：:]|\s)+\s*([0-9]+(?:\.[0-9]+)?)(?![0-9])")
 
@@ -115,10 +116,11 @@ def get_odds(params):
     now = time.monotonic()
     with LOCK:
         saved = CACHE.get(key)
+        if key in INFLIGHT:
+            return 202, {"ok": False, "message": "オッズを取得中です。少ししてからもう一度押してください。"}
         if saved and now - saved[0] < (60 if saved[1] == 200 else 5):
             return saved[1], saved[2]
-        # Reserve a short cooldown even when parsing fails; no repeated upstream flooding.
-        CACHE[key] = (now, 503, {"ok": False, "message": "オッズを確認中です。少ししてから更新してください。"})
+        INFLIGHT.add(key)
     url = "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=" + hd + "&jcd=" + jcd + "&rno=" + rno
     try:
         req = Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN/1.0", "Accept": "text/html"})
@@ -136,6 +138,7 @@ def get_odds(params):
         result = 503, {"ok": False, "message": "このレースのオッズをまだ取得できません。開催状況を確認し、少ししてから更新してください。"}
     with LOCK:
         CACHE[key] = (time.monotonic(), result[0], result[1])
+        INFLIGHT.discard(key)
     return result
 
 class Handler(BaseHTTPRequestHandler):
