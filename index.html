@@ -107,9 +107,10 @@ async function loadHeldVenues(force=false){
   [...vb.children].forEach((b,i)=>{if(available.has(i+1)){b.classList.add('held');b.dataset.held='true'}});
   if(!venueSpecified&&!venueTouched&&available.size&&!available.has(s.venue+1)){
    const first=Math.min(...available);
-   venueTouched=true;s.venue=first-1;s.race=1;
+   s.venue=first-1;s.race=1;
    render();
   }
+  if(token!==venueRequest||date!==s.date)return;
   status.textContent='● 青緑：開催データ確認済み（'+available.size+'場）｜その他：未確認（非開催とは限りません）';
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
