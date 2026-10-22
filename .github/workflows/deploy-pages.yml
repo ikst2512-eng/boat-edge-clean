@@ -53,6 +53,20 @@ jobs:
           Path('/tmp/clean-inline.js').write_text(scripts[0])
           PY
           node --check /tmp/clean-inline.js
+      - name: Stage only public files
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
+          test -s public/index.html
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload public site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
       - name: Browser interaction smoke test
         continue-on-error: true
         run: |
@@ -198,20 +212,6 @@ jobs:
           exhibition=data.get('beforeinfo') or {}
           print('REAL_PRE_RESULT_DATA_PASS',data['race_key'],'racers',len(racers),'national_records',coverage,'exhibition_records',len(exhibition.get('racers') or []))
           PY
-      - name: Stage only public files
-        run: |
-          mkdir -p public
-          cp index.html public/index.html
-          test -s public/index.html
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload public site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
       - name: Browser-check deployed page
         continue-on-error: true
         env:
