@@ -146,12 +146,12 @@ async function loadRaceData(force=false){
   verifiedRaceCache.set(key,raw);
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
-  const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—';
+  const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):typeof v==='string'&&v.trim()&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(v.trim())?v.trim():'—';
   const byLane=(a,lane)=>a.find(x=>x&&Number(x.lane)===lane)||{};
   body.replaceChildren();
   Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1)||{lane:i+1,name:'未提供'}).forEach(r=>{
    const ex=byLane(preview,r.lane),st=byLane(starts,r.lane),row=document.createElement('tr');
-   const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&Number.isFinite(b)?'%':'')+' / '+txt(c)+(rate&&Number.isFinite(c)?'%':'');
+   const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&txt(b)!=='—'?'%':'')+' / '+txt(c)+(rate&&txt(c)!=='—'?'%':'');
    const values=[String(r.lane),(r.name||'未提供')+' / '+(r.class||'—'),triple(r.national?.win_rate,r.national?.quinella_rate,r.national?.trio_rate,true),triple(r.local?.win_rate,r.local?.quinella_rate,r.local?.trio_rate,true),txt(r.avg_st)+' / F'+txt(r.F)+' L'+txt(r.L),triple(r.motor?.no,r.motor?.quinella_rate,r.motor?.trio_rate,true),triple(r.boat?.no,r.boat?.quinella_rate,r.boat?.trio_rate,true),txt(ex.exhibition_time)+' / '+txt(ex.tilt),typeof st.st==='string'&&st.st.trim()?st.st:typeof st.st==='number'&&Number.isFinite(st.st)?String(st.st):'—'];
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
