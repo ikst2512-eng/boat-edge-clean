@@ -88,7 +88,7 @@ jobs:
               const race={schema_version:'boat-edge-race-v5',race_key:key,meta:{date:'2026-10-22',venue_code:'12',race_no:1,deadline:'15:16',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false},source_audit:{race_card:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'},beforeinfo:{status:'ok',fetched_at:'2026-10-22T15:11:00+09:00'}},racers,beforeinfo:{racers:racers.map(r=>({lane:r.lane,exhibition_time:6.8,tilt:-0.5})),start_exhibition:racers.map(r=>({lane:r.lane,st:'.05'}))}};
               const combos=['1-2-3','1-2-4','1-3-2','1-3-4','1-4-2','1-4-3','2-1-3','2-1-4','2-3-1','2-3-4'];
               const pred={race_key:key,schema_version:'boat-edge-server-site-final-v123',prediction_kind:'SITE_REFERENCE_V122',venue_code:'12',race_no:1,deadline:'15:16',first_saved_at:'2026-10-22T06:11:00Z',race_sha256:'b'.repeat(64),odds_sha256:'c'.repeat(64),guards:{results_seen:false,unlock:false,scoring:false},default_display_mode:'tail',modes:{tail:{tickets:combos.map((combo,i)=>({combo,p:10-i,odds:10+i}))}}};
-              const raceText=JSON.stringify(race),predText=JSON.stringify(pred);
+              let raceText=JSON.stringify(race);const predText=JSON.stringify(pred);
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 const url=route.request().url();
                 const body=url.includes(racePath)?raceText:url.includes(predPath)?predText:null;
@@ -111,6 +111,14 @@ jobs:
                 await page.locator('[data-top="'+n+'"]').click();
                 if(await page.locator('#predictionRows .prediction-row').count()!==n)throw Error('Top'+n+' rendered count mismatch');
               }
+              // Partial venue coverage: missing beforeinfo and two racer records must not hide the racecard.
+              raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:race.racers.slice(0,4),beforeinfo:null});
+              await page.locator('#retryPrediction').click();
+              await page.locator('.view-tabs [data-view="card"]').click();
+              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),{timeout:12000});
+              if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
               if(errors.length)throw Error('Browser JavaScript errors: '+errors.join('; '));
               console.log('BROWSER_SMOKE_PASS 24 venues, 12 races, race change, Top3/5/10 toggles, no official links');
             } finally {await browser.close();}
