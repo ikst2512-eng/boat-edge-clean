@@ -6,8 +6,14 @@ async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 async function verifiedStoredPrediction(key){
  const path='data/site_prediction_snapshots/'+key+'.json';
- const commits=await edgeJson(EDGE_BASE+'/commits?path='+encodeURIComponent(path)+'&per_page=100');
- if(!Array.isArray(commits)||!commits.length||commits.length===100)throw Error('FIRST_COMMIT_UNCONFIRMED');
+ let commits=[],page=1;
+ for(;page<=10;page++){
+  const batch=await edgeJson(EDGE_BASE+'/commits?path='+encodeURIComponent(path)+'&per_page=100&page='+page);
+  if(!Array.isArray(batch))throw Error('FIRST_COMMIT_UNCONFIRMED');
+  commits=commits.concat(batch);
+  if(batch.length<100)break;
+ }
+ if(!commits.length||page>10)throw Error('FIRST_COMMIT_UNCONFIRMED');
  const earliest=commits[commits.length-1];
  const commit=await edgeJson(EDGE_BASE+'/commits/'+encodeURIComponent(earliest.sha));
  const file=commit.files&&commit.files.find(f=>f.filename===path);
@@ -40,7 +46,7 @@ async function loadPredictions(){
   const confirmed=await verifiedStoredPrediction(key);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   predictionTickets=confirmed.tickets;predictionOdds=confirmed.odds;const sources=document.getElementById('sourceMeta');const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='締切 '+confirmed.deadline+'｜評価 '+(confirmed.grade||'未記録')+'｜モデル内指標 '+(Number.isFinite(confirmed.confidence)?confirmed.confidence:'未記録')+'（的中率の保証ではありません）｜オッズは保存時点';
-  label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+confirmed.created+'｜根拠 '+confirmed.proof;
+  label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
  }catch(e){
   if(token!==window.predictionRequestId)return;
