@@ -139,8 +139,9 @@ async function loadRaceData(force=false){
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
   const safePreview=raw.verifiedPreview;
-  const racers=raw.racers;
-  if(!Array.isArray(racers)||!racers.length||racers.some(r=>!Number.isInteger(r.lane)||r.lane<1||r.lane>6)||new Set(racers.map(r=>r.lane)).size!==racers.length)throw Error('INCOMPLETE_RACE_CARD');
+  if(!Array.isArray(raw.racers))throw Error('INCOMPLETE_RACE_CARD');
+  const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
+  if(new Set(racers.map(r=>r.lane)).size!==racers.length)throw Error('DUPLICATE_RACE_LANES');
   verifiedRaceCache.set(key,raw);
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
@@ -149,7 +150,7 @@ async function loadRaceData(force=false){
   Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1)||{lane:i+1,name:'未提供'}).forEach(r=>{
    const ex=byLane(preview,r.lane),st=byLane(starts,r.lane),row=document.createElement('tr');
    const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&Number.isFinite(b)?'%':'')+' / '+txt(c)+(rate&&Number.isFinite(c)?'%':'');
-   const values=[String(r.lane),r.name+' / '+(r.class||'—'),triple(r.national?.win_rate,r.national?.quinella_rate,r.national?.trio_rate,true),triple(r.local?.win_rate,r.local?.quinella_rate,r.local?.trio_rate,true),txt(r.avg_st)+' / F'+txt(r.F)+' L'+txt(r.L),triple(r.motor?.no,r.motor?.quinella_rate,r.motor?.trio_rate,true),triple(r.boat?.no,r.boat?.quinella_rate,r.boat?.trio_rate,true),txt(ex.exhibition_time)+' / '+txt(ex.tilt),typeof st.st==='string'?st.st:'—'];
+   const values=[String(r.lane),(r.name||'未提供')+' / '+(r.class||'—'),triple(r.national?.win_rate,r.national?.quinella_rate,r.national?.trio_rate,true),triple(r.local?.win_rate,r.local?.quinella_rate,r.local?.trio_rate,true),txt(r.avg_st)+' / F'+txt(r.F)+' L'+txt(r.L),triple(r.motor?.no,r.motor?.quinella_rate,r.motor?.trio_rate,true),triple(r.boat?.no,r.boat?.quinella_rate,r.boat?.trio_rate,true),txt(ex.exhibition_time)+' / '+txt(ex.tilt),typeof st.st==='string'?st.st:'—'];
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
   const stamp=raw.source_audit.race_card.fetched_at;
