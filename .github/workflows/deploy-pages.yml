@@ -101,6 +101,10 @@ jobs:
               await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22&venue=12&race=1');
               await page.locator('#raceDataRows tr').first().waitFor({timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
+              await page.locator('.view-tabs [data-view="forecast"]').click();
+              if(!await page.locator('#forecast').isVisible())throw Error('prediction tab failed');
               await page.locator('#predictionRows .prediction-row').first().waitFor({timeout:12000});
               for(const n of [3,5,10]){
                 await page.locator('[data-top="'+n+'"]').click();
