@@ -34,6 +34,17 @@ jobs:
               await page.locator('#refresh').click();
               await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
               if(await page.locator('#oddsData .chosen').count()!==120)throw Error('Missing odds cells');
+              // Switching race must invalidate previously displayed odds.
+              await page.locator('#races button').nth(1).click();
+              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds remain after race change');
+              if(!(await page.locator('#selected').innerText()).includes('2R'))throw Error('Race 2 not selected');
+              if(await page.locator('#refresh').isDisabled())throw Error('Refresh disabled after race change');
+              await page.locator('#venues button').nth(10).click();
+              if(!(await page.locator('#selected').innerText()).includes('びわこ'))throw Error('Venue change failed');
+              if(!(await page.locator('#selected').innerText()).includes('1R'))throw Error('Venue change must select 1R');
+              await page.locator('#day').fill('2026-10-21');
+              if(!(await page.locator('#selected').innerText()).includes('2026-10-21'))throw Error('Date change failed');
+              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds after date change');
               if(errors.length)throw Error('JS errors: '+errors.join('; '));
               console.log('PASS: mobile 24 venues, race selection and 120 live odds cells');
             }finally{await browser.close()}
