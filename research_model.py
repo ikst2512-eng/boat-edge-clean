@@ -1,5 +1,6 @@
 """Research-only trifecta model trained on frozen 1,000-race boat-index outcomes."""
-import csv, io, math
+import csv, io, math, json, os, hashlib
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from urllib.request import Request, urlopen
@@ -26,11 +27,30 @@ def read_rows(url):
         raw=response.read(2_000_001)
         if len(raw)>2_000_000:raise ValueError("source too large")
     return list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),datetime.now(JST)
+STORE=Path(__file__).resolve().parent/"research_snapshots"
+def _record_path(code):
+    if len(code)!=12 or not code.isascii() or not code.isdigit():raise ValueError("invalid race code")
+    return STORE/(code+".json")
+def _saved(code):
+    path=_record_path(code)
+    if path.is_symlink() or not path.is_file():return None
+    if path.stat().st_size>20000:raise ValueError("oversize forecast")
+    record=json.loads(path.read_text(encoding="utf-8"))
+    if record.get("race_code")!=code or record.get("status")!="research" or record.get("validated") is not False:
+        raise ValueError("invalid saved forecast")
+    tickets=record.get("predictions")
+    if not isinstance(tickets,list) or len(tickets)!=10 or len(set(tickets))!=10:
+        raise ValueError("invalid prediction list")
+    valid={"-".join(map(str,t)) for t in TICKETS}
+    if any(t not in valid for t in tickets):raise ValueError("invalid ticket")
+    return {key:record[key] for key in ("ok","status","predictions","model_version","generated_at","message","validated")}
 def predict(hd,jcd,rno):
     day=datetime.strptime(hd,"%Y%m%d").date()
     if day<=datetime(2026,10,21).date():raise ValueError("training date excluded")
-    path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"
+    old=_saved(code)
+    if old is not None:return old
+    path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     titles,t1=read_rows(BASE+"title/"+path)
     cards,t2=read_rows(BASE+"race_cards/"+path)
     matching_t=[r for r in titles if r.get("レースコード")==code]
@@ -42,6 +62,16 @@ def predict(hd,jcd,rno):
     if max(t1,t2,now)>cutoff:raise ValueError("not received before 12-minute cutoff")
     rates=[float(matching_c[0][f"艇{i}_全国勝率"]) for i in range(1,7)]
     predictions=["-".join(map(str,t)) for t,p in probabilities(rates)[:10]]
-    return {"ok":True,"status":"research","predictions":predictions,
+    result={"ok":True,"status":"research","predictions":predictions,
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
+    STORE.mkdir(parents=True,exist_ok=True)
+    record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+                source_cards_received_jst=t2.isoformat(),national_win_rates=rates)
+    data=json.dumps(record,ensure_ascii=False,sort_keys=True)
+    # Exclusive create: never silently replace a previously saved forecast.
+    with _record_path(code).open("x",encoding="utf-8") as out:
+        out.write(data)
+        out.flush()
+        os.fsync(out.fileno())
+    return result
