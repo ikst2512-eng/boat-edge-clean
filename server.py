@@ -30,7 +30,7 @@ def get_odds(params):
     now = time.monotonic()
     with LOCK:
         saved = CACHE.get(key)
-        if saved and now - saved[0] < 60:
+        if saved and now - saved[0] < (60 if saved[1] == 200 else 5):
             return saved[1], saved[2]
         # Reserve a short cooldown even when parsing fails; no repeated upstream flooding.
         CACHE[key] = (now, 503, {"ok": False, "message": "オッズを確認中です。少ししてから更新してください。"})
