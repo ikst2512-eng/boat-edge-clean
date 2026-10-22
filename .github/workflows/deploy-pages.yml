@@ -263,6 +263,15 @@ jobs:
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Real JSON six lanes missing');
               if(await page.locator('#exhibitionGrid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length)!==1)throw Error('Real JSON exhibition is not vertical');
               console.log('REAL_SAVED_EXHIBITION_BROWSER_PASS',url.toString());
+              // A second venue confirms real source readings are not fixture-specific.
+              url.searchParams.set('venue','4');url.searchParams.set('race','9');
+              await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.waitForFunction(()=>document.querySelector('#exhibitionGrid .exhibition-boat .exhibition-metric strong')?.textContent==='6.85',null,{timeout:30000});
+              const heiwajima=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
+              if(!heiwajima.includes('.02')||!heiwajima.includes('6.85'))throw Error('Real Heiwajima exhibition mismatch');
+              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Heiwajima six lanes missing');
+              console.log('REAL_SECOND_VENUE_EXHIBITION_PASS',url.toString());
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
