@@ -31,7 +31,10 @@ jobs:
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(0).click();
               await page.locator('#day').fill('2026-10-22');
+              const apiReply=page.waitForResponse(res=>res.url().includes('/api/odds?')&&res.status()===200);
               await page.locator('#refresh').click();
+              const oddsPayload=await (await apiReply).json();
+              const expectedJst=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(oddsPayload.fetched_at));
               await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
               if(await page.locator('#oddsData .chosen').count()!==120)throw Error('Missing odds cells');
               if(await page.locator('#oddsData .odds-group').count()!==6)throw Error('Expected six first-boat sections');
@@ -41,6 +44,7 @@ jobs:
                 if(!(await group.locator('h3').innerText()).includes((i+1)+'号艇'))throw Error('Boat heading mismatch');
               }
               if(!(await page.locator('#oddsStatus').innerText()).includes('日本時間'))throw Error('Japanese time label missing');
+              if(!(await page.locator('#oddsStatus').innerText()).includes(expectedJst))throw Error('JST timestamp does not match upstream UTC time');
               if(!(await page.locator('#oddsData .odds-cell strong').first().innerText()).includes('倍'))throw Error('Odds not visually separated');
               // Switching race must invalidate previously displayed odds.
               await page.locator('#races button').nth(1).click();
