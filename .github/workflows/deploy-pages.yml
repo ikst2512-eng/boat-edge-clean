@@ -166,6 +166,11 @@ jobs:
                 await page.locator('[data-top="'+n+'"]').click();
                 if(await page.locator('#predictionRows .prediction-row').count()!==n)throw Error('Top'+n+' rendered count mismatch');
               }
+              // Outside the exhibition collection window is not the same as a permanent absence.
+              raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'not_in_window'}},beforeinfo:null});
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('取得対象時間外'));
+              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('out-of-window exhibition removed lane cards');
               // Partial venue coverage: missing beforeinfo and two racer records must not hide the racecard.
               // An incomplete exhibition row must not clear an otherwise valid card.
               const oddPreview={...race,beforeinfo:{...race.beforeinfo,racers:[null,...race.beforeinfo.racers]}};
