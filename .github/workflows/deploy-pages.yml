@@ -154,7 +154,9 @@ jobs:
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
-              if((await page.locator('#raceDataRows tr').nth(1).locator('td').last().innerText())!=='0.05')throw Error('numeric exhibition ST hidden');
+              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('six exhibition cards missing');
+              if(!(await page.locator('#exhibitionGrid .exhibition-boat').nth(1).innerText()).includes('0.05'))throw Error('numeric exhibition ST hidden');
+              if(await page.locator('#raceDataSection .race-data-scroll').isVisible())throw Error('wide racecard table visible in exhibition tab');
               await page.locator('.view-tabs [data-view="forecast"]').click();
               if(!await page.locator('#forecast').isVisible())throw Error('prediction tab failed');
               await page.locator('#predictionRows .prediction-row').first().waitFor({timeout:12000});
