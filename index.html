@@ -9,6 +9,10 @@ const verifiedCache=new Map();
 async function verifiedStoredPrediction(key,force=false){
  if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
  const path='data/site_prediction_snapshots/'+key+'.json';
+ const currentRes=await fetch(EDGE_RAW+'/main/'+path,{cache:'no-store'});
+ if(currentRes.status===404)throw Error('PREDICTION_NOT_PUBLISHED');
+ if(!currentRes.ok)throw Error('SNAPSHOT_UNAVAILABLE');
+ const currentText=await currentRes.text();
  let commits=[],page=1;
  for(;page<=10;page++){
   const batch=await edgeJson(EDGE_BASE+'/commits?path='+encodeURIComponent(path)+'&per_page=100&page='+page);
@@ -21,12 +25,9 @@ async function verifiedStoredPrediction(key,force=false){
  const commit=await edgeJson(EDGE_BASE+'/commits/'+encodeURIComponent(earliest.sha));
  const file=commit.files&&commit.files.find(f=>f.filename===path);
  if(!file||file.status!=='added')throw Error('FIRST_ADD_UNCONFIRMED');
- const [firstRes,currentRes]=await Promise.all([
-   fetch(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'}),
-   fetch(EDGE_RAW+'/main/'+path,{cache:'no-store'})
- ]);
- if(!firstRes.ok||!currentRes.ok)throw Error('SNAPSHOT_UNAVAILABLE');
- const [firstText,currentText]=await Promise.all([firstRes.text(),currentRes.text()]);
+ const firstRes=await fetch(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'});
+ if(!firstRes.ok)throw Error('SNAPSHOT_UNAVAILABLE');
+ const firstText=await firstRes.text();
  if(firstText!==currentText)throw Error('SNAPSHOT_CHANGED_SINCE_FIRST_ADD');
  const raw=JSON.parse(firstText);
  if(raw.race_key!==key||raw.schema_version!=='boat-edge-server-site-final-v123'||raw.prediction_kind!=='SITE_REFERENCE_V122'||raw.venue_code!==key.split('-')[1]||Number(raw.race_no)!==Number(key.split('-')[2]))throw Error('RACE_OR_MODEL_MISMATCH');
@@ -60,6 +61,6 @@ async function loadPredictions(force=false){
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
-  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='SOURCE_HTTP_404'||reason==='SNAPSHOT_UNAVAILABLE'?'このレースの保存予想は取得できません。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
+  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースの保存予想はまだ公開されていません。':reason==='SOURCE_HTTP_404'||reason==='SNAPSHOT_UNAVAILABLE'?'このレースの保存予想は取得できません。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
  }
 };render();</script></body></html>
