@@ -122,10 +122,9 @@ async function loadHeldVenues(force=false){
 async function loadRaceData(force=false){
  const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
  const key=sameRaceKey(),status=document.getElementById('raceDataStatus'),body=document.getElementById('raceDataRows'),source=document.getElementById('raceDataSource');
- body.replaceChildren();source.textContent='';status.textContent='保存済み出走表を確認中…';
+ if(!force){body.replaceChildren();source.textContent='';}status.textContent=force&&body.children.length?'更新情報を確認中（表示中の出走表を保持）…':'保存済み出走表を確認中…';
  try{
-  if(force)verifiedRaceCache.delete(key);
-  let raw=verifiedRaceCache.get(key);
+  let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
   const response=await fetch(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
   if(!response.ok)throw Error('HTTP_'+response.status);
@@ -147,6 +146,7 @@ async function loadRaceData(force=false){
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
   const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—';
   const byLane=(a,lane)=>a.find(x=>x&&Number(x.lane)===lane)||{};
+  body.replaceChildren();
   Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1)||{lane:i+1,name:'未提供'}).forEach(r=>{
    const ex=byLane(preview,r.lane),st=byLane(starts,r.lane),row=document.createElement('tr');
    const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&Number.isFinite(b)?'%':'')+' / '+txt(c)+(rate&&Number.isFinite(c)?'%':'');
@@ -159,6 +159,7 @@ async function loadRaceData(force=false){
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
+  if(body.children.length){status.textContent='更新情報を確認できませんでした。前回表示した出走表を保持しています。';return;}
   status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
  }
 }
