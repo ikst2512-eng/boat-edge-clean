@@ -135,11 +135,11 @@ async function loadRaceData(force=false){
   if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||!Number.isFinite(addedAt)||cardAt>addedAt||addedAt>=deadline)throw Error('CARD_FIRST_GIT_NOT_PREDEADLINE');
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<=addedAt&&previewAt<deadline;
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:first.sha};
-  verifiedRaceCache.set(key,raw);
   }
   const safePreview=raw.verifiedPreview;
   const racers=raw.racers;
   if(!Array.isArray(racers)||racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||racers.some(r=>!Number.isInteger(r.lane)||r.lane<1||r.lane>6||typeof r.name!=='string'||!r.name))throw Error('INCOMPLETE_RACE_CARD');
+  verifiedRaceCache.set(key,raw);
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
   const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—';
