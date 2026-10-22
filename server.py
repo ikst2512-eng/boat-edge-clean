@@ -156,7 +156,14 @@ def get_predictions(params):
         return 400, {"ok": False, "message": "日付が不正です。"}
     source = ROOT / "predictions.json"
     if not source.exists():
-        return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "検証済み予想データは未配信です。"}
+        # Research-only fallback; never mislabel exploratory scores as validated.
+        try:
+            from research_model import predict
+            return 200, predict(hd, jcd, rno)
+        except (ValueError, OSError, TimeoutError, KeyError, TypeError) as exc:
+            logging.info("research_prediction_unavailable %s", type(exc).__name__)
+            return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "研究予想の入力データが揃っていません。"}
+
     try:
         if source.stat().st_size > 3000000:
             raise ValueError("prediction feed too large")
