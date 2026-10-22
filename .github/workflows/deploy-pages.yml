@@ -1,0 +1,41 @@
+name: Publish BOAT EDGE CLEAN
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .github/workflows/deploy-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: boat-edge-clean-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout published source
+        uses: actions/checkout@v4
+      - name: Validate CLEAN entry point
+        run: |
+          test -s index.html
+          grep -q 'BOAT EDGE' index.html
+          ! grep -q "status==='research'" index.html
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload public site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
