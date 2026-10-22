@@ -17,5 +17,16 @@ jobs:
           cat /tmp/health; echo
           echo "Checking live odds API response"
           curl --max-time 45 -sS -o /tmp/odds.json -w "odds_http=%{http_code}\n" "https://boat-edge-clean.onrender.com/api/odds?hd=20261022&jcd=12&rno=1"
-          python -m json.tool /tmp/odds.json | head -c 1400
+          python - <<'PY'
+          import json
+          from itertools import permutations
+          data = json.load(open('/tmp/odds.json'))
+          assert data.get('ok') is True, data.get('message')
+          odds = data['odds']
+          expected = {'-'.join(map(str, p)) for p in permutations(range(1, 7), 3)}
+          assert set(odds) == expected, f'Expected all 120 triples; got {len(odds)}'
+          assert all(isinstance(v,(int,float)) and 1 <= v <= 1000000 for v in odds.values())
+          print('PASS: 120 valid real trifecta odds received from public server')
+          print('1-2-3:', odds['1-2-3'])
+          PY
           echo
