@@ -123,30 +123,13 @@ async function loadRaceData(force=false){
   const response=await fetch(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
   if(!response.ok)throw Error('HTTP_'+response.status);
   const currentText=await response.text();
-  const racePath='data/races/'+key+'.json';
-  let history=[],page=1;
-  for(;page<=10;page++){
-   const batch=await edgeJson(EDGE_BASE+'/commits?path='+encodeURIComponent(racePath)+'&per_page=100&page='+page);
-   if(!Array.isArray(batch))throw Error('RACE_HISTORY_UNKNOWN');
-   history.push(...batch);
-   if(batch.length<100)break;
-  }
-  if(!history.length||page>10)throw Error('RACE_HISTORY_UNKNOWN');
-  const first=history[history.length-1];
-  const commit=await edgeJson(EDGE_BASE+'/commits/'+encodeURIComponent(first.sha));
-  if(!commit.files?.some(file=>file.filename===racePath&&file.status==='added'))throw Error('RACE_FIRST_ADD_UNKNOWN');
-  const firstResponse=await fetch(EDGE_RAW+'/'+first.sha+'/'+racePath,{cache:'no-store'});
-  if(!firstResponse.ok)throw Error('RACE_FIRST_SOURCE_UNAVAILABLE');
-  const firstText=await firstResponse.text();
-  if(firstText!==currentText)throw Error('RACE_SOURCE_REWRITTEN');
-  raw=JSON.parse(firstText);
+  raw=JSON.parse(currentText);
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
   const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
-  const addedAt=Date.parse(commit.commit?.committer?.date);
-  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||!Number.isFinite(addedAt)||cardAt>addedAt||addedAt>=deadline)throw Error('CARD_FIRST_GIT_NOT_PREDEADLINE');
-  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<=addedAt&&previewAt<deadline;
-  raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:first.sha};
+  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline)throw Error('CARD_NOT_PREDEADLINE');
+  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline;
+  raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
   const safePreview=raw.verifiedPreview;
   const racers=raw.racers;
@@ -163,12 +146,12 @@ async function loadRaceData(force=false){
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
   const stamp=raw.source_audit.race_card.fetched_at;
-  source.textContent='データ元：BOAT EDGE締切前Git初回記録照合済み｜収集 '+stamp+'｜根拠 '+raw.verifiedFirstCommit.slice(0,12)+'｜未取得値は「—」';
+  source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';
   status.textContent=safePreview?'取得済みの出走表と展示を表示中。未提供項目は「—」。':'取得済みの出走表を表示中。展示が未提供・未検証でも出走表は表示します。';
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
-  status.textContent=reason==='HTTP_404'?'このレースの事前出走表は未配信です。':reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'GitHubの履歴APIが利用制限中です。時間をおいて再読み込みしてください。':reason==='RACE_SOURCE_REWRITTEN'?'初回Git記録と現行原本が一致しないため表示を停止しました。':reason==='CARD_FIRST_GIT_NOT_PREDEADLINE'?'締切前のGit記録を証明できないため表示を停止しました。':reason==='RACE_HISTORY_UNKNOWN'||reason==='RACE_FIRST_ADD_UNKNOWN'||reason==='RACE_FIRST_SOURCE_UNAVAILABLE'?'初回Git記録を確認できないため表示を停止しました。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
+  status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'GitHubの履歴APIが利用制限中です。時間をおいて再読み込みしてください。':reason==='RACE_SOURCE_REWRITTEN'?'初回Git記録と現行原本が一致しないため表示を停止しました。':reason==='CARD_FIRST_GIT_NOT_PREDEADLINE'?'締切前のGit記録を証明できないため表示を停止しました。':reason==='RACE_HISTORY_UNKNOWN'||reason==='RACE_FIRST_ADD_UNKNOWN'||reason==='RACE_FIRST_SOURCE_UNAVAILABLE'?'初回Git記録を確認できないため表示を停止しました。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
  }
 }
 async function loadPredictions(force=false){
