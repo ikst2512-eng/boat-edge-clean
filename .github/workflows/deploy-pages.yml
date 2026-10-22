@@ -30,12 +30,17 @@ jobs:
           test -s index.html
           grep -q 'BOAT EDGE' index.html
           ! grep -q "status==='research'" index.html
+      - name: Stage only public files
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
+          test -s public/index.html
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload public site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: public
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
