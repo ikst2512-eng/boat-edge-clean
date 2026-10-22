@@ -38,6 +38,8 @@ async function verifiedStoredPrediction(key){
  const mode=raw.default_display_mode;
  if(mode!=='tail'||!verifiedTicketArray(raw.modes?.[mode]?.tickets?.map(t=>t.combo)))throw Error('PREDICTIONS_INVALID');
  if(raw.modes[mode].tickets.some(t=>!Number.isFinite(t.p)||t.p<0||t.p>100))throw Error('PREDICTION_SCORE_INVALID');
+ if(raw.modes[mode].tickets.some(t=>t.odds!==undefined&&(!Number.isFinite(t.odds)||t.odds<=0)))throw Error('ODDS_INVALID');
+ if(raw.modes[mode].tickets.some(t=>t.stake_yen!==undefined&&(!Number.isInteger(t.stake_yen)||t.stake_yen<0)))throw Error('STAKE_INVALID');
  const tickets=raw.modes[mode].tickets.map(t=>t.combo);
  const verified={tickets,odds:Object.fromEntries(raw.modes[mode].tickets.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds])),deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:raw.prediction_kind+' / '+raw.mode_policy,created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
  verifiedCache.set(key,verified);
@@ -56,7 +58,7 @@ async function loadPredictions(){
   label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
  }catch(e){
-  if(token!==window.predictionRequestId)return;
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
   label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='SOURCE_HTTP_404'||reason==='SNAPSHOT_UNAVAILABLE'?'このレースの保存予想は取得できません。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
  }
