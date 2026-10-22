@@ -19,6 +19,88 @@ CACHE = {}
 ALL_TICKETS = {"-".join(map(str, p)) for p in permutations(range(1, 7), 3)}
 TICKET_RE = re.compile(r"(?<![0-9])([1-6])\s*[-－]\s*([1-6])\s*[-－]\s*([1-6])\s*(?:[：:]|\s)+\s*([0-9]+(?:\.[0-9]+)?)(?![0-9])")
 
+
+from html.parser import HTMLParser
+
+class OddsTableReader(HTMLParser):
+    """Extract table cells in visual row order, preserving rowspan semantics in odds table."""
+    def __init__(self):
+        super().__init__()
+        self.tables = []
+        self.table = None
+        self.row = None
+        self.cell = None
+        self.depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "table":
+            self.depth += 1
+            if self.depth == 1:
+                self.table = []
+        elif self.depth == 1 and tag == "tr":
+            self.row = []
+        elif self.depth == 1 and tag in ("td", "th") and self.row is not None:
+            self.cell = []
+        elif self.depth > 1 and tag in ("td", "th") and self.cell is not None:
+            pass
+
+    def handle_data(self, data):
+        if self.cell is not None:
+            self.cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in ("td", "th") and self.depth == 1 and self.cell is not None:
+            self.row.append("".join(self.cell).strip())
+            self.cell = None
+        elif tag == "tr" and self.depth == 1 and self.row is not None:
+            self.table.append(self.row)
+            self.row = None
+        elif tag == "table" and self.depth:
+            self.depth -= 1
+            if self.depth == 0:
+                self.tables.append(self.table)
+                self.table = None
+
+def parse_official_odds_table(html):
+    """Six first-place columns, 20 second/third combinations per column; fail closed."""
+    parser = OddsTableReader()
+    parser.feed(html)
+    for rows in parser.tables:
+        # Official odds matrix: 20 rows, six repeating groups. Header rows may surround it.
+        for begin in range(max(0, len(rows) - 19)):
+            block = rows[begin:begin + 20]
+            if len(block) != 20:
+                continue
+            odds = {}
+            try:
+                for idx, row in enumerate(block):
+                    needed = 18 if idx % 4 == 0 else 12
+                    if len(row) != needed:
+                        raise ValueError("Unexpected odds row width")
+                    group_size = 3 if idx % 4 == 0 else 2
+                    for first in range(1, 7):
+                        group = row[(first-1)*group_size:first*group_size]
+                        if group_size == 3:
+                            second, third, value = group
+                        else:
+                            third, value = group
+                            second = block[idx-(idx%4)][(first-1)*3]
+                        a, b, c = first, int(second), int(third)
+                        if len({a,b,c}) != 3:
+                            raise ValueError("Invalid combination")
+                        odd = float(value.replace(",", ""))
+                        if not (1 <= odd <= 1000000):
+                            raise ValueError("Invalid odds")
+                        key = f"{a}-{b}-{c}"
+                        if key in odds:
+                            raise ValueError("Duplicate combination")
+                        odds[key] = odd
+                if set(odds) == ALL_TICKETS:
+                    return odds
+            except (ValueError, IndexError, TypeError):
+                continue
+    raise ValueError("Official odds table could not be parsed as 120 unique combinations")
+
 def get_odds(params):
     hd = params.get("hd", [""])[0]
     jcd = params.get("jcd", [""])[0]
@@ -47,18 +129,7 @@ def get_odds(params):
             if len(raw) > 1500000:
                 raise ValueError("HTML too large")
         html = raw.decode("utf-8", errors="replace")
-        matches = TICKET_RE.findall(html)
-        odds = {}
-        for a,b,c,v in matches:
-            ticket = a+"-"+b+"-"+c
-            if len({a,b,c}) != 3 or ticket in odds:
-                raise ValueError("Duplicate or invalid ticket")
-            value = float(v)
-            if not (1 <= value <= 1000000):
-                raise ValueError("Invalid odds")
-            odds[ticket] = value
-        if set(odds) != ALL_TICKETS:
-            raise ValueError("Unsupported HTML odds structure")
+        odds = parse_official_odds_table(html)
         result = 200, {"ok": True, "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
     except Exception as exc:
         logging.warning("odds_refresh_failed race=%s-%s-%s reason=%s: %s", hd, jcd, rno, type(exc).__name__, str(exc)[:160])
