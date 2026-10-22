@@ -30,6 +30,23 @@ jobs:
           test -s index.html
           grep -q 'BOAT EDGE' index.html
           ! grep -q "status==='research'" index.html
+      - name: Validate inline JavaScript and TopK UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          page = Path('index.html').read_text()
+          scripts = re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>', page)
+          if len(scripts) != 1:
+              raise SystemExit('Expected exactly one inline script')
+          for size in (3, 5, 10):
+              if f'data-top="{size}"' not in page:
+                  raise SystemExit(f'Missing Top{size} selector')
+          if "status==='research'" in scripts[0]:
+              raise SystemExit('Unverified research prediction fallback')
+          Path('/tmp/clean-inline.js').write_text(scripts[0])
+          PY
+          node --check /tmp/clean-inline.js
       - name: Stage only public files
         run: |
           mkdir -p public
