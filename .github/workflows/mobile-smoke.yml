@@ -45,6 +45,23 @@ jobs:
               await page.locator('#day').fill('2026-10-21');
               if(!(await page.locator('#selected').innerText()).includes('2026-10-21'))throw Error('Date change failed');
               if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds after date change');
+              // Test in-flight switch with a delayed controlled API reply.
+              await page.route('**/api/odds?*', async route=>{
+                await new Promise(resolve=>setTimeout(resolve,900));
+                await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,message:'通信テスト：一時的に取得できません'})});
+              });
+              await page.locator('#races button').nth(0).click();
+              await page.waitForTimeout(1100);
+              await page.locator('#refresh').click();
+              await page.locator('#races button').nth(1).click();
+              await page.waitForTimeout(1400);
+              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale response inserted after switch');
+              if(!(await page.locator('#oddsStatus').innerText()).includes('レースを選んで'))throw Error('Stale error overwrote selected race');
+              if(await page.locator('#refresh').isDisabled())throw Error('Refresh stayed disabled after switch');
+              await page.locator('#refresh').click();
+              await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('一時的に取得できません'),null,{timeout:8000});
+              if(await page.locator('#refresh').isDisabled())throw Error('Refresh stayed disabled after API error');
+              await page.unroute('**/api/odds?*');
               if(errors.length)throw Error('JS errors: '+errors.join('; '));
               console.log('PASS: mobile 24 venues, race selection and 120 live odds cells');
             }finally{await browser.close()}
