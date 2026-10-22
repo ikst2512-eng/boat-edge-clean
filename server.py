@@ -9,6 +9,9 @@ import os
 import re
 import threading
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 ROOT = Path(__file__).resolve().parent
 LOCK = threading.Lock()
@@ -57,8 +60,9 @@ def get_odds(params):
         if set(odds) != ALL_TICKETS:
             raise ValueError("Unsupported HTML odds structure")
         result = 200, {"ok": True, "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
-    except Exception:
-        result = 503, {"ok": False, "message": "現在このレースのオッズを取得・解析できません。時間をおいて更新してください。"}
+    except Exception as exc:
+        logging.warning("odds_refresh_failed race=%s-%s-%s reason=%s: %s", hd, jcd, rno, type(exc).__name__, str(exc)[:160])
+        result = 503, {"ok": False, "message": "このレースのオッズをまだ取得できません。開催状況を確認し、少ししてから更新してください。"}
     with LOCK:
         CACHE[key] = (time.monotonic(), result[0], result[1])
     return result
