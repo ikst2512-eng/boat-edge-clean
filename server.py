@@ -121,6 +121,7 @@ def get_odds(params):
         if saved and now - saved[0] < (60 if saved[1] == 200 else 5):
             return saved[1], saved[2]
         INFLIGHT.add(key)
+    logging.info("odds_refresh_started venue=%s race=%s", jcd, rno)
     url = "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=" + hd + "&jcd=" + jcd + "&rno=" + rno
     try:
         req = Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN/1.0", "Accept": "text/html"})
