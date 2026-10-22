@@ -91,7 +91,7 @@ jobs:
               let raceText=JSON.stringify(race);const predText=JSON.stringify(pred);
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 const url=route.request().url();
-                const body=url.includes(racePath)?raceText:url.includes(predPath)?predText:null;
+                const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',races:[{race_no:1}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?predText:null;
                 return route.fulfill(body?{status:200,contentType:'application/json',body}:{status:404,body:'{}'});
               });
               await page.route('https://api.github.com/**',route=>{
@@ -99,6 +99,9 @@ jobs:
                 const body=url.includes('/commits?')?[{sha}]:{files:[{filename:path,status:'added'}],commit:{committer:{date:'2026-10-22T06:13:00Z'}}};
                 return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
               });
+              await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22');
+              await page.waitForFunction(()=>document.querySelector('#venues button:nth-child(12)')?.classList.contains('on'));
+              if(!await page.locator('#venues button').nth(11).evaluate(el=>el.classList.contains('held')))throw Error('active venue not highlighted');
               await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22&venue=12&race=1');
               await page.locator('#raceDataRows tr').first().waitFor({timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
