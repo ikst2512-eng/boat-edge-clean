@@ -11,7 +11,7 @@ async function verifiedStoredPrediction(key,force=false){
  const path='data/site_prediction_snapshots/'+key+'.json';
  const currentRes=await fetch(EDGE_RAW+'/main/'+path,{cache:'no-store'});
  if(currentRes.status===404)throw Error('PREDICTION_NOT_PUBLISHED');
- if(!currentRes.ok)throw Error('SNAPSHOT_UNAVAILABLE');
+ if(!currentRes.ok)throw Error('SOURCE_HTTP_'+currentRes.status);
  const currentText=await currentRes.text();
  let commits=[],page=1;
  for(;page<=10;page++){
@@ -26,7 +26,7 @@ async function verifiedStoredPrediction(key,force=false){
  const file=commit.files&&commit.files.find(f=>f.filename===path);
  if(!file||file.status!=='added')throw Error('FIRST_ADD_UNCONFIRMED');
  const firstRes=await fetch(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'});
- if(!firstRes.ok)throw Error('SNAPSHOT_UNAVAILABLE');
+ if(!firstRes.ok)throw Error('SOURCE_HTTP_'+firstRes.status);
  const firstText=await firstRes.text();
  if(firstText!==currentText)throw Error('SNAPSHOT_CHANGED_SINCE_FIRST_ADD');
  const raw=JSON.parse(firstText);
@@ -61,6 +61,6 @@ async function loadPredictions(force=false){
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
-  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースの保存予想はまだ公開されていません。':reason==='SOURCE_HTTP_404'||reason==='SNAPSHOT_UNAVAILABLE'?'このレースの保存予想は取得できません。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
+  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'データ取得制限のため確認できません。再読み込みをお試しください。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースの保存予想はまだ公開されていません。':reason==='SOURCE_HTTP_404'?'初回保存原本を取得できません。':reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'?'通信または配信元の応答に問題があります。再読み込みをお試しください。':'保存原本・初回保存記録を確認できないため、買い目を表示しません。';
  }
 };render();</script></body></html>
