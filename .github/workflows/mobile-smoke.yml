@@ -1,0 +1,41 @@
+name: Mobile browser smoke test
+on:
+  push:
+    paths:
+      - 'index.html'
+      - '.github/workflows/mobile-smoke.yml'
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Verify venue, race and live odds UI
+        run: |
+          node <<'JS'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2});
+            try{
+              const errors=[];
+              page.on('pageerror',e=>errors.push(e.message));
+              await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+              await page.locator('#venues button').first().waitFor();
+              if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
+              await page.locator('#venues button').nth(11).click();
+              await page.locator('#races button').nth(0).click();
+              await page.locator('#day').fill('2026-10-22');
+              await page.locator('#refresh').click();
+              await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
+              if(await page.locator('#oddsData .chosen').count()!==120)throw Error('Missing odds cells');
+              if(errors.length)throw Error('JS errors: '+errors.join('; '));
+              console.log('PASS: mobile 24 venues, race selection and 120 live odds cells');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
