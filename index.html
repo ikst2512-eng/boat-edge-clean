@@ -145,7 +145,7 @@ async function loadRaceData(force=false){
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
   const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—';
-  const byLane=(a,lane)=>a.find(x=>x.lane===lane)||{};
+  const byLane=(a,lane)=>a.find(x=>x&&Number(x.lane)===lane)||{};
   Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1)||{lane:i+1,name:'未提供'}).forEach(r=>{
    const ex=byLane(preview,r.lane),st=byLane(starts,r.lane),row=document.createElement('tr');
    const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&Number.isFinite(b)?'%':'')+' / '+txt(c)+(rate&&Number.isFinite(c)?'%':'');
@@ -158,7 +158,7 @@ async function loadRaceData(force=false){
  }catch(e){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   const reason=e instanceof Error?e.message:'';
-  status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'GitHubの履歴APIが利用制限中です。時間をおいて再読み込みしてください。':reason==='RACE_SOURCE_REWRITTEN'?'初回Git記録と現行原本が一致しないため表示を停止しました。':reason==='CARD_FIRST_GIT_NOT_PREDEADLINE'?'締切前のGit記録を証明できないため表示を停止しました。':reason==='RACE_HISTORY_UNKNOWN'||reason==='RACE_FIRST_ADD_UNKNOWN'||reason==='RACE_FIRST_SOURCE_UNAVAILABLE'?'初回Git記録を確認できないため表示を停止しました。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
+  status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
  }
 }
 async function loadPredictions(force=false){
