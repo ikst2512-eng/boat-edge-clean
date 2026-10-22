@@ -272,6 +272,15 @@ jobs:
               if(!heiwajima.includes('.02')||!heiwajima.includes('6.85'))throw Error('Real Heiwajima exhibition mismatch');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Heiwajima six lanes missing');
               console.log('REAL_SECOND_VENUE_EXHIBITION_PASS',url.toString());
+              // Genuine saved Edogawa race with published_wait: do not display unverified exhibition.
+              url.searchParams.set('venue','3');url.searchParams.set('race','1');
+              await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示が未提供・未検証'),null,{timeout:30000});
+              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Edogawa missing-data lanes');
+              const readings=await page.locator('#exhibitionGrid .exhibition-metric strong').allInnerTexts();
+              if(readings.length!==18||readings.some(v=>v!=='—'))throw Error('Edogawa unverified preview leaked');
+              console.log('REAL_MISSING_EXHIBITION_BROWSER_PASS',url.toString());
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
