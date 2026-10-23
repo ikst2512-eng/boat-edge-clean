@@ -302,7 +302,7 @@ let displayedPredictionKey='';
 const predictionRetryAt=new Map();
 async function loadPredictions(force=false){
  const raceKey=sameRaceKey();
- if(!force&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey))return;
+ if(!force&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();document.getElementById('predictionStatus').textContent='保存予想の未公開、または照合先のアクセス制限を確認しました。5分後に自動で再確認します。「再読み込み」で今すぐ再確認できます。';return;}
  if(force)predictionRetryAt.delete(raceKey);
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
  const key=sameRaceKey(),retain=force&&displayedPredictionKey===key&&predictionTickets.length>0;
