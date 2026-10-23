@@ -124,7 +124,6 @@ function renderDeadlines(data){
  }
  document.getElementById('deadlineStatus').textContent=upcoming.length?'締切が近い'+upcoming.length+'レースを表示｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません';
 }
-let resultRequestId=0;
 async function compareConfirmedResult(key,combo){
  const target=document.getElementById('resultComparison');
  target.replaceChildren();
