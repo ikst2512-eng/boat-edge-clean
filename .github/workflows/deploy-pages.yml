@@ -268,6 +268,11 @@ jobs:
               if(!first.includes('F.04')||!first.includes('-0.5'))throw Error('Real Suminoe JSON mismatch');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('Real JSON six lanes missing');
               if(await page.locator('#exhibitionGrid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length)!==1)throw Error('Real JSON exhibition is not vertical');
+              await page.locator('.view-tabs [data-view="result"]').click();
+              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent==='保存済み確定結果',null,{timeout:30000});
+              const result=await page.locator('#resultDetail').innerText();
+              if(!result.includes('1-2-3')||!result.includes('640円'))throw Error('Real stored result mismatch');
+              console.log('REAL_STORED_RESULT_BROWSER_PASS',url.toString());
               console.log('REAL_SAVED_EXHIBITION_BROWSER_PASS',url.toString());
               // A second venue confirms real source readings are not fixture-specific.
               url.searchParams.set('venue','4');url.searchParams.set('race','9');
