@@ -149,9 +149,15 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#venues button:nth-child(12)')?.classList.contains('on'));
               if(!await page.locator('#venues button').nth(11).evaluate(el=>el.classList.contains('held')))throw Error('active venue not highlighted');
               await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22&venue=12&race=1');
+              // Chronological race navigation is built from saved race deadlines.
+              if(await page.locator('#deadlineList .deadline-item').count()!==1)throw Error('deadline navigation did not load');
+              if(!(await page.locator('#deadlineList .deadline-item').first().innerText()).includes('15:16'))throw Error('deadline label missing');
               await page.locator('#raceDataRows tr').first().waitFor({timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
+              await page.locator('.view-tabs [data-view="result"]').click();
+              if(!await page.locator('#resultSection').isVisible())throw Error('result tab missing');
+              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent.includes('未保存・未確認'));
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('six exhibition cards missing');
