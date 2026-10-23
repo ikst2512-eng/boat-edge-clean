@@ -56,9 +56,9 @@ document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListene
 // Keyboard navigation stays inside the four tabs; Enter/Space works natively.
 document.querySelector('.view-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...document.querySelectorAll('.view-tabs [role="tab"]')];const current=tabs.indexOf(document.activeElement);if(current<0)return;e.preventDefault();const index=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[index].focus();tabs[index].click()});
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
-setInterval(()=>{if(document.hidden||s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='forecast')loadPredictions(true);else if(activeView==='result')loadResult(true)},60000);
+setInterval(()=>{if(document.hidden||s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();else if(activeView==='result')loadResult(true)},60000);
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast')loadPredictions(true);if(activeView==='result')loadResult(true)}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();if(activeView==='result')loadResult(true)}});
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
 async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
