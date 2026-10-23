@@ -105,7 +105,7 @@ function clearDeadlines(message){document.getElementById('deadlineList').replace
 function renderDeadlines(data){
  const list=document.getElementById('deadlineList');list.replaceChildren();
  const ymd=s.date.replaceAll('-','');
- const items=data.venues.flatMap(v=>(v.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&/^\\d{2}:\\d{2}$/.test(r.deadline||'')).map(r=>({venue:Number(v.jcd),name:v.venue||names[Number(v.jcd)-1],race:Number(r.race_no),time:r.deadline,key:ymd+'-'+v.jcd+'-'+p(r.race_no)}))).filter(x=>x.venue>=1&&x.venue<=24&&x.race>=1&&x.race<=12);
+ const items=data.venues.flatMap(v=>(v.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&/^\d{2}:\d{2}$/.test(r.deadline||'')).map(r=>({venue:Number(v.jcd),name:v.venue||names[Number(v.jcd)-1],race:Number(r.race_no),time:r.deadline,key:ymd+'-'+v.jcd+'-'+p(r.race_no)}))).filter(x=>x.venue>=1&&x.venue<=24&&x.race>=1&&x.race<=12);
  items.sort((a,b)=>a.time.localeCompare(b.time)||a.venue-b.venue||a.race-b.race);
  const now=jst(),current=fmt(now)===s.date?now.getHours()*60+now.getMinutes():null;
  for(const item of items){
@@ -123,7 +123,6 @@ let resultRequestId=0;
 async function loadResult(){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail');
  detail.replaceChildren();status.textContent='結果データを確認中…';
- const cutoff=Date.parse(s.date+'T23:59:59+09:00');
  // Result data is displayed separately and never supplied to the pre-result prediction loader.
  try{
   const res=await fetch(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
