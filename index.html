@@ -139,7 +139,7 @@ async function loadResult(quiet=false){
   const combo=document.createElement('div');combo.className='result-combo';combo.textContent='3連単 '+raw.trifecta;
   const pay=document.createElement('div');pay.className='result-payout';pay.textContent='払戻 '+payout.toLocaleString('ja-JP')+'円 / 100円';
   const stamp=document.createElement('p');stamp.className='muted';stamp.textContent='結果の保存記録 '+raw.fetched_at;
-  panel.append(combo,pay,stamp);detail.append(panel);status.textContent='保存済み確定結果';
+  panel.append(combo,pay,stamp);detail.replaceChildren(panel);status.textContent='保存済み確定結果';
  }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;status.textContent='結果データを検証できませんでした（未確定・取得エラーを確定扱いしません）'}
 }
 async function loadHeldVenues(force=false){
