@@ -137,7 +137,7 @@ jobs:
               let raceText=JSON.stringify(race);const predText=JSON.stringify(pred);let predictionUnavailable=false,predictionHttpFailure=false;
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 const url=route.request().url();
-                const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',races:[{race_no:1}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?(predictionUnavailable||predictionHttpFailure?null:predText):null;
+                const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',venue:'住之江',races:[{race_no:1,deadline:'15:16'}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?(predictionUnavailable||predictionHttpFailure?null:predText):null;
                 return route.fulfill(predictionHttpFailure&&url.includes(predPath)?{status:503,headers:cors,body:'temporary outage'}:body?{status:200,contentType:'application/json',headers:cors,body}:{status:404,headers:cors,body:'{}'});
               });
               await page.route('https://api.github.com/**',route=>{
