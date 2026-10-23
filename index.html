@@ -115,7 +115,8 @@ async function verifiedStoredPrediction(key,force=false){
  if(!/^[a-f0-9]{64}$/.test(raw.race_sha256)||!/^[a-f0-9]{64}$/.test(raw.odds_sha256))throw Error('SOURCE_SHA_INVALID');
  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.deadline))throw Error('DEADLINE_INVALID');
  const limit=Date.parse(key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)+'T'+raw.deadline+':00+09:00'),saved=Date.parse(raw.first_saved_at),added=Date.parse(commit.commit?.committer?.date);
- if(![limit,saved,added].every(Number.isFinite)||saved>added||added>=limit||limit-saved<120000||limit-saved>600000||limit-added<120000||limit-added>600000)throw Error('FREEZE_TIME_NOT_PROVEN');
+ // Git commits carry whole-second timestamps; first_saved_at can include fractional seconds.
+ if(![limit,saved,added].every(Number.isFinite)||Math.floor(saved/1000)>Math.floor(added/1000)||added>=limit||limit-saved<120000||limit-saved>600000||limit-added<120000||limit-added>600000)throw Error('FREEZE_TIME_NOT_PROVEN');
  const mode=raw.default_display_mode;
  if(mode!=='tail'||!verifiedTicketArray(raw.modes?.[mode]?.tickets?.map(t=>t.combo)))throw Error('PREDICTIONS_INVALID');
  if(raw.modes[mode].tickets.some(t=>!Number.isFinite(t.p)||t.p<0||t.p>100))throw Error('PREDICTION_SCORE_INVALID');
