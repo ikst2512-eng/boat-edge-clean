@@ -51,7 +51,9 @@ function setView(view){
  document.getElementById('resultSection').hidden=view!=='result';
  document.getElementById('raceDataHeading').textContent=view==='exhibit'?'展示情報':'出走表・選手成績';
 }
-document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.view);if(b.dataset.view==='result')loadResult()}));
+// Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
+setInterval(()=>{if(activeView==='result'&&!document.hidden&&s.date===fmt(jst()))loadResult(true)},60000);
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
 async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
@@ -120,14 +122,14 @@ function renderDeadlines(data){
  document.getElementById('deadlineStatus').textContent=items.length?'締切の早い順・全'+items.length+'R｜押すとレースを表示':'締切情報がありません';
 }
 let resultRequestId=0;
-async function loadResult(){
+async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail');
- detail.replaceChildren();status.textContent='結果データを確認中…';
+ if(!quiet)detail.replaceChildren();status.textContent=quiet?'結果の更新を確認中…':'結果データを確認中…';
  // Result data is displayed separately and never supplied to the pre-result prediction loader.
  try{
   const res=await fetch(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
   if(token!==resultRequestId||key!==sameRaceKey())return;
-  if(res.status===404){status.textContent='結果は未保存・未確認です';return}
+  if(res.status===404){detail.replaceChildren();status.textContent='確定結果はまだ保存されていません（60秒ごとに再確認）';return}
   if(!res.ok)throw Error('HTTP_'+res.status);
   const raw=await res.json();
   if(token!==resultRequestId||key!==sameRaceKey())return;
@@ -138,7 +140,7 @@ async function loadResult(){
   const pay=document.createElement('div');pay.className='result-payout';pay.textContent='払戻 '+payout.toLocaleString('ja-JP')+'円 / 100円';
   const stamp=document.createElement('p');stamp.className='muted';stamp.textContent='結果の保存記録 '+raw.fetched_at;
   panel.append(combo,pay,stamp);detail.append(panel);status.textContent='保存済み確定結果';
- }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;status.textContent='結果データを検証できませんでした'}
+ }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;status.textContent='結果データを検証できませんでした（未確定・取得エラーを確定扱いしません）'}
 }
 async function loadHeldVenues(force=false){
  const date=s.date;
