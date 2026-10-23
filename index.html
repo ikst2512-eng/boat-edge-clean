@@ -129,14 +129,20 @@ async function verifiedStoredPrediction(key,force=false){
 
 const verifiedRaceCache=new Map();
 let venueDateChecked='',venueRequest=0;
-function clearDeadlines(message){document.getElementById('deadlineList').replaceChildren();document.getElementById('deadlineStatus').textContent=message}
+function clearDeadlines(message){const list=document.getElementById('deadlineList');list.replaceChildren();delete list.dataset.signature;document.getElementById('deadlineStatus').textContent=message}
 function renderDeadlines(data){
- const list=document.getElementById('deadlineList');list.replaceChildren();
+ const list=document.getElementById('deadlineList');
  const ymd=s.date.replaceAll('-','');
  const items=data.venues.flatMap(v=>(v.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&/^\d{2}:\d{2}$/.test(r.deadline||'')).map(r=>({venue:Number(v.jcd),name:v.venue||names[Number(v.jcd)-1],race:Number(r.race_no),time:r.deadline,key:ymd+'-'+v.jcd+'-'+p(r.race_no)}))).filter(x=>x.venue>=1&&x.venue<=24&&x.race>=1&&x.race<=12);
  items.sort((a,b)=>a.time.localeCompare(b.time)||a.venue-b.venue||a.race-b.race);
  const currentTime=Date.now();
  const upcoming=items.filter(item=>Date.parse(s.date+'T'+item.time+':00+09:00')>currentTime).slice(0,3);
+ const signature=upcoming.map(item=>item.key+'@'+item.time).join('|');
+ if(list.dataset.signature===signature){
+  [...list.children].forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));
+  return;
+ }
+ list.dataset.signature=signature;list.replaceChildren();
  for(const item of upcoming){
   const btn=document.createElement('button');btn.type='button';btn.className='deadline-item';btn.dataset.venue=String(item.venue);btn.dataset.race=String(item.race);
   
