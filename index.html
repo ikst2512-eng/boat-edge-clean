@@ -141,10 +141,14 @@ async function compareConfirmedResult(key,combo){
   row('Top5',pos>=0&&pos<5?'的中':'不的中',pos>=0&&pos<5?'comparison-hit':'comparison-miss');
   row('Top10',pos>=0?'的中':'不的中',pos>=0?'comparison-hit':'comparison-miss');
   row('予想内順位',pos>=0?String(pos+1)+'位':'Top10圏外');
+  if(pos>=0){row('一致した買い目',prediction.tickets[pos]+'（'+(pos+1)+'位）','comparison-hit')}
   const note=document.createElement('p');note.className='muted';note.textContent='締切前の初回Git保存が照合できた予想のみ比較。結果は予想モデルへ入力しません。';target.append(note);
  }catch(e){
   if(key!==sameRaceKey()||activeView!=='result')return;
-  row('照合','締切前保存予想を検証できないため判定保留');
+  const reason=e instanceof Error?e.message:'';
+  const unavailable=reason==='PREDICTION_NOT_PUBLISHED'||reason==='SNAPSHOT_UNAVAILABLE';
+  row('照合',unavailable?'締切前の保存予想がありません':'締切前保存予想の検証が未完了');
+  const note=document.createElement('p');note.className='muted';note.textContent='予想の原本と初回Git記録を確認できない場合、結果だけから的中・不的中を判定しません。';target.append(note);
  }
 }
 let resultRequestId=0;
