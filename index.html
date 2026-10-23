@@ -53,7 +53,7 @@ function setView(view){
 }
 document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListener('click',()=>{const previous=activeView;setView(b.dataset.view);if(previous!==activeView){if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast')loadPredictions();else if(activeView==='result')loadResult()}}));
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
-setInterval(()=>{if(document.hidden||s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='result')loadResult(true)},60000);
+setInterval(()=>{if(document.hidden||s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='forecast')loadPredictions(true);else if(activeView==='result')loadResult(true)},60000);
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast')loadPredictions(true);if(activeView==='result')loadResult(true)}});
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
