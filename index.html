@@ -197,10 +197,16 @@ async function loadHeldVenues(force=false){
   renderDeadlines(data);
   const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
   [...vb.children].forEach((b,i)=>{if(available.has(i+1)){b.classList.add('held');b.dataset.held='true'}});
-  if(!venueSpecified&&!venueTouched&&available.size&&!available.has(s.venue+1)){
-   const first=Math.min(...available);
-   s.venue=first-1;s.race=1;
-   render();
+  if(!venueSpecified&&!venueTouched){
+   // Follow the earliest genuinely upcoming race, not an arbitrary venue 1R.
+   // Never change an explicit choice or an archived date.
+   const current=fmt(jst())===s.date?jst().getHours()*60+jst().getMinutes():null;
+   const next=data.venues.flatMap(v=>(v.races||[]).map(r=>({venue:Number(v.jcd),race:Number(r.race_no),time:r.deadline})))
+     .filter(r=>r.venue>=1&&r.venue<=24&&r.race>=1&&r.race<=12&&/^\\d{2}:\\d{2}$/.test(r.time||'')&&(current===null||Number(r.time.slice(0,2))*60+Number(r.time.slice(3))>=current))
+     .sort((a,b)=>a.time.localeCompare(b.time)||a.venue-b.venue||a.race-b.race)[0];
+   if(next&&(s.venue!==next.venue-1||s.race!==next.race)){
+    s.venue=next.venue-1;s.race=next.race;render();
+   }
   }
   if(token!==venueRequest||date!==s.date)return;
   status.textContent='開催情報：'+available.size+'場｜締切前は次の3レースのみ表示';
