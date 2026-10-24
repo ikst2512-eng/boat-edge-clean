@@ -73,78 +73,25 @@ jobs:
             rows.append(rec)
           print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":rows,"race_pages_requested":0,"results_endpoint_requested":False,"forecast_generated":False},ensure_ascii=False,indent=2))
           PY
-      - name: Diagnose official pre-race page structure without result content
+      - name: Validate today's active venue using official race list metadata
         shell: bash
         run: |
-          python3 - <<'PY' > audit-output/beforeinfo-structure.json
-          import datetime as dt, json, urllib.request, urllib.parse, re, hashlib, html
-          from html.parser import HTMLParser
-          now=dt.datetime.now(dt.timezone(dt.timedelta(hours=9)))
-          day=now.strftime("%Y%m%d")
-          url="https://www.boatrace.jp/owpc/pc/race/beforeinfo?"+urllib.parse.urlencode({"rno":"12","jcd":"12","hd":day})
-          report={"checked_at_jst":now.isoformat(),"race_id":day+"1212","source_type":"official_beforeinfo","result_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"}
-          try:
-            request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"})
-            with urllib.request.urlopen(request,timeout=15) as resp:
-              raw=resp.read(500001)
-              charset=resp.headers.get_content_charset() or "utf-8"
-              report.update({"http_status":resp.status,"content_type":resp.headers.get("Content-Type",""),"charset":charset,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"final_path":urllib.parse.urlsplit(resp.url).path})
-            decoded=raw.decode(charset,"replace")
-            class Structure(HTMLParser):
-              def __init__(self):super().__init__();self.tags={};self.tables=0;self.titles=[]
-              def handle_starttag(self,tag,attrs):
-                self.tags[tag]=self.tags.get(tag,0)+1
-                if tag=="table":self.tables+=1
-            structure=Structure();structure.feed(decoded)
-            report.update({"html_tables":structure.tables,"html_rows":structure.tags.get("tr",0),"html_cells":structure.tags.get("td",0),"page_is_html":"<html" in decoded.lower(),"has_exhibition_token":"展示" in decoded,"has_entry_token":"進入" in decoded,"has_javascript":structure.tags.get("script",0)>0,"has_result_related_token":bool(re.search("払戻金|確定結果|着順結果",decoded)),"safe_for_forecast":False,"raw_page_persisted":False})
-          except Exception as exc:report.update({"error_type":type(exc).__name__,"error":str(exc)[:100]})
-          print(json.dumps(report,ensure_ascii=False,indent=2))
-          PY
-      - name: Check page identity and redirect without storing page text
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/page-identity.json
-          import urllib.request,urllib.parse,urllib.error,datetime,json,hashlib,re
-          today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
-          queries=[
-            ("beforeinfo","https://www.boatrace.jp/owpc/pc/race/beforeinfo?"+urllib.parse.urlencode({"rno":"12","jcd":"12","hd":today})),
-            ("raceindex","https://www.boatrace.jp/owpc/pc/race/raceindex?"+urllib.parse.urlencode({"jcd":"12","hd":today}))
-          ]
-          entries=[]
-          for label,url in queries:
-            row={"endpoint":label,"requested_path":urllib.parse.urlsplit(url).path}
+          python3 - <<'PY' > audit-output/venue-preflight.json
+          import datetime as dt,urllib.parse,urllib.request,json,re,hashlib
+          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
+          # Tamagawa is scheduled to race on October 25; do not use closed Suminoe.
+          jcd="05"
+          endpoints={"racelist":f"https://www.boatrace.jp/owpc/pc/race/racelist?jcd={jcd}&hd={day}&rno=12","beforeinfo":f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd={jcd}&hd={day}&rno=12"}
+          rows=[]
+          for name,url in endpoints.items():
+            info={"endpoint":name,"jcd":jcd,"hd":day,"rno":12}
             try:
-              request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"})
-              with urllib.request.urlopen(request,timeout=15) as r:
-                data=r.read(250000); final=urllib.parse.urlsplit(r.url)
-                row.update({"status":r.status,"final_path":final.path,"redirected":r.url!=url,"content_type":r.headers.get("Content-Type",""),"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()})
-                sample=data.decode("utf-8","replace")
-                titles=re.findall(r"<title[^>]*>(.*?)</title\s*>",sample,re.I|re.S)
-                row.update({"title_length":len(titles[0].strip()) if titles else 0,"html_tag_count":sample.lower().count("<html"),"body_tag_count":sample.lower().count("<body"),"table_tag_count":sample.lower().count("<table"),"status_403_word":("403 Forbidden" in sample),"status_maintenance_word":("maintenance" in sample.lower())})
-            except Exception as e:row.update({"error_type":type(e).__name__,"error":str(e)[:100]})
-            entries.append(row)
-          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"page_identity_checks":entries,"results_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
-          PY
-      - name: Detect official site interstitial without saving page text
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/response-classification.json
-          import urllib.request,urllib.parse,json,datetime,hashlib,re
-          now=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-          day=now.strftime("%Y%m%d")
-          url="https://www.boatrace.jp/owpc/pc/race/beforeinfo?"+urllib.parse.urlencode({"rno":"12","jcd":"12","hd":day})
-          info={"at_jst":now.isoformat(),"request_kind":"beforeinfo","result_endpoint_requested":False,"forecast_generated":False}
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as response:
-              data=response.read(500000);headers=response.headers
-              info.update({"status":response.status,"mime":headers.get("Content-Type"),"server":headers.get("Server"),"cache_control":headers.get("Cache-Control"),"body_sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data)})
-            page=data.decode("utf-8","replace")
-            hints={"access_denied":r"Access Denied|Forbidden|アクセスが集中|アクセスできません","javascript_challenge":r"enable javascript|JavaScriptを有効|challenge-platform|cf-chl","captcha":r"captcha|reCAPTCHA|hcaptcha","maintenance":r"メンテナンス|maintenance|ただいまご利用いただけません","error":r"エラーが発生|システムエラー|Error 403|Error 404","exhibition":r"展示タイム|展示情報","race_title":r"直前情報|レース一覧"}
-            info["hint_matches"]={k:bool(re.search(v,page,re.I)) for k,v in hints.items()}
-            info["text_length"]=len(re.sub(r"<[^>]+>","",page))
-            info["table_count"]=len(re.findall(r"<table\b",page,re.I))
-          except Exception as ex:info["error"]=type(ex).__name__
-          print(json.dumps(info,ensure_ascii=False,indent=2))
+              with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=16) as r:
+                raw=r.read(200001); page=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
+                info.update({"status":r.status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"table_count":len(re.findall(r"<table\\b",page,re.I)),"exhibition_word":("展示" in page),"outcome_word":bool(re.search("払戻金|確定結果|着順結果",page)),"source_usable":False})
+            except Exception as e:info["error_type"]=type(e).__name__
+            rows.append(info)
+          print(json.dumps({"date":day,"venue":"Tamagawa","schedule_source":"official venue calendar, 2026-10-25","records":rows,"outcomes_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
           PY
       - name: Always publish audit artifacts
         if: always()
