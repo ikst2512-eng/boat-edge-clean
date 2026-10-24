@@ -37,3 +37,13 @@ def check():
     assert "git push" not in workflow
     print("Nonpublic prospective capture boundary verified")
 if __name__=="__main__":check()
+
+
+def test_upload_cutoff_wiring():
+    from pathlib import Path
+    workflow=Path('.github/workflows/fresh-prospective-capture.yml').read_text()
+    assert 'Recheck cutoff immediately before artifact upload' in workflow
+    assert workflow.index('Recheck cutoff immediately before artifact upload') < workflow.index('actions/upload-artifact@v4')
+
+if __name__ == '__main__':
+    test_upload_cutoff_wiring()
