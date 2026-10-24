@@ -114,4 +114,8 @@ assert.ok(script.includes("courseAudit?.status==='ok'"),'course-specific data re
 assert.ok(script.includes('courseAt<courseDeadline'),'course-specific data must be collected before deadline');
 assert.ok(script.includes("r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01"),'course place percentages must have plausible sum');
 assert.ok(script.includes("validCourses"),'course rates must remain gated behind validation');
+assert.ok(!html.includes('class="reload-strip"'),'redundant standalone reload strip removed');
+assert.ok(html.includes('id="retryPrediction"'),'refresh remains available in race navigation');
+assert.ok(script.includes("document.getElementById('mobileRaceCards').replaceChildren();"),'stale mobile racers cleared when switching race');
+assert.ok(script.includes("document.getElementById('courseDataNotice').replaceChildren();"),'stale course stats cleared when switching race');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
