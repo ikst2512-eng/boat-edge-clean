@@ -250,6 +250,24 @@ def get_predictions(params):
             if len(set(ticket.split("-"))) != 3 or ticket in tickets:
                 raise ValueError("duplicate ticket")
             tickets.append(ticket)
+        # Verify that the API displays the actual ten highest-probability
+        # tickets of the complete normalized 120-way distribution.
+        from itertools import permutations
+        import math
+        valid = {f"{a}-{b}-{c}" for a, b, c in permutations(range(1, 7), 3)}
+        probabilities = record.get("probabilities")
+        if not isinstance(probabilities, dict) or set(probabilities) != valid:
+            raise ValueError("120-way distribution missing")
+        if any(type(p) not in (float, int) or not math.isfinite(p) or not 0 <= p <= 1
+               for p in probabilities.values()):
+            raise ValueError("invalid probability")
+        if abs(sum(probabilities.values()) - 1) > 1e-8:
+            raise ValueError("distribution is not normalized")
+        ranked = sorted(valid, key=lambda t: (-probabilities[t], tuple(map(int, t.split("-")))))
+        if len(raw) != 10 or any(item.get("ticket") != ticket or
+                item.get("probability") != probabilities[ticket]
+                for item, ticket in zip(raw, ranked[:10])):
+            raise ValueError("published top ten is not probability-ranked")
         if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
             raise ValueError("feed missing validation metadata")
         # Fail closed: an arbitrary validated=true flag is not evidence of a
