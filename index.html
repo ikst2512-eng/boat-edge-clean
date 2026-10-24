@@ -242,7 +242,8 @@ async function loadHeldVenues(force=false){
   const data=await response.json();
   if(token!==venueRequest||date!==s.date)return;
   if(data.date!==date||data.phase!=='PRE_RESULT'||data.results_seen!==false||data.unlock!==false||data.scoring!==false||!Array.isArray(data.venues)){
-   venueDateChecked='';todayVenueRaces=null;
+   venueDateChecked=date;todayVenueRaces=null;
+   // today.json only describes its own date: avoid refetching the same mismatch on every race click.
    clearDeadlines('この日付の締切データは未確認です');
    status.textContent='この日付の開催情報は確認できません（全24場から選択可能）';
    return;
