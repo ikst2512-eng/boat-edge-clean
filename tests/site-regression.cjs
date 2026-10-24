@@ -126,4 +126,9 @@ assert.ok(script.includes("details.append(toggle,specs)"),'equipment details rem
 assert.ok(script.includes("racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6"),'race card requires all six unique lanes');
 assert.ok(script.includes("new Set(racers.map(r=>String(r.registration_no||''))).size!==6"),'race card requires six unique registration numbers');
 assert.ok(script.includes("entryAudit.sha256||''"),'actual entry requires source digest');
+assert.ok(html.includes('id="mobileRaceMatrix"'),'mobile six-boat comparison matrix exists');
+assert.ok(html.includes('id="mobileRacerDetails"'),'full racer cards remain behind a disclosure');
+assert.ok(script.includes("matrixTable.className='boat-matrix-table'"),'comparative table populated with actual data');
+assert.ok(script.includes("document.getElementById('mobileRaceMatrix').replaceChildren();"),'race switch clears old comparison');
+assert.ok(script.includes("document.getElementById('mobileRacerDetails').hidden=view!=='card'"),'detailed cards hidden outside racer tab');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
