@@ -1,0 +1,44 @@
+name: Fresh v5 immutable publication
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'External v5 model identifier'
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: fresh-v5-immutable-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture externally supplied v5 snapshots
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d fresh_inbox ]; then
+            echo 'No external v5 inbox; nothing to publish'
+            exit 0
+          fi
+          python capture_fresh_candidates.py --inbox fresh_inbox --out fresh_snapshots --model-version "$MODEL_VERSION"
+      - name: Commit immutable new snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d fresh_snapshots ]; then exit 0; fi
+          git add -- fresh_snapshots/
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='fresh-v5-bot' -c user.email='fresh-v5-bot@users.noreply.github.com' commit -m 'Preserve v5 immutable forecasts'
+          git push origin HEAD:main
