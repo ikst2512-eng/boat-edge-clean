@@ -13,10 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Offline syntax and staging audit
+        shell: bash
         run: |
           mkdir -p audit-output
-          python3 -m compileall -q research-capture
+          set +e
+          python3 -m compileall -q research-capture > audit-output/compile.log 2>&1
+          compile_status=$?
           python3 research-capture/staging_audit.py > audit-output/staging-audit.log 2>&1
+          audit_status=$?
+          printf '{"compile_exit_code":%d,"staging_audit_exit_code":%d,"forecast_generated":false,"scoring":"NOT_RUN"}\n' "$compile_status" "$audit_status" > audit-output/exit-status.json
+          if [ "$compile_status" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
+            echo "Offline staging verification failed; inspect archived evidence"
+            exit 1
+          fi
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
