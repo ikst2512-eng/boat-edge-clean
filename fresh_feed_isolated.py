@@ -14,7 +14,7 @@ def collect(entries, resolver=assemble):
         raise ValueError("nonempty list required")
     accepted, rejected, seen = {}, [], set()
     for index,entry in enumerate(entries):
-        if not isinstance(entry,dict) or set(entry)!={"commit_sha","race_code","deadline_at"}:
+        if not isinstance(entry,dict) or set(entry)!={"commit_sha","race_code","deadline_at","run_id"}:
             raise ValueError("invalid manifest structure")
         code=entry["race_code"]
         key=race_key(code)
@@ -22,7 +22,7 @@ def collect(entries, resolver=assemble):
             raise ValueError("duplicate race in manifest")
         seen.add(key)
         try:
-            record=resolver(entry["commit_sha"],code,entry["deadline_at"])
+            record=resolver(entry["commit_sha"],code,entry["deadline_at"],entry["run_id"])
             if not isinstance(record,dict) or record.get("race_code")!=code or not isinstance(record.get("freeze_proof"),dict):
                 raise ValueError("invalid verified record")
             accepted[key]=record
