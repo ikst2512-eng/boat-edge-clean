@@ -36,20 +36,34 @@ def promote(staged_path,audit_path,branch,token,api=request_json):
     if not isinstance(candidate,dict) or not candidate:
         raise ValueError("empty candidate feed")
     url=f"https://api.github.com/repos/{REPO}/contents/{PATH}"
-    current=api("GET",url+"?ref="+branch,token)
-    if current.get("type")!="file" or not isinstance(current.get("sha"),str):
-        raise ValueError("existing GitHub feed unavailable")
-    decoded=base64.b64decode(current["content"])
+    try:
+        current=api("GET",url+"?ref="+branch,token)
+    except HTTPError as exc:
+        if exc.code!=404:
+            raise
+        current=None
+    from fresh_feed_incremental import merge
+    if current is None:
+        # First publication: the staging audit must have been built from
+        # the exact empty-file sentinel used by the staging command.
+        decoded=b"{}\n"
+        original={}
+        expected_blob_sha=None
+    else:
+        if current.get("type")!="file" or not isinstance(current.get("sha"),str):
+            raise ValueError("invalid GitHub feed metadata")
+        decoded=base64.b64decode(current["content"],validate=True)
+        original=json.loads(decoded)
+        expected_blob_sha=current["sha"]
     if hashlib.sha256(decoded).hexdigest()!=audit.get("previous_sha256"):
         raise ValueError("published feed changed since staging")
-    original=json.loads(decoded)
-    from fresh_feed_incremental import merge
     merged,added,unchanged=merge(original,candidate)
     if merged!=candidate or not added:
         raise ValueError("candidate is not a strict immutable extension")
     body={"message":"Append verified candidate predictions (no existing changes)",
-          "content":base64.b64encode(staged).decode("ascii"),
-          "sha":current["sha"],"branch":branch}
+          "content":base64.b64encode(staged).decode("ascii"),"branch":branch}
+    if expected_blob_sha is not None:
+        body["sha"]=expected_blob_sha
     result=api("PUT",url,token,body)
     if not isinstance(result.get("commit",{}).get("sha"),str):
         raise ValueError("GitHub did not return a commit")
