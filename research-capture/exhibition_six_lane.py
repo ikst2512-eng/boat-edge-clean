@@ -51,7 +51,7 @@ def inspect(raw: bytes, *, cutoff_verified=False):
             cells = [c.strip() for c in row]
             if not any("展示" in c or "ST" in c or "進入" in c for c in cells):
                 continue
-            numeric = [c for c in cells if re.fullmatch(r"(?:[1-6]|[0-9]{1,2}\\.[0-9]{1,2})", c)]
+            numeric = [c for c in cells if re.fullmatch(r"(?:[1-6]|[0-9]{1,2}\.[0-9]{1,2})", c)]
             entries.append({"table_index":ti, "row_index":ri, "cell_count":len(cells), "numeric_candidates":len(numeric)})
     return {
         "raw_sha256": hashlib.sha256(raw).hexdigest(),
