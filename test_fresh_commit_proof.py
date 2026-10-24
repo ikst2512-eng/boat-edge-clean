@@ -33,6 +33,17 @@ def test_proof_checks():
     # The verifier imports urlopen in module scope.
     with patch("server.urlopen",side_effect=fetch_ok):
         verify_commit_proof(PROOF,RECORD,"202610241201")
+    expect_reject({**PROOF,"run_id":None})
+    def bad_head(req,timeout=5):
+        if "/actions/runs/" in req.full_url:
+            return Response(json.dumps({"head_sha":"b"*40,"event":"push","conclusion":"success","created_at":"2026-10-24T02:07:00Z"}).encode())
+        return fetch_ok(req,timeout)
+    expect_reject(PROOF,fetch=bad_head)
+    def late_run(req,timeout=5):
+        if "/actions/runs/" in req.full_url:
+            return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success","created_at":"2026-10-24T03:00:00Z"}).encode())
+        return fetch_ok(req,timeout)
+    expect_reject(PROOF,fetch=late_run)
     expect_reject({**PROOF,"path":"../secrets.json"})
     expect_reject({**PROOF,"path":"fresh_snapshots/202610241202.json"})
     expect_reject({**PROOF,"committed_at":"2026-10-24T11:06:00+09:00"})
