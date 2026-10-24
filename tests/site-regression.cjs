@@ -96,4 +96,7 @@ const unverified=snap('2026-10-24T10:45:00+09:00','2026-10-24T10:46:00+09:00',fa
 assert.equal(merge(older,unverified).beforeinfo.racers[0].name,'preview-2026-10-24T10:36:00+09:00');
 assert.ok(script.includes('cardAt>Date.now()+300000'),'race-card timestamp in the future must be rejected');
 assert.ok(script.includes('previewAt<=Date.now()+300000'),'future exhibition data must not be treated as verified');
+assert.ok(html.includes('id="mobileRaceCards"'),'mobile six-lane comparison exists');
+assert.ok(script.includes("mobileCards.append(card)"),'mobile cards are populated from saved racers');
+assert.ok(html.includes('#raceDataSection[data-view="card"] .mobile-race-cards'),'mobile cards shown only on card tab');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
