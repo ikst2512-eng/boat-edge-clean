@@ -7,7 +7,7 @@ from datetime import datetime
 from server import verify_commit_proof
 
 RECORD = {"race_code":"202610241201","generated_at":"2026-10-24T11:00:00+09:00","validated":True,
-          "predictions":[{"ticket":"1-2-3"}],"model_version":"fixture"}
+          "predictions":[{"ticket":"1-2-3"}],"model_version":"fixture","deadline_at":"2026-10-24T12:00:00+09:00"}
 RAW = json.dumps(RECORD,sort_keys=True).encode()
 SHA = hashlib.sha256(RAW).hexdigest()
 PROOF = {"commit_sha":"a"*40,"path":"fresh_snapshots/202610241201.json",
