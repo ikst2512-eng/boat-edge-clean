@@ -430,7 +430,8 @@ async function loadRaceData(force=false){
   exhibitGrid.append(summary);
   const entryNote=document.createElement('div');entryNote.className='exhibition-entry-note';
   const actual=Array.isArray(raw.actual_entry)?raw.actual_entry:[];
-  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6;
+  const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
+  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
   entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
   exhibitGrid.append(entryNote);
   const laneColors=['#a3afbf','#24384d','#db4246','#2579c9','#d3ac18','#25895e'];
