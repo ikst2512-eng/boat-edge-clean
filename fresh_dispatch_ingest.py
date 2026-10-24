@@ -11,12 +11,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from fresh_feed_builder import canonical, convert
 
-def receive(event_bytes, out_dir, now=None):
+def receive(event_bytes, out_dir, now=None, expected_action='fresh_v5_snapshot'):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("aware now required")
     event=json.loads(event_bytes)
-    if event.get("action") != "fresh_v5_snapshot":
+    if expected_action not in ("fresh_v5_snapshot","fresh_v5_candidate") or event.get("action") != expected_action:
         raise ValueError("wrong dispatch event")
     data=event.get("client_payload")
     if not isinstance(data, dict) or set(data)!={"snapshot_base64","model_version"}:
@@ -46,5 +46,6 @@ if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--event",required=True)
     p.add_argument("--out-dir",default="fresh_snapshots")
+    p.add_argument("--event-type",choices=("fresh_v5_snapshot","fresh_v5_candidate"),default="fresh_v5_snapshot")
     a=p.parse_args()
-    print(receive(Path(a.event).read_bytes(),a.out_dir))
+    print(receive(Path(a.event).read_bytes(),a.out_dir,expected_action=a.event_type))
