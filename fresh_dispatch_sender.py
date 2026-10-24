@@ -8,6 +8,7 @@ from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from urllib.request import Request,urlopen
 from fresh_feed_builder import convert
+from fresh_formal_source_preflight import assess,check_remote
 
 URL="https://api.github.com/repos/ikst2512-eng/boat-edge-clean/dispatches"
 def prepare(path,model_version,now=None):
@@ -26,7 +27,10 @@ def prepare(path,model_version,now=None):
     return {"event_type":"fresh_v5_snapshot","client_payload":{
         "snapshot_base64":base64.b64encode(raw).decode("ascii"),
         "model_version":model_version}}
-def send(payload,token,opener=urlopen):
+def send(payload,token,opener=urlopen,source_check=check_remote):
+    status=source_check()
+    if status.get("ready") is not True:
+        raise ValueError("formal model source not ready: "+str(status.get("reason")))
     if not token:raise ValueError("FRESH_DISPATCH_TOKEN required")
     body=json.dumps(payload,separators=(",",":")).encode()
     if len(body)>65000:raise ValueError("dispatch exceeds request limit")
@@ -44,5 +48,7 @@ if __name__=="__main__":
     p.add_argument("--dry-run",action="store_true")
     a=p.parse_args()
     payload=prepare(a.snapshot,a.model_version)
-    if a.dry_run:print(json.dumps({"valid":True,"race_code":Path(a.snapshot).stem,"sent":False}))
+    if a.dry_run:
+        status=check_remote()
+        print(json.dumps({"valid_snapshot":True,"formal_source":status,"race_code":Path(a.snapshot).stem,"sent":False}))
     else:print(send(payload,os.environ.get("FRESH_DISPATCH_TOKEN","")))
