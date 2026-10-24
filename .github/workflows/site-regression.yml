@@ -5,6 +5,7 @@ on:
       - index.html
       - tests/site-regression.cjs
       - .github/workflows/site-regression.yml
+  workflow_dispatch:
   pull_request:
     paths:
       - index.html
@@ -21,4 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/site-regression.cjs
+      - name: Run regression suite
+        run: node tests/site-regression.cjs
+      - name: Record successful verification
+        if: success()
+        run: |
+          echo '## BOAT EDGE CLEAN regression' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Node.js 22 test execution: PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Command: `node tests/site-regression.cjs`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Scope: static validation and stored fixtures; not live-browser or Git-first-add proof' >> "$GITHUB_STEP_SUMMARY"
