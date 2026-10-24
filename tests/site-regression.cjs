@@ -48,7 +48,7 @@ assert.equal(resultValidator(validResult,'20261023-04-10',now),true);
 for(const patch of [
  {finish_order:[1,1,5]},{finish_order:[1,2,7]},{trifecta:'1-5-2'},
  {trifecta_payout_yen_per_100:-100},{trifecta_payout_yen_per_100:'1500'},
- {fetched_at:'2026-10-23T00:00:00Z'},{fetched_at:'2026-10-24T00:00:00+09:00'},
+ {fetched_at:'2026-10-22T14:00:00Z'},{fetched_at:'2026-10-24T00:00:00+09:00'},
  {source:validResult.source+'&jcd=05'},{race_key:'20261023-04-11'},
  {status:'provisional'},{schema_version:'unverified'}
 ])assert.equal(resultValidator({...validResult,...patch},'20261023-04-10',now),false,JSON.stringify(patch));
