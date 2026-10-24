@@ -16,14 +16,26 @@ const fs=require('node:fs');
   if(tabs!==4)throw Error('Expected 4 tabs; found '+tabs);
   const raceButtons=await page.locator('.races button').count();
   if(raceButtons!==12)throw Error('Expected 12 race selector buttons; found '+raceButtons);
-  await page.locator('#venueChooser .grid button').nth(3).click();
-  await page.locator('.races button').nth(1).click();
-  for(const tab of await page.locator('.view-tabs [role="tab"]').all()){
+  const selectedVenue=page.locator('#venueChooser .grid button').nth(3);
+  await selectedVenue.click();
+  if(await selectedVenue.getAttribute('aria-pressed')!=='true')throw Error('Venue selection did not update');
+  const secondRace=page.locator('.races button').nth(1);
+  await secondRace.click();
+  if(await secondRace.getAttribute('aria-pressed')!=='true')throw Error('Race selection did not update');
+  let destination=new URL(page.url());
+  if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Selected race URL not synchronized');
+  for(const view of ['card','exhibit','forecast','result']){
+   const tab=page.locator('.view-tabs [role="tab"][data-view="'+view+'"]');
    await tab.click();
-   if(await tab.getAttribute('aria-selected')!=='true')throw Error('Tab did not become selected');
+   if(await tab.getAttribute('aria-selected')!=='true')throw Error(view+' tab did not become selected');
+   const panel=view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection';
+   if(!await page.locator(panel).isVisible())throw Error(view+' panel not visible');
+   if(view==='exhibit'&&!await page.locator('#exhibitionGrid').isVisible())throw Error('Exhibition grid hidden');
   }
+  destination=new URL(page.url());
+  if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Tabs changed selected race');
   if(errors.length)throw Error('Browser errors: '+errors.join(' | '));
-  console.log('PASS: published site renders 24 venues, 12 races, 4 tabs; tab switching works without JS errors');
+  console.log('PASS: published site renders 24 venues, 12 races, 4 panels; venue/race selections and deep-link query persist');
  }catch(e){
   console.error('Live browser smoke FAILED:',e);
   await page.screenshot({path:'test-results/live-browser-failure.png',fullPage:true}).catch(()=>{});
