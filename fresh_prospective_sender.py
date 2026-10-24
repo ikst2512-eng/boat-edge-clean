@@ -53,6 +53,20 @@ def dispatch(payload,token,source_status,opener=urlopen):
             raise ValueError("dispatch not accepted")
     return "accepted_not_frozen_or_witnessed"
 
+def verify_receiver_on_main(opener=urlopen):
+    """Fail closed if the repository_dispatch handler is absent on main."""
+    url="https://api.github.com/repos/ikst2512-eng/boat-edge-clean/contents/.github/workflows/fresh-prospective-capture.yml?ref=main"
+    request=Request(url,headers={"Accept":"application/vnd.github+json",
+                                  "User-Agent":"boat-edge-prospective-readiness"})
+    try:
+        with opener(request,timeout=10) as response:
+            data=json.load(response)
+    except Exception as exc:
+        raise ValueError("receiver on main not verified; dispatch blocked") from exc
+    if not isinstance(data,dict) or data.get("type")!="file" or data.get("path")!=".github/workflows/fresh-prospective-capture.yml":
+        raise ValueError("receiver workflow missing on default branch")
+    return True
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("snapshot")
@@ -68,6 +82,7 @@ def main():
     if args.dry_run:
         print(json.dumps({"candidate_valid":True,"sent":False,"formal_approved":False}))
     else:
+        verify_receiver_on_main()
         print(dispatch(payload,os.environ.get("FRESH_DISPATCH_TOKEN",""),status))
 
 if __name__=="__main__":
