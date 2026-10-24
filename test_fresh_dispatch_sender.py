@@ -20,7 +20,8 @@ def check():
             except ValueError:return
             raise AssertionError("accepted invalid dispatch")
         reject(lambda:prepare(path,"v5-fixture",datetime(2026,10,24,2,47,tzinfo=timezone.utc)))
-        reject(lambda:send(payload,""))
+        reject(lambda:send(payload,"",source_check=lambda:{"ready":True}))
+        reject(lambda:send(payload,"test-token",source_check=lambda:{"ready":False,"reason":"FORMAL_FIRST100_NOT_FROZEN"}))
         class Response:
             status=204
             def __enter__(self):return self
@@ -29,7 +30,7 @@ def check():
         def opener(req,timeout):
             calls.append((req.get_method(),req.data))
             return Response()
-        assert send(payload,"test-token",opener)=="accepted_not_witnessed"
+        assert send(payload,"test-token",opener,source_check=lambda:{"ready":True})=="accepted_not_witnessed"
         assert calls[0][0]=="POST"
         assert json.loads(calls[0][1])["event_type"]=="fresh_v5_snapshot"
     print("Fresh dispatch sender tests passed")
