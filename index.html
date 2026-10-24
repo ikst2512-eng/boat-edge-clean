@@ -71,7 +71,7 @@ function setView(view){
  document.getElementById('raceDataHeading').textContent=view==='exhibit'?'展示情報':'出走表・選手成績';
  const url=new URL(location.href);url.searchParams.set('view',view);history.replaceState(null,'',url);
 }
-document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListener('click',()=>{const previous=activeView;setView(b.dataset.view);if(previous!==activeView){if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast')loadPredictions();else if(activeView==='result')loadResult()}}));
+document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListener('click',()=>{const previous=activeView;setView(b.dataset.view);if(previous!==activeView){if(activeView==='exhibit')loadRaceData(true);else if(activeView==='card')loadRaceData();else if(activeView==='forecast')loadPredictions();else if(activeView==='result')loadResult()}}));
 // Keyboard navigation stays inside the four tabs; Enter/Space works natively.
 document.querySelector('.view-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...document.querySelectorAll('.view-tabs [role="tab"]')];const current=tabs.indexOf(document.activeElement);if(current<0)return;e.preventDefault();const index=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[index].focus();tabs[index].click()});
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
