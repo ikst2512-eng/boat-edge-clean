@@ -19,7 +19,10 @@ jobs:
           npm install --no-save playwright@1.58.2
           npx playwright install --with-deps chromium
       - name: Test published GitHub Pages
-        run: node tests/live-browser.cjs 2>&1 | tee browser-smoke.log
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live-browser.cjs 2>&1 | tee browser-smoke.log
       - name: Preserve browser test log
         if: always()
         uses: actions/upload-artifact@v4
