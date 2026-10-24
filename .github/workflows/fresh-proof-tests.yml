@@ -21,8 +21,9 @@ jobs:
       - run: python test_fresh_feed_promote.py
       - run: python test_capture_fresh_candidates.py
       - run: python test_fresh_witness_trigger.py
-      - run: python test_fresh_dispatch_ingest.py fresh_dispatch_sender.py test_fresh_dispatch_sender.py fresh_feed_autopublish.py test_fresh_feed_autopublish.py
+      - run: python test_fresh_dispatch_ingest.py fresh_dispatch_sender.py test_fresh_dispatch_sender.py fresh_feed_autopublish.py test_fresh_feed_autopublish.py test_fresh_workflow_contract.py
       - run: python test_fresh_auto_finalize.py
       - run: python test_fresh_auto_wiring.py
       - run: python test_fresh_dispatch_sender.py
       - run: python test_fresh_feed_autopublish.py
+      - run: python test_fresh_workflow_contract.py
