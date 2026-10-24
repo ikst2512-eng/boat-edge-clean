@@ -17,11 +17,23 @@ def check():
             assert status == 200 and response["status"] == "unavailable"
             record = {"predictions":[{"ticket": t} for t in TICKETS],
                       "model_version":"regression-fixture", "generated_at":"2026-10-22T00:00:00+09:00",
-                      "validated":True}
+                      "validated":True, "freeze_proof": {"commit_sha": "a"*40,
+                      "committed_at": "2026-10-22T00:02:00+09:00", "deadline_at": "2026-10-22T12:00:00+09:00"}}
             (root / "predictions.json").write_text(json.dumps({KEY:record}))
             status, response = get_predictions(QUERY)
             assert status == 200 and response["status"] == "available"
             assert response["predictions"] == TICKETS
+            # A flag alone cannot mark a prediction as Fresh.
+            saved_proof = record.pop("freeze_proof")
+            (root / "predictions.json").write_text(json.dumps({KEY:record}))
+            status, response = get_predictions(QUERY)
+            assert status == 503 and not response["ok"]
+            record["freeze_proof"] = saved_proof
+            record["freeze_proof"]["committed_at"] = "2026-10-22T12:00:00+09:00"
+            (root / "predictions.json").write_text(json.dumps({KEY:record}))
+            status, response = get_predictions(QUERY)
+            assert status == 503 and not response["ok"]
+            record["freeze_proof"]["committed_at"] = "2026-10-22T00:02:00+09:00"
             record["predictions"][9] = {"ticket":"1-2-3"}
             (root / "predictions.json").write_text(json.dumps({KEY:record}))
             status, response = get_predictions(QUERY)
