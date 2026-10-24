@@ -120,6 +120,24 @@ jobs:
           except Exception as e:out["error_type"]=type(e).__name__
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
+      - name: Fail-closed six-boat HTML structure validation
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/exhibition-gate.json
+          import datetime as dt,urllib.request,json,sys,hashlib
+          sys.path.insert(0,"research-capture")
+          from exhibition_gate import verify_structure
+          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
+          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
+          record={"date":day,"venue":"05","race":12,"result_endpoint_requested":False,"forecast_generated":False}
+          try:
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
+              raw=r.read(200001)
+              page=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
+              record.update({"status":r.status,"source_sha256":hashlib.sha256(raw).hexdigest(),"structure":verify_structure(page)})
+          except Exception as e:record["error_type"]=type(e).__name__
+          print(json.dumps(record,ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
