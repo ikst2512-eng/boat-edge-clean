@@ -165,7 +165,8 @@ def verify_commit_proof(proof, record):
         metadata = json.load(response)
     actual_commit_time = datetime.fromisoformat(metadata["commit"]["committer"]["date"].replace("Z", "+00:00"))
     deadline = datetime.fromisoformat(proof["deadline_at"])
-    if actual_commit_time >= deadline:
+    generated = datetime.fromisoformat(record["generated_at"])
+    if generated > actual_commit_time or actual_commit_time >= deadline:
         raise ValueError("commit is not before deadline")
     req = Request("https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/" + sha + "/" + path,
                   headers={"User-Agent": "BOAT-EDGE-FRESH/1.0"})
