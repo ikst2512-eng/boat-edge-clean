@@ -100,6 +100,31 @@ jobs:
           except Exception as exc:report.update({"error_type":type(exc).__name__,"error":str(exc)[:100]})
           print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
+      - name: Check page identity and redirect without storing page text
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/page-identity.json
+          import urllib.request,urllib.parse,urllib.error,datetime,json,hashlib,re
+          today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
+          queries=[
+            ("beforeinfo","https://www.boatrace.jp/owpc/pc/race/beforeinfo?"+urllib.parse.urlencode({"rno":"12","jcd":"12","hd":today})),
+            ("raceindex","https://www.boatrace.jp/owpc/pc/race/raceindex?"+urllib.parse.urlencode({"jcd":"12","hd":today}))
+          ]
+          entries=[]
+          for label,url in queries:
+            row={"endpoint":label,"requested_path":urllib.parse.urlsplit(url).path}
+            try:
+              request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"})
+              with urllib.request.urlopen(request,timeout=15) as r:
+                data=r.read(250000); final=urllib.parse.urlsplit(r.url)
+                row.update({"status":r.status,"final_path":final.path,"redirected":r.url!=url,"content_type":r.headers.get("Content-Type",""),"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()})
+                sample=data.decode("utf-8","replace")
+                titles=re.findall(r"<title[^>]*>(.*?)</title\s*>",sample,re.I|re.S)
+                row.update({"title_length":len(titles[0].strip()) if titles else 0,"html_tag_count":sample.lower().count("<html"),"body_tag_count":sample.lower().count("<body"),"table_tag_count":sample.lower().count("<table"),"status_403_word":("403 Forbidden" in sample),"status_maintenance_word":("maintenance" in sample.lower())})
+            except Exception as e:row.update({"error_type":type(e).__name__,"error":str(e)[:100]})
+            entries.append(row)
+          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"page_identity_checks":entries,"results_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
