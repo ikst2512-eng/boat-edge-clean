@@ -386,7 +386,7 @@ async function loadRaceData(force=false){
   const safePreview=raw.verifiedPreview;
   if(!Array.isArray(raw.racers))throw Error('INCOMPLETE_RACE_CARD');
   const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
-  if(new Set(racers.map(r=>r.lane)).size!==racers.length)throw Error('DUPLICATE_RACE_LANES');
+  if(racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||new Set(racers.map(r=>String(r.registration_no||''))).size!==6||racers.some(r=>!/^[0-9]{4}$/.test(String(r.registration_no||''))))throw Error('INCOMPLETE_OR_DUPLICATE_RACE_CARD');
   verifiedRaceCache.set(key,raw);
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
@@ -448,7 +448,7 @@ async function loadRaceData(force=false){
   const entryNote=document.createElement('div');entryNote.className='exhibition-entry-note';
   const actual=Array.isArray(raw.actual_entry)?raw.actual_entry:[];
   const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
-  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
+  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
   entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
   exhibitGrid.append(entryNote);
   const laneColors=['#a3afbf','#24384d','#db4246','#2579c9','#d3ac18','#25895e'];
