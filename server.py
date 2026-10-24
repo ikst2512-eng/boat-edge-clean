@@ -196,7 +196,7 @@ def verify_commit_proof(proof, record, race_code):
             run.get("path") not in (".github/workflows/fresh-snapshot-witness.yml", ".github/workflows/fresh-snapshot-witness.yml@refs/heads/main")):
         raise ValueError("run does not independently witness committed forecast")
     created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
-    if created_at.tzinfo is None or created_at >= deadline or created_at < generated:
+    if created_at.tzinfo is None or created_at >= deadline - timedelta(minutes=12) or created_at < generated:
         raise ValueError("GitHub run did not start after forecast and before deadline")
     req = Request("https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/" + sha + "/" + path,
                   headers={"User-Agent": "BOAT-EDGE-FRESH/1.0"})
