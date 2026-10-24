@@ -37,7 +37,7 @@ def check():
         # Initial creation may only succeed from the exact empty staging base.
         staged.write_bytes(canonical({"20261024-12-2":NEW["20261024-12-2"]}))
         audit.write_bytes(canonical({"deployment_status":"staged_not_published",
-           "previous_sha256":hashlib.sha256(b"{}\\n").hexdigest(),
+           "previous_sha256":hashlib.sha256(b"{}\n").hexdigest(),
            "new_sha256":hashlib.sha256(staged.read_bytes()).hexdigest()}))
         def missing(method,url,token,payload=None):
             if method=="GET":
