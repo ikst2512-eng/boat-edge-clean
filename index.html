@@ -311,8 +311,8 @@ async function loadRaceData(force=false){
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
   if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
   const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
-  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline)throw Error('CARD_NOT_PREDEADLINE');
-  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline;
+  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('CARD_NOT_PREDEADLINE');
+  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000;
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
   raw=mergeVerifiedRaceSnapshots(verifiedRaceCache.get(key),raw);
