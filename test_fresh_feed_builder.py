@@ -25,3 +25,13 @@ def check():
     zero={t:0 for t in VALID};reject(snapshot(zero))
     print("Fresh feed builder tests passed")
 if __name__=="__main__":check()
+
+
+def test_race_code_strict():
+    from fresh_feed_builder import valid_race_code
+    assert valid_race_code("202610240112")
+    for code in ("202602300101","202610240001","202610242501","202610240113","202610240100","invalid",123456789012):
+        assert not valid_race_code(code),code
+
+if __name__=="__main__":
+    test_race_code_strict()
