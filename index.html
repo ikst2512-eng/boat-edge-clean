@@ -83,13 +83,14 @@ setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();if(activeView==='result')loadResult(true)}});
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
-async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
+async function fetchTimed(url,options={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);try{return await fetch(url,{...options,signal:controller.signal})}finally{clearTimeout(timeout)}}
+async function edgeJson(url){const r=await fetchTimed(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 const verifiedCache=new Map();
 async function verifiedStoredPrediction(key,force=false){
  if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
  const path='data/site_prediction_snapshots/'+key+'.json';
- const currentRes=await fetch(EDGE_RAW+'/main/'+path,{cache:'no-store'});
+ const currentRes=await fetchTimed(EDGE_RAW+'/main/'+path,{cache:'no-store'});
  if(currentRes.status===404)throw Error('PREDICTION_NOT_PUBLISHED');
  if(!currentRes.ok)throw Error('SOURCE_HTTP_'+currentRes.status);
  const currentText=await currentRes.text();
@@ -105,7 +106,7 @@ async function verifiedStoredPrediction(key,force=false){
  const commit=await edgeJson(EDGE_BASE+'/commits/'+encodeURIComponent(earliest.sha));
  const file=commit.files&&commit.files.find(f=>f.filename===path);
  if(!file||file.status!=='added')throw Error('FIRST_ADD_UNCONFIRMED');
- const firstRes=await fetch(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'});
+ const firstRes=await fetchTimed(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'});
  if(!firstRes.ok)throw Error('SOURCE_HTTP_'+firstRes.status);
  const firstText=await firstRes.text();
  if(firstText!==currentText)throw Error('SNAPSHOT_CHANGED_SINCE_FIRST_ADD');
@@ -191,7 +192,7 @@ async function loadResult(quiet=false){
  if(!quiet||displayedResultKey!==key){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key}
  status.textContent=quiet?'結果の更新を確認中…':'結果データを確認中…';
  try{
-  const res=await fetch(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
+  const res=await fetchTimed(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
   if(token!==resultRequestId||key!==sameRaceKey())return;
   if(res.status===404){detail.replaceChildren();comparison.replaceChildren();status.textContent='確定結果は未配信です（表示中は60秒ごとに確認）';return}
   if(!res.ok)throw Error('HTTP_'+res.status);
@@ -218,7 +219,7 @@ async function loadHeldVenues(force=false){
  clearDeadlines('締切情報を確認中…');
  [...vb.children].forEach(b=>{b.classList.remove('held');b.removeAttribute('data-held')});
  try{
-  const response=await fetch(EDGE_RAW+'/main/data/today.json',{cache:'no-store'});
+  const response=await fetchTimed(EDGE_RAW+'/main/data/today.json',{cache:'no-store'});
   if(!response.ok)throw Error('VENUE_SOURCE_UNAVAILABLE');
   const data=await response.json();
   if(token!==venueRequest||date!==s.date)return;
@@ -260,7 +261,7 @@ async function loadRaceData(force=false){
  try{
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
-  const response=await fetch(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
+  const response=await fetchTimed(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
   if(!response.ok)throw Error('HTTP_'+response.status);
   const currentText=await response.text();
   raw=JSON.parse(currentText);
