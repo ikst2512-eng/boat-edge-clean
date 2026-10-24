@@ -20,7 +20,7 @@ def fetch_json(url):
                                      "User-Agent":"BOAT-EDGE-FRESH-PUBLISHER/1"}),timeout=8) as r:
         return json.load(r)
 
-def assemble(commit_sha,race_code,deadline_at):
+def assemble(commit_sha,race_code,deadline_at,run_id=None):
     if not isinstance(commit_sha,str) or not re.fullmatch("[0-9a-f]{40}",commit_sha):
         raise ValueError("invalid commit SHA")
     if not isinstance(race_code,str) or not re.fullmatch("[0-9]{12}",race_code):
@@ -32,6 +32,14 @@ def assemble(commit_sha,race_code,deadline_at):
     committed_at=datetime.fromisoformat(metadata["commit"]["committer"]["date"].replace("Z","+00:00"))
     if committed_at.tzinfo is None or committed_at>=deadline:
         raise ValueError("Git committer date is after deadline")
+    if type(run_id) is not int or run_id<=0:
+        raise ValueError("GitHub server timestamp witness required")
+    run=fetch_json(f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}")
+    if run.get("head_sha")!=commit_sha or run.get("event")!="push" or run.get("conclusion")!="success":
+        raise ValueError("GitHub run did not witness commit")
+    run_created=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+    if run_created.tzinfo is None or run_created>=deadline:
+        raise ValueError("GitHub server run started too late")
     path=f"fresh_snapshots/{race_code}.json"
     with urlopen(Request(f"https://raw.githubusercontent.com/{REPO}/{commit_sha}/{path}",
                          headers={"User-Agent":"BOAT-EDGE-FRESH-PUBLISHER/1"}),timeout=8) as r:
@@ -42,7 +50,7 @@ def assemble(commit_sha,race_code,deadline_at):
         raise ValueError("invalid committed record")
     if "freeze_proof" in record: raise ValueError("nested proof in immutable source")
     gen=datetime.fromisoformat(record["generated_at"])
-    if gen.tzinfo is None or gen.utcoffset() is None or gen>committed_at:
+    if gen.tzinfo is None or gen.utcoffset() is None or gen>committed_at or gen>run_created:
         raise ValueError("forecast created after commit")
     probs=record.get("probabilities")
     from fresh_feed_builder import VALID
@@ -56,7 +64,7 @@ def assemble(commit_sha,race_code,deadline_at):
         raise ValueError("top10 differs from distribution")
     proof={"commit_sha":commit_sha,"committed_at":committed_at.isoformat(),
            "deadline_at":deadline.isoformat(),"path":path,
-           "sha256":hashlib.sha256(raw).hexdigest()}
+           "sha256":hashlib.sha256(raw).hexdigest(),"run_id":run_id}
     return {**record,"freeze_proof":proof}
 
 def write_new_feed(record,out):
@@ -74,7 +82,8 @@ if __name__=="__main__":
     p.add_argument("--commit",required=True)
     p.add_argument("--race-code",required=True)
     p.add_argument("--deadline",required=True)
+    p.add_argument("--run-id",type=int,required=True)
     p.add_argument("--out",default="predictions.json")
     a=p.parse_args()
-    record=assemble(a.commit,a.race_code,a.deadline)
+    record=assemble(a.commit,a.race_code,a.deadline,a.run_id)
     print(write_new_feed(record,a.out))
