@@ -10,7 +10,7 @@ SHA="a"*40
 P={t:1/120 for t in VALID}
 PICKS=sorted(VALID,key=lambda t:tuple(map(int,t.split("-"))))
 SOURCE={"race_code":CODE,"generated_at":"2026-10-24T02:00:00+00:00",
-        "model_version":"fixture","validated":True,
+        "model_version":"fixture","validated":True,"deadline_at":"2026-10-24T12:00:00+09:00",
         "probabilities":P,"predictions":[{"ticket":t,"probability":P[t]} for t in PICKS[:10]]}
 class Response(io.BytesIO):
     def __enter__(self):return self
