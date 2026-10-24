@@ -26,6 +26,11 @@ def check():
         record=assemble(SHA,CODE,"2026-10-24T12:00:00+09:00",123)
         assert record["freeze_proof"]["sha256"]==hashlib.sha256(canonical(SOURCE)).hexdigest()
         assert len(record["probabilities"])==120
+        assert record["deadline_at"]==SOURCE["deadline_at"]
+        reject_deadline=lambda:assemble(SHA,CODE,"2026-10-24T13:00:00+09:00",123)
+        try:reject_deadline()
+        except ValueError:pass
+        else:raise AssertionError("changed deadline accepted")
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"predictions.json"
             write_new_feed(record,path)
