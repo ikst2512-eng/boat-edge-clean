@@ -8,7 +8,7 @@ import argparse
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
 from fresh_feed_builder import canonical
@@ -40,7 +40,7 @@ def assemble(commit_sha,race_code,deadline_at,run_id=None):
         run.get("path") not in (".github/workflows/fresh-snapshot-witness.yml", ".github/workflows/fresh-snapshot-witness.yml@refs/heads/main")):
         raise ValueError("GitHub run did not witness commit")
     run_created=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
-    if run_created.tzinfo is None or run_created>=deadline:
+    if run_created.tzinfo is None or run_created>=deadline-timedelta(minutes=12):
         raise ValueError("GitHub server run started too late")
     path=f"fresh_snapshots/{race_code}.json"
     with urlopen(Request(f"https://raw.githubusercontent.com/{REPO}/{commit_sha}/{path}",
