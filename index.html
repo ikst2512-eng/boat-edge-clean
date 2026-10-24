@@ -306,6 +306,8 @@ async function loadRaceData(force=false){
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline;
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
+  const previous=verifiedRaceCache.get(key);
+  if(previous&&Date.parse(previous.source_audit?.race_card?.fetched_at)>Date.parse(raw.source_audit?.race_card?.fetched_at))raw=previous;
   const safePreview=raw.verifiedPreview;
   if(!Array.isArray(raw.racers))throw Error('INCOMPLETE_RACE_CARD');
   const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
