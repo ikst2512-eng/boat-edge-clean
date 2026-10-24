@@ -36,6 +36,14 @@ jobs:
             exit 1
           fi
           python fresh_candidate_receipt.py --source "${files[0]}" --output prospective_receipt.json --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT"
+      - name: Verify candidate and receipt together before upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(prospective_candidates/*.json)
+          if [ "${#files[@]}" -ne 1 ]; then exit 1; fi
+          python fresh_candidate_verify.py "${files[0]}" prospective_receipt.json
       - name: Store isolated nonpublic candidate evidence
         uses: actions/upload-artifact@v4
         with:
