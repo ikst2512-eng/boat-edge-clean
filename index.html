@@ -210,6 +210,7 @@ let resultRequestId=0;
 let displayedResultKey='';
 let displayedResultCombo='';
 function isOfficialResultSource(source,key){try{const src=new URL(source);return src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&['hd','jcd','rno'].every(p=>src.searchParams.getAll(p).length===1)&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&src.searchParams.get('rno')===String(Number(key.split('-')[2]))}catch(_){return false}}
+function isVerifiedResult(raw,key,now=Date.now()){const order=raw?.finish_order,payout=raw?.trifecta_payout_yen_per_100,timestamp=Date.parse(raw?.fetched_at),start=Date.parse(key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)+'T00:00:00+09:00');return isOfficialResultSource(raw?.source,key)&&raw?.schema_version==='boat-edge-site-result-v109'&&raw?.race_key===key&&raw?.status==='confirmed'&&Array.isArray(order)&&order.length===3&&new Set(order).size===3&&order.every(n=>Number.isInteger(n)&&n>=1&&n<=6)&&raw?.trifecta===order.join('-')&&Number.isInteger(payout)&&payout>=0&&Number.isFinite(timestamp)&&timestamp>=start&&timestamp<=now+300000}
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
@@ -224,7 +225,7 @@ async function loadResult(quiet=false){
   if(token!==resultRequestId||key!==sameRaceKey())return;
   const order=raw.finish_order,payout=raw.trifecta_payout_yen_per_100;
   const officialSourceOk=isOfficialResultSource(raw.source,key);
-  if(!officialSourceOk||raw.schema_version!=='boat-edge-site-result-v109'||raw.race_key!==key||raw.status!=='confirmed'||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||order.some(n=>!Number.isInteger(n)||n<1||n>6)||raw.trifecta!==order.join('-')||!Number.isInteger(payout)||payout<0||!Number.isFinite(Date.parse(raw.fetched_at))||Date.parse(raw.fetched_at)<Date.parse(s.date+'T00:00:00+09:00')||Date.parse(raw.fetched_at)>Date.now()+300000)throw Error('UNVERIFIED_RESULT');
+  if(!isVerifiedResult(raw,key))throw Error('UNVERIFIED_RESULT');
   if(displayedResultCombo!==raw.trifecta){comparison.replaceChildren();displayedResultCombo=raw.trifecta}
   const panel=document.createElement('div');panel.className='result-summary';
   const combo=document.createElement('div');combo.className='result-combo';const label=document.createElement('span');label.textContent='確定3連単 ';combo.append(label);order.forEach((lane,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent=' › ';combo.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+lane;boat.textContent=String(lane);combo.append(boat)});
