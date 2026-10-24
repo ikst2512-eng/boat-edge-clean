@@ -20,6 +20,9 @@ def check():
         try:verify(p,q)
         except ValueError:pass
         else:raise AssertionError("forged receipt accepted")
+    workflow=Path(".github/workflows/fresh-prospective-capture.yml").read_text()
+    assert "python fresh_candidate_verify.py" in workflow
+    assert workflow.index("python fresh_candidate_verify.py") < workflow.index("actions/upload-artifact@v4")
     print("Candidate byte-integrity verification PASS")
 
 if __name__=="__main__":check()
