@@ -1,7 +1,8 @@
 """Check GitHub-issued arrival evidence for a nonpublic candidate workflow run.
 
 Run metadata comes from GitHub's API, not from the candidate's runner clock.
-A passing check proves a workflow run existed before cutoff; it does NOT prove
+A passing check proves only that the workflow STARTED before cutoff. It does not prove
+that candidate bytes were uploaded before cutoff. It does NOT prove
 official deadline validity, upstream model identity, or formal Fresh approval.
 """
 import argparse,json
@@ -34,7 +35,8 @@ def check(receipt,run):
         raise ValueError("timezone missing")
     if arrival>=cutoff:
         raise ValueError("GitHub run started after safety cutoff")
-    return {"github_run_arrived_before_cutoff":True,
+    return {"github_workflow_started_before_cutoff":True,
+            "candidate_uploaded_before_cutoff_verified":False,
             "formal_approved":False,"race_code":receipt["race_code"],
             "workflow_run_id":run["id"]}
 
