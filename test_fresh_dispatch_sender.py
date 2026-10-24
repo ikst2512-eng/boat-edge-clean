@@ -14,6 +14,8 @@ def check():
         path=Path(d)/"202610241201.json";path.write_bytes(fixture())
         payload=prepare(path,"v5-fixture",datetime(2026,10,24,2,20,tzinfo=timezone.utc))
         assert payload["event_type"]=="fresh_v5_snapshot"
+        candidate=prepare(path,"v5-fixture",datetime(2026,10,24,2,20,tzinfo=timezone.utc),collection_only=True)
+        assert candidate["event_type"]=="fresh_v5_candidate"
         assert len(payload["client_payload"]["snapshot_base64"])>100
         def reject(f):
             try:f()
@@ -31,6 +33,9 @@ def check():
             calls.append((req.get_method(),req.data))
             return Response()
         assert send(payload,"test-token",opener,source_check=lambda:{"ready":True})=="accepted_not_witnessed"
+        assert send(candidate,"test-token",opener,candidate_check=lambda:{"ready":True})=="accepted_not_witnessed"
+        reject(lambda:send(candidate,"test-token",opener,candidate_check=lambda:{"ready":False,"reason":"PRE_RESULT_GUARDS_NOT_CLOSED"}))
+        assert len(calls)==2
         assert calls[0][0]=="POST"
         assert json.loads(calls[0][1])["event_type"]=="fresh_v5_snapshot"
     print("Fresh dispatch sender tests passed")
