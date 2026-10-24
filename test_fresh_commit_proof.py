@@ -6,7 +6,7 @@ from unittest.mock import patch
 from datetime import datetime
 from server import verify_commit_proof
 
-RECORD = {"generated_at":"2026-10-24T11:00:00+09:00","validated":True,
+RECORD = {"race_code":"202610241201","generated_at":"2026-10-24T11:00:00+09:00","validated":True,
           "predictions":[{"ticket":"1-2-3"}],"model_version":"fixture"}
 RAW = json.dumps(RECORD,sort_keys=True).encode()
 SHA = hashlib.sha256(RAW).hexdigest()
@@ -36,6 +36,7 @@ def test_proof_checks():
     expect_reject({**PROOF,"committed_at":"2026-10-24T11:06:00+09:00"})
     expect_reject({**PROOF,"sha256":"0"*64})
     expect_reject(PROOF,{**RECORD,"model_version":"tampered"})
+    expect_reject(PROOF,{**RECORD,"race_code":"202610241202"})
     def late(req,timeout=5):
         if "/commits/" in req.full_url:
             return Response(json.dumps({"commit":{"committer":{"date":"2026-10-24T03:00:00Z"}}}).encode())
