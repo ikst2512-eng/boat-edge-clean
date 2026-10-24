@@ -138,6 +138,10 @@ jobs:
           except Exception as e:record["error_type"]=type(e).__name__
           print(json.dumps(record,ensure_ascii=False,indent=2))
           PY
+      - name: Parse six-boat exhibition structure safely
+        shell: bash
+        run: |
+          python3 research-capture/official_exhibition_structure.py > audit-output/official-exhibition-structure.json
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
