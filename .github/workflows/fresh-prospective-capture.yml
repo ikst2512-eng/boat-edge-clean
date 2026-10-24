@@ -44,6 +44,22 @@ jobs:
           files=(prospective_candidates/*.json)
           if [ "${#files[@]}" -ne 1 ]; then exit 1; fi
           python fresh_candidate_verify.py "${files[0]}" prospective_receipt.json
+      - name: Recheck cutoff immediately before artifact upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          files=list(Path('prospective_candidates').glob('*.json'))
+          if len(files)!=1:
+              raise SystemExit('Exactly one candidate required')
+          record=json.loads(files[0].read_bytes())
+          cutoff=datetime.fromisoformat(record['deadline_at'])-timedelta(minutes=12)
+          if datetime.now(timezone.utc)>=cutoff:
+              raise SystemExit('Artifact upload would start after cutoff')
+          PY
       - name: Store isolated nonpublic candidate evidence
         uses: actions/upload-artifact@v4
         with:
