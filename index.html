@@ -76,11 +76,11 @@ document.querySelectorAll('.view-tabs [data-view]').forEach(b=>b.addEventListene
 document.querySelector('.view-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...document.querySelectorAll('.view-tabs [role="tab"]')];const current=tabs.indexOf(document.activeElement);if(current<0)return;e.preventDefault();const index=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[index].focus();tabs[index].click()});
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
 // Refresh the three imminent deadlines locally every 15 seconds without extra requests.
-setInterval(()=>{if(!document.hidden)updateDeadlineCountdowns()},1000);
+setInterval(()=>{if(!document.hidden){updateDeadlineCountdowns();if(todayVenueRaces?.date===s.date&&[...document.querySelectorAll('.deadline-countdown')].some(el=>Number(el.dataset.deadline)<=Date.now()))renderDeadlines(todayVenueRaces)}},1000);
 setInterval(()=>{if(!document.hidden&&todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces)},15000);
 setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();else if(activeView==='result')loadResult(true)},60000);
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
-document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();if(activeView==='result')loadResult(true)}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();if(activeView==='result')loadResult(true)}});
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
 async function edgeJson(url){const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
