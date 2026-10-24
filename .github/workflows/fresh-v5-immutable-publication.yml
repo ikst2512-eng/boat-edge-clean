@@ -16,9 +16,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Require push token that can trigger witness workflow
+        env:
+          FRESH_PUSH_TOKEN: ${{ secrets.FRESH_PUSH_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$FRESH_PUSH_TOKEN" ]; then
+            echo 'Missing FRESH_PUSH_TOKEN: GITHUB_TOKEN pushes cannot trigger the independent witness' >&2
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          token: ${{ secrets.FRESH_PUSH_TOKEN }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
