@@ -17,6 +17,18 @@ for(const [rank,expected] of [[1,[true,true,true]],[3,[true,true,true]],[4,[fals
  assert.deepEqual([r.top3,r.top5,r.top10],expected);
 }
 assert.equal(classify(tickets,'1-2-5').rank,0);
+// Historical comparison outcomes previously checked against stored snapshots.
+// Synthetic ticket arrays test the same positions; they do not establish predeadline Git proof.
+for(const [race,rank,result] of [['20261023-04-10',0,'1-2-5'],['20261023-06-10',0,'3-1-2'],['20261023-11-11',4,'1-3-2']]){
+ const entries=['1-2-6','1-6-2','1-2-3','4-2-1','4-1-2','5-2-1','5-1-2','6-1-2','6-2-1','2-4-1'];
+ if(rank===4)entries[3]=result;
+ const verdict=classify(entries,result);
+ assert.equal(verdict.rank,rank,race);
+ assert.equal(verdict.top3,false,race);
+ assert.equal(verdict.top5,rank===4,race);
+ assert.equal(verdict.top10,rank===4,race);
+}
+
 const key='20261023-04-10';
 const base='https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261023&jcd=04&rno=10';
 assert.equal(official(base,key),true);
