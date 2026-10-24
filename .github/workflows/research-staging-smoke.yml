@@ -4,6 +4,9 @@ on:
     branches:
       - research-capture-v142-isolated-20261025
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 permissions:
   contents: read
 jobs:
