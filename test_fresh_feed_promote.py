@@ -1,5 +1,6 @@
 """Offline checks for compare-and-swap GitHub promotion."""
 import base64,hashlib,json,tempfile
+from urllib.error import HTTPError
 from pathlib import Path
 from fresh_feed_builder import canonical
 from fresh_feed_promote import promote
@@ -33,6 +34,21 @@ def check():
             assert method=="GET"
             return {"type":"file","sha":"other","content":base64.b64encode(b'{}').decode()}
         reject(lambda:promote(staged,audit,"staging","token",changed))
+        # Initial creation may only succeed from the exact empty staging base.
+        staged.write_bytes(canonical({"20261024-12-2":NEW["20261024-12-2"]}))
+        audit.write_bytes(canonical({"deployment_status":"staged_not_published",
+           "previous_sha256":hashlib.sha256(b"{}\\n").hexdigest(),
+           "new_sha256":hashlib.sha256(staged.read_bytes()).hexdigest()}))
+        def missing(method,url,token,payload=None):
+            if method=="GET":
+                raise HTTPError(url,404,"Not Found",{},None)
+            assert "sha" not in payload
+            return {"commit":{"sha":"newcommit"}}
+        assert promote(staged,audit,"staging","token",missing)["new_races"]==["20261024-12-2"]
+        audit.write_bytes(canonical({"deployment_status":"staged_not_published",
+           "previous_sha256":hashlib.sha256(b"{}").hexdigest(),
+           "new_sha256":hashlib.sha256(staged.read_bytes()).hexdigest()}))
+        reject(lambda:promote(staged,audit,"staging","token",missing))
         bad=dict(NEW);bad["20261024-12-1"]={"race_code":"202610241201","validated":False}
         staged.write_bytes(canonical(bad))
         audit.write_bytes(canonical({"deployment_status":"staged_not_published",
