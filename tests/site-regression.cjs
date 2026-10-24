@@ -45,6 +45,9 @@ const resultValidator=vm.runInNewContext([
 const now=Date.parse('2026-10-23T18:00:00+09:00');
 const validResult={schema_version:'boat-edge-site-result-v109',race_key:'20261023-04-10',status:'confirmed',finish_order:[1,2,5],trifecta:'1-2-5',trifecta_payout_yen_per_100:1500,fetched_at:'2026-10-23T15:30:00+09:00',source:'https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261023&jcd=04&rno=10'};
 assert.equal(resultValidator(validResult,'20261023-04-10',now),true);
+assert.equal(resultValidator(validResult,'20261023-04-10',now,'15:14'),true);
+assert.equal(resultValidator({...validResult,fetched_at:'2026-10-23T15:13:59+09:00'},'20261023-04-10',now,'15:14'),false);
+assert.equal(resultValidator(validResult,'20261023-04-10',now,'invalid'),false);
 for(const patch of [
  {finish_order:[1,1,5]},{finish_order:[1,2,7]},{trifecta:'1-5-2'},
  {trifecta_payout_yen_per_100:-100},{trifecta_payout_yen_per_100:'1500'},
