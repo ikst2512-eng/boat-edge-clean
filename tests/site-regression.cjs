@@ -134,4 +134,7 @@ assert.ok(script.includes("document.getElementById('mobileRacerDetails').hidden=
 assert.ok(html.includes('aria-label="6艇の主要成績比較・横スクロール可能" tabindex="0"'),'comparison table must be keyboard scrollable');
 assert.ok(script.includes("matrixCaption.textContent='左右にスクロールして6艇を比較'"),'mobile users see horizontal scroll guidance');
 assert.ok(html.includes('.boat-matrix-table th:first-child{position:sticky;left:0'),'comparison metric label remains in view');
+assert.ok(script.includes("['全国2連率',r=>displayRate(r.national?.quinella_rate)]"),'national quinella rate included in racer matrix');
+assert.ok(script.includes("['当地2連率',r=>displayRate(r.local?.quinella_rate)]"),'local quinella rate included in racer matrix');
+assert.ok(script.includes("['F / L',r=>String(r.F??'—')"),'F/L included in racer matrix');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
