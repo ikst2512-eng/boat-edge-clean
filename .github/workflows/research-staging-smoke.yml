@@ -24,8 +24,10 @@ jobs:
           compile_status=$?
           python3 research-capture/staging_audit.py > audit-output/staging-audit.log 2>&1
           audit_status=$?
-          printf '{"compile_exit_code":%d,"staging_audit_exit_code":%d,"forecast_generated":false,"scoring":"NOT_RUN"}\n' "$compile_status" "$audit_status" > audit-output/exit-status.json
-          if [ "$compile_status" -ne 0 ] || [ "$audit_status" -ne 0 ]; then
+          python3 research-capture/test_preforecast_gate.py > audit-output/gate-tests.log 2>&1
+          gate_status=$?
+          printf '{"compile_exit_code":%d,"staging_audit_exit_code":%d,"gate_test_exit_code":%d,"forecast_generated":false,"scoring":"NOT_RUN"}\n' "$compile_status" "$audit_status" "$gate_status" > audit-output/exit-status.json
+          if [ "$compile_status" -ne 0 ] || [ "$audit_status" -ne 0 ] || [ "$gate_status" -ne 0 ]; then
             echo "Offline staging verification failed; inspect archived evidence"
             exit 1
           fi
