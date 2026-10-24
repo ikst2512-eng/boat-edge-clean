@@ -187,6 +187,24 @@ def get_predictions(params):
             tickets.append(ticket)
         if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
             raise ValueError("feed missing validation metadata")
+        # Fail closed: an arbitrary validated=true flag is not evidence of a
+        # pre-deadline immutable forecast. Require external commit provenance.
+        proof = record.get("freeze_proof")
+        if not isinstance(proof, dict):
+            raise ValueError("missing frozen prediction provenance")
+        commit_sha = proof.get("commit_sha")
+        if not isinstance(commit_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", commit_sha):
+            raise ValueError("invalid freeze commit sha")
+        try:
+            deadline = datetime.fromisoformat(proof["deadline_at"])
+            committed = datetime.fromisoformat(proof["committed_at"])
+            generated = datetime.fromisoformat(record["generated_at"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("invalid provenance timestamps")
+        if any(dt.tzinfo is None or dt.utcoffset() is None for dt in (deadline, committed, generated)):
+            raise ValueError("provenance timestamps must be timezone aware")
+        if not (generated <= committed < deadline):
+            raise ValueError("prediction is not demonstrably committed before deadline")
         return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
     except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
