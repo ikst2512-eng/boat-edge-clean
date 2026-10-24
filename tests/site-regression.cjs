@@ -102,4 +102,8 @@ assert.ok(html.includes('#raceDataSection[data-view="card"] .mobile-race-cards')
 assert.ok(script.includes('実進入：未取得・未検証'),'actual entry must not be silently imputed');
 assert.ok(script.includes("['平均ST',txt(racer.avg_st)]"),'exhibition must show stable average ST comparison');
 assert.ok(script.includes('new Set(actual).size===6'),'actual entry must contain a six-lane permutation');
+assert.ok(html.includes('id="courseDataNotice"'),'course data coverage status must be visible');
+assert.ok(script.includes('コース別1・2・3着率／決まり手：未取得・未検証'),'unavailable course results may not be imputed');
+assert.ok(script.includes("['モーター3連率',txt(racer.motor?.trio_rate)]"),'motor trio rate included in mobile cards');
+assert.ok(script.includes("['ボート3連率',txt(racer.boat?.trio_rate)]"),'boat trio rate included in mobile cards');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
