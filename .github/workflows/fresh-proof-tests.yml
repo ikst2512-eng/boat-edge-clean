@@ -30,3 +30,5 @@ jobs:
       - run: python test_fresh_pipeline_end_to_end.py
 
       - run: python test_fresh_upstream_separation.py
+
+      - run: python test_fresh_formal_source_preflight.py
