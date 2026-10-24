@@ -35,7 +35,9 @@ def assemble(commit_sha,race_code,deadline_at,run_id=None):
     if type(run_id) is not int or run_id<=0:
         raise ValueError("GitHub server timestamp witness required")
     run=fetch_json(f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}")
-    if run.get("head_sha")!=commit_sha or run.get("event")!="push" or run.get("conclusion")!="success":
+    if (run.get("head_sha")!=commit_sha or run.get("event")!="push" or
+        run.get("conclusion")!="success" or run.get("head_branch")!="main" or
+        run.get("path")!=".github/workflows/fresh-snapshot-witness.yml"):
         raise ValueError("GitHub run did not witness commit")
     run_created=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
     if run_created.tzinfo is None or run_created>=deadline:
