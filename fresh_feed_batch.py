@@ -22,12 +22,12 @@ def prepare(entries, resolve=assemble):
         raise ValueError("nonempty manifest list required")
     feed={}
     for entry in entries:
-        if not isinstance(entry,dict) or set(entry)!={"commit_sha","race_code","deadline_at"}:
+        if not isinstance(entry,dict) or set(entry)!={"commit_sha","race_code","deadline_at","run_id"}:
             raise ValueError("invalid manifest entry")
         key=race_key(entry["race_code"])
         if key in feed:
             raise ValueError("duplicate race in manifest")
-        record=resolve(entry["commit_sha"],entry["race_code"],entry["deadline_at"])
+        record=resolve(entry["commit_sha"],entry["race_code"],entry["deadline_at"],entry["run_id"])
         if record.get("race_code")!=entry["race_code"] or "freeze_proof" not in record:
             raise ValueError("unverified race record")
         feed[key]=record
