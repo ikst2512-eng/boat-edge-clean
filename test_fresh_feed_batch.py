@@ -4,9 +4,9 @@ import tempfile
 from pathlib import Path
 from fresh_feed_batch import prepare,write_new_batch
 
-ENTRIES=[{"commit_sha":"a"*40,"race_code":"202610241201","deadline_at":"2026-10-24T15:00:00+09:00"},
-         {"commit_sha":"b"*40,"race_code":"202610240902","deadline_at":"2026-10-24T15:05:00+09:00"}]
-def resolve(commit,code,deadline):
+ENTRIES=[{"commit_sha":"a"*40,"race_code":"202610241201","deadline_at":"2026-10-24T15:00:00+09:00","run_id":123},
+         {"commit_sha":"b"*40,"race_code":"202610240902","deadline_at":"2026-10-24T15:05:00+09:00","run_id":124}]
+def resolve(commit,code,deadline,run_id):
     return {"race_code":code,"freeze_proof":{"commit_sha":commit},"validated":True,
             "predictions":[{"ticket":"1-2-3"}]}
 def rejects(f):
@@ -20,7 +20,7 @@ def check():
     rejects(lambda:prepare([dict(ENTRIES[0],race_code="202610242501")],resolve))
     rejects(lambda:prepare([dict(ENTRIES[0],race_code="202610241213")],resolve))
     rejects(lambda:prepare([dict(ENTRIES[0],unknown=1)],resolve))
-    rejects(lambda:prepare(ENTRIES,lambda a,b,c:{"race_code":"other","freeze_proof":{}}))
+    rejects(lambda:prepare(ENTRIES,lambda a,b,c,d:{"race_code":"other","freeze_proof":{}}))
     with tempfile.TemporaryDirectory() as temp:
         base=Path(temp);manifest=base/"manifest.json";out=base/"feed.json"
         manifest.write_text(json.dumps(ENTRIES))
