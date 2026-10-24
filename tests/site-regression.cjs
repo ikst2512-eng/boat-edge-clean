@@ -99,4 +99,7 @@ assert.ok(script.includes('previewAt<=Date.now()+300000'),'future exhibition dat
 assert.ok(html.includes('id="mobileRaceCards"'),'mobile six-lane comparison exists');
 assert.ok(script.includes("mobileCards.append(card)"),'mobile cards are populated from saved racers');
 assert.ok(html.includes('#raceDataSection[data-view="card"] .mobile-race-cards'),'mobile cards shown only on card tab');
+assert.ok(script.includes('実進入：未取得・未検証'),'actual entry must not be silently imputed');
+assert.ok(script.includes("['平均ST',txt(racer.avg_st)]"),'exhibition must show stable average ST comparison');
+assert.ok(script.includes('new Set(actual).size===6'),'actual entry must contain a six-lane permutation');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
