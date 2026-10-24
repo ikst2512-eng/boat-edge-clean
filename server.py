@@ -171,6 +171,8 @@ def verify_commit_proof(proof, record, race_code):
         metadata = json.load(response)
     actual_commit_time = datetime.fromisoformat(metadata["commit"]["committer"]["date"].replace("Z", "+00:00"))
     deadline = datetime.fromisoformat(proof["deadline_at"])
+    if record.get("deadline_at") != proof["deadline_at"]:
+        raise ValueError("source deadline differs from supplied deadline")
     generated = datetime.fromisoformat(record["generated_at"])
     stated_committed = datetime.fromisoformat(proof["committed_at"])
     if any(dt.tzinfo is None or dt.utcoffset() is None for dt in (deadline, generated, actual_commit_time, stated_committed)):
