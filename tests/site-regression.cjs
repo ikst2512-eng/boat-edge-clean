@@ -106,4 +106,7 @@ assert.ok(html.includes('id="courseDataNotice"'),'course data coverage status mu
 assert.ok(script.includes('コース別1・2・3着率／決まり手：未取得・未検証'),'unavailable course results may not be imputed');
 assert.ok(script.includes("['モーター3連率',txt(racer.motor?.trio_rate)]"),'motor trio rate included in mobile cards');
 assert.ok(script.includes("['ボート3連率',txt(racer.boat?.trio_rate)]"),'boat trio rate included in mobile cards');
+assert.ok(script.includes("entryAudit?.status==='ok'"),'entry must be backed by audited source');
+assert.ok(script.includes('entryAt<raceDeadline'),'entry must be saved before race deadline');
+assert.ok(script.includes('entryAt<=Date.now()+300000'),'entry timestamp cannot be implausibly future-dated');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
