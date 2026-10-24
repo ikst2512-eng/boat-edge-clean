@@ -149,7 +149,7 @@ function renderDeadlines(data){
  items.sort((a,b)=>a.time.localeCompare(b.time)||a.venue-b.venue||a.race-b.race);
  const currentTime=Date.now();
  const upcoming=items.filter(item=>Date.parse(s.date+'T'+item.time+':00+09:00')>currentTime).slice(0,3);
- const signature=upcoming.map(item=>item.key+'@'+item.time).join('|');
+ const signature=upcoming.map(item=>item.key+'@'+item.time).join('|')+'|'+String(Date.now()-Date.parse(data.updated_at)>30*60000);
  if(list.dataset.signature===signature){
   [...list.children].forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));
   updateDeadlineCountdowns();return;
@@ -164,7 +164,8 @@ function renderDeadlines(data){
   const status=document.createElement('span');status.className='muted deadline-countdown';status.dataset.deadline=String(Date.parse(s.date+'T'+item.time+':00+09:00'));status.textContent='締切まで計算中';
   btn.append(tm,label,status);btn.addEventListener('click',()=>{if(Date.now()>=Date.parse(s.date+'T'+item.time+':00+09:00')){renderDeadlines(data);return}venueTouched=true;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();document.querySelector('.view-tabs').scrollIntoView({behavior:'smooth',block:'start'})});list.append(btn);
  }
- document.getElementById('deadlineStatus').textContent=upcoming.length?'締切が近い'+upcoming.length+'レースを表示｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません';
+ const updatedAt=Date.parse(data.updated_at),isStale=!Number.isFinite(updatedAt)||Date.now()-updatedAt>30*60000;
+ document.getElementById('deadlineStatus').textContent=(upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
  updateDeadlineCountdowns();
 }
 async function compareConfirmedResult(key,combo,requestToken){
