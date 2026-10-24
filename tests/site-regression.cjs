@@ -80,4 +80,5 @@ for(const match of script.matchAll(/getElementById\('([^']+)'\)/g)){
  assert.ok(ids.includes(match[1]),'missing HTML element #'+match[1]);
 }
 assert.ok(script.includes("if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'"),'active card and exhibition must refresh on timer');
+assert.ok(script.includes('Date.parse(previous.source_audit?.race_card?.fetched_at)>Date.parse(raw.source_audit?.race_card?.fetched_at)'),'older cached race-card data must not overwrite a newer verified snapshot');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
