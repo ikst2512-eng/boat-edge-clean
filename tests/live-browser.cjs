@@ -28,12 +28,20 @@ const fs=require('node:fs');
    const tab=page.locator('.view-tabs [role="tab"][data-view="'+view+'"]');
    await tab.click();
    if(await tab.getAttribute('aria-selected')!=='true')throw Error(view+' tab did not become selected');
+   if(new URL(page.url()).searchParams.get('view')!==view)throw Error(view+' URL view parameter not synchronized');
    const panel=view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection';
    if(!await page.locator(panel).isVisible())throw Error(view+' panel not visible');
    if(view==='exhibit'&&!await page.locator('#exhibitionGrid').isVisible())throw Error('Exhibition grid hidden');
   }
   destination=new URL(page.url());
   if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Tabs changed selected race');
+  await page.reload({waitUntil:'domcontentloaded'});
+  if(new URL(page.url()).searchParams.get('view')!=='result')throw Error('View query lost on reload');
+  const selectedResultTab=page.locator('.view-tabs [role="tab"][data-view="result"]');
+  await selectedResultTab.waitFor();
+  if(await selectedResultTab.getAttribute('aria-selected')!=='true')throw Error('Result view not restored on reload');
+  if(await page.locator('#venueChooser .grid button').nth(3).getAttribute('aria-pressed')!=='true')throw Error('Venue not restored on reload');
+  if(await page.locator('.races button').nth(1).getAttribute('aria-pressed')!=='true')throw Error('Race not restored on reload');
   if(errors.length)throw Error('Browser errors: '+errors.join(' | '));
   console.log('PASS: published site renders 24 venues, 12 races, 4 panels; venue/race selections and deep-link query persist');
  }catch(e){
