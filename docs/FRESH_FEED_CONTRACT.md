@@ -31,3 +31,12 @@
 - 対象レース締切より `run.created_at` が前であることが必須。締切後に起動したら、たとえコミット時刻が締切前でも失格。
 - ワークフローが `main` にマージされていない段階では実運用の証拠にならない。現時点はPR内の未配備実装。
 - 実際のスケジューラーと予想生成処理から `fresh_snapshots` をpushする配線は未実装。Github側の記録が成功しても、入力CSVが結果公開前に取得されたことの独立証明は別途必要。
+
+## 2026-10-25 生成元実査と接続判定
+
+- 生成元候補 `ikst2512-eng/boat-edge` の `data/site_prediction_snapshots/20261023-05-01.json` を実査。スキーマ `boat-edge-server-site-final-v123`、`prediction_kind=SITE_REFERENCE_V122`、`mode_policy=PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7`。
+- 当該記録の `minutes_to_deadline=3.05`。正式FreshのGitHub到達時刻「締切12分前まで」という要件に達しない。元データは `modes.hit` 等の上位買い目リストであり、全120通りの正規化確率を公開するv5原本と同型ではない。
+- `site_prediction_snapshots` を `fresh_snapshots` にコピーしたり、上位10点の残確率を均等補完してv5原本を捏造してはならない。サイト暫定モードを固定Freshモデルと誤認してはならない。
+- `BOAT_EDGE_V230_FAST_OFFICIAL_PREDEADLINE.yml` は公式ソース取得と別系統の暫定スナップショット生成の処理であり、v5送信元として採用する根拠はまだ確認できない。
+- **実運用の接続ブロッカー**：固定モデルによる120通り全確率・原本ハッシュ・実際の締切時刻・独立した入力取得時刻を持つv5生成元が必要。さらに送信用`FRESH_DISPATCH_TOKEN`と公開用`FRESH_PUSH_TOKEN`のGitHub認証設定、mainへのレビュー済み配備、1Rの締切前の実測検証が必要。
+- GitHub Actionsテスト成功はコードの回帰テストのみで、実レースFresh取得成功や精度検証ではない。正式採点は現時点 **0R**。
