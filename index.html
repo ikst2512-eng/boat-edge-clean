@@ -207,15 +207,16 @@ async function compareConfirmedResult(key,combo,requestToken){
 }
 let resultRequestId=0;
 let displayedResultKey='';
+let displayedResultCombo='';
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
- if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key}
+ if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo=''}
  status.textContent=retainVerified?'確定結果を再確認中（表示を保持）…':'結果データを確認中…';
  try{
   const res=await fetchTimed(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
   if(token!==resultRequestId||key!==sameRaceKey())return;
-  if(res.status===404){detail.replaceChildren();comparison.replaceChildren();status.textContent='確定結果は未配信です（表示中は60秒ごとに確認）';return}
+  if(res.status===404){detail.replaceChildren();comparison.replaceChildren();displayedResultCombo='';status.textContent='確定結果は未配信です（表示中は60秒ごとに確認）';return}
   if(!res.ok)throw Error('HTTP_'+res.status);
   const raw=await res.json();
   if(token!==resultRequestId||key!==sameRaceKey())return;
@@ -223,6 +224,7 @@ async function loadResult(quiet=false){
   let officialSourceOk=false;
   try{const src=new URL(raw.source);officialSourceOk=src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&Number(src.searchParams.get('rno'))===Number(key.split('-')[2])}catch(_){officialSourceOk=false}
   if(!officialSourceOk||raw.schema_version!=='boat-edge-site-result-v109'||raw.race_key!==key||raw.status!=='confirmed'||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||order.some(n=>!Number.isInteger(n)||n<1||n>6)||raw.trifecta!==order.join('-')||!Number.isInteger(payout)||payout<0||!Number.isFinite(Date.parse(raw.fetched_at))||Date.parse(raw.fetched_at)<Date.parse(s.date+'T00:00:00+09:00'))throw Error('UNVERIFIED_RESULT');
+  if(displayedResultCombo!==raw.trifecta){comparison.replaceChildren();displayedResultCombo=raw.trifecta}
   const panel=document.createElement('div');panel.className='result-summary';
   const combo=document.createElement('div');combo.className='result-combo';const label=document.createElement('span');label.textContent='確定3連単 ';combo.append(label);order.forEach((lane,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent=' › ';combo.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+lane;boat.textContent=String(lane);combo.append(boat)});
   const pay=document.createElement('div');pay.className='result-payout';pay.textContent='払戻 '+payout.toLocaleString('ja-JP')+'円 / 100円';
@@ -230,7 +232,7 @@ async function loadResult(quiet=false){
   panel.append(combo,pay,stamp);detail.replaceChildren(panel);status.textContent='保存済み確定結果';
   // Only confirmed results initiate comparison; no generated predictions.
   await compareConfirmedResult(key,raw.trifecta,token);
- }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;const transient=e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError||/^HTTP_(?:403|429|5\d\d)$/.test(e?.message||'');if(retainVerified&&transient&&displayedResultKey===key&&detail.children.length>0){status.textContent='確定結果の再取得に失敗しました。前回確認済みの結果を表示中（最新確認ではありません）';return}detail.replaceChildren();comparison.replaceChildren();status.textContent='結果データを検証できませんでした（未確定・通信エラーは確定扱いしません）'}
+ }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;const transient=e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError||/^HTTP_(?:403|429|5\d\d)$/.test(e?.message||'');if(retainVerified&&transient&&displayedResultKey===key&&detail.children.length>0){status.textContent='確定結果の再取得に失敗しました。前回確認済みの結果を表示中（最新確認ではありません）';return}detail.replaceChildren();comparison.replaceChildren();displayedResultCombo='';status.textContent='結果データを検証できませんでした（未確定・通信エラーは確定扱いしません）'}
 }
 async function loadHeldVenues(force=false){
  const date=s.date;
