@@ -55,4 +55,10 @@ assert.equal(venues.length,24,'all 24 venues must be present');
 assert.equal(new Set(venues).size,24,'venue names must be unique');
 assert.equal(venues[0],'桐生');
 assert.equal(venues[23],'大村');
+// Every statically referenced element must exist, and HTML IDs must not collide.
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+assert.equal(new Set(ids).size,ids.length,'duplicate HTML element ID');
+for(const match of script.matchAll(/getElementById\('([^']+)'\)/g)){
+ assert.ok(ids.includes(match[1]),'missing HTML element #'+match[1]);
+}
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
