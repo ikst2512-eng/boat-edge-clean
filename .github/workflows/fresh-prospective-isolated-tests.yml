@@ -1,0 +1,30 @@
+name: Fresh prospective isolated tests
+on:
+  pull_request:
+    paths:
+      - 'fresh_feed_builder.py'
+      - 'fresh_formal_source_preflight.py'
+      - 'fresh_dispatch_ingest.py'
+      - 'fresh_candidate_receipt.py'
+      - 'test_fresh_*.py'
+      - '.github/workflows/fresh-prospective*'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate nonpublic candidate handling
+        run: |
+          set -euo pipefail
+          python test_fresh_feed_builder.py
+          python test_fresh_formal_source_preflight.py
+          python test_fresh_prospective_capture.py
+          python test_fresh_candidate_receipt.py
+          python test_fresh_prospective_sender.py
+          python test_fresh_candidate_verify.py
