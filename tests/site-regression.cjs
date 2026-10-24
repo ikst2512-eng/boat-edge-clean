@@ -80,7 +80,16 @@ for(const match of script.matchAll(/getElementById\('([^']+)'\)/g)){
  assert.ok(ids.includes(match[1]),'missing HTML element #'+match[1]);
 }
 assert.ok(script.includes("if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'"),'active card and exhibition must refresh on timer');
-assert.ok(script.includes('const cardSource=cardOld>cardNew?previous:raw'),'keep fresher verified race card');
-assert.ok(script.includes('const previewSource=previewOld>previewNew?previous:raw'),'keep fresher verified exhibition data');
-assert.ok(script.includes('beforeinfo:previewSource.beforeinfo'),'combine freshest card and exhibition without losing source provenance');
+const merge=extract('mergeVerifiedRaceSnapshots');
+const snap=(card,preview,valid=true)=>({racers:[{name:'card-'+card}],beforeinfo:{racers:[{name:'preview-'+preview}]},verifiedPreview:valid,source_audit:{race_card:{fetched_at:card},beforeinfo:{fetched_at:preview}}});
+const older=snap('2026-10-24T10:30:00+09:00','2026-10-24T10:36:00+09:00');
+const newerCard=snap('2026-10-24T10:40:00+09:00','2026-10-24T10:32:00+09:00');
+const combined=merge(older,newerCard);
+assert.equal(combined.racers[0].name,'card-2026-10-24T10:40:00+09:00');
+assert.equal(combined.beforeinfo.racers[0].name,'preview-2026-10-24T10:36:00+09:00');
+assert.equal(combined.source_audit.beforeinfo.fetched_at,older.source_audit.beforeinfo.fetched_at);
+assert.equal(merge(newerCard,older).racers[0].name,'card-2026-10-24T10:40:00+09:00');
+assert.equal(merge(null,newerCard).racers[0].name,'card-2026-10-24T10:40:00+09:00');
+const unverified=snap('2026-10-24T10:45:00+09:00','2026-10-24T10:46:00+09:00',false);
+assert.equal(merge(older,unverified).beforeinfo.racers[0].name,'preview-2026-10-24T10:36:00+09:00');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
