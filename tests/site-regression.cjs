@@ -80,7 +80,9 @@ for(const match of script.matchAll(/getElementById\('([^']+)'\)/g)){
  assert.ok(ids.includes(match[1]),'missing HTML element #'+match[1]);
 }
 assert.ok(script.includes("if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'"),'active card and exhibition must refresh on timer');
-const merge=extract('mergeVerifiedRaceSnapshots');
+const mergeBlock=script.slice(script.indexOf('function mergeVerifiedRaceSnapshots('),script.indexOf('\nlet displayedRaceKey=',script.indexOf('function mergeVerifiedRaceSnapshots(')));
+assert.ok(mergeBlock.startsWith('function mergeVerifiedRaceSnapshots('),'missing production merger');
+const merge=vm.runInNewContext(mergeBlock+';mergeVerifiedRaceSnapshots');
 const snap=(card,preview,valid=true)=>({racers:[{name:'card-'+card}],beforeinfo:{racers:[{name:'preview-'+preview}]},verifiedPreview:valid,source_audit:{race_card:{fetched_at:card},beforeinfo:{fetched_at:preview}}});
 const older=snap('2026-10-24T10:30:00+09:00','2026-10-24T10:36:00+09:00');
 const newerCard=snap('2026-10-24T10:40:00+09:00','2026-10-24T10:32:00+09:00');
