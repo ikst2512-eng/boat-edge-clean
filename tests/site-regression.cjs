@@ -10,6 +10,12 @@ function extract(name){
  return vm.runInNewContext(line+';'+name,{URL});
 }
 const classify=extract('classifyPredictionMatch'),official=extract('isOfficialResultSource');
+const validTicket=extract('validTicket'),verifiedTickets=extract('verifiedTicketArray');
+const allTen=['1-2-3','1-2-4','1-2-5','1-2-6','1-3-2','1-3-4','1-3-5','1-3-6','1-4-2','1-4-3'];
+assert.equal(verifiedTickets(allTen),true);
+assert.equal(verifiedTickets(allTen.slice(0,9)),false);
+assert.equal(verifiedTickets([...allTen.slice(0,9),allTen[0]]),false);
+for(const invalid of ['1-1-2','0-1-2','1-7-2','1-2','1-2-3-4'])assert.equal(validTicket(invalid),false,invalid);
 const tickets=['1-2-3','1-3-2','2-1-3','2-3-1','3-1-2','3-2-1','1-2-4','1-4-2','2-1-4','2-4-1'];
 for(const [rank,expected] of [[1,[true,true,true]],[3,[true,true,true]],[4,[false,true,true]],[5,[false,true,true]],[6,[false,false,true]],[10,[false,false,true]],[0,[false,false,false]]]){
  const r=classify(tickets,rank?tickets[rank-1]:'6-5-4');
@@ -36,7 +42,7 @@ assert.equal(official(base,key),true);
 for(const source of [
  base.replace('https:','http:'),base.replace('www.boatrace.jp','www.boatrace.jp.evil.test'),
  base.replace('hd=20261023','hd=20261024'),base.replace('jcd=04','jcd=05'),
- base.replace('rno=10','rno=11'),base.replace('raceresult','racelist'),
+ base.replace('rno=10','rno=11'),base+'&rno=11',base+'&hd=20261024',base.replace('raceresult','racelist'),
  'https://example.com','not-a-url'
 ])assert.equal(official(source,key),false,source);
 for(const literal of ['FIRST_ADD_UNCONFIRMED','SNAPSHOT_CHANGED_SINCE_FIRST_ADD','FREEZE_TIME_NOT_PROVEN','results_seen!==false','unlock!==false','scoring!==false'])assert.ok(script.includes(literal),'missing proof guard: '+literal);
