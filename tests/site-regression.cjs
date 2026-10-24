@@ -121,4 +121,6 @@ assert.ok(script.includes("document.getElementById('courseDataNotice').replaceCh
 assert.ok(script.includes("document.getElementById('mobileRaceCards').hidden=view!=='card'"),'exhibition view must hide redundant racer cards');
 assert.ok(script.includes("document.getElementById('courseDataNotice').hidden=view!=='card'"),'course records belong only on racer card view');
 assert.ok(html.includes('.view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))'),'four tabs should use four columns');
+assert.ok(script.includes("document.createElement('details')"),'secondary racer data must be collapsible');
+assert.ok(script.includes("details.append(toggle,specs)"),'equipment details remain available on demand');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
