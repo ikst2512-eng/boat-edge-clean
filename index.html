@@ -179,6 +179,7 @@ function renderDeadlines(data){
 
  updateDeadlineCountdowns();
 }
+function classifyPredictionMatch(tickets,combo){const index=Array.isArray(tickets)?tickets.indexOf(combo):-1;return {rank:index+1,top3:index>=0&&index<3,top5:index>=0&&index<5,top10:index>=0&&index<10}}
 async function compareConfirmedResult(key,combo,requestToken){
  const target=document.getElementById('resultComparison');
  const fresh=document.createElement('div');
@@ -189,11 +190,11 @@ async function compareConfirmedResult(key,combo,requestToken){
   // Reuse the existing first-Git-add verifier; no post-result predictions.
   const prediction=await verifiedStoredPrediction(key);
   if(key!==sameRaceKey()||activeView!=='result'||requestToken!==resultRequestId)return;
-  const pos=prediction.tickets.indexOf(combo);
+  const verdict=classifyPredictionMatch(prediction.tickets,combo),pos=verdict.rank-1;
   row('3連単確定',combo);
-  row('Top3',pos>=0&&pos<3?'的中':'不的中',pos>=0&&pos<3?'comparison-hit':'comparison-miss');
-  row('Top5',pos>=0&&pos<5?'的中':'不的中',pos>=0&&pos<5?'comparison-hit':'comparison-miss');
-  row('Top10',pos>=0?'的中':'不的中',pos>=0?'comparison-hit':'comparison-miss');
+  row('Top3',verdict.top3?'的中':'不的中',verdict.top3?'comparison-hit':'comparison-miss');
+  row('Top5',verdict.top5?'的中':'不的中',verdict.top5?'comparison-hit':'comparison-miss');
+  row('Top10',verdict.top10?'的中':'不的中',verdict.top10?'comparison-hit':'comparison-miss');
   row('予想内順位',pos>=0?String(pos+1)+'位':'Top10圏外');
   if(pos>=0){row('一致した買い目',prediction.tickets[pos]+'（'+(pos+1)+'位）','comparison-hit')}
   const note=document.createElement('p');note.className='muted';note.textContent='締切前の初回Git保存が照合できた予想のみ比較。結果は予想モデルへ入力しません。';fresh.append(note);target.replaceChildren(...fresh.childNodes);
@@ -208,6 +209,7 @@ async function compareConfirmedResult(key,combo,requestToken){
 let resultRequestId=0;
 let displayedResultKey='';
 let displayedResultCombo='';
+function isOfficialResultSource(source,key){try{const src=new URL(source);return src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&src.searchParams.get('rno')===String(Number(key.split('-')[2]))}catch(_){return false}}
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
@@ -221,8 +223,7 @@ async function loadResult(quiet=false){
   const raw=await res.json();
   if(token!==resultRequestId||key!==sameRaceKey())return;
   const order=raw.finish_order,payout=raw.trifecta_payout_yen_per_100;
-  let officialSourceOk=false;
-  try{const src=new URL(raw.source);officialSourceOk=src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&Number(src.searchParams.get('rno'))===Number(key.split('-')[2])}catch(_){officialSourceOk=false}
+  const officialSourceOk=isOfficialResultSource(raw.source,key);
   if(!officialSourceOk||raw.schema_version!=='boat-edge-site-result-v109'||raw.race_key!==key||raw.status!=='confirmed'||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||order.some(n=>!Number.isInteger(n)||n<1||n>6)||raw.trifecta!==order.join('-')||!Number.isInteger(payout)||payout<0||!Number.isFinite(Date.parse(raw.fetched_at))||Date.parse(raw.fetched_at)<Date.parse(s.date+'T00:00:00+09:00')||Date.parse(raw.fetched_at)>Date.now()+300000)throw Error('UNVERIFIED_RESULT');
   if(displayedResultCombo!==raw.trifecta){comparison.replaceChildren();displayedResultCombo=raw.trifecta}
   const panel=document.createElement('div');panel.className='result-summary';
