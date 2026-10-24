@@ -4,9 +4,9 @@ from pathlib import Path
 from fresh_feed_isolated import collect,publish
 
 ENTRIES=[
- {"commit_sha":"a"*40,"race_code":"202610241201","deadline_at":"2026-10-24T16:00:00+09:00"},
- {"commit_sha":"b"*40,"race_code":"202610241202","deadline_at":"2026-10-24T16:05:00+09:00"}]
-def resolve(sha,code,deadline):
+ {"commit_sha":"a"*40,"race_code":"202610241201","deadline_at":"2026-10-24T16:00:00+09:00","run_id":123},
+ {"commit_sha":"b"*40,"race_code":"202610241202","deadline_at":"2026-10-24T16:05:00+09:00","run_id":124}]
+def resolve(sha,code,deadline,run_id):
     if code.endswith("02"): raise ValueError("invalid proof")
     return {"race_code":code,"freeze_proof":{"commit_sha":sha}}
 def check():
