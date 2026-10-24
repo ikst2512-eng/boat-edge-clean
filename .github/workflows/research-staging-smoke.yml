@@ -29,6 +29,28 @@ jobs:
             echo "Offline staging verification failed; inspect archived evidence"
             exit 1
           fi
+      - name: DNS and HTTPS preflight (no race pages)
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/network-preflight.json
+          import socket,ssl,json,datetime
+          from urllib.request import Request,urlopen
+          hosts=["v-select.jp","www.boatrace.jp","github.com"]
+          out=[]
+          for host in hosts:
+            entry={"host":host,"dns":"unverified","https":"unverified"}
+            try:
+              socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)
+              entry["dns"]="success"
+              if host=="github.com":
+                req=Request("https://github.com/",headers={"User-Agent":"ResearchNetworkPreflight/1.0"})
+                with urlopen(req,timeout=8) as r:
+                  entry["https"]="success" if r.status==200 else "status_"+str(r.status)
+            except Exception as e:
+              entry["error_type"]=type(e).__name__
+            out.append(entry)
+          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":out,"race_pages_requested":0,"forecast_generated":False,"scoring":"NOT_RUN"},indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
