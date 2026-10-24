@@ -286,6 +286,15 @@ async function loadHeldVenues(force=false){
   else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
+function mergeVerifiedRaceSnapshots(previous,raw){
+ if(!previous)return raw;
+ const cardNew=Date.parse(raw.source_audit?.race_card?.fetched_at),cardOld=Date.parse(previous.source_audit?.race_card?.fetched_at);
+ const previewNew=raw.verifiedPreview?Date.parse(raw.source_audit?.beforeinfo?.fetched_at):-Infinity;
+ const previewOld=previous.verifiedPreview?Date.parse(previous.source_audit?.beforeinfo?.fetched_at):-Infinity;
+ const cardSource=cardOld>cardNew?previous:raw;
+ const previewSource=previewOld>previewNew?previous:raw;
+ return cardSource===previewSource?cardSource:{...cardSource,beforeinfo:previewSource.beforeinfo,verifiedPreview:previewSource.verifiedPreview,source_audit:{...cardSource.source_audit,beforeinfo:previewSource.source_audit?.beforeinfo}};
+}
 let displayedRaceKey='';
 async function loadRaceData(force=false){
  const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
@@ -306,18 +315,7 @@ async function loadRaceData(force=false){
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline;
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
-  const previous=verifiedRaceCache.get(key);
-  if(previous){
-   const cardNew=Date.parse(raw.source_audit?.race_card?.fetched_at),cardOld=Date.parse(previous.source_audit?.race_card?.fetched_at);
-   const previewNew=raw.verifiedPreview?Date.parse(raw.source_audit?.beforeinfo?.fetched_at):-Infinity;
-   const previewOld=previous.verifiedPreview?Date.parse(previous.source_audit?.beforeinfo?.fetched_at):-Infinity;
-   const cardSource=cardOld>cardNew?previous:raw;
-   const previewSource=previewOld>previewNew?previous:raw;
-   if(cardSource!==previewSource){
-    raw={...cardSource,beforeinfo:previewSource.beforeinfo,verifiedPreview:previewSource.verifiedPreview,
-     source_audit:{...cardSource.source_audit,beforeinfo:previewSource.source_audit?.beforeinfo}};
-   }else raw=cardSource;
-  }
+  raw=mergeVerifiedRaceSnapshots(verifiedRaceCache.get(key),raw);
   const safePreview=raw.verifiedPreview;
   if(!Array.isArray(raw.racers))throw Error('INCOMPLETE_RACE_CARD');
   const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
