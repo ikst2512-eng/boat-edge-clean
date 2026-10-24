@@ -219,7 +219,9 @@ async function loadResult(quiet=false){
   const raw=await res.json();
   if(token!==resultRequestId||key!==sameRaceKey())return;
   const order=raw.finish_order,payout=raw.trifecta_payout_yen_per_100;
-  if(raw.schema_version!=='boat-edge-site-result-v109'||raw.race_key!==key||raw.status!=='confirmed'||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||order.some(n=>!Number.isInteger(n)||n<1||n>6)||raw.trifecta!==order.join('-')||!Number.isInteger(payout)||payout<0||!Number.isFinite(Date.parse(raw.fetched_at))||Date.parse(raw.fetched_at)<Date.parse(s.date+'T00:00:00+09:00'))throw Error('UNVERIFIED_RESULT');
+  let officialSourceOk=false;
+  try{const src=new URL(raw.source);officialSourceOk=src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&Number(src.searchParams.get('rno'))===Number(key.split('-')[2])}catch(_){officialSourceOk=false}
+  if(!officialSourceOk||raw.schema_version!=='boat-edge-site-result-v109'||raw.race_key!==key||raw.status!=='confirmed'||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||order.some(n=>!Number.isInteger(n)||n<1||n>6)||raw.trifecta!==order.join('-')||!Number.isInteger(payout)||payout<0||!Number.isFinite(Date.parse(raw.fetched_at))||Date.parse(raw.fetched_at)<Date.parse(s.date+'T00:00:00+09:00'))throw Error('UNVERIFIED_RESULT');
   const panel=document.createElement('div');panel.className='result-summary';
   const combo=document.createElement('div');combo.className='result-combo';const label=document.createElement('span');label.textContent='確定3連単 ';combo.append(label);order.forEach((lane,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent=' › ';combo.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+lane;boat.textContent=String(lane);combo.append(boat)});
   const pay=document.createElement('div');pay.className='result-payout';pay.textContent='払戻 '+payout.toLocaleString('ja-JP')+'円 / 100円';
