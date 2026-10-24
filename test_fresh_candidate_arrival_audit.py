@@ -8,7 +8,10 @@ def run():
     proof={"id":123,"run_attempt":1,"event":"repository_dispatch","conclusion":"success",
            "head_branch":"main","path":".github/workflows/fresh-prospective-capture.yml@refs/heads/main",
            "created_at":"2026-10-25T02:40:00Z"}
-    assert check(receipt,proof)["formal_approved"] is False
+    result=check(receipt,proof)
+    assert result["formal_approved"] is False
+    assert result["github_workflow_started_before_cutoff"] is True
+    assert result["candidate_uploaded_before_cutoff_verified"] is False
     def reject(**changes):
         try:check(receipt,{**proof,**changes})
         except ValueError:return
