@@ -22,10 +22,26 @@ jobs:
         env:
           EVENT_PATH: ${{ github.event_path }}
         run: python fresh_dispatch_ingest.py --event "$EVENT_PATH" --event-type fresh_v5_candidate --out-dir prospective_candidates
+      - name: Write candidate audit receipt
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(prospective_candidates/*.json)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo 'Exactly one candidate required' >&2
+            exit 1
+          fi
+          python fresh_candidate_receipt.py --source "${files[0]}" --output prospective_receipt.json --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT"
       - name: Store isolated nonpublic candidate evidence
         uses: actions/upload-artifact@v4
         with:
           name: prospective-v5-${{ github.run_id }}
-          path: prospective_candidates/*.json
+          path: |
+            prospective_candidates/*.json
+            prospective_receipt.json
           if-no-files-found: error
           retention-days: 30
