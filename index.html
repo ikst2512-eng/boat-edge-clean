@@ -83,7 +83,7 @@ setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'&&!verifiedCache.has(sameRaceKey()))loadPredictions();if(activeView==='result')loadResult(true)}});
 const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
 const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
-async function fetchTimed(url,options={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);try{return await fetch(url,{...options,signal:controller.signal})}finally{clearTimeout(timeout)}}
+async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
 async function edgeJson(url){const r=await fetchTimed(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 const verifiedCache=new Map();
