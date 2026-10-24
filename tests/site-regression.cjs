@@ -17,18 +17,19 @@ for(const [rank,expected] of [[1,[true,true,true]],[3,[true,true,true]],[4,[fals
  assert.deepEqual([r.top3,r.top5,r.top10],expected);
 }
 assert.equal(classify(tickets,'1-2-5').rank,0);
-// Historical comparison outcomes previously checked against stored snapshots.
-// Synthetic ticket arrays test the same positions; they do not establish predeadline Git proof.
-for(const [race,rank,result] of [['20261023-04-10',0,'1-2-5'],['20261023-06-10',0,'3-1-2'],['20261023-11-11',4,'1-3-2']]){
- const entries=['1-2-6','1-6-2','1-2-3','4-2-1','4-1-2','5-2-1','5-1-2','6-1-2','6-2-1','2-4-1'];
- if(rank===4)entries[3]=result;
- const verdict=classify(entries,result);
- assert.equal(verdict.rank,rank,race);
- assert.equal(verdict.top3,false,race);
- assert.equal(verdict.top5,rank===4,race);
- assert.equal(verdict.top10,rank===4,race);
+// Stored 2026-10-23 prediction ticket order compared with confirmed results.
+// This tests comparison only, NOT first-Git-add proof or formal scoring.
+for(const sample of [
+ {key:'20261023-04-10',combo:'1-2-5',rank:0,tickets:['1-2-6','1-6-2','1-2-3','1-2-4','1-4-2','2-1-6','2-1-4','2-1-3','2-6-1','6-1-2']},
+ {key:'20261023-06-10',combo:'3-1-2',rank:0,tickets:['1-4-6','1-6-4','1-6-5','1-5-6','1-4-5','6-1-4','4-1-6','4-1-5','6-1-5','6-4-1']},
+ {key:'20261023-11-11',combo:'1-3-2',rank:4,tickets:['1-3-4','1-4-3','1-3-6','1-3-2','1-2-3','3-1-4','3-1-6','3-1-2','4-1-3','3-4-1']}
+]){
+ const verdict=classify(sample.tickets,sample.combo);
+ assert.equal(verdict.rank,sample.rank,sample.key);
+ assert.equal(verdict.top3,false,sample.key);
+ assert.equal(verdict.top5,sample.rank===4,sample.key);
+ assert.equal(verdict.top10,sample.rank===4,sample.key);
 }
-
 const key='20261023-04-10';
 const base='https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261023&jcd=04&rno=10';
 assert.equal(official(base,key),true);
