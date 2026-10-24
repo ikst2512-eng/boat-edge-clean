@@ -11,7 +11,7 @@ RECORD = {"race_code":"202610241201","generated_at":"2026-10-24T11:00:00+09:00",
 RAW = json.dumps(RECORD,sort_keys=True).encode()
 SHA = hashlib.sha256(RAW).hexdigest()
 PROOF = {"commit_sha":"a"*40,"path":"fresh_snapshots/202610241201.json",
-         "sha256":SHA,"deadline_at":"2026-10-24T12:00:00+09:00","committed_at":"2026-10-24T11:05:00+09:00"}
+         "sha256":SHA,"run_id":123,"deadline_at":"2026-10-24T12:00:00+09:00","committed_at":"2026-10-24T11:05:00+09:00"}
 class Response(io.BytesIO):
     def __enter__(self): return self
     def __exit__(self,*args): self.close()
@@ -19,6 +19,8 @@ def fetch_ok(request,timeout=5):
     url=request.full_url
     if "/commits/" in url:
         return Response(json.dumps({"commit":{"committer":{"date":"2026-10-24T02:05:00Z"}}}).encode())
+    if "/actions/runs/" in url:
+        return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success","created_at":"2026-10-24T02:07:00Z"}).encode())
     return Response(RAW)
 def expect_reject(proof,record=RECORD,fetch=fetch_ok):
     try:
