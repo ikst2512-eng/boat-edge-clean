@@ -1,0 +1,27 @@
+name: Fresh nonpublic receiver verification
+on:
+  pull_request:
+    paths:
+      - 'fresh_*.py'
+      - 'test_fresh_*.py'
+      - '.github/workflows/fresh-prospective-capture.yml'
+      - '.github/workflows/fresh-receiver-tests.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify nonpublic candidate intake
+        run: |
+          set -euo pipefail
+          python test_fresh_feed_builder.py
+          python test_fresh_formal_source_preflight.py
+          python test_fresh_prospective_capture.py
+          python test_fresh_candidate_receipt.py
+          python test_fresh_candidate_verify.py
