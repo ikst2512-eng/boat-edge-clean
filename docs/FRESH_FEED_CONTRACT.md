@@ -23,3 +23,11 @@
 4. 取得元CSVの各レースについて生成サイクルと締切前の原本取得証拠を残す
 
 研究予想（`status: research`, `validated:false`）を正式予想と混同しないこと。
+
+## Push到達時刻の独立記録（追加）
+
+- `.github/workflows/fresh-snapshot-witness.yml` は `main` 上の `fresh_snapshots/**` 変更を含むpushで起動する。予想を生成せず、結果ファイルにも触れない。
+- Github Actions RESTの `run.created_at`、`run.head_sha`、`event=push`、`conclusion=success` と、固定原本のコミットSHAを突合。
+- 対象レース締切より `run.created_at` が前であることが必須。締切後に起動したら、たとえコミット時刻が締切前でも失格。
+- ワークフローが `main` にマージされていない段階では実運用の証拠にならない。現時点はPR内の未配備実装。
+- 実際のスケジューラーと予想生成処理から `fresh_snapshots` をpushする配線は未実装。Github側の記録が成功しても、入力CSVが結果公開前に取得されたことの独立証明は別途必要。
