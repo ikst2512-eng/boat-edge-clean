@@ -209,8 +209,9 @@ let resultRequestId=0;
 let displayedResultKey='';
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
- if(!quiet||displayedResultKey!==key){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key}
- status.textContent=quiet?'結果の更新を確認中…':'結果データを確認中…';
+ const retainVerified=displayedResultKey===key&&detail.children.length>0;
+ if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key}
+ status.textContent=retainVerified?'確定結果を再確認中（表示を保持）…':'結果データを確認中…';
  try{
   const res=await fetchTimed(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
   if(token!==resultRequestId||key!==sameRaceKey())return;
@@ -229,7 +230,7 @@ async function loadResult(quiet=false){
   panel.append(combo,pay,stamp);detail.replaceChildren(panel);status.textContent='保存済み確定結果';
   // Only confirmed results initiate comparison; no generated predictions.
   await compareConfirmedResult(key,raw.trifecta,token);
- }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;const transient=e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError||/^HTTP_(?:403|429|5\d\d)$/.test(e?.message||'');if(quiet&&transient&&displayedResultKey===key&&detail.children.length>0){status.textContent='確定結果の再取得に失敗しました。前回確認済みの結果を表示中（最新確認ではありません）';return}detail.replaceChildren();comparison.replaceChildren();status.textContent='結果データを検証できませんでした（未確定・通信エラーは確定扱いしません）'}
+ }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;const transient=e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError||/^HTTP_(?:403|429|5\d\d)$/.test(e?.message||'');if(retainVerified&&transient&&displayedResultKey===key&&detail.children.length>0){status.textContent='確定結果の再取得に失敗しました。前回確認済みの結果を表示中（最新確認ではありません）';return}detail.replaceChildren();comparison.replaceChildren();status.textContent='結果データを検証できませんでした（未確定・通信エラーは確定扱いしません）'}
 }
 async function loadHeldVenues(force=false){
  const date=s.date;
