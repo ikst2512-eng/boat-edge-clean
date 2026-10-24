@@ -33,13 +33,24 @@ def prepare(path,model_version,now=None):
         "snapshot_base64":base64.b64encode(raw).decode("ascii"),
         "model_version":model_version}}
 
-def dispatch(payload,token,source_status,opener=urlopen):
+def dispatch(payload,token,source_status,opener=urlopen,now=None):
     if not isinstance(token,str) or not token:
         raise ValueError("FRESH_DISPATCH_TOKEN missing")
     if assess_collection(source_status)["ready"] is not True:
         raise ValueError("pre-result collection guards closed")
     if payload.get("event_type")!="fresh_v5_candidate":
         raise ValueError("public dispatch not allowed in prospective sender")
+    # Recheck time after remote preflight and receiver lookup, immediately before POST.
+    try:
+        inner=payload["client_payload"]
+        original=base64.b64decode(inner["snapshot_base64"],validate=True)
+        record=convert(original,inner["model_version"])
+        instant=now or datetime.now(timezone.utc)
+        cutoff=datetime.fromisoformat(record["deadline_at"])-timedelta(minutes=15)
+        if instant.tzinfo is None or instant.utcoffset() is None or instant>=cutoff:
+            raise ValueError("dispatch cutoff passed")
+    except (KeyError,TypeError) as exc:
+        raise ValueError("invalid candidate dispatch body") from exc
     raw=json.dumps(payload,separators=(",",":")).encode()
     if len(raw)>65000:
         raise ValueError("GitHub dispatch payload too large")

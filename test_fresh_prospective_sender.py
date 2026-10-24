@@ -22,8 +22,12 @@ def check():
         def opener(req,timeout):
             sent.append(json.loads(req.data))
             return Response()
-        assert dispatch(payload,"test-secret",status,opener)=="accepted_not_frozen_or_witnessed"
+        assert dispatch(payload,"test-secret",status,opener,now=datetime(2026,10,24,2,20,tzinfo=timezone.utc))=="accepted_not_frozen_or_witnessed"
         assert sent[0]["event_type"]=="fresh_v5_candidate"
+        try:dispatch(payload,"test-secret",status,opener,now=datetime(2026,10,24,2,45,tzinfo=timezone.utc))
+        except ValueError:pass
+        else:raise AssertionError("late post accepted")
+        assert len(sent)==1
         for bad in ({**payload,"event_type":"fresh_v5_snapshot"},payload):
             try:dispatch(bad,"test-secret",{**status,"guards":{**status["guards"],"scoring":True}},opener)
             except ValueError:pass
