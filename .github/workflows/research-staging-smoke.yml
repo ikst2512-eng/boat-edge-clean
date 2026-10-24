@@ -12,5 +12,16 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - name: Offline staging audit
-        run: python3 research-capture/staging_audit.py
+      - name: Offline syntax and staging audit
+        run: |
+          mkdir -p audit-output
+          python3 -m compileall -q research-capture
+          python3 research-capture/staging_audit.py > audit-output/staging-audit.log 2>&1
+      - name: Always publish audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-staging-audit
+          path: audit-output/
+          if-no-files-found: warn
+          retention-days: 30
