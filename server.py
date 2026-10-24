@@ -179,6 +179,20 @@ def verify_commit_proof(proof, record, race_code):
         raise ValueError("stated commit time mismatch")
     if generated > actual_commit_time or actual_commit_time >= deadline:
         raise ValueError("commit is not before deadline")
+    # A Git committer date is self-declared. Require GitHub's server-issued
+    # workflow creation time as an independent pre-deadline existence witness.
+    run_id = proof.get("run_id")
+    if type(run_id) is not int or run_id <= 0:
+        raise ValueError("missing independent GitHub run ID")
+    run_req = Request(host + "/actions/runs/" + str(run_id),
+                      headers={"User-Agent": "BOAT-EDGE-FRESH/1.0", "Accept": "application/vnd.github+json"})
+    with urlopen(run_req, timeout=5) as response:
+        run = json.load(response)
+    if run.get("head_sha") != sha or run.get("event") != "push" or run.get("conclusion") != "success":
+        raise ValueError("run does not independently witness committed forecast")
+    created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+    if created_at.tzinfo is None or created_at >= deadline or created_at < generated:
+        raise ValueError("GitHub run did not start after forecast and before deadline")
     req = Request("https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/" + sha + "/" + path,
                   headers={"User-Agent": "BOAT-EDGE-FRESH/1.0"})
     with urlopen(req, timeout=5) as response:
