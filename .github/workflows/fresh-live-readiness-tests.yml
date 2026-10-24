@@ -1,0 +1,18 @@
+name: Fresh live readiness checks
+on:
+  pull_request:
+    paths:
+      - 'fresh_live_readiness.py'
+      - 'test_fresh_live_readiness.py'
+      - '.github/workflows/fresh-live-readiness-tests.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python test_fresh_live_readiness.py
