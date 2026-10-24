@@ -412,8 +412,11 @@ async function loadRaceData(force=false){
    ['選手',r=>r.name||'—'],
    ['級別',r=>r.class||'—'],
    ['全国勝率',r=>displayRate(r.national?.win_rate)],
+   ['全国2連率',r=>displayRate(r.national?.quinella_rate)],
    ['当地勝率',r=>displayRate(r.local?.win_rate)],
+   ['当地2連率',r=>displayRate(r.local?.quinella_rate)],
    ['平均ST',r=>typeof r.avg_st==='number'&&Number.isFinite(r.avg_st)?r.avg_st.toFixed(2):'—'],
+   ['F / L',r=>String(r.F??'—')+' / '+String(r.L??'—')],
    ['モーター2連',r=>displayRate(r.motor?.quinella_rate)],
    ['ボート2連',r=>displayRate(r.boat?.quinella_rate)]
   ];
