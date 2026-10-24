@@ -60,6 +60,12 @@ let activeView=['card','exhibit','forecast','result'].includes(params.get('view'
 for(const [id,view] of [['openResult','result'],['openForecast','forecast']])document.getElementById(id).addEventListener('click',()=>{setView(view);if(view==='result')loadResult();else loadPredictions();document.querySelector('.view-tabs').scrollIntoView({behavior:'smooth',block:'start'})});
 function setView(view){
  if(!['card','exhibit','forecast','result'].includes(view))return;
+ if(activeView!==view){
+  // Invalidate requests from panels that are no longer visible.
+  if(activeView==='forecast')window.predictionRequestId=(window.predictionRequestId||0)+1;
+  if(activeView==='result')resultRequestId++;
+  if(activeView==='card'||activeView==='exhibit')window.raceDataRequestId=(window.raceDataRequestId||0)+1;
+ }
  activeView=view;
  document.querySelectorAll('[data-view]').forEach(b=>{const on=b.dataset.view===view;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.setAttribute('aria-pressed',String(on));b.tabIndex=on?0:-1});
  document.getElementById('raceDataSection').hidden=view==='forecast'||view==='result';
