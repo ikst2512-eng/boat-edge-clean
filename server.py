@@ -193,7 +193,7 @@ def verify_commit_proof(proof, record, race_code):
         run = json.load(response)
     if (run.get("head_sha") != sha or run.get("event") != "push" or
             run.get("conclusion") != "success" or run.get("head_branch") != "main" or
-            run.get("path") not in (".github/workflows/fresh-snapshot-witness.yml", ".github/workflows/fresh-snapshot-witness.yml@refs/heads/main")):
+            (not isinstance(run.get("path"), str) or run["path"].split("@", 1)[0] != ".github/workflows/fresh-snapshot-witness.yml")):
         raise ValueError("run does not independently witness committed forecast")
     created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
     if created_at.tzinfo is None or created_at >= deadline - timedelta(minutes=12) or created_at < generated:
