@@ -137,4 +137,7 @@ assert.ok(html.includes('.boat-matrix-table th:first-child{position:sticky;left:
 assert.ok(script.includes("['全国2連率',r=>displayRate(r.national?.quinella_rate)]"),'national quinella rate included in racer matrix');
 assert.ok(script.includes("['当地2連率',r=>displayRate(r.local?.quinella_rate)]"),'local quinella rate included in racer matrix');
 assert.ok(script.includes("['F / L',r=>String(r.F??'—')"),'F/L included in racer matrix');
+assert.ok(script.includes("const weather=safePreview&&raw.beforeinfo?.weather"),'weather must be gated by audited exhibition source');
+assert.ok(script.includes("typeof value==='number'&&Number.isFinite(value)&&value>=0"),'weather must not render fabricated or malformed values');
+assert.ok(script.includes("water.className='exhibition-weather'"),'water observations available in exhibition view');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
