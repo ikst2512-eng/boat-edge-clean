@@ -1,5 +1,6 @@
 """Check prediction feed contract without shipping invented predictions."""
 import json
+from itertools import permutations
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -15,7 +16,9 @@ def check():
         with patch("server.ROOT", root), patch("server.verify_commit_proof") as verified:
             status, response = get_predictions(QUERY)
             assert status == 200 and response["status"] == "unavailable"
-            record = {"race_code":"202610221201","predictions":[{"ticket": t} for t in TICKETS],
+            valid = [f"{a}-{b}-{c}" for a,b,c in permutations(range(1,7),3)]
+            probabilities = {ticket: 1/120 for ticket in valid}
+            record = {"probabilities": probabilities, "race_code":"202610221201","predictions":[{"ticket": t, "probability": probabilities[t]} for t in TICKETS],
                       "model_version":"regression-fixture", "generated_at":"2026-10-22T00:00:00+09:00",
                       "validated":True, "deadline_at":"2026-10-22T12:00:00+09:00", "freeze_proof": {"commit_sha": "a"*40,
                       "committed_at": "2026-10-22T00:02:00+09:00", "deadline_at": "2026-10-22T12:00:00+09:00"}}
@@ -24,6 +27,19 @@ def check():
             assert status == 200 and response["status"] == "available"
             assert response["predictions"] == TICKETS
             assert verified.call_count == 1
+            # A selected ticket must reflect the numerical ranking, not an
+            # arbitrary ten-ticket list with valid-looking ticket strings.
+            record["predictions"][0]["probability"] = 0.5
+            (root / "predictions.json").write_text(json.dumps({KEY:record}))
+            status, response = get_predictions(QUERY)
+            assert status == 503
+            record["predictions"][0]["probability"] = probabilities[TICKETS[0]]
+            record["probabilities"][TICKETS[0]] = 0.5
+            (root / "predictions.json").write_text(json.dumps({KEY:record}))
+            status, response = get_predictions(QUERY)
+            assert status == 503
+            record["probabilities"][TICKETS[0]] = probabilities[TICKETS[0]]
+
             # A flag alone cannot mark a prediction as Fresh.
             saved_proof = record.pop("freeze_proof")
             (root / "predictions.json").write_text(json.dumps({KEY:record}))
