@@ -10,7 +10,8 @@ function extract(name){
  return vm.runInNewContext(line+';'+name,{URL});
 }
 const classify=extract('classifyPredictionMatch'),official=extract('isOfficialResultSource');
-const validTicket=extract('validTicket'),verifiedTickets=extract('verifiedTicketArray');
+const ticketFns=vm.runInNewContext([script.split('\n').find(l=>l.startsWith('const validTicket=')),script.split('\n').find(l=>l.startsWith('function verifiedTicketArray(')),'({validTicket,verifiedTicketArray})'].join('\n'));
+const validTicket=ticketFns.validTicket,verifiedTickets=ticketFns.verifiedTicketArray;
 const allTen=['1-2-3','1-2-4','1-2-5','1-2-6','1-3-2','1-3-4','1-3-5','1-3-6','1-4-2','1-4-3'];
 assert.equal(verifiedTickets(allTen),true);
 assert.equal(verifiedTickets(allTen.slice(0,9)),false);
