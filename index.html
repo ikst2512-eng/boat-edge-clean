@@ -215,9 +215,9 @@ async function loadHeldVenues(force=false){
  venueDateChecked=date;
  const token=++venueRequest;
  const status=document.getElementById('venueState');
- status.textContent='開催情報を確認中…';
- clearDeadlines('締切情報を確認中…');
- [...vb.children].forEach(b=>{b.classList.remove('held');b.removeAttribute('data-held')});
+ const retaining=force&&todayVenueRaces?.date===date;
+ status.textContent=retaining?'開催情報を更新中（前回表示を維持）…':'開催情報を確認中…';
+ if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach(b=>{b.classList.remove('held');b.removeAttribute('data-held')})}
  try{
   const response=await fetchTimed(EDGE_RAW+'/main/data/today.json',{cache:'no-store'});
   if(!response.ok)throw Error('VENUE_SOURCE_UNAVAILABLE');
@@ -247,9 +247,9 @@ async function loadHeldVenues(force=false){
   status.textContent='開催情報：'+available.size+'場｜締切前は次の3レースのみ表示';
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
-  venueDateChecked='';todayVenueRaces=null;
-  clearDeadlines('締切情報の取得に失敗しました');
-  status.textContent='開催情報を取得できません（全24場から選択可能）';
+  venueDateChecked='';
+  if(retaining){renderDeadlines(todayVenueRaces);status.textContent='開催情報の再取得に失敗しました。前回取得した開催データを表示中です。締切は現在時刻で判定しています。';}
+  else{todayVenueRaces=null;clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
 let displayedRaceKey='';
