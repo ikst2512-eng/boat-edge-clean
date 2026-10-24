@@ -1,0 +1,57 @@
+name: Fresh external v5 dispatch publish
+on:
+  repository_dispatch:
+    types: [fresh_v5_snapshot]
+permissions:
+  contents: read
+concurrency:
+  group: fresh-dispatch-main
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require independent push-triggering token
+        env:
+          FRESH_PUSH_TOKEN: ${{ secrets.FRESH_PUSH_TOKEN }}
+        run: |
+          if [ -z "$FRESH_PUSH_TOKEN" ]; then
+            echo 'Missing FRESH_PUSH_TOKEN' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.FRESH_PUSH_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify upstream formal model is actually approved
+        run: python fresh_formal_source_preflight.py
+      - name: Validate and freeze external v5 payload
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+        run: python fresh_dispatch_ingest.py --event "$EVENT_PATH" --out-dir fresh_snapshots
+      - name: Reject deadline breach before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- fresh_snapshots/
+          if git diff --cached --quiet; then
+            echo 'No new candidates'
+            exit 1
+          fi
+          python - <<'PY'
+          import json,subprocess
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          changed=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          if len(changed)!=1 or not changed[0].startswith('fresh_snapshots/'):
+              raise SystemExit('Unexpected staged changes')
+          record=json.loads(Path(changed[0]).read_bytes())
+          cutoff=datetime.fromisoformat(record['deadline_at'])-timedelta(minutes=12)
+          if datetime.now(timezone.utc)>=cutoff:
+              raise SystemExit('Deadline safety margin breached')
+          PY
+          git -c user.name='fresh-dispatch-bot' -c user.email='fresh-dispatch-bot@users.noreply.github.com' commit -m 'Freeze dispatched external v5 prediction'
+          git push origin HEAD:main

@@ -1,0 +1,70 @@
+name: Fresh v5 immutable publication
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'External v5 model identifier'
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: fresh-v5-immutable-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require push token that can trigger witness workflow
+        env:
+          FRESH_PUSH_TOKEN: ${{ secrets.FRESH_PUSH_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$FRESH_PUSH_TOKEN" ]; then
+            echo 'Missing FRESH_PUSH_TOKEN: GITHUB_TOKEN pushes cannot trigger the independent witness' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.FRESH_PUSH_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture externally supplied v5 snapshots
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d fresh_inbox ]; then
+            echo 'No external v5 inbox; nothing to publish'
+            exit 0
+          fi
+          python capture_fresh_candidates.py --inbox fresh_inbox --out fresh_snapshots --model-version "$MODEL_VERSION"
+      - name: Commit immutable new snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d fresh_snapshots ]; then exit 0; fi
+          git add -- fresh_snapshots/
+          if git diff --cached --quiet; then exit 0; fi
+          # Recheck just before push; earlier validation alone cannot prove
+          # the forecast was published before the cutoff.
+          python - <<'PY'
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+          import json, subprocess
+          files=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          now=datetime.now(timezone.utc)
+          for name in files:
+              if not name.startswith('fresh_snapshots/') or not name.endswith('.json'):
+                  raise SystemExit('Unexpected staged file')
+              record=json.loads(Path(name).read_bytes())
+              deadline=datetime.fromisoformat(record['deadline_at'])
+              if deadline.tzinfo is None or now>=deadline-timedelta(minutes=12):
+                  raise SystemExit('Too late to publish snapshot')
+          PY
+          git -c user.name='fresh-v5-bot' -c user.email='fresh-v5-bot@users.noreply.github.com' commit -m 'Preserve v5 immutable forecasts'
+          git push origin HEAD:main

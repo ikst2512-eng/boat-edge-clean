@@ -1,0 +1,48 @@
+name: Fresh snapshot arrival witness
+# GitHub-issued run.created_at is an existence witness, not proof that the
+# upstream prediction inputs were independently collected before race cutoff.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fresh_snapshots/**'
+jobs:
+  witness:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check exactly one newly added immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, pathlib, re, hashlib, subprocess
+          from datetime import datetime, timezone
+          paths=subprocess.check_output(
+              ["git","diff-tree","--no-commit-id","--name-only","-r","HEAD","--","fresh_snapshots/"],
+              text=True).splitlines()
+          added=subprocess.check_output(
+              ["git","diff-tree","--no-commit-id","--name-only","--diff-filter=A","-r","HEAD","--","fresh_snapshots/"],
+              text=True).splitlines()
+          if len(paths)!=1 or paths!=added:
+              raise SystemExit("Witness requires exactly one added, never modified, snapshot")
+          path=pathlib.Path(paths[0])
+          if not re.fullmatch(r"[0-9]{12}[.]json",path.name):
+              raise SystemExit("Invalid race filename")
+          record=json.loads(path.read_bytes())
+          if record.get("race_code")!=path.stem or record.get("validated") is not True:
+              raise SystemExit("Wrong race identity or state")
+          deadline=datetime.fromisoformat(record["deadline_at"])
+          generated=datetime.fromisoformat(record["generated_at"])
+          if any(x.tzinfo is None or x.utcoffset() is None for x in (deadline,generated)):
+              raise SystemExit("Naive dates")
+          if not generated<deadline:
+              raise SystemExit("Forecast timestamp is late")
+          # Independent acceptance deadline is also checked by the publication API
+          # against this workflow's GitHub server-side created_at.
+          print(path,hashlib.sha256(path.read_bytes()).hexdigest())
+          PY

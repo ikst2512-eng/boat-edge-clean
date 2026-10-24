@@ -1,0 +1,25 @@
+name: Fresh proof tests
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile forecast and verification modules
+        run: python -m compileall -q .
+      - name: Execute each regression as a separate process
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in test_predictions.py test_fresh_commit_proof.py test_fresh_feed_builder.py test_fresh_feed_publisher.py test_fresh_feed_batch.py test_fresh_feed_isolated.py test_fresh_feed_incremental.py test_fresh_feed_promote.py test_capture_fresh_candidates.py test_fresh_witness_trigger.py test_fresh_auto_finalize.py test_fresh_auto_wiring.py test_fresh_dispatch_sender.py test_fresh_feed_autopublish.py test_fresh_workflow_contract.py test_fresh_pipeline_end_to_end.py test_fresh_upstream_separation.py test_fresh_formal_source_preflight.py test_fresh_dispatch_readiness_wiring.py test_fresh_prospective_capture.py test_fresh_candidate_receipt.py; do
+            echo "RUN $test"
+            timeout 45s python "$test"
+          done

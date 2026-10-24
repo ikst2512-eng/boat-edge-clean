@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 from urllib.request import Request, urlopen
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from itertools import permutations
 from pathlib import Path
 import json
@@ -144,6 +144,71 @@ def get_odds(params):
     return result
 
 
+def verify_commit_proof(proof, record, race_code):
+    """Verify immutable forecast bytes against an allowlisted GitHub commit.
+
+    Fail closed on network errors. Only the repository's trusted freeze path
+    can supply proof; the source file must contain the exact record.
+    """
+    import hashlib
+    from urllib.error import HTTPError, URLError
+    sha = proof["commit_sha"]
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("invalid commit SHA")
+    if record.get("race_code") != race_code:
+        raise ValueError("frozen race code differs from requested race")
+    path = proof.get("path", "")
+    if not isinstance(race_code, str) or not re.fullmatch(r"[0-9]{12}", race_code):
+        raise ValueError("invalid race code")
+    if path != "fresh_snapshots/" + race_code + ".json":
+        raise ValueError("untrusted proof path")
+    expected = proof.get("sha256")
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError("invalid frozen content hash")
+    host = "https://api.github.com/repos/ikst2512-eng/boat-edge-clean"
+    req = Request(host + "/commits/" + sha, headers={"User-Agent": "BOAT-EDGE-FRESH/1.0", "Accept": "application/vnd.github+json"})
+    with urlopen(req, timeout=5) as response:
+        metadata = json.load(response)
+    actual_commit_time = datetime.fromisoformat(metadata["commit"]["committer"]["date"].replace("Z", "+00:00"))
+    deadline = datetime.fromisoformat(proof["deadline_at"])
+    source_deadline = datetime.fromisoformat(record["deadline_at"])
+    if source_deadline.tzinfo is None or source_deadline.utcoffset() is None or source_deadline != deadline:
+        raise ValueError("source deadline differs from supplied deadline")
+    generated = datetime.fromisoformat(record["generated_at"])
+    stated_committed = datetime.fromisoformat(proof["committed_at"])
+    if any(dt.tzinfo is None or dt.utcoffset() is None for dt in (deadline, generated, actual_commit_time, stated_committed)):
+        raise ValueError("timezone required")
+    if stated_committed != actual_commit_time:
+        raise ValueError("stated commit time mismatch")
+    if generated > actual_commit_time or actual_commit_time >= deadline:
+        raise ValueError("commit is not before deadline")
+    # A Git committer date is self-declared. Require GitHub's server-issued
+    # workflow creation time as an independent pre-deadline existence witness.
+    run_id = proof.get("run_id")
+    if type(run_id) is not int or run_id <= 0:
+        raise ValueError("missing independent GitHub run ID")
+    run_req = Request(host + "/actions/runs/" + str(run_id),
+                      headers={"User-Agent": "BOAT-EDGE-FRESH/1.0", "Accept": "application/vnd.github+json"})
+    with urlopen(run_req, timeout=5) as response:
+        run = json.load(response)
+    if (run.get("head_sha") != sha or run.get("event") != "push" or
+            run.get("conclusion") != "success" or run.get("head_branch") != "main" or
+            (not isinstance(run.get("path"), str) or run["path"].split("@", 1)[0] != ".github/workflows/fresh-snapshot-witness.yml")):
+        raise ValueError("run does not independently witness committed forecast")
+    created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+    if created_at.tzinfo is None or created_at >= deadline - timedelta(minutes=12) or created_at < generated:
+        raise ValueError("GitHub run did not start after forecast and before deadline")
+    req = Request("https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/" + sha + "/" + path,
+                  headers={"User-Agent": "BOAT-EDGE-FRESH/1.0"})
+    with urlopen(req, timeout=5) as response:
+        raw = response.read(100_001)
+    if len(raw) > 100_000 or hashlib.sha256(raw).hexdigest() != expected:
+        raise ValueError("frozen content mismatch")
+    frozen = json.loads(raw)
+    if frozen != {k: v for k, v in record.items() if k != "freeze_proof"}:
+        raise ValueError("published frozen record differs from served record")
+
+
 def get_predictions(params):
     hd = params.get("hd", [""])[0]
     jcd = params.get("jcd", [""])[0]
@@ -165,7 +230,7 @@ def get_predictions(params):
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "研究予想の入力データが揃っていません。"}
 
     try:
-        if source.stat().st_size > 3000000:
+        if source.stat().st_size > 16_000_000:
             raise ValueError("prediction feed too large")
         payload = json.loads(source.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
@@ -185,10 +250,47 @@ def get_predictions(params):
             if len(set(ticket.split("-"))) != 3 or ticket in tickets:
                 raise ValueError("duplicate ticket")
             tickets.append(ticket)
+        # Verify that the API displays the actual ten highest-probability
+        # tickets of the complete normalized 120-way distribution.
+        from itertools import permutations
+        import math
+        valid = {f"{a}-{b}-{c}" for a, b, c in permutations(range(1, 7), 3)}
+        probabilities = record.get("probabilities")
+        if not isinstance(probabilities, dict) or set(probabilities) != valid:
+            raise ValueError("120-way distribution missing")
+        if any(type(p) not in (float, int) or not math.isfinite(p) or not 0 <= p <= 1
+               for p in probabilities.values()):
+            raise ValueError("invalid probability")
+        if abs(sum(probabilities.values()) - 1) > 1e-8:
+            raise ValueError("distribution is not normalized")
+        ranked = sorted(valid, key=lambda t: (-probabilities[t], tuple(map(int, t.split("-")))))
+        if len(raw) != 10 or any(item.get("ticket") != ticket or
+                item.get("probability") != probabilities[ticket]
+                for item, ticket in zip(raw, ranked[:10])):
+            raise ValueError("published top ten is not probability-ranked")
         if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
             raise ValueError("feed missing validation metadata")
+        # Fail closed: an arbitrary validated=true flag is not evidence of a
+        # pre-deadline immutable forecast. Require external commit provenance.
+        proof = record.get("freeze_proof")
+        if not isinstance(proof, dict):
+            raise ValueError("missing frozen prediction provenance")
+        commit_sha = proof.get("commit_sha")
+        if not isinstance(commit_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", commit_sha):
+            raise ValueError("invalid freeze commit sha")
+        try:
+            deadline = datetime.fromisoformat(proof["deadline_at"])
+            committed = datetime.fromisoformat(proof["committed_at"])
+            generated = datetime.fromisoformat(record["generated_at"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("invalid provenance timestamps")
+        if any(dt.tzinfo is None or dt.utcoffset() is None for dt in (deadline, committed, generated)):
+            raise ValueError("provenance timestamps must be timezone aware")
+        if not (generated <= committed < deadline):
+            raise ValueError("prediction is not demonstrably committed before deadline")
+        verify_commit_proof(proof, record, hd + jcd + f"{int(rno):02d}")
         return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
-    except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError, AttributeError, KeyError, json.JSONDecodeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 

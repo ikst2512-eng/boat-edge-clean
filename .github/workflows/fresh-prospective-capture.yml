@@ -1,0 +1,47 @@
+name: Fresh prospective candidate capture
+# Nonpublic pre-result evidence only. Does not publish predictions or unlock scoring.
+on:
+  repository_dispatch:
+    types: [fresh_v5_candidate]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require pre-result collection guards, not a completed 100R cohort
+        run: python fresh_formal_source_preflight.py --collection-only
+      - name: Validate external 120-probability candidate before cutoff
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+        run: python fresh_dispatch_ingest.py --event "$EVENT_PATH" --event-type fresh_v5_candidate --out-dir prospective_candidates
+      - name: Write candidate audit receipt
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(prospective_candidates/*.json)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo 'Exactly one candidate required' >&2
+            exit 1
+          fi
+          python fresh_candidate_receipt.py --source "${files[0]}" --output prospective_receipt.json --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT"
+      - name: Store isolated nonpublic candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: prospective-v5-${{ github.run_id }}
+          path: |
+            prospective_candidates/*.json
+            prospective_receipt.json
+          if-no-files-found: error
+          retention-days: 30
