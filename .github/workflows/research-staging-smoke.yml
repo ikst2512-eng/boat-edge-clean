@@ -283,6 +283,22 @@ jobs:
           assert report["forecast_allowed"] is False
           print(json.dumps(report,indent=2))
           PY
+      - name: Offline exhibition parser positive and fail-closed tests
+        run: |
+          python3 - <<'PY' > audit-output/exhibition-parser-test.log 2>&1
+          import sys
+          sys.path.insert(0,"research-capture")
+          from exhibition_six_lane import inspect
+          data="<html><table><tr><th>展示タイム</th><td>6.78</td><td>6.81</td></tr></table></html>".encode()
+          report=inspect(data)
+          assert report["tables"]==1,report
+          assert report["candidate_rows"][0]["numeric_candidates"]==2,report
+          assert report["forecast_allowed"] is False
+          unsafe=inspect(data+"払戻金".encode())
+          assert unsafe["result_related_token"] is True
+          assert unsafe["forecast_allowed"] is False
+          print("PARSER_OFFLINE_TESTS_PASS candidate extraction and fail-closed gate")
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
