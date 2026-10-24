@@ -17,7 +17,7 @@ class Response(io.BytesIO):
     def __exit__(self,*args):self.close()
 def fake_fetch(url):
     if "/actions/runs/" in url:
-        return {"head_sha":SHA,"event":"push","conclusion":"success","head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml","created_at":"2026-10-24T02:07:00Z"}
+        return {"head_sha":SHA,"event":"push","conclusion":"success","head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml@refs/heads/main","created_at":"2026-10-24T02:07:00Z"}
     return {"commit":{"committer":{"date":"2026-10-24T02:05:00Z"}}}
 def fake_open(req,timeout=8):
     return Response(canonical(SOURCE))
