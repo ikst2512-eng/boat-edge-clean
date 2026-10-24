@@ -59,6 +59,14 @@ def test_proof_checks():
             return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success","head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml@refs/heads/main","created_at":"2026-10-24T03:00:00Z"}).encode())
         return fetch_ok(req,timeout)
     expect_reject(PROOF,fetch=late_run)
+    def inside_safety_window(req,timeout=5):
+        if "/actions/runs/" in req.full_url:
+            return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success",
+                "head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml",
+                "created_at":"2026-10-24T02:50:00Z"}).encode())
+        return fetch_ok(req,timeout)
+    expect_reject(PROOF,fetch=inside_safety_window)
+
     expect_reject({**PROOF,"path":"../secrets.json"})
     expect_reject({**PROOF,"path":"fresh_snapshots/202610241202.json"})
     expect_reject({**PROOF,"committed_at":"2026-10-24T11:06:00+09:00"})
