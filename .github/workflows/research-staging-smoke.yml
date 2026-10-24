@@ -183,6 +183,34 @@ jobs:
           except Exception as e:report["error_type"]=type(e).__name__
           print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
+      - name: Verify six-lane extraction without outcome parsing
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/six-lane-audit.json
+          import urllib.request,datetime,json,hashlib,re
+          from html.parser import HTMLParser
+          now=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+          day=now.strftime("%Y%m%d")
+          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
+          record={"date":day,"venue_code":"05","race_no":12,"forecast_generated":False,"scoring":"NOT_RUN","outcome_endpoint_requested":False,"valid_six_lane_exhibition":False}
+          class P(HTMLParser):
+            def __init__(self):super().__init__();self.lanes=[];self.table_count=0;self.exhibition_words=0
+            def handle_starttag(self,tag,attrs):
+              if tag=="table":self.table_count+=1
+              a=dict(attrs);s=a.get("class","")
+              for i in range(1,7):
+                if re.search(r"(?:is-boatColor|is-boatcolor|boatColor)"+str(i)+r"\b",s):
+                  self.lanes.append(i)
+          try:
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
+              data=r.read(200001); record.update({"status":r.status,"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()})
+              page=data.decode(r.headers.get_content_charset() or "utf-8","replace")
+            parser=P();parser.feed(page)
+            unique=sorted(set(parser.lanes))
+            record.update({"tables":parser.table_count,"lane_classes":unique,"lane_classes_complete":unique==[1,2,3,4,5,6],"has_exhibition_heading":"展示" in page,"has_result_related_word":bool(re.search("払戻金|確定結果|着順結果",page)),"numeric_exhibition_values_extracted":0,"reason":"layout check only; no parsed values or timing attestation"})
+          except Exception as e:record["error"]=type(e).__name__
+          print(json.dumps(record,ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
