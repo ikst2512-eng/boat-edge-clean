@@ -17,13 +17,22 @@ VALID = {f"{a}-{b}-{c}" for a,b,c in permutations(range(1,7),3)}
 def canonical(obj):
     return (json.dumps(obj,ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)+"\n").encode("utf-8")
 
+def valid_race_code(code):
+    if not isinstance(code,str) or not re.fullmatch(r"[0-9]{12}",code):
+        return False
+    try:
+        datetime.strptime(code[:8],"%Y%m%d")
+    except ValueError:
+        return False
+    return 1<=int(code[8:10])<=24 and 1<=int(code[10:12])<=12
+
 def convert(snapshot_bytes, model_version):
     raw=json.loads(snapshot_bytes)
     digest=raw.get("sha256")
     body={k:v for k,v in raw.items() if k!="sha256"}
     if not isinstance(digest,str) or hashlib.sha256(canonical(body)).hexdigest()!=digest:
         raise ValueError("v5 snapshot digest mismatch")
-    if raw.get("schema")!="boatrace-fresh-v1" or not re.fullmatch(r"[0-9]{12}",str(raw.get("race_code",""))):
+    if raw.get("schema")!="boatrace-fresh-v1" or not valid_race_code(raw.get("race_code")):
         raise ValueError("bad snapshot schema or code")
     probs=raw.get("probabilities")
     if not isinstance(probs,dict) or set(probs)!=VALID:
