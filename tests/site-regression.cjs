@@ -48,5 +48,11 @@ for(const source of [
 ])assert.equal(official(source,key),false,source);
 for(const literal of ['FIRST_ADD_UNCONFIRMED','SNAPSHOT_CHANGED_SINCE_FIRST_ADD','FREEZE_TIME_NOT_PROVEN','results_seen!==false','unlock!==false','scoring!==false'])assert.ok(script.includes(literal),'missing proof guard: '+literal);
 assert.equal((html.match(/id="venues"/g)||[]).length,1);
-assert.ok(html.includes("const names=['桐生'"));
+const venueDeclaration=script.match(/const names=\[([^\]]+)\]/);
+assert.ok(venueDeclaration,'24 venue names must be declared');
+const venues=venueDeclaration[1].split(',').map(s=>s.trim().replace(/^'|'$/g,''));
+assert.equal(venues.length,24,'all 24 venues must be present');
+assert.equal(new Set(venues).size,24,'venue names must be unique');
+assert.equal(venues[0],'桐生');
+assert.equal(venues[23],'大村');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
