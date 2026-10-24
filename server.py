@@ -144,7 +144,7 @@ def get_odds(params):
     return result
 
 
-def verify_commit_proof(proof, record):
+def verify_commit_proof(proof, record, race_code):
     """Verify immutable forecast bytes against an allowlisted GitHub commit.
 
     Fail closed on network errors. Only the repository's trusted freeze path
@@ -154,7 +154,9 @@ def verify_commit_proof(proof, record):
     from urllib.error import HTTPError, URLError
     sha = proof["commit_sha"]
     path = proof.get("path", "")
-    if not isinstance(path, str) or not re.fullmatch(r"fresh_snapshots/[0-9]{12}\.json", path):
+    if not isinstance(race_code, str) or not re.fullmatch(r"[0-9]{12}", race_code):
+        raise ValueError("invalid race code")
+    if path != "fresh_snapshots/" + race_code + ".json":
         raise ValueError("untrusted proof path")
     expected = proof.get("sha256")
     if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
@@ -166,6 +168,11 @@ def verify_commit_proof(proof, record):
     actual_commit_time = datetime.fromisoformat(metadata["commit"]["committer"]["date"].replace("Z", "+00:00"))
     deadline = datetime.fromisoformat(proof["deadline_at"])
     generated = datetime.fromisoformat(record["generated_at"])
+    stated_committed = datetime.fromisoformat(proof["committed_at"])
+    if any(dt.tzinfo is None or dt.utcoffset() is None for dt in (deadline, generated, actual_commit_time, stated_committed)):
+        raise ValueError("timezone required")
+    if stated_committed != actual_commit_time:
+        raise ValueError("stated commit time mismatch")
     if generated > actual_commit_time or actual_commit_time >= deadline:
         raise ValueError("commit is not before deadline")
     req = Request("https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/" + sha + "/" + path,
@@ -240,7 +247,7 @@ def get_predictions(params):
             raise ValueError("provenance timestamps must be timezone aware")
         if not (generated <= committed < deadline):
             raise ValueError("prediction is not demonstrably committed before deadline")
-        verify_commit_proof(proof, record)
+        verify_commit_proof(proof, record, hd + jcd + f"{int(rno):02d}")
         return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
     except (OSError, ValueError, TypeError, AttributeError, KeyError, json.JSONDecodeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
