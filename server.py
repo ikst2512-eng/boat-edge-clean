@@ -154,7 +154,7 @@ def verify_commit_proof(proof, record):
     from urllib.error import HTTPError, URLError
     sha = proof["commit_sha"]
     path = proof.get("path", "")
-    if not isinstance(path, str) or not re.fullmatch(r"fresh_snapshots/[0-9]{12}\\.json", path):
+    if not isinstance(path, str) or not re.fullmatch(r"fresh_snapshots/[0-9]{12}\.json", path):
         raise ValueError("untrusted proof path")
     expected = proof.get("sha256")
     if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
@@ -174,7 +174,7 @@ def verify_commit_proof(proof, record):
     if len(raw) > 100_000 or hashlib.sha256(raw).hexdigest() != expected:
         raise ValueError("frozen content mismatch")
     frozen = json.loads(raw)
-    if frozen != record:
+    if frozen != {k: v for k, v in record.items() if k != "freeze_proof"}:
         raise ValueError("published frozen record differs from served record")
 
 
@@ -241,7 +241,7 @@ def get_predictions(params):
             raise ValueError("prediction is not demonstrably committed before deadline")
         verify_commit_proof(proof, record)
         return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
-    except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError, AttributeError, KeyError, json.JSONDecodeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
