@@ -1,0 +1,29 @@
+name: CLEAN live browser smoke
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 1 * * *'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Test published GitHub Pages
+        run: node tests/live-browser.cjs 2>&1 | tee browser-smoke.log
+      - name: Preserve browser test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-browser-${{ github.run_id }}
+          path: browser-smoke.log
+          if-no-files-found: warn
