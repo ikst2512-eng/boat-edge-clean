@@ -88,7 +88,7 @@ jobs:
             try:
               with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=16) as r:
                 raw=r.read(200001); page=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
-                info.update({"status":r.status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"table_count":len(re.findall(r"<table\\b",page,re.I)),"exhibition_word":("展示" in page),"outcome_word":bool(re.search("払戻金|確定結果|着順結果",page)),"source_usable":False})
+                info.update({"status":r.status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"table_count":page.lower().count("<table"),"exhibition_word":("展示" in page),"outcome_word":bool(re.search("払戻金|確定結果|着順結果",page)),"source_usable":False})
             except Exception as e:info["error_type"]=type(e).__name__
             rows.append(info)
           print(json.dumps({"date":day,"venue":"Tamagawa","schedule_source":"official venue calendar, 2026-10-25","records":rows,"outcomes_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
