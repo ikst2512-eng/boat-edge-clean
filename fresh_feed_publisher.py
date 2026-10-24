@@ -51,6 +51,8 @@ def assemble(commit_sha,race_code,deadline_at,run_id=None):
     if not isinstance(record,dict) or record.get("race_code")!=race_code or record.get("validated") is not True:
         raise ValueError("invalid committed record")
     if "freeze_proof" in record: raise ValueError("nested proof in immutable source")
+    if record.get("deadline_at") != deadline.isoformat():
+        raise ValueError("manifest deadline differs from frozen source deadline")
     gen=datetime.fromisoformat(record["generated_at"])
     if gen.tzinfo is None or gen.utcoffset() is None or gen>committed_at or gen>run_created:
         raise ValueError("forecast created after commit")
