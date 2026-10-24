@@ -1,0 +1,68 @@
+name: Research pre-race HTTP receipt (isolated)
+on:
+  workflow_dispatch:
+    inputs:
+      race_id:
+        description: "YYYYMMDDVVRR (venue 01-24, race 01-12)"
+        required: true
+        type: string
+      cutoff_jst:
+        description: "Cutoff in JST, e.g. 2026-10-26T18:25:00+09:00"
+        required: true
+        type: string
+      source_url:
+        description: "Pre-race page HTTPS URL"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Capture gated HTML (no results parsing, no forecast)
+        env:
+          RACE_ID: ${{ inputs.race_id }}
+          CUTOFF_JST: ${{ inputs.cutoff_jst }}
+          SOURCE_URL: ${{ inputs.source_url }}
+        run: |
+          python3 - <<'PY'
+          import datetime as dt,hashlib,json,os,pathlib,re,urllib.parse,urllib.request
+          pathlib.Path("receipt").mkdir(exist_ok=True)
+          rid=os.environ["RACE_ID"]
+          cutoff=dt.datetime.fromisoformat(os.environ["CUTOFF_JST"])
+          u=urllib.parse.urlsplit(os.environ["SOURCE_URL"])
+          assert re.fullmatch(r"20\d{6}(?:0[1-9]|1\d|2[0-4])(?:0[1-9]|1[0-2])",rid), "invalid race_id"
+          assert cutoff.utcoffset()==dt.timedelta(hours=9) and cutoff.date().strftime("%Y%m%d")==rid[:8], "cutoff mismatches JST race day"
+          assert u.scheme=="https" and u.hostname and not u.username and not u.password and u.port is None and not u.fragment, "unsafe URL"
+          allowed={"www.boatrace.jp","boaters-boatrace.com","www.boaters-boatrace.com","v-select.jp","www.v-select.jp"}
+          assert u.hostname in allowed, "source domain not allowlisted"
+          # Race ID must also be checked against page content before using it for model input.
+          before=dt.datetime.now(dt.timezone.utc)
+          remaining=(cutoff.astimezone(dt.timezone.utc)-before).total_seconds()
+          assert 720 < remaining <=1200, "outside 20-to-12-minute cutoff window"
+          req=urllib.request.Request(os.environ["SOURCE_URL"],headers={"User-Agent":"ResearchRaceReceipt/1.0"},method="GET")
+          with urllib.request.urlopen(req,timeout=15) as response:
+              final=urllib.parse.urlsplit(response.url)
+              assert final.scheme=="https" and final.hostname in allowed, "redirected outside allowlist"
+              assert response.status==200, "non-200 HTTP"
+              body=response.read(2_000_001)
+              assert len(body)<=2_000_000, "oversized response"
+              content_type=response.headers.get("Content-Type","")
+          after=dt.datetime.now(dt.timezone.utc)
+          assert (cutoff.astimezone(dt.timezone.utc)-after).total_seconds()>720, "receipt too late"
+          assert "html" in content_type.lower(), "not HTML"
+          decoded=body.decode("utf-8","replace")
+          assert not re.search(r"(?:払戻金|3連単.{0,25}払戻|確定結果|着順結果)",decoded), "results content detected"
+          meta={"race_id":rid,"url":os.environ["SOURCE_URL"],"utc_start":before.isoformat(),"utc_end":after.isoformat(),"http_status":200,"content_type":content_type,"source_sha256":hashlib.sha256(body).hexdigest(),"source_bytes":len(body),"clock_attestation":"runner_local_only","forecast_generated":False,"scoring":"NOT_RUN"}
+          pathlib.Path("receipt/source.html").write_bytes(body)
+          pathlib.Path("receipt/metadata.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n")
+          print(json.dumps({k:v for k,v in meta.items() if k not in ("url",)}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-source-receipt
+          path: receipt/
+          retention-days: 30
