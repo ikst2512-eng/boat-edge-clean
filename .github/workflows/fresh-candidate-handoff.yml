@@ -1,0 +1,29 @@
+name: Fresh candidate handoff validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'fresh_inbox/**'
+      - 'capture_fresh_candidates.py'
+      - '.github/workflows/fresh-candidate-handoff.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test v5 capture contract
+        run: python test_capture_fresh_candidates.py
+      - name: Check inbox without publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d fresh_inbox ]; then
+            python capture_fresh_candidates.py --inbox fresh_inbox --out /tmp/fresh-candidates --model-version external-v5-unverified
+          else
+            echo 'No external v5 input; no publication'
+          fi
