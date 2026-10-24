@@ -153,6 +153,10 @@ def verify_commit_proof(proof, record, race_code):
     import hashlib
     from urllib.error import HTTPError, URLError
     sha = proof["commit_sha"]
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("invalid commit SHA")
+    if record.get("race_code") != race_code:
+        raise ValueError("frozen race code differs from requested race")
     path = proof.get("path", "")
     if not isinstance(race_code, str) or not re.fullmatch(r"[0-9]{12}", race_code):
         raise ValueError("invalid race code")
