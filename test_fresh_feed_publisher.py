@@ -16,12 +16,14 @@ class Response(io.BytesIO):
     def __enter__(self):return self
     def __exit__(self,*args):self.close()
 def fake_fetch(url):
+    if "/actions/runs/" in url:
+        return {"head_sha":SHA,"event":"push","conclusion":"success","created_at":"2026-10-24T02:07:00Z"}
     return {"commit":{"committer":{"date":"2026-10-24T02:05:00Z"}}}
 def fake_open(req,timeout=8):
     return Response(canonical(SOURCE))
 def check():
     with patch("fresh_feed_publisher.fetch_json",side_effect=fake_fetch),patch("fresh_feed_publisher.urlopen",side_effect=fake_open):
-        record=assemble(SHA,CODE,"2026-10-24T12:00:00+09:00")
+        record=assemble(SHA,CODE,"2026-10-24T12:00:00+09:00",123)
         assert record["freeze_proof"]["sha256"]==hashlib.sha256(canonical(SOURCE)).hexdigest()
         assert len(record["probabilities"])==120
         with tempfile.TemporaryDirectory() as tmp:
@@ -35,8 +37,8 @@ def check():
             try:fn()
             except (ValueError,TypeError,KeyError):return
             raise AssertionError("invalid proof accepted")
-        reject(lambda:assemble("BAD",CODE,"2026-10-24T12:00:00+09:00"))
-        reject(lambda:assemble(SHA,CODE,"2026-10-24T11:00:00+09:00"))
+        reject(lambda:assemble("BAD",CODE,"2026-10-24T12:00:00+09:00",123))
+        reject(lambda:assemble(SHA,CODE,"2026-10-24T11:00:00+09:00",123))
         bad=dict(SOURCE,race_code="202610241202")
         with patch("fresh_feed_publisher.urlopen",return_value=Response(canonical(bad))):
             reject(lambda:assemble(SHA,CODE,"2026-10-24T12:00:00+09:00"))
