@@ -123,4 +123,7 @@ assert.ok(script.includes("document.getElementById('courseDataNotice').hidden=vi
 assert.ok(html.includes('.view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))'),'four tabs should use four columns');
 assert.ok(script.includes("document.createElement('details')"),'secondary racer data must be collapsible');
 assert.ok(script.includes("details.append(toggle,specs)"),'equipment details remain available on demand');
+assert.ok(script.includes("racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6"),'race card requires all six unique lanes');
+assert.ok(script.includes("new Set(racers.map(r=>String(r.registration_no||''))).size!==6"),'race card requires six unique registration numbers');
+assert.ok(script.includes("entryAudit.sha256||''"),'actual entry requires source digest');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
