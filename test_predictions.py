@@ -12,7 +12,7 @@ TICKETS = ["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2","1-3-4","1-3-5","1-3-6","1-4-
 def check():
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        with patch("server.ROOT", root):
+        with patch("server.ROOT", root), patch("server.verify_commit_proof") as verified:
             status, response = get_predictions(QUERY)
             assert status == 200 and response["status"] == "unavailable"
             record = {"predictions":[{"ticket": t} for t in TICKETS],
@@ -23,6 +23,7 @@ def check():
             status, response = get_predictions(QUERY)
             assert status == 200 and response["status"] == "available"
             assert response["predictions"] == TICKETS
+            assert verified.call_count == 1
             # A flag alone cannot mark a prediction as Fresh.
             saved_proof = record.pop("freeze_proof")
             (root / "predictions.json").write_text(json.dumps({KEY:record}))
