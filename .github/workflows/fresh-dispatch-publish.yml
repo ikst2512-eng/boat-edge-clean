@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify upstream formal model is actually approved
+        run: python fresh_formal_source_preflight.py
       - name: Validate and freeze external v5 payload
         env:
           EVENT_PATH: ${{ github.event_path }}
