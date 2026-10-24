@@ -28,3 +28,4 @@ jobs:
           python test_fresh_candidate_receipt.py
           python test_fresh_prospective_sender.py
           python test_fresh_candidate_verify.py
+          python test_fresh_candidate_arrival_audit.py
