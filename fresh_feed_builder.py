@@ -40,7 +40,7 @@ def convert(snapshot_bytes, model_version):
         raise ValueError("model version missing")
     ordered=sorted(VALID,key=lambda t:(-probs[t],tuple(map(int,t.split("-")))))
     record={"race_code":raw["race_code"],"generated_at":generated.isoformat(),
-            "model_version":model_version,"validated":True,
+            "model_version":model_version,"validated":True,"deadline_at":deadline.isoformat(),
             "predictions":[{"ticket":t,"probability":probs[t]} for t in ordered[:10]],
             "probabilities":probs,"source_snapshot_sha256":digest}
     return record
