@@ -51,6 +51,28 @@ jobs:
             out.append(entry)
           print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":out,"race_pages_requested":0,"forecast_generated":False,"scoring":"NOT_RUN"},indent=2))
           PY
+      - name: Safe HTTPS homepage preflight (no race pages)
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/https-preflight.json
+          import urllib.request,urllib.error,json,datetime
+          rows=[]
+          for host in ["v-select.jp","www.boatrace.jp"]:
+            rec={"host":host,"homepage_only":True,"tls_http":"unverified"}
+            try:
+              req=urllib.request.Request("https://"+host+"/",headers={"User-Agent":"ResearchConnectivityCheck/1.0"},method="HEAD")
+              with urllib.request.urlopen(req,timeout=12) as res:
+                rec["http_status"]=res.status
+                rec["tls_http"]="connected"
+            except urllib.error.HTTPError as e:
+              rec["http_status"]=e.code
+              rec["tls_http"]="connected_http_error"
+            except Exception as e:
+              rec["error_type"]=type(e).__name__
+              rec["error"]=str(e)[:120]
+            rows.append(rec)
+          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":rows,"race_pages_requested":0,"results_endpoint_requested":False,"forecast_generated":False},ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
