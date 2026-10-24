@@ -30,3 +30,4 @@ jobs:
           python test_fresh_candidate_verify.py
           python test_fresh_candidate_arrival_audit.py
           python test_fresh_candidate_artifact_audit.py
+          python test_fresh_candidate_download_verify.py
