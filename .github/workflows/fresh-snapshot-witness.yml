@@ -31,7 +31,7 @@ jobs:
           if len(paths)!=1 or paths!=added:
               raise SystemExit("Witness requires exactly one added, never modified, snapshot")
           path=pathlib.Path(paths[0])
-          if not re.fullmatch(r"[0-9]{12}\\.json",path.name):
+          if not re.fullmatch(r"[0-9]{12}[.]json",path.name):
               raise SystemExit("Invalid race filename")
           record=json.loads(path.read_bytes())
           if record.get("race_code")!=path.stem or record.get("validated") is not True:
