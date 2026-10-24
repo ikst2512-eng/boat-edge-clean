@@ -39,6 +39,21 @@ def test_proof_checks():
             return Response(json.dumps({"head_sha":"b"*40,"event":"push","conclusion":"success","head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml","created_at":"2026-10-24T02:07:00Z"}).encode())
         return fetch_ok(req,timeout)
     expect_reject(PROOF,fetch=bad_head)
+    def wrong_workflow(req,timeout=5):
+        if "/actions/runs/" in req.full_url:
+            return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success",
+                "head_branch":"main","path":".github/workflows/unrelated.yml",
+                "created_at":"2026-10-24T02:07:00Z"}).encode())
+        return fetch_ok(req,timeout)
+    expect_reject(PROOF,fetch=wrong_workflow)
+    def wrong_branch(req,timeout=5):
+        if "/actions/runs/" in req.full_url:
+            return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success",
+                "head_branch":"dev","path":".github/workflows/fresh-snapshot-witness.yml",
+                "created_at":"2026-10-24T02:07:00Z"}).encode())
+        return fetch_ok(req,timeout)
+    expect_reject(PROOF,fetch=wrong_branch)
+
     def late_run(req,timeout=5):
         if "/actions/runs/" in req.full_url:
             return Response(json.dumps({"head_sha":"a"*40,"event":"push","conclusion":"success","head_branch":"main","path":".github/workflows/fresh-snapshot-witness.yml","created_at":"2026-10-24T03:00:00Z"}).encode())
