@@ -109,4 +109,7 @@ assert.ok(script.includes("['ボート3連率',txt(racer.boat?.trio_rate)]"),'bo
 assert.ok(script.includes("entryAudit?.status==='ok'"),'entry must be backed by audited source');
 assert.ok(script.includes('entryAt<raceDeadline'),'entry must be saved before race deadline');
 assert.ok(script.includes('entryAt<=Date.now()+300000'),'entry timestamp cannot be implausibly future-dated');
+assert.ok(script.includes("courseRows.length===6&&new Set(courseRows.map(r=>r.course_stats.course)).size===6"),'six unique courses required');
+assert.ok(script.includes("r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01"),'course place percentages must have plausible sum');
+assert.ok(script.includes("validCourses"),'course rates must remain gated behind validation');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
