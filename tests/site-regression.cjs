@@ -131,4 +131,7 @@ assert.ok(html.includes('id="mobileRacerDetails"'),'full racer cards remain behi
 assert.ok(script.includes("matrixTable.className='boat-matrix-table'"),'comparative table populated with actual data');
 assert.ok(script.includes("document.getElementById('mobileRaceMatrix').replaceChildren();"),'race switch clears old comparison');
 assert.ok(script.includes("document.getElementById('mobileRacerDetails').hidden=view!=='card'"),'detailed cards hidden outside racer tab');
+assert.ok(html.includes('aria-label="6艇の主要成績比較・横スクロール可能" tabindex="0"'),'comparison table must be keyboard scrollable');
+assert.ok(script.includes("matrixCaption.textContent='左右にスクロールして6艇を比較'"),'mobile users see horizontal scroll guidance');
+assert.ok(html.includes('.boat-matrix-table th:first-child{position:sticky;left:0'),'comparison metric label remains in view');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
