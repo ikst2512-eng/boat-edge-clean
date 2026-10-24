@@ -230,7 +230,7 @@ def get_predictions(params):
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "研究予想の入力データが揃っていません。"}
 
     try:
-        if source.stat().st_size > 3000000:
+        if source.stat().st_size > 16_000_000:
             raise ValueError("prediction feed too large")
         payload = json.loads(source.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
