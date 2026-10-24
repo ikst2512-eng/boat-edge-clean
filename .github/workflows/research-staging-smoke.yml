@@ -260,6 +260,29 @@ jobs:
           except Exception as e:out["error_type"]=type(e).__name__
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
+      - name: Strict forecast gate from existing parsed metadata
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/forecast-readiness.json
+          import json,pathlib,datetime
+          path=pathlib.Path("audit-output/exhibition-six-lane-gate.json")
+          evidence=json.loads(path.read_text())
+          report={
+            "evaluated_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "race_id":evidence.get("race_id"),
+            "source_sha256":evidence.get("sha256"),
+            "six_table_rows_present":any(x.get("rows",0)>=6 for x in evidence.get("table_dimensions",[])),
+            "six_numeric_exhibition_rows_extracted":False,
+            "results_token_present":evidence.get("any_results_token",True),
+            "cutoff_time_verified":False,
+            "official_beforeinfo_http_200":evidence.get("http_status")==200,
+            "forecast_allowed":False,
+            "scoring":"NOT_RUN",
+            "reason":"Missing verified six-boat exhibition values and independent deadline; source has result-related generic tokens."
+          }
+          assert report["forecast_allowed"] is False
+          print(json.dumps(report,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
