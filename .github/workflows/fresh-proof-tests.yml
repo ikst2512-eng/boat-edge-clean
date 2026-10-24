@@ -32,3 +32,4 @@ jobs:
       - run: python test_fresh_upstream_separation.py
 
       - run: python test_fresh_formal_source_preflight.py
+      - run: python test_fresh_dispatch_readiness_wiring.py
