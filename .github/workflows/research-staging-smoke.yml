@@ -211,6 +211,46 @@ jobs:
           except Exception as e:record["error"]=type(e).__name__
           print(json.dumps(record,ensure_ascii=False,indent=2))
           PY
+      - name: Six-lane exhibition extraction gate (never output values)
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/exhibition-six-lane-gate.json
+          import urllib.request,datetime,json,re,hashlib
+          from html.parser import HTMLParser
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
+          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
+          out={"race_id":day+"0512","source":"official_beforeinfo","results_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN","eligible_for_forecast":False}
+          class Tables(HTMLParser):
+            def __init__(self):super().__init__();self.depth=0;self.current=[];self.rows=[];self.cell=False;self.tables=[]
+            def handle_starttag(self,tag,attrs):
+              if tag=="table":
+                if self.depth==0:self.current=[];self.rows=[]
+                self.depth+=1
+              elif self.depth:
+                if tag=="tr":self.current=[]
+                elif tag in ("td","th"):self.cell=True;self.current.append("")
+            def handle_data(self,data):
+              if self.depth and self.cell and self.current:self.current[-1]+=data
+            def handle_endtag(self,tag):
+              if tag in ("td","th"):self.cell=False
+              elif tag=="tr" and self.depth:self.rows.append([re.sub(r"\\s+"," ",v).strip() for v in self.current])
+              elif tag=="table" and self.depth:
+                self.depth-=1
+                if self.depth==0:self.tables.append(self.rows)
+          try:
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=18) as resp:
+              raw=resp.read(250001);now=datetime.datetime.now(datetime.timezone.utc)
+              out.update({"http_status":resp.status,"captured_at_utc":now.isoformat(),"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest()})
+              html=raw.decode(resp.headers.get_content_charset() or "utf-8","replace")
+            p=Tables();p.feed(html)
+            out["table_dimensions"]=[{"rows":len(t),"row_cell_counts":[len(r) for r in t[:12]]} for t in p.tables]
+            out["section_labels_present"]={label:label in html for label in ("展示タイム","スタート展示","進入","ST","モーター")}
+            out["any_results_token"]=bool(re.search("払戻金|確定結果|着順結果",html))
+            out["six_lanes_complete"]=False
+            out["reason"]="No pre-deadline identity and complete six-lane numerical validation; reject"
+          except Exception as e:out["error_type"]=type(e).__name__
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
