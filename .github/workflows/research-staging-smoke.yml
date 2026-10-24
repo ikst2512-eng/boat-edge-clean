@@ -246,8 +246,17 @@ jobs:
             out["table_dimensions"]=[{"rows":len(t),"row_cell_counts":[len(r) for r in t[:12]]} for t in p.tables]
             out["section_labels_present"]={label:label in html for label in ("展示タイム","スタート展示","進入","ST","モーター")}
             out["any_results_token"]=bool(re.search("払戻金|確定結果|着順結果",html))
+            # Metadata-only extraction trial: never emit race values or allow scoring.
+            candidate_rows=[]
+            for table_idx,table in enumerate(p.tables):
+              for row_idx,cells in enumerate(table):
+                clean=[x for x in cells if x]
+                if any(re.search(r"(展示|タイム|ST|進入|モーター|コース)",x) for x in clean):
+                  candidate_rows.append({"table":table_idx,"row":row_idx,"cells":len(cells),"numeric_cells":sum(bool(re.fullmatch(r"[+-]?\\d+(?:\\.\\d+)?",x)) for x in clean),"label_flags":{k:any(k in x for x in clean) for k in ("展示","ST","進入","モーター")}})
+            out["candidate_row_metadata"]=candidate_rows[:30]
+            out["candidate_row_count"]=len(candidate_rows)
             out["six_lanes_complete"]=False
-            out["reason"]="No pre-deadline identity and complete six-lane numerical validation; reject"
+            out["reason"]="Metadata-only scan; cutoff, six-lane numeric validation and result segregation not yet attested"
           except Exception as e:out["error_type"]=type(e).__name__
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
