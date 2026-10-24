@@ -21,7 +21,10 @@ def extend(existing_path, race_code, source_sha, run_id, deadline_at, resolver=a
     merged,added,unchanged=merge(original,{key:candidate})
     if not added:
         raise ValueError("no new race to publish")
-    return canonical(merged),added
+    output=canonical(merged)
+    if len(output)>16_000_000:
+        raise ValueError('active forecast feed exceeds API serving capacity')
+    return output,added
 
 def stage(existing_path,output_path,race_code,source_sha,run_id,deadline_at,resolver=assemble):
     existing=Path(existing_path);destination=Path(output_path)
