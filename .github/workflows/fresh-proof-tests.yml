@@ -2,36 +2,24 @@ name: Fresh proof tests
 on:
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m compileall -q server.py test_predictions.py test_fresh_commit_proof.py fresh_feed_builder.py test_fresh_feed_builder.py fresh_feed_publisher.py test_fresh_feed_publisher.py fresh_feed_batch.py test_fresh_feed_batch.py fresh_feed_isolated.py test_fresh_feed_isolated.py fresh_feed_incremental.py test_fresh_feed_incremental.py fresh_feed_promote.py test_fresh_feed_promote.py capture_fresh_candidates.py test_capture_fresh_candidates.py test_fresh_witness_trigger.py fresh_dispatch_ingest.py test_fresh_dispatch_ingest.py fresh_auto_finalize.py test_fresh_auto_finalize.py test_fresh_auto_wiring.py
-      - run: python test_predictions.py
-      - run: python test_fresh_commit_proof.py
-      - run: python test_fresh_feed_builder.py
-      - run: python test_fresh_feed_publisher.py
-      - run: python test_fresh_feed_batch.py
-      - run: python test_fresh_feed_isolated.py
-      - run: python test_fresh_feed_incremental.py
-      - run: python test_fresh_feed_promote.py
-      - run: python test_capture_fresh_candidates.py
-      - run: python test_fresh_witness_trigger.py
-      - run: python test_fresh_dispatch_ingest.py fresh_dispatch_sender.py test_fresh_dispatch_sender.py fresh_feed_autopublish.py test_fresh_feed_autopublish.py test_fresh_workflow_contract.py test_fresh_pipeline_end_to_end.py
-      - run: python test_fresh_auto_finalize.py
-      - run: python test_fresh_auto_wiring.py
-      - run: python test_fresh_dispatch_sender.py
-      - run: python test_fresh_feed_autopublish.py
-      - run: python test_fresh_workflow_contract.py
-      - run: python test_fresh_pipeline_end_to_end.py
-
-      - run: python test_fresh_upstream_separation.py
-
-      - run: python test_fresh_formal_source_preflight.py
-      - run: python test_fresh_dispatch_readiness_wiring.py
-      - run: python test_fresh_prospective_capture.py
-      - run: python test_fresh_candidate_receipt.py
+      - name: Compile forecast and verification modules
+        run: python -m compileall -q .
+      - name: Execute each regression as a separate process
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in test_predictions.py test_fresh_commit_proof.py test_fresh_feed_builder.py test_fresh_feed_publisher.py test_fresh_feed_batch.py test_fresh_feed_isolated.py test_fresh_feed_incremental.py test_fresh_feed_promote.py test_capture_fresh_candidates.py test_fresh_witness_trigger.py test_fresh_auto_finalize.py test_fresh_auto_wiring.py test_fresh_dispatch_sender.py test_fresh_feed_autopublish.py test_fresh_workflow_contract.py test_fresh_pipeline_end_to_end.py test_fresh_upstream_separation.py test_fresh_formal_source_preflight.py test_fresh_dispatch_readiness_wiring.py test_fresh_prospective_capture.py test_fresh_candidate_receipt.py; do
+            echo "RUN $test"
+            timeout 45s python "$test"
+          done
