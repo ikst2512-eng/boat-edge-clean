@@ -1,0 +1,41 @@
+name: Fresh witnessed feed finalize
+on:
+  workflow_run:
+    workflows: [Fresh snapshot arrival witness]
+    types: [completed]
+permissions:
+  contents: write
+concurrency:
+  group: fresh-feed-finalize-main
+  cancel-in-progress: false
+jobs:
+  finalize:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve immutable forecast from witnessed GitHub push
+        env:
+          FRESH_WITNESS_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python fresh_auto_finalize.py --run-id "$FRESH_WITNESS_RUN_ID" --existing predictions.json --out /tmp/fresh-predictions-new.json
+      - name: Publish verified feed without altering existing races
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv /tmp/fresh-predictions-new.json predictions.json
+          git add -- predictions.json
+          git -c user.name='fresh-feed-bot' -c user.email='fresh-feed-bot@users.noreply.github.com' commit -m 'Publish GitHub-witnessed Fresh forecasts'
+          git push origin HEAD:main
