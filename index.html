@@ -209,7 +209,7 @@ async function compareConfirmedResult(key,combo,requestToken){
 let resultRequestId=0;
 let displayedResultKey='';
 let displayedResultCombo='';
-function isOfficialResultSource(source,key){try{const src=new URL(source);return src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&src.searchParams.get('rno')===String(Number(key.split('-')[2]))}catch(_){return false}}
+function isOfficialResultSource(source,key){try{const src=new URL(source);return src.protocol==='https:'&&src.hostname==='www.boatrace.jp'&&src.pathname==='/owpc/pc/race/raceresult'&&['hd','jcd','rno'].every(p=>src.searchParams.getAll(p).length===1)&&src.searchParams.get('hd')===key.slice(0,8)&&src.searchParams.get('jcd')===key.split('-')[1]&&src.searchParams.get('rno')===String(Number(key.split('-')[2]))}catch(_){return false}}
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
