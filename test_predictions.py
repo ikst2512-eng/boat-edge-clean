@@ -17,7 +17,7 @@ def check():
             assert status == 200 and response["status"] == "unavailable"
             record = {"race_code":"202610221201","predictions":[{"ticket": t} for t in TICKETS],
                       "model_version":"regression-fixture", "generated_at":"2026-10-22T00:00:00+09:00",
-                      "validated":True, "freeze_proof": {"commit_sha": "a"*40,
+                      "validated":True, "deadline_at":"2026-10-22T12:00:00+09:00", "freeze_proof": {"commit_sha": "a"*40,
                       "committed_at": "2026-10-22T00:02:00+09:00", "deadline_at": "2026-10-22T12:00:00+09:00"}}
             (root / "predictions.json").write_text(json.dumps({KEY:record}))
             status, response = get_predictions(QUERY)
