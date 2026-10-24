@@ -420,7 +420,8 @@ async function loadRaceData(force=false){
   const courseNotice=document.getElementById('courseDataNotice');
   const isCourseRecord=r=>r&&r.course_stats&&Number.isInteger(r.course_stats.course)&&r.course_stats.course>=1&&r.course_stats.course<=6&&['first_rate','second_rate','third_rate'].every(k=>typeof r.course_stats[k]==='number'&&Number.isFinite(r.course_stats[k])&&r.course_stats[k]>=0&&r.course_stats[k]<=100);
   const courseRows=racers.filter(isCourseRecord);
-  const validCourses=courseRows.length===6&&new Set(courseRows.map(r=>r.course_stats.course)).size===6&&courseRows.every(r=>r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01);
+  const courseAudit=raw.source_audit?.course_stats,courseAt=Date.parse(courseAudit?.fetched_at),courseDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
+  const validCourses=courseRows.length===6&&new Set(courseRows.map(r=>r.course_stats.course)).size===6&&courseRows.every(r=>r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01)&&courseAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(courseAudit.sha256||'')&&Number.isFinite(courseAt)&&courseAt<courseDeadline&&courseAt<=Date.now()+300000;
   courseNotice.replaceChildren();
   if(validCourses){
    const heading=document.createElement('strong');heading.textContent='保存済み・実コース別1〜3着率';
