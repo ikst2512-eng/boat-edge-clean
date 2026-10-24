@@ -332,10 +332,10 @@ async function loadPredictions(force=false){
  const raceKey=sameRaceKey();
  if(!force&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();document.getElementById('predictionStatus').textContent='予想原本の再確認待ちです。未公開・アクセス制限の場合は5分、通信障害の場合は2分後に自動再確認します。「再読み込み」で今すぐ試せます。';return;}
  if(force)predictionRetryAt.delete(raceKey);
- const key=sameRaceKey(),retain=force&&displayedPredictionKey===key&&predictionTickets.length>0;
+ const key=sameRaceKey(),retain=displayedPredictionKey===key&&predictionTickets.length>0&&verifiedCache.has(key);
  if(!retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
  const label=document.getElementById('predictionStatus');
- label.textContent=retain?'予想を再確認中（検証済みの表示を保持）…':'既存モデルの保存予想と初回Git記録を照合中…';
+ label.textContent=retain?'保存予想を確認中（検証済みの買い目を保持）…':'既存モデルの保存予想と初回Git記録を照合中…';
  try{
   const confirmed=await verifiedStoredPrediction(key,force);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
