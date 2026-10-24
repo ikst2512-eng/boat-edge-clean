@@ -1,0 +1,27 @@
+name: Research staging smoke test
+on:
+  push:
+    branches:
+      - research-capture-v142-isolated-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolation and capture configuration
+        shell: python
+        run: |
+          from pathlib import Path
+          text = Path(".github/workflows/research-pre-race-receipt.yml").read_text()
+          notes = Path("research-capture/README.md").read_text()
+          assert "workflow_dispatch" in text
+          assert "source_sha256" in text
+          assert "clock_attestation" in text
+          assert "forecast_generated" in text
+          assert "results_seen=false" in notes
+          assert "unlock=LOCKED" in notes
+          print("Research staging smoke test PASS; no HTTP request, no forecast, no scoring.")
