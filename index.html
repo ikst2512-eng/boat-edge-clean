@@ -87,7 +87,15 @@ async function fetchTimed(url,options={}){return fetch(url,{...options,signal:Ab
 async function edgeJson(url){const r=await fetchTimed(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 const verifiedCache=new Map();
+const predictionVerificationInFlight=new Map();
 async function verifiedStoredPrediction(key,force=false){
+ if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
+ if(!force&&predictionVerificationInFlight.has(key))return predictionVerificationInFlight.get(key);
+ const pending=verifyPredictionOriginal(key,force);
+ if(!force){predictionVerificationInFlight.set(key,pending);pending.finally(()=>{if(predictionVerificationInFlight.get(key)===pending)predictionVerificationInFlight.delete(key)}).catch(()=>{});}
+ return pending;
+}
+async function verifyPredictionOriginal(key,force=false){
  if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
  const path='data/site_prediction_snapshots/'+key+'.json';
  const currentRes=await fetchTimed(EDGE_RAW+'/main/'+path,{cache:'no-store'});
