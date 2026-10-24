@@ -1,0 +1,70 @@
+name: Fresh witnessed feed publication
+on:
+  workflow_run:
+    workflows: ['Fresh snapshot arrival witness']
+    types: [completed]
+permissions:
+  contents: write
+concurrency:
+  group: fresh-witnessed-feed-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Identify exactly one new immutable frozen record
+        id: source
+        env:
+          WITNESS_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "$WITNESS_SHA^{commit}"
+          mapfile -t touched < <(git diff-tree --no-commit-id --name-only -r "$WITNESS_SHA" -- fresh_snapshots/)
+          if [ "${#touched[@]}" -ne 1 ]; then
+            echo 'Witnessed commit must change exactly one frozen source' >&2
+            exit 1
+          fi
+          file="${touched[0]}"
+          mapfile -t new_files < <(git diff-tree --no-commit-id --name-only --diff-filter=A -r "$WITNESS_SHA" -- fresh_snapshots/)
+          if [ "${#new_files[@]}" -ne 1 ] || [ "${new_files[0]}" != "$file" ]; then
+            echo 'Source must be newly added, never modified' >&2
+            exit 1
+          fi
+          if [[ ! "$file" =~ ^fresh_snapshots/[0-9]{12}\.json$ ]]; then exit 1; fi
+          git show "$WITNESS_SHA:$file" > /tmp/witness-source.json
+          SOURCE_FILE="$file" python - <<'PY'
+          import json,os
+          from pathlib import Path
+          record=json.loads(Path('/tmp/witness-source.json').read_bytes())
+          assert record['race_code']==Path(os.environ['SOURCE_FILE']).stem
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              print('race_code='+record['race_code'],file=out)
+              print('deadline='+record['deadline_at'],file=out)
+          PY
+      - name: Build proof-verified feed and commit
+        env:
+          WITNESS_SHA: ${{ github.event.workflow_run.head_sha }}
+          WITNESS_ID: ${{ github.event.workflow_run.id }}
+          RACE_CODE: ${{ steps.source.outputs.race_code }}
+          DEADLINE: ${{ steps.source.outputs.deadline }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python fresh_feed_autopublish.py --existing predictions.json --out /tmp/fresh-verified-feed.json --race-code "$RACE_CODE" --commit "$WITNESS_SHA" --run-id "$WITNESS_ID" --deadline "$DEADLINE"
+          cp /tmp/fresh-verified-feed.json predictions.json
+          git add -- predictions.json
+          git -c user.name='fresh-proof-bot' -c user.email='fresh-proof-bot@users.noreply.github.com' commit -m "Add independently witnessed Fresh forecast $RACE_CODE"
+          git push origin HEAD:main
