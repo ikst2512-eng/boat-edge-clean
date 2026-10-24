@@ -37,6 +37,21 @@ for(const sample of [
  assert.equal(verdict.top5,sample.rank===4,sample.key);
  assert.equal(verdict.top10,sample.rank===4,sample.key);
 }
+const resultValidator=vm.runInNewContext([
+ script.split('\n').find(l=>l.startsWith('function isOfficialResultSource(')),
+ script.split('\n').find(l=>l.startsWith('function isVerifiedResult(')),
+ 'isVerifiedResult'
+].join('\n'),{URL});
+const now=Date.parse('2026-10-23T18:00:00+09:00');
+const validResult={schema_version:'boat-edge-site-result-v109',race_key:'20261023-04-10',status:'confirmed',finish_order:[1,2,5],trifecta:'1-2-5',trifecta_payout_yen_per_100:1500,fetched_at:'2026-10-23T15:30:00+09:00',source:'https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261023&jcd=04&rno=10'};
+assert.equal(resultValidator(validResult,'20261023-04-10',now),true);
+for(const patch of [
+ {finish_order:[1,1,5]},{finish_order:[1,2,7]},{trifecta:'1-5-2'},
+ {trifecta_payout_yen_per_100:-100},{trifecta_payout_yen_per_100:'1500'},
+ {fetched_at:'2026-10-23T00:00:00Z'},{fetched_at:'2026-10-24T00:00:00+09:00'},
+ {source:validResult.source+'&jcd=05'},{race_key:'20261023-04-11'},
+ {status:'provisional'},{schema_version:'unverified'}
+])assert.equal(resultValidator({...validResult,...patch},'20261023-04-10',now),false,JSON.stringify(patch));
 const key='20261023-04-10';
 const base='https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261023&jcd=04&rno=10';
 assert.equal(official(base,key),true);
