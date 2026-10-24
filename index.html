@@ -235,7 +235,7 @@ async function loadHeldVenues(force=false){
  const status=document.getElementById('venueState');
  const retaining=force&&todayVenueRaces?.date===date;
  status.textContent=retaining?'開催情報を更新中（前回表示を維持）…':'開催情報を確認中…';
- if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach(b=>{b.classList.remove('held');b.removeAttribute('data-held')})}
+ if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach((b,i)=>{b.classList.remove('held');b.removeAttribute('data-held');b.setAttribute('aria-label',names[i]+'（開催状況を確認中）')})}
  try{
   const response=await fetchTimed(EDGE_RAW+'/main/data/today.json',{cache:'no-store'});
   if(!response.ok)throw Error('VENUE_SOURCE_UNAVAILABLE');
@@ -250,7 +250,7 @@ async function loadHeldVenues(force=false){
   todayVenueRaces=data;renderDeadlines(data);
   if(pendingVenuePick?.date===date&&pendingVenuePick.venue===s.venue&&pendingVenuePick.race===s.race){pendingVenuePick=null;const choice=nextRaceForVenue(s.venue+1);if(choice!==s.race){s.race=choice;render()}}
   const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
-  [...vb.children].forEach((b,i)=>{if(available.has(i+1)){b.classList.add('held');b.dataset.held='true'}});
+  [...vb.children].forEach((b,i)=>{const held=available.has(i+1);b.classList.toggle('held',held);if(held)b.dataset.held='true';else b.removeAttribute('data-held');b.setAttribute('aria-label',names[i]+'（'+(held?'開催情報あり':'開催情報なし')+'）');});
   if(!venueSpecified&&!venueTouched){
    // Follow the earliest genuinely upcoming race, not an arbitrary venue 1R.
    // Never change an explicit choice or an archived date.
