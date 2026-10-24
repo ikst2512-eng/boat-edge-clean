@@ -299,6 +299,27 @@ jobs:
           assert unsafe["forecast_allowed"] is False
           print("PARSER_OFFLINE_TESTS_PASS candidate extraction and fail-closed gate")
           PY
+      - name: Run shared parser against current official HTML (fail closed)
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/shared-parser-live.json
+          import datetime as dt,json,urllib.request,sys
+          sys.path.insert(0,"research-capture")
+          from exhibition_six_lane import inspect
+          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
+          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
+          report={"race_id":day+"0512","requested_endpoint":"official_beforeinfo","source_text_retained":False}
+          try:
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=20) as response:
+              data=response.read(250001)
+              report["http_status"]=response.status
+            parsed=inspect(data,cutoff_verified=False)
+            report.update(parsed)
+          except Exception as exc:
+            report.update({"error_type":type(exc).__name__,"forecast_allowed":False,"scoring":"NOT_RUN"})
+          assert report.get("forecast_allowed") is False
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
