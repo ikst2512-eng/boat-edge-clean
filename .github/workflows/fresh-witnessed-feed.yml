@@ -31,6 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git fetch origin "$WITNESS_SHA" --depth=2
           git cat-file -e "$WITNESS_SHA^{commit}"
           mapfile -t touched < <(git diff-tree --no-commit-id --name-only -r "$WITNESS_SHA" -- fresh_snapshots/)
           if [ "${#touched[@]}" -ne 1 ]; then
@@ -67,4 +68,5 @@ jobs:
           cp /tmp/fresh-verified-feed.json predictions.json
           git add -- predictions.json
           git -c user.name='fresh-proof-bot' -c user.email='fresh-proof-bot@users.noreply.github.com' commit -m "Add independently witnessed Fresh forecast $RACE_CODE"
+          # Detect remote changes instead of silently overwriting other Fresh additions.
           git push origin HEAD:main
