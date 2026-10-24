@@ -2,7 +2,7 @@ import hashlib,json,tempfile
 from pathlib import Path
 from datetime import datetime,timezone
 from fresh_feed_builder import VALID,canonical
-from fresh_prospective_sender import prepare,dispatch
+from fresh_prospective_sender import prepare,dispatch,verify_receiver_on_main
 
 def check():
     core={"schema":"boatrace-fresh-v1","race_code":"202610241201",
@@ -31,6 +31,16 @@ def check():
         try:prepare(p,"candidate-test",datetime(2026,10,24,2,50,tzinfo=timezone.utc))
         except ValueError:pass
         else:raise AssertionError("late candidate accepted")
+    class FakeJSON:
+        def __init__(self,payload):self.payload=payload
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def read(self):return json.dumps(self.payload).encode()
+    good={"type":"file","path":".github/workflows/fresh-prospective-capture.yml"}
+    assert verify_receiver_on_main(lambda req,timeout:FakeJSON(good))
+    try:verify_receiver_on_main(lambda req,timeout:FakeJSON({"type":"dir"}))
+    except ValueError:pass
+    else:raise AssertionError("missing receiver accepted")
     print("Nonpublic sender verified")
 
 if __name__=="__main__":check()
