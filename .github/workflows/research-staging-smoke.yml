@@ -93,6 +93,33 @@ jobs:
             rows.append(info)
           print(json.dumps({"date":day,"venue":"Tamagawa","schedule_source":"official venue calendar, 2026-10-25","records":rows,"outcomes_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
           PY
+      - name: Inspect pre-race exhibition DOM labels without persisting values
+        shell: bash
+        run: |
+          python3 - <<'PY' > audit-output/exhibition-dom.json
+          import urllib.request,datetime,json,re,hashlib
+          from html.parser import HTMLParser
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
+          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
+          out={"day":day,"jcd":"05","rno":12,"result_endpoint_requested":False,"forecast_generated":False,"safe_for_prediction":False}
+          class Scan(HTMLParser):
+            def __init__(self):super().__init__();self.classes={};self.tags={};self.ids=[]
+            def handle_starttag(self,t,a):
+              self.tags[t]=self.tags.get(t,0)+1
+              attrs=dict(a)
+              for cl in attrs.get("class","").split():
+                if any(z in cl.lower() for z in ("table","race","exhibition","before","is-","boat","time")):
+                  self.classes[cl]=self.classes.get(cl,0)+1
+              if "id" in attrs:self.ids.append(attrs["id"])
+          try:
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
+              raw=r.read(200001);out.update({"status":r.status,"bytes":len(raw),"raw_sha256":hashlib.sha256(raw).hexdigest()})
+              s=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
+            p=Scan();p.feed(s)
+            out.update({"tag_counts":{k:p.tags.get(k,0) for k in ("table","div","dl","dt","dd","tr","td","li","script")},"relevant_class_counts":dict(sorted(p.classes.items())[:80]),"id_count":len(p.ids),"exhibition_label_counts":{k:s.count(k) for k in ("展示タイム","展示ST","周回","直線","まわり足","進入","スタート展示")},"result_bearing_token_present":bool(re.search("払戻金|確定結果|着順結果",s)),"raw_page_persisted":False})
+          except Exception as e:out["error_type"]=type(e).__name__
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
