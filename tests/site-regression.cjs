@@ -140,4 +140,8 @@ assert.ok(script.includes("['F / L',r=>String(r.F??'—')"),'F/L included in rac
 assert.ok(script.includes("const weather=safePreview&&raw.beforeinfo?.weather"),'weather must be gated by audited exhibition source');
 assert.ok(script.includes("typeof value==='number'&&Number.isFinite(value)&&value>=0"),'weather must not render fabricated or malformed values');
 assert.ok(script.includes("water.className='exhibition-weather'"),'water observations available in exhibition view');
+assert.ok(script.includes("data/site_verified_entries/"),'verified entry sidecar must be loaded');
+assert.ok(script.includes("sidecarToken!==window.raceDataRequestId"),'old race sidecar cannot overwrite current race');
+assert.ok(script.includes("audit.source!==sourceUrl"),'sidecar must match exact prerace source');
+assert.ok(script.includes("fetched>=raceDeadline"),'sidecar capture must predate deadline');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
