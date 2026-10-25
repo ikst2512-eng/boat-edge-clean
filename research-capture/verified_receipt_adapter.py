@@ -28,7 +28,7 @@ def verify(folder: Path, cutoff_jst: str):
     q = parse_qs(url.query)
     if url.scheme != "https" or url.hostname != "www.boatrace.jp" or url.path != "/owpc/pc/race/beforeinfo":
         raise ValueError("unapproved source")
-    if q.get("hd") != [race_id[:8]] or q.get("jcd") != [str(int(race_id[8:10]))] or q.get("rno") != [str(int(race_id[10:12]))]:
+    if q.get("hd") != [race_id[:8]] or q.get("jcd") not in ([race_id[8:10]], [str(int(race_id[8:10]))]) or q.get("rno") != [str(int(race_id[10:12]))]:
         raise ValueError("race identity differs from source URL")
     started = dt.datetime.fromisoformat(meta["utc_start"])
     ended = dt.datetime.fromisoformat(meta["utc_end"])
