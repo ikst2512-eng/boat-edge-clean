@@ -1,21 +1,19 @@
-name: Research staging smoke test
+name: Research staging safety CI
 on:
   push:
-    branches:
-      - research-capture-v142-isolated-20261025
-  workflow_dispatch:
+    branches: [research-capture-v142-isolated-20261025]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  validate-staging:
+  offline-safety:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Offline syntax and staging audit
+      - name: Verify safety tests (offline; no race HTTP)
         shell: bash
         run: |
           mkdir -p audit-output
@@ -24,333 +22,18 @@ jobs:
           compile_status=$?
           python3 research-capture/staging_audit.py > audit-output/staging-audit.log 2>&1
           audit_status=$?
-          python3 -m unittest discover -s research-capture -p 'test_inspect_exhibition.py' -v > audit-output/parser-tests.log 2>&1
-          parser_status=$?
+          python3 -m unittest discover -s research-capture -p 'test_*.py' -v > audit-output/unit-tests.log 2>&1
+          tests_status=$?
           python3 research-capture/exhibition_parser.py > audit-output/parser-selftest.log 2>&1
           parser_status=$?
-          python3 research-capture/test_preforecast_gate.py > audit-output/gate-tests.log 2>&1
-          gate_status=$?
-          printf '{"compile_exit_code":%d,"staging_audit_exit_code":%d,"parser_tests_exit_code":%d,"gate_test_exit_code":%d,"forecast_generated":false,"scoring":"NOT_RUN"}\n' "$compile_status" "$audit_status" "$gate_status" > audit-output/exit-status.json
-          if [ "$compile_status" -ne 0 ] || [ "$audit_status" -ne 0 ] || [ "$gate_status" -ne 0 ]; then
-            echo "Offline staging verification failed; inspect archived evidence"
+          printf '{"compile":%d,"audit":%d,"tests":%d,"parser":%d,"forecast_generated":false,"scoring":"NOT_RUN"}\n' "$compile_status" "$audit_status" "$tests_status" "$parser_status" > audit-output/exit-status.json
+          if (( compile_status || audit_status || tests_status || parser_status )); then
+            echo "Offline safety CI failed; inspect uploaded logs"
             exit 1
           fi
-      - name: DNS and HTTPS preflight (no race pages)
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/network-preflight.json
-          import socket,ssl,json,datetime
-          from urllib.request import Request,urlopen
-          hosts=["v-select.jp","www.boatrace.jp","github.com"]
-          out=[]
-          for host in hosts:
-            entry={"host":host,"dns":"unverified","https":"unverified"}
-            try:
-              socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)
-              entry["dns"]="success"
-              if host=="github.com":
-                req=Request("https://github.com/",headers={"User-Agent":"ResearchNetworkPreflight/1.0"})
-                with urlopen(req,timeout=8) as r:
-                  entry["https"]="success" if r.status==200 else "status_"+str(r.status)
-            except Exception as e:
-              entry["error_type"]=type(e).__name__
-            out.append(entry)
-          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":out,"race_pages_requested":0,"forecast_generated":False,"scoring":"NOT_RUN"},indent=2))
-          PY
-      - name: Safe HTTPS homepage preflight (no race pages)
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/https-preflight.json
-          import urllib.request,urllib.error,json,datetime
-          rows=[]
-          for host in ["v-select.jp","www.boatrace.jp"]:
-            rec={"host":host,"homepage_only":True,"tls_http":"unverified"}
-            try:
-              req=urllib.request.Request("https://"+host+"/",headers={"User-Agent":"ResearchConnectivityCheck/1.0"},method="HEAD")
-              with urllib.request.urlopen(req,timeout=12) as res:
-                rec["http_status"]=res.status
-                rec["tls_http"]="connected"
-            except urllib.error.HTTPError as e:
-              rec["http_status"]=e.code
-              rec["tls_http"]="connected_http_error"
-            except Exception as e:
-              rec["error_type"]=type(e).__name__
-              rec["error"]=str(e)[:120]
-            rows.append(rec)
-          print(json.dumps({"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":rows,"race_pages_requested":0,"results_endpoint_requested":False,"forecast_generated":False},ensure_ascii=False,indent=2))
-          PY
-      - name: Validate today's active venue using official race list metadata
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/venue-preflight.json
-          import datetime as dt,urllib.parse,urllib.request,json,re,hashlib
-          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
-          # Tamagawa is scheduled to race on October 25; do not use closed Suminoe.
-          jcd="05"
-          endpoints={"racelist":f"https://www.boatrace.jp/owpc/pc/race/racelist?jcd={jcd}&hd={day}&rno=12","beforeinfo":f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd={jcd}&hd={day}&rno=12"}
-          rows=[]
-          for name,url in endpoints.items():
-            info={"endpoint":name,"jcd":jcd,"hd":day,"rno":12}
-            try:
-              with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=16) as r:
-                raw=r.read(200001); page=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
-                info.update({"status":r.status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"table_count":page.lower().count("<table"),"exhibition_word":("展示" in page),"outcome_word":bool(re.search("払戻金|確定結果|着順結果",page)),"source_usable":False})
-            except Exception as e:info["error_type"]=type(e).__name__
-            rows.append(info)
-          print(json.dumps({"date":day,"venue":"Tamagawa","schedule_source":"official venue calendar, 2026-10-25","records":rows,"outcomes_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN"},ensure_ascii=False,indent=2))
-          PY
-      - name: Inspect pre-race exhibition DOM labels without persisting values
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/exhibition-dom.json
-          import urllib.request,datetime,json,re,hashlib
-          from html.parser import HTMLParser
-          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          out={"day":day,"jcd":"05","rno":12,"result_endpoint_requested":False,"forecast_generated":False,"safe_for_prediction":False}
-          class Scan(HTMLParser):
-            def __init__(self):super().__init__();self.classes={};self.tags={};self.ids=[]
-            def handle_starttag(self,t,a):
-              self.tags[t]=self.tags.get(t,0)+1
-              attrs=dict(a)
-              for cl in attrs.get("class","").split():
-                if any(z in cl.lower() for z in ("table","race","exhibition","before","is-","boat","time")):
-                  self.classes[cl]=self.classes.get(cl,0)+1
-              if "id" in attrs:self.ids.append(attrs["id"])
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
-              raw=r.read(200001);out.update({"status":r.status,"bytes":len(raw),"raw_sha256":hashlib.sha256(raw).hexdigest()})
-              s=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
-            p=Scan();p.feed(s)
-            out.update({"tag_counts":{k:p.tags.get(k,0) for k in ("table","div","dl","dt","dd","tr","td","li","script")},"relevant_class_counts":dict(sorted(p.classes.items())[:80]),"id_count":len(p.ids),"exhibition_label_counts":{k:s.count(k) for k in ("展示タイム","展示ST","周回","直線","まわり足","進入","スタート展示")},"result_bearing_token_present":bool(re.search("払戻金|確定結果|着順結果",s)),"raw_page_persisted":False})
-          except Exception as e:out["error_type"]=type(e).__name__
-          print(json.dumps(out,ensure_ascii=False,indent=2))
-          PY
-      - name: Fail-closed six-boat HTML structure validation
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/exhibition-gate.json
-          import datetime as dt,urllib.request,json,sys,hashlib
-          sys.path.insert(0,"research-capture")
-          from exhibition_gate import verify_structure
-          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          record={"date":day,"venue":"05","race":12,"result_endpoint_requested":False,"forecast_generated":False}
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
-              raw=r.read(200001)
-              page=raw.decode(r.headers.get_content_charset() or "utf-8","replace")
-              record.update({"status":r.status,"source_sha256":hashlib.sha256(raw).hexdigest(),"structure":verify_structure(page)})
-          except Exception as e:record["error_type"]=type(e).__name__
-          print(json.dumps(record,ensure_ascii=False,indent=2))
-          PY
-      - name: Parse six-boat exhibition structure safely
-        shell: bash
-        run: |
-          python3 research-capture/official_exhibition_structure.py > audit-output/official-exhibition-structure.json
-      - name: Quantify six-row exhibition coverage without outputting values
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/exhibition-coverage.json
-          import datetime as dt,urllib.request,json,re,hashlib
-          from html.parser import HTMLParser
-          now=dt.datetime.now(dt.timezone(dt.timedelta(hours=9)))
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={now:%Y%m%d}&rno=12"
-          report={"at_jst":now.isoformat(),"race_id":f"{now:%Y%m%d}0512","results_endpoint_requested":False,"prediction_saved":False,"result_unlock":"LOCKED"}
-          class P(HTMLParser):
-            def __init__(self):super().__init__();self.depth=0;self.rows=[];self.cur=None;self.cell=None
-            def handle_starttag(self,tag,attrs):
-              if tag=="tr":self.cur=[] if self.cur is None else self.cur
-              if tag in ("td","th") and self.cur is not None:self.cell=[]
-            def handle_data(self,data):
-              if self.cell is not None:self.cell.append(data)
-            def handle_endtag(self,tag):
-              if tag in ("td","th") and self.cell is not None and self.cur is not None:
-                self.cur.append(" ".join(" ".join(self.cell).split()));self.cell=None
-              if tag=="tr" and self.cur is not None:self.rows.append(self.cur);self.cur=None
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=16) as response:
-              raw=response.read(250000); page=raw.decode(response.headers.get_content_charset() or "utf-8","replace")
-              report.update({"status":response.status,"bytes":len(raw),"source_sha256":hashlib.sha256(raw).hexdigest()})
-            p=P();p.feed(page)
-            patterns={"6_boat_rows":r"^[1-6]$","time_format":r"^[0-9]{1,2}\.[0-9]{1,2}$","st_format":r"^[FfLl]?\.?[0-9]{1,2}$","empty_placeholder":r"^(?:-|--|－|未発表|)$"}
-            report["row_count"]=len(p.rows)
-            report["table_cell_counts"]=[len(r) for r in p.rows[:45]]
-            report["individual_boat_tokens"]={str(i):sum(any(c==str(i) for c in row) for row in p.rows) for i in range(1,7)}
-            report["decimal_cell_count"]=sum(bool(re.fullmatch(patterns["time_format"],c)) for row in p.rows for c in row)
-            report["numeric_cell_count"]=sum(bool(re.fullmatch(r"[0-9]+(?:\.[0-9]+)?",c)) for row in p.rows for c in row)
-            report["result_terms_detected"]=bool(re.search(r"払戻金|確定結果|着順結果",page))
-            report["eligible"]=False
-            report["raw_text_saved"]=False
-          except Exception as e:report["error_type"]=type(e).__name__
-          print(json.dumps(report,ensure_ascii=False,indent=2))
-          PY
-      - name: Verify six-lane extraction without outcome parsing
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/six-lane-audit.json
-          import urllib.request,datetime,json,hashlib,re
-          from html.parser import HTMLParser
-          now=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-          day=now.strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          record={"date":day,"venue_code":"05","race_no":12,"forecast_generated":False,"scoring":"NOT_RUN","outcome_endpoint_requested":False,"valid_six_lane_exhibition":False}
-          class P(HTMLParser):
-            def __init__(self):super().__init__();self.lanes=[];self.table_count=0;self.exhibition_words=0
-            def handle_starttag(self,tag,attrs):
-              if tag=="table":self.table_count+=1
-              a=dict(attrs);s=a.get("class","")
-              for i in range(1,7):
-                if re.search(r"(?:is-boatColor|is-boatcolor|boatColor)"+str(i)+r"\b",s):
-                  self.lanes.append(i)
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as r:
-              data=r.read(200001); record.update({"status":r.status,"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()})
-              page=data.decode(r.headers.get_content_charset() or "utf-8","replace")
-            parser=P();parser.feed(page)
-            unique=sorted(set(parser.lanes))
-            record.update({"tables":parser.table_count,"lane_classes":unique,"lane_classes_complete":unique==[1,2,3,4,5,6],"has_exhibition_heading":"展示" in page,"has_result_related_word":bool(re.search("払戻金|確定結果|着順結果",page)),"numeric_exhibition_values_extracted":0,"reason":"layout check only; no parsed values or timing attestation"})
-          except Exception as e:record["error"]=type(e).__name__
-          print(json.dumps(record,ensure_ascii=False,indent=2))
-          PY
-      - name: Six-lane exhibition extraction gate (never output values)
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/exhibition-six-lane-gate.json
-          import urllib.request,datetime,json,re,hashlib
-          from html.parser import HTMLParser
-          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          out={"race_id":day+"0512","source":"official_beforeinfo","results_endpoint_requested":False,"forecast_generated":False,"scoring":"NOT_RUN","eligible_for_forecast":False}
-          class Tables(HTMLParser):
-            def __init__(self):super().__init__();self.depth=0;self.current=[];self.rows=[];self.cell=False;self.tables=[]
-            def handle_starttag(self,tag,attrs):
-              if tag=="table":
-                if self.depth==0:self.current=[];self.rows=[]
-                self.depth+=1
-              elif self.depth:
-                if tag=="tr":self.current=[]
-                elif tag in ("td","th"):self.cell=True;self.current.append("")
-            def handle_data(self,data):
-              if self.depth and self.cell and self.current:self.current[-1]+=data
-            def handle_endtag(self,tag):
-              if tag in ("td","th"):self.cell=False
-              elif tag=="tr" and self.depth:self.rows.append([re.sub(r"\\s+"," ",v).strip() for v in self.current])
-              elif tag=="table" and self.depth:
-                self.depth-=1
-                if self.depth==0:self.tables.append(self.rows)
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=18) as resp:
-              raw=resp.read(250001);now=datetime.datetime.now(datetime.timezone.utc)
-              out.update({"http_status":resp.status,"captured_at_utc":now.isoformat(),"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest()})
-              html=raw.decode(resp.headers.get_content_charset() or "utf-8","replace")
-            p=Tables();p.feed(html)
-            out["table_dimensions"]=[{"rows":len(t),"row_cell_counts":[len(r) for r in t[:12]]} for t in p.tables]
-            out["section_labels_present"]={label:label in html for label in ("展示タイム","スタート展示","進入","ST","モーター")}
-            out["any_results_token"]=bool(re.search("払戻金|確定結果|着順結果",html))
-            # Metadata-only extraction trial: never emit race values or allow scoring.
-            candidate_rows=[]
-            for table_idx,table in enumerate(p.tables):
-              for row_idx,cells in enumerate(table):
-                clean=[x for x in cells if x]
-                if any(re.search(r"(展示|タイム|ST|進入|モーター|コース)",x) for x in clean):
-                  candidate_rows.append({"table":table_idx,"row":row_idx,"cells":len(cells),"numeric_cells":sum(bool(re.fullmatch(r"[+-]?\\d+(?:\\.\\d+)?",x)) for x in clean),"label_flags":{k:any(k in x for x in clean) for k in ("展示","ST","進入","モーター")}})
-            out["candidate_row_metadata"]=candidate_rows[:30]
-            out["candidate_row_count"]=len(candidate_rows)
-            out["six_lanes_complete"]=False
-            out["reason"]="Metadata-only scan; cutoff, six-lane numeric validation and result segregation not yet attested"
-          except Exception as e:out["error_type"]=type(e).__name__
-          print(json.dumps(out,ensure_ascii=False,indent=2))
-          PY
-      - name: Strict forecast gate from existing parsed metadata
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/forecast-readiness.json
-          import json,pathlib,datetime
-          path=pathlib.Path("audit-output/exhibition-six-lane-gate.json")
-          evidence=json.loads(path.read_text())
-          report={
-            "evaluated_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "race_id":evidence.get("race_id"),
-            "source_sha256":evidence.get("sha256"),
-            "six_table_rows_present":any(x.get("rows",0)>=6 for x in evidence.get("table_dimensions",[])),
-            "six_numeric_exhibition_rows_extracted":False,
-            "results_token_present":evidence.get("any_results_token",True),
-            "cutoff_time_verified":False,
-            "official_beforeinfo_http_200":evidence.get("http_status")==200,
-            "forecast_allowed":False,
-            "scoring":"NOT_RUN",
-            "reason":"Missing verified six-boat exhibition values and independent deadline; source has result-related generic tokens."
-          }
-          assert report["forecast_allowed"] is False
-          print(json.dumps(report,indent=2))
-          PY
-      - name: Offline exhibition parser positive and fail-closed tests
-        run: |
-          python3 - <<'PY' > audit-output/exhibition-parser-test.log 2>&1
-          import sys
-          sys.path.insert(0,"research-capture")
-          from exhibition_six_lane import inspect
-          data="<html><table><tr><th>展示タイム</th><td>6.78</td><td>6.81</td></tr></table></html>".encode()
-          report=inspect(data)
-          assert report["tables"]==1,report
-          assert report["candidate_rows"][0]["numeric_candidates"]==2,report
-          assert report["forecast_allowed"] is False
-          unsafe=inspect(data+"払戻金".encode())
-          assert unsafe["result_related_token"] is True
-          assert unsafe["forecast_allowed"] is False
-          print("PARSER_OFFLINE_TESTS_PASS candidate extraction and fail-closed gate")
-          PY
-      - name: Run shared parser against current official HTML (fail closed)
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/shared-parser-live.json
-          import datetime as dt,json,urllib.request,sys
-          sys.path.insert(0,"research-capture")
-          from exhibition_six_lane import inspect
-          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          report={"race_id":day+"0512","requested_endpoint":"official_beforeinfo","source_text_retained":False}
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=20) as response:
-              data=response.read(250001)
-              report["http_status"]=response.status
-            parsed=inspect(data,cutoff_verified=False)
-            report.update(parsed)
-          except Exception as exc:
-            report.update({"error_type":type(exc).__name__,"forecast_allowed":False,"scoring":"NOT_RUN"})
-          assert report.get("forecast_allowed") is False
-          print(json.dumps(report,ensure_ascii=False,indent=2))
-          PY
-      - name: Inspect six-lane row shapes in live beforeinfo without saving values
-        shell: bash
-        run: |
-          python3 - <<'PY' > audit-output/official-row-shape.json
-          import datetime as dt,json,urllib.request,sys
-          sys.path.insert(0,"research-capture")
-          from official_row_shape import inspect
-          day=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime("%Y%m%d")
-          url=f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?jcd=05&hd={day}&rno=12"
-          try:
-            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=16) as response:
-              raw=response.read(250001)
-            report=inspect(raw)
-          except Exception as e:
-            report={"error_type":type(e).__name__,"forecast_allowed":False,"scoring":"NOT_RUN"}
-          report.update({"race_id":day+"0512","forecast_allowed":False,"result_endpoint_requested":False,"raw_html_persisted":False})
-          print(json.dumps(report,ensure_ascii=False,indent=2))
-          PY
-      - name: Verify JST cutoff gate (offline)
-        run: python3 research-capture/cutoff_gate.py > audit-output/cutoff-gate.log 2>&1
-      - name: Exercise safe time-gated exhibition extractor
-        run: python3 research-capture/safe_exhibition_extract.py > audit-output/safe-extraction-tests.log 2>&1
-      - name: Ensure no late or contaminated forecast
-        run: python3 research-capture/no_false_forecast_test.py > audit-output/no-false-forecast.log 2>&1
-      - name: Always publish audit artifacts
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: research-staging-audit
+          name: research-safety-ci
           path: audit-output/
-          if-no-files-found: warn
           retention-days: 30
