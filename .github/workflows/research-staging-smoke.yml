@@ -342,6 +342,8 @@ jobs:
           PY
       - name: Verify JST cutoff gate (offline)
         run: python3 research-capture/cutoff_gate.py > audit-output/cutoff-gate.log 2>&1
+      - name: Exercise safe time-gated exhibition extractor
+        run: python3 research-capture/safe_exhibition_extract.py > audit-output/safe-extraction-tests.log 2>&1
       - name: Always publish audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
