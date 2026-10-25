@@ -27,11 +27,22 @@ def inspect(raw,race_id,cutoff_jst,observed_utc):
     valid,reason=validate_window(race_id,cutoff_jst,observed_utc)
     report={"race_id":race_id,"window_ok":valid,"gate_reason":reason,"source_sha256":hashlib.sha256(raw).hexdigest(),"forecast_allowed":False,"scoring":"NOT_RUN"}
     if not valid:return report
-    if len(raw) > 250000 or b"\\x00" in raw:\n        report["gate_reason"]="INVALID_SOURCE_BYTES"\n        return report\n    try:\n        page=raw.decode("utf-8","strict")\n    except UnicodeDecodeError:\n        report["gate_reason"]="UNSUPPORTED_ENCODING"\n        return report
+    if len(raw) > 250000 or b"\\x00" in raw:
+        report["gate_reason"]="INVALID_SOURCE_BYTES"
+        return report
+    try:
+        page=raw.decode("utf-8","strict")
+    except UnicodeDecodeError:
+        report["gate_reason"]="UNSUPPORTED_ENCODING"
+        return report
     if re.search("払戻金|確定結果|着順結果",page):
         report["gate_reason"]="RESULT_TOKEN_QUARANTINE"
         return report
-    try:\n        p=Tables();p.feed(page)\n    except Exception:\n        report["gate_reason"]="HTML_PARSE_ERROR"\n        return report
+    try:
+        p=Tables();p.feed(page)
+    except Exception:
+        report["gate_reason"]="HTML_PARSE_ERROR"
+        return report
     report["table_count"]=len(p.tables)
     # Verify only structure. Numeric extraction is withheld until six unambiguous
     # boat identities, entry courses and exhibition fields map to the same race.
@@ -48,4 +59,8 @@ if __name__=="__main__":
     assert late["gate_reason"]=="TOO_LATE"
     quarantine=inspect("払戻金".encode(),"202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
     assert quarantine["gate_reason"]=="RESULT_TOKEN_QUARANTINE"
-    invalid=inspect(b"\\x00invalid", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))\n    assert invalid["gate_reason"]=="INVALID_SOURCE_BYTES"\n    invalid_encoding=inspect(b"\\xff", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))\n    assert invalid_encoding["gate_reason"]=="UNSUPPORTED_ENCODING"\n    print("SAFE_EXTRACTION_GATES_PASS 5/5")
+    invalid=inspect(b"\\x00invalid", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
+    assert invalid["gate_reason"]=="INVALID_SOURCE_BYTES"
+    invalid_encoding=inspect(b"\\xff", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
+    assert invalid_encoding["gate_reason"]=="UNSUPPORTED_ENCODING"
+    print("SAFE_EXTRACTION_GATES_PASS 5/5")
