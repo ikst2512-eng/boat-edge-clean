@@ -27,7 +27,7 @@ def inspect(raw,race_id,cutoff_jst,observed_utc):
     valid,reason=validate_window(race_id,cutoff_jst,observed_utc)
     report={"race_id":race_id,"window_ok":valid,"gate_reason":reason,"source_sha256":hashlib.sha256(raw).hexdigest(),"forecast_allowed":False,"scoring":"NOT_RUN"}
     if not valid:return report
-    if len(raw) > 250000 or b"\\x00" in raw:
+    if len(raw) > 250000 or b"\x00" in raw:
         report["gate_reason"]="INVALID_SOURCE_BYTES"
         return report
     try:
@@ -59,8 +59,8 @@ if __name__=="__main__":
     assert late["gate_reason"]=="TOO_LATE"
     quarantine=inspect("払戻金".encode(),"202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
     assert quarantine["gate_reason"]=="RESULT_TOKEN_QUARANTINE"
-    invalid=inspect(b"\\x00invalid", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
+    invalid=inspect(b"\x00invalid", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
     assert invalid["gate_reason"]=="INVALID_SOURCE_BYTES"
-    invalid_encoding=inspect(b"\\xff", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
+    invalid_encoding=inspect(b"\xff", "202610250512",cut,datetime(2026,10,25,15,50,tzinfo=j))
     assert invalid_encoding["gate_reason"]=="UNSUPPORTED_ENCODING"
     print("SAFE_EXTRACTION_GATES_PASS 5/5")
