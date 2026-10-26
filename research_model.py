@@ -1,5 +1,5 @@
 """Research-only trifecta model trained on frozen 1,000-race boat-index outcomes."""
-import csv, io, math, json, os, hashlib
+import csv, io, math, json, os, hashlib, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from itertools import permutations
@@ -26,8 +26,20 @@ def read_rows(url):
         if response.status!=200:raise ValueError("source unavailable")
         raw=response.read(2_000_001)
         if len(raw)>2_000_000:raise ValueError("source too large")
-    return list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),datetime.now(JST)
+    return (list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),
+            datetime.now(JST), hashlib.sha256(raw).hexdigest())
 STORE=Path(__file__).resolve().parent/"research_snapshots"
+def model_provenance():
+    root=Path(__file__).resolve().parent
+    sha=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
+    if len(sha)!=40 or any(c not in "0123456789abcdef" for c in sha):
+        raise ValueError("invalid model Git SHA")
+    committed=subprocess.check_output(["git","show",sha+":research_model.py"],cwd=root)
+    if committed!=(root/"research_model.py").read_bytes():
+        raise ValueError("research model differs from Git HEAD")
+    return {"model_git_sha":sha,"model_source_sha256":hashlib.sha256(committed).hexdigest(),
+            "model_dependency_scope":"research_model.py_only_not_complete_environment"}
+
 def _record_path(code):
     if len(code)!=12 or not code.isascii() or not code.isdigit():raise ValueError("invalid race code")
     return STORE/(code+".json")
@@ -36,10 +48,13 @@ def _saved(code):
     if path.is_symlink() or not path.is_file():return None
     if path.stat().st_size>20000:raise ValueError("oversize forecast")
     record=json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(record, dict):
+        raise ValueError("invalid saved forecast structure")
     if record.get("race_code")!=code or record.get("status")!="research" or record.get("validated") is not False:
         raise ValueError("invalid saved forecast")
     tickets=record.get("predictions")
-    if not isinstance(tickets,list) or len(tickets)!=10 or len(set(tickets))!=10:
+    if (not isinstance(tickets,list) or len(tickets)!=10 or
+            not all(isinstance(t, str) for t in tickets) or len(set(tickets))!=10):
         raise ValueError("invalid prediction list")
     valid={"-".join(map(str,t)) for t in TICKETS}
     if any(t not in valid for t in tickets):raise ValueError("invalid ticket")
@@ -51,8 +66,8 @@ def predict(hd,jcd,rno):
     old=_saved(code)
     if old is not None:return old
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    titles,t1=read_rows(BASE+"title/"+path)
-    cards,t2=read_rows(BASE+"race_cards/"+path)
+    titles,t1,title_sha256=read_rows(BASE+"title/"+path)
+    cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
     matching_t=[r for r in titles if r.get("レースコード")==code]
     matching_c=[r for r in cards if r.get("レースコード")==code]
     if len(matching_t)!=1 or len(matching_c)!=1:raise ValueError("race missing")
@@ -66,9 +81,17 @@ def predict(hd,jcd,rno):
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
-    record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_deadline_jst=deadline.isoformat(),source_title_received_jst=t1.isoformat(),
-                source_cards_received_jst=t2.isoformat(),national_win_rates=rates)
+    record=dict(result,race_code=code,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+                source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
+                source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
+                    (title_sha256+":"+cards_sha256).encode("ascii")
+                ).hexdigest(), input_hash_scope="source_csv_byte_hashes_ordered_title_cards",
+                **model_provenance())
     data=json.dumps(record,ensure_ascii=False,sort_keys=True)
+    # SHA calculation and model provenance checks also consume time. Refuse a
+    # record if the deadline safety margin elapsed before the actual write.
+    if datetime.now(JST) > cutoff:
+        raise ValueError("research snapshot write missed 12-minute cutoff")
     # Exclusive create: never silently replace a previously saved forecast.
     with _record_path(code).open("x",encoding="utf-8") as out:
         out.write(data)
