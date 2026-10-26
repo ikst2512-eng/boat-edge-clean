@@ -1,0 +1,42 @@
+name: Formal Fresh locked guard tests
+
+on:
+  pull_request:
+    paths:
+      - 'server.py'
+      - 'formal_candidate_validator.py'
+      - 'formal_receipt_inspector.py'
+      - 'formal_git_history_audit.py'
+      - 'tests/test_formal_*.py'
+      - '.github/workflows/formal-fresh-guard-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-guard-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run formal pre-result synthetic regressions
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONPATH: .
+        run: |
+          python3 -m unittest discover -s tests -p 'test_formal_*.py' -v
+      - name: Assert no formal promotion in validator result
+        run: |
+          python3 - <<'PY'
+          import inspect
+          import formal_candidate_validator
+          import formal_receipt_inspector
+          import formal_git_history_audit
+          for module in (formal_candidate_validator, formal_receipt_inspector, formal_git_history_audit):
+              src = inspect.getsource(module)
+              assert '"formal_approved": True' not in src
+              assert "'formal_approved': True" not in src
+          PY
