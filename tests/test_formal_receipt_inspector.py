@@ -2,7 +2,21 @@
 import hashlib
 import json
 import unittest
-from tests.test_formal_candidate_validator import sample
+from itertools import permutations
+
+
+def sample():
+    return {
+        "race_key": "20261028-01-01", "source_kind": "formal_candidate",
+        "model_sha256": "a" * 64, "input_sha256": "b" * 64,
+        "git_sha": "c" * 40,
+        "generated_at": "2026-10-28T09:00:00+09:00",
+        "cutoff_at": "2026-10-28T09:03:00+09:00",
+        "official_deadline_at": "2026-10-28T09:15:00+09:00",
+        "ranked_120": [{"combo": "-".join(t), "probability": 1 / 120}
+                       for t in permutations("123456", 3)],
+    }
+
 from formal_candidate_validator import InvalidCandidate
 from formal_receipt_inspector import inspect_receipt
 
