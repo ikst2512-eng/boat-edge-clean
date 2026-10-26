@@ -12,7 +12,7 @@ class _VisibleText(HTMLParser):
     VOID = frozenset(("area", "base", "br", "col", "embed", "hr",
                       "img", "input", "link", "meta", "param", "source",
                       "track", "wbr"))
-    HIDDEN = frozenset(("script", "style", "template", "noscript", "svg"))
+    HIDDEN = frozenset(("script", "style", "template", "noscript", "svg", "head"))
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
