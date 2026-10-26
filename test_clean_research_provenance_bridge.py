@@ -5,7 +5,9 @@ from clean_research_provenance_bridge import compare_capture_identity
 JST=timezone(timedelta(hours=9))
 CAP=datetime(2026,10,26,14,0,tzinfo=JST)
 DEADLINE=CAP+timedelta(minutes=15)
-RACE={"race_key":"20261026-21-01","status":"html_candidates_unverified"}
+RACE={"race_key":"20261026-21-01","status":"html_candidates_unverified",
+      "official_provenance_verified":False,
+      "racers":[{"lane":i,"registration":f"{4000+i}"} for i in range(1,7)]}
 BEFORE={"race_key":"20261026-21-01","status":"research_unverified",
         "verified_preview":False,"actual_entry_verified":False,
         "raw_sha256":"a"*64,"captured_at":CAP.isoformat(),
@@ -48,6 +50,17 @@ class BridgeTests(unittest.TestCase):
     def test_boolean_boat_number(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"start_exhibition":[{"boat_number":True}]+[{"boat_number":i} for i in range(2,7)]},deadline=DEADLINE)
+    def test_missing_racelist_racer(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity({**RACE,"racers":RACE["racers"][:5]},BEFORE,deadline=DEADLINE)
+    def test_duplicate_racelist_registration(self):
+        racers=[dict(x) for x in RACE["racers"]]
+        racers[5]["registration"]=racers[0]["registration"]
+        with self.assertRaises(ValueError):
+            compare_capture_identity({**RACE,"racers":racers},BEFORE,deadline=DEADLINE)
+    def test_unsafe_racelist_promotion(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity({**RACE,"official_provenance_verified":True},BEFORE,deadline=DEADLINE)
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
