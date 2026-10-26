@@ -115,6 +115,14 @@ class PairedComparisonTests(unittest.TestCase):
             self.assertGreaterEqual(m["holm_adjusted_p"],m["paired_signflip_p"])
             self.assertLessEqual(m["holm_adjusted_p"],1.0)
         self.assertIn("Holm",result["multiple_comparison_method"])
+    def test_small_sample_never_labeled_comparative_evidence(self):
+        output=compare([self.row()],"a","b")
+        self.assertEqual(output["status"],"INSUFFICIENT_EVIDENCE")
+        self.assertEqual(output["minimum_exploratory_sample"],30)
+        self.assertIn("Small paired sample",output["sample_size_warning"])
+    def test_same_model_cannot_be_compared_to_itself(self):
+        with self.assertRaises(ValueError):
+            compare([self.row()],"a","a")
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
