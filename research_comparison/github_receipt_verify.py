@@ -111,10 +111,19 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     if record.get("baseline_model_id") == record.get("candidate_model_id"):
         raise ValueError("identical model IDs")
 
+    # A server-observed commit receipt does not attest the model or original inputs.
+    # Explicitly avoid returning an authorization-like validated status.
+    evidence_required = (
+        "independent_source_csv_receipt",
+        "model_source_sha_attestation",
+        "preregistration_server_receipt",
+        "official_deadline_attestation",
+    )
     return {"status": "SERVER_PUSH_AND_COMMIT_BLOB_MATCH",
             "run_id": run_id, "run_created_at": run["created_at"],
             "commit_sha": commit, "blob_sha": blob_sha,
             "sha256": expected_sha256, "path": path,
             "parent_absence_checked": True, "full_history_first_add_verified": True, "ancestors_checked": len(visited),
             "formal_validated": False, "outcome_access_authorized": False,
+            "ready_for_scoring": False, "outstanding_evidence": list(evidence_required),
             "limitations": "Does not verify source authenticity, prediction model or preregistration."}
