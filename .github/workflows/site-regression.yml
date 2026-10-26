@@ -6,6 +6,8 @@ on:
       - tests/site-regression.cjs
       - official_prerace_capture.py
       - test_official_prerace_capture.py
+      - official_beforeinfo_inspect.py
+      - test_official_beforeinfo_inspect.py
       - .github/workflows/site-regression.yml
   workflow_dispatch:
   pull_request:
@@ -14,6 +16,8 @@ on:
       - tests/site-regression.cjs
       - official_prerace_capture.py
       - test_official_prerace_capture.py
+      - official_beforeinfo_inspect.py
+      - test_official_beforeinfo_inspect.py
       - .github/workflows/site-regression.yml
 permissions:
   contents: read
@@ -34,7 +38,7 @@ jobs:
           printf 'Commit: %s\nWorkflow run: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" | tee test-results/provenance.txt
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
       - name: Verify isolated official pre-race capture
-        run: python3 -m unittest -v test_official_prerace_capture
+        run: python3 -m unittest -v test_official_prerace_capture test_official_beforeinfo_inspect
       - name: Upload regression evidence
         if: always()
         uses: actions/upload-artifact@v4
