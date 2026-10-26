@@ -36,10 +36,13 @@ jobs:
               echo 'No research forecast files produced'
             else
               git add -- research_snapshots/
-              # Reject pre-existing staged changes and enforce append-only JSON records.
-              if git diff --cached --name-only --diff-filter=A -- research_snapshots/ | grep -Ev '^research_snapshots/[0-9]{12}\\.json
+              # Only newly added twelve-digit race JSON files are allowed.
               if git diff --cached --name-only --diff-filter=ACDMRTUX -- research_snapshots/ | grep -q .; then
-                echo 'ERROR: existing research snapshot changed or an unsupported file was staged' >&2
+                echo 'ERROR: existing research snapshot changed or deleted' >&2
+                exit 1
+              fi
+              if git diff --cached --name-only --diff-filter=A -- research_snapshots/ | grep -Ev '^research_snapshots/[0-9]{12}[.]json$' | grep -q .; then
+                echo 'ERROR: invalid research snapshot path' >&2
                 exit 1
               fi
               if git diff --cached --quiet; then
@@ -49,54 +52,7 @@ jobs:
                 while IFS= read -r -d '' file; do
                   cp -- "$file" "capture-evidence/new-snapshots/$(basename "$file")"
                 done < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
-                if compgen -G 'capture-evidence/new-snapshots/*.json' > /dev/null; then
-                  (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
-                fi
-                git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
-                git push
-              fi
-            fi
-          } 2>&1 | tee capture-evidence/persistence.log
-      - name: Preserve collection evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-research-collection-${{ github.run_id }}
-          path: |
-            capture-evidence/collection.log
-            capture-evidence/persistence.log
-            capture-evidence/new-snapshots/*.json
-            capture-evidence/snapshot-sha256.txt
-          if-no-files-found: warn
-          retention-days: 30
-      - name: Publish diagnostic summary
-        if: always()
-        shell: bash
-        run: |
-          echo '## Research-only daily collection' >> "$GITHUB_STEP_SUMMARY"
-          echo "- Run: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Git SHA: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo '- Output: daily-research-collection artifact (30 days)' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Research only: not formal Fresh validation or site publication proof' >> "$GITHUB_STEP_SUMMARY"
- | grep -q .; then
-                echo 'ERROR: non-snapshot file staged in research_snapshots' >&2
-                exit 1
-              fi
-              # Snapshots are immutable: allow only newly added JSON files.
-              if git diff --cached --name-only --diff-filter=ACDMRTUX -- research_snapshots/ | grep -q .; then
-                echo 'ERROR: existing research snapshot changed or an unsupported file was staged' >&2
-                exit 1
-              fi
-              if git diff --cached --quiet; then
-                echo 'No new cutoff-eligible research forecasts'
-              else
-                mkdir -p capture-evidence/new-snapshots
-                while IFS= read -r -d '' file; do
-                  cp -- "$file" "capture-evidence/new-snapshots/$(basename "$file")"
-                done < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
-                if compgen -G 'capture-evidence/new-snapshots/*.json' > /dev/null; then
-                  (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
-                fi
+                (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
                 git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
                 git push
               fi
