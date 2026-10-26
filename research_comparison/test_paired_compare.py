@@ -133,6 +133,19 @@ class PairedComparisonTests(unittest.TestCase):
         row=self.row()
         row["race_key"]="ambiguous-race"
         self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_impossible_calendar_date_rejected(self):
+        row=self.row()
+        row["race_key"]="20260230-12-1"
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_venue_and_race_number_out_of_range_rejected(self):
+        for key in ("20261028-25-1","20261028-12-13","20261028-00-1"):
+            row=self.row()
+            row["race_key"]=key
+            self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_deadline_jst_date_mismatch_rejected(self):
+        row=self.row()
+        row["deadline"]="2026-10-29T13:00:00+09:00"
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
