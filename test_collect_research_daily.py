@@ -47,6 +47,15 @@ class CollectorTests(unittest.TestCase):
     self.assertEqual(result["saved"],0)
     self.assertGreaterEqual(result["invalid"],1)
     self.assertEqual(list(self.store.glob("*.json")),[])
+ def test_non_string_card_race_code_does_not_crash_collection(self):
+  start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
+  malformed={"レースコード":["not","hashable"]}
+  with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[
+    ([self.title],start,"a"*64),([malformed],start,"b"*64)]):
+   report=collector.collect(self.day)
+  self.assertEqual(report["missing"],1)
+  self.assertEqual(report["saved"],0)
+  self.assertFalse(list(self.store.glob("*.json")))
  def test_missing_card(self):
   start=datetime.now(JST)
   with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([],start,"b"*64)]):
