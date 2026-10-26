@@ -111,6 +111,13 @@ class CaptureTests(unittest.TestCase):
                 save_raw_receipt(receipt, raw, directory)
             self.assertEqual(list(Path(directory).glob("*.complete")), [])
 
+    def test_official_redirected_response_rejected(self):
+        class RedirectedResponse(Response):
+            def geturl(self):
+                return "https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261027&jcd=04&rno=10"
+        with self.assertRaises(ValueError):
+            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=lambda *a, **kw: RedirectedResponse())
+
     def test_wrong_content_type_rejected(self):
         class JsonResponse(Response):
             headers = {"Content-Type": "application/json"}
