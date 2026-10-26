@@ -43,6 +43,8 @@ def run_audit(run_id, sha, folder="research_prospective_pairs"):
         reports.append(audit_pair_blob(raw,path.as_posix(),run,sha,committed))
     if not reports:
         raise ValueError("push did not introduce any new paired forecast files")
+    if not all(item["remote_pair_evidence"] for item in reports):
+        raise ValueError("one or more new research pairs lack pre-cutoff remote evidence")
     return {"run_id":int(run_id),"inspected":len(reports),
             "remote_pair_evidence_count":sum(x["remote_pair_evidence"] for x in reports),
             "reports":reports,
