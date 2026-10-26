@@ -193,6 +193,19 @@ def get_predictions(params):
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
 class Handler(BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        # Health checks must not trigger predictions or upstream fetches.
+        path = urlsplit(self.path).path.rstrip('/') or '/'
+        if path in ('/', '/index.html', '/healthz'):
+            status = 200
+        else:
+            status = 404
+        self.send_response(status)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', '0')
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+
     def do_GET(self):
         parsed = urlsplit(self.path)
         path = parsed.path.rstrip("/") or "/"
