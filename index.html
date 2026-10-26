@@ -469,7 +469,7 @@ async function loadRaceData(force=false){
   const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
   const fastest=measured.length?measured[0].time:null;
   const summary=document.createElement('div');summary.className='exhibition-summary';
-  summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':'') :'展示データ未取得・不完全・未検証｜未取得項目は「—」';
+  summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未取得・不完全・未検証｜未取得項目は「—」';
   exhibitGrid.append(summary);
   const weather=safePreview&&raw.beforeinfo?.weather&&typeof raw.beforeinfo.weather==='object'?raw.beforeinfo.weather:null;
   if(weather){
@@ -485,9 +485,9 @@ async function loadRaceData(force=false){
   const entryNote=document.createElement('div');entryNote.className='exhibition-entry-note';
   const actual=Array.isArray(raw.actual_entry)?raw.actual_entry:[];
   const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
-   const expectedEntryUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+key.slice(0,8)+'&jcd='+key.split('-')[1]+'&rno='+Number(key.split('-')[2]);
+  const expectedEntryUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+key.slice(0,8)+'&jcd='+key.split('-')[1]+'&rno='+Number(key.split('-')[2]);
   const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&entryAudit.source===expectedEntryUrl&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
-  entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
+  entryNote.textContent=validEntry?'スタート展示進入（本番進入は未確定）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'スタート展示進入：未取得・未検証（枠番で代用せず、本番進入は未確定）';
   if(!validEntry){
    const sidecarToken=token,sidecarKey=key;
    fetchTimed(EDGE_RAW+'/main/data/site_verified_entries/'+encodeURIComponent(sidecarKey)+'.json',{cache:'no-store'}).then(async response=>{
@@ -501,7 +501,7 @@ async function loadRaceData(force=false){
     if(audit?.status!=='ok'||!/^[a-f0-9]{64}$/.test(audit.sha256||'')||typeof audit.source!=='string')return;
     const sourceUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+sidecarKey.slice(0,8)+'&jcd='+sidecarKey.split('-')[1]+'&rno='+Number(sidecarKey.split('-')[2]);
     if(audit.source!==sourceUrl||!Number.isFinite(fetched)||fetched>=raceDeadline||fetched>Date.now()+300000)return;
-    entryNote.textContent='実進入（締切前監査済み）：'+order.map((boat,i)=>(i+1)+'コース '+boat+'号艇').join(' ／ ');
+    entryNote.textContent='スタート展示進入（締切前監査済み・本番進入は未確定）：'+order.map((boat,i)=>(i+1)+'コース '+boat+'号艇').join(' ／ ');
    }).catch(()=>{});
   }
   exhibitGrid.append(entryNote);
