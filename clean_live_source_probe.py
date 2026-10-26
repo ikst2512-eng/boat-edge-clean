@@ -53,7 +53,8 @@ def html_diagnostics(body):
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
             "toban_parameter_count": len(re.findall(r"toban=", text)),
-            "html_is_race_verified": False}
+            "html_is_race_verified": False,
+            "registration_candidates": sorted(set(re.findall(r"[?&]toban=([0-9]{4})(?:[&#\"\\s]|$)", text)))[:30]}
 
 def probe(date, venue, race, opener=urlopen):
     datetime.strptime(date, "%Y%m%d")
@@ -128,4 +129,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
