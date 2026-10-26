@@ -8,6 +8,7 @@ import json
 import math
 import re
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from paired_compare import TICKETS, timestamp
 
 SCOPE = "source_csv_byte_hashes_ordered_title_cards"
@@ -18,6 +19,12 @@ def draft(raw, *, filename_sha256):
     code = raw.get("race_code")
     if not isinstance(code, str) or not re.fullmatch(r"20[0-9]{10}", code):
         raise ValueError("bad race code")
+    try:
+        date = datetime.strptime(code[:8], "%Y%m%d")
+    except ValueError as exc:
+        raise ValueError("invalid race date") from exc
+    if not (1 <= int(code[8:10]) <= 24 and 1 <= int(code[10:12]) <= 12):
+        raise ValueError("race venue or number out of range")
     if raw.get("input_hash_scope") != SCOPE:
         raise ValueError("unknown source hash scope")
     def sha(value, length):
@@ -42,9 +49,13 @@ def draft(raw, *, filename_sha256):
     ordered = sorted(probabilities, key=lambda t: (-probabilities[t], t))
     if raw["predictions"] != ordered[:10]:
         raise ValueError("top10 differs from frozen probabilities")
-    timestamp(raw["generated_at"])
-    timestamp(raw["source_received_at"])
-    timestamp(raw["cutoff_jst"])
+    generated = timestamp(raw["generated_at"])
+    received = timestamp(raw["source_received_at"])
+    cutoff = timestamp(raw["cutoff_jst"])
+    if received > generated or generated >= cutoff:
+        raise ValueError("snapshot chronology inconsistent with cutoff")
+    if cutoff.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d") != code[:8]:
+        raise ValueError("snapshot cutoff date differs from race date")
     return {
         "race_key": f"{code[:8]}-{code[8:10]}-{int(code[10:12])}",
         "race_cutoff_safety_jst": raw["cutoff_jst"],
