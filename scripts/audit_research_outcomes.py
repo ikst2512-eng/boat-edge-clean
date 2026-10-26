@@ -142,6 +142,14 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if git_blob != blob:
                 exclusions["first_added_blob_mismatch"] += 1
                 continue
+            # Commit ID and blob digest alone do not prove membership or first
+            # introduction. These checks must be performed independently before
+            # a score can be promoted to a validated research result.
+            if (att.get("first_commit_membership_verified") is not True or
+                    att.get("first_commit_introduction_verified") is not True or
+                    att.get("remote_receipt_verified") is not True):
+                exclusions["unverified_first_commit_or_remote_receipt"] += 1
+                continue
             if timestamp(att["first_seen_at"]) > timestamp(obj["cutoff_jst"]):
                 exclusions["receipt_after_cutoff"] += 1
                 continue
