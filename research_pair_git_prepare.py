@@ -24,7 +24,9 @@ def prepare(day, folder="research_prospective_pairs", now=None):
         raise ValueError("pre-existing staged changes; refuse research commit")
     test_clock = now is not None
     now=now or datetime.now(JST)
-    files=eligible_paths(folder,day,now)
+    new_files=_git("ls-files","--others","--exclude-standard","--",folder).splitlines()
+    new_files=[p for p in new_files if p.startswith(f"{folder}/{day}") and p.endswith(".json")]
+    files=eligible_paths(folder,day,now,only_paths=new_files)
     if not files:
         return {"ready":0,"commit_created":False}
     for path in files:
@@ -48,7 +50,7 @@ def prepare(day, folder="research_prospective_pairs", now=None):
 
     # Re-check before committing and demand the same set of eligible files.
     # A changing batch must never be silently committed in part.
-    verified=set(eligible_paths(folder,day,now if test_clock else datetime.now(JST)))
+    verified=set(eligible_paths(folder,day,now if test_clock else datetime.now(JST),only_paths=files))
     if verified != set(files):
         subprocess.run(["git","reset","--",*files],check=True)
         raise ValueError("eligible pair set changed during commit preparation")
