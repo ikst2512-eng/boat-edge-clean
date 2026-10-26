@@ -50,3 +50,7 @@ This read-only audit requires a single-parent commit that **adds** the named pat
 ## Integration warning
 
 PR #16 independently implements a paired evaluation script. Its changed paths do not collide with this PR, but the algorithms overlap. Do not merge both as separate evaluation authorities; consolidate the evidence contract, tests and metrics after ownership review. The research evaluator here does not validate receipt status on its own. The initial prototype's test fixture SHA expressions were corrected to Python repetition syntax in commit 93b238c. No completed GitHub Actions test run has yet been demonstrated.
+
+## Explicit model-pair pre-registration gate
+
+Each pair now requires a `pre_registration` object containing `baseline_model_id`, `candidate_model_id`, their exact `baseline_model_sha` and `candidate_model_sha` (40-character Git SHAs), `registered_at` as a timezone-aware ISO timestamp, and `receipt_verified_independently: true`. The timestamp must precede the deadline and both initial prediction freezes. A mere `candidate_pre_registered: true` Boolean no longer qualifies. An externally audited immutable receipt is still essential: the tool validates the claimed fields, but cannot establish their authenticity. Work from pre-registered cohorts rather than selecting good-performing candidates retrospectively. Do not use outcome data from locked Fresh records.
