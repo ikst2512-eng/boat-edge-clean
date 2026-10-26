@@ -16,6 +16,50 @@ class GitHubReaderTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             _strict_metadata_json(b'{"id":NaN}')
 
+    def test_oversized_github_response_fails_closed(self):
+        class OversizedOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, limit):
+                        return b"x" * limit
+                return Response()
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=OversizedOpener())
+
+    def test_wrong_race_identity_from_zip_rejected(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __init__(self, raw):
+                        self.raw = raw
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return self.raw
+                url = req.full_url
+                if url.endswith("/actions/runs/123"):
+                    data = {"id": 123, "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_branch": "main",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
+                elif "/artifacts?per_page=100" in url:
+                    data = {"total_count": 1, "artifacts": [{"id": 456,
+                            "workflow_run": {"id": 123}}]}
+                else:
+                    return Response(b"fixture")
+                return Response(json.dumps(data).encode())
+        wrong = {"workflow_run_id": 123, "candidate_sha256": "a" * 64,
+                 "race_code": "202610280102"}
+        with patch("formal_github_artifact_reader.inspect_downloaded_artifact",
+                   return_value=wrong):
+            with self.assertRaises(InvalidCandidate):
+                audit(123, 456, "202610280101", "a" * 64, "fake", opener=FakeOpener())
+
     def test_missing_token_fails(self):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "a" * 64, "")
