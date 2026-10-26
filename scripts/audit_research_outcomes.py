@@ -141,6 +141,9 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if not isinstance(res.get("result_source_id"), str) or not res["result_source_id"]:
                 exclusions["missing_result_provenance"] += 1
                 continue
+            if not isinstance(res.get("result_confirmed_at"), str) or not res["result_confirmed_at"]:
+                exclusions["missing_result_confirmation_time"] += 1
+                continue
             if timestamp(res["result_confirmed_at"]) < deadline:
                 exclusions["result_confirmed_before_deadline"] += 1
                 continue
