@@ -187,7 +187,7 @@ def compare(rows, baseline, candidate):
         "lower_is_better":True}
     metrics["top1_ece_10bins"] = {"baseline":ece(pairs,"a"),"candidate":ece(pairs,"b"),
         "note":"Descriptive; very low-probability top tickets require a large sample."}
-    # Seven confirmatory comparisons are reported, not one cherry-picked p-value.
+    # Six confirmatory comparisons are reported, not one cherry-picked p-value.
     # Holm correction controls family-wise error under arbitrary dependence.
     names = ["top1", "top3", "top5", "top10", "log_loss", "multiclass_brier"]
     ordered = sorted(names, key=lambda name: metrics[name]["paired_signflip_p"])
