@@ -150,8 +150,8 @@ jobs:
               if(!await page.locator('#venues button').nth(11).evaluate(el=>el.classList.contains('held')))throw Error('active venue not highlighted');
               await page.goto('file://'+process.cwd()+'/index.html?date=2026-10-22&venue=12&race=1');
               // Chronological race navigation is built from saved race deadlines.
-              await page.waitForFunction(()=>document.querySelectorAll('#deadlineList .deadline-item').length===1,null,{timeout:12000});
-              if(!(await page.locator('#deadlineList .deadline-item').first().innerText()).includes('15:16'))throw Error('deadline label missing');
+              await page.waitForFunction(()=>document.querySelector('#deadlineStatus')?.textContent.includes('締切前レースは終了しました'),null,{timeout:12000});
+              if(await page.locator('#deadlineList .deadline-item').count()!==0)throw Error('past deadline was incorrectly shown as upcoming');
               await page.locator('#raceDataRows tr').first().waitFor({timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
