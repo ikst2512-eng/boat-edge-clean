@@ -101,6 +101,16 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
         raise ValueError("race code/path mismatch")
     if dt(record["cutoff_jst"]) != cutoff:
         raise ValueError("record cutoff differs from official cutoff")
+    if record.get("status") != "research_unvalidated" or record.get("prospective_verified") is not False:
+        raise ValueError("not an unvalidated research pair")
+    created = dt(run["created_at"])
+    frozen = dt(record["frozen_at_jst"])
+    source_generated = dt(record["source_snapshot_generated_at"])
+    if not (source_generated <= frozen <= created < cutoff):
+        raise ValueError("research generation, freeze and server receipt chronology invalid")
+    if record.get("baseline_model_id") == record.get("candidate_model_id"):
+        raise ValueError("identical model IDs")
+
     return {"status": "SERVER_PUSH_AND_COMMIT_BLOB_MATCH",
             "run_id": run_id, "run_created_at": run["created_at"],
             "commit_sha": commit, "blob_sha": blob_sha,
