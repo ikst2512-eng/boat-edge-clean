@@ -30,7 +30,14 @@ jobs:
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
               const errors=[];
               page.on('pageerror',e=>errors.push(e.message));
-              const response=await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+              // Render may first serve its 503 "Application loading" splash while a sleeping service wakes.
+              let response;
+              for(let attempt=1;attempt<=12;attempt++){
+                response=await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+                if(response?.status()!==503)break;
+                console.log('RENDER_WAKING',attempt,'of 12; HTTP 503');
+                await page.waitForTimeout(6000);
+              }
               const diagnostics=await page.evaluate(()=>({title:document.title,path:location.pathname,heading:document.querySelector('h1')?.textContent?.trim(),venueCount:document.querySelectorAll('#venues button').length,bodySample:document.body?.innerText?.slice(0,450)}));
               console.log('RENDER_PRODUCTION_DIAGNOSTICS',JSON.stringify({status:response?.status(),url:page.url(),...diagnostics}));
               if(response?.status()!==200)throw Error('Render returned HTTP '+response?.status());
