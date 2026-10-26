@@ -41,6 +41,9 @@ class SourceProbeTests(unittest.TestCase):
     def test_reports_retrieval_without_claiming_verification(self):
         result=probe("20261027","12","1",opener=lambda req,timeout: Response())
         self.assertEqual(result["status"],"UNVERIFIED")
+        self.assertFalse(result["readiness_gate"]["can_publish"])
+        self.assertFalse(result["readiness_gate"]["can_score_fresh"])
+        self.assertFalse(result["readiness_gate"]["official_preview_values_verified"])
         self.assertEqual(len(result["sources"]),5)
         for entry in result["sources"].values():
             self.assertEqual(entry["status"],"retrieved_unverified")
