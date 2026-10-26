@@ -214,6 +214,21 @@ def probe(date, venue, race, opener=urlopen):
                 "prediction_snapshot_verified": False,
             }
     report["provenance_comparison"] = provenance
+    declarations = [
+        (report["sources"][kind].get("declared_deadline"),
+         report["sources"][kind].get("declared_fetched_at"))
+        for kind in ("preview_stt", "preview_tkz", "preview_sui")
+    ]
+    deadlines = [item[0] for item in declarations]
+    report["cross_source_time_consistency"] = {
+        "status": "same_declared_deadline_unverified"
+        if all(deadlines) and len(set(deadlines)) == 1
+        else "deadline_disagreement_or_missing_blocked",
+        "same_declared_deadline": all(deadlines) and len(set(deadlines)) == 1,
+        "independently_attested": False,
+        "prediction_snapshot_verified": False,
+    }
+
     csv_r = report["sources"]["race_csv"].get("registration_numbers")
     official_r = report["sources"]["official_racelist"].get("registration_candidates")
     if csv_r is not None and official_r is not None and len(official_r) == 6 and len(csv_r) == 6:
@@ -340,4 +355,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "provenance_comparison": result["provenance_comparison"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "provenance_comparison": result["provenance_comparison"], "cross_source_time_consistency": result["cross_source_time_consistency"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
