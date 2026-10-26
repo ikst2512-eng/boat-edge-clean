@@ -106,6 +106,15 @@ class PairedComparisonTests(unittest.TestCase):
         self.assertEqual(result["eligible_races"],1)
         self.assertEqual(result["excluded_races"],1)
         self.assertIn("pre-registration drift across evaluation races",result["exclusion_reasons"])
+    def test_multiple_comparison_adjustment(self):
+        result=compare([self.row()],"a","b")
+        keys=("top1","top3","top5","top10","log_loss","multiclass_brier")
+        self.assertEqual(len(keys),6)
+        for name in keys:
+            m=result["metrics"][name]
+            self.assertGreaterEqual(m["holm_adjusted_p"],m["paired_signflip_p"])
+            self.assertLessEqual(m["holm_adjusted_p"],1.0)
+        self.assertIn("Holm",result["multiple_comparison_method"])
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
