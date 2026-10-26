@@ -26,9 +26,8 @@ def verify_first_add(repo, race_code, commit_sha, trusted_ref="refs/heads/main")
     path = "research_snapshots/" + race_code + ".json"
     try:
         git(repo, "merge-base", "--is-ancestor", commit_sha, trusted_ref)
-        parent = git(repo, "rev-parse", commit_sha + "^").decode().strip()
-        added = git(repo, "diff", "--name-only", "--diff-filter=A",
-                    parent, commit_sha, "--", path).decode().splitlines()
+        added = git(repo, "diff-tree", "--root", "--no-commit-id", "-r",
+                    "--name-only", "--diff-filter=A", commit_sha, "--", path).decode().splitlines()
         if added != [path]:
             return {"verified": False, "reason": "not_added_in_commit"}
         expected = git(repo, "show", commit_sha + ":" + path)
