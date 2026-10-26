@@ -45,6 +45,9 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
+            att["first_commit_membership_verified"] = True
+            att["first_commit_introduction_verified"] = True
+            att["remote_receipt_verified"] = True
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3",
                      "result_source_id":"synthetic-fixture-only",
                      "result_confirmed_at":"2026-10-26T10:13:00+09:00"}
@@ -56,6 +59,11 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(audit(d,[att],[outcome],"0"*64)["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            att["remote_receipt_verified"] = False
+            self.assertEqual(
+                audit(d,[att],[outcome],digest())["exclusion_reasons"]["unverified_first_commit_or_remote_receipt"],1
+            )
+            att["remote_receipt_verified"] = True
             att["first_seen_at"] = "2026-10-26T08:58:00+09:00"
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
             att["first_seen_at"] = "2026-10-26T09:01:00+09:00"
