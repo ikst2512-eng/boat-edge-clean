@@ -111,6 +111,20 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
+            mismatched_deadline = dict(snap, source_deadline_jst="2026-10-26T10:20:00+09:00")
+            p.write_text(json.dumps(mismatched_deadline))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
+            ).hexdigest()
+            self.assertEqual(
+                audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["source_deadline_disagreement"],1
+            )
+            p.write_text(json.dumps(snap))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
+            ).hexdigest()
             att["confirmed_trifecta"]="2-1-3"
             self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["result_attestation_mismatch"],1)
             att["confirmed_trifecta"]="1-2-3"
