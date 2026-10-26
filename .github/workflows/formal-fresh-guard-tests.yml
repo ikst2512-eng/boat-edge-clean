@@ -7,6 +7,7 @@ on:
       - 'formal_candidate_validator.py'
       - 'formal_receipt_inspector.py'
       - 'formal_git_history_audit.py'
+      - 'formal_v5_transport_adapter.py'
       - 'tests/test_formal_*.py'
       - '.github/workflows/formal-fresh-guard-tests.yml'
   workflow_dispatch:
@@ -35,7 +36,8 @@ jobs:
           import formal_candidate_validator
           import formal_receipt_inspector
           import formal_git_history_audit
-          for module in (formal_candidate_validator, formal_receipt_inspector, formal_git_history_audit):
+          import formal_v5_transport_adapter
+          for module in (formal_candidate_validator, formal_receipt_inspector, formal_git_history_audit, formal_v5_transport_adapter):
               src = inspect.getsource(module)
               assert '"formal_approved": True' not in src
               assert "'formal_approved': True" not in src
