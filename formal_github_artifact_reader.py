@@ -29,6 +29,10 @@ class NoAuthCrossHostRedirect(HTTPRedirectHandler):
 def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     if type(run_id) is not int or run_id <= 0 or type(artifact_id) is not int or artifact_id <= 0:
         raise InvalidCandidate("run/artifact IDs must be positive integers")
+    if not isinstance(race_code, str) or not re.fullmatch(r"20[0-9]{10}", race_code):
+        raise InvalidCandidate("race code malformed")
+    if not isinstance(expected_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
+        raise InvalidCandidate("candidate digest malformed")
     if not isinstance(token, str) or not token:
         raise InvalidCandidate("read-only GitHub token required")
     opener = opener or build_opener(NoAuthCrossHostRedirect())
@@ -52,6 +56,8 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     if (not isinstance(workflow_path, str) or
             workflow_path.split("@", 1)[0] != ".github/workflows/fresh-prospective-capture.yml"):
         raise InvalidCandidate("unexpected workflow source")
+    if run.get("head_branch") != "main":
+        raise InvalidCandidate("capture run not on default branch")
     origin = run.get("head_repository")
     if not isinstance(origin, dict) or origin.get("full_name") != "ikst2512-eng/boat-edge-clean":
         raise InvalidCandidate("unexpected workflow repository")
