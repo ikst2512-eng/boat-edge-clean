@@ -33,6 +33,7 @@ class GitHubReaderTests(unittest.TestCase):
                     data = {"id": 123, "run_attempt": 1, "status": "completed",
                             "conclusion": "success", "event": "repository_dispatch",
                             "path": ".github/workflows/fresh-prospective-capture.yml@refs/heads/main",
+                            "head_branch": "main",
                             "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
                 elif "/artifacts?per_page=100" in url:
                     data = {"total_count": 1, "artifacts": [{"id": 456,
@@ -117,6 +118,27 @@ class GitHubReaderTests(unittest.TestCase):
                 return Response()
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "a" * 64, "fake", opener=WrongWorkflowOpener())
+
+    def test_wrong_capture_branch_rejected(self):
+        class WrongBranchOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return json.dumps({"id": 123, "run_attempt": 1,
+                            "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_branch": "untrusted-research",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}).encode()
+                return Response()
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=WrongBranchOpener())
+
+    def test_invalid_digest_fails_before_network(self):
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "g" * 64, "fake")
 
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
