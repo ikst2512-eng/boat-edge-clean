@@ -219,6 +219,6 @@ jobs:
                   '**Research only. Not official preview parity, predeadline proof, or production authorization.**'
               ]
               with open(summary_path, 'a', encoding='utf-8') as handle:
-                  handle.write('\\n'.join(lines) + '\\n')
+                  handle.write('\n'.join(lines) + '\n')
           print(json.dumps(report, ensure_ascii=False))
           PY
