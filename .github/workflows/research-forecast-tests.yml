@@ -11,6 +11,7 @@ on:
       - 'scripts/audit_research_outcomes.py'
       - 'scripts/verify_research_git_first_add.py'
       - 'tests/test_audit_research_outcomes.py'
+      - 'tests/test_research_audit_git_integration.py'
       - 'tests/test_verify_research_git_first_add.py'
       - '.github/workflows/research-forecast-tests.yml'
   pull_request:
@@ -24,6 +25,7 @@ on:
       - 'scripts/audit_research_outcomes.py'
       - 'scripts/verify_research_git_first_add.py'
       - 'tests/test_audit_research_outcomes.py'
+      - 'tests/test_research_audit_git_integration.py'
       - 'tests/test_verify_research_git_first_add.py'
       - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:
