@@ -31,6 +31,13 @@ class BridgeTests(unittest.TestCase):
         boundary = DEADLINE - timedelta(minutes=2)
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":boundary.isoformat()},deadline=DEADLINE)
+    def test_utc_capture_offset_rejected(self):
+        utc = CAP.astimezone(timezone.utc)
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"captured_at":utc.isoformat()},deadline=DEADLINE)
+    def test_utc_deadline_offset_rejected(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,BEFORE,deadline=DEADLINE.astimezone(timezone.utc))
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
