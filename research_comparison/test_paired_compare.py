@@ -51,6 +51,34 @@ class PairedComparisonTests(unittest.TestCase):
         o=compare([r],"a","b")
         self.assertEqual(o["eligible_races"],0)
         self.assertEqual(o["status"],"INSUFFICIENT_EVIDENCE")
+    def test_freeze_inside_last_twelve_minutes_rejected(self):
+        for field in ("source_received_at", "generated_at", "first_git_saved_at"):
+            row=self.row()
+            row["forecasts"]["b"][field]="2026-10-28T12:49:00+09:00"
+            if field == "source_received_at":
+                row["forecasts"]["b"]["generated_at"]="2026-10-28T12:50:00+09:00"
+                row["forecasts"]["b"]["first_git_saved_at"]="2026-10-28T12:51:00+09:00"
+            elif field == "generated_at":
+                row["forecasts"]["b"]["first_git_saved_at"]="2026-10-28T12:50:00+09:00"
+            outcome=compare([row],"a","b")
+            self.assertEqual(outcome["eligible_races"],0,field)
+
+    def test_freeze_exactly_at_twelve_minute_cutoff_rejected(self):
+        row=self.row()
+        row["forecasts"]["b"]["first_git_saved_at"]="2026-10-28T12:48:00+09:00"
+        outcome=compare([row],"a","b")
+        self.assertEqual(outcome["eligible_races"],0)
+
+    def test_preregistration_inside_last_twelve_minutes_rejected(self):
+        row=self.row()
+        row["pre_registration"]["registered_at"]="2026-10-28T12:49:00+09:00"
+        row["forecasts"]["a"]["generated_at"]="2026-10-28T12:50:00+09:00"
+        row["forecasts"]["a"]["first_git_saved_at"]="2026-10-28T12:51:00+09:00"
+        row["forecasts"]["b"]["generated_at"]="2026-10-28T12:50:00+09:00"
+        row["forecasts"]["b"]["first_git_saved_at"]="2026-10-28T12:51:00+09:00"
+        outcome=compare([row],"a","b")
+        self.assertEqual(outcome["eligible_races"],0)
+
     def test_incomplete_probability_distribution_rejected(self):
         r=self.row()
         r["forecasts"]["b"]["probabilities"]={"1-2-3":1.0}
