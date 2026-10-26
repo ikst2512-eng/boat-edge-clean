@@ -29,6 +29,12 @@ class SnapshotAuditTests(unittest.TestCase):
     def test_postcutoff_generation_is_blocked(self):
         x = fixture(); x["generated_at"] = "2026-10-26T15:11:00+09:00"
         self.assertEqual(audit_snapshot(x)["status"], "blocked_temporal_order")
+    def test_wrong_race_day_is_blocked(self):
+        x = fixture(); x["race_code"] = "202610250101"
+        self.assertEqual(audit_snapshot(x)["status"], "blocked_race_date_mismatch")
+    def test_non_jst_timestamp_is_blocked(self):
+        x = fixture(); x["generated_at"] = "2026-10-26T06:00:00+00:00"
+        self.assertEqual(audit_snapshot(x)["status"], "blocked_non_jst_timestamp")
     def test_missing_deadline_is_blocked(self):
         x = fixture(); x.pop("source_deadline_jst")
         self.assertEqual(audit_snapshot(x)["status"], "blocked_time_evidence_incomplete")
