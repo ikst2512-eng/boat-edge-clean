@@ -5,6 +5,10 @@ official deadline; a receipt is evidence of bytes retrieved, not parsed values.
 """
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from pathlib import Path
+import json
+import os
+import tempfile
 from urllib.request import Request, urlopen
 import re
 
@@ -58,3 +62,45 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=urlopen):
         "scoring": False,
     }
     return receipt, raw
+
+
+def save_raw_receipt(receipt, raw, directory):
+    """Atomically save research-only evidence outside public race data paths.
+
+    No production race JSON is generated. Files are immutable for a race/digest;
+    overwrite is refused even if only one member of a pair exists.
+    """
+    if receipt.get("status") != "raw_html_only" or receipt.get("sha256") != sha256(raw).hexdigest() or receipt.get("bytes") != len(raw):
+        raise ValueError("raw receipt integrity mismatch")
+    key = receipt.get("race_key", "")
+    if not re.fullmatch(r"20\\d{6}-(?:0[1-9]|1\\d|2[0-4])-(?:0?[1-9]|1[0-2])", key):
+        raise ValueError("invalid receipt race key")
+    if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
+        raise ValueError("untrusted receipt flags")
+    root = Path(directory)
+    root.mkdir(parents=True, exist_ok=True)
+    stem = key + "-" + receipt["sha256"]
+    pairs = [(root / (stem + ".html"), raw), (root / (stem + ".json"), (json.dumps(receipt, sort_keys=True, ensure_ascii=False) + "\\n").encode("utf-8"))]
+    if any(path.exists() for path, _ in pairs):
+        raise FileExistsError("receipt already exists; immutable evidence")
+    pending = []
+    created = []
+    try:
+        for path, data in pairs:
+            with tempfile.NamedTemporaryFile(dir=root, prefix=".pending-", delete=False) as fp:
+                pending.append(Path(fp.name))
+                fp.write(data)
+                fp.flush()
+                os.fsync(fp.fileno())
+        # Hard links give exclusive publication without overwriting existing evidence.
+        for (path, _), temp in zip(pairs, pending):
+            os.link(temp, path)
+            created.append(path)
+    except BaseException:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+    finally:
+        for temp in pending:
+            temp.unlink(missing_ok=True)
+    return [str(path) for path, _ in pairs]
