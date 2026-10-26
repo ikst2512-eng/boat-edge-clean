@@ -20,6 +20,7 @@ def _git(*args):
 def prepare(day, folder="research_prospective_pairs", now=None):
     if _git("branch","--show-current") != BRANCH:
         raise ValueError("refuse non-research branch")
+    test_clock = now is not None
     now=now or datetime.now(JST)
     files=eligible_paths(folder,day,now)
     if not files:
@@ -39,7 +40,7 @@ def prepare(day, folder="research_prospective_pairs", now=None):
     if not staged:
         return {"ready":len(files),"commit_created":False}
     # Re-check immediately before committing; race cutoffs can pass mid-run.
-    eligible_paths(folder,day,datetime.now(JST) if now is None else now)
+    eligible_paths(folder,day,now if test_clock else datetime.now(JST))
     subprocess.run(["git","-c","user.name=research-pair-capture-bot",
                     "-c","user.email=research-pair-capture-bot@users.noreply.github.com",
                     "commit","-m",f"Freeze research paired forecasts {day}"],check=True)
