@@ -53,8 +53,8 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] != run_id:
         raise InvalidCandidate("GitHub run metadata mismatch")
     workflow_path = run.get("path")
-    if (not isinstance(workflow_path, str) or
-            workflow_path.split("@", 1)[0] != ".github/workflows/fresh-prospective-capture.yml"):
+    if workflow_path not in (".github/workflows/fresh-prospective-capture.yml",
+                             ".github/workflows/fresh-prospective-capture.yml@refs/heads/main"):
         raise InvalidCandidate("unexpected workflow source")
     if run.get("head_branch") != "main":
         raise InvalidCandidate("capture run not on default branch")
