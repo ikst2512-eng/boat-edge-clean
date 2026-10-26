@@ -27,14 +27,14 @@ class AuditTests(unittest.TestCase):
                  "first_seen_at":"2026-10-26T09:01:00+09:00",
                  "official_deadline_at":"2026-10-26T10:12:00+09:00"}
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3"}
-            self.assertEqual(audit(d,[att],[outcome])["metrics"]["top1"]["hits"],1)
+            self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)\n            digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()\n            self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
             att["first_seen_at"]="2026-10-26T10:01:00+09:00"
-            report=audit(d,[att],[outcome])
+            report=audit(d,[att],[outcome],digest())
             self.assertEqual(report["valid_count"],0)
             self.assertEqual(report["exclusion_reasons"]["receipt_after_cutoff"],1)
             att["first_seen_at"]="2026-10-26T09:01:00+09:00"
             p.write_text(p.read_text()+" ")
-            self.assertEqual(audit(d,[att],[outcome])["exclusion_reasons"]["snapshot_hash_mismatch"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["snapshot_hash_mismatch"],1)
 
 if __name__=="__main__":
     unittest.main()
