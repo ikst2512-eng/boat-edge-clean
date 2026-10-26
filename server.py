@@ -163,6 +163,11 @@ def get_predictions(params):
             if (not isinstance(research, dict) or research.get("status") != "research" or
                     research.get("validated") is not False):
                 raise ValueError("research fallback attempted formal promotion")
+            tickets = research.get("predictions")
+            if (not isinstance(tickets, list) or not 1 <= len(tickets) <= 10 or
+                    any(not isinstance(t, str) or t not in ALL_TICKETS for t in tickets) or
+                    len(set(tickets)) != len(tickets)):
+                raise ValueError("invalid research ticket list")
             allowed = ("ok", "status", "predictions", "model_version",
                        "generated_at", "message", "validated")
             return 200, {field: research[field] for field in allowed if field in research}
