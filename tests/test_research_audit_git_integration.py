@@ -21,6 +21,11 @@ class ResearchGitIntegration(unittest.TestCase):
             git(root, "init", "-q")
             git(root, "config", "user.name", "Synthetic Audit")
             git(root, "config", "user.email", "synthetic@example.invalid")
+            model_bytes = b"synthetic research model"
+            (root / "research_model.py").write_bytes(model_bytes)
+            git(root, "add", ".")
+            git(root, "commit", "-qm", "freeze model")
+            model_commit = git(root, "rev-parse", "HEAD")
             folder = root / "research_snapshots"
             folder.mkdir()
             code = "202610270101"
@@ -35,7 +40,7 @@ class ResearchGitIntegration(unittest.TestCase):
                 "cutoff_jst": "2026-10-27T10:00:00+09:00",
                 "source_title_received_jst": "2026-10-27T08:59:00+09:00",
                 "source_cards_received_jst": "2026-10-27T08:59:00+09:00",
-                "model_git_sha": "c"*40, "model_source_sha256": "d"*64,
+                "model_git_sha": model_commit, "model_source_sha256": hashlib.sha256(model_bytes).hexdigest(),
                 "source_title_sha256": first, "source_cards_sha256": second,
                 "input_sha256": combined,
                 "input_hash_scope": "source_csv_byte_hashes_ordered_title_cards"
