@@ -7,6 +7,7 @@ cannot prove remote receipt time; verify GitHub remote receipt separately.
 import argparse
 import json
 import math
+from itertools import permutations
 from datetime import datetime
 from pathlib import Path
 from research_model import JST
@@ -38,7 +39,10 @@ def eligible_paths(folder, day, now=None):
             raise ValueError("not unvalidated research")
         if len(row.get("baseline",{})) != 120 or len(row.get("candidate",{})) != 120:
             raise ValueError("incomplete distribution")
+        expected={"-".join(map(str,p)) for p in permutations(range(1,7),3)}
         for model in ("baseline","candidate"):
+            if set(row[model]) != expected:
+                raise ValueError("invalid trifecta combination keys")
             weights=row[model]
             if (any(not isinstance(v,(float,int)) or isinstance(v,bool)
                     or not math.isfinite(v) or v<0 for v in weights.values())
