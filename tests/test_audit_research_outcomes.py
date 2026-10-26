@@ -25,6 +25,13 @@ class AuditTests(unittest.TestCase):
                 (snap["source_title_sha256"] + ":" + snap["source_cards_sha256"]).encode("ascii")
             ).hexdigest()
             p.write_text(json.dumps(snap))
+            # Refuse symlinked inputs even if they point to a valid JSON file.
+            link=Path(d)/"202610260102.json"
+            link.symlink_to(p)
+            self.assertEqual(
+                audit(d,[],[])["exclusion_reasons"]["unsafe_snapshot_file"], 1
+            )
+            link.unlink()
             self.assertEqual(audit(d,[],[])["valid_count"],0)
             att={"race_code":snap["race_code"],"receipt_verified":True,"model_verified":True,
                  "inputs_verified":True,"result_verified":True,
