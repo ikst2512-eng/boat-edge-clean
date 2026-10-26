@@ -52,7 +52,8 @@ def inspect_beforeinfo_html(receipt, raw):
     text = raw.decode("utf-8", errors="strict")
     parser = _VisibleText()
     parser.feed(text)
-    # Preserve element boundaries: hidden sections must not join two text fragments.\n    visible = " ".join(re.sub(r"\\s+", "", part) for part in parser.parts)
+    # Preserve element boundaries: hidden sections must not join two text fragments.
+    visible = " ".join(re.sub(r"\\s+", "", part) for part in parser.parts)
     labels = {
         "exhibition_time": "展示タイム" in visible,
         "tilt": "チルト" in visible,
