@@ -16,6 +16,10 @@ class PairedComparisonTests(unittest.TestCase):
                 "input_sha256":"b"*64,"research_outcome_access_approved":True,
                 "outcome_independently_verified":True,"candidate_pre_registered":True,
                 "result":"1-2-3","forecasts":{"a":base,"b":dict(copy.deepcopy(base),model_id="b")}}
+    def test_model_probability_inputs_are_independent(self):
+        row=self.row()
+        self.assertIsNot(row["forecasts"]["a"]["probabilities"],
+                         row["forecasts"]["b"]["probabilities"])
     def test_identical_models_have_zero_paired_delta(self):
         o=compare([self.row()],"a","b")
         self.assertEqual(o["eligible_races"],1)
