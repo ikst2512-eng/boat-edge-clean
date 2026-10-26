@@ -35,6 +35,22 @@ def run(race_key, deadline_text, directory):
         research = {"status": "research_unavailable", "reason": type(exc).__name__,
                     "verified_preview": False, "actual_entry_verified": False,
                     "start_exhibition": []}
+    if research.get("status") == "research_unverified":
+        rows = research.get("start_exhibition")
+        if (research.get("race_key") != race_key
+                or research.get("raw_sha256") != receipt["sha256"]
+                or research.get("captured_at") != receipt["fetched_at"]
+                or research.get("verified_preview") is not False
+                or research.get("actual_entry_verified") is not False
+                or not isinstance(rows, list) or len(rows) != 6
+                or sorted(row.get("boat_number") for row in rows) != list(range(1, 7))
+                or [row.get("exhibition_course") for row in rows] != list(range(1, 7))):
+            raise ValueError("research provenance or six-boat integrity mismatch")
+    elif (research.get("status") != "research_unavailable"
+          or research.get("verified_preview") is not False
+          or research.get("actual_entry_verified") is not False
+          or research.get("start_exhibition") != []):
+        raise ValueError("research result cannot be promoted")
     result = {
         "race_key": race_key,
         "receipt_sha256": receipt["sha256"],
