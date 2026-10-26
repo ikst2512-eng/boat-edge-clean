@@ -179,7 +179,7 @@ def probe(date, venue, race, opener=urlopen):
                                     entry["record_validation"] = "blocked"
                                     entry["validation_error"] = str(error)[:150]
                                     if name == "preview_stt" and str(error) == "invalid exhibition ST":
-                                        matching_row = next(csv.DictReader(io.StringIO(decoded)))
+                                        matching_row = next((row for row in csv.DictReader(io.StringIO(decoded)) if row.get("レースコード") == target), {})
                                         entry["invalid_st_samples"] = [matching_row.get(f"艇{lane}_スタート展示") for lane in range(1, 7)] if matching_row.get("レースコード") == target else []
 
                     except (UnicodeError, csv.Error, ValueError):
