@@ -4,6 +4,7 @@ on:
     paths:
       - index.html
       - tests/site-regression.cjs
+      - test_legacy_dependency_guard.py
       - .github/workflows/site-regression.yml
   workflow_dispatch:
   pull_request:
@@ -22,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check legacy read-only dependency boundary
+        run: python -m unittest -v test_legacy_dependency_guard
       - name: Run regression suite and capture log
         shell: bash
         run: |
