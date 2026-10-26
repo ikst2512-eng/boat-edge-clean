@@ -159,7 +159,7 @@ jobs:
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
               await page.locator('.view-tabs [data-view="result"]').click();
               if(!await page.locator('#resultSection').isVisible())throw Error('result tab missing');
-              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent.includes('未保存・未確認'));
+              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent.includes('確定結果は未配信です'),null,{timeout:12000});
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('six exhibition cards missing');
