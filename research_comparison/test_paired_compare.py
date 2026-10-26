@@ -97,6 +97,15 @@ class PairedComparisonTests(unittest.TestCase):
         r=self.row()
         del r["forecasts"]["b"]["source_received_at"]
         self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_registration_drift_across_races_rejected(self):
+        first=self.row()
+        second=self.row()
+        second["race_key"]="r2"
+        second["pre_registration"]["registered_at"]="2026-10-28T11:51:00+09:00"
+        result=compare([first,second],"a","b")
+        self.assertEqual(result["eligible_races"],1)
+        self.assertEqual(result["excluded_races"],1)
+        self.assertIn("pre-registration drift across evaluation races",result["exclusion_reasons"])
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
