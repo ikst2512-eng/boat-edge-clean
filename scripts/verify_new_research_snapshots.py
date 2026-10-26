@@ -8,6 +8,8 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from research_model import probabilities
 
 HEX40=re.compile(r"[0-9a-f]{40}\Z")
