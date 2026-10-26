@@ -3,11 +3,19 @@ import unittest
 import json
 from unittest.mock import patch
 from formal_candidate_validator import InvalidCandidate
-from formal_github_artifact_reader import audit, NoAuthCrossHostRedirect
+from formal_github_artifact_reader import audit, NoAuthCrossHostRedirect, _strict_metadata_json
 from urllib.request import Request
 
 
 class GitHubReaderTests(unittest.TestCase):
+    def test_duplicate_github_json_key_rejected(self):
+        with self.assertRaises(InvalidCandidate):
+            _strict_metadata_json(b'{"id":123,"id":456}')
+
+    def test_nonfinite_github_json_rejected(self):
+        with self.assertRaises(InvalidCandidate):
+            _strict_metadata_json(b'{"id":NaN}')
+
     def test_missing_token_fails(self):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "a" * 64, "")
