@@ -33,6 +33,13 @@ class ProspectiveCaptureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError):
                 freeze(Path(d)/"none.json",**kwargs)
+    def test_reject_invalid_race_identity(self):
+        for code in ("202602301201","202610272501","202610271213","202610270001"):
+            kwargs=self.kwargs()
+            kwargs["race_code"]=code
+            with tempfile.TemporaryDirectory() as d:
+                with self.subTest(code=code), self.assertRaises(ValueError):
+                    freeze(Path(d)/"none.json",**kwargs)
     def test_reject_late_source(self):
         kwargs=self.kwargs()
         kwargs["source_received_at"]=(datetime.now(JST)+timedelta(hours=1)).isoformat()
