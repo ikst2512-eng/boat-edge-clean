@@ -44,7 +44,7 @@ class SourceProbeTests(unittest.TestCase):
         self.assertFalse(result["readiness_gate"]["can_publish"])
         self.assertFalse(result["readiness_gate"]["can_score_fresh"])
         self.assertFalse(result["readiness_gate"]["official_preview_values_verified"])
-        self.assertEqual(len(result["sources"]),5)
+        self.assertEqual(len(result["sources"]),6)
         for entry in result["sources"].values():
             self.assertEqual(entry["status"],"retrieved_unverified")
             self.assertEqual(len(entry["sha256"]),64)
