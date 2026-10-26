@@ -20,6 +20,8 @@ class PairPreflightTests(unittest.TestCase):
         outcome=inspect_pair(self.pair())
         self.assertFalse(outcome["ready_for_scoring"])
         self.assertTrue(outcome["distribution_structure_valid"])
+        self.assertFalse(outcome["source_snapshot_digest_verified_locally"])
+        self.assertIn("source snapshot original bytes not supplied",outcome["reasons"])
     def test_corrupt_distribution_rejected(self):
         pair=self.pair()
         pair["candidate"]["1-2-3"]=-1
@@ -44,6 +46,7 @@ class PairPreflightTests(unittest.TestCase):
         canonical=json.dumps(source,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
         pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
         self.assertNotIn("source snapshot bytes mismatch",inspect_pair(pair,raw)["reasons"])
+        self.assertTrue(inspect_pair(pair,raw)["source_snapshot_digest_verified_locally"])
         self.assertIn("source snapshot bytes mismatch",inspect_pair(pair,b'{"race_code":"202610281202"}')["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
