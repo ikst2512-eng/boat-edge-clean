@@ -45,6 +45,11 @@ def verify_first_add(repo, race_code, commit_sha, trusted_ref="refs/heads/main")
             history = git(repo, "rev-list", "-n", "1", parent, "--", path).decode().strip()
             if history:
                 return {"verified": False, "reason": "path_existed_in_prior_history"}
+        # Reject a symlink or a non-regular Git tree entry, even if the
+        # working-tree bytes would otherwise appear to match.
+        tree_entry = git(repo, "ls-tree", commit_sha, "--", path).decode().strip()
+        if not tree_entry.startswith("100644 blob ") and not tree_entry.startswith("100755 blob "):
+            return {"verified": False, "reason": "nonregular_git_snapshot_entry"}
         expected = git(repo, "show", commit_sha + ":" + path)
         current = (Path(repo) / path).read_bytes()
         if current != expected:
