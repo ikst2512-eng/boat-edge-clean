@@ -46,8 +46,12 @@ def prepare(day, folder="research_prospective_pairs", now=None):
         subprocess.run(["git","reset","--",*files],check=True)
         raise ValueError("refuse to overwrite existing paired forecast")
 
-    # Re-check immediately before committing; race cutoffs can pass mid-run.
-    eligible_paths(folder,day,now if test_clock else datetime.now(JST))
+    # Re-check before committing and demand the same set of eligible files.
+    # A changing batch must never be silently committed in part.
+    verified=set(eligible_paths(folder,day,now if test_clock else datetime.now(JST)))
+    if verified != set(files):
+        subprocess.run(["git","reset","--",*files],check=True)
+        raise ValueError("eligible pair set changed during commit preparation")
     subprocess.run(["git","-c","user.name=research-pair-capture-bot",
                     "-c","user.email=research-pair-capture-bot@users.noreply.github.com",
                     "commit","-m",f"Freeze research paired forecasts {day}"],check=True)
