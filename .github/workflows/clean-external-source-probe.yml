@@ -32,7 +32,7 @@ jobs:
       - name: Probe external sources without storing response payloads
         env:
           RACE_DATE: ${{ inputs.date || '20261026' }}
-          VENUE: ${{ inputs.venue || '12' }}
+          VENUE: ${{ inputs.venue || '21' }}
           RACE: ${{ inputs.race || '1' }}
         run: |
           python clean_live_source_probe.py --date "$RACE_DATE" --venue "$VENUE" --race "$RACE" --output source-probe-report.json
