@@ -48,6 +48,11 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
         raise InvalidCandidate("malformed GitHub metadata") from exc
     if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] != run_id:
         raise InvalidCandidate("GitHub run metadata mismatch")
+    if run.get("path") != ".github/workflows/fresh-prospective-capture.yml":
+        raise InvalidCandidate("unexpected workflow source")
+    origin = run.get("head_repository")
+    if not isinstance(origin, dict) or origin.get("full_name") != "ikst2512-eng/boat-edge-clean":
+        raise InvalidCandidate("unexpected workflow repository")
     artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
     if (not isinstance(artifacts, list) or type(listing.get("total_count")) is not int or
             listing["total_count"] != len(artifacts)) :
