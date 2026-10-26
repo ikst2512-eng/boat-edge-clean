@@ -1,12 +1,13 @@
 import unittest
 import json
 import hashlib
+from research_model import probabilities as baseline_probabilities
 from paired_compare import TICKETS
 from pr16_pair_preflight import inspect_pair
 
 class PairPreflightTests(unittest.TestCase):
     def pair(self):
-        p={t:1/120 for t in TICKETS}
+        p={"-".join(map(str,t)):v for t,v in baseline_probabilities([5.0]*6)}
         return dict(status="research_unvalidated",baseline=p,candidate=dict(p),
                     race_code="202610281201",source_snapshot_sha256="b"*64,
                     baseline_model_id="national-beta0.4-exploratory-v1",
@@ -46,7 +47,8 @@ class PairPreflightTests(unittest.TestCase):
                 "source_title_received_jst":"2026-10-28T11:40:00+09:00",
                 "source_cards_received_jst":"2026-10-28T11:42:00+09:00",
                 "cutoff_jst":pair["cutoff_jst"],
-                "predictions":sorted(TICKETS)[:10]}
+                "national_win_rates":[5.0]*6,
+                "predictions":sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]}
         raw=json.dumps(source,ensure_ascii=False).encode("utf-8")
         canonical=json.dumps(source,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
         pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
@@ -69,7 +71,8 @@ class PairPreflightTests(unittest.TestCase):
         pair=self.pair()
         source={"race_code":pair["race_code"],"status":"research","validated":False,
                 "generated_at":pair["source_snapshot_generated_at"],
-                "cutoff_jst":pair["cutoff_jst"],"predictions":list(reversed(sorted(TICKETS)[:10]))}
+                "cutoff_jst":pair["cutoff_jst"],"national_win_rates":[5.0]*6,
+                "predictions":list(reversed(sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]))}
         raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
         pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
         report=inspect_pair(pair,raw)
@@ -87,6 +90,20 @@ class PairPreflightTests(unittest.TestCase):
         report=inspect_pair(pair,raw)
         self.assertFalse(report["source_snapshot_digest_verified_locally"])
         self.assertIn("source snapshot source receipt chronology invalid",report["reasons"])
+    def test_baseline_full_distribution_mismatch_rejected(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "generated_at":pair["source_snapshot_generated_at"],
+                "cutoff_jst":pair["cutoff_jst"],
+                "source_title_received_jst":"2026-10-28T11:40:00+09:00",
+                "source_cards_received_jst":"2026-10-28T11:42:00+09:00",
+                "national_win_rates":[6.0,5.0,5.0,5.0,5.0,5.0],
+                "predictions":sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]}
+        raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
+        report=inspect_pair(pair,raw)
+        self.assertFalse(report["source_snapshot_digest_verified_locally"])
+        self.assertIn("source snapshot baseline full-120 replay mismatch",report["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
