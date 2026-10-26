@@ -74,6 +74,20 @@ class PairedComparisonTests(unittest.TestCase):
         r=self.row()
         r["pre_registration"]["registered_at"]="2026-10-28T12:01:00+09:00"
         self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_duplicate_race_excluded(self):
+        first=self.row()
+        duplicate=self.row()
+        result=compare([first,duplicate],"a","b")
+        self.assertEqual(result["eligible_races"],1)
+        self.assertEqual(result["excluded_races"],1)
+    def test_unverified_registration_receipt_rejected(self):
+        r=self.row()
+        r["pre_registration"]["receipt_verified_independently"]=False
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_mismatched_race_input_digest_rejected(self):
+        r=self.row()
+        r["forecasts"]["b"]["input_sha256"]="f"*64
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
