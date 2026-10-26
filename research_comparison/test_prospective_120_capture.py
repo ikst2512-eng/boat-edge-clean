@@ -49,7 +49,7 @@ class ProspectiveCaptureTests(unittest.TestCase):
         kwargs=self.kwargs()
         kwargs["input_sha256"]="b"*64
         with tempfile.TemporaryDirectory() as d:
-            with self.assertRaisesRegex(ValueError,"input bytes do not match"):
+            with self.assertRaisesRegex(ValueError,"composite input SHA256"):
                 freeze(Path(d)/"none.json",**kwargs)
     def test_source_order_matters(self):
         kwargs=self.kwargs()
