@@ -25,7 +25,7 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(timeout, 12)
         return Response()
     def test_receipt_is_raw_only(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         self.assertEqual(self.urls, ["https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd=20261027&jcd=04&rno=10"])
         self.assertEqual(receipt["status"], "raw_html_only")
         self.assertFalse(receipt["verified_preview"])
@@ -38,11 +38,11 @@ class CaptureTests(unittest.TestCase):
     def test_invalid_or_late_never_fetches(self):
         for key in ["20261027-25-01", "20261027-04-13", "20260230-04-01", "20261027-04-01/../raceresult"]:
             with self.assertRaises(ValueError):
-                capture_beforeinfo(key, self.deadline, now=self.now, opener=self.fetch)
+                capture_beforeinfo(key, self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with self.assertRaises(ValueError):
             capture_beforeinfo("20261027-04-10", self.deadline, now=self.deadline-timedelta(minutes=1), opener=self.fetch)
         with self.assertRaises(ValueError):
-            capture_beforeinfo("20261027-04-10", self.deadline.replace(tzinfo=None), now=self.now, opener=self.fetch)
+            capture_beforeinfo("20261027-04-10", self.deadline.replace(tzinfo=None), now=self.now, completed_at=self.now, opener=self.fetch)
         self.assertEqual(self.urls, [])
     def test_slow_fetch_finishing_after_margin_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -55,9 +55,9 @@ class CaptureTests(unittest.TestCase):
     def test_empty_and_oversize_rejected(self):
         for body in [b"", b"x"*1_500_001]:
             with self.assertRaises(ValueError):
-                capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=lambda *a, **kw: Response(body))
+                capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=lambda *a, **kw: Response(body))
     def test_immutable_raw_archive(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt, raw, directory, deadline=self.deadline)
             self.assertEqual(Path(paths[0]).read_bytes(), raw)
@@ -70,7 +70,7 @@ class CaptureTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 save_raw_receipt(receipt, b"altered", directory, deadline=self.deadline)
     def test_completed_receipt_read_and_tamper_rejection(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt, raw, directory, deadline=self.deadline)
             self.assertEqual(read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)[1], raw)
@@ -88,7 +88,7 @@ class CaptureTests(unittest.TestCase):
                 read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
 
     def test_wrong_race_date_and_missing_timestamp_rejected(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt, raw, directory, deadline=self.deadline)
             for stamp in ["2026-10-26T14:55:00+09:00", "2026-10-27T14:55:00", "invalid"]:
@@ -100,7 +100,7 @@ class CaptureTests(unittest.TestCase):
                 read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
 
     def test_readback_rejects_postdeadline_timestamp(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt, raw, directory, deadline=self.deadline)
             Path(paths[1]).write_text(json.dumps({**receipt, "fetched_at": "2026-10-27T14:59:00+09:00"}))
@@ -111,7 +111,7 @@ class CaptureTests(unittest.TestCase):
                 read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline.replace(tzinfo=None))
 
     def test_archive_fails_closed_on_wrong_source_or_late_time(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             for patch in (
                 {"source": "https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd=20261027&jcd=05&rno=10"},
@@ -123,7 +123,7 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(list(Path(directory).iterdir()), [])
 
     def test_lock_rejects_concurrent_writer(self):
-        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             lock = Path(directory) / (receipt["race_key"] + "-" + receipt["sha256"] + ".lock")
             lock.touch()
@@ -136,13 +136,13 @@ class CaptureTests(unittest.TestCase):
             def geturl(self):
                 return "https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261027&jcd=04&rno=10"
         with self.assertRaises(ValueError):
-            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=lambda *a, **kw: RedirectedResponse())
+            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=lambda *a, **kw: RedirectedResponse())
 
     def test_wrong_content_type_rejected(self):
         class JsonResponse(Response):
             headers = {"Content-Type": "application/json"}
         with self.assertRaises(ValueError):
-            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=lambda *a, **kw: JsonResponse())
+            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=lambda *a, **kw: JsonResponse())
 
 if __name__ == "__main__":
     unittest.main()
