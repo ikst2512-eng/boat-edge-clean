@@ -7,7 +7,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse, parse_qs
 import re
 
-BOAT = re.compile(r"(?:^|\s)is-boatColor([1-6])(?:\s|$)")
+BOAT = re.compile(r"^is-boatColor([1-6])$")
 REG = re.compile(r"^[0-9]{4}$")
 
 
@@ -28,8 +28,10 @@ class _Rows(HTMLParser):
         if self.row is None:
             return
         lane_class = attrs.get("class", "")
-        for lane in BOAT.findall(lane_class):
-            self.row["lanes"].append(int(lane))
+        for token in lane_class.split():
+            lane = BOAT.fullmatch(token)
+            if lane:
+                self.row["lanes"].append(int(lane.group(1)))
         if tag == "a":
             query = parse_qs(urlparse(attrs.get("href", "")).query)
             token = query.get("toban", [])
