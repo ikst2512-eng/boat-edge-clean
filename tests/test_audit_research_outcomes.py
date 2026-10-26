@@ -39,6 +39,16 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            att["first_seen_at"] = "2026-10-26T08:58:00+09:00"
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
+            att["first_seen_at"] = "2026-10-26T09:01:00+09:00"
+            late_source=dict(snap)
+            late_source["source_cards_received_jst"]="2026-10-26T09:01:00+09:00"
+            p.write_text(json.dumps(late_source))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
+            p.write_text(json.dumps(snap))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
             invalid_result=dict(outcome)
             invalid_result.pop("result_source_id")
             self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_provenance"],1)
