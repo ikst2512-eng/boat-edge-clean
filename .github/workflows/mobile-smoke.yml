@@ -30,7 +30,11 @@ jobs:
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
               const errors=[];
               page.on('pageerror',e=>errors.push(e.message));
-              await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+              const response=await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+              const diagnostics=await page.evaluate(()=>({title:document.title,path:location.pathname,heading:document.querySelector('h1')?.textContent?.trim(),venueCount:document.querySelectorAll('#venues button').length,bodySample:document.body?.innerText?.slice(0,450)}));
+              console.log('RENDER_PRODUCTION_DIAGNOSTICS',JSON.stringify({status:response?.status(),url:page.url(),...diagnostics}));
+              if(response?.status()!==200)throw Error('Render returned HTTP '+response?.status());
+              if(diagnostics.venueCount!==24)throw Error('Render is not serving current CLEAN app; expected 24 venue buttons; '+JSON.stringify(diagnostics));
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
