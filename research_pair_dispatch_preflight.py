@@ -32,8 +32,19 @@ def preflight(fetch=None):
         raise
     if workflow.get("type")!="file":
         raise ValueError("manual workflow path is not a file")
+    try:
+        registration=get(f"https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}")
+    except HTTPError as e:
+        if e.code == 404:
+            return {"default_branch":default,"registered_on_default":True,
+                    "dispatch_ready":False,"reason":"workflow not registered in Actions API",
+                    "formal_fresh_unchanged":True}
+        raise
+    enabled=(registration.get("state")=="active"
+             and registration.get("path")==f".github/workflows/{WORKFLOW}")
     return {"default_branch":default,"registered_on_default":True,
-            "dispatch_ready":True,"reason":"default-branch workflow file exists; verify enabled state and permissions before dispatch",
+            "dispatch_ready":enabled,
+            "reason":"Actions registration active; execution permissions still need confirmation" if enabled else "workflow not active in Actions",
             "formal_fresh_unchanged":True}
 
 if __name__=="__main__":
