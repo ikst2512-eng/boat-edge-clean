@@ -107,8 +107,16 @@ def html_diagnostics(body):
                     official_st_by_course = {}
                     break
                 official_st_by_course[course] = match.group(2)
+    official_deadlines = {}
+    for row in scanner.all_table_rows:
+        if row.startswith("締切予定時刻 "):
+            times = re.findall(r"(?<![0-9])[0-2][0-9]:[0-5][0-9](?![0-9])", row)
+            if len(times) == 12 and all(int(t[:2]) < 24 for t in times):
+                official_deadlines = {i + 1: time for i, time in enumerate(times)}
+                break
     return {"html_inspection": "structure_only_unverified",
             "html_title": "".join(scanner.title).strip()[:100],
+            "official_deadlines_by_race": official_deadlines,
             "racer_link_count": len(scanner.links),
             "toban_parameter_count": len(re.findall(r"toban=", text)),
             "html_is_race_verified": False,
@@ -229,6 +237,19 @@ def probe(date, venue, race, opener=urlopen):
         "prediction_snapshot_verified": False,
     }
 
+    race_number = int(race)
+    html_deadline = report["sources"]["official_beforeinfo"].get("official_deadlines_by_race", {}).get(race_number)
+    csv_deadlines = [
+        report["sources"][kind].get("declared_deadline")
+        for kind in ("preview_stt", "preview_tkz", "preview_sui")
+    ]
+    deadline_match = bool(html_deadline) and all(x == html_deadline for x in csv_deadlines)
+    report["official_deadline_comparison"] = {
+        "status": "official_display_equal_unverified" if deadline_match else "official_display_mismatch_or_missing_blocked",
+        "all_three_equal": deadline_match,
+        "official_display_deadline": html_deadline,
+        "prediction_snapshot_verified": False,
+    }
     csv_r = report["sources"]["race_csv"].get("registration_numbers")
     official_r = report["sources"]["official_racelist"].get("registration_candidates")
     if csv_r is not None and official_r is not None and len(official_r) == 6 and len(csv_r) == 6:
@@ -355,4 +376,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "provenance_comparison": result["provenance_comparison"], "cross_source_time_consistency": result["cross_source_time_consistency"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "provenance_comparison": result["provenance_comparison"], "cross_source_time_consistency": result["cross_source_time_consistency"], "official_deadline_comparison": result["official_deadline_comparison"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
