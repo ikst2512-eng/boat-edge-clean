@@ -12,7 +12,7 @@ from research_model import probabilities as baseline_probabilities
 def inspect_pair(pair, source_snapshot_bytes=None):
     reasons=[]
     if not isinstance(pair,dict) or pair.get("status")!="research_unvalidated":
-        return {"ready_for_scoring":False,"distribution_structure_valid":False,
+        return {"ready_for_scoring":False,"local_consistency_valid":False,"distribution_structure_valid":False,
                 "source_snapshot_digest_verified_locally":False,
                 "reasons":["not a research prospective pair"]}
     code=pair.get("race_code")
@@ -102,6 +102,7 @@ def inspect_pair(pair, source_snapshot_bytes=None):
     if pair.get("entry_status")!="assumed_identity_not_verified":
         reasons.append("unknown entry provenance")
     return {"ready_for_scoring":False,
+            "local_consistency_valid":not reasons and source_snapshot_checked,
             "source_snapshot_digest_verified_locally":source_snapshot_checked,
             "distribution_structure_valid":not any("distribution" in x for x in reasons),
             "reasons":reasons+[
