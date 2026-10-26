@@ -21,6 +21,45 @@ concurrency:
   group: clean-official-prerace-probe
   cancel-in-progress: false
 jobs:
+  connectivity:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/fix/clean-official-preview-integrity-20261027' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check official homepage connectivity only
+        shell: bash
+        run: |
+          set -eu
+          # This is a homepage HEAD request, not a race, preview or result query.
+          if curl --head --location --max-time 12 --silent --show-error --output /dev/null --write-out '%{http_code}' https://www.boatrace.jp/ | grep -Eq '^(200|301|302|403|405)
+    # Branch-only opt-in: both repository variables must be explicitly set.
+    # Ordinary pushes and pull requests do not fetch any race data.
+    if: ${{ github.ref == 'refs/heads/fix/clean-official-preview-integrity-20261027' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_RACE_KEY != '' && vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE != '')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture audited HTML (never update site or Fresh)
+        env:
+          RACE_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.race_key || vars.CLEAN_PRERACE_PROBE_RACE_KEY }}
+          VERIFIED_DEADLINE: ${{ github.event_name == 'workflow_dispatch' && inputs.verified_deadline || vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE }}
+        run: |
+          python3 run_official_prerace_probe.py --race-key "$RACE_KEY" --deadline "$VERIFIED_DEADLINE" --directory "$RUNNER_TEMP/prerace-evidence" > "$RUNNER_TEMP/probe.json"
+          cat "$RUNNER_TEMP/probe.json"
+      - name: Upload isolated research evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prerace-raw-${{ github.run_id }}
+          path: ${{ runner.temp }}/prerace-evidence/
+          if-no-files-found: error
+          retention-days: 7
+; then
+            echo 'Official domain reachable from GitHub runner' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Official domain connection requires investigation' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
   capture:
     # Branch-only opt-in: both repository variables must be explicitly set.
     # Ordinary pushes and pull requests do not fetch any race data.
