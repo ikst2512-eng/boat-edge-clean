@@ -41,7 +41,10 @@ class PairPreflightTests(unittest.TestCase):
         self.assertIn("missing candidate_model_id",inspect_pair(pair)["reasons"])
     def test_source_snapshot_bytes_match_canonical_digest(self):
         pair=self.pair()
-        source={"race_code":pair["race_code"],"status":"research","validated":False}
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "generated_at":pair["source_snapshot_generated_at"],
+                "cutoff_jst":pair["cutoff_jst"],
+                "predictions":sorted(TICKETS)[:10]}
         raw=json.dumps(source,ensure_ascii=False).encode("utf-8")
         canonical=json.dumps(source,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
         pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
@@ -60,6 +63,16 @@ class PairPreflightTests(unittest.TestCase):
         result=inspect_pair({"status":"formal"})
         self.assertFalse(result["distribution_structure_valid"])
         self.assertFalse(result["ready_for_scoring"])
+    def test_source_top10_mismatch_rejected(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "generated_at":pair["source_snapshot_generated_at"],
+                "cutoff_jst":pair["cutoff_jst"],"predictions":list(reversed(sorted(TICKETS)[:10]))}
+        raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
+        report=inspect_pair(pair,raw)
+        self.assertFalse(report["source_snapshot_digest_verified_locally"])
+        self.assertIn("source snapshot Top10 differs from baseline",report["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
