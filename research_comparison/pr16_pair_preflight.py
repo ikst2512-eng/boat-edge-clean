@@ -42,6 +42,14 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
+                if original.get("model_version")!=pair.get("baseline_model_id"):
+                    reasons.append("source snapshot baseline model identity mismatch")
+                if (not isinstance(original.get("model_git_sha"),str) or
+                    not re.fullmatch(r"[0-9a-f]{40}",original["model_git_sha"])):
+                    reasons.append("source snapshot model git provenance missing")
+                if (not isinstance(original.get("model_source_sha256"),str) or
+                    not re.fullmatch(r"[0-9a-f]{64}",original["model_source_sha256"])):
+                    reasons.append("source snapshot model source digest missing")
                 hashes=[original.get("source_title_sha256"),original.get("source_cards_sha256")]
                 if any(not isinstance(h,str) or not re.fullmatch(r"[0-9a-f]{64}",h) for h in hashes):
                     reasons.append("source snapshot raw CSV digests absent")
