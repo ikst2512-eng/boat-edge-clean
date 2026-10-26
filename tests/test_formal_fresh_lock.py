@@ -76,6 +76,19 @@ class FormalFeedLockTests(unittest.TestCase):
             self.assertEqual(body["status"], "unavailable")
             self.assertEqual(body["predictions"], [])
 
+    def test_locked_feed_ignores_untrusted_ticket_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = {"validated": True, "predictions": [{"ticket": "invalid"}]}
+            (root / "predictions.json").write_text(
+                json.dumps({"20261027-01-01": record}), encoding="utf-8")
+            with patch.object(server, "ROOT", root):
+                status, body = server.get_predictions(
+                    {"hd": ["20261027"], "jcd": ["01"], "rno": ["1"]})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["status"], "unavailable")
+            self.assertEqual(body["predictions"], [])
+
     def test_invalid_feed_is_never_available(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
