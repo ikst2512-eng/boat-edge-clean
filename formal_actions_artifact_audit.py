@@ -14,13 +14,14 @@ def inspect_actions_artifact(candidate, receipt, run, artifact):
     attempt = receipt.get("workflow_attempt")
     if type(run_id) is not int or run_id <= 0 or type(attempt) is not int or attempt <= 0:
         raise InvalidCandidate("receipt run identity invalid")
-    if run.get("id") != run_id or run.get("run_attempt") != attempt:
+    if type(run.get("id")) is not int or type(run.get("run_attempt")) is not int or run["id"] != run_id or run["run_attempt"] != attempt:
         raise InvalidCandidate("run identity mismatch")
     if run.get("status") != "completed" or run.get("conclusion") != "success":
         raise InvalidCandidate("capture run not successful")
     if run.get("event") != "repository_dispatch":
         raise InvalidCandidate("unexpected capture trigger")
-    if artifact.get("workflow_run", {}).get("id") != run_id:
+    workflow_ref = artifact.get("workflow_run")
+    if not isinstance(workflow_ref, dict) or type(workflow_ref.get("id")) is not int or workflow_ref["id"] != run_id:
         raise InvalidCandidate("artifact does not belong to run")
     if artifact.get("expired") is not False or type(artifact.get("size_in_bytes")) is not int or artifact["size_in_bytes"] <= 0:
         raise InvalidCandidate("artifact absent or expired")
