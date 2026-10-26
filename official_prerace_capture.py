@@ -41,6 +41,9 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=urlopen):
     url = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
     req = Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN/1.0", "Accept": "text/html"})
     with opener(req, timeout=12) as response:
+        final_url = response.geturl() if hasattr(response, "geturl") else req.full_url
+        if final_url != url:
+            raise ValueError("official source redirected")
         content_type = response.headers.get("Content-Type", "").lower()
         if response.status != 200 or "html" not in content_type:
             raise ValueError("official HTML response not verified")
