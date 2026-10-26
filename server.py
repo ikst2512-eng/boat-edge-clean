@@ -179,12 +179,8 @@ def get_predictions(params):
         record = payload.get(key)
         if not isinstance(record, dict):
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "選択したレースの予想データはありません。"}
-        # Candidate structure is audited offline by the independent verifier.
-        # While public Formal Fresh is locked, do not parse or rank feed tickets.
-        # Formal Fresh is LOCKED until an independent, immutable pre-deadline
-        # artifact verifier is connected. A feed-controlled `validated: true`
-        # flag and a timestamp are not evidence of pre-result provenance.
-        # Never expose even syntactically valid predictions as formal here.
+        # LOCKED: feed flags/timestamps cannot certify independent pre-deadline provenance.
+        # Candidate structure is audited offline; never serve unverified tickets here.
         logging.warning("formal_prediction_locked race=%s reason=provenance_verifier_not_connected", key)
         return 200, {"ok": True, "status": "unavailable", "validated": False,
                      "predictions": [], "message": "正式Fresh予想は締切前の独立証拠が未検証のため公開できません。"}
