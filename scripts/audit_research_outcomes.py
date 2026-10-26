@@ -41,6 +41,8 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
     timestamped receipts, immutable first-added blob, model and source hashes,
     and official results. Self-asserted booleans MUST NOT be used as substitutes.
     """
+    if not isinstance(attestations, list) or not isinstance(results, list):
+        raise ValueError("attestations and results must be JSON arrays")
     # A reviewer must pin the exact serialized evidence manifest hash independently.
     # No pin means no score, even when all self-declared verified flags are true.
     manifest_digest = hashlib.sha256(
@@ -51,11 +53,11 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
         isinstance(approved_attestations_sha256, str)
         and approved_attestations_sha256 == manifest_digest
     )
-    if not isinstance(attestations, list) or not isinstance(results, list):
-        raise ValueError("attestations and results must be JSON arrays")
     by_code = {}
     for item in attestations:
-        if not isinstance(item, dict) or not isinstance(item.get("race_code"), str):
+        if (not isinstance(item, dict) or not isinstance(item.get("race_code"), str)
+                or len(item["race_code"]) != 12 or not item["race_code"].isascii()
+                or not item["race_code"].isdigit()):
             raise ValueError("invalid attestation item")
         code = item["race_code"]
         if code in by_code:
@@ -63,7 +65,9 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
         by_code[code] = item
     outcomes = {}
     for item in results:
-        if not isinstance(item, dict) or not isinstance(item.get("race_code"), str):
+        if (not isinstance(item, dict) or not isinstance(item.get("race_code"), str)
+                or len(item["race_code"]) != 12 or not item["race_code"].isascii()
+                or not item["race_code"].isdigit()):
             raise ValueError("invalid result item")
         code = item["race_code"]
         if code in outcomes:
