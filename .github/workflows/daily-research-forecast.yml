@@ -33,6 +33,10 @@ jobs:
           {
             echo "run_id=$GITHUB_RUN_ID checkout_sha=$GITHUB_SHA"
             if [ ! -d research_snapshots ]; then
+              if git ls-files -- research_snapshots/ | grep -q .; then
+                echo 'ERROR: tracked research snapshots directory missing' >&2
+                exit 1
+              fi
               echo 'No research forecast files produced'
             else
               git add -- research_snapshots/
