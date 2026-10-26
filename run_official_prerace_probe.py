@@ -22,6 +22,9 @@ def run(race_key, deadline_text, directory):
     result = {
         "race_key": race_key,
         "receipt_sha256": receipt["sha256"],
+        "official_source": receipt["source"],
+        "fetched_at": receipt["fetched_at"],
+        "deadline": deadline.isoformat(),
         "archive_files": [Path(path).name for path in paths],
         "diagnostic": diagnostic,
         "status": "unverified_raw_only",
