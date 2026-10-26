@@ -19,13 +19,19 @@ def run(race_key, deadline_text, directory):
     paths = save_raw_receipt(receipt, raw, directory, deadline=deadline)
     read_raw_receipt(directory, race_key, receipt["sha256"], deadline=deadline)
     diagnostic = inspect_saved_beforeinfo(directory, race_key, receipt["sha256"], deadline=deadline)
-    return {
+    result = {
         "race_key": race_key,
         "receipt_sha256": receipt["sha256"],
         "archive_files": [Path(path).name for path in paths],
         "diagnostic": diagnostic,
         "status": "unverified_raw_only",
     }
+    # Publish the provenance summary with the archive, not only in ephemeral logs.
+    manifest = Path(directory) / (race_key + "-" + receipt["sha256"] + ".manifest.json")
+    with manifest.open("x", encoding="utf-8") as handle:
+        json.dump(result, handle, ensure_ascii=False, sort_keys=True, indent=2)
+        handle.write("\\n")
+    return result
 
 
 if __name__ == "__main__":
