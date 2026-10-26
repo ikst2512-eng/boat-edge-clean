@@ -21,6 +21,29 @@ class GitPrepareTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"pre-existing staged"):
                 prepare("20261028")
             command.assert_not_called()
+    def test_rejects_changed_eligible_set(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d)/"research_prospective_pairs"
+            folder.mkdir()
+            pair=folder/"202610281201.json"
+            pair.write_text("{}")
+            calls=[0]
+            def git(*args):
+                if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
+                if args[:3]==("diff","--cached","--name-only"):
+                    if "--diff-filter=A" in args: return str(pair)
+                    calls[0]+=1
+                    return "" if calls[0]==1 else str(pair)
+                raise AssertionError(args)
+            with patch("research_pair_git_prepare._git",side_effect=git),patch(
+                "research_pair_git_prepare.eligible_paths",
+                side_effect=[[str(pair)],[]]),patch(
+                "research_pair_git_prepare.subprocess.run") as command:
+                with self.assertRaisesRegex(ValueError,"set changed"):
+                    prepare("20261028",str(folder))
+                self.assertEqual(command.call_args.args[0][1],"reset")
     def test_refuses_mutation_of_existing_pair(self):
         import tempfile
         from pathlib import Path
