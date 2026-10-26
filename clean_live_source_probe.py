@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from html.parser import HTMLParser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from pathlib import Path
@@ -166,6 +166,8 @@ def probe(date, venue, race, opener=urlopen):
                                         mapped = map_race_card(decoded, target, url, report["observed_at"])
                                     else:
                                         mapped = stage_preview(decoded, target, name.removeprefix("preview_"), url)
+                                        entry["declared_deadline"] = mapped["deadline"]
+                                        entry["declared_fetched_at"] = mapped["fetched_at"]
                                         if name == "preview_stt":
                                             entry["course_st_by_boat"] = mapped["values"]
                                         if name == "preview_tkz":
@@ -190,6 +192,28 @@ def probe(date, venue, race, opener=urlopen):
         except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
             entry["error_type"] = type(exc).__name__
         report["sources"][name] = entry
+    provenance = {}
+    for kind in ("preview_stt", "preview_tkz", "preview_sui"):
+        entry = report["sources"][kind]
+        try:
+            declared = datetime.fromisoformat(entry["declared_fetched_at"])
+            local_deadline = datetime.strptime(
+                date + " " + entry["declared_deadline"], "%Y%m%d %H:%M"
+            ).replace(tzinfo=timezone(timedelta(hours=9)))
+            before = declared < local_deadline
+            provenance[kind] = {
+                "status": "declared_predeadline_unverified" if before else "declared_at_or_after_deadline_blocked",
+                "declared_time_before_deadline": before,
+                "source_timestamp_authenticated": False,
+                "prediction_snapshot_verified": False,
+            }
+        except (KeyError, TypeError, ValueError):
+            provenance[kind] = {
+                "status": "not_comparable",
+                "source_timestamp_authenticated": False,
+                "prediction_snapshot_verified": False,
+            }
+    report["provenance_comparison"] = provenance
     csv_r = report["sources"]["race_csv"].get("registration_numbers")
     official_r = report["sources"]["official_racelist"].get("registration_candidates")
     if csv_r is not None and official_r is not None and len(official_r) == 6 and len(csv_r) == 6:
@@ -316,4 +340,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "provenance_comparison": result["provenance_comparison"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "invalid_st_samples": v.get("invalid_st_samples"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
