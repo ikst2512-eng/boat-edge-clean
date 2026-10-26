@@ -34,6 +34,24 @@ class ArtifactAuditTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_actions_artifact(c, r, run, art)
 
+    def test_missing_workflow_association(self):
+        c, r, run, art = self.fixture()
+        art["workflow_run"] = None
+        with self.assertRaises(InvalidCandidate):
+            inspect_actions_artifact(c, r, run, art)
+
+    def test_invalid_workflow_association_type(self):
+        c, r, run, art = self.fixture()
+        art["workflow_run"]["id"] = True
+        with self.assertRaises(InvalidCandidate):
+            inspect_actions_artifact(c, r, run, art)
+
+    def test_invalid_run_identity_type(self):
+        c, r, run, art = self.fixture()
+        run["id"] = True
+        with self.assertRaises(InvalidCandidate):
+            inspect_actions_artifact(c, r, run, art)
+
     def test_expired_artifact(self):
         c, r, run, art = self.fixture()
         art["expired"] = True
