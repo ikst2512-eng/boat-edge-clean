@@ -50,6 +50,11 @@ class PairPreflightTests(unittest.TestCase):
                 "cutoff_jst":pair["cutoff_jst"],
                 "national_win_rates":[5.0]*6,
                 "predictions":sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]}
+        title=hashlib.sha256(b"title-raw").hexdigest()
+        cards=hashlib.sha256(b"cards-raw").hexdigest()
+        source.update(source_title_sha256=title,source_cards_sha256=cards,
+                      input_sha256=hashlib.sha256((title+":"+cards).encode("ascii")).hexdigest(),
+                      input_hash_scope="source_csv_byte_hashes_ordered_title_cards")
         raw=json.dumps(source,ensure_ascii=False).encode("utf-8")
         canonical=json.dumps(source,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
         pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
@@ -57,6 +62,19 @@ class PairPreflightTests(unittest.TestCase):
         self.assertTrue(inspect_pair(pair,raw)["source_snapshot_digest_verified_locally"])
         self.assertTrue(inspect_pair(pair,raw)["local_consistency_valid"])
         self.assertIn("source snapshot bytes mismatch",inspect_pair(pair,b'{"race_code":"202610281202"}')["reasons"])
+    def test_missing_raw_csv_digests_never_local_valid(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "generated_at":pair["source_snapshot_generated_at"],"cutoff_jst":pair["cutoff_jst"],
+                "source_title_received_jst":"2026-10-28T11:40:00+09:00",
+                "source_cards_received_jst":"2026-10-28T11:42:00+09:00",
+                "national_win_rates":[5.0]*6,
+                "predictions":sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]}
+        raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
+        report=inspect_pair(pair,raw)
+        self.assertFalse(report["local_consistency_valid"])
+        self.assertIn("source snapshot raw CSV digests absent",report["reasons"])
     def test_nonresearch_original_not_audited(self):
         pair=self.pair()
         source={"race_code":pair["race_code"],"status":"formal","validated":True}
