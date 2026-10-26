@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -32,3 +34,7 @@ jobs:
         run: |
           python research_snapshot_replay_audit.py research_snapshots > /tmp/research-replay-audit.json
           python -c 'import json; d=json.load(open("/tmp/research-replay-audit.json")); print(json.dumps({k:v for k,v in d.items() if k!="details"},ensure_ascii=False)); assert d["files"]>0'
+      - name: Audit research snapshot Git history (informational)
+        run: |
+          python research_git_first_seen_audit.py research_snapshots > /tmp/research-git-audit.json
+          python -c 'import json; d=json.load(open("/tmp/research-git-audit.json")); print(json.dumps({k:v for k,v in d.items() if k!="details"},ensure_ascii=False)); assert d["files"]>0'
