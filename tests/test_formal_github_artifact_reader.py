@@ -61,6 +61,35 @@ class GitHubReaderTests(unittest.TestCase):
             with self.assertRaises(InvalidCandidate):
                 audit(123, 456, "202610280101", "a" * 64, "fake", opener=Opener())
 
+    def test_candidate_digest_mismatch_rejected_after_download(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __init__(self, data):
+                        self.data = data
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return self.data
+                url = req.full_url
+                if url.endswith("/actions/runs/123"):
+                    value = {"id": 123, "path": ".github/workflows/fresh-prospective-capture.yml",
+                             "head_branch": "main", "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
+                elif "/artifacts?per_page=100" in url:
+                    value = {"total_count": 1, "artifacts": [
+                        {"id": 456, "workflow_run": {"id": 123}}]}
+                else:
+                    return Response(b"fixture")
+                return Response(json.dumps(value).encode())
+        inspected = {"workflow_run_id": 123, "candidate_sha256": "b" * 64,
+                     "race_code": "202610280101"}
+        with patch("formal_github_artifact_reader.inspect_downloaded_artifact",
+                   return_value=inspected):
+            with self.assertRaises(InvalidCandidate):
+                audit(123, 456, "202610280101", "a" * 64, "fake", opener=FakeOpener())
+
     def test_malformed_run_response_fails_closed(self):
         class BadOpener:
             def open(self, req, timeout):
