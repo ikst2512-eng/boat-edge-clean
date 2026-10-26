@@ -5,6 +5,7 @@ and outcome-access permission BEFORE setting verified flags. A flag alone is not
 Never load Formal Fresh locked records or reconstruct historical predictions.
 """
 import argparse
+import re
 import json
 import math
 import random
@@ -27,11 +28,21 @@ def validate_forecast(f, race):
                 "first_git_saved_at", "generated_at", "probabilities")
     if any(not f.get(k) for k in required):
         raise ValueError("missing model or freeze provenance")
+    if f["model_id"] != race["_expected_model_id"]:
+        raise ValueError("model identifier mismatch")
+    if not re.fullmatch(r"[0-9a-f]{40}", f["model_sha"]):
+        raise ValueError("invalid model git SHA")
+    if not re.fullmatch(r"[0-9a-f]{40}", f["first_git_commit"]):
+        raise ValueError("invalid first Git commit SHA")
+    if not re.fullmatch(r"[0-9a-f]{64}", f["input_sha256"]):
+        raise ValueError("invalid input SHA256")
     if f.get("independently_verified") is not True:
         raise ValueError("first Git addition and byte identity not independently verified")
     if f["input_sha256"] != race["input_sha256"]:
         raise ValueError("nonidentical race input")
     cutoff = timestamp(race["deadline"])
+    if timestamp(f["generated_at"]) > timestamp(f["first_git_saved_at"]):
+        raise ValueError("generated after initial freeze")
     if timestamp(f["generated_at"]) >= cutoff or timestamp(f["first_git_saved_at"]) >= cutoff:
         raise ValueError("forecast not frozen before deadline")
     p = f["probabilities"]
@@ -49,6 +60,7 @@ def rank(p):
 def collect(rows, baseline, candidate):
     pairs, excluded = [], {}
     seen = set()
+    model_identity = {}
     for r in rows:
         try:
             key = r["race_key"]
@@ -63,13 +75,19 @@ def collect(rows, baseline, candidate):
             if y not in TICKETS:
                 raise ValueError("invalid result")
             f = r["forecasts"]
-            a = validate_forecast(f[baseline], r)
-            b = validate_forecast(f[candidate], r)
+            a = validate_forecast(f[baseline], dict(r, _expected_model_id=baseline))
+            b = validate_forecast(f[candidate], dict(r, _expected_model_id=candidate))
             # Models must be fixed before outcome availability, not selected after evaluation.
             if not r.get("candidate_pre_registered", False):
                 raise ValueError("candidate not pre-registered")
             if f[baseline]["input_sha256"] != f[candidate]["input_sha256"]:
                 raise ValueError("different input")
+            for name in (baseline, candidate):
+                model_sha = f[name]["model_sha"]
+                if name in model_identity and model_identity[name] != model_sha:
+                    raise ValueError("model SHA drift across evaluation races")
+            for name in (baseline, candidate):
+                model_identity.setdefault(name, f[name]["model_sha"])
             ra, rb = rank(a), rank(b)
             pairs.append({"race_key":key, "a":[int(y in ra[:k]) for k in TOPS],
                           "b":[int(y in rb[:k]) for k in TOPS],
