@@ -104,6 +104,10 @@ class PairPreflightTests(unittest.TestCase):
         report=inspect_pair(pair,raw)
         self.assertFalse(report["source_snapshot_digest_verified_locally"])
         self.assertIn("source snapshot baseline full-120 replay mismatch",report["reasons"])
+    def test_cutoff_different_jst_date_rejected(self):
+        pair=self.pair()
+        pair["cutoff_jst"]="2026-10-29T12:00:00+09:00"
+        self.assertIn("pair cutoff JST date differs from race",inspect_pair(pair)["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
