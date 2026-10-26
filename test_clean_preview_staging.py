@@ -40,6 +40,12 @@ class PreviewStagingTest(unittest.TestCase):
     def test_f_start_is_preserved(self):
         x=fixture("stt").replace(",1,.12",",1,F.04")
         self.assertEqual(stage_preview(x,CODE,"stt",source("stt"))["values"][1]["スタート展示"],"F.04")
+    def test_negative_st_is_preserved_not_interpreted_as_flying_start(self):
+        x = fixture("stt").replace(",1,.12", ",1,-0.02")
+        self.assertEqual(stage_preview(x,CODE,"stt",source("stt"))["values"][1]["スタート展示"], "-0.02")
+        with self.assertRaises(ValueError):
+            stage_preview(fixture("stt").replace(",1,.12", ",1,F-0.02"),CODE,"stt",source("stt"))
+
     def test_bad_st_is_rejected(self):
         with self.assertRaises(ValueError):
             stage_preview(fixture("stt").replace(",1,.12",",1,bad"),CODE,"stt",source("stt"))
