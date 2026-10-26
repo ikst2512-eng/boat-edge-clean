@@ -8,8 +8,9 @@ from pathlib import Path
 from scripts.audit_research_outcomes import audit
 
 class AuditTests(unittest.TestCase):
+    @patch('scripts.audit_research_outcomes.subprocess.check_output')
     @patch('scripts.audit_research_outcomes.verify_first_add')
-    def test_missing_evidence_fail_closed_and_verified_fixture(self, git_verify):
+    def test_missing_evidence_fail_closed_and_verified_fixture(self, git_verify, git_model):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"202610260101.json"
             snap={"race_code":"202610260101", "status":"research", "validated":False,
@@ -55,6 +56,12 @@ class AuditTests(unittest.TestCase):
             att["first_commit_membership_verified"] = True
             att["first_commit_introduction_verified"] = True
             att["remote_receipt_verified"] = True
+            git_model.return_value = b"synthetic model bytes"
+            snap["model_source_sha256"] = hashlib.sha256(git_model.return_value).hexdigest()
+            p.write_text(json.dumps(snap))
+            att["model_file_sha256"] = snap["model_source_sha256"]
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()).hexdigest()
             git_verify.side_effect = lambda *_: {
                 "verified": True,
                 "first_added_blob_sha": att["first_added_blob_sha"],
