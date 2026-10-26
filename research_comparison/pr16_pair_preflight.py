@@ -41,6 +41,15 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
+                try:
+                    received=[timestamp(original[k]) for k in
+                              ("source_title_received_jst","source_cards_received_jst")]
+                    source_generated=timestamp(original["generated_at"])
+                    source_cutoff=timestamp(original["cutoff_jst"])
+                    if max(*received)>source_generated or source_generated>=source_cutoff:
+                        reasons.append("source snapshot source receipt chronology invalid")
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    reasons.append("source snapshot source receipts unavailable")
                 if original.get("generated_at") != pair.get("source_snapshot_generated_at"):
                     reasons.append("source snapshot generation time mismatch")
                 if original.get("cutoff_jst") != pair.get("cutoff_jst"):
