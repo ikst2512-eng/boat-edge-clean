@@ -107,6 +107,27 @@ class FirstAddEvidenceTests(unittest.TestCase):
                 "rewritten_git_history"
             )
 
+    def test_symlink_git_tree_entry_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command(root, "init", "-q")
+            command(root, "config", "user.name", "Audit Test")
+            command(root, "config", "user.email", "audit@example.invalid")
+            folder = root / "research_snapshots"
+            folder.mkdir()
+            original = root / "target.json"
+            original.write_text('{"research":true}', encoding="utf-8")
+            path = folder / (CODE + ".json")
+            path.symlink_to(original)
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "symlink snapshot")
+            sha = command(root, "rev-parse", "HEAD")
+            ref = "refs/heads/" + command(root, "branch", "--show-current")
+            self.assertEqual(
+                verify_first_add(root, CODE, sha, ref)["reason"],
+                "nonregular_git_snapshot_entry"
+            )
+
     def test_rejects_invalid_identifiers(self):
         with self.assertRaises(ValueError):
             verify_first_add(".", "../not-a-race", "a"*40)
