@@ -31,7 +31,9 @@ class GitHubReaderTests(unittest.TestCase):
                 url = req.full_url
                 if url.endswith("/actions/runs/123"):
                     data = {"id": 123, "run_attempt": 1, "status": "completed",
-                            "conclusion": "success", "event": "repository_dispatch"}
+                            "conclusion": "success", "event": "repository_dispatch",
+                            "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
                 elif "/artifacts?per_page=100" in url:
                     data = {"total_count": 1, "artifacts": [{"id": 456,
                             "workflow_run": {"id": 123}, "name": "prospective-v5-123",
@@ -78,7 +80,9 @@ class GitHubReaderTests(unittest.TestCase):
                 url = req.full_url
                 if url.endswith("/actions/runs/123"):
                     data = {"id": 123, "run_attempt": 1, "status": "completed",
-                            "conclusion": "success", "event": "repository_dispatch"}
+                            "conclusion": "success", "event": "repository_dispatch",
+                            "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
                 elif "/artifacts?per_page=100" in url:
                     data = {"total_count": 1, "artifacts": [{"id": 456,
                             "workflow_run": {"id": 123}, "name": "prospective-v5-123",
