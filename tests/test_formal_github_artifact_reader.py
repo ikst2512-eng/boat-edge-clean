@@ -307,6 +307,45 @@ class GitHubReaderTests(unittest.TestCase):
         self.assertFalse(result["independent_upload_time_verified"])
         self.assertFalse(result["formal_approved"])
 
+    def test_workflow_rerun_attempt_mismatch_rejected(self):
+        class FakeOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __init__(self, raw):
+                        self.raw = raw
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return self.raw
+                url = req.full_url
+                if url.endswith("/actions/runs/123"):
+                    data = {"id": 123, "run_attempt": 2, "status": "completed",
+                            "conclusion": "success", "event": "repository_dispatch",
+                            "head_branch": "main",
+                            "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
+                elif "/artifacts?per_page=100" in url:
+                    data = {"total_count": 1, "artifacts": [{
+                        "id": 456, "workflow_run": {"id": 123},
+                        "name": "prospective-v5-123", "expired": False,
+                        "size_in_bytes": 200,
+                        "created_at": "2026-10-28T09:02:00+09:00"}]}
+                else:
+                    return Response(b"zip-stand-in")
+                return Response(json.dumps(data).encode())
+        inspected = {"downloaded_bytes_consistent": True,
+                     "workflow_run_id": 123, "workflow_attempt": 1,
+                     "candidate_sha256": "a" * 64, "race_code": "202610280101",
+                     "generated_at": "2026-10-28T09:00:00+09:00",
+                     "deadline_at": "2026-10-28T09:15:00+09:00"}
+        with patch("formal_github_artifact_reader.inspect_downloaded_artifact",
+                   return_value=inspected):
+            with self.assertRaises(InvalidCandidate):
+                audit(123, 456, "202610280101", "a" * 64, "fake",
+                      opener=FakeOpener())
+
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
         original = Request("https://api.github.com/example",
