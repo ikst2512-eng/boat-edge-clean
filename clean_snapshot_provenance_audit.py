@@ -55,7 +55,7 @@ def audit_saved_directory(directory):
         try:
             with file.open(encoding="utf-8") as stream:
                 record = json.load(stream)
-            status = audit_snapshot(record)["status"]
+            status = ("blocked_filename_race_identity" if not isinstance(record, dict) or file.stem != record.get("race_code") else audit_snapshot(record)["status"])
         except (OSError, ValueError, TypeError):
             status = "blocked_unreadable_json"
         counts[status] += 1
