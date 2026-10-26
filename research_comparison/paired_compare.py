@@ -25,7 +25,7 @@ def timestamp(x):
 def validate_forecast(f, race):
     """Fail closed on missing or ambiguous first-save provenance."""
     required = ("model_id", "model_sha", "input_sha256", "first_git_commit",
-                "first_git_saved_at", "generated_at", "probabilities")
+                "first_git_saved_at", "generated_at", "source_received_at", "probabilities")
     if any(not f.get(k) for k in required):
         raise ValueError("missing model or freeze provenance")
     if f["model_id"] != race["_expected_model_id"]:
@@ -41,6 +41,10 @@ def validate_forecast(f, race):
     if f["input_sha256"] != race["input_sha256"]:
         raise ValueError("nonidentical race input")
     cutoff = timestamp(race["deadline"])
+    if timestamp(f["source_received_at"]) > timestamp(f["generated_at"]):
+        raise ValueError("source received after forecast generation")
+    if timestamp(f["source_received_at"]) >= cutoff:
+        raise ValueError("source received after deadline")
     if timestamp(f["generated_at"]) > timestamp(f["first_git_saved_at"]):
         raise ValueError("generated after initial freeze")
     if timestamp(f["generated_at"]) >= cutoff or timestamp(f["first_git_saved_at"]) >= cutoff:
