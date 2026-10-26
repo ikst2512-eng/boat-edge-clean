@@ -26,7 +26,7 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(record["source_cards_sha256"],"b"*64)
   self.assertIn("source_deadline_jst",record)
   self.assertIn("model_source_sha256",record)
-  with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start),([self.card],start)]):
+  with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([self.card],start,"b"*64)]):
    self.assertEqual(collector.collect(self.day)["already_saved"],1)
  def test_missing_card(self):
   start=datetime.now(JST)
