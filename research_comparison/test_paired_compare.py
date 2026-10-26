@@ -123,6 +123,12 @@ class PairedComparisonTests(unittest.TestCase):
     def test_same_model_cannot_be_compared_to_itself(self):
         with self.assertRaises(ValueError):
             compare([self.row()],"a","a")
+    def test_registration_after_generation_before_freeze_rejected(self):
+        r=self.row()
+        r["pre_registration"]["registered_at"]="2026-10-28T11:59:30+09:00"
+        result=compare([r],"a","b")
+        self.assertEqual(result["eligible_races"],0)
+        self.assertIn("pre-registration after forecast generation", result["exclusion_reasons"])
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
