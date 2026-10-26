@@ -43,6 +43,12 @@ class InspectionTests(unittest.TestCase):
             RECEIPT, "<html><body><div hidden>展示タイム</div><p>展示タイム</p></body></html>".encode())
         self.assertTrue(visible["sections_present"]["exhibition_time"])
 
+    def test_disconnected_text_nodes_cannot_fabricate_heading(self):
+        html = "<html><body><span>展示</span><span>タイム</span></body></html>".encode("utf-8")
+        result = inspect_beforeinfo_html(RECEIPT, html)
+        self.assertFalse(result["sections_present"]["exhibition_time"])
+        self.assertEqual(result["status"], "inspection_only")
+
     def test_saved_inspection_requires_complete_verified_receipt(self):
         now = datetime(2026, 10, 27, 14, 55, tzinfo=JST)
         deadline = now + timedelta(minutes=5)
