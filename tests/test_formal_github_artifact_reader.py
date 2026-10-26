@@ -102,6 +102,22 @@ class GitHubReaderTests(unittest.TestCase):
         self.assertFalse(result["formal_approved"])
         self.assertFalse(result["independent_upload_time_verified"])
 
+    def test_wrong_capture_workflow_rejected(self):
+        class WrongWorkflowOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return json.dumps({"id": 123, "run_attempt": 1,
+                                           "path": ".github/workflows/other.yml",
+                                           "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}).encode()
+                return Response()
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=WrongWorkflowOpener())
+
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
         original = Request("https://api.github.com/example",
