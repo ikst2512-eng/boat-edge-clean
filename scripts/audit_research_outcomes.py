@@ -128,6 +128,11 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             ):
                 exclusions["late_generation_or_input"] += 1
                 continue
+            if (timestamp(att["first_seen_at"]) < timestamp(obj["generated_at"]) or
+                    any(timestamp(obj[k]) > timestamp(obj["generated_at"]) for k in
+                        ("source_title_received_jst", "source_cards_received_jst"))):
+                exclusions["impossible_evidence_chronology"] += 1
+                continue
             deadline = timestamp(att["official_deadline_at"])
             if timestamp(obj["cutoff_jst"]) != deadline-timedelta(minutes=12):
                 exclusions["deadline_disagreement"] += 1
