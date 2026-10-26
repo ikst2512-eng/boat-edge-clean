@@ -1,0 +1,23 @@
+name: CLEAN official HTML candidate parser
+on:
+  pull_request:
+    paths:
+      - clean_official_racelist_candidates.py
+      - test_clean_official_racelist_candidates.py
+      - .github/workflows/clean-official-html-candidates.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check syntax and safety tests
+        run: |
+          python -m py_compile clean_official_racelist_candidates.py test_clean_official_racelist_candidates.py
+          python -m unittest -v test_clean_official_racelist_candidates
