@@ -76,6 +76,33 @@ jobs:
               report['total_html_rows'] = len(scanner.rows)
               result = extract_six_candidates(raw, url, report['race_key'])
               report['candidate_count'] = len(result['racers'])
+              import csv
+              import io
+              csv_url = 'https://boatracecsv.github.io/data/programs/race_cards/2026/10/26.csv'
+              with urlopen(Request(csv_url, headers={'User-Agent': 'BOAT-EDGE-CLEAN-RESEARCH/1.0'}), timeout=12) as csv_response:
+                  csv_bytes = csv_response.read(2_000_001)
+              if len(csv_bytes) > 2_000_000:
+                  raise ValueError('CSV too large')
+              rows = list(csv.DictReader(io.StringIO(csv_bytes.decode('utf-8-sig'))))
+              matches = [row for row in rows if row.get('レースコード') == '202610262101']
+              if len(matches) != 1:
+                  raise ValueError('CSV matching race missing or duplicate')
+              row = matches[0]
+              official = {x['lane']: x for x in result['racers']}
+              differences = []
+              for lane in range(1, 7):
+                  candidate = official[lane]
+                  if candidate['registration'] != row.get(f'艇{lane}_登録番号', '').strip():
+                      differences.append(f'lane{lane}.registration')
+                  csv_name = ''.join(row.get(f'艇{lane}_選手名', '').split())
+                  html_name = ''.join(candidate['name'].split())
+                  if csv_name != html_name:
+                      differences.append(f'lane{lane}.name')
+              report['csv_sha256'] = hashlib.sha256(csv_bytes).hexdigest()
+              report['six_lane_registration_equal'] = not any(x.endswith('.registration') for x in differences)
+              report['six_lane_name_equal'] = not any(x.endswith('.name') for x in differences)
+              report['mismatch_fields'] = differences
+              report['comparison_status'] = 'matched_unverified' if not differences else 'blocked_mismatch'
               report['status'] = result['status']
               report['official_provenance_verified'] = False
           except Exception as exc:
