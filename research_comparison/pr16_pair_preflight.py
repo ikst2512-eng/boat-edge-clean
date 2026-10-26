@@ -1,13 +1,14 @@
 """Read-only PR16 prospective pair preflight; never loads outcomes or attests receipts."""
 import argparse
 import json
+import hashlib
 import math
 import re
 from datetime import datetime
 from pathlib import Path
 from paired_compare import TICKETS, timestamp
 
-def inspect_pair(pair):
+def inspect_pair(pair, source_snapshot_bytes=None):
     reasons=[]
     if not isinstance(pair,dict) or pair.get("status")!="research_unvalidated":
         return {"ready_for_scoring":False,"reasons":["not a research prospective pair"]}
@@ -23,6 +24,20 @@ def inspect_pair(pair):
             reasons.append("invalid race calendar date")
     if not isinstance(pair.get("source_snapshot_sha256"),str) or not re.fullmatch(r"[0-9a-f]{64}",pair["source_snapshot_sha256"]):
         reasons.append("missing source snapshot digest")
+    if source_snapshot_bytes is not None:
+        if not isinstance(source_snapshot_bytes,bytes):
+            reasons.append("invalid source snapshot bytes")
+        else:
+            try:
+                original=json.loads(source_snapshot_bytes)
+                canonical=json.dumps(original,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
+                digest=hashlib.sha256(canonical).hexdigest()
+                if digest!=pair.get("source_snapshot_sha256"):
+                    reasons.append("source snapshot bytes mismatch")
+                if original.get("race_code")!=code:
+                    reasons.append("source snapshot race mismatch")
+            except (ValueError,TypeError,AttributeError):
+                reasons.append("invalid source snapshot JSON")
     for key in ("baseline_model_id","candidate_model_id"):
         if not isinstance(pair.get(key),str) or not pair[key].strip():
             reasons.append("missing "+key)
@@ -57,8 +72,10 @@ def inspect_pair(pair):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("pair",type=Path)
+    parser.add_argument("--source-snapshot",type=Path,help="optional original research snapshot for digest binding")
     args=parser.parse_args()
-    print(json.dumps(inspect_pair(json.loads(args.pair.read_text(encoding="utf-8"))),ensure_ascii=False,indent=2))
+    source=args.source_snapshot.read_bytes() if args.source_snapshot else None
+    print(json.dumps(inspect_pair(json.loads(args.pair.read_text(encoding="utf-8")),source),ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
     main()
