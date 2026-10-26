@@ -7,6 +7,7 @@ meaningful prospective evidence. No automatic scheduling or promotion.
 import argparse
 import hashlib
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -47,9 +48,17 @@ def freeze_record(snapshot, now):
             "source_snapshot_sha256":hashlib.sha256(json.dumps(snapshot,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest(),
             "prospective_verified":False}
 
+def verify_candidate_source():
+    path=Path(__file__).resolve().with_name('research_scenario_candidate.py')
+    actual=subprocess.check_output(['git','hash-object',str(path)],text=True).strip()
+    if actual != CANDIDATE_BLOB_SHA:
+        raise ValueError('candidate code does not match frozen Git blob SHA')
+
+
 def capture(day, source_dir, output_dir, now=None):
     if len(day) != 8 or not day.isascii() or not day.isdigit():
         raise ValueError("invalid day")
+    verify_candidate_source()
     now = now or datetime.now(JST)
     source, target = Path(source_dir), Path(output_dir)
     if not source.is_dir():
