@@ -60,6 +60,16 @@ class GitHubReaderTests(unittest.TestCase):
             with self.assertRaises(InvalidCandidate):
                 audit(123, 456, "202610280101", "a" * 64, "fake", opener=FakeOpener())
 
+    def test_network_exception_fails_closed_without_token_in_error(self):
+        from urllib.error import URLError
+        class NetworkFailure:
+            def open(self, req, timeout):
+                raise URLError("Bearer fake: refused")
+        with self.assertRaises(InvalidCandidate) as ctx:
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=NetworkFailure())
+        self.assertNotIn("Bearer", str(ctx.exception))
+        self.assertIn("retrieval failed", str(ctx.exception))
+
     def test_missing_token_fails(self):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "a" * 64, "")
