@@ -27,10 +27,13 @@ class _CurrentTablePlaceholder(HTMLParser):
         self.cell_text = []
         self.in_row = False
         self.row_cells = []
+        self.ambiguous = False
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if tag == "table":
+            if self.table is not None:
+                self.ambiguous = True
             self.table = {"heading": False, "rows": []}
         elif self.table is not None:
             if tag in ("thead", "tbody"):
@@ -73,7 +76,7 @@ def current_exhibition_is_blank(raw):
     parser.feed(raw.decode("utf-8", "strict"))
     parser.close()
     matching = [t for t in parser.tables if t["heading"]]
-    return len(matching) == 1 and len(matching[0]["rows"]) == 6 and all(
+    return not parser.ambiguous and len(matching) == 1 and len(matching[0]["rows"]) == 6 and all(
         row == [("3", "")] for row in matching[0]["rows"]
     )
 
