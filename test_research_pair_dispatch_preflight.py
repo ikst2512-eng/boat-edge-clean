@@ -15,9 +15,26 @@ class DispatchPreflightTests(unittest.TestCase):
         def fetch(url):
             if url.endswith("/repos/ikst2512-eng/boat-edge-clean"):
                 return {"default_branch":"main"}
-            return {"type":"file"}
+            if "/contents/" in url: return {"type":"file"}
+            return {"state":"active","path":".github/workflows/research-pair-capture-manual.yml"}
         x=preflight(fetch)
         self.assertTrue(x["registered_on_default"])
-        self.assertIn("verify enabled",x["reason"])
+        self.assertTrue(x["dispatch_ready"])
+    def test_registered_but_disabled_not_ready(self):
+        def fetch(url):
+            if url.endswith("/repos/ikst2512-eng/boat-edge-clean"):
+                return {"default_branch":"main"}
+            if "/contents/" in url: return {"type":"file"}
+            return {"state":"disabled_manually","path":".github/workflows/research-pair-capture-manual.yml"}
+        state=preflight(fetch)
+        self.assertFalse(state["dispatch_ready"])
+    def test_file_exists_but_actions_registration_missing(self):
+        def fetch(url):
+            if url.endswith("/repos/ikst2512-eng/boat-edge-clean"):
+                return {"default_branch":"main"}
+            if "/contents/" in url: return {"type":"file"}
+            raise HTTPError(url,404,"Not Found",None,None)
+        self.assertFalse(preflight(fetch)["dispatch_ready"])
+
 if __name__=="__main__":
     unittest.main()
