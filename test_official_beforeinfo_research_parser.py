@@ -57,6 +57,21 @@ class ResearchParserTests(unittest.TestCase):
         self.assertEqual(len(data["start_exhibition"]), 6)
         self.assertAlmostEqual(data["start_exhibition"][0]["exhibition_st"], .08)
 
+    def test_css_and_aria_hidden_duplicate_ignored(self):
+        for wrapper in ('<div aria-hidden="true">', '<div style="display:none">',
+                        '<div style="visibility: hidden">'):
+            ghost = '<div class="table1_boatImage1"><span class="table1_boatImage1Number">1</span></div>'
+            raw = (wrapper + ghost + '</div>' + fixture().decode()).encode()
+            self.assertEqual(len(research_start_exhibition(raw)["start_exhibition"]), 6)
+
+    def test_nested_boat_block_rejected(self):
+        raw = fixture().decode().replace(
+            '<span class="table1_boatImage1Number">1</span>',
+            '<div class="table1_boatImage1"><span class="table1_boatImage1Number">1</span></div>',
+            1).encode()
+        with self.assertRaises(ValueError):
+            research_start_exhibition(raw)
+
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
                     fixture(st=""), fixture(st="L.08"), fixture(st="9.99")):
