@@ -58,3 +58,7 @@ Each pair now requires a `pre_registration` object containing `baseline_model_id
 ## Pre-result source chronology gate
 
 Each model forecast must include `source_received_at` as a timezone-aware timestamp. The evaluator rejects absent receipts, sources received after forecast generation, and sources received at or after the official deadline. This checks timestamp consistency only; the source's actual arrival and authenticity must be verified against trusted external receipts. No historical reconstruction or locked Fresh result access is permitted.
+
+## Exploratory sample gate
+
+Fewer than 30 eligible paired races result in `INSUFFICIENT_EVIDENCE` even when descriptive metrics are output. This is an operational floor, **not** a power calculation or a proof that 30 races suffice. No sample count alone can authorize promotion without independently audited first-seen evidence, pre-registered cohort and source receipts, permitted outcomes and paired performance validation. Comparing a model against itself is rejected.
