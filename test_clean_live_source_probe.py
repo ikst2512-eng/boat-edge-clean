@@ -19,6 +19,23 @@ class SourceProbeTests(unittest.TestCase):
             self.assertEqual(len(entry["sha256"]),64)
         self.assertEqual(result["race_key"],"20261027-12-01")
 
+    def test_real_csv_row_presence_is_not_official_verification(self):
+        class CSVResponse(Response):
+            def read(self, n):
+                return "レースコード,艇1_選手名\\n202610261201,例\\n".encode("utf-8")
+        result=probe("20261026","12","1",opener=lambda req,timeout: CSVResponse())
+        self.assertEqual(result["sources"]["race_csv"]["race_rows"],1)
+        self.assertEqual(result["sources"]["race_csv"]["race_identity_status"],"single_row_unverified")
+        self.assertEqual(result["sources"]["official_racelist"]["race_identity_status"],"not_parsed")
+
+    def test_missing_race_is_blocked(self):
+        class CSVResponse(Response):
+            def read(self, n):
+                return "レースコード\\n202610261202\\n".encode("utf-8")
+        result=probe("20261026","12","1",opener=lambda req,timeout: CSVResponse())
+        self.assertEqual(result["sources"]["race_csv"]["race_rows"],0)
+        self.assertEqual(result["sources"]["race_csv"]["race_identity_status"],"blocked")
+
     def test_failed_network_stays_unavailable(self):
         def failure(req,timeout): raise TimeoutError()
         result=probe("20261027","12","1",opener=failure)
