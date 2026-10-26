@@ -39,6 +39,13 @@ jobs:
               if git diff --cached --quiet; then
                 echo 'No new cutoff-eligible research forecasts'
               else
+                mkdir -p capture-evidence/new-snapshots
+                while IFS= read -r -d '' file; do
+                  cp -- "$file" "capture-evidence/new-snapshots/$(basename "$file")"
+                done < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
+                if compgen -G 'capture-evidence/new-snapshots/*.json' > /dev/null; then
+                  (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
+                fi
                 git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
                 git push
               fi
@@ -52,6 +59,8 @@ jobs:
           path: |
             capture-evidence/collection.log
             capture-evidence/persistence.log
+            capture-evidence/new-snapshots/*.json
+            capture-evidence/snapshot-sha256.txt
           if-no-files-found: warn
           retention-days: 30
       - name: Publish diagnostic summary
