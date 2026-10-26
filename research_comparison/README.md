@@ -5,7 +5,7 @@ Run: `python research_comparison/paired_compare.py approved_pairs.json --baselin
 Input is a JSON array with one object per race:
 ```json
 {
-  "race_key": "YYYYMMDD-venue-race",
+  "race_key": "20261028-12-1",
   "deadline": "2026-10-28T15:30:00+09:00",
   "input_sha256": "64-character verified digest",
   "result": "1-2-3",
@@ -66,3 +66,7 @@ Fewer than 30 eligible paired races result in `INSUFFICIENT_EVIDENCE` even when 
 ## Registration before prediction generation
 
 The claimed model-pair preregistration must precede both forecasts' `generated_at` timestamps (not merely their first Git-saving times). This blocks registering a candidate after inspecting its prediction but before committing its file. The chronology remains self-reported until external first-seen receipts are audited.
+
+## Canonical race identity
+
+`race_key` must use `YYYYMMDD-VV-R` (eight-digit date, two-digit official venue code, race number 1–12). This is a format-only guard; official race existence and venue mapping require independent verification. Duplicate canonical keys are excluded.
