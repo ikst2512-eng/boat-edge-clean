@@ -51,14 +51,20 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
         isinstance(approved_attestations_sha256, str)
         and approved_attestations_sha256 == manifest_digest
     )
+    if not isinstance(attestations, list) or not isinstance(results, list):
+        raise ValueError("attestations and results must be JSON arrays")
     by_code = {}
     for item in attestations:
+        if not isinstance(item, dict) or not isinstance(item.get("race_code"), str):
+            raise ValueError("invalid attestation item")
         code = item["race_code"]
         if code in by_code:
             raise ValueError("duplicate attestation: " + code)
         by_code[code] = item
     outcomes = {}
     for item in results:
+        if not isinstance(item, dict) or not isinstance(item.get("race_code"), str):
+            raise ValueError("invalid result item")
         code = item["race_code"]
         if code in outcomes:
             raise ValueError("duplicate result: " + code)
