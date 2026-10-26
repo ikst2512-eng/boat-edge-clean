@@ -98,7 +98,8 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                 exclusions["missing_frozen_model_or_input_hash"] += 1
                 continue
             if (obj["model_git_sha"] != att["model_git_sha"] or
-                    obj["input_sha256"] != att["input_sha256"]):
+                    obj["input_sha256"] != att["input_sha256"] or
+                    obj.get("model_source_sha256") != att["model_file_sha256"]):
                 exclusions["provenance_mismatch"] += 1
                 continue
             if hashlib.sha256(raw).hexdigest() != att.get("snapshot_sha256"):
