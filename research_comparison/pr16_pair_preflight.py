@@ -41,10 +41,19 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
+                if original.get("generated_at") != pair.get("source_snapshot_generated_at"):
+                    reasons.append("source snapshot generation time mismatch")
+                if original.get("cutoff_jst") != pair.get("cutoff_jst"):
+                    reasons.append("source snapshot cutoff mismatch")
+                baseline=pair.get("baseline")
+                if isinstance(baseline,dict) and set(baseline)==TICKETS:
+                    if original.get("predictions") != sorted(TICKETS,key=lambda t:(-baseline[t],t))[:10]:
+                        reasons.append("source snapshot Top10 differs from baseline")
                 if original.get("status")!="research" or original.get("validated") is not False:
                     reasons.append("source snapshot not unvalidated research")
                 if (digest==pair.get("source_snapshot_sha256") and original.get("race_code")==code
-                    and original.get("status")=="research" and original.get("validated") is False):
+                    and original.get("status")=="research" and original.get("validated") is False
+                    and not any("source snapshot " in x for x in reasons)) :
                     source_snapshot_checked = True
             except (ValueError,TypeError,AttributeError):
                 reasons.append("invalid source snapshot JSON")
