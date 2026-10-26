@@ -60,16 +60,13 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
         try:
             with opener.open(request, timeout=15) as response:
                 data = response.read(2_000_001)
-        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        except (HTTPError, URLError, TimeoutError, OSError):
             raise InvalidCandidate("GitHub artifact retrieval failed") from None
         if len(data) > 2_000_000:
             raise InvalidCandidate("GitHub response oversized")
         return data
-    try:
-        run = _strict_metadata_json(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
-        listing = _strict_metadata_json(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
-    except (ValueError, UnicodeError) as exc:
-        raise InvalidCandidate("malformed GitHub metadata") from exc
+    run = _strict_metadata_json(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
+    listing = _strict_metadata_json(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
     if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] != run_id:
         raise InvalidCandidate("GitHub run metadata mismatch")
     workflow_path = run.get("path")
