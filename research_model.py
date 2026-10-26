@@ -48,6 +48,8 @@ def _saved(code):
     if path.is_symlink() or not path.is_file():return None
     if path.stat().st_size>20000:raise ValueError("oversize forecast")
     record=json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(record, dict):
+        raise ValueError("invalid saved forecast structure")
     if record.get("race_code")!=code or record.get("status")!="research" or record.get("validated") is not False:
         raise ValueError("invalid saved forecast")
     tickets=record.get("predictions")
