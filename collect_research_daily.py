@@ -1,5 +1,7 @@
 """Daily research forecast collection. Uses one source fetch per daily CSV."""
 import argparse, csv, io, json, os, sys
+import math
+from collections import Counter
 from datetime import datetime, timedelta
 from research_model import JST, BASE, STORE, _record_path, _saved, probabilities, read_rows
 def collect(day):
@@ -8,11 +10,20 @@ def collect(day):
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
     titles,t1=read_rows(BASE+"title/"+path)
     cards,t2=read_rows(BASE+"race_cards/"+path)
-    by_code={r.get("レースコード"):r for r in cards if r.get("レースコード")}
+    # Duplicate source keys are ambiguous: never silently take the last row.
+    card_counts=Counter(r.get("レースコード") for r in cards if isinstance(r,dict) and r.get("レースコード"))
+    title_counts=Counter(r.get("レースコード") for r in titles if isinstance(r,dict) and r.get("レースコード"))
+    by_code={r["レースコード"]:r for r in cards if isinstance(r,dict) and r.get("レースコード") and card_counts[r["レースコード"]]==1}
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
+    counted_duplicates=set()
     for title in titles:
-        code=title.get("レースコード","")
+        code=title.get("レースコード","") if isinstance(title,dict) else ""
         if not(code.isascii() and code.isdigit() and len(code)==12 and code.startswith(day)):continue
+        if title_counts[code]!=1 or card_counts[code]>1:
+            if code not in counted_duplicates:
+                counts["invalid"]+=1
+                counted_duplicates.add(code)
+            continue
         card=by_code.get(code)
         if card is None:counts["missing"]+=1;continue
         try:
@@ -22,6 +33,8 @@ def collect(day):
             now=datetime.now(JST);cutoff=deadline-timedelta(minutes=12)
             if max(now,t1,t2)>cutoff:counts["not_ready"]+=1;continue
             rates=[float(card[f"艇{i}_全国勝率"]) for i in range(1,7)]
+            if any(not math.isfinite(rate) or not 0 <= rate <= 10 for rate in rates):
+                raise ValueError("invalid national win rate")
             tickets=["-".join(map(str,t)) for t,_ in probabilities(rates)[:10]]
             record={"ok":True,"status":"research","validated":False,"race_code":code,"predictions":tickets,
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
