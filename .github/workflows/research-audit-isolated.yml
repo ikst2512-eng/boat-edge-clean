@@ -1,0 +1,25 @@
+name: Isolated research audit checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_research_outcomes.py'
+      - 'scripts/verify_research_git_first_add.py'
+      - 'tests/test_audit_research_outcomes.py'
+      - 'tests/test_verify_research_git_first_add.py'
+      - 'tests/test_research_audit_git_integration.py'
+      - '.github/workflows/research-audit-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run isolated evidence and audit regression tests
+        run: python -m unittest -v tests.test_audit_research_outcomes tests.test_verify_research_git_first_add tests.test_research_audit_git_integration
