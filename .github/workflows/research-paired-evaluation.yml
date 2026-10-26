@@ -15,6 +15,8 @@ on:
       - 'test_research_git_first_seen_audit.py'
       - 'research_results_scorecard.py'
       - 'test_research_results_scorecard.py'
+      - 'research_posthoc_diagnostic.py'
+      - 'run_research_posthoc_diagnostic.py'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
@@ -44,3 +46,5 @@ jobs:
         run: |
           python research_results_scorecard.py research_snapshots > /tmp/research-result-scorecard.json
           python -c 'import json; d=json.load(open("/tmp/research-result-scorecard.json")); print(json.dumps(d,ensure_ascii=False))'
+      - name: Post-hoc candidate diagnostic (NOT validation)
+        run: python run_research_posthoc_diagnostic.py
