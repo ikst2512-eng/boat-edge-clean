@@ -17,6 +17,7 @@ SOURCES = {
     "preview_tkz": "https://boatracecsv.github.io/data/previews/tkz/{year}/{month}/{day}.csv",
     "preview_sui": "https://boatracecsv.github.io/data/previews/sui/{year}/{month}/{day}.csv",
     "official_racelist": "https://www.boatrace.jp/owpc/pc/race/racelist?hd={date}&jcd={venue}&rno={race}",
+    "official_beforeinfo": "https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={date}&jcd={venue}&rno={race}",
 }
 
 class OfficialHtmlScanner(HTMLParser):
@@ -124,7 +125,7 @@ def probe(date, venue, race, opener=urlopen):
                 entry["bytes"] = len(body)
                 entry["sha256"] = hashlib.sha256(body).hexdigest()
                 entry["status"] = "retrieved_unverified"
-                if name != "official_racelist":
+                if name not in ("official_racelist", "official_beforeinfo"):
                     try:
                         decoded = body.decode("utf-8-sig")
                         reader = csv.DictReader(io.StringIO(decoded))
@@ -207,6 +208,8 @@ def probe(date, venue, race, opener=urlopen):
         "official_preview_values_verified": False,
         "can_publish": False, "can_score_fresh": False,
     }
+    preview = report["sources"]["official_beforeinfo"]
+    report["official_preview_probe"] = {"status": preview.get("html_inspection", "unavailable"), "values_compared": False}
     return report
 
 if __name__ == "__main__":
@@ -219,4 +222,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts")} for k,v in result["sources"].items()}}, ensure_ascii=False))
