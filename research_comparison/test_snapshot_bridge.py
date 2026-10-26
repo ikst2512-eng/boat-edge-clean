@@ -36,6 +36,18 @@ class SnapshotBridgeTests(unittest.TestCase):
         d["predictions"]=list(reversed(d["predictions"]))
         with self.assertRaisesRegex(ValueError,"top10 differs"):
             draft(d,filename_sha256="b"*64)
+    def test_reject_non_normalized_distribution(self):
+        rec=self.record()
+        first=next(iter(rec["probabilities"]))
+        rec["probabilities"][first]=0.5
+        with self.assertRaisesRegex(ValueError,"not normalized"):
+            draft(rec,filename_sha256="b"*64)
+    def test_reject_invalid_probability(self):
+        rec=self.record()
+        first=next(iter(rec["probabilities"]))
+        rec["probabilities"][first]=float("nan")
+        with self.assertRaisesRegex(ValueError,"invalid probability"):
+            draft(rec,filename_sha256="b"*64)
     def test_missing_distribution_rejected(self):
         d=self.record()
         del d["probabilities"]
