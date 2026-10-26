@@ -1,6 +1,7 @@
 """Read-only online GitHub evidence fetch; never opens outcomes or authorizes scoring."""
 import argparse
 import json
+import re
 import urllib.request
 from github_receipt_verify import verify
 
@@ -8,9 +9,14 @@ API = "https://api.github.com"
 REPO = "ikst2512-eng/boat-edge-clean"
 
 def fetch_github(relative_path):
-    if not relative_path.startswith("/repos/" + REPO + "/"):
-        raise ValueError("unapproved GitHub API route")
-    if not any(relative_path.startswith("/repos/" + REPO + "/"+prefix) for prefix in ("git/commits/", "git/trees/", "git/blobs/", "actions/runs/")):
+    route = relative_path.removeprefix("/repos/" + REPO + "/")
+    allowed = (
+        re.fullmatch(r"git/commits/[0-9a-f]{40}", route),
+        re.fullmatch(r"git/trees/[0-9a-f]{40}\\?recursive=1", route),
+        re.fullmatch(r"git/blobs/[0-9a-f]{40}", route),
+        re.fullmatch(r"actions/runs/[1-9][0-9]*", route),
+    )
+    if not any(allowed) or not relative_path.startswith("/repos/" + REPO + "/"):
         raise ValueError("unapproved evidence endpoint")
     request = urllib.request.Request(
         API + relative_path,
