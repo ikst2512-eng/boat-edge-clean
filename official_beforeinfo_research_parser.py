@@ -11,6 +11,73 @@ class ResearchParseUnavailable(ValueError):
     """Valid archived source could not be interpreted by experimental CSS parser."""
 
 
+class ExhibitionNotPublished(ResearchParseUnavailable):
+    """The current official start-exhibition table has six empty placeholders."""
+
+
+class _CurrentTablePlaceholder(HTMLParser):
+    """Identify the exact blank six-row table seen in archived 2026 official HTML."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tables = []
+        self.table = None
+        self.section = None
+        self.in_cell = False
+        self.cell_attrs = {}
+        self.cell_text = []
+        self.in_row = False
+        self.row_cells = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "table":
+            self.table = {"heading": False, "rows": []}
+        elif self.table is not None:
+            if tag in ("thead", "tbody"):
+                self.section = tag
+            elif tag == "tr":
+                self.in_row = True
+                self.row_cells = []
+            elif tag in ("th", "td"):
+                self.in_cell = True
+                self.cell_attrs = attrs
+                self.cell_text = []
+
+    def handle_data(self, text):
+        if self.in_cell:
+            self.cell_text.append(text)
+
+    def handle_endtag(self, tag):
+        if self.table is None:
+            return
+        if tag in ("th", "td") and self.in_cell:
+            content = "".join(self.cell_text).strip()
+            if self.section == "thead" and "スタート展示" in content:
+                self.table["heading"] = True
+            if self.section == "tbody":
+                self.row_cells.append((self.cell_attrs.get("colspan"), content))
+            self.in_cell = False
+        elif tag == "tr" and self.in_row:
+            if self.section == "tbody":
+                self.table["rows"].append(self.row_cells)
+            self.in_row = False
+        elif tag in ("thead", "tbody"):
+            self.section = None
+        elif tag == "table":
+            self.tables.append(self.table)
+            self.table = None
+
+
+def current_exhibition_is_blank(raw):
+    parser = _CurrentTablePlaceholder()
+    parser.feed(raw.decode("utf-8", "strict"))
+    parser.close()
+    matching = [t for t in parser.tables if t["heading"]]
+    return len(matching) == 1 and len(matching[0]["rows"]) == 6 and all(
+        row == [("3", "")] for row in matching[0]["rows"]
+    )
+
+
 class _ExhibitionParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -115,7 +182,11 @@ def research_saved_start_exhibition(directory, race_key, digest, *, deadline):
     from official_prerace_capture import read_raw_receipt
     receipt, raw = read_raw_receipt(directory, race_key, digest, deadline=deadline)
     try:
+        if current_exhibition_is_blank(raw):
+            raise ExhibitionNotPublished("six empty official start-exhibition rows")
         result = research_start_exhibition(raw)
+    except ExhibitionNotPublished:
+        raise
     except (ValueError, UnicodeError) as exc:
         raise ResearchParseUnavailable("research CSS parsing unavailable") from exc
     result["race_key"] = receipt["race_key"]
