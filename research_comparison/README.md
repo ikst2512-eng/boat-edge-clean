@@ -80,3 +80,5 @@ All occurrences of a duplicated `race_key` are excluded, even if one appears oth
 ## Exclusion audit trail
 
 The output includes `excluded_details`, containing a race key and exclusion reason per rejected row, without copying result tickets, feature payloads or probability distributions. Duplicate race occurrences are all excluded. Treat this as diagnostic metadata, not independent proof of outcome access or prospectivity.
+
+For excluded records, `race_key` is included in the audit trail only when it matches the canonical key syntax. Free-form or malformed identifiers are replaced with `null` so that injected result text or private feature data is not echoed by diagnostics.
