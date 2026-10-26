@@ -10,6 +10,7 @@ RACE={"race_key":"20261026-21-01","status":"html_candidates_unverified",
       "racers":[{"lane":i,"registration":f"{4000+i}"} for i in range(1,7)]}
 BEFORE={"race_key":"20261026-21-01","status":"research_unverified",
         "verified_preview":False,"actual_entry_verified":False,
+        "results_seen":False,"unlock":False,"scoring":False,
         "raw_sha256":"a"*64,"captured_at":CAP.isoformat(),
         "start_exhibition":[{"boat_number":i,"exhibition_course":i,"exhibition_st":0.12} for i in range(1,7)]}
 
@@ -76,6 +77,20 @@ class BridgeTests(unittest.TestCase):
         del rows[0]["exhibition_st"]
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
+    def test_scoring_flag_cannot_unlock(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"scoring":True},deadline=DEADLINE)
+    def test_missing_results_lock_flag(self):
+        unsafe=dict(BEFORE)
+        del unsafe["results_seen"]
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,unsafe,deadline=DEADLINE)
+    def test_shuffled_exhibition_entry_is_valid_research(self):
+        rows=[dict(x) for x in BEFORE["start_exhibition"]]
+        rows[0]["exhibition_course"],rows[1]["exhibition_course"]=2,1
+        result=compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
+        self.assertEqual(result["status"],"bridged_unverified")
+        self.assertFalse(result["actual_entry_verified"])
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
