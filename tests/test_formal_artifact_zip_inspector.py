@@ -45,6 +45,11 @@ class DownloadedZipTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, digest)
 
+    def test_malformed_expected_digest(self):
+        code, digest, members, make_zip = self.sample()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, "g" * 64)
+
     def test_wrong_receipt_digest(self):
         code, digest, members, make_zip = self.sample()
         members["prospective_receipt.json"] = json.dumps(
