@@ -48,6 +48,22 @@ class SnapshotBridgeTests(unittest.TestCase):
         rec["probabilities"][first]=float("nan")
         with self.assertRaisesRegex(ValueError,"invalid probability"):
             draft(rec,filename_sha256="b"*64)
+    def test_reject_received_after_generation(self):
+        rec=self.record()
+        rec["source_received_at"]="2026-10-28T11:01:00+09:00"
+        with self.assertRaisesRegex(ValueError,"chronology"):
+            draft(rec,filename_sha256="b"*64)
+    def test_reject_generated_at_cutoff(self):
+        rec=self.record()
+        rec["generated_at"]=rec["cutoff_jst"]
+        with self.assertRaisesRegex(ValueError,"chronology"):
+            draft(rec,filename_sha256="b"*64)
+    def test_reject_invalid_race_identifier(self):
+        for code in ("202602301201","202610282501","202610281213"):
+            rec=self.record()
+            rec["race_code"]=code
+            with self.subTest(code=code),self.assertRaises(ValueError):
+                draft(rec,filename_sha256="b"*64)
     def test_missing_distribution_rejected(self):
         d=self.record()
         del d["probabilities"]
