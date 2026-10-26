@@ -87,6 +87,16 @@ class ResearchParserTests(unittest.TestCase):
             1).encode()
         self.assertEqual(len(research_start_exhibition(valid)["start_exhibition"]), 6)
 
+
+    def test_current_official_blank_six_rows(self):
+        from official_beforeinfo_research_parser import current_exhibition_is_blank
+        row = '<tr><td colspan="3"></td></tr>'
+        page = ('<table><thead><tr><th colspan="3">スタート展示</th></tr></thead>'
+                '<tbody>' + row * 6 + '</tbody></table>').encode()
+        self.assertTrue(current_exhibition_is_blank(page))
+        self.assertFalse(current_exhibition_is_blank(page.replace(row.encode(), b'<tr><td colspan="3">.08</td></tr>', 1)))
+        self.assertFalse(current_exhibition_is_blank(page.replace(b'</tbody>', row.encode() + b'</tbody>')))
+
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
                     fixture(st=""), fixture(st="L.08"), fixture(st="9.99"), fixture(st="08")):
