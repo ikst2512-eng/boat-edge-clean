@@ -95,7 +95,7 @@ def html_diagnostics(body):
     for row in scanner.row_candidates:
         if len(row["registrations"]) != 1:
             continue
-        found = re.match(r"^([1-6])\\s+(.+?)\\s+([0-9]+(?:\\.[0-9]+)?)kg\\s+([0-9]+\\.[0-9]{2})\\s+(-?[0-9]+\\.[0-9]+)(?:\\s|$)", row["text_sample"])
+        found = re.match(r"^([1-6])\s+(.+?)\s+([0-9]+(?:\.[0-9]+)?)kg\s+([0-9]+\.[0-9]{2})\s+(-?[0-9]+\.[0-9]+)(?:\s|$)", row["text_sample"])
         if found:
             lane = int(found.group(1))
             if lane in preview_values:
