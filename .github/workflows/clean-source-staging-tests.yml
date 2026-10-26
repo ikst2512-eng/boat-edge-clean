@@ -6,6 +6,8 @@ on:
       - test_clean_source_staging.py
       - clean_csv_staging.py
       - test_clean_csv_staging.py
+      - clean_source_comparison.py
+      - test_clean_source_comparison.py
       - .github/workflows/clean-source-staging-tests.yml
   workflow_dispatch:
 permissions:
@@ -19,4 +21,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify isolated staging safety
-        run: python -m unittest -v test_clean_source_staging test_clean_csv_staging
+        run: python -m unittest -v test_clean_source_staging test_clean_csv_staging test_clean_source_comparison
