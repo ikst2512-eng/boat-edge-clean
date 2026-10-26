@@ -1,5 +1,9 @@
 name: CLEAN external source diagnostic
 on:
+  pull_request:
+    paths:
+      - clean_live_source_probe.py
+      - .github/workflows/clean-external-source-probe.yml
   workflow_dispatch:
     inputs:
       date:
@@ -27,9 +31,9 @@ jobs:
           python-version: '3.12'
       - name: Probe external sources without storing response payloads
         env:
-          RACE_DATE: ${{ inputs.date }}
-          VENUE: ${{ inputs.venue }}
-          RACE: ${{ inputs.race }}
+          RACE_DATE: ${{ inputs.date || '20261026' }}
+          VENUE: ${{ inputs.venue || '12' }}
+          RACE: ${{ inputs.race || '1' }}
         run: |
           python clean_live_source_probe.py --date "$RACE_DATE" --venue "$VENUE" --race "$RACE" --output source-probe-report.json
       - name: Preserve diagnostic metadata only
