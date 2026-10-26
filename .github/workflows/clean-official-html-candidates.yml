@@ -21,3 +21,34 @@ jobs:
         run: |
           python -m py_compile clean_official_racelist_candidates.py test_clean_official_racelist_candidates.py
           python -m unittest -v test_clean_official_racelist_candidates
+
+      - name: Probe actual official HTML structure (diagnostic only)
+        continue-on-error: true
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from urllib.request import Request, urlopen
+          from clean_official_racelist_candidates import extract_six_candidates
+          url = 'https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261026&jcd=21&rno=1'
+          report = {'race_key': '20261026-21-01', 'status': 'unverified'}
+          try:
+              with urlopen(Request(url, headers={'User-Agent': 'BOAT-EDGE-CLEAN-RESEARCH/1.0'}), timeout=12) as response:
+                  raw = response.read(2_000_001)
+                  report['http_status'] = response.status
+                  report['bytes'] = len(raw)
+                  report['sha256'] = hashlib.sha256(raw).hexdigest()
+              if len(raw) > 2_000_000:
+                  raise ValueError('HTML too large')
+              result = extract_six_candidates(raw, url, report['race_key'])
+              report['candidate_count'] = len(result['racers'])
+              report['status'] = result['status']
+              report['official_provenance_verified'] = False
+          except Exception as exc:
+              report['status'] = 'blocked_unverified'
+              report['error_type'] = type(exc).__name__
+              report['error'] = str(exc)[:130]
+          print(json.dumps(report, ensure_ascii=False))
+          PY
