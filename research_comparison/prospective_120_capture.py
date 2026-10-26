@@ -17,6 +17,12 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
     """Create new forecast bytes only while both source and clock precede cutoff."""
     if not isinstance(race_code, str) or not re.fullmatch(r"20[0-9]{10}", race_code):
         raise ValueError("invalid race code")
+    if not (1 <= int(race_code[8:10]) <= 24 and 1 <= int(race_code[10:12]) <= 12):
+        raise ValueError("race venue or number out of range")
+    try:
+        datetime.strptime(race_code[:8], "%Y%m%d")
+    except ValueError as exc:
+        raise ValueError("invalid race calendar date") from exc
     if not isinstance(model_sha, str) or not SHA40.fullmatch(model_sha):
         raise ValueError("invalid model SHA")
     if not isinstance(input_sha256, str) or not SHA64.fullmatch(input_sha256):
