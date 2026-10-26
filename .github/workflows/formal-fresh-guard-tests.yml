@@ -10,6 +10,7 @@ on:
       - 'formal_v5_transport_adapter.py'
       - 'formal_actions_artifact_audit.py'
       - 'formal_artifact_zip_inspector.py'
+      - 'formal_github_artifact_reader.py'
       - 'tests/test_formal_*.py'
       - '.github/workflows/formal-fresh-guard-tests.yml'
   workflow_dispatch:
@@ -41,7 +42,8 @@ jobs:
           import formal_v5_transport_adapter
           import formal_actions_artifact_audit
           import formal_artifact_zip_inspector
-          for module in (formal_candidate_validator, formal_receipt_inspector, formal_git_history_audit, formal_v5_transport_adapter, formal_actions_artifact_audit, formal_artifact_zip_inspector):
+          import formal_github_artifact_reader
+          for module in (formal_candidate_validator, formal_receipt_inspector, formal_git_history_audit, formal_v5_transport_adapter, formal_actions_artifact_audit, formal_artifact_zip_inspector, formal_github_artifact_reader):
               src = inspect.getsource(module)
               assert '"formal_approved": True' not in src
               assert "'formal_approved': True" not in src
