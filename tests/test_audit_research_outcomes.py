@@ -3,11 +3,13 @@ import hashlib
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from scripts.audit_research_outcomes import audit
 
 class AuditTests(unittest.TestCase):
-    def test_missing_evidence_fail_closed_and_verified_fixture(self):
+    @patch('scripts.audit_research_outcomes.verify_first_add')
+    def test_missing_evidence_fail_closed_and_verified_fixture(self, git_verify):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"202610260101.json"
             snap={"race_code":"202610260101", "status":"research", "validated":False,
@@ -48,6 +50,11 @@ class AuditTests(unittest.TestCase):
             att["first_commit_membership_verified"] = True
             att["first_commit_introduction_verified"] = True
             att["remote_receipt_verified"] = True
+            git_verify.side_effect = lambda *_: {
+                "verified": True,
+                "first_added_blob_sha": att["first_added_blob_sha"],
+                "snapshot_sha256": att["snapshot_sha256"],
+            }
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3",
                      "result_source_id":"synthetic-fixture-only",
                      "result_confirmed_at":"2026-10-26T10:13:00+09:00"}
@@ -58,14 +65,15 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(unapproved["exclusion_reasons"]["missing_independent_manifest_approval"],1)
             self.assertEqual(audit(d,[att],[outcome],"0"*64)["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
-            self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["git_history_not_verified"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["metrics"]["top1"]["hits"],1)
             att["remote_receipt_verified"] = False
             self.assertEqual(
-                audit(d,[att],[outcome],digest())["exclusion_reasons"]["unverified_first_commit_or_remote_receipt"],1
+                audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["unverified_first_commit_or_remote_receipt"],1
             )
             att["remote_receipt_verified"] = True
             att["first_seen_at"] = "2026-10-26T08:58:00+09:00"
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["impossible_evidence_chronology"],1)
             att["first_seen_at"] = "2026-10-26T09:01:00+09:00"
             late_source=dict(snap)
             late_source["source_cards_received_jst"]="2026-10-26T09:01:00+09:00"
@@ -74,26 +82,26 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["impossible_evidence_chronology"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
             att["confirmed_trifecta"]="2-1-3"
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["result_attestation_mismatch"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["result_attestation_mismatch"],1)
             att["confirmed_trifecta"]="1-2-3"
             invalid_result=dict(outcome)
             invalid_result.pop("result_source_id")
-            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_provenance"],1)
+            self.assertEqual(audit(d,[att],[invalid_result],digest(),git_repo=d)["exclusion_reasons"]["missing_result_provenance"],1)
             invalid_result=dict(outcome)
             invalid_result.pop("result_confirmed_at")
-            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_confirmation_time"],1)
+            self.assertEqual(audit(d,[att],[invalid_result],digest(),git_repo=d)["exclusion_reasons"]["missing_result_confirmation_time"],1)
             invalid_result=dict(outcome)
             invalid_result["result_confirmed_at"]="2026-10-26T10:11:00+09:00"
-            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["result_confirmed_before_deadline"],1)
+            self.assertEqual(audit(d,[att],[invalid_result],digest(),git_repo=d)["exclusion_reasons"]["result_confirmed_before_deadline"],1)
             att["first_added_blob_sha"]="f"*40
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["first_added_blob_mismatch"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["first_added_blob_mismatch"],1)
             att["first_added_blob_sha"]=hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
@@ -104,7 +112,7 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["input_hash_inconsistent"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["input_hash_inconsistent"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
             att["first_added_blob_sha"] = hashlib.sha1(
@@ -117,19 +125,19 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"]=hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["missing_frozen_model_or_input_hash"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["missing_frozen_model_or_input_hash"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
             att["first_added_blob_sha"]=hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
             att["first_seen_at"]="2026-10-26T10:01:00+09:00"
-            report=audit(d,[att],[outcome],digest())
+            report=audit(d,[att],[outcome],digest(),git_repo=d)
             self.assertEqual(report["valid_count"],0)
             self.assertEqual(report["exclusion_reasons"]["receipt_after_cutoff"],1)
             att["first_seen_at"]="2026-10-26T09:01:00+09:00"
             p.write_text(p.read_text()+" ")
-            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["snapshot_hash_mismatch"],1)
+            self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["snapshot_hash_mismatch"],1)
 
 if __name__=="__main__":
     unittest.main()
