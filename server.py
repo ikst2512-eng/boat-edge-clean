@@ -170,7 +170,8 @@ def get_predictions(params):
         payload = json.loads(source.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("bad feed")
-        key = hd + "-" + jcd + "-" + rno
+        # Canonical stored race keys use a two-digit race number.
+        key = f"{hd}-{jcd}-{int(rno):02d}"
         record = payload.get(key)
         if not isinstance(record, dict):
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "選択したレースの予想データはありません。"}
