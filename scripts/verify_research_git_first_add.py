@@ -25,6 +25,9 @@ def verify_first_add(repo, race_code, commit_sha, trusted_ref="refs/heads/main")
         raise ValueError("trusted ref must be a full branch ref")
     path = "research_snapshots/" + race_code + ".json"
     try:
+        # In a shallow clone, missing ancestors can make a re-add look original.
+        if git(repo, "rev-parse", "--is-shallow-repository").strip() != b"false":
+            return {"verified": False, "reason": "incomplete_git_history"}
         git(repo, "merge-base", "--is-ancestor", commit_sha, trusted_ref)
         added = git(repo, "diff-tree", "--root", "--no-commit-id", "-r",
                     "--name-only", "--diff-filter=A", commit_sha, "--", path).decode().splitlines()
