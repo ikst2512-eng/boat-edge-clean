@@ -85,6 +85,9 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if not att:
                 exclusions["missing_independent_attestation"] += 1
                 continue
+            if not authorized:
+                exclusions["missing_independent_manifest_approval"] += 1
+                continue
             if not all(att.get(k) is True for k in REQUIRED_EVIDENCE):
                 exclusions["unverified_provenance_or_result"] += 1
                 continue
