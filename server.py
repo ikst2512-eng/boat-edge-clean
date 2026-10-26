@@ -179,17 +179,8 @@ def get_predictions(params):
         record = payload.get(key)
         if not isinstance(record, dict):
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "選択したレースの予想データはありません。"}
-        raw = record.get("predictions")
-        if not isinstance(raw, list) or len(raw) < 10:
-            raise ValueError("fewer than 10 predictions")
-        tickets = []
-        for item in raw[:10]:
-            ticket = item.get("ticket") if isinstance(item, dict) else None
-            if not isinstance(ticket, str) or not re.fullmatch(r"[1-6]-[1-6]-[1-6]", ticket):
-                raise ValueError("invalid ticket")
-            if len(set(ticket.split("-"))) != 3 or ticket in tickets:
-                raise ValueError("duplicate ticket")
-            tickets.append(ticket)
+        # Candidate structure is audited offline by the independent verifier.
+        # While public Formal Fresh is locked, do not parse or rank feed tickets.
         # Formal Fresh is LOCKED until an independent, immutable pre-deadline
         # artifact verifier is connected. A feed-controlled `validated: true`
         # flag and a timestamp are not evidence of pre-result provenance.
