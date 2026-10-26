@@ -9,7 +9,7 @@ JST = timezone(timedelta(hours=9))
 KEY = re.compile(r"20[0-9]{6}-(?:0[1-9]|1[0-9]|2[0-4])-(?:0[1-9]|1[0-2])")
 DIGEST = re.compile(r"[a-f0-9]{64}")
 
-def compare_capture_identity(racelist, beforeinfo, *, deadline):
+def compare_capture_identity(racelist, beforeinfo, *, deadline, official_receipt=None):
     if not isinstance(racelist, dict) or not isinstance(beforeinfo, dict):
         raise ValueError("missing provenance")
     race_key = racelist.get("race_key")
@@ -39,7 +39,22 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
         raise ValueError("unsafe racelist provenance promotion")
     if beforeinfo.get("status") != "research_unverified":
         raise ValueError("beforeinfo research unavailable")
-    if any(beforeinfo.get(flag) is not False for flag in ("results_seen", "unlock", "scoring")):
+    # PR #15 parser omits lock flags; trust only separately validated
+    # immutable receipt metadata, never infer missing flags as False.
+    if official_receipt is None:
+        lock_source = beforeinfo
+    else:
+        if not isinstance(official_receipt, dict):
+            raise ValueError("invalid official receipt")
+        if (official_receipt.get("status") != "raw_html_only"
+                or official_receipt.get("race_key") != race_key
+                or official_receipt.get("sha256") != beforeinfo.get("raw_sha256")
+                or official_receipt.get("fetched_at") != beforeinfo.get("captured_at")):
+            raise ValueError("receipt/parser provenance mismatch")
+        if official_receipt.get("verified_preview") is not False or official_receipt.get("actual_entry_verified") is not False:
+            raise ValueError("unsafe receipt promotion")
+        lock_source = official_receipt
+    if any(lock_source.get(flag) is not False for flag in ("results_seen", "unlock", "scoring")):
         raise ValueError("missing or unsafe research isolation flags")
     if beforeinfo.get("verified_preview") is not False or beforeinfo.get("actual_entry_verified") is not False:
         raise ValueError("unsafe promotion flags")
