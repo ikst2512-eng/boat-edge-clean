@@ -26,6 +26,22 @@ class NoAuthCrossHostRedirect(HTTPRedirectHandler):
         return Request(newurl, headers={"User-Agent": "boat-edge-clean-formal-audit/1.0"})
 
 
+def _strict_metadata_json(raw):
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise InvalidCandidate("duplicate GitHub metadata key")
+            result[key] = value
+        return result
+    def reject_nonfinite(value):
+        raise InvalidCandidate("nonfinite GitHub metadata")
+    try:
+        return json.loads(raw, object_pairs_hook=unique_pairs, parse_constant=reject_nonfinite)
+    except (ValueError, UnicodeError) as exc:
+        raise InvalidCandidate("invalid GitHub metadata JSON") from exc
+
+
 def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     if type(run_id) is not int or run_id <= 0 or type(artifact_id) is not int or artifact_id <= 0:
         raise InvalidCandidate("run/artifact IDs must be positive integers")
@@ -46,8 +62,8 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
             raise InvalidCandidate("GitHub response oversized")
         return data
     try:
-        run = json.loads(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
-        listing = json.loads(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
+        run = _strict_metadata_json(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
+        listing = _strict_metadata_json(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
     except (ValueError, UnicodeError) as exc:
         raise InvalidCandidate("malformed GitHub metadata") from exc
     if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] != run_id:
