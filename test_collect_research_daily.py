@@ -1,5 +1,5 @@
 """Daily collector smoke tests, all network reads mocked."""
-import json, tempfile, unittest
+import json, tempfile, unittest, hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -22,6 +22,10 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(len(saved),1)
   record=json.loads(saved[0].read_text())
   self.assertEqual(len(record["predictions"]),10)
+  self.assertEqual(record["source_title_sha256"],"a"*64)
+  self.assertEqual(record["source_cards_sha256"],"b"*64)
+  self.assertEqual(record["input_sha256"],hashlib.sha256(("a"*64+":"+"b"*64).encode("ascii")).hexdigest())
+  self.assertEqual(record["model_git_sha"],"a"*40)
   self.assertEqual(record["source_deadline_jst"],datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST).isoformat())
   self.assertEqual(datetime.fromisoformat(record["source_deadline_jst"])-datetime.fromisoformat(record["cutoff_jst"]),timedelta(minutes=12))
   with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([self.card],start,"b"*64)]):
