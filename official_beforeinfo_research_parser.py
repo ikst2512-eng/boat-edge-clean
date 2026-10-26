@@ -74,3 +74,14 @@ def research_start_exhibition(raw):
     return {"status": "research_unverified", "source": "historical_css_layout",
             "actual_entry_verified": False, "verified_preview": False,
             "start_exhibition": records}
+
+
+def research_saved_start_exhibition(directory, race_key, digest, *, deadline):
+    """Research parser entry point: archived official bytes must pass readback first."""
+    from official_prerace_capture import read_raw_receipt
+    receipt, raw = read_raw_receipt(directory, race_key, digest, deadline=deadline)
+    result = research_start_exhibition(raw)
+    result["race_key"] = receipt["race_key"]
+    result["raw_sha256"] = receipt["sha256"]
+    result["captured_at"] = receipt["fetched_at"]
+    return result
