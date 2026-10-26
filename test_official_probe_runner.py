@@ -1,6 +1,8 @@
 import tempfile
 import json
 from pathlib import Path
+from datetime import datetime, timedelta
+from official_prerace_capture import capture_beforeinfo, JST
 import unittest
 from unittest.mock import patch
 from run_official_prerace_probe import run
@@ -14,6 +16,32 @@ class ProbeRunnerTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         run("20261027-12-01", bad, directory)
             capture.assert_not_called()
+
+    def test_real_archive_roundtrip_with_mocked_transport(self):
+        """Exercise real hashing, archival, readback and diagnosis without network."""
+        now = datetime(2026, 10, 27, 14, 50, tzinfo=JST)
+        deadline = now + timedelta(minutes=10)
+        class Response:
+            status = 200
+            headers = {"Content-Type": "text/html"}
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, size):
+                return "<html><body><h3>展示タイム</h3></body></html>".encode("utf-8")
+        def capture(key, cutoff):
+            return capture_beforeinfo(key, cutoff, now=now, completed_at=now,
+                                      opener=lambda *args, **kwargs: Response())
+        with patch("run_official_prerace_probe.capture_beforeinfo", side_effect=capture):
+            with tempfile.TemporaryDirectory() as directory:
+                result = run("20261027-12-01", deadline.isoformat(), directory)
+                evidence = list(Path(directory).iterdir())
+                self.assertEqual({p.suffix for p in evidence}, {".html", ".json", ".complete"})
+                self.assertEqual(len(evidence), 4)
+                manifest = Path(directory) / ("20261027-12-01-" + result["receipt_sha256"] + ".manifest.json")
+                self.assertEqual(json.loads(manifest.read_text()), result)
+                self.assertEqual(result["diagnostic"]["status"], "inspection_only")
+                self.assertTrue(result["diagnostic"]["sections_present"]["exhibition_time"])
+                self.assertFalse(result["diagnostic"]["verified_preview"])
 
     def test_evidence_is_not_reported_as_verified(self):
         with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64}, b"html")), \
