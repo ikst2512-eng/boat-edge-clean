@@ -12,6 +12,14 @@ on:
       - 'test_research_capture_workflow.py'
       - '.github/workflows/daily-research-forecast.yml'
       - '.github/workflows/research-forecast-tests.yml'
+  pull_request:
+    paths:
+      - 'research_model.py'
+      - 'server.py'
+      - 'collect_research_daily.py'
+      - 'test_research_capture_workflow.py'
+      - '.github/workflows/daily-research-forecast.yml'
+      - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:
 jobs:
   research-tests:
