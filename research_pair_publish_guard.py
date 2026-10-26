@@ -28,6 +28,10 @@ def eligible_paths(folder, day, now=None):
         source = datetime.fromisoformat(row["source_snapshot_generated_at"])
         if any(x.tzinfo is None or x.utcoffset() is None for x in (cutoff,frozen,source)):
             raise ValueError("naive timestamp")
+        if source > frozen:
+            raise ValueError("source generated after forecast freeze")
+        if frozen > now:
+            raise ValueError("forecast freeze timestamp in the future")
         if max(now,frozen,source) >= cutoff:
             raise ValueError("pair already at/past cutoff")
         if row.get("status") != "research_unvalidated" or row.get("prospective_verified") is not False:
