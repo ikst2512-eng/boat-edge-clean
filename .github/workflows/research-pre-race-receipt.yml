@@ -38,7 +38,13 @@ jobs:
           assert u.scheme=="https" and u.hostname and not u.username and not u.password and u.port is None and not u.fragment, "unsafe URL"
           allowed={"www.boatrace.jp","boaters-boatrace.com","www.boaters-boatrace.com","v-select.jp","www.v-select.jp"}
           assert u.hostname in allowed, "source domain not allowlisted"
-          # Race ID must also be checked against page content before using it for model input.
+          # Fail closed on wrong race URL: only official beforeinfo with explicit race coordinates.
+          query=urllib.parse.parse_qs(u.query,keep_blank_values=True)
+          assert u.hostname=="www.boatrace.jp" and u.path=="/owpc/pc/race/beforeinfo", "source route not verified for identity"
+          assert query.get("hd")==[rid[:8]] and query.get("jcd")==[rid[8:10]] and query.get("rno")==[str(int(rid[10:12]))], "URL race identity mismatch"
+          assert set(query)=={"hd","jcd","rno"}, "unexpected URL parameters"
+          # URL identity is necessary, not proof of page identity or populated exhibition.
+
           before=dt.datetime.now(dt.timezone.utc)
           remaining=(cutoff.astimezone(dt.timezone.utc)-before).total_seconds()
           assert 720 < remaining <=1200, "outside 20-to-12-minute cutoff window"
