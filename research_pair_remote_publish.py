@@ -21,15 +21,12 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
     if any(not (line.startswith(allowed_prefix) and line.endswith(".json"))
            for line in changes):
         raise ValueError("unrelated working-tree changes prevent research push")
-    paths=eligible_paths(folder,day,datetime.now(JST))
-    if not paths:
-        raise ValueError("no eligible paired forecasts to publish")
     head=_git("rev-parse","HEAD")
-    # Receipt auditor only certifies files added in this HEAD commit.
     added=set(_git("diff-tree","--root","--no-commit-id","--name-only",
                    "--diff-filter=A","-r",head).splitlines())
-    if not added or not added.issubset(set(paths)):
-        raise ValueError("HEAD added pair files not in cutoff-eligible batch")
+    if not added:
+        raise ValueError("HEAD has no newly added paired forecast")
+    paths=eligible_paths(folder,day,datetime.now(JST),only_paths=added)
     changes=set(_git("diff-tree","--root","--no-commit-id","--name-only",
                      "-r",head).splitlines())
     if changes != added:
@@ -40,7 +37,7 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
         if committed != current:
             raise ValueError("eligible pair not committed at HEAD")
     if not dry_run:
-        eligible_paths(folder,day,datetime.now(JST))
+        eligible_paths(folder,day,datetime.now(JST),only_paths=added)
         subprocess.run(["git","push","origin",f"HEAD:refs/heads/{BRANCH}"],check=True)
         remote=_git("ls-remote","origin",f"refs/heads/{BRANCH}").split()
         if len(remote) != 2 or remote[0] != head:
