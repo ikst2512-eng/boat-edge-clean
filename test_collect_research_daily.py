@@ -26,7 +26,8 @@ class CollectorTests(unittest.TestCase):
  def test_missing_card(self):
   start=datetime.now(JST)
   with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start),([],start)]):
-   with self.assertRaisesRegex(ValueError,"race card source is empty"):\n    collector.collect(self.day)
+   with self.assertRaisesRegex(ValueError,"race card source is empty"):
+    collector.collect(self.day)
    self.assertFalse(list(self.store.glob("*.json")))
  def test_empty_titles_rejected(self):
   with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([],datetime.now(JST)),([self.card],datetime.now(JST))]):
