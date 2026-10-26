@@ -57,6 +57,7 @@ class GitPrepareTests(unittest.TestCase):
             calls=[0]
             def git(*args):
                 if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
+                if args[0]=="ls-files": return str(pair)
                 if args[:3]==("diff","--cached","--name-only"):
                     if "--diff-filter=A" in args: return ""
                     calls[0]+=1
