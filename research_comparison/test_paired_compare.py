@@ -15,7 +15,12 @@ class PairedComparisonTests(unittest.TestCase):
         return {"race_key":"r1","deadline":"2026-10-28T13:00:00+09:00",
                 "input_sha256":"b"*64,"research_outcome_access_approved":True,
                 "outcome_independently_verified":True,"candidate_pre_registered":True,
-                "result":"1-2-3","forecasts":{"a":base,"b":dict(copy.deepcopy(base),model_id="b")}}
+                "result":"1-2-3",
+                "pre_registration":{"baseline_model_id":"a","candidate_model_id":"b",
+                    "baseline_model_sha":"a"*40,"candidate_model_sha":"a"*40,
+                    "registered_at":"2026-10-28T11:50:00+09:00",
+                    "receipt_verified_independently":True},
+                "forecasts":{"a":base,"b":dict(copy.deepcopy(base),model_id="b")}}
     def test_model_probability_inputs_are_independent(self):
         row=self.row()
         self.assertIsNot(row["forecasts"]["a"]["probabilities"],
@@ -60,6 +65,14 @@ class PairedComparisonTests(unittest.TestCase):
     def test_generated_after_first_freeze_rejected(self):
         r=self.row()
         r["forecasts"]["b"]["generated_at"]="2026-10-28T12:01:00+09:00"
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_unbound_registration_rejected(self):
+        r=self.row()
+        r["pre_registration"]["candidate_model_sha"]="d"*40
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_registration_after_forecast_rejected(self):
+        r=self.row()
+        r["pre_registration"]["registered_at"]="2026-10-28T12:01:00+09:00"
         self.assertEqual(compare([r],"a","b")["eligible_races"],0)
     def test_unapproved_outcome_rejected(self):
         r=self.row()
