@@ -13,6 +13,7 @@ class DownloadedZipTests(unittest.TestCase):
     def sample(self):
         code = "202610280101"
         candidate = {"race_code": code, "deadline_at": "2026-10-28T09:15:00+09:00",
+                     "generated_at": "2026-10-28T09:00:00+09:00",
                      "source_snapshot_sha256": "a" * 64,
                      "probabilities": {"-".join(t): 1/120 for t in permutations("123456", 3)}}
         raw = json.dumps(candidate).encode()
@@ -85,6 +86,28 @@ class DownloadedZipTests(unittest.TestCase):
         code, digest, members, make_zip = self.sample()
         receipt = json.loads(members["prospective_receipt.json"])
         receipt["source_snapshot_sha256"] = "b" * 64
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
+    def test_runner_time_before_generation(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["runner_recorded_at"] = "2026-10-28T08:59:00+09:00"
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
+    def test_source_digest_malformed(self):
+        code, digest, members, make_zip = self.sample()
+        candidate = json.loads(members[f"prospective_candidates/{code}.json"])
+        candidate["source_snapshot_sha256"] = "g" * 64
+        raw = json.dumps(candidate).encode()
+        members[f"prospective_candidates/{code}.json"] = raw
+        digest = hashlib.sha256(raw).hexdigest()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["candidate_sha256"] = digest
+        receipt["source_snapshot_sha256"] = "g" * 64
         members["prospective_receipt.json"] = json.dumps(receipt).encode()
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, digest)
