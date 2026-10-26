@@ -1,5 +1,9 @@
 import unittest
-from official_beforeinfo_research_parser import research_start_exhibition
+import tempfile
+from pathlib import Path
+from datetime import datetime, timedelta
+from official_prerace_capture import capture_beforeinfo, save_raw_receipt, JST
+from official_beforeinfo_research_parser import research_start_exhibition, research_saved_start_exhibition
 
 def fixture(order=(1, 2, 3, 4, 5, 6), st=".08"):
     return ("<html><body>" + "".join(
@@ -19,6 +23,31 @@ class ResearchParserTests(unittest.TestCase):
     def test_st_forms(self):
         for st, target in (("F.04", -.04), ("0.08", .08), (".08", .08)):
             self.assertAlmostEqual(research_start_exhibition(fixture(st=st))["start_exhibition"][0]["exhibition_st"], target)
+
+    def test_archived_receipt_provenance_and_tamper_rejection(self):
+        now = datetime(2026, 10, 27, 14, 50, tzinfo=JST)
+        deadline = now + timedelta(minutes=10)
+        raw = fixture((2,1,3,4,6,5))
+        class Response:
+            status = 200
+            headers = {"Content-Type": "text/html"}
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, n): return raw
+        receipt, data = capture_beforeinfo("20261027-12-01", deadline,
+            now=now, completed_at=now, opener=lambda *args, **kwargs: Response())
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_raw_receipt(receipt, data, directory, deadline=deadline)
+            result = research_saved_start_exhibition(directory, receipt["race_key"],
+                receipt["sha256"], deadline=deadline)
+            self.assertEqual(result["race_key"], receipt["race_key"])
+            self.assertEqual(result["raw_sha256"], receipt["sha256"])
+            self.assertFalse(result["actual_entry_verified"])
+            self.assertEqual(result["start_exhibition"][0]["boat_number"], 2)
+            Path(paths[0]).write_bytes(b"tampered")
+            with self.assertRaises(ValueError):
+                research_saved_start_exhibition(directory, receipt["race_key"],
+                    receipt["sha256"], deadline=deadline)
 
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
