@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from paired_compare import TICKETS, timestamp
+from research_model import probabilities as baseline_probabilities
 
 def inspect_pair(pair, source_snapshot_bytes=None):
     reasons=[]
@@ -58,6 +59,15 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                 if isinstance(baseline,dict) and set(baseline)==TICKETS:
                     if original.get("predictions") != sorted(TICKETS,key=lambda t:(-baseline[t],t))[:10]:
                         reasons.append("source snapshot Top10 differs from baseline")
+                try:
+                    expected={"-".join(map(str,t)):v for t,v in
+                              baseline_probabilities(original["national_win_rates"])}
+                    if not isinstance(baseline,dict) or set(baseline)!=TICKETS or any(
+                        type(baseline[k]) not in (int,float) or not math.isfinite(baseline[k])
+                        or abs(baseline[k]-v)>1e-10 for k,v in expected.items()):
+                        reasons.append("source snapshot baseline full-120 replay mismatch")
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    reasons.append("source snapshot baseline replay unavailable")
                 if original.get("status")!="research" or original.get("validated") is not False:
                     reasons.append("source snapshot not unvalidated research")
                 if (digest==pair.get("source_snapshot_sha256") and original.get("race_code")==code
