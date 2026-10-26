@@ -49,6 +49,13 @@ class InspectionTests(unittest.TestCase):
         self.assertFalse(result["sections_present"]["exhibition_time"])
         self.assertEqual(result["status"], "inspection_only")
 
+    def test_head_metadata_does_not_claim_visible_exhibition(self):
+        raw = "<html><head><title>展示タイム・チルト</title></head><body><p>未公開</p></body></html>".encode()
+        result = inspect_beforeinfo_html(RECEIPT, raw)
+        self.assertFalse(result["sections_present"]["exhibition_time"])
+        self.assertFalse(result["sections_present"]["tilt"])
+        self.assertFalse(result["verified_preview"])
+
     def test_saved_inspection_requires_complete_verified_receipt(self):
         now = datetime(2026, 10, 27, 14, 55, tzinfo=JST)
         deadline = now + timedelta(minutes=5)
