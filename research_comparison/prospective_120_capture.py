@@ -1,5 +1,7 @@
 """Isolated prospective 120-way research capture; never imports results or Formal Fresh."""
 import argparse
+import csv
+import io
 import hashlib
 import json
 import os
@@ -34,7 +36,31 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
     composite = hashlib.sha256((title_sha256 + ":" + cards_sha256).encode("ascii")).hexdigest()
     if composite != input_sha256:
         raise ValueError("source CSV bytes do not match declared composite input SHA256")
+    def unique_source_row(raw, label):
+        try:
+            rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+        except UnicodeDecodeError as exc:
+            raise ValueError("invalid source CSV encoding") from exc
+        matching = [row for row in rows if row.get("レースコード") == race_code]
+        if len(matching) != 1:
+            raise ValueError("source CSV race is missing or ambiguous: " + label)
+        return matching[0]
+    title_row = unique_source_row(title_bytes, "title")
+    card_row = unique_source_row(cards_bytes, "race_cards")
+    try:
+        actual_rates = [float(card_row[f"艇{i}_全国勝率"]) for i in range(1, 7)]
+    except (KeyError, ValueError, TypeError) as exc:
+        raise ValueError("missing or invalid six rates in source CSV") from exc
+    if len(rates) != 6 or any(type(rate) not in (int, float) or rate != actual
+                               for rate, actual in zip(rates, actual_rates)):
+        raise ValueError("provided rates differ from source CSV")
+    try:
+        official_cutoff = datetime.strptime(race_code[:8] + title_row["電話投票締切予定"], "%Y%m%d%H:%M").replace(tzinfo=JST)
+    except (KeyError, ValueError) as exc:
+        raise ValueError("invalid deadline in title CSV") from exc
     cutoff = datetime.fromisoformat(cutoff_jst)
+    if cutoff != official_cutoff - timedelta(minutes=12):
+        raise ValueError("cutoff differs from title CSV 12-minute safety cutoff")
     received = datetime.fromisoformat(source_received_at)
     if any(t.tzinfo is None or t.utcoffset() is None for t in (cutoff,received)):
         raise ValueError("timezone required")
