@@ -9,6 +9,16 @@ class LiveReceiptTests(unittest.TestCase):
                       "/repos/ikst2512-eng/boat-edge-clean/results/latest"):
             with self.assertRaises(ValueError):
                 fetch_github(route)
+    def test_rejects_api_path_suffix_injection(self):
+        bad=(
+            "/repos/ikst2512-eng/boat-edge-clean/git/blobs/"+"a"*40+"/extra",
+            "/repos/ikst2512-eng/boat-edge-clean/git/commits/"+"a"*40+"?ref=main",
+            "/repos/ikst2512-eng/boat-edge-clean/git/trees/"+"a"*40+"?recursive=0",
+            "/repos/ikst2512-eng/boat-edge-clean/actions/runs/99/attempts",
+        )
+        for route in bad:
+            with self.subTest(route=route),self.assertRaises(ValueError):
+                fetch_github(route)
     def test_live_audit_never_allows_scoring(self):
         with patch("github_live_receipt.verify",return_value={"ready_for_scoring":False,"status":"SERVER_PUSH_AND_COMMIT_BLOB_MATCH"}):
             report=audit_live(branch="research/paired",commit="a"*40,path="research_prospective_pairs/202610281201.json",
