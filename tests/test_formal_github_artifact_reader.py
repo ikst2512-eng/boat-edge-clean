@@ -1,5 +1,7 @@
 """No-network tests for read-only GitHub artifact reader guardrails."""
 import unittest
+import json
+from unittest.mock import patch
 from formal_candidate_validator import InvalidCandidate
 from formal_github_artifact_reader import audit, NoAuthCrossHostRedirect
 from urllib.request import Request
@@ -13,6 +15,39 @@ class GitHubReaderTests(unittest.TestCase):
     def test_invalid_id_fails(self):
         with self.assertRaises(InvalidCandidate):
             audit(True, 456, "202610280101", "a" * 64, "fake")
+
+    def test_downloaded_receipt_cannot_cross_run(self):
+        class Opener:
+            def open(self, req, timeout):
+                class Response:
+                    def __init__(self, data):
+                        self.data = data
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return self.data
+                url = req.full_url
+                if url.endswith("/actions/runs/123"):
+                    data = {"id": 123, "run_attempt": 1, "status": "completed",
+                            "conclusion": "success", "event": "repository_dispatch"}
+                elif "/artifacts?per_page=100" in url:
+                    data = {"total_count": 1, "artifacts": [{"id": 456,
+                            "workflow_run": {"id": 123}, "name": "prospective-v5-123",
+                            "expired": False, "size_in_bytes": 200,
+                            "created_at": "2026-10-28T09:02:00+09:00"}]}
+                else:
+                    return Response(b"fake zip")
+                return Response(json.dumps(data).encode())
+        mismatched = {"downloaded_bytes_consistent": True,
+                      "workflow_run_id": 999, "workflow_attempt": 1,
+                      "generated_at": "2026-10-28T09:00:00+09:00",
+                      "deadline_at": "2026-10-28T09:15:00+09:00"}
+        with patch("formal_github_artifact_reader.inspect_downloaded_artifact",
+                   return_value=mismatched):
+            with self.assertRaises(InvalidCandidate):
+                audit(123, 456, "202610280101", "a" * 64, "fake", opener=Opener())
 
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
