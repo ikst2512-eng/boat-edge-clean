@@ -1,0 +1,53 @@
+name: Manual research pair capture (isolated)
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'JST date YYYYMMDD'
+        required: true
+        type: string
+      publish:
+        description: 'Explicitly commit and push research pairs (never main)'
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: manual-research-pair-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.ref == 'refs/heads/research/paired-hit-evaluation-20261027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/paired-hit-evaluation-20261027
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate manual run and record branch identity
+        env:
+          DAY: ${{ inputs.day }}
+        run: |
+          [[ "$DAY" =~ ^[0-9]{8}$ ]] || { echo "Invalid YYYYMMDD"; exit 1; }
+          test "$(git branch --show-current)" = research/paired-hit-evaluation-20261027
+      - name: Capture with explicit opt-in publication
+        env:
+          DAY: ${{ inputs.day }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [ "$PUBLISH" = true ]; then
+            python research_pair_pipeline.py --day "$DAY" --commit --push
+          else
+            python research_pair_pipeline.py --day "$DAY"
+          fi
+      - name: Report safety boundary
+        if: always()
+        run: |
+          echo 'No official Fresh or production API writes are requested.'
+          echo 'A successful workflow does not itself establish pre-cutoff GitHub receipt or model accuracy.'
