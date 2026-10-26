@@ -71,6 +71,29 @@ class ProbeRunnerTests(unittest.TestCase):
                 self.assertEqual([row["boat_number"] for row in parsed["start_exhibition"]], [2,1,3,4,6,5])
                 self.assertEqual(parsed["raw_sha256"], result["receipt_sha256"])
 
+    def test_malformed_research_rows_rejected(self):
+        receipt = {"sha256": "a" * 64, "source": "official", "fetched_at": "2026-10-27T14:55:00+09:00"}
+        diagnostic = {"race_key": "20261027-12-01", "status": "inspection_only",
+                      "verified_preview": False, "actual_entry_verified": False,
+                      "racers": [], "start_exhibition": []}
+        rows = [{"boat_number": i, "exhibition_course": i, "exhibition_st": .08} for i in range(1, 7)]
+        for malformed in ({"boat_number": True}, {"exhibition_st": "0.08"}, {"exhibition_st": float("nan")}):
+            changed = [dict(row) for row in rows]
+            changed[0].update(malformed)
+            research = {"status": "research_unverified", "race_key": "20261027-12-01",
+                        "raw_sha256": receipt["sha256"], "captured_at": receipt["fetched_at"],
+                        "verified_preview": False, "actual_entry_verified": False,
+                        "start_exhibition": changed}
+            with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \
+                 patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \
+                 patch("run_official_prerace_probe.read_raw_receipt"), \
+                 patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=diagnostic), \
+                 patch("run_official_prerace_probe.research_saved_start_exhibition", return_value=research):
+                with tempfile.TemporaryDirectory() as directory:
+                    with self.assertRaises(ValueError):
+                        run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
+                    self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_research_result_wrong_race_is_rejected_before_manifest(self):
         receipt = {"sha256": "a" * 64, "source": "official", "fetched_at": "2026-10-27T14:55:00+09:00"}
         diagnostic = {"race_key": "20261027-12-01", "status": "inspection_only",
