@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
-from official_prerace_capture import capture_beforeinfo, save_raw_receipt, JST
+from official_prerace_capture import capture_beforeinfo, save_raw_receipt, read_raw_receipt, JST
 
 class Response:
     status = 200
@@ -61,6 +61,24 @@ class CaptureTests(unittest.TestCase):
                 save_raw_receipt({**receipt, "unlock": True}, raw, directory)
             with self.assertRaises(ValueError):
                 save_raw_receipt(receipt, b"altered", directory)
+    def test_completed_receipt_read_and_tamper_rejection(self):
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_raw_receipt(receipt, raw, directory)
+            self.assertEqual(read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])[1], raw)
+            marker = Path(paths[0]).with_suffix(".complete")
+            marker.unlink()
+            with self.assertRaises(FileNotFoundError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+            marker.write_bytes(receipt["sha256"].encode("ascii") + bytes([10]))
+            Path(paths[0]).write_bytes(b"tampered")
+            with self.assertRaises(ValueError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+            Path(paths[0]).write_bytes(raw)
+            Path(paths[1]).write_text(json.dumps({**receipt, "source": "https://example.com"}))
+            with self.assertRaises(ValueError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+
     def test_lock_rejects_concurrent_writer(self):
         receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
