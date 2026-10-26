@@ -12,9 +12,9 @@ class ProspectiveCaptureTests(unittest.TestCase):
         target=now+timedelta(days=1)
         date=target.strftime("%Y%m%d")
         cutoff=target.replace(hour=12,minute=0,second=0,microsecond=0)
-        title=("レースコード,電話投票締切予定\\n"+date+"1201,12:12\\n").encode("utf-8")
+        title=("レースコード,電話投票締切予定\n"+date+"1201,12:12\n").encode("utf-8")
         cards=("レースコード,"+",".join(f"艇{i}_全国勝率" for i in range(1,7))+
-               "\\n"+date+"1201,"+",".join(["5.0"]*6)+"\\n").encode("utf-8")
+               "\n"+date+"1201,"+",".join(["5.0"]*6)+"\n").encode("utf-8")
         digest=hashlib.sha256((hashlib.sha256(title).hexdigest()+":"+
                                hashlib.sha256(cards).hexdigest()).encode("ascii")).hexdigest()
         return dict(race_code=date+"1201",rates=[5.0]*6,
