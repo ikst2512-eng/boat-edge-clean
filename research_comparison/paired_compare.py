@@ -156,7 +156,7 @@ def ece(pairs, prefix, bins=10):
     return total
 
 def compare(rows, baseline, candidate):
-    pairs, excluded = collect(rows, baseline, candidate)
+    if baseline == candidate:\n        raise ValueError("distinct baseline and candidate required")\n    pairs, excluded = collect(rows, baseline, candidate)
     output = {"status":"INSUFFICIENT_EVIDENCE", "baseline":baseline, "candidate":candidate,
               "eligible_races":len(pairs), "excluded_races":sum(excluded.values()),
               "exclusion_reasons":excluded,
@@ -197,7 +197,7 @@ def compare(rows, baseline, candidate):
         metrics[name]["holm_adjusted_p"] = maximum
     output["multiple_comparison_method"] = "Holm step-down across six paired endpoints; ECE descriptive"
     output["metrics"] = metrics
-    output["status"] = "RESEARCH_ONLY_NOT_PROMOTED"
+    output["status"] = "RESEARCH_ONLY_NOT_PROMOTED" if len(pairs) >= 30 else "INSUFFICIENT_EVIDENCE"\n    output["minimum_exploratory_sample"] = 30\n    output["sample_size_warning"] = ("Small paired sample: inferential intervals and p-values are exploratory only."\n                                     if len(pairs) < 30 else "Sample count alone does not establish independent prospective evidence.")
     output["warning"] += " CI, p-values and ECE do not establish prospective improvement without audited pre-registration and independent receipts."
     return output
 
