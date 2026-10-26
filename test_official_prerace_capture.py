@@ -54,12 +54,22 @@ class CaptureTests(unittest.TestCase):
             paths = save_raw_receipt(receipt, raw, directory)
             self.assertEqual(Path(paths[0]).read_bytes(), raw)
             self.assertEqual(json.loads(Path(paths[1]).read_text())["sha256"], receipt["sha256"])
+            self.assertEqual(len(list(Path(directory).glob("*.complete"))), 1)
             with self.assertRaises(FileExistsError):
                 save_raw_receipt(receipt, raw, directory)
             with self.assertRaises(ValueError):
                 save_raw_receipt({**receipt, "unlock": True}, raw, directory)
             with self.assertRaises(ValueError):
                 save_raw_receipt(receipt, b"altered", directory)
+    def test_lock_rejects_concurrent_writer(self):
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        with tempfile.TemporaryDirectory() as directory:
+            lock = Path(directory) / (receipt["race_key"] + "-" + receipt["sha256"] + ".lock")
+            lock.touch()
+            with self.assertRaises(FileExistsError):
+                save_raw_receipt(receipt, raw, directory)
+            self.assertEqual(list(Path(directory).glob("*.complete")), [])
+
     def test_wrong_content_type_rejected(self):
         class JsonResponse(Response):
             headers = {"Content-Type": "application/json"}
