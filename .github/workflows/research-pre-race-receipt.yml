@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
+      - uses: actions/checkout@v4
       - name: Capture gated HTML (no results parsing, no forecast)
         env:
           RACE_ID: ${{ inputs.race_id }}
@@ -62,7 +63,18 @@ jobs:
           decoded=body.decode("utf-8","replace")
           assert not re.search(r"(?:払戻金|3連単.{0,25}払戻|確定結果|着順結果)",decoded), "results content detected"
           meta={"race_id":rid,"url":os.environ["SOURCE_URL"],"utc_start":before.isoformat(),"utc_end":after.isoformat(),"http_status":200,"content_type":content_type,"source_sha256":hashlib.sha256(body).hexdigest(),"source_bytes":len(body),"clock_attestation":"runner_local_only","forecast_generated":False,"scoring":"NOT_RUN"}
+          import sys
+          sys.path.insert(0,"research-capture")
+          from exhibition_parser import extract
+          try:
+              parsed=extract(body,race_id=rid,received_before_cutoff=True,result_free_attested=True)
+          except ValueError as error:
+              raise SystemExit("EXHIBITION_NOT_VERIFIED: "+str(error))
+          assert set(parsed["exhibition_time_by_boat"])==set(range(1,7)), "six lanes not verified"
+          meta["exhibition_validated"]=True
+          meta["exhibition_boats"]=6
           pathlib.Path("receipt/source.html").write_bytes(body)
+          pathlib.Path("receipt/exhibition.json").write_text(json.dumps(parsed,ensure_ascii=False,sort_keys=True,indent=2)+"\\n")
           pathlib.Path("receipt/metadata.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n")
           print(json.dumps({k:v for k,v in meta.items() if k not in ("url",)}))
           PY
