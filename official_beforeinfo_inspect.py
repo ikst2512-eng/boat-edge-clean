@@ -55,7 +55,7 @@ def inspect_beforeinfo_html(receipt, raw):
     # Preserve element boundaries: hidden sections must not join two text fragments.
     visible = " ".join(re.sub(r"\s+", "", part) for part in parser.parts)
     labels = {
-        "exhibition_time": "展示タイム" in visible,
+        "exhibition_time": bool(re.search(r"展示\\s*タイム", visible)),
         "tilt": "チルト" in visible,
         "start_exhibition": "スタート展示" in visible,
         "weather": any(label in visible for label in ("気温", "風速", "水温", "波高")),
