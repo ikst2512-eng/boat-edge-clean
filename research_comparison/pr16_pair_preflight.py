@@ -11,7 +11,9 @@ from paired_compare import TICKETS, timestamp
 def inspect_pair(pair, source_snapshot_bytes=None):
     reasons=[]
     if not isinstance(pair,dict) or pair.get("status")!="research_unvalidated":
-        return {"ready_for_scoring":False,"reasons":["not a research prospective pair"]}
+        return {"ready_for_scoring":False,"distribution_structure_valid":False,
+                "source_snapshot_digest_verified_locally":False,
+                "reasons":["not a research prospective pair"]}
     code=pair.get("race_code")
     if not isinstance(code,str) or not re.fullmatch(r"20[0-9]{10}",code):
         reasons.append("invalid canonical race code")
@@ -39,7 +41,10 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
-                if digest==pair.get("source_snapshot_sha256") and original.get("race_code")==code:
+                if original.get("status")!="research" or original.get("validated") is not False:
+                    reasons.append("source snapshot not unvalidated research")
+                if (digest==pair.get("source_snapshot_sha256") and original.get("race_code")==code
+                    and original.get("status")=="research" and original.get("validated") is False):
                     source_snapshot_checked = True
             except (ValueError,TypeError,AttributeError):
                 reasons.append("invalid source snapshot JSON")
