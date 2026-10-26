@@ -10,6 +10,7 @@ import json
 import math
 import random
 from datetime import datetime, timedelta, timezone
+from collections import Counter
 from itertools import permutations
 from pathlib import Path
 
@@ -63,7 +64,7 @@ def rank(p):
 
 def collect(rows, baseline, candidate):
     pairs, excluded = [], {}
-    seen = set()
+    key_counts = Counter(row.get('race_key') for row in rows if isinstance(row, dict) and isinstance(row.get('race_key'), str))
     model_identity = {}
     registered_cohort = None
     for r in rows:
@@ -81,8 +82,8 @@ def collect(rows, baseline, candidate):
             jst = timezone(timedelta(hours=9))
             if timestamp(r["deadline"]).astimezone(jst).strftime("%Y%m%d") != date_text:
                 raise ValueError("race date differs from deadline JST date")
-            if key in seen:
-                raise ValueError("duplicate race")
+            if key_counts[key] > 1:
+                raise ValueError("ambiguous duplicate race")
             if r.get("research_outcome_access_approved") is not True:
                 raise ValueError("outcome access not approved")
             if r.get("outcome_independently_verified") is not True:
@@ -126,7 +127,6 @@ def collect(rows, baseline, candidate):
             if registered_cohort is None:
                 registered_cohort = identity
             ra, rb = rank(a), rank(b)
-            seen.add(key)
             pairs.append({"race_key":key, "a":[int(y in ra[:k]) for k in TOPS],
                           "b":[int(y in rb[:k]) for k in TOPS],
                           "logloss_a":-math.log(a[y]), "logloss_b":-math.log(b[y]),
