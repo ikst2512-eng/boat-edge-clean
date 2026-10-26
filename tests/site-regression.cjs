@@ -9,6 +9,13 @@ function extract(name){
  assert.ok(line,'production validator '+name+' missing');
  return vm.runInNewContext(line+';'+name,{URL});
 }
+const validSixLanes=extract('validSixLanes');
+const six=Array.from({length:6},(_,i)=>({lane:i+1}));
+assert.equal(validSixLanes(six),true,'all six official lanes pass');
+for(const bad of [null,[],six.slice(0,5),[...six,{lane:7}],six.map((x,i)=>i===5?{lane:1}:x),six.map((x,i)=>i===5?{lane:7}:x),six.map((x,i)=>i===5?{lane:'6'}:x),[null,...six.slice(1)]])assert.equal(validSixLanes(bad),false,'reject malformed official exhibition lanes');
+assert.ok(script.includes('validSixLanes(raw.beforeinfo?.racers)&&validSixLanes(raw.beforeinfo?.start_exhibition)'),'both exhibition datasets require six unique lanes');
+assert.ok(script.includes('entryAudit.source===expectedEntryUrl'),'main-race actual entry must match exact official source URL');
+assert.ok(script.includes('sidecarToken!==window.raceDataRequestId||sidecarKey!==sameRaceKey()'),'late entry response must not overwrite a new race');
 const classify=extract('classifyPredictionMatch'),official=extract('isOfficialResultSource');
 const ticketFns=vm.runInNewContext([script.match(/const validTicket=[^\n]+/)[0],script.split('\n').find(l=>l.startsWith('function verifiedTicketArray(')),'({validTicket,verifiedTicketArray})'].join('\n'));
 const validTicket=ticketFns.validTicket,verifiedTickets=ticketFns.verifiedTicketArray;
