@@ -137,6 +137,25 @@ class GitHubReaderTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "a" * 64, "fake", opener=WrongBranchOpener())
 
+    def test_other_branch_suffix_cannot_spoof_main(self):
+        class SpoofedOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return json.dumps({
+                            "id": 123,
+                            "path": ".github/workflows/fresh-prospective-capture.yml@refs/heads/untrusted",
+                            "head_branch": "main",
+                            "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"},
+                        }).encode()
+                return Response()
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=SpoofedOpener())
+
     def test_invalid_digest_fails_before_network(self):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "g" * 64, "fake")
