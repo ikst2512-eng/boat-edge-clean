@@ -278,7 +278,8 @@ jobs:
               await page.locator('.view-tabs [data-view="result"]').click();
               await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent==='保存済み確定結果',null,{timeout:30000});
               const result=await page.locator('#resultDetail').innerText();
-              if(!result.includes('1-2-3')||!result.includes('640円'))throw Error('Real stored result mismatch');
+              const winningLanes=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
+              if(winningLanes.join('-')!=='1-2-3'||!result.includes('640円'))throw Error('Real stored result mismatch: lanes='+winningLanes.join('-')+' payout='+result);
               console.log('REAL_STORED_RESULT_BROWSER_PASS',url.toString());
               console.log('REAL_SAVED_EXHIBITION_BROWSER_PASS',url.toString());
               // A second venue confirms real source readings are not fixture-specific.
