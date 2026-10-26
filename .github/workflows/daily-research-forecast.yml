@@ -30,19 +30,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          exec > >(tee capture-evidence/persistence.log) 2>&1
-          echo "run_id=$GITHUB_RUN_ID checkout_sha=$GITHUB_SHA"
-          if [ ! -d research_snapshots ]; then
-            echo 'No research forecast files produced'
-            exit 0
-          fi
-          git add -- research_snapshots/
-          if git diff --cached --quiet; then
-            echo 'No new cutoff-eligible research forecasts'
-            exit 0
-          fi
-          git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
-          git push
+          {
+            echo "run_id=$GITHUB_RUN_ID checkout_sha=$GITHUB_SHA"
+            if [ ! -d research_snapshots ]; then
+              echo 'No research forecast files produced'
+            else
+              git add -- research_snapshots/
+              if git diff --cached --quiet; then
+                echo 'No new cutoff-eligible research forecasts'
+              else
+                git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
+                git push
+              fi
+            fi
+          } 2>&1 | tee capture-evidence/persistence.log
       - name: Preserve collection evidence
         if: always()
         uses: actions/upload-artifact@v4
