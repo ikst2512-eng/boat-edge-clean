@@ -355,6 +355,7 @@ async function loadHeldVenues(force=false){
   else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
+function validSixLanes(rows){return Array.isArray(rows)&&rows.length===6&&rows.every(row=>row&&Number.isInteger(row.lane)&&row.lane>=1&&row.lane<=6)&&new Set(rows.map(row=>row.lane)).size===6;}
 function mergeVerifiedRaceSnapshots(previous,raw){
  if(!previous)return raw;
  const cardNew=Date.parse(raw.source_audit?.race_card?.fetched_at),cardOld=Date.parse(previous.source_audit?.race_card?.fetched_at);
@@ -381,7 +382,7 @@ async function loadRaceData(force=false){
   if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
   const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
   if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('CARD_NOT_PREDEADLINE');
-  const validSixLanes=rows=>Array.isArray(rows)&&rows.length===6&&rows.every(row=>row&&Number.isInteger(row.lane)&&row.lane>=1&&row.lane<=6)&&new Set(rows.map(row=>row.lane)).size===6;
+
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000&&validSixLanes(raw.beforeinfo?.racers)&&validSixLanes(raw.beforeinfo?.start_exhibition);
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
