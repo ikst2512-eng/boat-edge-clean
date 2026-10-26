@@ -11,7 +11,14 @@ Input is a JSON array with one object per race:
   "result": "1-2-3",
   "research_outcome_access_approved": true,
   "outcome_independently_verified": true,
-  "candidate_pre_registered": true,
+  "pre_registration": {
+    "baseline_model_id": "clean-national-beta0.4",
+    "candidate_model_id": "old-v199-combined",
+    "baseline_model_sha": "40-character audited SHA",
+    "candidate_model_sha": "40-character audited SHA",
+    "registered_at": "2026-10-28T15:00:00+09:00",
+    "receipt_verified_independently": true
+  },
   "forecasts": {
     "clean-national-beta0.4": {
       "model_id": "clean-national-beta0.4",
@@ -20,6 +27,7 @@ Input is a JSON array with one object per race:
       "first_git_commit": "audited initial addition SHA",
       "first_git_saved_at": "2026-10-28T15:10:00+09:00",
       "generated_at": "2026-10-28T15:09:00+09:00",
+      "source_received_at": "2026-10-28T15:08:00+09:00",
       "independently_verified": true,
       "probabilities": {"1-2-3": 0.01}
     }
@@ -49,7 +57,7 @@ This read-only audit requires a single-parent commit that **adds** the named pat
 
 ## Integration warning
 
-PR #16 independently implements a paired evaluation script. Its changed paths do not collide with this PR, but the algorithms overlap. Do not merge both as separate evaluation authorities; consolidate the evidence contract, tests and metrics after ownership review. The research evaluator here does not validate receipt status on its own. The initial prototype's test fixture SHA expressions were corrected to Python repetition syntax in commit 93b238c. No completed GitHub Actions test run has yet been demonstrated.
+PR #16 independently implements a paired evaluation script. Its changed paths do not collide with this PR, but the algorithms overlap. Do not merge both as separate evaluation authorities; consolidate the evidence contract, tests and metrics after ownership review. The research evaluator here does not validate receipt status on its own. The initial prototype's test fixture SHA expressions were corrected to Python repetition syntax in commit 93b238c. GitHub Actions isolated research comparison checks passed at run #40375716887 for commit fa036741136cb91f6838732b3912fa631eabcc79. This is code-test evidence only, not a proof of prospective model performance.
 
 ## Explicit model-pair pre-registration gate
 
@@ -89,7 +97,7 @@ Use `python research_comparison/snapshot_preflight.py research_snapshots/<race_c
 
 ## Isolated prospective 120-way capture (new research samples only)
 
-`research_comparison/prospective_120_capture.py` can freeze the current clean exploratory model's entire probability map into a **new**, independently named JSON snapshot. It accepts the six source rates, their claimed receipt time, cutoff, composite source digest and an externally verified exact model SHA; it checks the current system clock and creates the output exclusively (`xb` + fsync). Do not run this against old finished races, do not overwrite existing Top10 files, and do not copy records into production. The file's local creation time is **not** trusted external first-seen proof, and the command does not verify source bytes or Git model provenance. Before using it for scoring, externally verify source raw-byte digests, model source and independent receipt, pre-register both models, retain 120-way snapshots for **both** models and confirm identical inputs. The stored 120-way research sample is not Formal Fresh and is not validated.
+`research_comparison/prospective_120_capture.py` can freeze the current clean exploratory model's entire probability map into a **new**, independently named JSON snapshot. It accepts the six source rates, their claimed receipt time, cutoff, composite source digest and an externally verified exact model SHA; it checks the current system clock and creates the output exclusively (`xb` + fsync). Do not run this against old finished races, do not overwrite existing Top10 files, and do not copy records into production. The file's local creation time is **not** trusted external first-seen proof, and the command checks the supplied CSV bytes and their model-input race/rates, but does not independently verify Git model provenance or authentic external source receipt. Before using it for scoring, independently attest the original source receipt and byte provenance, model source and independent receipt, pre-register both models, retain 120-way snapshots for **both** models and confirm identical inputs. The stored 120-way research sample is not Formal Fresh and is not validated.
 
 Prospective capture also rejects non-calendar race dates, venue codes outside 01–24 and race numbers outside 1–12 before creating output. These local checks do not verify the actual event or official cutoff; externally sourced receipts remain mandatory.
 
