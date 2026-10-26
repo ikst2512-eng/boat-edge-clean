@@ -119,6 +119,13 @@ class ResearchParserTests(unittest.TestCase):
         self.assertTrue(current_exhibition_is_blank(simple.encode()))
         self.assertFalse(current_exhibition_is_blank(nested.encode()))
 
+    def test_unclosed_exhibition_body_is_not_proof_of_unpublished_values(self):
+        from official_beforeinfo_research_parser import current_exhibition_is_blank
+        row = '<tr><td colspan="3"></td></tr>'
+        complete = '<table><thead><tr><th>スタート展示</th></tr></thead><tbody>' + row * 6 + '</tbody></table>'
+        self.assertTrue(current_exhibition_is_blank(complete.encode()))
+        self.assertFalse(current_exhibition_is_blank(complete.replace('</tbody>', '').encode()))
+
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
                     fixture(st=""), fixture(st="L.08"), fixture(st="9.99"), fixture(st="08")):
