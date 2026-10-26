@@ -44,11 +44,17 @@ def probe(date, venue, race, opener=urlopen):
                     try:
                         decoded = body.decode("utf-8-sig")
                         reader = csv.DictReader(io.StringIO(decoded))
-                        if "レースコード" not in (reader.fieldnames or []):
+                        fields = reader.fieldnames or []
+                        entry["csv_columns"] = fields[:12]
+                        if "レースコード" not in fields:
                             entry["race_rows"] = "schema_missing_race_code"
+                            entry["race_identity_status"] = "blocked"
                         else:
                             target = date + vals["venue"] + f"{int(race):02d}"
-                            matches = sum(row.get("レースコード") == target for row in reader)
+                            codes = [row.get("レースコード", "").strip() for row in reader]
+                            entry["csv_total_rows"] = len(codes)
+                            entry["csv_sample_race_codes"] = codes[:5]
+                            matches = sum(code == target for code in codes)
                             entry["race_rows"] = matches
                             entry["race_identity_status"] = "single_row_unverified" if matches == 1 else "blocked"
                     except (UnicodeError, csv.Error, ValueError):
@@ -70,4 +76,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes")} for k,v in result["sources"].items()}}, ensure_ascii=False))
