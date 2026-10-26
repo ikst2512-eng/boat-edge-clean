@@ -8,9 +8,10 @@ from pathlib import Path
 from scripts.audit_research_outcomes import audit
 
 class AuditTests(unittest.TestCase):
+    @patch('scripts.audit_research_outcomes.subprocess.check_call')
     @patch('scripts.audit_research_outcomes.subprocess.check_output')
     @patch('scripts.audit_research_outcomes.verify_first_add')
-    def test_missing_evidence_fail_closed_and_verified_fixture(self, git_verify, git_model):
+    def test_missing_evidence_fail_closed_and_verified_fixture(self, git_verify, git_model, git_ancestor):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"202610260101.json"
             snap={"race_code":"202610260101", "status":"research", "validated":False,
