@@ -23,6 +23,14 @@ class BridgeTests(unittest.TestCase):
     def test_late_capture(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":DEADLINE.isoformat()},deadline=DEADLINE)
+    def test_capture_inside_two_minute_margin(self):
+        too_late = DEADLINE - timedelta(seconds=90)
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"captured_at":too_late.isoformat()},deadline=DEADLINE)
+    def test_capture_at_two_minute_boundary(self):
+        boundary = DEADLINE - timedelta(minutes=2)
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"captured_at":boundary.isoformat()},deadline=DEADLINE)
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
