@@ -138,7 +138,9 @@ def collect(rows, baseline, candidate):
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             reason = str(e) or type(e).__name__
             excluded[reason] = excluded.get(reason, 0) + 1
-            excluded_details.append({"race_key": r.get("race_key") if isinstance(r, dict) else None, "reason": reason})
+            raw_key = r.get("race_key") if isinstance(r, dict) else None
+            safe_key = raw_key if isinstance(raw_key, str) and re.fullmatch(r"20[0-9]{6}-[0-9]{2}-[0-9]{1,2}", raw_key) else None
+            excluded_details.append({"race_key": safe_key, "reason": reason})
     return pairs, excluded, excluded_details
 
 def mean(xs):
