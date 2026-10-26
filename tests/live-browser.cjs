@@ -7,7 +7,7 @@ const fs=require('node:fs');
  fs.mkdirSync('test-results',{recursive:true});
  try{
   page.on('pageerror',e=>errors.push(e.message));
-  const response=await page.goto('https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:45000});
+  const response=await page.goto(process.env.CLEAN_SITE_URL || 'https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:45000});
   if(!response||!response.ok())throw Error('Published site unavailable: '+response?.status());
   await page.locator('#venueChooser .grid button').first().waitFor();
   const venues=await page.locator('#venueChooser .grid button').count();
