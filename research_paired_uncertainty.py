@@ -19,13 +19,13 @@ def exact_mcnemar_p(candidate_only, baseline_only):
     if n == 0:
         return 1.0
     small = min(candidate_only, baseline_only)
-    # Binomial tail calculated by stable recurrence (no scipy dependency).
-    term = 2.0 ** (-n)
-    cumulative = term
-    for i in range(1, small + 1):
-        term *= (n - i + 1) / i
-        cumulative += term
-    return min(1.0, 2 * cumulative)
+    # Log-space exact binomial tail avoids underflow for large samples.
+    logs = [math.lgamma(n + 1) - math.lgamma(i + 1) -
+            math.lgamma(n - i + 1) - n * math.log(2)
+            for i in range(small + 1)]
+    peak = max(logs)
+    return min(1.0, 2 * math.exp(peak) *
+               math.fsum(math.exp(value - peak) for value in logs))
 
 
 def summarize(rows, *, resamples=4000, seed=20261027):
