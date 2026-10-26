@@ -83,7 +83,6 @@ def collect(rows, baseline, candidate):
                 raise ValueError("race date differs from deadline JST date")
             if key in seen:
                 raise ValueError("duplicate race")
-            seen.add(key)
             if r.get("research_outcome_access_approved") is not True:
                 raise ValueError("outcome access not approved")
             if r.get("outcome_independently_verified") is not True:
@@ -127,6 +126,7 @@ def collect(rows, baseline, candidate):
             if registered_cohort is None:
                 registered_cohort = identity
             ra, rb = rank(a), rank(b)
+            seen.add(key)
             pairs.append({"race_key":key, "a":[int(y in ra[:k]) for k in TOPS],
                           "b":[int(y in rb[:k]) for k in TOPS],
                           "logloss_a":-math.log(a[y]), "logloss_b":-math.log(b[y]),
