@@ -42,9 +42,7 @@ jobs:
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(0).click();
               await page.locator('#day').fill('2026-10-22');
-              const apiReply=page.waitForResponse(res=>res.url().includes('/api/odds?'),{timeout:45000});
-              await page.locator('#refresh').click();
-              const oddsResponse=await apiReply; const oddsPayload=await oddsResponse.json();
+              const [oddsResponse]=await Promise.all([page.waitForResponse(res=>res.url().includes('/api/odds?'),{timeout:45000}),page.locator('#refresh').click()]); const oddsPayload=await oddsResponse.json();
               if(oddsResponse.status()!==200)throw Error('Live odds API '+oddsResponse.status()+': '+String(oddsPayload.message||'unknown upstream response'));
               const expectedJst=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(oddsPayload.fetched_at));
               await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
