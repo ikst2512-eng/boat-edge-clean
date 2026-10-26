@@ -56,7 +56,7 @@ def make_comparison(envelope):
     from research_paired_evaluation import validate
     result = {
         "race_code": envelope["race_code"],
-        "generated_at": max(envelope[x]["generated_at"] for x in ("baseline", "candidate")),
+        "generated_at": max((datetime.fromisoformat(envelope[x]["generated_at"]) for x in ("baseline", "candidate"))).isoformat(),
         "cutoff_jst": envelope["cutoff_jst"], "actual": envelope["actual"],
         "baseline": envelope["baseline"]["probabilities"],
         "candidate": envelope["candidate"]["probabilities"],
