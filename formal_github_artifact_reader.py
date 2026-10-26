@@ -80,13 +80,11 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
         raise InvalidCandidate("unexpected workflow repository")
     artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
     if (not isinstance(artifacts, list) or type(listing.get("total_count")) is not int or
-            listing["total_count"] != len(artifacts)) :
+            listing["total_count"] != len(artifacts)):
         raise InvalidCandidate("artifact listing incomplete")
     matches = [a for a in artifacts if isinstance(a, dict) and a.get("id") == artifact_id]
     if len(matches) != 1:
         raise InvalidCandidate("artifact not in specified run")
-    if type(matches[0].get("id")) is not int:
-        raise InvalidCandidate("artifact ID type invalid")
     artifact = matches[0]
     association = artifact.get("workflow_run")
     if not isinstance(association, dict) or type(association.get("id")) is not int or association["id"] != run_id:
