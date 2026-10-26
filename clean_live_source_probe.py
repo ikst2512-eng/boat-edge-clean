@@ -59,11 +59,17 @@ def html_diagnostics(body):
         return {"html_inspection": "blocked_not_html"}
     scanner = OfficialHtmlScanner()
     scanner.feed(text)
+    order = []
+    for link in scanner.links:
+        found = re.search(r"toban=([0-9]{4})", link)
+        if found and found.group(1) not in order:
+            order.append(found.group(1))
     return {"html_inspection": "structure_only_unverified",
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
             "toban_parameter_count": len(re.findall(r"toban=", text)),
             "html_is_race_verified": False,
+            "registration_order_candidates": order[:12],
             "racer_anchor_context_samples": scanner.racer_anchor_contexts[:12],
             "registration_candidates": sorted(set(re.findall(r"[?&]toban=([0-9]{4})(?:[&#\"\\s]|$)", text)))[:30]}
 
@@ -117,6 +123,7 @@ def probe(date, venue, race, opener=urlopen):
                                         mapped = stage_preview(decoded, target, name.removeprefix("preview_"), url)
                                     if name == "race_csv":
                                         entry["registration_numbers"] = sorted(x["registration"] for x in mapped["racers"])
+                                        entry["registration_in_lane_order"] = [x["registration"] for x in mapped["racers"]]
                                     entry["record_validation"] = "schema_pass_unverified"
                                     entry["record_fields"] = len(mapped["racers"]) if name == "race_csv" else len(mapped["values"])
                                 except (ValueError, KeyError, TypeError) as error:
@@ -141,6 +148,15 @@ def probe(date, venue, race, opener=urlopen):
         }
     else:
         report["registration_set_comparison"] = {"status": "not_comparable", "lane_mapping_verified": False}
+    official_order = report["sources"]["official_racelist"].get("registration_order_candidates")
+    csv_order = report["sources"]["race_csv"].get("registration_in_lane_order")
+    if official_order is None or csv_order is None:
+        status = "not_comparable"
+    elif len(official_order) != 6:
+        status = "ambiguous_official_order"
+    else:
+        status = "order_equal_unverified" if official_order == csv_order else "order_mismatch_blocked"
+    report["registration_order_comparison"] = {"status": status, "lane_mapping_verified": False}
     return report
 
 if __name__ == "__main__":
@@ -153,4 +169,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
