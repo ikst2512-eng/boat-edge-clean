@@ -48,6 +48,12 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_receipt(raw, receipt)
 
+    def test_impossible_receipt_before_generation(self):
+        raw, receipt = self.make_case()
+        receipt["first_seen_at"] = "2026-10-28T08:59:00+09:00"
+        with self.assertRaises(InvalidCandidate):
+            inspect_receipt(raw, receipt)
+
     def test_wrong_race(self):
         raw, receipt = self.make_case()
         receipt["race_key"] = "20261028-02-01"
