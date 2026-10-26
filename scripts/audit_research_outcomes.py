@@ -76,16 +76,20 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                 continue
             raw = path.read_bytes()
             obj = json.loads(raw)
+            if not isinstance(obj, dict):
+                raise ValueError("snapshot must be a JSON object")
             if (obj.get("race_code") != code or len(code) != 12
                     or not code.isascii() or not code.isdigit()):
                 raise ValueError("race identity mismatch")
             if obj.get("status") != "research" or obj.get("validated") is not False:
                 raise ValueError("not a research forecast")
             picks = obj["predictions"]
-            if len(picks) != 10 or len(set(picks)) != 10 or any(
+            if (not isinstance(picks, list) or len(picks) != 10 or
+                    not all(isinstance(p, str) for p in picks) or
+                    len(set(picks)) != 10 or any(
                 len(p.split("-")) != 3 or set(p.split("-")) - set("123456") or
                 len(set(p.split("-"))) != 3 for p in picks
-            ):
+            )):
                 raise ValueError("invalid picks")
             att = by_code.get(code)
             if not att:
