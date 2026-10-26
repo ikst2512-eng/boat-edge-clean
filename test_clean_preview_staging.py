@@ -37,6 +37,18 @@ class PreviewStagingTest(unittest.TestCase):
     def test_timestamp_without_timezone_is_rejected(self):
         with self.assertRaises(ValueError):
             stage_preview(fixture("sui").replace("+09:00",""),CODE,"sui",source("sui"))
+    def test_f_start_is_preserved(self):
+        x=fixture("stt").replace(",1,.12",",1,F.04")
+        self.assertEqual(stage_preview(x,CODE,"stt",source("stt"))["values"][1]["スタート展示"],"F.04")
+    def test_bad_st_is_rejected(self):
+        with self.assertRaises(ValueError):
+            stage_preview(fixture("stt").replace(",1,.12",",1,bad"),CODE,"stt",source("stt"))
+    def test_missing_st_remains_unknown(self):
+        x=fixture("stt").replace(",1,.12",",1,")
+        self.assertIsNone(stage_preview(x,CODE,"stt",source("stt"))["values"][1]["スタート展示"])
+    def test_invalid_tilt_is_rejected(self):
+        with self.assertRaises(ValueError):
+            stage_preview(fixture("tkz").replace(",-0.5",",unknown"),CODE,"tkz",source("tkz"))
     def test_duplicate_race_row_is_rejected(self):
         x=fixture("stt")
         with self.assertRaises(ValueError):
