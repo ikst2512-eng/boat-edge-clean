@@ -84,6 +84,29 @@ class FirstAddEvidenceTests(unittest.TestCase):
                 "incomplete_git_history"
             )
 
+    def test_replace_ref_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command(root, "init", "-q")
+            command(root, "config", "user.name", "Audit Test")
+            command(root, "config", "user.email", "audit@example.invalid")
+            path = root / "research_snapshots" / (CODE + ".json")
+            path.parent.mkdir()
+            path.write_text('{"research":true}', encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "original")
+            original = command(root, "rev-parse", "HEAD")
+            (root / "marker.txt").write_text("another", encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "second")
+            second = command(root, "rev-parse", "HEAD")
+            command(root, "replace", second, original)
+            ref = "refs/heads/" + command(root, "branch", "--show-current")
+            self.assertEqual(
+                verify_first_add(root, CODE, original, ref)["reason"],
+                "rewritten_git_history"
+            )
+
     def test_rejects_invalid_identifiers(self):
         with self.assertRaises(ValueError):
             verify_first_add(".", "../not-a-race", "a"*40)
