@@ -10,8 +10,8 @@ import json
 import re
 from datetime import datetime, timedelta
 
-HEX40 = re.compile(r"[a-f0-9]{40}\\Z")
-HEX64 = re.compile(r"[a-f0-9]{64}\\Z")
+HEX40 = re.compile(r"[a-f0-9]{40}\Z")
+HEX64 = re.compile(r"[a-f0-9]{64}\Z")
 
 def dt(value):
     timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -26,7 +26,7 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
         raise ValueError("unapproved repository")
     if not HEX40.fullmatch(commit) or not HEX64.fullmatch(expected_sha256):
         raise ValueError("invalid SHA")
-    if not re.fullmatch(r"research_prospective_pairs/[0-9]{12}\\.json", path):
+    if not re.fullmatch(r"research_prospective_pairs/[0-9]{12}\.json", path):
         raise ValueError("unapproved pair path")
     if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id <= 0:
         raise ValueError("invalid run ID")
@@ -58,9 +58,9 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     raw = base64.b64decode(blob["content"], validate=False)
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise ValueError("committed bytes digest mismatch")
-    if ("blob " + str(len(raw)) + "\\0").encode() == b"":
+    if ("blob " + str(len(raw)) + "\0").encode() == b"":
         raise AssertionError("unreachable")
-    git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\\0" + raw).hexdigest()
+    git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
     if git_blob != blob_sha:
         raise ValueError("blob does not match Git object SHA")
     record = json.loads(raw)
