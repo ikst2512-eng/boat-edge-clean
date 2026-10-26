@@ -35,13 +35,17 @@ jobs:
           echo 'Official homepage HEAD succeeded' >> "$GITHUB_STEP_SUMMARY"
           # Request the beforeinfo ROUTE without a date, venue or race number.
           # No race page or result content can be requested by this diagnostic.
-          code=$(curl --head --max-time 12 --silent --show-error --output /dev/null --write-out '%{http_code}' \
+          # Preserve status and MIME separately; any HTTP error isn't a valid page.
+          headers=$(mktemp)
+          code=$(curl --head --max-time 12 --silent --show-error --dump-header "$headers" --output /dev/null --write-out '%{http_code}' \
             'https://www.boatrace.jp/owpc/pc/race/beforeinfo')
-          echo "Official beforeinfo route (no race parameters): HTTP $code" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$code" = 000 ]; then
-            echo 'Beforeinfo route transport failed' >&2
-            exit 1
-          fi
+          mime=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)
+          rm -f "$headers"
+          echo "Beforeinfo route without race parameters: HTTP $code; ${mime:-Content-Type missing}" >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in
+            2*|3*|4*) echo 'Transport responded; this does not verify a race page' >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo 'Beforeinfo route transport/server failure' >&2; exit 1 ;;
+          esac
   capture:
     # Branch-only opt-in: both repository variables must be explicitly set.
     # Ordinary pushes and pull requests do not fetch any race data.
