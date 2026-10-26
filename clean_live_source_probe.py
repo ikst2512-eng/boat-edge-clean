@@ -105,6 +105,17 @@ def html_diagnostics(body):
                 preview_values = {}
                 break
             preview_values[lane] = {"registration": row["registrations"][0], "time": found.group(4), "tilt": found.group(5)}
+    official_st_by_course = {}
+    if "スタート展示" in scanner.all_table_rows:
+        start = scanner.all_table_rows.index("スタート展示")
+        for sample in scanner.all_table_rows[start + 1: start + 20]:
+            match = re.fullmatch(r"([1-6])\\s+(F?\\.?[0-9]{1,2})", sample)
+            if match:
+                course = int(match.group(1))
+                if course in official_st_by_course:
+                    official_st_by_course = {}
+                    break
+                official_st_by_course[course] = match.group(2)
     return {"html_inspection": "structure_only_unverified",
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
@@ -112,6 +123,7 @@ def html_diagnostics(body):
             "table_row_context_samples": scanner.all_table_rows[:70],
             "toban_parameter_count": len(re.findall(r"toban=", text)),
             "html_is_race_verified": False,
+            "official_st_by_course": official_st_by_course if set(official_st_by_course) == set(range(1, 7)) else {},
             "preview_value_candidates": preview_values if set(preview_values) == set(range(1,7)) else {},
             "lane_registration_candidates": lane_rows if set(lane_rows) == set(range(1, 7)) else {},
             "registration_order_candidates": order[:12],
@@ -166,6 +178,8 @@ def probe(date, venue, race, opener=urlopen):
                                         mapped = map_race_card(decoded, target, url, report["observed_at"])
                                     else:
                                         mapped = stage_preview(decoded, target, name.removeprefix("preview_"), url)
+                                        if name == "preview_stt":
+                                            entry["course_st_by_boat"] = mapped["values"]
                                         if name == "preview_tkz":
                                             entry["tilt_time_by_lane"] = mapped["values"]
                                     if name == "race_csv":
@@ -253,6 +267,26 @@ def probe(date, venue, race, opener=urlopen):
         }
     else:
         report["preview_tilt_time_comparison"] = {"status": "not_comparable", "official_race_identity_verified": False}
+    official_st = preview.get("official_st_by_course")
+    csv_st = report["sources"]["preview_stt"].get("course_st_by_boat")
+    if official_st and csv_st:
+        compare = []
+        for boat in range(1, 7):
+            course = csv_st[boat]["コース"]
+            observed = csv_st[boat]["スタート展示"]
+            expected = official_st.get(int(course)) if course and course.isdigit() else None
+            def normalize(value):
+                if value is None:
+                    return None
+                return value.removeprefix("0.") if value.startswith("0.") else value
+            compare.append(expected is not None and observed is not None and normalize(expected) == normalize(observed))
+        report["official_st_comparison"] = {
+            "status": "st_equal_unverified" if all(compare) else "st_mismatch_blocked",
+            "all_six_equal": all(compare), "course_is_not_boat": True,
+            "official_race_identity_verified": False,
+        }
+    else:
+        report["official_st_comparison"] = {"status": "not_comparable", "official_race_identity_verified": False}
     report["official_preview_probe"] = {
         "status": preview.get("html_inspection", "unavailable"),
         "six_racer_sets_equal": same_racers,
@@ -271,4 +305,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts"), "table_row_context_samples": v.get("table_row_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts"), "table_row_context_samples": v.get("table_row_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
