@@ -81,6 +81,20 @@ class FormalFeedLockTests(unittest.TestCase):
             self.assertNotIn("independent_receipt_verified", body)
             self.assertNotIn("result_unlock_token", body)
 
+    def test_research_fallback_rejects_invalid_tickets(self):
+        for tickets in ([], ["1-2-3", "1-2-3"], ["1-1-2"], ["9-2-3"],
+                        ["1-2-3"] * 11, "1-2-3"):
+            with self.subTest(tickets=tickets), tempfile.TemporaryDirectory() as directory:
+                research = {"ok": True, "status": "research", "validated": False,
+                            "predictions": tickets}
+                with (patch.object(server, "ROOT", Path(directory)),
+                      patch("research_model.predict", return_value=research)):
+                    status, body = server.get_predictions(
+                        {"hd": ["20261027"], "jcd": ["01"], "rno": ["1"]})
+                self.assertEqual(status, 200)
+                self.assertEqual(body["status"], "unavailable")
+                self.assertEqual(body["predictions"], [])
+
     def test_research_fallback_cannot_self_promote(self):
         with tempfile.TemporaryDirectory() as directory:
             fake = {"ok": True, "status": "available", "validated": True,
