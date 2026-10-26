@@ -20,9 +20,14 @@ def audit_snapshot(record):
         source_deadline = datetime.fromisoformat(record["source_deadline_jst"])
         if source_deadline.utcoffset() is None:
             raise ValueError("naive deadline")
+        expected_day = datetime.strptime(record["race_code"][:8], "%Y%m%d").date()
+        if source_deadline.astimezone(JST).date() != expected_day:
+            return {"status": "blocked_race_date_mismatch", "verified": False}
+        if any(x.utcoffset() != timedelta(hours=9) for x in [generated, cutoff, source_deadline, *received]):
+            return {"status": "blocked_non_jst_timestamp", "verified": False}
         if cutoff != source_deadline - timedelta(minutes=12):
             return {"status": "blocked_cutoff_mismatch", "verified": False}
-        if max(received) > generated or generated > cutoff:
+        if max(received) > generated or generated > cutoff or min(received) > cutoff:
             return {"status": "blocked_temporal_order", "verified": False}
     except (KeyError, ValueError, TypeError):
         return {"status": "blocked_time_evidence_incomplete", "verified": False}
