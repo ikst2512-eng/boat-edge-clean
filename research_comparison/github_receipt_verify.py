@@ -46,11 +46,32 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     parent_sha = parents[0].get("sha")
     if not isinstance(parent_sha, str) or not HEX40.fullmatch(parent_sha):
         raise ValueError("invalid parent SHA")
-    parent_info = fetch_json(prefix + "/git/commits/" + parent_sha)
-    parent_tree_sha = parent_info["tree"]["sha"]
-    parent_tree = fetch_json(prefix + "/git/trees/" + parent_tree_sha + "?recursive=1")
-    if parent_tree.get("truncated") or any(entry.get("path") == path for entry in parent_tree.get("tree", [])):
-        raise ValueError("parent tree incomplete or file already present")
+    # Walk every ancestor, including merge branches; fail closed on incomplete history.
+    pending = [parent_sha]
+    visited = set()
+    while pending:
+        ancestor = pending.pop()
+        if ancestor in visited:
+            continue
+        if len(visited) >= 5000:
+            raise ValueError("historical audit limit reached")
+        if not HEX40.fullmatch(ancestor):
+            raise ValueError("invalid ancestor SHA")
+        visited.add(ancestor)
+        historical = fetch_json(prefix + "/git/commits/" + ancestor)
+        historical_tree_sha = historical["tree"]["sha"]
+        if not HEX40.fullmatch(historical_tree_sha):
+            raise ValueError("invalid historical tree SHA")
+        historical_tree = fetch_json(prefix + "/git/trees/" + historical_tree_sha + "?recursive=1")
+        if historical_tree.get("truncated"):
+            raise ValueError("historical tree incomplete")
+        if any(x.get("path") == path for x in historical_tree.get("tree", [])):
+            raise ValueError("file already existed in ancestry")
+        for parent in historical.get("parents", []):
+            ancestor_parent = parent.get("sha") if isinstance(parent, dict) else None
+            if not isinstance(ancestor_parent, str) or not HEX40.fullmatch(ancestor_parent):
+                raise ValueError("invalid ancestry parent")
+            pending.append(ancestor_parent)
     tree_sha = info["tree"]["sha"]
     if not HEX40.fullmatch(tree_sha):
         raise ValueError("invalid tree SHA")
@@ -69,8 +90,6 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     raw = base64.b64decode(blob["content"], validate=False)
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise ValueError("committed bytes digest mismatch")
-    if ("blob " + str(len(raw)) + "\0").encode() == b"":
-        raise AssertionError("unreachable")
     git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
     if git_blob != blob_sha:
         raise ValueError("blob does not match Git object SHA")
@@ -86,6 +105,6 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
             "run_id": run_id, "run_created_at": run["created_at"],
             "commit_sha": commit, "blob_sha": blob_sha,
             "sha256": expected_sha256, "path": path,
-            "parent_absence_checked": True, "full_history_first_add_verified": False,
+            "parent_absence_checked": True, "full_history_first_add_verified": True, "ancestors_checked": len(visited),
             "formal_validated": False, "outcome_access_authorized": False,
-            "limitations": "Does not verify source authenticity, prediction model, first addition or preregistration."}
+            "limitations": "Does not verify source authenticity, prediction model or preregistration."}
