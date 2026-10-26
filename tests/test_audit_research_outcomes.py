@@ -8,6 +8,16 @@ from pathlib import Path
 from scripts.audit_research_outcomes import audit
 
 class AuditTests(unittest.TestCase):
+    def test_invalid_external_manifest_types_fail_explicitly(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for attestations, results in (
+                ({}, []), ([], {}), ([None], []), ([], [None]),
+                ([{"race_code": 123}], []), ([], [{"race_code": 123}]),
+            ):
+                with self.subTest(attestations=attestations, results=results):
+                    with self.assertRaises(ValueError):
+                        audit(folder, attestations, results)
+
     def test_malformed_snapshot_objects_are_excluded_without_crashing(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "202610270101.json"
