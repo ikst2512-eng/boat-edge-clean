@@ -33,6 +33,15 @@ jobs:
           # Homepage HEAD request; never query race, previews or results.
           curl --head --fail --max-time 12 --silent --show-error https://www.boatrace.jp/ > /dev/null
           echo 'Official homepage HEAD succeeded' >> "$GITHUB_STEP_SUMMARY"
+          # Request the beforeinfo ROUTE without a date, venue or race number.
+          # No race page or result content can be requested by this diagnostic.
+          code=$(curl --head --max-time 12 --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            'https://www.boatrace.jp/owpc/pc/race/beforeinfo')
+          echo "Official beforeinfo route (no race parameters): HTTP $code" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = 000 ]; then
+            echo 'Beforeinfo route transport failed' >&2
+            exit 1
+          fi
   capture:
     # Branch-only opt-in: both repository variables must be explicitly set.
     # Ordinary pushes and pull requests do not fetch any race data.
