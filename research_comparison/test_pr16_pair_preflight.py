@@ -43,6 +43,8 @@ class PairPreflightTests(unittest.TestCase):
         pair=self.pair()
         source={"race_code":pair["race_code"],"status":"research","validated":False,
                 "generated_at":pair["source_snapshot_generated_at"],
+                "source_title_received_jst":"2026-10-28T11:40:00+09:00",
+                "source_cards_received_jst":"2026-10-28T11:42:00+09:00",
                 "cutoff_jst":pair["cutoff_jst"],
                 "predictions":sorted(TICKETS)[:10]}
         raw=json.dumps(source,ensure_ascii=False).encode("utf-8")
@@ -73,6 +75,18 @@ class PairPreflightTests(unittest.TestCase):
         report=inspect_pair(pair,raw)
         self.assertFalse(report["source_snapshot_digest_verified_locally"])
         self.assertIn("source snapshot Top10 differs from baseline",report["reasons"])
+    def test_source_received_after_generation_rejected(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "generated_at":pair["source_snapshot_generated_at"],"cutoff_jst":pair["cutoff_jst"],
+                "source_title_received_jst":"2026-10-28T11:51:00+09:00",
+                "source_cards_received_jst":"2026-10-28T11:40:00+09:00",
+                "predictions":sorted(TICKETS)[:10]}
+        raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
+        report=inspect_pair(pair,raw)
+        self.assertFalse(report["source_snapshot_digest_verified_locally"])
+        self.assertIn("source snapshot source receipt chronology invalid",report["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
