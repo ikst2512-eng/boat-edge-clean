@@ -21,7 +21,11 @@ jobs:
         with:
           python-version: '3.12'
       - name: Collect research-only forecasts from published cards
-        run: python collect_research_daily.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p capture-evidence
+          python collect_research_daily.py 2>&1 | tee capture-evidence/collection.log
       - name: Persist research-only snapshots to Git
         shell: bash
         run: |
@@ -37,3 +41,20 @@ jobs:
           fi
           git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
           git push
+      - name: Preserve collection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-research-collection-${{ github.run_id }}
+          path: capture-evidence/collection.log
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Publish diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          echo '## Research-only daily collection' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Git SHA: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo '- Output: daily-research-collection artifact (30 days)' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Research only: not formal Fresh validation or site publication proof' >> "$GITHUB_STEP_SUMMARY"
