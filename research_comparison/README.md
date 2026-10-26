@@ -114,3 +114,5 @@ The snapshot bridge rejects invalid calendar/venue/race identity and inconsisten
 ## PR #16 pair-file diagnostic
 
 Use `python research_comparison/pr16_pair_preflight.py research_prospective_pairs/<race_code>.json` to check structural completeness of PR #16's baseline/candidate distributions and claimed freeze chronology. It does not query results, edit forecasts, perform score calculations, or certify server receipt evidence. `ready_for_scoring` always remains false, even for structurally valid pairs, until authenticated receipt, preregistration, original source and outcome audit are performed outside this tool. PR #16's `research_remote_pair_evidence.py` can check a GitHub Actions push-run timestamp and exact pair bytes, but this alone does not independently verify the source data or the two model implementations.
+
+PR #16 pair preflight additionally diagnoses malformed race identities, missing source snapshot SHA256, missing baseline/candidate IDs, and malformed candidate model Git blob identifiers. These syntactic checks do not prove that the candidate blob corresponds to source code or that remote pair publication occurred before cutoff.
