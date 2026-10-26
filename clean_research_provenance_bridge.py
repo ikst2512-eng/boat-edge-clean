@@ -15,6 +15,10 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
     race_key = racelist.get("race_key")
     if not isinstance(race_key, str) or not KEY.fullmatch(race_key):
         raise ValueError("invalid race identity")
+    try:
+        race_day = datetime.strptime(race_key[:8], "%Y%m%d").date()
+    except ValueError as exc:
+        raise ValueError("invalid calendar date") from exc
     if beforeinfo.get("race_key") != race_key:
         raise ValueError("cross-race contamination")
     if racelist.get("status") != "html_candidates_unverified":
@@ -28,7 +32,9 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
     rows = beforeinfo.get("start_exhibition")
     if not isinstance(rows, list) or len(rows) != 6:
         raise ValueError("incomplete exhibition")
-    if sorted(x.get("boat_number") for x in rows if isinstance(x, dict)) != list(range(1,7)):
+    if any(not isinstance(x, dict) or type(x.get("boat_number")) is not int for x in rows):
+        raise ValueError("invalid exhibition record")
+    if sorted(x["boat_number"] for x in rows) != list(range(1,7)):
         raise ValueError("duplicate or missing boat number")
     try:
         captured = datetime.fromisoformat(beforeinfo["captured_at"])
@@ -36,8 +42,7 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
         raise ValueError("invalid capture timestamp") from e
     if captured.tzinfo is None or not isinstance(deadline, datetime) or deadline.tzinfo is None:
         raise ValueError("timezone required")
-    day = datetime.strptime(race_key[:8], "%Y%m%d").date()
-    if captured.astimezone(JST).date() != day or deadline.astimezone(JST).date() != day:
+    if captured.astimezone(JST).date() != race_day or deadline.astimezone(JST).date() != race_day:
         raise ValueError("race day mismatch")
     if captured.utcoffset() != timedelta(hours=9) or deadline.utcoffset() != timedelta(hours=9):
         raise ValueError("JST +09:00 provenance required")
