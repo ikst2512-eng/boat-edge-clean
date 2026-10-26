@@ -79,8 +79,8 @@ class PairedComparisonTests(unittest.TestCase):
         first=self.row()
         duplicate=self.row()
         result=compare([first,duplicate],"a","b")
-        self.assertEqual(result["eligible_races"],1)
-        self.assertEqual(result["excluded_races"],1)
+        self.assertEqual(result["eligible_races"],0)
+        self.assertEqual(result["excluded_races"],2)
     def test_unverified_registration_receipt_rejected(self):
         r=self.row()
         r["pre_registration"]["receipt_verified_independently"]=False
@@ -151,9 +151,9 @@ class PairedComparisonTests(unittest.TestCase):
         invalid["research_outcome_access_approved"]=False
         valid=self.row()
         result=compare([invalid,valid],"a","b")
-        self.assertEqual(result["eligible_races"],1)
-        self.assertEqual(result["excluded_races"],1)
-        self.assertIn("outcome access not approved",result["exclusion_reasons"])
+        self.assertEqual(result["eligible_races"],0)
+        self.assertEqual(result["excluded_races"],2)
+        self.assertIn("ambiguous duplicate race",result["exclusion_reasons"])
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
