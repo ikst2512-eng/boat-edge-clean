@@ -25,6 +25,15 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
     if not paths:
         raise ValueError("no eligible paired forecasts to publish")
     head=_git("rev-parse","HEAD")
+    # Receipt auditor only certifies files added in this HEAD commit.
+    added=set(_git("diff-tree","--root","--no-commit-id","--name-only",
+                   "--diff-filter=A","-r",head).splitlines())
+    if not set(paths).issubset(added):
+        raise ValueError("eligible pair not newly added in HEAD")
+    changes=set(_git("diff-tree","--root","--no-commit-id","--name-only",
+                     "-r",head).splitlines())
+    if changes != set(paths):
+        raise ValueError("HEAD contains unrelated changes; refuse publication")
     for name in paths:
         committed=_git("rev-parse",f"HEAD:{name}")
         current=_git("hash-object",name)
