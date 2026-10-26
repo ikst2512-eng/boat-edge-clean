@@ -43,7 +43,7 @@ def must_reject(html, reason):
     raise AssertionError(reason)
 
 def test_duplicate_combination_rejected():
-    html = make_fixture().replace("<td>123.0</td>", "<td>132.0</td>", 1)
+    html = make_fixture().replace("<td>2</td><td>3</td><td>123.0</td>", "<td>3</td><td>2</td><td>123.0</td>", 1)
     must_reject(html, "Duplicate ticket or incomplete ticket set must be rejected")
 
 def test_zero_odds_rejected():
