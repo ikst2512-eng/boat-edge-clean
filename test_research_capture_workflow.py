@@ -124,6 +124,7 @@ class EvidenceTests(unittest.TestCase):
         result=self.execute()
         self.assertNotEqual(result.returncode,0)
         self.assertIn("Top10 does not replay",result.stdout)
+        self.assertNotIn("ModuleNotFoundError",result.stdout)
         self.assertFalse((self.root/"capture-evidence/new-snapshots/202610270101.json").exists())
 
     def test_new_snapshot_generates_evidence_before_push(self):
