@@ -8,6 +8,7 @@ on:
       - 'test_research_model_provenance.py'
       - 'test_research_source_digests.py'
       - 'test_research_capture_workflow.py'
+      - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
@@ -21,6 +22,7 @@ on:
       - 'test_research_*.py'
       - 'test_collect_research*.py'
       - 'test_research_capture_workflow.py'
+      - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
       - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:

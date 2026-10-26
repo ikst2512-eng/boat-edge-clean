@@ -52,6 +52,9 @@ jobs:
               if git diff --cached --quiet; then
                 echo 'No new cutoff-eligible research forecasts'
               else
+                # Fail closed on malformed or post-cutoff research snapshots before any commit/push.
+                mapfile -d '' new_files < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
+                python scripts/verify_new_research_snapshots.py "${new_files[@]}"
                 mkdir -p capture-evidence/new-snapshots
                 while IFS= read -r -d '' file; do
                   cp -- "$file" "capture-evidence/new-snapshots/$(basename "$file")"

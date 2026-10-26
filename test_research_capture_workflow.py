@@ -1,8 +1,25 @@
 """Offline integration tests for the daily persistence shell block."""
 import pathlib
+import json
+import hashlib
+import shutil
 import subprocess
 import tempfile
 import unittest
+
+def valid_record(code):
+    title="a"*64
+    cards="b"*64
+    return json.dumps({"race_code":code,"status":"research","validated":False,
+      "source_title_sha256":title,"source_cards_sha256":cards,
+      "input_sha256":hashlib.sha256((title+":"+cards).encode("ascii")).hexdigest(),
+      "input_hash_scope":"source_csv_byte_hashes_ordered_title_cards",
+      "model_source_sha256":"c"*64,"model_git_sha":"d"*40,
+      "source_title_received_jst":"2026-10-27T10:00:00+09:00",
+      "source_cards_received_jst":"2026-10-27T10:01:00+09:00",
+      "generated_at":"2026-10-27T10:02:00+09:00",
+      "cutoff_jst":"2026-10-27T12:00:00+09:00",
+      "source_deadline_jst":"2026-10-27T12:12:00+09:00"})
 
 WORKFLOW = pathlib.Path(__file__).parent / ".github/workflows/daily-research-forecast.yml"
 
@@ -26,6 +43,8 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
         (self.root / "research_snapshots").mkdir()
         (self.root / "capture-evidence").mkdir()
+        (self.root / "scripts").mkdir()
+        shutil.copyfile(pathlib.Path(__file__).parent / "scripts/verify_new_research_snapshots.py",self.root / "scripts/verify_new_research_snapshots.py")
         (self.root / "README").write_text("initial")
         run("git", "add", ".", cwd=self.root)
         self.assertEqual(run("git", "commit", "-qm", "initial", cwd=self.root).returncode, 0)
@@ -85,7 +104,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(run("git", "remote", "add", "origin", str(remote), cwd=self.root).returncode, 0)
         self.assertEqual(run("git", "push", "-u", "origin", "HEAD", cwd=self.root).returncode, 0)
         p = self.root / "research_snapshots/202610270102.json"
-        p.write_text('{"test":2}')
+        p.write_text(valid_record("202610270102"))
         r = self.execute()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue((self.root / "capture-evidence/new-snapshots/202610270102.json").exists())
@@ -94,7 +113,7 @@ class EvidenceTests(unittest.TestCase):
 
     def test_new_snapshot_generates_evidence_before_push(self):
         p = self.root / "research_snapshots/202610270101.json"
-        p.write_text('{"test":1}')
+        p.write_text(valid_record("202610270101"))
         r = self.execute()
         # Push has no remote in this temporary repository and must fail.
         self.assertNotEqual(r.returncode, 0)
