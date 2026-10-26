@@ -73,4 +73,9 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
     if inspected["race_key"].replace("-", "") != expected_race_code:
         raise InvalidCandidate("candidate race mismatch")
     return {"downloaded_bytes_consistent": True, "candidate_sha256": digest,
+            "race_code": expected_race_code,
+            "workflow_run_id": receipt["workflow_run_id"],
+            "workflow_attempt": receipt["workflow_attempt"],
+            "generated_at": candidate["generated_at"],
+            "deadline_at": candidate["deadline_at"],
             "independent_upload_time_verified": False, "formal_approved": False}
