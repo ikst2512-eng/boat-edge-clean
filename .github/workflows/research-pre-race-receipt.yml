@@ -74,7 +74,7 @@ jobs:
           meta["exhibition_validated"]=True
           meta["exhibition_boats"]=6
           pathlib.Path("receipt/source.html").write_bytes(body)
-          pathlib.Path("receipt/exhibition.json").write_text(json.dumps(parsed,ensure_ascii=False,sort_keys=True,indent=2)+"\\n")
+          pathlib.Path("receipt/exhibition.json").write_text(json.dumps(parsed,ensure_ascii=False,sort_keys=True,indent=2)+"\n")
           pathlib.Path("receipt/metadata.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n")
           print(json.dumps({k:v for k,v in meta.items() if k not in ("url",)}))
           PY
