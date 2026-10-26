@@ -9,22 +9,25 @@ import server
 
 
 class FormalFeedLockTests(unittest.TestCase):
-    def test_head_health_never_fetches_predictions(self):
+    def test_head_requests_never_trigger_prediction_or_odds(self):
         from io import BytesIO
-        handler = object.__new__(server.Handler)
-        handler.path = "/healthz"
-        handler.wfile = BytesIO()
-        status = []
-        headers = []
-        handler.send_response = lambda code: status.append(code)
-        handler.send_header = lambda key, value: headers.append((key, value))
-        handler.end_headers = lambda: None
         with (patch.object(server, "get_predictions", side_effect=AssertionError("HEAD triggered predictions")),
               patch.object(server, "get_odds", side_effect=AssertionError("HEAD triggered odds"))):
-            handler.do_HEAD()
-        self.assertEqual(status, [200])
-        self.assertEqual(handler.wfile.getvalue(), b"")
-        self.assertIn(("Cache-Control", "no-store"), headers)
+            for path, expected in (("/healthz", 200), ("/", 200),
+                                   ("/api/predictions", 404), ("/api/odds", 404)):
+                with self.subTest(path=path):
+                    handler = object.__new__(server.Handler)
+                    handler.path = path
+                    handler.wfile = BytesIO()
+                    statuses = []
+                    headers = []
+                    handler.send_response = lambda code: statuses.append(code)
+                    handler.send_header = lambda key, value: headers.append((key, value))
+                    handler.end_headers = lambda: None
+                    handler.do_HEAD()
+                    self.assertEqual(statuses, [expected])
+                    self.assertEqual(handler.wfile.getvalue(), b"")
+                    self.assertIn(("Cache-Control", "no-store"), headers)
 
     def test_claimed_validated_feed_stays_unavailable(self):
         with tempfile.TemporaryDirectory() as directory:
