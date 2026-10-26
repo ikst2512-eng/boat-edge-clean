@@ -203,8 +203,10 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             # Where the forecasting code preserved the source deadline at
             # generation time, independently require the assessor's official
             # deadline to agree. Never overwrite or backfill this source field.
-            if (obj.get("source_deadline_jst") is not None and
-                    timestamp(obj["source_deadline_jst"]) != deadline):
+            if not obj.get("source_deadline_jst"):
+                exclusions["missing_frozen_source_deadline"] += 1
+                continue
+            if timestamp(obj["source_deadline_jst"]) != deadline:
                 exclusions["source_deadline_disagreement"] += 1
                 continue
             if timestamp(obj["cutoff_jst"]) != deadline-timedelta(minutes=12):
