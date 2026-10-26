@@ -43,6 +43,13 @@ class InspectionTests(unittest.TestCase):
             RECEIPT, "<html><body><div hidden>展示タイム</div><p>展示タイム</p></body></html>".encode())
         self.assertTrue(visible["sections_present"]["exhibition_time"])
 
+    def test_actual_official_heading_split_by_br(self):
+        html = "<html><body><table><tr><th>展示<br />タイム</th></tr></table></body></html>".encode()
+        result = inspect_beforeinfo_html(RECEIPT, html)
+        self.assertTrue(result["sections_present"]["exhibition_time"])
+        self.assertEqual(result["status"], "inspection_only")
+        self.assertFalse(result["verified_preview"])
+
     def test_disconnected_text_nodes_cannot_fabricate_heading(self):
         html = "<html><body><span>展示</span><span>タイム</span></body></html>".encode("utf-8")
         result = inspect_beforeinfo_html(RECEIPT, html)
