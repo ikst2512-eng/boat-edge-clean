@@ -19,6 +19,13 @@ def run(race_key, deadline_text, directory):
     paths = save_raw_receipt(receipt, raw, directory, deadline=deadline)
     read_raw_receipt(directory, race_key, receipt["sha256"], deadline=deadline)
     diagnostic = inspect_saved_beforeinfo(directory, race_key, receipt["sha256"], deadline=deadline)
+    if (diagnostic.get("status") != "inspection_only"
+            or diagnostic.get("race_key") != race_key
+            or diagnostic.get("verified_preview") is not False
+            or diagnostic.get("actual_entry_verified") is not False
+            or diagnostic.get("racers") != []
+            or diagnostic.get("start_exhibition") != []):
+        raise ValueError("unsafe diagnostic: cannot publish verified or raced data")
     result = {
         "race_key": race_key,
         "receipt_sha256": receipt["sha256"],
