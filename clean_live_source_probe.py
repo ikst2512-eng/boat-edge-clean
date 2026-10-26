@@ -29,6 +29,7 @@ class OfficialHtmlScanner(HTMLParser):
         self.path = []
         self.racer_anchor_contexts = []
         self.row_candidates = []
+        self.all_table_rows = []
         self.current_row = None
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -48,6 +49,8 @@ class OfficialHtmlScanner(HTMLParser):
                     self.racer_anchor_contexts.append({"href": href[:180], "ancestors": self.path[-5:]})
     def handle_endtag(self, tag):
         if tag == "tr" and self.current_row is not None:
+            if self.current_row["text"]:
+                self.all_table_rows.append(" ".join(self.current_row["text"])[:160])
             unique = list(dict.fromkeys(self.current_row["registrations"]))
             if unique:
                 self.row_candidates.append({"registrations": unique, "text_sample": " ".join(self.current_row["text"])[:160]})
@@ -106,6 +109,7 @@ def html_diagnostics(body):
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
             "racer_row_contexts": scanner.row_candidates[:12],
+            "table_row_context_samples": scanner.all_table_rows[:70],
             "toban_parameter_count": len(re.findall(r"toban=", text)),
             "html_is_race_verified": False,
             "preview_value_candidates": preview_values if set(preview_values) == set(range(1,7)) else {},
@@ -267,4 +271,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts"), "table_row_context_samples": v.get("table_row_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
