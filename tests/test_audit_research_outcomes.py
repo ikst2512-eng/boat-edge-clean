@@ -43,6 +43,9 @@ class AuditTests(unittest.TestCase):
             invalid_result.pop("result_source_id")
             self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_provenance"],1)
             invalid_result=dict(outcome)
+            invalid_result.pop("result_confirmed_at")
+            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_confirmation_time"],1)
+            invalid_result=dict(outcome)
             invalid_result["result_confirmed_at"]="2026-10-26T10:11:00+09:00"
             self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["result_confirmed_before_deadline"],1)
             inconsistent=dict(snap)
