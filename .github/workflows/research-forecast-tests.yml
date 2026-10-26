@@ -44,6 +44,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: |\n          python -m unittest -v test_research_model test_research_persistence test_collect_research_daily\n          if [ -f test_research_model_provenance.py ] && [ -f test_research_source_digests.py ]; then\n            python -m unittest -v test_research_model_provenance test_research_source_digests\n          fi
+        run: |
+          python -m unittest -v test_research_model test_research_persistence test_collect_research_daily
+          if [ -f test_research_model_provenance.py ] && [ -f test_research_source_digests.py ]; then
+            python -m unittest -v test_research_model_provenance test_research_source_digests
+          fi
       - name: Verify isolated research auditor fixture gates
         run: python -m unittest discover -s tests -p 'test_*.py' -v
