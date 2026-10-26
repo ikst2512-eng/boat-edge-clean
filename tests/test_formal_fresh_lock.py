@@ -19,8 +19,8 @@ class FormalFeedLockTests(unittest.TestCase):
         handler.send_response = lambda code: status.append(code)
         handler.send_header = lambda key, value: headers.append((key, value))
         handler.end_headers = lambda: None
-        with patch.object(server, "get_predictions", side_effect=AssertionError("HEAD triggered predictions")), \\
-             patch.object(server, "get_odds", side_effect=AssertionError("HEAD triggered odds")):
+        with (patch.object(server, "get_predictions", side_effect=AssertionError("HEAD triggered predictions")),
+              patch.object(server, "get_odds", side_effect=AssertionError("HEAD triggered odds"))):
             handler.do_HEAD()
         self.assertEqual(status, [200])
         self.assertEqual(handler.wfile.getvalue(), b"")
