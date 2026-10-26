@@ -35,6 +35,11 @@ class AuditTests(unittest.TestCase):
             )
             link.unlink()
             self.assertEqual(audit(d,[],[])["valid_count"],0)
+            with patch.object(Path, "read_bytes", side_effect=OSError("synthetic I/O failure")):
+                failure = audit(d, [], [])
+            self.assertEqual(failure["valid_count"], 0)
+            self.assertEqual(failure["exclusion_reasons"]["malformed_snapshot_or_manifest"], 1)
+
             att={"race_code":snap["race_code"],"receipt_verified":True,"model_verified":True,
                  "inputs_verified":True,"result_verified":True,
                  "receipt_id":"test-only","model_git_sha":"a"*40,
