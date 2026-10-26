@@ -209,7 +209,19 @@ def probe(date, venue, race, opener=urlopen):
         "can_publish": False, "can_score_fresh": False,
     }
     preview = report["sources"]["official_beforeinfo"]
-    report["official_preview_probe"] = {"status": preview.get("html_inspection", "unavailable"), "values_compared": False}
+    before_candidates = preview.get("registration_candidates")
+    list_candidates = report["sources"]["official_racelist"].get("registration_candidates")
+    same_racers = (
+        isinstance(before_candidates, list) and isinstance(list_candidates, list)
+        and len(before_candidates) == 6 and len(list_candidates) == 6
+        and before_candidates == list_candidates
+    )
+    report["official_preview_probe"] = {
+        "status": preview.get("html_inspection", "unavailable"),
+        "six_racer_sets_equal": same_racers,
+        "values_compared": False,
+        "official_race_identity_verified": False,
+    }
     return report
 
 if __name__ == "__main__":
