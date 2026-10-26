@@ -39,8 +39,8 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
     day = datetime.strptime(race_key[:8], "%Y%m%d").date()
     if captured.astimezone(JST).date() != day or deadline.astimezone(JST).date() != day:
         raise ValueError("race day mismatch")
-    if captured >= deadline:
-        raise ValueError("capture not before deadline")
+    if captured.astimezone(JST) >= deadline.astimezone(JST) - timedelta(minutes=2):
+        raise ValueError("capture outside safe two-minute predeadline margin")
     return {"race_key": race_key, "status": "bridged_unverified",
             "official_preview_values_equal": False,
             "actual_entry_verified": False, "verified_preview": False,
