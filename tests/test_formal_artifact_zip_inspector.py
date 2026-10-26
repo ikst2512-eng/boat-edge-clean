@@ -56,6 +56,19 @@ class DownloadedZipTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, digest)
 
+    def test_symlink_member_rejected(self):
+        code, digest, members, make_zip = self.sample()
+        import stat
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w") as zipped:
+            link = zipfile.ZipInfo(f"prospective_candidates/{code}.json")
+            link.create_system = 3
+            link.external_attr = (stat.S_IFLNK | 0o777) << 16
+            zipped.writestr(link, members[f"prospective_candidates/{code}.json"])
+            zipped.writestr("prospective_receipt.json", members["prospective_receipt.json"])
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(mem.getvalue(), code, digest)
+
     def test_malformed_expected_digest(self):
         code, digest, members, make_zip = self.sample()
         with self.assertRaises(InvalidCandidate):
