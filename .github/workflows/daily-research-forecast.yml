@@ -36,6 +36,11 @@ jobs:
               echo 'No research forecast files produced'
             else
               git add -- research_snapshots/
+              # Snapshots are immutable: allow only newly added JSON files.
+              if git diff --cached --name-only --diff-filter=ACDMRTUX -- research_snapshots/ | grep -q .; then
+                echo 'ERROR: existing research snapshot changed or an unsupported file was staged' >&2
+                exit 1
+              fi
               if git diff --cached --quiet; then
                 echo 'No new cutoff-eligible research forecasts'
               else
