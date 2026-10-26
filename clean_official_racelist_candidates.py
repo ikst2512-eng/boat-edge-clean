@@ -7,7 +7,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse, parse_qs
 import re
 
-BOAT = re.compile(r"(?:^|\\s)is-boatColor([1-6])(?:\\s|$)")
+BOAT = re.compile(r"(?:^|\s)is-boatColor([1-6])(?:\s|$)")
 REG = re.compile(r"^[0-9]{4}$")
 
 
