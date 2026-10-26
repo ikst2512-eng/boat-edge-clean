@@ -24,7 +24,10 @@ def inspect_pair(pair, source_snapshot_bytes=None):
             reasons.append("invalid race calendar date")
     if not isinstance(pair.get("source_snapshot_sha256"),str) or not re.fullmatch(r"[0-9a-f]{64}",pair["source_snapshot_sha256"]):
         reasons.append("missing source snapshot digest")
-    if source_snapshot_bytes is not None:
+    source_snapshot_checked = False
+    if source_snapshot_bytes is None:
+        reasons.append("source snapshot original bytes not supplied")
+    else:
         if not isinstance(source_snapshot_bytes,bytes):
             reasons.append("invalid source snapshot bytes")
         else:
@@ -36,6 +39,8 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
+                if digest==pair.get("source_snapshot_sha256") and original.get("race_code")==code:
+                    source_snapshot_checked = True
             except (ValueError,TypeError,AttributeError):
                 reasons.append("invalid source snapshot JSON")
     for key in ("baseline_model_id","candidate_model_id"):
@@ -62,6 +67,7 @@ def inspect_pair(pair, source_snapshot_bytes=None):
     if pair.get("entry_status")!="assumed_identity_not_verified":
         reasons.append("unknown entry provenance")
     return {"ready_for_scoring":False,
+            "source_snapshot_digest_verified_locally":source_snapshot_checked,
             "distribution_structure_valid":not any("distribution" in x for x in reasons),
             "reasons":reasons+[
               "requires independently verified server first-seen commit and exact pair bytes",
