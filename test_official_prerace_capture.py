@@ -44,6 +44,14 @@ class CaptureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             capture_beforeinfo("20261027-04-10", self.deadline.replace(tzinfo=None), now=self.now, opener=self.fetch)
         self.assertEqual(self.urls, [])
+    def test_slow_fetch_finishing_after_margin_is_rejected(self):
+        with self.assertRaises(ValueError):
+            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now,
+                completed_at=self.deadline - timedelta(minutes=1), opener=self.fetch)
+        receipt, _ = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now,
+            completed_at=self.deadline - timedelta(minutes=3), opener=self.fetch)
+        self.assertEqual(receipt["fetched_at"], (self.deadline - timedelta(minutes=3)).isoformat())
+
     def test_empty_and_oversize_rejected(self):
         for body in [b"", b"x"*1_500_001]:
             with self.assertRaises(ValueError):
