@@ -138,6 +138,25 @@ class CaptureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, completed_at=self.now, opener=lambda *a, **kw: RedirectedResponse())
 
+    def test_clock_injection_requires_both_aware_timestamps(self):
+        cases = (
+            {"now": self.now},
+            {"completed_at": self.now},
+            {"now": self.now.replace(tzinfo=None), "completed_at": self.now},
+            {"now": self.now, "completed_at": self.now.replace(tzinfo=None)},
+        )
+        for kwargs in cases:
+            with self.assertRaises(ValueError):
+                capture_beforeinfo("20261027-04-10", self.deadline, opener=self.fetch, **kwargs)
+        self.assertEqual(self.urls, [])
+
+    def test_html_mime_must_match_exactly(self):
+        class MisleadingResponse(Response):
+            headers = {"Content-Type": "application/json+html"}
+        with self.assertRaises(ValueError):
+            capture_beforeinfo("20261027-04-10", self.deadline, now=self.now,
+                completed_at=self.now, opener=lambda *a, **kw: MisleadingResponse())
+
     def test_wrong_content_type_rejected(self):
         class JsonResponse(Response):
             headers = {"Content-Type": "application/json"}
