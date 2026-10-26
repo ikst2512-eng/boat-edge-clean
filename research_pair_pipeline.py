@@ -26,6 +26,10 @@ def run(day, publish=False, commit=False):
         return {'collection':collected,'publication':'not_requested',
                 'prospective_verified':False}
     committed=prepare(day)
+    if not committed["commit_created"]:
+        return {"collection":collected,"commit":committed,
+                "publication":"skipped_no_new_pair_commit",
+                "prospective_verified":False}
     publication=push(day,dry_run=not publish)
     return {"collection":collected,"commit":committed,"publication":publication,
             "prospective_verified":False}
