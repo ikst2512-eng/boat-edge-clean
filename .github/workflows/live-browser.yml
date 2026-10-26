@@ -29,9 +29,10 @@ jobs:
         with:
           node-version: '22'
       - name: Install browser runner
+        timeout-minutes: 4
         run: |
           npm install --no-save playwright@1.58.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps --only-shell chromium
       - name: Test published site (${{ matrix.target }})
         shell: bash
         run: |
