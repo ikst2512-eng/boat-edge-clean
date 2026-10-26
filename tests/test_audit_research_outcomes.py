@@ -34,6 +34,10 @@ class AuditTests(unittest.TestCase):
                  "snapshot_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
                  "first_seen_at":"2026-10-26T09:01:00+09:00",
                  "official_deadline_at":"2026-10-26T10:12:00+09:00"}
+            att["first_added_commit_sha"] = "1"*40
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3",
                      "result_source_id":"synthetic-fixture-only",
                      "result_confirmed_at":"2026-10-26T10:13:00+09:00"}
@@ -52,9 +56,15 @@ class AuditTests(unittest.TestCase):
             late_source["source_cards_received_jst"]="2026-10-26T09:01:00+09:00"
             p.write_text(json.dumps(late_source))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             att["confirmed_trifecta"]="2-1-3"
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["result_attestation_mismatch"],1)
             att["confirmed_trifecta"]="1-2-3"
@@ -67,20 +77,37 @@ class AuditTests(unittest.TestCase):
             invalid_result=dict(outcome)
             invalid_result["result_confirmed_at"]="2026-10-26T10:11:00+09:00"
             self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["result_confirmed_before_deadline"],1)
+            att["first_added_blob_sha"]="f"*40
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["first_added_blob_mismatch"],1)
+            att["first_added_blob_sha"]=hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             inconsistent=dict(snap)
             inconsistent["source_cards_sha256"] = "f"*64
             p.write_text(json.dumps(inconsistent))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["input_hash_inconsistent"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             missing=dict(snap)
             missing.pop("input_sha256")
             p.write_text(json.dumps(missing))
             att["snapshot_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"]=hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["missing_frozen_model_or_input_hash"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"]=hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\\0" + p.read_bytes()
+            ).hexdigest()
             att["first_seen_at"]="2026-10-26T10:01:00+09:00"
             report=audit(d,[att],[outcome],digest())
             self.assertEqual(report["valid_count"],0)
