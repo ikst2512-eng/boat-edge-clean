@@ -13,6 +13,7 @@ jobs:
   browser:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +42,9 @@ jobs:
               const diagnostics=await page.evaluate(()=>({title:document.title,path:location.pathname,heading:document.querySelector('h1')?.textContent?.trim(),venueCount:document.querySelectorAll('#venues button').length,bodySample:document.body?.innerText?.slice(0,450)}));
               console.log('RENDER_PRODUCTION_DIAGNOSTICS',JSON.stringify({status:response?.status(),url:page.url(),...diagnostics}));
               if(response?.status()!==200)throw Error('Render returned HTTP '+response?.status());
+              const health=await page.request.get('https://boat-edge-clean.onrender.com/healthz',{timeout:30000});
+              if(health.status()!==200)throw Error('Render backend health failed: HTTP '+health.status());
+              console.log('RENDER_BACKEND_HEALTH_PASS',health.status());
               if(diagnostics.venueCount!==24)throw Error('Render is not serving current CLEAN app; expected 24 venue buttons; '+JSON.stringify(diagnostics));
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
