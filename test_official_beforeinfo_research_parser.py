@@ -95,7 +95,7 @@ class ResearchParserTests(unittest.TestCase):
                    '<th colspan="3">スタート展示</th></tr>'
                    '<tr class="is-thColor1"><th>コース</th><th>並び</th><th>ST</th></tr>'
                    '</thead><tbody class="is-p10-0">' +
-                   ('<tr><td colspan="3">\\n                          </td></tr>' * 6)
+                   ('<tr><td colspan="3">\n                          </td></tr>' * 6)
                    + '</tbody></table>').encode("utf-8")
         self.assertTrue(current_exhibition_is_blank(snippet))
         with_value = snippet.replace(b'<td colspan="3">', b'<td colspan="3">.08', 1)
