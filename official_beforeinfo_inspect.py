@@ -8,21 +8,38 @@ import re
 
 
 class _VisibleText(HTMLParser):
+    """Ignore hidden DOM sections so placeholders cannot prove availability."""
+    VOID = frozenset(("area", "base", "br", "col", "embed", "hr",
+                      "img", "input", "link", "meta", "param", "source",
+                      "track", "wbr"))
+    HIDDEN = frozenset(("script", "style", "template", "noscript", "svg"))
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts = []
-        self.hidden = 0
+        self.stack = []
 
     def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style"):
-            self.hidden += 1
+        attributes = dict(attrs)
+        styles = re.sub(r"\s+", "", attributes.get("style") or "").lower()
+        hidden = (tag in self.HIDDEN or "hidden" in attributes
+                  or (attributes.get("aria-hidden") or "").lower() == "true"
+                  or "display:none" in styles or "visibility:hidden" in styles)
+        if tag not in self.VOID:
+            parent_hidden = self.stack[-1][1] if self.stack else False
+            self.stack.append((tag, hidden or parent_hidden))
+
+    def handle_startendtag(self, tag, attrs):
+        pass
 
     def handle_endtag(self, tag):
-        if tag in ("script", "style") and self.hidden:
-            self.hidden -= 1
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                break
 
     def handle_data(self, data):
-        if not self.hidden:
+        if not self.stack or not self.stack[-1][1]:
             self.parts.append(data)
 
 
