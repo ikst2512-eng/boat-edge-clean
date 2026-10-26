@@ -39,6 +39,11 @@ def prepare(day, folder="research_prospective_pairs", now=None):
         raise ValueError("unrelated staged changes: refuse commit")
     if not staged:
         return {"ready":len(files),"commit_created":False}
+    added=set(_git("diff","--cached","--name-only","--diff-filter=A").splitlines())
+    if set(staged) != added:
+        subprocess.run(["git","reset","--",*files],check=True)
+        raise ValueError("refuse to overwrite existing paired forecast")
+
     # Re-check immediately before committing; race cutoffs can pass mid-run.
     eligible_paths(folder,day,now if test_clock else datetime.now(JST))
     subprocess.run(["git","-c","user.name=research-pair-capture-bot",
