@@ -38,7 +38,6 @@ def run_audit(run_id, sha, folder="research_prospective_pairs"):
         raw=path.read_bytes()
         # This workflow checks out the triggering commit. HEAD contains the
         # committed blob; no local pair writes occur before this inspection.
-        import subprocess
         committed=subprocess.check_output(["git","show",f"{sha}:{path.as_posix()}"])
         reports.append(audit_pair_blob(raw,path.as_posix(),run,sha,committed))
     if not reports:
