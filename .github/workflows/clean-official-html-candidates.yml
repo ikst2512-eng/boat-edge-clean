@@ -42,6 +42,15 @@ jobs:
                   report['sha256'] = hashlib.sha256(raw).hexdigest()
               if len(raw) > 2_000_000:
                   raise ValueError('HTML too large')
+              from clean_official_racelist_candidates import _Rows
+              scanner = _Rows()
+              scanner.feed(raw.decode('utf-8'))
+              pattern_counts = {}
+              for row in scanner.rows:
+                  key = f"lanes_{len(row['lanes'])}_links_{len(row['racers'])}"
+                  pattern_counts[key] = pattern_counts.get(key, 0) + 1
+              report['row_structure_counts'] = pattern_counts
+              report['total_html_rows'] = len(scanner.rows)
               result = extract_six_candidates(raw, url, report['race_key'])
               report['candidate_count'] = len(result['racers'])
               report['status'] = result['status']
