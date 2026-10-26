@@ -20,6 +20,7 @@ class PairPreflightTests(unittest.TestCase):
     def test_unscored_even_when_syntactically_valid(self):
         outcome=inspect_pair(self.pair())
         self.assertFalse(outcome["ready_for_scoring"])
+        self.assertFalse(outcome["local_consistency_valid"])
         self.assertTrue(outcome["distribution_structure_valid"])
         self.assertFalse(outcome["source_snapshot_digest_verified_locally"])
         self.assertIn("source snapshot original bytes not supplied",outcome["reasons"])
@@ -54,6 +55,7 @@ class PairPreflightTests(unittest.TestCase):
         pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
         self.assertNotIn("source snapshot bytes mismatch",inspect_pair(pair,raw)["reasons"])
         self.assertTrue(inspect_pair(pair,raw)["source_snapshot_digest_verified_locally"])
+        self.assertTrue(inspect_pair(pair,raw)["local_consistency_valid"])
         self.assertIn("source snapshot bytes mismatch",inspect_pair(pair,b'{"race_code":"202610281202"}')["reasons"])
     def test_nonresearch_original_not_audited(self):
         pair=self.pair()
