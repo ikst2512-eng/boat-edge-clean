@@ -46,24 +46,6 @@ jobs:
             2*|3*|4*) echo 'Transport responded; this does not verify a race page' >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo 'Beforeinfo route transport/server failure' >&2; exit 1 ;;
           esac
-  verified-one-shot:
-    # One-time, read-only source evidence; remove after the run.
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/fix/clean-official-preview-integrity-20261027' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@v4
-      - name: Capture official Kojima 1R raw before 10:42 JST (research only)
-        run: |
-          python3 run_official_prerace_probe.py --race-key '20261027-16-01' --deadline '2026-10-27T10:42:00+09:00' --directory "$RUNNER_TEMP/kojima-prerace-evidence"
-      - name: Upload research-only raw evidence
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verified-kojima-prerace-${{ github.run_id }}
-          path: ${{ runner.temp }}/kojima-prerace-evidence/
-          retention-days: 7
-          if-no-files-found: error
   capture:
     # Branch-only opt-in: both repository variables must be explicitly set.
     # Ordinary pushes and pull requests do not fetch any race data.
