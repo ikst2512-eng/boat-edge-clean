@@ -85,18 +85,23 @@ def collect(rows, baseline, candidate):
                 raise ValueError("race date differs from deadline JST date")
             if key_counts[key] > 1:
                 raise ValueError("ambiguous duplicate race")
-            # A Boolean inside the submitted row is not an independent receipt.
-            evidence = r.get("external_receipt_audit")
-            if not isinstance(evidence, dict) or evidence.get("status") != "SERVER_PUSH_AND_COMMIT_BLOB_MATCH":
-                raise ValueError("independent server receipt audit missing")
-            if evidence.get("ready_for_scoring") is not False or evidence.get("formal_validated") is not False:
-                raise ValueError("unsafe receipt status")
-            if evidence.get("outstanding_evidence"):
-                raise ValueError("independent model/input/preregistration evidence missing")
-            if evidence.get("full_history_first_add_verified") is not True:
-                raise ValueError("first Git addition not verified")
-            if evidence.get("commit_sha") not in {r["forecasts"][baseline].get("first_git_commit"),r["forecasts"][candidate].get("first_git_commit")}:
-                raise ValueError("receipt commit not bound to forecasts")
+            # Require two explicitly supplied receipt-audit outputs, each bound to its model.
+            # These are still caller-provided: their provenance must be checked externally.
+            audits = r.get("external_receipt_audits")
+            if not isinstance(audits, dict) or set(audits) != {baseline, candidate}:
+                raise ValueError("both independent server receipt audits required")
+            for model in (baseline, candidate):
+                evidence = audits[model]
+                if not isinstance(evidence, dict) or evidence.get("status") != "SERVER_PUSH_AND_COMMIT_BLOB_MATCH":
+                    raise ValueError("independent server receipt audit missing")
+                if (evidence.get("ready_for_scoring") is not False
+                    or evidence.get("formal_validated") is not False
+                    or evidence.get("outstanding_evidence")):
+                    raise ValueError("independent model/input/preregistration evidence missing")
+                if evidence.get("full_history_first_add_verified") is not True:
+                    raise ValueError("first Git addition not verified")
+                if evidence.get("commit_sha") != r["forecasts"][model].get("first_git_commit"):
+                    raise ValueError("receipt commit not bound to model")
             if r.get("research_outcome_access_approved") is not True:
                 raise ValueError("outcome access not approved")
             if r.get("outcome_independently_verified") is not True:
