@@ -28,6 +28,7 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
                 raise InvalidCandidate("unexpected artifact members")
             if any(i.is_dir() or i.file_size > 100000 or i.flag_bits & 1 or
                    i.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED) or
+                   ((i.external_attr >> 16) & 0o170000) == 0o120000 or
                    (i.file_size and (i.compress_size == 0 or i.file_size > 100 * i.compress_size))
                    for i in infos):
                 raise InvalidCandidate("unsafe artifact members")
