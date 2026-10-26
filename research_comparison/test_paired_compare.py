@@ -11,6 +11,7 @@ class PairedComparisonTests(unittest.TestCase):
         base={"model_id":"a","model_sha":"a"*40,"input_sha256":"b"*64,
               "first_git_commit":"c"*40,"first_git_saved_at":"2026-10-28T12:00:00+09:00",
               "generated_at":"2026-10-28T11:59:00+09:00",
+              "source_received_at":"2026-10-28T11:58:00+09:00",
               "independently_verified":True,"probabilities":p}
         return {"race_key":"r1","deadline":"2026-10-28T13:00:00+09:00",
                 "input_sha256":"b"*64,"research_outcome_access_approved":True,
@@ -87,6 +88,14 @@ class PairedComparisonTests(unittest.TestCase):
     def test_mismatched_race_input_digest_rejected(self):
         r=self.row()
         r["forecasts"]["b"]["input_sha256"]="f"*64
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_source_received_after_prediction_rejected(self):
+        r=self.row()
+        r["forecasts"]["b"]["source_received_at"]="2026-10-28T12:01:00+09:00"
+        self.assertEqual(compare([r],"a","b")["eligible_races"],0)
+    def test_missing_source_receipt_timestamp_rejected(self):
+        r=self.row()
+        del r["forecasts"]["b"]["source_received_at"]
         self.assertEqual(compare([r],"a","b")["eligible_races"],0)
     def test_unapproved_outcome_rejected(self):
         r=self.row()
