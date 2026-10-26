@@ -50,16 +50,20 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     if len(matches) != 1:
         raise InvalidCandidate("artifact not in specified run")
     artifact = matches[0]
-    if artifact.get("workflow_run", {}).get("id") != run_id:
+    association = artifact.get("workflow_run")
+    if not isinstance(association, dict) or association.get("id") != run_id:
         raise InvalidCandidate("artifact run association invalid")
     archive = get(f"/actions/artifacts/{artifact_id}/zip", "application/vnd.github+json")
     inspected = inspect_downloaded_artifact(archive, race_code, expected_sha256)
-    # The extracted receipt is validated inside inspect_downloaded_artifact.
-    # The run ID and timestamp must ALSO be bound to that receipt in a future
-    # combined verifier; this audit remains unapproved until that exists.
+    if inspected["workflow_run_id"] != run_id:
+        raise InvalidCandidate("downloaded receipt belongs to another run")
+    metadata = inspect_actions_artifact(
+        {"generated_at": inspected["generated_at"], "deadline_at": inspected["deadline_at"]},
+        {"workflow_run_id": inspected["workflow_run_id"], "workflow_attempt": inspected["workflow_attempt"]},
+        run, artifact)
     return {"artifact_zip_consistent": inspected["downloaded_bytes_consistent"],
             "github_run_id": run.get("id"), "artifact_id": artifact_id,
-            "receipt_run_binding_verified": False,
+            "receipt_run_binding_verified": metadata["github_artifact_metadata_consistent"],
             "independent_upload_time_verified": False, "formal_approved": False}
 
 
