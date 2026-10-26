@@ -13,6 +13,8 @@ on:
       - 'test_research_snapshot_replay_audit.py'
       - 'research_git_first_seen_audit.py'
       - 'test_research_git_first_seen_audit.py'
+      - 'research_results_scorecard.py'
+      - 'test_research_results_scorecard.py'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
@@ -29,7 +31,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
-        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit
+        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit test_research_results_scorecard
       - name: Audit all committed research snapshots (informational)
         run: |
           python research_snapshot_replay_audit.py research_snapshots > /tmp/research-replay-audit.json
@@ -38,3 +40,7 @@ jobs:
         run: |
           python research_git_first_seen_audit.py research_snapshots > /tmp/research-git-audit.json
           python -c 'import json; d=json.load(open("/tmp/research-git-audit.json")); print(json.dumps({k:v for k,v in d.items() if k!="details"},ensure_ascii=False)); assert d["files"]>0'
+      - name: Score published results against frozen baseline Top10 (informational)
+        run: |
+          python research_results_scorecard.py research_snapshots > /tmp/research-result-scorecard.json
+          python -c 'import json; d=json.load(open("/tmp/research-result-scorecard.json")); print(json.dumps(d,ensure_ascii=False))'
