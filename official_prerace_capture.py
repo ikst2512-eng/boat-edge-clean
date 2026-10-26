@@ -144,6 +144,14 @@ def read_raw_receipt(directory, race_key, digest):
     expected = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
     if receipt.get("source") != expected:
         raise ValueError("receipt race source mismatch")
+    # A receipt must not purport to have been captured on another race day.
+    try:
+        captured = datetime.fromisoformat(receipt["fetched_at"])
+        race_day = datetime.strptime(hd, "%Y%m%d").date()
+    except (KeyError, ValueError, TypeError) as exc:
+        raise ValueError("invalid receipt capture timestamp") from exc
+    if captured.tzinfo is None or captured.astimezone(JST).date() != race_day:
+        raise ValueError("receipt capture date mismatch")
     if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
         raise ValueError("unsafe receipt flags")
     return receipt, raw
