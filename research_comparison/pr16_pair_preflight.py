@@ -42,6 +42,14 @@ def inspect_pair(pair, source_snapshot_bytes=None):
                     reasons.append("source snapshot bytes mismatch")
                 if original.get("race_code")!=code:
                     reasons.append("source snapshot race mismatch")
+                hashes=[original.get("source_title_sha256"),original.get("source_cards_sha256")]
+                if any(not isinstance(h,str) or not re.fullmatch(r"[0-9a-f]{64}",h) for h in hashes):
+                    reasons.append("source snapshot raw CSV digests absent")
+                else:
+                    input_digest=hashlib.sha256((hashes[0]+":"+hashes[1]).encode("ascii")).hexdigest()
+                    if (original.get("input_sha256")!=input_digest or
+                        original.get("input_hash_scope")!="source_csv_byte_hashes_ordered_title_cards"):
+                        reasons.append("source snapshot composite input digest mismatch")
                 try:
                     received=[timestamp(original[k]) for k in
                               ("source_title_received_jst","source_cards_received_jst")]
