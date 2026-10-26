@@ -49,6 +49,29 @@ jobs:
               for row in scanner.rows:
                   key = f"lanes_{len(row['lanes'])}_links_{len(row['racers'])}"
                   pattern_counts[key] = pattern_counts.get(key, 0) + 1
+              from html.parser import HTMLParser
+              class Topology(HTMLParser):
+                  def __init__(self):
+                      super().__init__()
+                      self.rows=[]; self.row=None; self.stack=[]
+                  def handle_starttag(self, tag, attrs):
+                      attrs=dict(attrs); self.stack.append(tag)
+                      if tag == 'tr': self.row=[]
+                      if self.row is not None:
+                          tokens=[x for x in attrs.get('class','').split() if x.startswith('is-boatColor')]
+                          if tokens: self.row.append({'tag':tag,'depth':len(self.stack),'boat_classes':tokens[:7]})
+                          if tag=='a' and 'toban=' in attrs.get('href',''):
+                              self.row.append({'tag':'a','depth':len(self.stack),'racer_link':True})
+                  def handle_endtag(self, tag):
+                      if tag=='tr' and self.row is not None:
+                          if any('racer_link' in x for x in self.row): self.rows.append(self.row[:30])
+                          self.row=None
+                      if tag in self.stack:
+                          while self.stack:
+                              if self.stack.pop()==tag: break
+              topology=Topology()
+              topology.feed(raw.decode('utf-8'))
+              report['racer_row_topologies'] = topology.rows[:6]
               report['row_structure_counts'] = pattern_counts
               report['total_html_rows'] = len(scanner.rows)
               result = extract_six_candidates(raw, url, report['race_key'])
