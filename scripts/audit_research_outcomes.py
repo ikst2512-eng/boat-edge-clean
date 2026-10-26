@@ -92,6 +92,15 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                        ("receipt_id", "model_git_sha", "model_file_sha256", "input_sha256")):
                 exclusions["missing_provenance_identifiers"] += 1
                 continue
+            # Historical records lacking pre-race model/input fingerprints cannot
+            # acquire that provenance through a later attestation.
+            if not obj.get("model_git_sha") or not obj.get("input_sha256"):
+                exclusions["missing_frozen_model_or_input_hash"] += 1
+                continue
+            if (obj["model_git_sha"] != att["model_git_sha"] or
+                    obj["input_sha256"] != att["input_sha256"]):
+                exclusions["provenance_mismatch"] += 1
+                continue
             if hashlib.sha256(raw).hexdigest() != att.get("snapshot_sha256"):
                 exclusions["snapshot_hash_mismatch"] += 1
                 continue
