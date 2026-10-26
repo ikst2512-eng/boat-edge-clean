@@ -11,8 +11,11 @@ class ProspectiveCaptureTests(unittest.TestCase):
         now=datetime.now(JST)
         date=(now+timedelta(days=1)).strftime("%Y%m%d")
         return dict(race_code=date+"1201",rates=[5.0]*6,
-                    model_sha="a"*40,input_sha256=hashlib.sha256(b"frozen original input").hexdigest(),
-                    input_bytes=b"frozen original input",
+                    model_sha="a"*40,
+                    input_sha256=hashlib.sha256((
+                        hashlib.sha256(b"title csv").hexdigest()+":"+
+                        hashlib.sha256(b"cards csv").hexdigest()).encode("ascii")).hexdigest(),
+                    title_bytes=b"title csv",cards_bytes=b"cards csv",
                     source_received_at=(now-timedelta(seconds=5)).isoformat(),
                     cutoff_jst=(now+timedelta(days=1)).isoformat())
     def test_exclusive_capture_and_complete_probabilities(self):
@@ -47,6 +50,12 @@ class ProspectiveCaptureTests(unittest.TestCase):
         kwargs["input_sha256"]="b"*64
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaisesRegex(ValueError,"input bytes do not match"):
+                freeze(Path(d)/"none.json",**kwargs)
+    def test_source_order_matters(self):
+        kwargs=self.kwargs()
+        kwargs["title_bytes"],kwargs["cards_bytes"]=kwargs["cards_bytes"],kwargs["title_bytes"]
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError,"composite input SHA256"):
                 freeze(Path(d)/"none.json",**kwargs)
     def test_reject_late_source(self):
         kwargs=self.kwargs()
