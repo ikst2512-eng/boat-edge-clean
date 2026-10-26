@@ -36,10 +36,21 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     if (run.get("event") != "push" or run.get("head_sha") != commit
         or run.get("head_branch") != branch
         or run.get("repository", {}).get("full_name") != repo
-        or run.get("status") != "completed"
+        or run.get("status") != "completed" or run.get("conclusion") != "success"
         or dt(run["created_at"]) >= cutoff):
         raise ValueError("server run not an eligible pre-cutoff push")
     info = fetch_json(prefix + "/git/commits/" + commit)
+    parents = info.get("parents", [])
+    if len(parents) != 1 or not isinstance(parents[0], dict):
+        raise ValueError("single parent required")
+    parent_sha = parents[0].get("sha")
+    if not isinstance(parent_sha, str) or not HEX40.fullmatch(parent_sha):
+        raise ValueError("invalid parent SHA")
+    parent_info = fetch_json(prefix + "/git/commits/" + parent_sha)
+    parent_tree_sha = parent_info["tree"]["sha"]
+    parent_tree = fetch_json(prefix + "/git/trees/" + parent_tree_sha + "?recursive=1")
+    if parent_tree.get("truncated") or any(entry.get("path") == path for entry in parent_tree.get("tree", [])):
+        raise ValueError("parent tree incomplete or file already present")
     tree_sha = info["tree"]["sha"]
     if not HEX40.fullmatch(tree_sha):
         raise ValueError("invalid tree SHA")
@@ -75,5 +86,6 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
             "run_id": run_id, "run_created_at": run["created_at"],
             "commit_sha": commit, "blob_sha": blob_sha,
             "sha256": expected_sha256, "path": path,
+            "parent_absence_checked": True, "full_history_first_add_verified": False,
             "formal_validated": False, "outcome_access_authorized": False,
             "limitations": "Does not verify source authenticity, prediction model, first addition or preregistration."}
