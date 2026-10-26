@@ -199,5 +199,26 @@ jobs:
                   entry.update(error_type=type(exc).__name__, error=str(exc)[:100])
               preview_report[kind] = entry
           report['preview_csv_diagnostic'] = preview_report
+          # GitHub job summary is informational; a green diagnostic run is not an
+          # assertion that every external data source was verified.
+          import os
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              counts = report.get('comparison_summary') or {}
+              previews = report.get('preview_csv_diagnostic') or {}
+              lines = [
+                  '## CLEAN read-only source diagnostic',
+                  '',
+                  f"- Race sample count: {counts.get('expected_races', 0)}",
+                  f"- Matched (unverified): {counts.get('matched', 0)}",
+                  f"- Blocked/unavailable: {counts.get('blocked', 0)}",
+                  f"- Network timeouts: {counts.get('timeouts', 0)}",
+                  f"- All sampled races matched: {counts.get('all_races_matched', False)}",
+                  f"- Preview CSV formats: {', '.join(k + '=' + str(v.get('status')) for k, v in previews.items())}",
+                  '',
+                  '**Research only. Not official preview parity, predeadline proof, or production authorization.**'
+              ]
+              with open(summary_path, 'a', encoding='utf-8') as handle:
+                  handle.write('\\n'.join(lines) + '\\n')
           print(json.dumps(report, ensure_ascii=False))
           PY
