@@ -3,7 +3,6 @@
 The caller must fetch run/artifact information from GitHub independently.
 This never certifies formal model provenance or grants public availability.
 """
-from datetime import datetime
 from formal_candidate_validator import InvalidCandidate, _timestamp
 
 
