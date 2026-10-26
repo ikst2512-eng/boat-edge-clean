@@ -88,6 +88,19 @@ class ResearchParserTests(unittest.TestCase):
         self.assertEqual(len(research_start_exhibition(valid)["start_exhibition"]), 6)
 
 
+    def test_actual_archive_whitespace_blank_cells(self):
+        from official_beforeinfo_research_parser import current_exhibition_is_blank
+        # Minimal structural excerpt from the 2026-10-27 Kojima 1R archived HTML.
+        snippet = ('<table class="is-w238"><thead><tr>'
+                   '<th colspan="3">スタート展示</th></tr>'
+                   '<tr class="is-thColor1"><th>コース</th><th>並び</th><th>ST</th></tr>'
+                   '</thead><tbody class="is-p10-0">' +
+                   ('<tr><td colspan="3">\\n                          </td></tr>' * 6)
+                   + '</tbody></table>').encode("utf-8")
+        self.assertTrue(current_exhibition_is_blank(snippet))
+        with_value = snippet.replace(b'<td colspan="3">', b'<td colspan="3">.08', 1)
+        self.assertFalse(current_exhibition_is_blank(with_value))
+
     def test_current_official_blank_six_rows(self):
         from official_beforeinfo_research_parser import current_exhibition_is_blank
         row = '<tr><td colspan="3"></td></tr>'
