@@ -102,8 +102,8 @@ def collect(rows, baseline, candidate):
             registered = timestamp(reg["registered_at"])
             if registered >= timestamp(r["deadline"]):
                 raise ValueError("pre-registration after deadline")
-            if registered > min(timestamp(f[baseline]["first_git_saved_at"]), timestamp(f[candidate]["first_git_saved_at"])):
-                raise ValueError("pre-registration after initial model forecast freeze")
+            if registered > min(timestamp(f[baseline]["generated_at"]), timestamp(f[candidate]["generated_at"])):
+                raise ValueError("pre-registration after forecast generation")
             if f[baseline]["input_sha256"] != f[candidate]["input_sha256"]:
                 raise ValueError("different input")
             for name in (baseline, candidate):
