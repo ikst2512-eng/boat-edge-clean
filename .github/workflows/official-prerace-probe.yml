@@ -1,0 +1,38 @@
+name: Official prerace raw probe (isolated)
+on:
+  workflow_dispatch:
+    inputs:
+      race_key:
+        description: 'Race key YYYYMMDD-JCD-RNO'
+        required: true
+        type: string
+      verified_deadline:
+        description: 'Manually verified official JST deadline ISO8601, e.g. 2026-10-27T15:00:00+09:00'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: clean-official-prerace-probe
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture audited HTML (never update site or Fresh)
+        env:
+          RACE_KEY: ${{ inputs.race_key }}
+          VERIFIED_DEADLINE: ${{ inputs.verified_deadline }}
+        run: |
+          python3 run_official_prerace_probe.py --race-key "$RACE_KEY" --deadline "$VERIFIED_DEADLINE" --directory "$RUNNER_TEMP/prerace-evidence" > "$RUNNER_TEMP/probe.json"
+          cat "$RUNNER_TEMP/probe.json"
+      - name: Upload isolated research evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prerace-raw-${{ github.run_id }}
+          path: ${{ runner.temp }}/prerace-evidence/
+          if-no-files-found: error
+          retention-days: 7
