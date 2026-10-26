@@ -14,7 +14,7 @@ class InspectionTests(unittest.TestCase):
         self.assertEqual(result["racers"],[])
         self.assertEqual(result["start_exhibition"],[])
     def test_incomplete_html_is_not_verified(self):
-        result=inspect_beforeinfo_html(RECEIPT,b"<html><body><p>展示タイム</p></body></html>")
+        result=inspect_beforeinfo_html(RECEIPT,"<html><body><p>展示タイム</p></body></html>".encode("utf-8"))
         self.assertIn("start_exhibition",result["missing_sections"])
         self.assertFalse(result["verified_preview"])
     def test_script_labels_are_not_evidence(self):
