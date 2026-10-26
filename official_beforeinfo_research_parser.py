@@ -13,7 +13,11 @@ class _ExhibitionParser(HTMLParser):
         self.stack = []
         self.boats = []
 
+    VOID = frozenset(("area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"))
+
     def handle_starttag(self, tag, attrs):
+        if tag in self.VOID:
+            return
         attributes = dict(attrs)
         classes = set((attributes.get("class") or "").split())
         style = re.sub(r"\s+", "", attributes.get("style") or "").lower()
@@ -42,6 +46,10 @@ class _ExhibitionParser(HTMLParser):
             target = "st"
         self.stack.append({"tag": tag, "record": record, "target": target, "blocked": False})
 
+    def handle_startendtag(self, tag, attrs):
+        # Self-closing tags must never leave a phantom parent in the stack.
+        return
+
     def handle_endtag(self, tag):
         for idx in range(len(self.stack)-1, -1, -1):
             if self.stack[idx]["tag"] == tag:
@@ -65,6 +73,9 @@ def research_start_exhibition(raw):
         raise ValueError("invalid source size")
     p = _ExhibitionParser()
     p.feed(raw.decode("utf-8", "strict"))
+    p.close()
+    if p.stack:
+        raise ValueError("unclosed exhibition HTML structure")
     if len(p.boats) != 6:
         raise ValueError("exactly six start-exhibition records required")
     records = []
