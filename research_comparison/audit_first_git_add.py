@@ -22,7 +22,7 @@ def git(repo, *args):
 def audit(repo, commit, path, expected_sha256, deadline):
     if not SHA.fullmatch(commit) or not DIGEST.fullmatch(expected_sha256):
         raise ValueError("invalid digest or commit")
-    if path.startswith("/") or ".." in Path(path).parts or not path or "\\x00" in path:
+    if not path or path.startswith("/") or ".." in Path(path).parts or any(ord(ch) == 0 for ch in path):
         raise ValueError("unsafe path")
     cutoff=datetime.fromisoformat(deadline.replace("Z","+00:00"))
     if cutoff.tzinfo is None or cutoff.utcoffset() is None:
