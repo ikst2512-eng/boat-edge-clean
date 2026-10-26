@@ -2,39 +2,7 @@
 
 Run: `python research_comparison/paired_compare.py approved_pairs.json --baseline clean-national-beta0.4 --candidate old-v199-combined`
 
-Input is a JSON array with one object per race:
-```json
-{
-  "race_key": "20261028-12-1",
-  "deadline": "2026-10-28T15:30:00+09:00",
-  "input_sha256": "64-character verified digest",
-  "result": "1-2-3",
-  "research_outcome_access_approved": true,
-  "outcome_independently_verified": true,
-  "pre_registration": {
-    "baseline_model_id": "clean-national-beta0.4",
-    "candidate_model_id": "old-v199-combined",
-    "baseline_model_sha": "40-character audited SHA",
-    "candidate_model_sha": "40-character audited SHA",
-    "registered_at": "2026-10-28T15:00:00+09:00",
-    "receipt_verified_independently": true
-  },
-  "forecasts": {
-    "clean-national-beta0.4": {
-      "model_id": "clean-national-beta0.4",
-      "model_sha": "audited model Git SHA",
-      "input_sha256": "same digest",
-      "first_git_commit": "audited initial addition SHA",
-      "first_git_saved_at": "2026-10-28T15:10:00+09:00",
-      "generated_at": "2026-10-28T15:09:00+09:00",
-      "source_received_at": "2026-10-28T15:08:00+09:00",
-      "independently_verified": true,
-      "probabilities": {"1-2-3": 0.01}
-    }
-  }
-}
-```
-The example probabilities are intentionally incomplete; **all exactly 120 strictly positive probabilities summing to 1** are required for both models. No historical outcomes may be used to reconstruct or backfill forecasts.
+Input must be a JSON **array** of audited race objects, not an illustrative one-race object. Each row requires `race_key` (`YYYYMMDD-VV-R`), `deadline`, `input_sha256`, permitted `result`, `research_outcome_access_approved`, `outcome_independently_verified`, and a `forecasts` dictionary keyed by two distinct model IDs selected through `--baseline` and `--candidate`. Every forecast needs `model_id`, `model_sha`, `input_sha256`, `first_git_commit`, `first_git_saved_at`, `generated_at`, `source_received_at`, `independently_verified`, and **exactly 120** positive, finite, normalized `probabilities` keyed as `1-2-3`. The row also requires a `pre_registration` object with `baseline_model_id`, `candidate_model_id`, `baseline_model_sha`, `candidate_model_sha`, `registered_at`, and `receipt_verified_independently`. A filled-in JSON example without real external receipts would be misleading and must not be submitted as evidence.
 
 Independent preparation requirements:
 1. Pre-register both exact model source SHAs and candidate selection before reviewing outcomes; record pre-specified evaluation interval and exclusions.
