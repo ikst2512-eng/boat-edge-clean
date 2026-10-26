@@ -30,6 +30,12 @@ def verify_first_add(repo, race_code, commit_sha, trusted_ref="refs/heads/main")
                     "--name-only", "--diff-filter=A", commit_sha, "--", path).decode().splitlines()
         if added != [path]:
             return {"verified": False, "reason": "not_added_in_commit"}
+        # A deleted and re-added path is not the first historical introduction.
+        parents = git(repo, "rev-list", "--parents", "-n", "1", commit_sha).decode().split()
+        for parent in parents[1:]:
+            history = git(repo, "rev-list", "-n", "1", parent, "--", path).decode().strip()
+            if history:
+                return {"verified": False, "reason": "path_existed_in_prior_history"}
         expected = git(repo, "show", commit_sha + ":" + path)
         current = (Path(repo) / path).read_bytes()
         if current != expected:
