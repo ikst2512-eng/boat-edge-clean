@@ -13,6 +13,8 @@ class AuditTests(unittest.TestCase):
             for attestations, results in (
                 ({}, []), ([], {}), ([None], []), ([], [None]),
                 ([{"race_code": 123}], []), ([], [{"race_code": 123}]),
+                ([{"race_code": "invalid"}], []),
+                ([], [{"race_code": "20261027010X"}]),
             ):
                 with self.subTest(attestations=attestations, results=results):
                     with self.assertRaises(ValueError):
