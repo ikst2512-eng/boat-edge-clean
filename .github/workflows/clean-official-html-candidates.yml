@@ -10,6 +10,7 @@ on:
       - clean_verified_receipt_bridge.py
       - test_clean_verified_receipt_bridge.py
       - test_clean_pr15_receipt_integration.py
+      - test_clean_pr15_receipt_integration.py
       - test_clean_official_racelist_candidates.py
       - .github/workflows/clean-official-html-candidates.yml
   workflow_dispatch:
