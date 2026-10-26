@@ -52,6 +52,7 @@ class GitHubReaderTests(unittest.TestCase):
                     return Response(b"fake zip")
                 return Response(json.dumps(data).encode())
         mismatched = {"downloaded_bytes_consistent": True,
+                      "candidate_sha256": "a" * 64, "race_code": "202610280101",
                       "workflow_run_id": 999, "workflow_attempt": 1,
                       "generated_at": "2026-10-28T09:00:00+09:00",
                       "deadline_at": "2026-10-28T09:15:00+09:00"}
@@ -102,6 +103,7 @@ class GitHubReaderTests(unittest.TestCase):
                     return Response(b"fake zip")
                 return Response(json.dumps(data).encode())
         inspected = {"downloaded_bytes_consistent": True,
+                     "candidate_sha256": "a" * 64, "race_code": "202610280101",
                      "workflow_run_id": 123, "workflow_attempt": 1,
                      "generated_at": "2026-10-28T09:00:00+09:00",
                      "deadline_at": "2026-10-28T09:15:00+09:00"}
