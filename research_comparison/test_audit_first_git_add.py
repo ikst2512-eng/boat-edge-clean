@@ -13,6 +13,32 @@ class GitReceiptAuditTests(unittest.TestCase):
     def run_git(self, directory, *args):
         return subprocess.check_output(["git", "-C", str(directory), *args]).decode().strip()
 
+    def test_rejects_nul_path(self):
+        with tempfile.TemporaryDirectory() as name:
+            with self.assertRaisesRegex(ValueError, "unsafe path"):
+                audit(Path(name), "a"*40, "frozen"+chr(0)+".json", "b"*64,
+                      "2026-10-28T13:00:00+09:00")
+
+    def test_rejects_commit_inside_last_twelve_minutes(self):
+        with tempfile.TemporaryDirectory() as name:
+            root=Path(name)
+            self.run_git(root,"init","-q")
+            self.run_git(root,"config","user.name","CI")
+            self.run_git(root,"config","user.email","ci@example.invalid")
+            (root/"seed.txt").write_text("seed",encoding="utf-8")
+            self.run_git(root,"add","seed.txt")
+            self.run_git(root,"commit","-qm","seed")
+            blob=b'{"status":"research"}'
+            (root/"frozen.json").write_bytes(blob)
+            self.run_git(root,"add","frozen.json")
+            self.run_git(root,"commit","-qm","freeze")
+            first=self.run_git(root,"rev-parse","HEAD")
+            saved=self.run_git(root,"show","-s","--format=%cI",first)
+            timestamp=datetime.fromisoformat(saved)
+            deadline=(timestamp+timedelta(minutes=11)).isoformat()
+            with self.assertRaisesRegex(ValueError,"12-minute cutoff"):
+                audit(root,first,"frozen.json",hashlib.sha256(blob).hexdigest(),deadline)
+
     def test_first_add_and_tampering(self):
         with tempfile.TemporaryDirectory() as name:
             root=Path(name)
