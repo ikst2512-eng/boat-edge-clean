@@ -1,6 +1,10 @@
 name: CLEAN live browser smoke
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - tests/live-browser.cjs
+      - .github/workflows/live-browser.yml
   schedule:
     - cron: '25 1 * * *'
 permissions:
@@ -9,16 +13,27 @@ jobs:
   browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: pages
+            url: https://ikst2512-eng.github.io/boat-edge-clean/
+          - target: render
+            url: https://boat-edge-clean.onrender.com/
+    env:
+      CLEAN_SITE_URL: ${{ matrix.url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install browser runner
+        timeout-minutes: 4
         run: |
           npm install --no-save playwright@1.58.2
-          npx playwright install --with-deps chromium
-      - name: Test published GitHub Pages
+          npx playwright install --with-deps --only-shell chromium
+      - name: Test published site (${{ matrix.target }})
         shell: bash
         run: |
           set -o pipefail
@@ -27,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: clean-browser-${{ github.run_id }}
+          name: clean-browser-${{ matrix.target }}-${{ github.run_id }}
           path: |
             browser-smoke.log
             test-results/

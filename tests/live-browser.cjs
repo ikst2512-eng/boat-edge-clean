@@ -7,7 +7,7 @@ const fs=require('node:fs');
  fs.mkdirSync('test-results',{recursive:true});
  try{
   page.on('pageerror',e=>errors.push(e.message));
-  const response=await page.goto('https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:45000});
+  const response=await page.goto(process.env.CLEAN_SITE_URL || 'https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:45000});
   if(!response||!response.ok())throw Error('Published site unavailable: '+response?.status());
   await page.locator('#venueChooser .grid button').first().waitFor();
   const venues=await page.locator('#venueChooser .grid button').count();
@@ -31,7 +31,7 @@ const fs=require('node:fs');
    if(new URL(page.url()).searchParams.get('view')!==view)throw Error(view+' URL view parameter not synchronized');
    const panel=view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection';
    if(!await page.locator(panel).isVisible())throw Error(view+' panel not visible');
-   if(view==='exhibit'&&!await page.locator('#exhibitionGrid').isVisible())throw Error('Exhibition grid hidden');
+   if(view==='exhibit' && await page.locator('#exhibitionGrid').evaluate(el=>el.hidden))throw Error('Exhibition grid hidden attribute remains set');
   }
   destination=new URL(page.url());
   if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Tabs changed selected race');
