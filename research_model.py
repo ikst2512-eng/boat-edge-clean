@@ -81,8 +81,8 @@ def predict(hd,jcd,rno):
     record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
                 source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
-                    (title_sha256+\":\"+cards_sha256).encode(\"ascii\")
-                ).hexdigest(), input_hash_scope=\"source_csv_byte_hashes_ordered_title_cards\",
+                    (title_sha256+":"+cards_sha256).encode("ascii")
+                ).hexdigest(), input_hash_scope="source_csv_byte_hashes_ordered_title_cards",
                 **model_provenance())
     data=json.dumps(record,ensure_ascii=False,sort_keys=True)
     # Exclusive create: never silently replace a previously saved forecast.
