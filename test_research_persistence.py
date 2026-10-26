@@ -20,6 +20,15 @@ class PersistTests(unittest.TestCase):
             (Path(d)/"209901011201.json").write_text('{"race_code":"wrong","status":"research","validated":false}',encoding="utf-8")
             with patch.object(m,"STORE",Path(d)):
                 with self.assertRaises(ValueError):m.predict("20990101","12","1")
+    def test_saved_non_object_json_is_rejected_cleanly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "209901011201.json").write_text(
+                '["not", "a", "snapshot"]', encoding="utf-8"
+            )
+            with patch.object(m, "STORE", Path(directory)):
+                with self.assertRaisesRegex(ValueError, "invalid saved forecast structure"):
+                    m._saved("209901011201")
+
     def test_saved_unhashable_tickets_fail_with_value_error(self):
         with tempfile.TemporaryDirectory() as d:
             record = {"race_code": "209901011201", "status": "research",
