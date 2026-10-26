@@ -56,8 +56,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Capture audited HTML (never update site or Fresh)
         env:
-          RACE_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.race_key || vars.CLEAN_PRERACE_PROBE_RACE_KEY }}
-          VERIFIED_DEADLINE: ${{ github.event_name == 'workflow_dispatch' && inputs.verified_deadline || vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE }}
+          RACE_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.race_key || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_RACE_KEY || '') }}
+          VERIFIED_DEADLINE: ${{ github.event_name == 'workflow_dispatch' && inputs.verified_deadline || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE || '') }}
         run: |
           python3 run_official_prerace_probe.py --race-key "$RACE_KEY" --deadline "$VERIFIED_DEADLINE" --directory "$RUNNER_TEMP/prerace-evidence" > "$RUNNER_TEMP/probe.json"
           cat "$RUNNER_TEMP/probe.json"
