@@ -6,13 +6,12 @@ import argparse
 import hashlib
 import json
 import re
-import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-HEX40=re.compile(r"[0-9a-f]{40}\\Z")
-HEX64=re.compile(r"[0-9a-f]{64}\\Z")
-NAME=re.compile(r"20[0-9]{10}\\.json\\Z")
+HEX40=re.compile(r"[0-9a-f]{40}\Z")
+HEX64=re.compile(r"[0-9a-f]{64}\Z")
+NAME=re.compile(r"20[0-9]{10}\.json\Z")
 
 def check_file(path):
     path=Path(path)
