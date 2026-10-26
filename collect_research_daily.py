@@ -1,5 +1,5 @@
 """Daily research forecast collection. Uses one source fetch per daily CSV."""
-import argparse, json, os, hashlib
+import argparse, json, os, hashlib, math
 from collections import Counter
 from datetime import datetime, timedelta
 from research_model import JST, BASE, STORE, _record_path, _saved, probabilities, read_rows, model_provenance
@@ -9,18 +9,23 @@ def collect(day):
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
     titles,t1,title_sha=read_rows(BASE+"title/"+path)
     cards,t2,cards_sha=read_rows(BASE+"race_cards/"+path)
+    if not any(isinstance(row, dict) and isinstance(row.get('レースコード'),str) and len(row['レースコード']) == 12 and row['レースコード'].isascii() and row['レースコード'].isdigit() and row['レースコード'].startswith(day) for row in titles):
+        raise ValueError('no valid race titles for requested day')
+    if not cards:
+        raise ValueError('race card source is empty')
     # Never silently choose the final duplicate row from a source CSV.
     by_code={}
     duplicate_cards=set()
     for row in cards:
+        if not isinstance(row, dict): continue
         code=row.get("レースコード")
         if not code:continue
         if code in by_code:duplicate_cards.add(code)
         else:by_code[code]=row
-    title_counts=Counter(row.get("レースコード") for row in titles)
+    title_counts=Counter(row.get("レースコード") for row in titles if isinstance(row,dict))
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     for title in titles:
-        code=title.get("レースコード","")
+        code=title.get("レースコード","") if isinstance(title,dict) else ""
         if not(code.isascii() and code.isdigit() and len(code)==12 and code.startswith(day)):continue
         if title_counts[code] != 1 or code in duplicate_cards:
             counts["invalid"]+=1;continue
@@ -33,6 +38,8 @@ def collect(day):
             now=datetime.now(JST);cutoff=deadline-timedelta(minutes=12)
             if max(now,t1,t2)>cutoff:counts["not_ready"]+=1;continue
             rates=[float(card[f"艇{i}_全国勝率"]) for i in range(1,7)]
+            if any(not math.isfinite(rate) or not 0 <= rate <= 10 for rate in rates):
+                raise ValueError('invalid national win rate')
             tickets=["-".join(map(str,t)) for t,_ in probabilities(rates)[:10]]
             record={"ok":True,"status":"research","validated":False,"race_code":code,"predictions":tickets,
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
@@ -52,8 +59,15 @@ def collect(day):
         except FileExistsError:counts["already_saved"]+=1
         except (ValueError, KeyError, TypeError, OSError) as e:counts["invalid"]+=1
     return counts
+
+def validate_run_counts(counts):
+    if counts['saved'] + counts['already_saved'] + counts['not_ready'] == 0:
+        raise ValueError('no valid or cutoff-eligible race records; refusing green run')
+
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--date",default=datetime.now(JST).strftime("%Y%m%d"))
     a=p.parse_args()
-    print(json.dumps(collect(a.date),ensure_ascii=False))
+    counts=collect(a.date)
+    print(json.dumps(counts,ensure_ascii=False))
+    validate_run_counts(counts)
