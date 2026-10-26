@@ -40,3 +40,13 @@ Independent preparation requirements:
 **Known blockers (2026-10-27)**: the clean research snapshot currently persists top-10 tickets only, not the entire 120 distribution with independently verified first Git-addition and model SHA. Old V199 variants depend on a first-frozen V185 parent and source evidence; no eligible common prospective paired dataset is established. Hence current comparative hit rate, log loss and calibration are **not estimable**. Do not declare improvement or merge model weights.
 
 Repository baseline SHA at preparation: `12db90df4fb82c364a70bfb63365ccccee1d7e0b`. Separate draft PRs #12, #14 and #15 own provenance/formal/source safety; do not overwrite them.
+
+## Offline initial Git-addition audit
+
+`python research_comparison/audit_first_git_add.py --repo ./independent-clone --commit <40hex> --path frozen/forecast.json --sha256 <64hex> --deadline 2026-10-28T13:00:00+09:00`
+
+This read-only audit requires a single-parent commit that **adds** the named path, matches the exact stored bytes' SHA-256 and has a committer timestamp before the deadline. It rejects modifications masquerading as first additions. A trusted platform-side delivery timestamp, receipt/signature and source authenticity **must still be verified independently**, because a local Git committer timestamp can be backdated. It never automatically sets the evaluator's self-declared `independently_verified` field or unlocks outcomes.
+
+## Integration warning
+
+PR #16 independently implements a paired evaluation script. Its changed paths do not collide with this PR, but the algorithms overlap. Do not merge both as separate evaluation authorities; consolidate the evidence contract, tests and metrics after ownership review. The research evaluator here does not validate receipt status on its own. The initial prototype's test fixture SHA expressions were corrected to Python repetition syntax in commit 93b238c. No completed GitHub Actions test run has yet been demonstrated.
