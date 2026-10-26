@@ -5,6 +5,7 @@ on:
       - 'research_model.py'
       - 'server.py'
       - 'test_research_model.py'
+      - 'test_research_model_provenance.py'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
@@ -19,4 +20,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily
+        run: python -m unittest -v test_research_model test_research_model_provenance test_research_persistence test_collect_research_daily
