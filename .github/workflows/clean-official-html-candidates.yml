@@ -109,5 +109,34 @@ jobs:
               report['status'] = 'blocked_unverified'
               report['error_type'] = type(exc).__name__
               report['error'] = str(exc)[:130]
+          # Repeat the same fail-closed six-racer check on other races for this date.
+          # No source payloads or racer PII are printed or stored.
+          batch = []
+          for venue, race in [('21', '2'), ('21', '3'), ('01', '1')]:
+              key = f'20261026-{venue}-{int(race):02d}'
+              entry = {'race_key': key, 'status': 'blocked_unverified'}
+              try:
+                  other_url = f'https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261026&jcd={venue}&rno={race}'
+                  with urlopen(Request(other_url, headers={'User-Agent':'BOAT-EDGE-CLEAN-RESEARCH/1.0'}), timeout=10) as response:
+                      other = response.read(2_000_001)
+                  if len(other) > 2_000_000: raise ValueError('HTML too large')
+                  parsed = extract_six_candidates(other, other_url, key)
+                  target = '20261026' + venue + f'{int(race):02d}'
+                  matching = [row for row in rows if row.get('レースコード') == target]
+                  if len(matching) != 1: raise ValueError('CSV race missing or duplicate')
+                  row = matching[0]
+                  mismatches = []
+                  for racer in parsed['racers']:
+                      lane = racer['lane']
+                      if racer['registration'] != (row.get(f'艇{lane}_登録番号') or '').strip():
+                          mismatches.append(f'lane{lane}.registration')
+                      if ''.join(racer['name'].split()) != ''.join((row.get(f'艇{lane}_選手名') or '').split()):
+                          mismatches.append(f'lane{lane}.name')
+                  entry.update(candidate_count=len(parsed['racers']), mismatch_count=len(mismatches),
+                               status='matched_unverified' if not mismatches else 'blocked_mismatch')
+              except Exception as exc:
+                  entry.update(error_type=type(exc).__name__, error=str(exc)[:100])
+              batch.append(entry)
+          report['additional_races'] = batch
           print(json.dumps(report, ensure_ascii=False))
           PY
