@@ -4,7 +4,7 @@ import json
 import hashlib
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from paired_compare import TICKETS, timestamp
 from research_model import probabilities as baseline_probabilities
@@ -95,6 +95,8 @@ def inspect_pair(pair, source_snapshot_bytes=None):
         generated=timestamp(pair["source_snapshot_generated_at"])
         if generated>frozen or frozen>=cutoff:
             reasons.append("inconsistent pre-cutoff chronology")
+        if isinstance(code,str) and re.fullmatch(r"20[0-9]{10}",code) and cutoff.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d")!=code[:8]:
+            reasons.append("pair cutoff JST date differs from race")
     except (KeyError,TypeError,ValueError,AttributeError):
         reasons.append("missing or invalid chronology")
     if pair.get("entry_status")!="assumed_identity_not_verified":
