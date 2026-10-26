@@ -33,10 +33,18 @@ class AuditTests(unittest.TestCase):
                  "snapshot_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
                  "first_seen_at":"2026-10-26T09:01:00+09:00",
                  "official_deadline_at":"2026-10-26T10:12:00+09:00"}
-            outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3"}
+            outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3",
+                     "result_source_id":"synthetic-fixture-only",
+                     "result_confirmed_at":"2026-10-26T10:13:00+09:00"}
             self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            invalid_result=dict(outcome)
+            invalid_result.pop("result_source_id")
+            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_provenance"],1)
+            invalid_result=dict(outcome)
+            invalid_result["result_confirmed_at"]="2026-10-26T10:11:00+09:00"
+            self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["result_confirmed_before_deadline"],1)
             inconsistent=dict(snap)
             inconsistent["source_cards_sha256"] = "f"*64
             p.write_text(json.dumps(inconsistent))
