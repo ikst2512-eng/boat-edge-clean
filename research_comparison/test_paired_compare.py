@@ -13,7 +13,7 @@ class PairedComparisonTests(unittest.TestCase):
               "generated_at":"2026-10-28T11:59:00+09:00",
               "source_received_at":"2026-10-28T11:58:00+09:00",
               "independently_verified":True,"probabilities":p}
-        return {"race_key":"r1","deadline":"2026-10-28T13:00:00+09:00",
+        return {"race_key":"20261028-12-1","deadline":"2026-10-28T13:00:00+09:00",
                 "input_sha256":"b"*64,"research_outcome_access_approved":True,
                 "outcome_independently_verified":True,"candidate_pre_registered":True,
                 "result":"1-2-3",
@@ -58,7 +58,7 @@ class PairedComparisonTests(unittest.TestCase):
     def test_sha_drift_rejected(self):
         first=self.row()
         second=self.row()
-        second["race_key"]="r2"
+        second["race_key"]="20261028-12-2"
         second["forecasts"]["b"]["model_sha"]="d"*40
         o=compare([first,second],"a","b")
         self.assertEqual(o["eligible_races"],1)
@@ -100,7 +100,7 @@ class PairedComparisonTests(unittest.TestCase):
     def test_registration_drift_across_races_rejected(self):
         first=self.row()
         second=self.row()
-        second["race_key"]="r2"
+        second["race_key"]="20261028-12-2"
         second["pre_registration"]["registered_at"]="2026-10-28T11:51:00+09:00"
         result=compare([first,second],"a","b")
         self.assertEqual(result["eligible_races"],1)
@@ -129,6 +129,10 @@ class PairedComparisonTests(unittest.TestCase):
         result=compare([r],"a","b")
         self.assertEqual(result["eligible_races"],0)
         self.assertIn("pre-registration after forecast generation", result["exclusion_reasons"])
+    def test_invalid_race_key_rejected(self):
+        row=self.row()
+        row["race_key"]="ambiguous-race"
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
