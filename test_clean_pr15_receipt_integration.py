@@ -6,6 +6,7 @@ from pathlib import Path
 from hashlib import sha256
 from official_prerace_capture import capture_beforeinfo, save_raw_receipt, read_raw_receipt, JST
 from clean_verified_receipt_bridge import bridge_saved_official_receipt
+from official_beforeinfo_research_parser import research_start_exhibition
 
 KEY="20261027-04-10"
 DEADLINE=datetime(2026,10,27,15,0,tzinfo=JST)
@@ -63,6 +64,16 @@ class PinnedPR15IntegrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 bridge_saved_official_receipt(racelist,parsed,directory=directory,
                                               deadline=DEADLINE,read_raw_receipt=read_raw_receipt)
+    def test_actual_pr15_parser_extraction_matches_saved_bytes(self):
+        # Explicit old-layout HTML fixture: validates actual PR15 parser wiring,
+        # not real 2026 official HTML compatibility.
+        html=('<html><body>'+''.join(
+            '<div class="table1_boatImage1"><span class="table1_boatImage1Number">'+str(i)+'</span>'
+            '<span class="table1_boatImage1Time">0.12</span></div>'
+            for i in range(1,7))+'</body></html>').encode()
+        parsed=research_start_exhibition(html)
+        self.assertEqual(len(parsed["start_exhibition"]),6)
+        self.assertEqual([x["boat_number"] for x in parsed["start_exhibition"]],list(range(1,7)))
     def test_tampered_archive_rejected_by_pr15_reader(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt,racelist,parsed=self.prepare(directory)
