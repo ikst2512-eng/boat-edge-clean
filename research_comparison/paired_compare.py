@@ -41,15 +41,15 @@ def validate_forecast(f, race):
         raise ValueError("first Git addition and byte identity not independently verified")
     if f["input_sha256"] != race["input_sha256"]:
         raise ValueError("nonidentical race input")
-    cutoff = timestamp(race["deadline"])
+    cutoff = timestamp(race["deadline"]) - timedelta(minutes=12)
     if timestamp(f["source_received_at"]) > timestamp(f["generated_at"]):
         raise ValueError("source received after forecast generation")
     if timestamp(f["source_received_at"]) >= cutoff:
-        raise ValueError("source received after deadline")
+        raise ValueError("source received after 12-minute cutoff")
     if timestamp(f["generated_at"]) > timestamp(f["first_git_saved_at"]):
         raise ValueError("generated after initial freeze")
     if timestamp(f["generated_at"]) >= cutoff or timestamp(f["first_git_saved_at"]) >= cutoff:
-        raise ValueError("forecast not frozen before deadline")
+        raise ValueError("forecast not frozen before 12-minute cutoff")
     p = f["probabilities"]
     if not isinstance(p, dict) or set(p) != TICKETS:
         raise ValueError("not exactly 120 trifectas")
@@ -113,8 +113,8 @@ def collect(rows, baseline, candidate):
             if registered_cohort is not None and identity != registered_cohort:
                 raise ValueError("pre-registration drift across evaluation races")
             registered = timestamp(reg["registered_at"])
-            if registered >= timestamp(r["deadline"]):
-                raise ValueError("pre-registration after deadline")
+            if registered >= timestamp(r["deadline"]) - timedelta(minutes=12):
+                raise ValueError("pre-registration after 12-minute cutoff")
             if registered > min(timestamp(f[baseline]["generated_at"]), timestamp(f[candidate]["generated_at"])):
                 raise ValueError("pre-registration after forecast generation")
             if f[baseline]["input_sha256"] != f[candidate]["input_sha256"]:
