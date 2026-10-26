@@ -21,7 +21,24 @@ class PairedComparisonTests(unittest.TestCase):
                     "baseline_model_sha":"a"*40,"candidate_model_sha":"a"*40,
                     "registered_at":"2026-10-28T11:50:00+09:00",
                     "receipt_verified_independently":True},
+                "external_receipt_audits":{name:{"status":"SERVER_PUSH_AND_COMMIT_BLOB_MATCH", "ready_for_scoring":False, "formal_validated":False, "outstanding_evidence":[], "full_history_first_add_verified":True, "commit_sha":"c"*40} for name in ("a","b")},
                 "forecasts":{"a":base,"b":dict(copy.deepcopy(base),model_id="b")}}
+    def test_missing_evidence_excludes_pair(self):
+        row=self.row()
+        del row["external_receipt_audits"]
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_only_one_receipt_excludes_pair(self):
+        row=self.row()
+        del row["external_receipt_audits"]["b"]
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_outstanding_evidence_excludes_pair(self):
+        row=self.row()
+        row["external_receipt_audits"]["b"]["outstanding_evidence"]=["model_source_sha_attestation"]
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_wrong_forecast_receipt_commit_excludes_pair(self):
+        row=self.row()
+        row["external_receipt_audits"]["b"]["commit_sha"]="d"*40
+        self.assertEqual(compare([row],"a","b")["eligible_races"],0)
     def test_model_probability_inputs_are_independent(self):
         row=self.row()
         self.assertIsNot(row["forecasts"]["a"]["probabilities"],
