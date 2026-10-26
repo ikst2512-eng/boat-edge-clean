@@ -5,6 +5,8 @@ on:
       - 'research_model.py'
       - 'server.py'
       - 'test_research_model.py'
+      - 'test_research_model_provenance.py'
+      - 'test_research_source_digests.py'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
@@ -19,6 +21,8 @@ on:
       - 'research_model.py'
       - 'server.py'
       - 'test_research_model.py'
+      - 'test_research_model_provenance.py'
+      - 'test_research_source_digests.py'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
@@ -40,6 +44,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily
+        run: |\n          python -m unittest -v test_research_model test_research_persistence test_collect_research_daily\n          if [ -f test_research_model_provenance.py ] && [ -f test_research_source_digests.py ]; then\n            python -m unittest -v test_research_model_provenance test_research_source_digests\n          fi
       - name: Verify isolated research auditor fixture gates
         run: python -m unittest discover -s tests -p 'test_*.py' -v
