@@ -44,6 +44,32 @@ class ProbeRunnerTests(unittest.TestCase):
                 self.assertEqual(result["diagnostic"]["status"], "inspection_only")
                 self.assertTrue(result["diagnostic"]["sections_present"]["exhibition_time"])
                 self.assertFalse(result["diagnostic"]["verified_preview"])
+                self.assertEqual(result["research_extraction"]["status"], "research_unavailable")
+
+    def test_probe_archives_six_boat_research_without_verifying_actual_entry(self):
+        now = datetime(2026, 10, 27, 14, 50, tzinfo=JST)
+        deadline = now + timedelta(minutes=10)
+        raw = ("<html><body>" + "".join(
+            '<div class="table1_boatImage1"><span class="table1_boatImage1Number">' +
+            str(num) + '</span><span class="table1_boatImage1Time">.08</span></div>'
+            for num in (2,1,3,4,6,5)) + "</body></html>").encode()
+        class Response:
+            status = 200
+            headers = {"Content-Type": "text/html"}
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, n): return raw
+        def capture(key, cutoff):
+            return capture_beforeinfo(key, cutoff, now=now, completed_at=now,
+                                      opener=lambda *args, **kwargs: Response())
+        with patch("run_official_prerace_probe.capture_beforeinfo", side_effect=capture):
+            with tempfile.TemporaryDirectory() as directory:
+                result = run("20261027-12-01", deadline.isoformat(), directory)
+                parsed = result["research_extraction"]
+                self.assertEqual(parsed["status"], "research_unverified")
+                self.assertFalse(parsed["actual_entry_verified"])
+                self.assertEqual([row["boat_number"] for row in parsed["start_exhibition"]], [2,1,3,4,6,5])
+                self.assertEqual(parsed["raw_sha256"], result["receipt_sha256"])
 
     def test_rejects_unexpected_promoted_diagnostic(self):
         with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64}, b"html")), \
@@ -84,6 +110,7 @@ class ProbeRunnerTests(unittest.TestCase):
                 self.assertTrue(manifest.exists())
                 self.assertEqual(json.loads(manifest.read_text()), result)
         self.assertEqual(result["status"], "unverified_raw_only")
+        self.assertEqual(result["research_extraction"]["status"], "research_unavailable")
         self.assertFalse(result["diagnostic"]["verified_preview"])
 
 
