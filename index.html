@@ -381,7 +381,8 @@ async function loadRaceData(force=false){
   if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
   const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
   if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('CARD_NOT_PREDEADLINE');
-  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000;
+  const validSixLanes=rows=>Array.isArray(rows)&&rows.length===6&&rows.every(row=>row&&Number.isInteger(row.lane)&&row.lane>=1&&row.lane<=6)&&new Set(rows.map(row=>row.lane)).size===6;
+  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000&&validSixLanes(raw.beforeinfo?.racers)&&validSixLanes(raw.beforeinfo?.start_exhibition);
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
   raw=mergeVerifiedRaceSnapshots(verifiedRaceCache.get(key),raw);
@@ -467,7 +468,7 @@ async function loadRaceData(force=false){
   const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
   const fastest=measured.length?measured[0].time:null;
   const summary=document.createElement('div');summary.className='exhibition-summary';
-  summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未検証｜未取得項目は「—」';
+  summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':'') :'展示データ未取得・不完全・未検証｜未取得項目は「—」';
   exhibitGrid.append(summary);
   const weather=safePreview&&raw.beforeinfo?.weather&&typeof raw.beforeinfo.weather==='object'?raw.beforeinfo.weather:null;
   if(weather){
@@ -483,7 +484,8 @@ async function loadRaceData(force=false){
   const entryNote=document.createElement('div');entryNote.className='exhibition-entry-note';
   const actual=Array.isArray(raw.actual_entry)?raw.actual_entry:[];
   const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
-  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
+   const expectedEntryUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+key.slice(0,8)+'&jcd='+key.split('-')[1]+'&rno='+Number(key.split('-')[2]);
+  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&entryAudit.source===expectedEntryUrl&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
   entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
   if(!validEntry){
    const sidecarToken=token,sidecarKey=key;
