@@ -15,6 +15,12 @@ class _ExhibitionParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         classes = set(dict(attrs).get("class", "").split())
+        if tag in ("script", "style", "template", "noscript") or "hidden" in dict(attrs):
+            self.stack.append({"tag": tag, "record": None, "target": None, "blocked": True})
+            return
+        if any(frame.get("blocked") for frame in self.stack):
+            self.stack.append({"tag": tag, "record": None, "target": None, "blocked": True})
+            return
         record = None
         if "table1_boatImage1" in classes:
             record = {"number": [], "st": []}
@@ -23,11 +29,11 @@ class _ExhibitionParser(HTMLParser):
                        if f["record"] is not None), None)
         record = record or parent
         target = None
-        if "table1_boatImage1Number" in classes:
+        if record is not None and "table1_boatImage1Number" in classes:
             target = "number"
-        if "table1_boatImage1Time" in classes:
+        if record is not None and "table1_boatImage1Time" in classes:
             target = "st"
-        self.stack.append({"tag": tag, "record": record, "target": target})
+        self.stack.append({"tag": tag, "record": record, "target": target, "blocked": False})
 
     def handle_endtag(self, tag):
         for idx in range(len(self.stack)-1, -1, -1):
@@ -36,6 +42,8 @@ class _ExhibitionParser(HTMLParser):
                 return
 
     def handle_data(self, data):
+        if any(frame.get("blocked") for frame in self.stack):
+            return
         record = next((f["record"] for f in reversed(self.stack)
                        if f["target"] is not None), None)
         target = next((f["target"] for f in reversed(self.stack)
