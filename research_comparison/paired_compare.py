@@ -187,6 +187,15 @@ def compare(rows, baseline, candidate):
         "lower_is_better":True}
     metrics["top1_ece_10bins"] = {"baseline":ece(pairs,"a"),"candidate":ece(pairs,"b"),
         "note":"Descriptive; very low-probability top tickets require a large sample."}
+    # Seven confirmatory comparisons are reported, not one cherry-picked p-value.
+    # Holm correction controls family-wise error under arbitrary dependence.
+    names = ["top1", "top3", "top5", "top10", "log_loss", "multiclass_brier"]
+    ordered = sorted(names, key=lambda name: metrics[name]["paired_signflip_p"])
+    maximum = 0.0
+    for index, name in enumerate(ordered):
+        maximum = max(maximum, min(1.0, (len(ordered)-index) * metrics[name]["paired_signflip_p"]))
+        metrics[name]["holm_adjusted_p"] = maximum
+    output["multiple_comparison_method"] = "Holm step-down across six paired endpoints; ECE descriptive"
     output["metrics"] = metrics
     output["status"] = "RESEARCH_ONLY_NOT_PROMOTED"
     output["warning"] += " CI, p-values and ECE do not establish prospective improvement without audited pre-registration and independent receipts."
