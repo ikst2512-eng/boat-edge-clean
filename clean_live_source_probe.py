@@ -70,4 +70,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "statuses": {k:v["status"] for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status")} for k,v in result["sources"].items()}}, ensure_ascii=False))
