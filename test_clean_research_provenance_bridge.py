@@ -11,7 +11,7 @@ RACE={"race_key":"20261026-21-01","status":"html_candidates_unverified",
 BEFORE={"race_key":"20261026-21-01","status":"research_unverified",
         "verified_preview":False,"actual_entry_verified":False,
         "raw_sha256":"a"*64,"captured_at":CAP.isoformat(),
-        "start_exhibition":[{"boat_number":i} for i in range(1,7)]}
+        "start_exhibition":[{"boat_number":i,"exhibition_course":i,"exhibition_st":0.12} for i in range(1,7)]}
 
 class BridgeTests(unittest.TestCase):
     def test_safe_bridge_remains_unverified(self):
@@ -61,6 +61,21 @@ class BridgeTests(unittest.TestCase):
     def test_unsafe_racelist_promotion(self):
         with self.assertRaises(ValueError):
             compare_capture_identity({**RACE,"official_provenance_verified":True},BEFORE,deadline=DEADLINE)
+    def test_duplicate_exhibition_course(self):
+        rows=[dict(x) for x in BEFORE["start_exhibition"]]
+        rows[5]["exhibition_course"]=1
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
+    def test_nonfinite_exhibition_st(self):
+        rows=[dict(x) for x in BEFORE["start_exhibition"]]
+        rows[0]["exhibition_st"]=float("nan")
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
+    def test_missing_exhibition_st(self):
+        rows=[dict(x) for x in BEFORE["start_exhibition"]]
+        del rows[0]["exhibition_st"]
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
