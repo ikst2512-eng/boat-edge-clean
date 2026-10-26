@@ -27,7 +27,7 @@ class LegacyDependencyGuard(unittest.TestCase):
         )
 
     def test_runtime_python_and_workflows_do_not_reference_legacy(self):
-        files = [*ROOT.glob("*.py"), *(ROOT / ".github/workflows").glob("*.yml")]
+        files = [*(p for p in ROOT.glob("*.py") if not p.name.startswith("test_")), *(ROOT / ".github/workflows").glob("*.yml")]
         for file in files:
             with self.subTest(file=str(file.relative_to(ROOT))):
                 self.assertIsNone(
