@@ -8,7 +8,7 @@ SHA="a"*40
 class ReceiptVerifyTests(unittest.TestCase):
     def test_refuses_remote_mismatch(self):
         def git(*args,**kwargs):
-            if args[1]=="rev-parse": return SHA+"\n"
+            if args[0][1]=="rev-parse": return SHA+"\n"
             return PAIR+"\n"
         with patch("research_remote_receipt_verify.subprocess.check_output",side_effect=git):
             with self.assertRaisesRegex(ValueError,"remote ref"):
@@ -16,7 +16,7 @@ class ReceiptVerifyTests(unittest.TestCase):
                     "Wed, 28 Oct 2026 00:05:00 GMT"))
     def test_remote_server_time_certifies_only_current_batch(self):
         def git(*args,**kwargs):
-            if args[1]=="rev-parse": return SHA+"\n"
+            if args[0][1]=="rev-parse": return SHA+"\n"
             return PAIR+"\n"
         with patch("research_remote_receipt_verify.subprocess.check_output",side_effect=git),patch(
             "research_remote_receipt_verify.eligible_paths",return_value=[PAIR]) as guard:
