@@ -64,6 +64,23 @@ class FormalFeedLockTests(unittest.TestCase):
             self.assertIs(body["validated"], False)
             self.assertNotEqual(body["status"], "available")
 
+    def test_research_fallback_strips_forged_approval_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            research = {"ok": True, "status": "research", "validated": False,
+                        "predictions": ["1-2-3"], "model_version": "exploratory",
+                        "formal_approved": True, "independent_receipt_verified": True,
+                        "result_unlock_token": "fake"}
+            with (patch.object(server, "ROOT", Path(directory)),
+                  patch("research_model.predict", return_value=research)):
+                status, body = server.get_predictions(
+                    {"hd": ["20261027"], "jcd": ["01"], "rno": ["1"]})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["status"], "research")
+            self.assertIs(body["validated"], False)
+            self.assertNotIn("formal_approved", body)
+            self.assertNotIn("independent_receipt_verified", body)
+            self.assertNotIn("result_unlock_token", body)
+
     def test_research_fallback_cannot_self_promote(self):
         with tempfile.TemporaryDirectory() as directory:
             fake = {"ok": True, "status": "available", "validated": True,
