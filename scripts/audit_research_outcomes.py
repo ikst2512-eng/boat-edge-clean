@@ -69,9 +69,13 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
         code = path.stem
         seen.add(code)
         try:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 20_000:
+                exclusions["unsafe_snapshot_file"] += 1
+                continue
             raw = path.read_bytes()
             obj = json.loads(raw)
-            if obj.get("race_code") != code or len(code) != 12 or not code.isdigit():
+            if (obj.get("race_code") != code or len(code) != 12
+                    or not code.isascii() or not code.isdigit()):
                 raise ValueError("race identity mismatch")
             if obj.get("status") != "research" or obj.get("validated") is not False:
                 raise ValueError("not a research forecast")
