@@ -57,6 +57,19 @@ def probe(date, venue, race, opener=urlopen):
                             matches = sum(code == target for code in codes)
                             entry["race_rows"] = matches
                             entry["race_identity_status"] = "single_row_unverified" if matches == 1 else "blocked"
+                            if matches == 1:
+                                from clean_csv_staging import map_race_card
+                                from clean_preview_staging import stage_preview
+                                try:
+                                    if name == "race_csv":
+                                        mapped = map_race_card(decoded, target, url, report["observed_at"])
+                                    else:
+                                        mapped = stage_preview(decoded, target, name.removeprefix("preview_"), url)
+                                    entry["record_validation"] = "schema_pass_unverified"
+                                    entry["record_fields"] = len(mapped["racers"]) if name == "race_csv" else len(mapped["values"])
+                                except (ValueError, KeyError, TypeError) as error:
+                                    entry["record_validation"] = "blocked"
+                                    entry["validation_error"] = str(error)[:150]
                     except (UnicodeError, csv.Error, ValueError):
                         entry["race_rows"] = "unreadable_csv"
                 else:
@@ -76,4 +89,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error")} for k,v in result["sources"].items()}}, ensure_ascii=False))
