@@ -10,7 +10,9 @@ REPO = "ikst2512-eng/boat-edge-clean"
 def fetch_github(relative_path):
     if not relative_path.startswith("/repos/" + REPO + "/"):
         raise ValueError("unapproved GitHub API route")
-    if not any(relative_path.startswith("/repos/" + REPO + "/"+prefix) for prefix in ("git/commits/", "git/trees/", "git/blobs/", "actions/runs/")):\n        raise ValueError("unapproved evidence endpoint")\n    request = urllib.request.Request(
+    if not any(relative_path.startswith("/repos/" + REPO + "/"+prefix) for prefix in ("git/commits/", "git/trees/", "git/blobs/", "actions/runs/")):
+        raise ValueError("unapproved evidence endpoint")
+    request = urllib.request.Request(
         API + relative_path,
         headers={"Accept":"application/vnd.github+json",
                  "User-Agent":"boat-edge-clean-research-receipt-audit"},
