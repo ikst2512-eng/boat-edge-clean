@@ -41,7 +41,6 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
             raise ValueError("eligible pair not committed at HEAD")
     if not dry_run:
         eligible_paths(folder,day,datetime.now(JST))
-    if not dry_run:
         subprocess.run(["git","push","origin",f"HEAD:refs/heads/{BRANCH}"],check=True)
         remote=_git("ls-remote","origin",f"refs/heads/{BRANCH}").split()
         if len(remote) != 2 or remote[0] != head:
