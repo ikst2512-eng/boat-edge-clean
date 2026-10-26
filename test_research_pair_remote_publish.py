@@ -22,6 +22,20 @@ class RemotePublishTests(unittest.TestCase):
             cmd.assert_not_called()
             self.assertFalse(result["remote_head_verified"])
             self.assertFalse(result["pre_cutoff_remote_receipt_verified"])
+    def test_repeated_same_day_batch_only_new_head_files(self):
+        fresh="research_prospective_pairs/202610281202.json"
+        older="research_prospective_pairs/202610281201.json"
+        def git(*args):
+            if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
+            if args[0]=="status": return ""
+            if args[0]=="rev-parse": return "a"*40
+            if args[0]=="diff-tree": return fresh
+            if args[0]=="hash-object": return "a"*40
+            raise AssertionError(args)
+        with patch("research_pair_remote_publish._git",side_effect=git),patch(
+            "research_pair_remote_publish.eligible_paths",
+            return_value=[older,fresh]):
+            self.assertTrue(push("20261028")["dry_run"])
     def test_untracked_today_baseline_allowed(self):
         def git(*args):
             if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
