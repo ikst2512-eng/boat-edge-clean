@@ -41,17 +41,23 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
         if len(data) > 2_000_000:
             raise InvalidCandidate("GitHub response oversized")
         return data
-    run = json.loads(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
-    listing = json.loads(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
+    try:
+        run = json.loads(get(f"/actions/runs/{run_id}", "application/vnd.github+json"))
+        listing = json.loads(get(f"/actions/runs/{run_id}/artifacts?per_page=100", "application/vnd.github+json"))
+    except (ValueError, UnicodeError) as exc:
+        raise InvalidCandidate("malformed GitHub metadata") from exc
+    if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] != run_id:
+        raise InvalidCandidate("GitHub run metadata mismatch")
     artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
-    if not isinstance(artifacts, list) or listing.get("total_count", 101) > len(artifacts):
+    if (not isinstance(artifacts, list) or type(listing.get("total_count")) is not int or
+            listing["total_count"] != len(artifacts)) :
         raise InvalidCandidate("artifact listing incomplete")
     matches = [a for a in artifacts if isinstance(a, dict) and a.get("id") == artifact_id]
     if len(matches) != 1:
         raise InvalidCandidate("artifact not in specified run")
     artifact = matches[0]
     association = artifact.get("workflow_run")
-    if not isinstance(association, dict) or association.get("id") != run_id:
+    if not isinstance(association, dict) or type(association.get("id")) is not int or association["id"] != run_id:
         raise InvalidCandidate("artifact run association invalid")
     archive = get(f"/actions/artifacts/{artifact_id}/zip", "application/vnd.github+json")
     inspected = inspect_downloaded_artifact(archive, race_code, expected_sha256)
