@@ -110,7 +110,7 @@ jobs:
               if(rows.length!==3||!rows[0].cls.includes('prediction-primary')||!rows[0].prob.includes('probability-high')||rows[0].tier!=='本命'||rows[0].value!=='28.00%')throw Error('Primary mobile forecast incorrect: '+JSON.stringify(rows));
               if(!rows[1].cls.includes('prediction-strong')||!rows[2].cls.includes('prediction-strong'))throw Error('Upper candidate styling absent');
               await page.locator('#forecast [data-top="5"]').click();
-              if(await page.locator('#predictionRows .prediction-row').count()!==4)throw Error('Top5 selector incorrect');
+              await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-row').length===4,null,{timeout:5000});
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
               console.log('PASS: PR-local mobile forecast hierarchy and controls');
