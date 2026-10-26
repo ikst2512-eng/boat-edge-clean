@@ -39,6 +39,8 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
     day = datetime.strptime(race_key[:8], "%Y%m%d").date()
     if captured.astimezone(JST).date() != day or deadline.astimezone(JST).date() != day:
         raise ValueError("race day mismatch")
+    if captured.utcoffset() != timedelta(hours=9) or deadline.utcoffset() != timedelta(hours=9):
+        raise ValueError("JST +09:00 provenance required")
     if captured.astimezone(JST) >= deadline.astimezone(JST) - timedelta(minutes=2):
         raise ValueError("capture outside safe two-minute predeadline margin")
     return {"race_key": race_key, "status": "bridged_unverified",
