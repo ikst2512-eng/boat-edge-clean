@@ -52,3 +52,13 @@ def inspect_beforeinfo_html(receipt, raw):
         "racers": [],
         "start_exhibition": [],
     }
+
+
+def inspect_saved_beforeinfo(directory, race_key, digest, *, deadline):
+    """Inspect only after independently validating the complete archived receipt.
+
+    Returns diagnostics, never a production race JSON or verified lane values.
+    """
+    from official_prerace_capture import read_raw_receipt
+    receipt, raw = read_raw_receipt(directory, race_key, digest, deadline=deadline)
+    return inspect_beforeinfo_html(receipt, raw)
