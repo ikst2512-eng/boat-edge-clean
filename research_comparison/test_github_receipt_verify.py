@@ -36,6 +36,13 @@ class ReceiptTests(unittest.TestCase):
         result=self.check()
         self.assertEqual(result["status"],"SERVER_PUSH_AND_COMMIT_BLOB_MATCH")
         self.assertFalse(result["formal_validated"])
+    def test_server_receipt_never_authorizes_scoring(self):
+        result=self.check()
+        self.assertFalse(result["ready_for_scoring"])
+        self.assertFalse(result["outcome_access_authorized"])
+        self.assertIn("independent_source_csv_receipt",result["outstanding_evidence"])
+        self.assertIn("model_source_sha_attestation",result["outstanding_evidence"])
+        self.assertIn("preregistration_server_receipt",result["outstanding_evidence"])
     def test_fake_supplied_blob_rejected(self):
         self.responses[self.prefix + "/git/blobs/" + self.blob_sha]["content"]=base64.b64encode(b"forged").decode()
         with self.assertRaises(ValueError):self.check()
