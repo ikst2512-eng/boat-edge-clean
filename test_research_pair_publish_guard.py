@@ -26,6 +26,34 @@ class PublishGuardTests(unittest.TestCase):
             path.write_text(json.dumps(row),encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"unvalidated"):
                 eligible_paths(root,"20261028",now)
+    def test_rejects_source_after_freeze(self):
+        now=datetime(2026,10,28,9,0,tzinfo=JST)
+        with tempfile.TemporaryDirectory() as root:
+            path=Path(root)/"202610281201.json"
+            row={"race_code":path.stem,
+                 "cutoff_jst":(now+timedelta(minutes=10)).isoformat(),
+                 "frozen_at_jst":now.isoformat(),
+                 "source_snapshot_generated_at":(now+timedelta(seconds=1)).isoformat(),
+                 "status":"research_unvalidated","prospective_verified":False,
+                 "baseline":{str(i):1/120 for i in range(120)},
+                 "candidate":{str(i):1/120 for i in range(120)}}
+            path.write_text(json.dumps(row),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"source generated after"):
+                eligible_paths(root,"20261028",now)
+    def test_rejects_future_freeze(self):
+        now=datetime(2026,10,28,9,0,tzinfo=JST)
+        with tempfile.TemporaryDirectory() as root:
+            path=Path(root)/"202610281201.json"
+            row={"race_code":path.stem,
+                 "cutoff_jst":(now+timedelta(minutes=10)).isoformat(),
+                 "frozen_at_jst":(now+timedelta(minutes=1)).isoformat(),
+                 "source_snapshot_generated_at":now.isoformat(),
+                 "status":"research_unvalidated","prospective_verified":False,
+                 "baseline":{str(i):1/120 for i in range(120)},
+                 "candidate":{str(i):1/120 for i in range(120)}}
+            path.write_text(json.dumps(row),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"future"):
+                eligible_paths(root,"20261028",now)
     def test_rejects_invalid_probability_total(self):
         now=datetime(2026,10,28,9,0,tzinfo=JST)
         with tempfile.TemporaryDirectory() as root:
