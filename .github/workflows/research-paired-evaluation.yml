@@ -9,6 +9,8 @@ on:
       - 'test_research_scenario_candidate.py'
       - 'research_candidate_diagnostic.py'
       - 'test_research_candidate_diagnostic.py'
+      - 'research_snapshot_replay_audit.py'
+      - 'test_research_snapshot_replay_audit.py'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
@@ -23,4 +25,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
-        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic
+        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit
