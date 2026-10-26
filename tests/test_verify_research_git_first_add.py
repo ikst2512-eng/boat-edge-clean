@@ -31,8 +31,9 @@ class FirstAddEvidenceTests(unittest.TestCase):
             self.assertEqual(verify_first_add(root, CODE, sha, ref)["reason"],
                              "snapshot_differs_from_first_add")
             path.write_text('{"research":true}', encoding="utf-8")
+            (root / "marker.txt").write_text("unrelated", encoding="utf-8")
             command(root, "add", ".")
-            command(root, "commit", "-qm", "unchanged")
+            command(root, "commit", "-qm", "unrelated")
             newer = command(root, "rev-parse", "HEAD")
             self.assertEqual(verify_first_add(root, CODE, newer, ref)["reason"],
                              "not_added_in_commit")
