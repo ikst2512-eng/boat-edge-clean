@@ -1,4 +1,5 @@
 import json
+import hashlib
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -10,7 +11,8 @@ class ProspectiveCaptureTests(unittest.TestCase):
         now=datetime.now(JST)
         date=(now+timedelta(days=1)).strftime("%Y%m%d")
         return dict(race_code=date+"1201",rates=[5.0]*6,
-                    model_sha="a"*40,input_sha256="b"*64,
+                    model_sha="a"*40,input_sha256=hashlib.sha256(b"frozen original input").hexdigest(),
+                    input_bytes=b"frozen original input",
                     source_received_at=(now-timedelta(seconds=5)).isoformat(),
                     cutoff_jst=(now+timedelta(days=1)).isoformat())
     def test_exclusive_capture_and_complete_probabilities(self):
@@ -40,6 +42,12 @@ class ProspectiveCaptureTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as d:
                 with self.subTest(code=code), self.assertRaises(ValueError):
                     freeze(Path(d)/"none.json",**kwargs)
+    def test_reject_digest_not_backed_by_original_bytes(self):
+        kwargs=self.kwargs()
+        kwargs["input_sha256"]="b"*64
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError,"input bytes do not match"):
+                freeze(Path(d)/"none.json",**kwargs)
     def test_reject_late_source(self):
         kwargs=self.kwargs()
         kwargs["source_received_at"]=(datetime.now(JST)+timedelta(hours=1)).isoformat()
