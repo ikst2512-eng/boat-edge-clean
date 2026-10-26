@@ -22,7 +22,7 @@ class _RejectRedirect(HTTPRedirectHandler):
         raise ValueError("official source redirected")
 
 
-def capture_beforeinfo(race_key, deadline, *, now=None, opener=None):
+def capture_beforeinfo(race_key, deadline, *, now=None, opener=None, completed_at=None):
     """Return a source receipt and raw bytes only for safely predeadline races.
 
     Does not parse HTML, save snapshots, unlock results, or call any result URL.
@@ -54,7 +54,12 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=None):
         if response.status != 200 or "html" not in content_type:
             raise ValueError("official HTML response not verified")
         raw = response.read(MAX_BYTES + 1)
-    completed = datetime.now(timezone.utc).astimezone(JST) if now is None else started
+    # Distinguish start from completion: a slow fetch must not reuse its start time.
+    # Tests may explicitly inject completion; live calls always sample the clock.
+    completed = (completed_at if completed_at is not None else datetime.now(timezone.utc)).astimezone(JST)
+    if now is not None and completed_at is None:
+        # Legacy deterministic fixtures supply only 'now'; never accept as proof of live capture.
+        completed = started
     if len(raw) > MAX_BYTES or not raw or completed >= cutoff - MIN_MARGIN:
         raise ValueError("oversized, empty or late response")
     receipt = {
