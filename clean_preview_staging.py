@@ -10,6 +10,8 @@ import re
 from datetime import datetime
 
 KINDS = {"stt", "tkz", "sui"}
+ST_PATTERN = re.compile(r"^(?:F[.]?[0-9]{1,2}|[.]?[0-9]{1,2}|[0-9][.][0-9]{1,2})$")
+NUMBER_PATTERN = re.compile(r"^-?[0-9]+(?:[.][0-9]+)?$")
 BASE = "https://boatracecsv.github.io/data/previews/"
 CODE = re.compile(r"^20[0-9]{10}$")
 
@@ -53,9 +55,19 @@ def stage_preview(text, race_code, kind, source_url):
                 vals[field] = raw.strip() if isinstance(raw, str) and raw.strip() else None
             values[lane] = vals
         if kind == "stt":
+            for lane in range(1, 7):
+                st = values[lane]["スタート展示"]
+                if st is not None and not ST_PATTERN.fullmatch(st):
+                    raise ValueError("invalid exhibition ST")
             courses = [values[i]["コース"] for i in range(1, 7)]
             if any(x is None or not re.fullmatch("[1-6]", x) for x in courses) or set(courses) != set("123456"):
                 raise ValueError("unknown or duplicate exhibition entry")
+        else:
+            for lane in range(1, 7):
+                for field in ("展示タイム", "チルト"):
+                    value = values[lane][field]
+                    if value is not None and not NUMBER_PATTERN.fullmatch(value):
+                        raise ValueError("invalid exhibition numeric field")
     elif kind == "sui":
         for field in ("風速(m)", "風向", "波の高さ(cm)", "天候", "気温(℃)", "水温(℃)"):
             if field not in row:
