@@ -26,7 +26,8 @@ def read_rows(url):
         if response.status!=200:raise ValueError("source unavailable")
         raw=response.read(2_000_001)
         if len(raw)>2_000_000:raise ValueError("source too large")
-    return list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),datetime.now(JST)
+    return (list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),
+            datetime.now(JST), hashlib.sha256(raw).hexdigest())
 STORE=Path(__file__).resolve().parent/"research_snapshots"
 def model_provenance():
     root=Path(__file__).resolve().parent
@@ -62,8 +63,8 @@ def predict(hd,jcd,rno):
     old=_saved(code)
     if old is not None:return old
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    titles,t1=read_rows(BASE+"title/"+path)
-    cards,t2=read_rows(BASE+"race_cards/"+path)
+    titles,t1,title_sha256=read_rows(BASE+"title/"+path)
+    cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
     matching_t=[r for r in titles if r.get("レースコード")==code]
     matching_c=[r for r in cards if r.get("レースコード")==code]
     if len(matching_t)!=1 or len(matching_c)!=1:raise ValueError("race missing")
@@ -78,7 +79,11 @@ def predict(hd,jcd,rno):
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
     record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
-                source_cards_received_jst=t2.isoformat(),national_win_rates=rates,**model_provenance())
+                source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
+                source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
+                    (title_sha256+\":\"+cards_sha256).encode(\"ascii\")
+                ).hexdigest(), input_hash_scope=\"source_csv_byte_hashes_ordered_title_cards\",
+                **model_provenance())
     data=json.dumps(record,ensure_ascii=False,sort_keys=True)
     # Exclusive create: never silently replace a previously saved forecast.
     with _record_path(code).open("x",encoding="utf-8") as out:
