@@ -49,6 +49,14 @@ class ResearchParserTests(unittest.TestCase):
                 research_saved_start_exhibition(directory, receipt["race_key"],
                     receipt["sha256"], deadline=deadline)
 
+    def test_hidden_duplicate_and_unrelated_fields_ignored(self):
+        hidden = '<template><div class="table1_boatImage1"><span class="table1_boatImage1Number">1</span><span class="table1_boatImage1Time">.08</span></div></template>'
+        unrelated = '<span class="table1_boatImage1Time">.90</span>'
+        raw = ('<html><body>' + hidden + unrelated + fixture().decode().replace('<html><body>', '').replace('</body></html>', '') + '</body></html>').encode()
+        data = research_start_exhibition(raw)
+        self.assertEqual(len(data["start_exhibition"]), 6)
+        self.assertAlmostEqual(data["start_exhibition"][0]["exhibition_st"], .08)
+
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
                     fixture(st=""), fixture(st="L.08"), fixture(st="9.99")):
