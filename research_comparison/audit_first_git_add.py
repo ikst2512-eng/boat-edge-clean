@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -44,8 +44,8 @@ def audit(repo, commit, path, expected_sha256, deadline):
         raise ValueError("expected JSON object")
     committer=git(repo,"show","-s","--format=%cI",commit).decode().strip()
     saved=datetime.fromisoformat(committer)
-    if saved>=cutoff:
-        raise ValueError("Git committer timestamp not before deadline")
+    if saved>=cutoff-timedelta(minutes=12):
+        raise ValueError("Git committer timestamp not before 12-minute cutoff")
     return {"status":"LOCAL_GIT_FIRST_ADD_AND_BLOB_MATCH_ONLY",
             "commit":commit,"path":path,"blob_sha256":expected_sha256,
             "git_committer_time":committer,
