@@ -163,7 +163,9 @@ def get_predictions(params):
             if (not isinstance(research, dict) or research.get("status") != "research" or
                     research.get("validated") is not False):
                 raise ValueError("research fallback attempted formal promotion")
-            return 200, research
+            allowed = ("ok", "status", "predictions", "model_version",
+                       "generated_at", "message", "validated")
+            return 200, {field: research[field] for field in allowed if field in research}
         except (ValueError, OSError, TimeoutError, KeyError, TypeError) as exc:
             logging.info("research_prediction_unavailable %s", type(exc).__name__)
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "研究予想の入力データが揃っていません。"}
