@@ -11,7 +11,9 @@ class SourceComparisonTests(unittest.TestCase):
     def test_match_is_not_publication(self):
         c,o=records()
         x=compare_race_sources(c,o)
-        self.assertEqual(x["status"],"matched_unpublished")
+        self.assertEqual(x["status"],"compared_unverified")
+        self.assertTrue(x["data_equal"])
+        self.assertIs(x["official_provenance_verified"],False)
     def test_identity_mismatch_fails(self):
         c,o=records()
         o["race_key"]="20261027-12-02"
