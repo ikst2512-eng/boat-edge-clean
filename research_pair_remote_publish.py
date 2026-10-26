@@ -28,13 +28,13 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
     # Receipt auditor only certifies files added in this HEAD commit.
     added=set(_git("diff-tree","--root","--no-commit-id","--name-only",
                    "--diff-filter=A","-r",head).splitlines())
-    if not set(paths).issubset(added):
-        raise ValueError("eligible pair not newly added in HEAD")
+    if not added or not added.issubset(set(paths)):
+        raise ValueError("HEAD added pair files not in cutoff-eligible batch")
     changes=set(_git("diff-tree","--root","--no-commit-id","--name-only",
                      "-r",head).splitlines())
-    if changes != set(paths):
+    if changes != added:
         raise ValueError("HEAD contains unrelated changes; refuse publication")
-    for name in paths:
+    for name in sorted(added):
         committed=_git("rev-parse",f"HEAD:{name}")
         current=_git("hash-object",name)
         if committed != current:
