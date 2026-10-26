@@ -100,3 +100,5 @@ The PR #16 pair preflight now reports `source_snapshot_digest_verified_locally` 
 Original snapshot audit now requires the source JSON envelope to be `status: research` and `validated: false`, even when its canonical JSON SHA256 matches the pair's declared digest. Non-research records and invalid pair envelopes are never reported as valid local evidence or complete distributions.
 
 The optional PR #16 source snapshot check also requires its declared generation timestamp, cutoff, and original Top10 predictions to match the paired baseline's Top10 rank. A SHA-consistent but mismatched snapshot is not marked locally verified. This remains a consistency check rather than proof of actual GitHub publication time.
+
+PR #16 original snapshot preflight also checks both saved source CSV receipt timestamps against the original research forecast generation and safety cutoff. Missing timestamps or sources received after prediction generation prevent local verification, but passing checks never asserts independent receipt authenticity. The PR #16 collector/publisher is opt-in and does not automatically schedule or push pair files.
