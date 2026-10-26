@@ -187,7 +187,7 @@ jobs:
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'not_in_window'}},beforeinfo:null});
               await page.locator('.view-tabs [data-view="exhibit"]').click();
               await page.locator('#retryPrediction').click();
-              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('取得対象時間外'));
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'),null,{timeout:12000});
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('out-of-window exhibition removed lane cards');
               // Real saved PRE_RESULT values from 2026-10-22 Suminoe 1R:
               // lane 1 exhibition 6.89, tilt -0.5 and ST F.04.
