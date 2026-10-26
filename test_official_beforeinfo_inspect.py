@@ -1,5 +1,9 @@
 import unittest
-from official_beforeinfo_inspect import inspect_beforeinfo_html
+import tempfile
+from pathlib import Path
+from datetime import datetime, timedelta
+from official_prerace_capture import capture_beforeinfo, save_raw_receipt, JST
+from official_beforeinfo_inspect import inspect_beforeinfo_html, inspect_saved_beforeinfo
 
 RECEIPT={"race_key":"20261027-22-05","status":"raw_html_only","verified_preview":False}
 
@@ -20,6 +24,25 @@ class InspectionTests(unittest.TestCase):
     def test_script_labels_are_not_evidence(self):
         result=inspect_beforeinfo_html(RECEIPT,b"<html><script>var label='\xe5\xb1\x95\xe7\xa4\xba\xe3\x82\xbf\xe3\x82\xa4\xe3\x83\xa0';</script></html>")
         self.assertFalse(result["sections_present"]["exhibition_time"])
+    def test_saved_inspection_requires_complete_verified_receipt(self):
+        now = datetime(2026, 10, 27, 14, 55, tzinfo=JST)
+        deadline = now + timedelta(minutes=5)
+        class Response:
+            status=200
+            headers={"Content-Type":"text/html"}
+            def __enter__(self): return self
+            def __exit__(self,*args): pass
+            def read(self,n): return "<html><body>展示タイム スタート展示</body></html>".encode()
+        receipt, raw = capture_beforeinfo("20261027-22-05", deadline, now=now, opener=lambda *args, **kwargs: Response())
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_raw_receipt(receipt,raw,directory,deadline=deadline)
+            inspected = inspect_saved_beforeinfo(directory,receipt["race_key"],receipt["sha256"],deadline=deadline)
+            self.assertEqual(inspected["status"],"inspection_only")
+            self.assertFalse(inspected["verified_preview"])
+            Path(paths[0]).write_bytes(b"tampered")
+            with self.assertRaises(ValueError):
+                inspect_saved_beforeinfo(directory,receipt["race_key"],receipt["sha256"],deadline=deadline)
+
     def test_reject_promotion(self):
         with self.assertRaises(ValueError):
             inspect_beforeinfo_html({**RECEIPT,"verified_preview":True},b"<html></html>")
