@@ -122,6 +122,22 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if hashlib.sha256(raw).hexdigest() != att.get("snapshot_sha256"):
                 exclusions["snapshot_hash_mismatch"] += 1
                 continue
+            # Git blob SHA-1 is independently reproducible from exact snapshot
+            # bytes. The assessor must separately verify commit membership and
+            # remote receipt time; this calculation alone proves neither.
+            first_commit = att.get("first_added_commit_sha")
+            blob = att.get("first_added_blob_sha")
+            if (not isinstance(first_commit, str) or len(first_commit) != 40
+                    or any(c not in "0123456789abcdef" for c in first_commit)
+                    or not isinstance(blob, str) or len(blob) != 40):
+                exclusions["missing_first_added_git_evidence"] += 1
+                continue
+            git_blob = hashlib.sha1(
+                b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+            ).hexdigest()
+            if git_blob != blob:
+                exclusions["first_added_blob_mismatch"] += 1
+                continue
             if timestamp(att["first_seen_at"]) > timestamp(obj["cutoff_jst"]):
                 exclusions["receipt_after_cutoff"] += 1
                 continue
