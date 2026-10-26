@@ -1,5 +1,10 @@
 name: Official prerace raw probe (isolated)
 on:
+  push:
+    branches:
+      - fix/clean-official-preview-integrity-20261027
+    paths:
+      - .github/workflows/official-prerace-probe.yml
   workflow_dispatch:
     inputs:
       race_key:
@@ -17,14 +22,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   capture:
+    # Branch-only opt-in: both repository variables must be explicitly set.
+    # Ordinary pushes and pull requests do not fetch any race data.
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_RACE_KEY != '' && vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
       - name: Capture audited HTML (never update site or Fresh)
         env:
-          RACE_KEY: ${{ inputs.race_key }}
-          VERIFIED_DEADLINE: ${{ inputs.verified_deadline }}
+          RACE_KEY: ${{ inputs.race_key || vars.CLEAN_PRERACE_PROBE_RACE_KEY }}
+          VERIFIED_DEADLINE: ${{ inputs.verified_deadline || vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE }}
         run: |
           python3 run_official_prerace_probe.py --race-key "$RACE_KEY" --deadline "$VERIFIED_DEADLINE" --directory "$RUNNER_TEMP/prerace-evidence" > "$RUNNER_TEMP/probe.json"
           cat "$RUNNER_TEMP/probe.json"
