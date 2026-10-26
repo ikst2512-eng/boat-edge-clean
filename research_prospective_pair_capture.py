@@ -71,6 +71,13 @@ def capture(day, source_dir, output_dir, now=None):
             raise ValueError("snapshot path mismatch")
         dst = target / src.name
         if dst.exists():
+            old = json.loads(dst.read_text(encoding="utf-8"))
+            digest = hashlib.sha256(json.dumps(record, ensure_ascii=False,
+                sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            if (old.get("source_snapshot_sha256") != digest or
+                old.get("candidate_git_blob_sha") != CANDIDATE_BLOB_SHA or
+                old.get("race_code") != record.get("race_code")):
+                raise ValueError("existing pair does not match frozen source/model")
             counts["already_frozen"] += 1
             continue
         try:
