@@ -39,11 +39,25 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
     if digest != expected_candidate_sha256:
         raise InvalidCandidate("downloaded candidate digest mismatch")
     inspected = inspect_v5_transport(candidate_bytes)
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise InvalidCandidate("duplicate receipt JSON key")
+            result[key] = value
+        return result
     try:
-        receipt = json.loads(receipt_bytes)
+        receipt = json.loads(receipt_bytes.decode("utf-8"), object_pairs_hook=unique_pairs,
+                             parse_constant=lambda _: (_ for _ in ()).throw(InvalidCandidate("nonfinite receipt JSON")))
     except (ValueError, UnicodeError) as exc:
         raise InvalidCandidate("receipt JSON invalid") from exc
-    if not isinstance(receipt, dict) or receipt.get("candidate_sha256") != digest or receipt.get("race_code") != expected_race_code:
+    if (not isinstance(receipt, dict) or receipt.get("candidate_sha256") != digest or
+        receipt.get("race_code") != expected_race_code or
+        receipt.get("schema") != "fresh-prospective-receipt-v1" or
+        receipt.get("status") != "candidate_only_not_formal_or_public" or
+        receipt.get("independent_github_arrival_verified") is not False or
+        type(receipt.get("workflow_run_id")) is not int or receipt["workflow_run_id"] <= 0 or
+        type(receipt.get("workflow_attempt")) is not int or receipt["workflow_attempt"] <= 0):
         raise InvalidCandidate("receipt does not bind downloaded candidate")
     if inspected["race_key"].replace("-", "") != expected_race_code:
         raise InvalidCandidate("candidate race mismatch")
