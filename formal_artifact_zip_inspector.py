@@ -68,8 +68,8 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
     generated = _timestamp(candidate.get("generated_at"))
     deadline = _timestamp(candidate.get("deadline_at"))
     recorded = _timestamp(receipt.get("runner_recorded_at"))
-    if not generated <= recorded < deadline:
-        raise InvalidCandidate("runner receipt timestamp outside candidate lifetime")
+    if not generated <= recorded or (deadline - recorded).total_seconds() < 12 * 60:
+        raise InvalidCandidate("runner receipt not safely before cutoff")
     if inspected["race_key"].replace("-", "") != expected_race_code:
         raise InvalidCandidate("candidate race mismatch")
     return {"downloaded_bytes_consistent": True, "candidate_sha256": digest,
