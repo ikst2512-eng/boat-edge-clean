@@ -2,6 +2,7 @@
 import pathlib
 import json
 import hashlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -42,6 +43,8 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
         (self.root / "research_snapshots").mkdir()
         (self.root / "capture-evidence").mkdir()
+        (self.root / "scripts").mkdir()
+        shutil.copyfile(pathlib.Path(__file__).parent / "scripts/verify_new_research_snapshots.py",self.root / "scripts/verify_new_research_snapshots.py")
         (self.root / "README").write_text("initial")
         run("git", "add", ".", cwd=self.root)
         self.assertEqual(run("git", "commit", "-qm", "initial", cwd=self.root).returncode, 0)
