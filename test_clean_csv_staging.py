@@ -17,6 +17,9 @@ class CsvStagingTest(unittest.TestCase):
         self.assertEqual(result["racers"][0]["registration"],"4001")
         self.assertEqual(result["status"],"staged_unpublished")
         self.assertEqual(result["source_kind"],"third_party_csv_unverified")
+    def test_zero_padded_01r_label(self):
+        result=map_race_card(fixture().replace(",1R,",",01R,"),CODE,URL,FETCHED)
+        self.assertEqual(len(result["racers"]),6)
     def test_missing_or_duplicate_rows_rejected(self):
         for data in (fixture("202610271202"),fixture()+fixture().split("\n")[1]+"\n"):
             with self.subTest(data=data[:20]),self.assertRaises(ValueError):
