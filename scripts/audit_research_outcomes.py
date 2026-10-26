@@ -10,6 +10,7 @@ import math
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
+import subprocess
 from scripts.verify_research_git_first_add import verify_first_add
 
 REQUIRED_EVIDENCE = ("receipt_verified", "model_verified", "inputs_verified", "result_verified")
@@ -159,6 +160,25 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                     git_proof.get("first_added_blob_sha") != blob or
                     git_proof.get("snapshot_sha256") != att["snapshot_sha256"]):
                 exclusions["git_first_add_verification_failed"] += 1
+                continue
+            # Verify the model source against the claimed commit, not only a
+            # digest duplicated inside the assessor-provided manifest.
+            model_commit = obj["model_git_sha"]
+            if (not isinstance(model_commit, str) or len(model_commit) != 40 or
+                    any(c not in "0123456789abcdef" for c in model_commit)):
+                exclusions["invalid_model_commit_identifier"] += 1
+                continue
+            try:
+                committed_model = subprocess.check_output(
+                    ["git", "-C", str(git_repo), "show",
+                     model_commit + ":research_model.py"],
+                    stderr=subprocess.DEVNULL, timeout=10,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+                exclusions["model_git_source_unavailable"] += 1
+                continue
+            if hashlib.sha256(committed_model).hexdigest() != obj["model_source_sha256"]:
+                exclusions["model_git_source_mismatch"] += 1
                 continue
             if timestamp(att["first_seen_at"]) > timestamp(obj["cutoff_jst"]):
                 exclusions["receipt_after_cutoff"] += 1
