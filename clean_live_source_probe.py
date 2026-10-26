@@ -275,11 +275,17 @@ def probe(date, venue, race, opener=urlopen):
             course = csv_st[boat]["コース"]
             observed = csv_st[boat]["スタート展示"]
             expected = official_st.get(int(course)) if course and course.isdigit() else None
+            from decimal import Decimal, InvalidOperation
             def normalize(value):
                 if value is None:
                     return None
-                return value.removeprefix("0.") if value.startswith("0.") else value
-            compare.append(expected is not None and observed is not None and normalize(expected) == normalize(observed))
+                f_flag = value.startswith("F")
+                numeric = value[1:] if f_flag else value
+                try:
+                    return (f_flag, Decimal(numeric))
+                except InvalidOperation:
+                    return None
+            compare.append(expected is not None and observed is not None and normalize(expected) is not None and normalize(expected) == normalize(observed))
         mismatch_samples = [{"boat": boat, "course": csv_st[boat]["コース"], "csv_st": csv_st[boat]["スタート展示"], "official_st": official_st.get(int(csv_st[boat]["コース"]))} for boat in range(1,7)]
         report["official_st_comparison"] = {
             "samples": mismatch_samples,
