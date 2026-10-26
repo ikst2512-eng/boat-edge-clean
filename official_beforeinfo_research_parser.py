@@ -34,7 +34,7 @@ class _CurrentTablePlaceholder(HTMLParser):
         if tag == "table":
             if self.table is not None:
                 self.ambiguous = True
-            self.table = {"heading": False, "rows": []}
+            self.table = {"heading": False, "rows": [], "tbody_closed": False}
         elif self.table is not None:
             if tag in ("thead", "tbody"):
                 self.section = tag
@@ -65,6 +65,8 @@ class _CurrentTablePlaceholder(HTMLParser):
                 self.table["rows"].append(self.row_cells)
             self.in_row = False
         elif tag in ("thead", "tbody"):
+            if tag == "tbody" and self.section == "tbody":
+                self.table["tbody_closed"] = True
             self.section = None
         elif tag == "table":
             self.tables.append(self.table)
@@ -76,7 +78,7 @@ def current_exhibition_is_blank(raw):
     parser.feed(raw.decode("utf-8", "strict"))
     parser.close()
     matching = [t for t in parser.tables if t["heading"]]
-    return not parser.ambiguous and len(matching) == 1 and len(matching[0]["rows"]) == 6 and all(
+    return not parser.ambiguous and len(matching) == 1 and matching[0]["tbody_closed"] and len(matching[0]["rows"]) == 6 and all(
         row == [("3", "")] for row in matching[0]["rows"]
     )
 
