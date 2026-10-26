@@ -39,6 +39,8 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
         raise ValueError("unsafe racelist provenance promotion")
     if beforeinfo.get("status") != "research_unverified":
         raise ValueError("beforeinfo research unavailable")
+    if any(beforeinfo.get(flag) is not False for flag in ("results_seen", "unlock", "scoring")):
+        raise ValueError("missing or unsafe research isolation flags")
     if beforeinfo.get("verified_preview") is not False or beforeinfo.get("actual_entry_verified") is not False:
         raise ValueError("unsafe promotion flags")
     if not isinstance(beforeinfo.get("raw_sha256"), str) or not DIGEST.fullmatch(beforeinfo["raw_sha256"]):
