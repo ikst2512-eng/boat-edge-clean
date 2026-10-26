@@ -82,7 +82,7 @@ def html_diagnostics(body):
     for row in scanner.row_candidates:
         if len(row["registrations"]) != 1:
             continue
-        found = re.match(r"^([１２３４５６1-6])\\s+([0-9]{4})(?:\\s|/)", row["text_sample"])
+        found = re.match(r"^([１２３４５６1-6])\s+([0-9]{4})(?:\s|/)", row["text_sample"])
         if not found or found.group(2) != row["registrations"][0]:
             continue
         lane = "１２３４５６".find(found.group(1)) + 1 if found.group(1) in "１２３４５６" else int(found.group(1))
