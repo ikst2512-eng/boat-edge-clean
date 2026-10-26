@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 import collect_research_daily as collector
 from research_model import JST
+from scripts.audit_research_outcomes import audit
 class CollectorTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory()
@@ -26,6 +27,14 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(record["source_cards_sha256"],"b"*64)
   self.assertIn("source_deadline_jst",record)
   self.assertIn("model_source_sha256",record)
+  self.assertEqual(record["input_hash_scope"],"source_csv_byte_hashes_ordered_title_cards")
+  self.assertEqual(record["model_git_sha"],"c"*40)
+  # A complete local research snapshot is never sufficient for scoring.
+  unverified=audit(self.store,[],[])
+  self.assertEqual(unverified["snapshot_count"],1)
+  self.assertEqual(unverified["valid_count"],0)
+  self.assertEqual(unverified["exclusion_reasons"]["missing_independent_attestation"],1)
+  self.assertIsNone(unverified["metrics"]["top10"]["rate"])
   self.assertEqual(record["input_sha256"],hashlib.sha256(("a"*64+":"+"b"*64).encode("ascii")).hexdigest())
   self.assertEqual(record["source_deadline_jst"],self.day[:4]+"-"+self.day[4:6]+"-"+self.day[6:8]+"T23:59:00+09:00")
   with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([self.card],start,"b"*64)]):
