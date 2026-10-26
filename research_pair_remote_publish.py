@@ -16,7 +16,7 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
         raise ValueError("only research branch allowed")
     # Collection creates baseline snapshots that are intentionally not committed
     # by the isolated paired publisher. Allow only their untracked files.
-    changes=_git("status","--porcelain").splitlines()
+    changes=_git("status","--porcelain","--untracked-files=all").splitlines()
     allowed_prefix=f"?? research_snapshots/{day}"
     if any(not (line.startswith(allowed_prefix) and line.endswith(".json"))
            for line in changes):
