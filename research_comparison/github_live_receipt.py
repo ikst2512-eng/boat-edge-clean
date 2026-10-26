@@ -12,7 +12,7 @@ def fetch_github(relative_path):
     route = relative_path.removeprefix("/repos/" + REPO + "/")
     allowed = (
         re.fullmatch(r"git/commits/[0-9a-f]{40}", route),
-        re.fullmatch(r"git/trees/[0-9a-f]{40}\\?recursive=1", route),
+        re.fullmatch(r"git/trees/[0-9a-f]{40}\?recursive=1", route),
         re.fullmatch(r"git/blobs/[0-9a-f]{40}", route),
         re.fullmatch(r"actions/runs/[1-9][0-9]*", route),
     )
