@@ -36,6 +36,17 @@ class TransportAdapterTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_v5_transport(json.dumps(obj).encode())
 
+    def test_embedded_approval_claims_rejected(self):
+        for field in ("formal_approved", "model_authenticity_verified",
+                      "independent_receipt_verified", "input_provenance_verified",
+                      "independent_github_arrival_verified", "result_unlock_token",
+                      "freeze_proof"):
+            with self.subTest(field=field):
+                obj = case()
+                obj[field] = False
+                with self.assertRaises(InvalidCandidate):
+                    inspect_v5_transport(json.dumps(obj).encode())
+
     def test_nonfinite_probability_rejected(self):
         obj = case()
         first = next(iter(obj["probabilities"]))
