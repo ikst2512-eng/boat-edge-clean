@@ -2,6 +2,7 @@
 import pathlib
 import json
 import hashlib
+from research_model import probabilities
 import shutil
 import subprocess
 import tempfile
@@ -10,7 +11,10 @@ import unittest
 def valid_record(code):
     title="a"*64
     cards="b"*64
-    return json.dumps({"race_code":code,"status":"research","validated":False,
+    rates=[6.0]*6
+    top10=["-".join(map(str,t)) for t,_ in probabilities(rates)[:10]]
+    return json.dumps({"race_code":code,"model_version":"national-beta0.4-exploratory-v1",
+      "national_win_rates":rates,"predictions":top10,"status":"research","validated":False,
       "source_title_sha256":title,"source_cards_sha256":cards,
       "input_sha256":hashlib.sha256((title+":"+cards).encode("ascii")).hexdigest(),
       "input_hash_scope":"source_csv_byte_hashes_ordered_title_cards",
@@ -45,6 +49,7 @@ class EvidenceTests(unittest.TestCase):
         (self.root / "capture-evidence").mkdir()
         (self.root / "scripts").mkdir()
         shutil.copyfile(pathlib.Path(__file__).parent / "scripts/verify_new_research_snapshots.py",self.root / "scripts/verify_new_research_snapshots.py")
+        shutil.copyfile(pathlib.Path(__file__).parent / "research_model.py",self.root / "research_model.py")
         (self.root / "README").write_text("initial")
         run("git", "add", ".", cwd=self.root)
         self.assertEqual(run("git", "commit", "-qm", "initial", cwd=self.root).returncode, 0)
@@ -110,6 +115,16 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue((self.root / "capture-evidence/new-snapshots/202610270102.json").exists())
         self.assertIn("202610270102.json", (self.root / "capture-evidence/snapshot-sha256.txt").read_text())
         self.assertIn("202610270102.json", run("git", "ls-tree", "-r", "--name-only", "HEAD", cwd=self.root).stdout)
+
+    def test_bad_top10_is_rejected_before_push(self):
+        p=self.root/"research_snapshots/202610270101.json"
+        row=json.loads(valid_record("202610270101"))
+        row["predictions"]=list(reversed(row["predictions"]))
+        p.write_text(json.dumps(row))
+        result=self.execute()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("Top10 does not replay",result.stdout)
+        self.assertFalse((self.root/"capture-evidence/new-snapshots/202610270101.json").exists())
 
     def test_new_snapshot_generates_evidence_before_push(self):
         p = self.root / "research_snapshots/202610270101.json"
