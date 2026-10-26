@@ -1,0 +1,25 @@
+name: Research pair remote receipt evidence
+on:
+  push:
+    branches:
+      - research/paired-hit-evaluation-20261027
+    paths:
+      - 'research_prospective_pairs/**'
+permissions:
+  contents: read
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record GitHub-side push identity
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RECEIVED_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "research_pair_push_event=${EVENT_NAME}"
+          echo "research_pair_push_sha=${RECEIVED_SHA}"
+          echo "research_pair_push_run_id=${RUN_ID}"
+          echo "research_pair_repository=${REPOSITORY}"
+          echo "Server run created_at must be retrieved via Actions API; job clock is not evidence."
