@@ -8,7 +8,7 @@ import io
 import json
 import re
 import zipfile
-from formal_candidate_validator import InvalidCandidate
+from formal_candidate_validator import InvalidCandidate, _timestamp
 from formal_v5_transport_adapter import inspect_v5_transport
 
 
@@ -39,6 +39,7 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
     if digest != expected_candidate_sha256:
         raise InvalidCandidate("downloaded candidate digest mismatch")
     inspected = inspect_v5_transport(candidate_bytes)
+    candidate = json.loads(candidate_bytes)
     def unique_pairs(pairs):
         result = {}
         for key, value in pairs:
@@ -55,10 +56,13 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
         receipt.get("race_code") != expected_race_code or
         receipt.get("schema") != "fresh-prospective-receipt-v1" or
         receipt.get("status") != "candidate_only_not_formal_or_public" or
+        receipt.get("deadline_at") != candidate.get("deadline_at") or
+        receipt.get("source_snapshot_sha256") != candidate.get("source_snapshot_sha256") or
         receipt.get("independent_github_arrival_verified") is not False or
         type(receipt.get("workflow_run_id")) is not int or receipt["workflow_run_id"] <= 0 or
         type(receipt.get("workflow_attempt")) is not int or receipt["workflow_attempt"] <= 0):
         raise InvalidCandidate("receipt does not bind downloaded candidate")
+    _timestamp(receipt.get("runner_recorded_at"))
     if inspected["race_key"].replace("-", "") != expected_race_code:
         raise InvalidCandidate("candidate race mismatch")
     return {"downloaded_bytes_consistent": True, "candidate_sha256": digest,
