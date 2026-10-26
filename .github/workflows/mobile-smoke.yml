@@ -3,11 +3,15 @@ on:
   push:
     paths:
       - 'index.html'
+      - 'server.py'
+      - 'tests/test_odds_parser.py'
       - '.github/workflows/mobile-smoke.yml'
   workflow_dispatch:
   pull_request:
     paths:
       - 'index.html'
+      - 'server.py'
+      - 'tests/test_odds_parser.py'
       - '.github/workflows/mobile-smoke.yml'
 jobs:
   browser:
@@ -45,6 +49,12 @@ jobs:
               const health=await page.request.get('https://boat-edge-clean.onrender.com/healthz',{timeout:30000});
               if(health.status()!==200)throw Error('Render backend health failed: HTTP '+health.status());
               console.log('RENDER_BACKEND_HEALTH_PASS',health.status());
+              // Invalid requests must never return a successful 120-ticket response.
+              const invalidOdds=await page.request.get('https://boat-edge-clean.onrender.com/api/odds?hd=invalid&jcd=99&rno=13',{timeout:30000});
+              if(invalidOdds.status()!==400)throw Error('Render odds validation failure: expected HTTP 400, got '+invalidOdds.status());
+              const rejected=await invalidOdds.json();
+              if(rejected.ok!==false)throw Error('Render odds accepted invalid race inputs');
+              console.log('RENDER_ODDS_INPUT_GUARD_PASS');
               if(diagnostics.venueCount!==24)throw Error('Render is not serving current CLEAN app; expected 24 venue buttons; '+JSON.stringify(diagnostics));
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
