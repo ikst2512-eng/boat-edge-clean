@@ -73,11 +73,17 @@ jobs:
           python3 - <<'PY'
           import json
           from itertools import permutations
+          from datetime import datetime,timezone
           data=json.load(open('/tmp/odds.json'))
           assert data.get('ok') is True, data.get('message')
           odds=data['odds']
           expected={'-'.join(map(str,p)) for p in permutations(range(1,7),3)}
           assert set(odds)==expected, f'Expected all 120 triples; got {len(odds)}'
           assert all(isinstance(v,(int,float)) and not isinstance(v,bool) and 1<=v<=1000000 for v in odds.values())
-          print('LIVE_ODDS_PASS: exactly 120 public trifecta odds')
+          stamp=data.get('fetched_at')
+          assert isinstance(stamp,str) and stamp.endswith('+00:00'), 'missing UTC fetch timestamp'
+          fetched=datetime.fromisoformat(stamp)
+          age=(datetime.now(timezone.utc)-fetched).total_seconds()
+          assert -30<=age<=120, f'odds response is stale or future-dated: age={age:.0f}s'
+          print(f'LIVE_ODDS_PASS: 120 real trifecta odds; fetched_at={stamp}; age={age:.0f}s')
           PY
