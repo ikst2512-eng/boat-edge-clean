@@ -1,6 +1,8 @@
 """Manually triggered research-only capture; never publishes race data."""
 import argparse
 import json
+import os
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -38,9 +40,20 @@ def run(race_key, deadline_text, directory):
     }
     # Publish the provenance summary with the archive, not only in ephemeral logs.
     manifest = Path(directory) / (race_key + "-" + receipt["sha256"] + ".manifest.json")
-    with manifest.open("x", encoding="utf-8") as handle:
-        json.dump(result, handle, ensure_ascii=False, sort_keys=True, indent=2)
-        handle.write("\n")
+    # Serialize completely and durably before publishing the manifest name.
+    payload = (json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    pending = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=directory, prefix=".manifest-pending-",
+                                         delete=False) as handle:
+            pending = Path(handle.name)
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(pending, manifest)  # fails closed if this manifest already exists
+    finally:
+        if pending is not None:
+            pending.unlink(missing_ok=True)
     return result
 
 
