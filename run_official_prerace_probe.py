@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from official_prerace_capture import capture_beforeinfo, save_raw_receipt, read_raw_receipt
+from official_prerace_capture import capture_beforeinfo, save_raw_receipt
 from official_beforeinfo_inspect import inspect_saved_beforeinfo
 from official_beforeinfo_research_parser import research_saved_start_exhibition
 
@@ -20,7 +20,6 @@ def run(race_key, deadline_text, directory):
         raise ValueError("official deadline must include JST +09:00 offset")
     receipt, raw = capture_beforeinfo(race_key, deadline)
     paths = save_raw_receipt(receipt, raw, directory, deadline=deadline)
-    read_raw_receipt(directory, race_key, receipt["sha256"], deadline=deadline)
     diagnostic = inspect_saved_beforeinfo(directory, race_key, receipt["sha256"], deadline=deadline)
     if (diagnostic.get("status") != "inspection_only"
             or diagnostic.get("race_key") != race_key
