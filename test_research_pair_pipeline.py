@@ -36,6 +36,15 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"explicit commit"):
                 run(DAY,publish=True)
             collect.assert_not_called()
+    def test_skip_push_without_new_commit(self):
+        with patch("research_pair_pipeline.collect_and_pair",return_value={
+            "paired":{"frozen":0,"already_frozen":1}}),patch(
+            "research_pair_pipeline.prepare",return_value={
+            "ready":1,"commit_created":False}),patch(
+            "research_pair_pipeline.push") as remote:
+            result=run(DAY,publish=True,commit=True)
+        remote.assert_not_called()
+        self.assertEqual(result["publication"],"skipped_no_new_pair_commit")
     def test_failure_blocks_publish(self):
         with patch("research_pair_pipeline.collect_and_pair",side_effect=ValueError("bad baseline")),patch("research_pair_pipeline.push") as remote:
             with self.assertRaises(ValueError):
