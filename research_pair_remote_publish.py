@@ -16,7 +16,9 @@ def push(day, folder="research_prospective_pairs", dry_run=True):
         raise ValueError("only research branch allowed")
     if _git("status","--porcelain"):
         raise ValueError("working tree must be clean")
-    eligible_paths(folder,day,datetime.now(JST))
+    paths=eligible_paths(folder,day,datetime.now(JST))
+    if not paths:
+        raise ValueError("no eligible paired forecasts to publish")
     head=_git("rev-parse","HEAD")
     if not dry_run:
         subprocess.run(["git","push","origin",f"HEAD:refs/heads/{BRANCH}"],check=True)
