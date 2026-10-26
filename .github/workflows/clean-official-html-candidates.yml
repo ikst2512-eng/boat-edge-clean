@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - clean_official_racelist_candidates.py
+      - clean_diagnostic_retry.py
+      - test_clean_diagnostic_retry.py
       - test_clean_official_racelist_candidates.py
       - .github/workflows/clean-official-html-candidates.yml
   workflow_dispatch:
@@ -19,6 +21,7 @@ jobs:
           python-version: '3.12'
       - name: Check syntax and safety tests
         run: |
+          python -m unittest -v test_clean_diagnostic_retry
           python -m py_compile clean_official_racelist_candidates.py test_clean_official_racelist_candidates.py
           python -m unittest -v test_clean_official_racelist_candidates
 
