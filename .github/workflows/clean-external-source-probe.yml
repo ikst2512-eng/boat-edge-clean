@@ -36,11 +36,16 @@ jobs:
           RACE: ${{ inputs.race || '1' }}
         run: |
           python clean_live_source_probe.py --date "$RACE_DATE" --venue "$VENUE" --race "$RACE" --output source-probe-report.json
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python clean_live_source_probe.py --date "$RACE_DATE" --venue "$VENUE" --race 2 --output source-probe-race2.json
+          fi
       - name: Preserve diagnostic metadata only
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: clean-source-diagnostic-${{ github.run_id }}
-          path: source-probe-report.json
+          path: |
+            source-probe-report.json
+            source-probe-race2.json
           if-no-files-found: warn
           retention-days: 14
