@@ -104,3 +104,7 @@ The independent 120-way capture now reads the unique matching `レースコー�
 ## Offline research snapshot bridge
 
 Run `python research_comparison/snapshot_bridge.py path/to/frozen-120.json` to produce a comparison-shaped **unverified draft**. The adapter verifies the ordered PR #23 CSV digest chain, all 120 ticket keys and agreement of stored Top10 with probabilities. It reports `ready_for_scoring: false` and lists independent audit blockers. It never invents first Git commit/time, verified receipts, model pre-registration, official results or deadlines, and does not touch production, locked Fresh data or results. Passing a draft directly to `paired_compare.py` must exclude the race until independent provenance has been established and reviewed.
+
+## PR #16 integration boundary
+
+PR #16 already implements a separate prospective paired capture for the exploratory baseline and scenario candidate. Do not silently replace its paired freeze or treat its model blob ID as an independently attested commit SHA. PR #17's `snapshot_bridge.py` is a format/provenance preflight for its own full-120 snapshot: it now enforces finite positive normalized probabilities. Neither pipeline can declare a validated race pair until both immutable forecasts, shared original-source digest, model identities, independently authenticated pre-deadline receipts, registered cohort and permitted official result have been audited. Merge neither research draft as a production model promotion.
