@@ -48,6 +48,22 @@ class ReceiptTests(unittest.TestCase):
     def test_existing_parent_path_rejected(self):
         self.responses[self.prefix + "/git/trees/" + self.parent_tree_sha + "?recursive=1"]["tree"]=[{"path":self.path}]
         with self.assertRaises(ValueError):self.check()
+    def test_grandparent_file_rejected(self):
+        grandparent = "e"*40
+        grandtree = "f"*40
+        self.responses[self.prefix + "/git/commits/" + self.parent_sha]["parents"]=[{"sha":grandparent}]
+        self.responses[self.prefix + "/git/commits/" + grandparent]={"tree":{"sha":grandtree},"parents":[]}
+        self.responses[self.prefix + "/git/trees/" + grandtree + "?recursive=1"]={"truncated":False,"tree":[{"path":self.path,"type":"blob","sha":self.blob_sha}]}
+        with self.assertRaisesRegex(ValueError,"ancestry"):
+            self.check()
+    def test_truncated_history_rejected(self):
+        self.responses[self.prefix + "/git/trees/" + self.parent_tree_sha + "?recursive=1"]["truncated"]=True
+        with self.assertRaises(ValueError):
+            self.check()
+    def test_root_parent_passes(self):
+        result=self.check()
+        self.assertTrue(result["full_history_first_add_verified"])
+        self.assertEqual(result["ancestors_checked"],1)
     def test_failed_workflow_rejected(self):
         self.responses[self.prefix + "/actions/runs/99"]["conclusion"]="failure"
         with self.assertRaises(ValueError):self.check()
