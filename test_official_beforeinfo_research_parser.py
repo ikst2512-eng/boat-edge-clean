@@ -77,6 +77,16 @@ class ResearchParserTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             research_start_exhibition(raw)
 
+    def test_unclosed_record_rejected_and_void_tag_allowed(self):
+        broken = fixture().decode().replace("</div>", "", 1).encode()
+        with self.assertRaises(ValueError):
+            research_start_exhibition(broken)
+        valid = fixture().decode().replace(
+            '<span class="table1_boatImage1Number">1</span>',
+            '<img src="x"><span class="table1_boatImage1Number">1</span>',
+            1).encode()
+        self.assertEqual(len(research_start_exhibition(valid)["start_exhibition"]), 6)
+
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
                     fixture(st=""), fixture(st="L.08"), fixture(st="9.99"), fixture(st="08")):
