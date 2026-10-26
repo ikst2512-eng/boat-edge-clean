@@ -10,7 +10,7 @@ import re
 from datetime import datetime
 
 KINDS = {"stt", "tkz", "sui"}
-ST_PATTERN = re.compile(r"^(?:F[.]?[0-9]{1,2}|[.]?[0-9]{1,2}|[0-9][.][0-9]{1,2})$")
+ST_PATTERN = re.compile(r"^(?:F[.]?[0-9]{1,2}|-?(?:[.]?[0-9]{1,2}|[0-9][.][0-9]{1,2}))$")
 NUMBER_PATTERN = re.compile(r"^-?[0-9]+(?:[.][0-9]+)?$")
 BASE = "https://boatracecsv.github.io/data/previews/"
 CODE = re.compile(r"^20[0-9]{10}$")
