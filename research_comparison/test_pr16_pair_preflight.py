@@ -49,6 +49,8 @@ class PairPreflightTests(unittest.TestCase):
                 "source_cards_received_jst":"2026-10-28T11:42:00+09:00",
                 "cutoff_jst":pair["cutoff_jst"],
                 "national_win_rates":[5.0]*6,
+                "model_version":pair["baseline_model_id"],
+                "model_git_sha":"a"*40,"model_source_sha256":"b"*64,
                 "predictions":sorted(TICKETS,key=lambda t:(-pair["baseline"][t],t))[:10]}
         title=hashlib.sha256(b"title-raw").hexdigest()
         cards=hashlib.sha256(b"cards-raw").hexdigest()
@@ -128,6 +130,18 @@ class PairPreflightTests(unittest.TestCase):
         pair=self.pair()
         pair["cutoff_jst"]="2026-10-29T12:00:00+09:00"
         self.assertIn("pair cutoff JST date differs from race",inspect_pair(pair)["reasons"])
+    def test_missing_model_provenance_rejected(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research","validated":False,
+                "model_version":pair["baseline_model_id"],
+                "generated_at":pair["source_snapshot_generated_at"],
+                "cutoff_jst":pair["cutoff_jst"]}
+        raw=json.dumps(source,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(raw).hexdigest()
+        report=inspect_pair(pair,raw)
+        self.assertFalse(report["local_consistency_valid"])
+        self.assertIn("source snapshot model git provenance missing",report["reasons"])
+        self.assertIn("source snapshot model source digest missing",report["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
