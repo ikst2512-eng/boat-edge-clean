@@ -73,7 +73,9 @@ def research_start_exhibition(raw):
         st = "".join(record["st"]).strip().upper()
         if not re.fullmatch(r"[1-6]", number):
             raise ValueError("invalid exhibition boat number")
-        match = re.fullmatch(r"(F|L)?(?:0[.]|[.])?([0-9]{2})", st)
+        # A bare "08" is ambiguous (hundredths versus display placeholder).
+        # Require an explicit decimal point and retain the F marker separately.
+        match = re.fullmatch(r"(F|L)?(?:0[.]|[.])([0-9]{2})", st)
         if not match:
             raise ValueError("invalid exhibition ST")
         value = int(match.group(2)) / 100
@@ -83,7 +85,9 @@ def research_start_exhibition(raw):
             raise ValueError("L exhibition ST requires manual review")
         records.append({"exhibition_course": position,
                         "boat_number": int(number),
-                        "exhibition_st": value})
+                        "exhibition_st": value,
+                        "exhibition_st_raw": st,
+                        "exhibition_st_flying": match.group(1) == "F"})
     if sorted(row["boat_number"] for row in records) != list(range(1, 7)):
         raise ValueError("duplicate/missing exhibition boat")
     return {"status": "research_unverified", "source": "historical_css_layout",
