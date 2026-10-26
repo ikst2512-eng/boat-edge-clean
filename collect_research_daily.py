@@ -21,6 +21,7 @@ def collect(day):
     by_code={r["レースコード"]:r for r in cards if isinstance(r,dict) and r.get("レースコード") and card_counts[r["レースコード"]]==1}
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     counted_duplicates=set()
+    provenance=None  # Freeze one committed model identity for this daily collection.
     for title in titles:
         code=title.get("レースコード","") if isinstance(title,dict) else ""
         if not(code.isascii() and code.isdigit() and len(code)==12 and code.startswith(day)):continue
@@ -41,6 +42,8 @@ def collect(day):
             if any(not math.isfinite(rate) or not 0 <= rate <= 10 for rate in rates):
                 raise ValueError("invalid national win rate")
             tickets=["-".join(map(str,t)) for t,_ in probabilities(rates)[:10]]
+            if provenance is None:
+                provenance=model_provenance()
             record={"ok":True,"status":"research","validated":False,"race_code":code,"predictions":tickets,
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
                 "message":"研究予想（未検証・回収率未確認）","cutoff_jst":cutoff.isoformat(),
@@ -50,7 +53,7 @@ def collect(day):
                 "source_title_sha256":title_sha256,"source_cards_sha256":cards_sha256,
                 "input_sha256":hashlib.sha256((title_sha256+":"+cards_sha256).encode("ascii")).hexdigest(),
                 "input_hash_scope":"source_csv_byte_hashes_ordered_title_cards",
-                **model_provenance()}
+                **provenance}
             if datetime.now(JST)>cutoff:raise ValueError("cutoff passed before research snapshot write")
             STORE.mkdir(parents=True,exist_ok=True)
             with _record_path(code).open("x",encoding="utf-8") as f:
