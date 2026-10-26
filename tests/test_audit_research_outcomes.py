@@ -18,12 +18,18 @@ class AuditTests(unittest.TestCase):
                   "source_title_received_jst":"2026-10-26T08:59:00+09:00",
                   "source_cards_received_jst":"2026-10-26T08:59:00+09:00",
                   "model_git_sha":"a"*40, "model_source_sha256":"b"*64, "input_sha256":"c"*64}
+            snap["source_title_sha256"] = "d"*64
+            snap["source_cards_sha256"] = "e"*64
+            snap["input_hash_scope"] = "source_csv_byte_hashes_ordered_title_cards"
+            snap["input_sha256"] = hashlib.sha256(
+                (snap["source_title_sha256"] + ":" + snap["source_cards_sha256"]).encode("ascii")
+            ).hexdigest()
             p.write_text(json.dumps(snap))
             self.assertEqual(audit(d,[],[])["valid_count"],0)
             att={"race_code":snap["race_code"],"receipt_verified":True,"model_verified":True,
                  "inputs_verified":True,"result_verified":True,
                  "receipt_id":"test-only","model_git_sha":"a"*40,
-                 "model_file_sha256":"b"*64,"input_sha256":"c"*64,
+                 "model_file_sha256":"b"*64,"input_sha256":snap["input_sha256"],
                  "snapshot_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
                  "first_seen_at":"2026-10-26T09:01:00+09:00",
                  "official_deadline_at":"2026-10-26T10:12:00+09:00"}
@@ -31,6 +37,13 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            inconsistent=dict(snap)
+            inconsistent["source_cards_sha256"] = "f"*64
+            p.write_text(json.dumps(inconsistent))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["input_hash_inconsistent"],1)
+            p.write_text(json.dumps(snap))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
             missing=dict(snap)
             missing.pop("input_sha256")
             p.write_text(json.dumps(missing))
