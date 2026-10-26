@@ -38,6 +38,7 @@ class ResearchGitIntegration(unittest.TestCase):
                                 "1-4-3","2-1-3","2-1-4","2-3-1","2-3-4"],
                 "generated_at": "2026-10-27T09:00:00+09:00",
                 "cutoff_jst": "2026-10-27T10:00:00+09:00",
+                "source_deadline_jst": "2026-10-27T10:12:00+09:00",
                 "source_title_received_jst": "2026-10-27T08:59:00+09:00",
                 "source_cards_received_jst": "2026-10-27T08:59:00+09:00",
                 "model_git_sha": model_commit, "model_source_sha256": hashlib.sha256(model_bytes).hexdigest(),
