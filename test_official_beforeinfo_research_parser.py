@@ -17,12 +17,17 @@ class ResearchParserTests(unittest.TestCase):
         self.assertEqual([r["boat_number"] for r in p["start_exhibition"]], [2,1,3,4,6,5])
         self.assertEqual([r["exhibition_course"] for r in p["start_exhibition"]], list(range(1,7)))
         self.assertEqual(p["start_exhibition"][0]["exhibition_st"], .08)
+        self.assertEqual(p["start_exhibition"][0]["exhibition_st_raw"], ".08")
+        self.assertFalse(p["start_exhibition"][0]["exhibition_st_flying"])
         self.assertFalse(p["actual_entry_verified"])
         self.assertEqual(p["status"], "research_unverified")
 
     def test_st_forms(self):
         for st, target in (("F.04", -.04), ("0.08", .08), (".08", .08)):
-            self.assertAlmostEqual(research_start_exhibition(fixture(st=st))["start_exhibition"][0]["exhibition_st"], target)
+            row = research_start_exhibition(fixture(st=st))["start_exhibition"][0]
+            self.assertAlmostEqual(row["exhibition_st"], target)
+            self.assertEqual(row["exhibition_st_raw"], st.upper())
+            self.assertEqual(row["exhibition_st_flying"], st.startswith("F"))
 
     def test_archived_receipt_provenance_and_tamper_rejection(self):
         now = datetime(2026, 10, 27, 14, 50, tzinfo=JST)
@@ -74,7 +79,7 @@ class ResearchParserTests(unittest.TestCase):
 
     def test_missing_duplicate_or_bad_st_rejected(self):
         for raw in (fixture((1,2,3,4,5)), fixture((1,2,3,4,5,5)),
-                    fixture(st=""), fixture(st="L.08"), fixture(st="9.99")):
+                    fixture(st=""), fixture(st="L.08"), fixture(st="9.99"), fixture(st="08")):
             with self.assertRaises(ValueError):
                 research_start_exhibition(raw)
 
