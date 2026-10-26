@@ -53,7 +53,7 @@ class ReceiptRunAuditTests(unittest.TestCase):
                 with patch("research_receipt_run_audit.urlopen",return_value=Response()),patch(
                     "research_receipt_run_audit.json.load",return_value=run),patch(
                     "subprocess.check_output",side_effect=[
-                        b"research_prospective_pairs/202610281201.json\\n",raw]):
+                        b"research_prospective_pairs/202610281201.json"+bytes([10]),raw]):
                     with self.assertRaisesRegex(ValueError,"lack pre-cutoff"):
                         run_audit("123","a"*40,"research_prospective_pairs")
             finally:
