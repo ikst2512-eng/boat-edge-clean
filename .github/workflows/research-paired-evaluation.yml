@@ -17,6 +17,8 @@ on:
       - 'test_research_results_scorecard.py'
       - 'research_posthoc_diagnostic.py'
       - 'run_research_posthoc_diagnostic.py'
+      - 'research_prospective_pair_capture.py'
+      - 'test_research_prospective_pair_capture.py'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
@@ -33,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
-        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit test_research_results_scorecard
+        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit test_research_results_scorecard test_research_prospective_pair_capture
       - name: Audit all committed research snapshots (informational)
         run: |
           python research_snapshot_replay_audit.py research_snapshots > /tmp/research-replay-audit.json
