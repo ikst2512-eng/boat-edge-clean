@@ -73,14 +73,14 @@ def save_raw_receipt(receipt, raw, directory):
     if receipt.get("status") != "raw_html_only" or receipt.get("sha256") != sha256(raw).hexdigest() or receipt.get("bytes") != len(raw):
         raise ValueError("raw receipt integrity mismatch")
     key = receipt.get("race_key", "")
-    if not re.fullmatch(r"20\\d{6}-(?:0[1-9]|1\\d|2[0-4])-(?:0?[1-9]|1[0-2])", key):
+    if not re.fullmatch(r"(20\d{6})-(0[1-9]|1\d|2[0-4])-(0?[1-9]|1[0-2])", key):
         raise ValueError("invalid receipt race key")
     if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
         raise ValueError("untrusted receipt flags")
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     stem = key + "-" + receipt["sha256"]
-    pairs = [(root / (stem + ".html"), raw), (root / (stem + ".json"), (json.dumps(receipt, sort_keys=True, ensure_ascii=False) + "\\n").encode("utf-8"))]
+    pairs = [(root / (stem + ".html"), raw), (root / (stem + ".json"), (json.dumps(receipt, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))]
     if any(path.exists() for path, _ in pairs):
         raise FileExistsError("receipt already exists; immutable evidence")
     pending = []
