@@ -40,7 +40,13 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=None, completed_a
     cutoff = deadline.astimezone(JST)
     if cutoff.date() != race_day:
         raise ValueError("deadline date/race date mismatch")
-    started = (now or datetime.now(timezone.utc)).astimezone(JST)
+    if now is not None and (not isinstance(now, datetime) or now.tzinfo is None):
+        raise ValueError("timezone-aware start required")
+    if completed_at is not None and (not isinstance(completed_at, datetime) or completed_at.tzinfo is None or now is None):
+        raise ValueError("injected completion requires timezone-aware start")
+    if now is not None and completed_at is None:
+        raise ValueError("explicit completion time required for injected test start time")
+    started = (now if now is not None else datetime.now(timezone.utc)).astimezone(JST)
     if started >= cutoff - MIN_MARGIN:
         raise ValueError("not safely before deadline")
     url = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
@@ -51,14 +57,12 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=None, completed_a
         if final_url != url:
             raise ValueError("official source redirected")
         content_type = response.headers.get("Content-Type", "").lower()
-        if response.status != 200 or "html" not in content_type:
+        if response.status != 200 or content_type.split(";", 1)[0].strip() != "text/html":
             raise ValueError("official HTML response not verified")
         raw = response.read(MAX_BYTES + 1)
     # Distinguish start from completion: a slow fetch must not reuse its start time.
     # Tests may explicitly inject completion; live calls always sample the clock.
     completed = (completed_at if completed_at is not None else datetime.now(timezone.utc)).astimezone(JST)
-    if now is not None and completed_at is None:
-        raise ValueError("explicit completion time required for injected test start time")
     if completed < started:
         raise ValueError("completion precedes start")
     if len(raw) > MAX_BYTES or not raw or completed >= cutoff - MIN_MARGIN:
