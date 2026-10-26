@@ -84,6 +84,8 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     matches = [a for a in artifacts if isinstance(a, dict) and a.get("id") == artifact_id]
     if len(matches) != 1:
         raise InvalidCandidate("artifact not in specified run")
+    if type(matches[0].get("id")) is not int:
+        raise InvalidCandidate("artifact ID type invalid")
     artifact = matches[0]
     association = artifact.get("workflow_run")
     if not isinstance(association, dict) or type(association.get("id")) is not int or association["id"] != run_id:
@@ -92,6 +94,8 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
     inspected = inspect_downloaded_artifact(archive, race_code, expected_sha256)
     if inspected["workflow_run_id"] != run_id:
         raise InvalidCandidate("downloaded receipt belongs to another run")
+    if inspected["candidate_sha256"] != expected_sha256 or inspected["race_code"] != race_code:
+        raise InvalidCandidate("downloaded evidence does not match requested candidate")
     metadata = inspect_actions_artifact(
         {"generated_at": inspected["generated_at"], "deadline_at": inspected["deadline_at"]},
         {"workflow_run_id": inspected["workflow_run_id"], "workflow_attempt": inspected["workflow_attempt"]},
