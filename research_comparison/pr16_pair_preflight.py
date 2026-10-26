@@ -2,6 +2,8 @@
 import argparse
 import json
 import math
+import re
+from datetime import datetime
 from pathlib import Path
 from paired_compare import TICKETS, timestamp
 
@@ -9,6 +11,23 @@ def inspect_pair(pair):
     reasons=[]
     if not isinstance(pair,dict) or pair.get("status")!="research_unvalidated":
         return {"ready_for_scoring":False,"reasons":["not a research prospective pair"]}
+    code=pair.get("race_code")
+    if not isinstance(code,str) or not re.fullmatch(r"20[0-9]{10}",code):
+        reasons.append("invalid canonical race code")
+    else:
+        try:
+            datetime.strptime(code[:8],"%Y%m%d")
+            if not 1<=int(code[8:10])<=24 or not 1<=int(code[10:12])<=12:
+                reasons.append("race venue or number out of range")
+        except ValueError:
+            reasons.append("invalid race calendar date")
+    if not isinstance(pair.get("source_snapshot_sha256"),str) or not re.fullmatch(r"[0-9a-f]{64}",pair["source_snapshot_sha256"]):
+        reasons.append("missing source snapshot digest")
+    for key in ("baseline_model_id","candidate_model_id"):
+        if not isinstance(pair.get(key),str) or not pair[key].strip():
+            reasons.append("missing "+key)
+    if not isinstance(pair.get("candidate_git_blob_sha"),str) or not re.fullmatch(r"[0-9a-f]{40}",pair["candidate_git_blob_sha"]):
+        reasons.append("invalid candidate model blob identity")
     for name in ("baseline","candidate"):
         p=pair.get(name)
         if not isinstance(p,dict) or set(p)!=TICKETS:
@@ -27,8 +46,6 @@ def inspect_pair(pair):
         reasons.append("missing or invalid chronology")
     if pair.get("entry_status")!="assumed_identity_not_verified":
         reasons.append("unknown entry provenance")
-    if pair.get("candidate_git_blob_sha") is None:
-        reasons.append("missing candidate model blob identity")
     return {"ready_for_scoring":False,
             "distribution_structure_valid":not any("distribution" in x for x in reasons),
             "reasons":reasons+[
