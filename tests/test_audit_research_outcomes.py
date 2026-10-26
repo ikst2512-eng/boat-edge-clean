@@ -19,6 +19,7 @@ class AuditTests(unittest.TestCase):
                                  "1-4-3","2-1-3","2-1-4","2-3-1","2-3-4"],
                   "generated_at":"2026-10-26T09:00:00+09:00",
                   "cutoff_jst":"2026-10-26T10:00:00+09:00",
+                  "source_deadline_jst":"2026-10-26T10:12:00+09:00",
                   "source_title_received_jst":"2026-10-26T08:59:00+09:00",
                   "source_cards_received_jst":"2026-10-26T08:59:00+09:00",
                   "model_git_sha":"a"*40, "model_source_sha256":"b"*64, "input_sha256":"c"*64}
@@ -111,6 +112,16 @@ class AuditTests(unittest.TestCase):
             att["first_added_blob_sha"] = hashlib.sha1(
                 b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
             ).hexdigest()
+            missing_deadline = dict(snap)
+            missing_deadline.pop("source_deadline_jst")
+            p.write_text(json.dumps(missing_deadline))
+            att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["first_added_blob_sha"] = hashlib.sha1(
+                b"blob " + str(len(p.read_bytes())).encode("ascii") + b"\0" + p.read_bytes()
+            ).hexdigest()
+            self.assertEqual(
+                audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["missing_frozen_source_deadline"],1
+            )
             mismatched_deadline = dict(snap, source_deadline_jst="2026-10-26T10:20:00+09:00")
             p.write_text(json.dumps(mismatched_deadline))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
