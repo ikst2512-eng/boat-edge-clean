@@ -1,4 +1,6 @@
 import unittest
+import json
+import hashlib
 from paired_compare import TICKETS
 from pr16_pair_preflight import inspect_pair
 
@@ -35,6 +37,14 @@ class PairPreflightTests(unittest.TestCase):
         pair=self.pair()
         pair["candidate_model_id"]=""
         self.assertIn("missing candidate_model_id",inspect_pair(pair)["reasons"])
+    def test_source_snapshot_bytes_match_canonical_digest(self):
+        pair=self.pair()
+        source={"race_code":pair["race_code"],"status":"research"}
+        raw=json.dumps(source,ensure_ascii=False).encode("utf-8")
+        canonical=json.dumps(source,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
+        pair["source_snapshot_sha256"]=hashlib.sha256(canonical).hexdigest()
+        self.assertNotIn("source snapshot bytes mismatch",inspect_pair(pair,raw)["reasons"])
+        self.assertIn("source snapshot bytes mismatch",inspect_pair(pair,b'{"race_code":"202610281202"}')["reasons"])
     def test_late_freeze_rejected(self):
         pair=self.pair()
         pair["frozen_at_jst"]=pair["cutoff_jst"]
