@@ -10,6 +10,24 @@ class Response:
     def read(self, n): return b"fixture bytes"
 
 class SourceProbeTests(unittest.TestCase):
+    def test_explicit_fullwidth_boat_rows_extracted(self):
+        rows = []
+        for lane, number in enumerate(("4989", "4684", "5046", "3284", "5243", "5464"), 1):
+            fullwidth = "１２３４５６"[lane - 1]
+            rows.append(f'<tr><td>{fullwidth}</td><td><a href="/profile?toban={number}">{number}</a></td></tr>')
+        html = ("<html><body><table>" + "".join(rows) + "</table></body></html>").encode()
+        from clean_live_source_probe import html_diagnostics
+        result = html_diagnostics(html)
+        self.assertEqual(result["lane_registration_candidates"], {
+            1: "4989", 2: "4684", 3: "5046", 4: "3284", 5: "5243", 6: "5464",
+        })
+        self.assertFalse(result["html_is_race_verified"])
+
+    def test_missing_explicit_boat_row_is_not_six_lane_verified(self):
+        html = b'<html><tr><td><a href="/profile?toban=4989">4989</a></td></tr></html>'
+        from clean_live_source_probe import html_diagnostics
+        self.assertEqual(html_diagnostics(html)["lane_registration_candidates"], {})
+
     def test_official_html_structure_is_not_verification(self):
         html=b'<html><head><title>Race</title></head><body><a href="/racer?toban=1234">A</a></body></html>'
         result=html_diagnostics(html)
