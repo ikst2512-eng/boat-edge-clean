@@ -51,7 +51,8 @@ def _saved(code):
     if record.get("race_code")!=code or record.get("status")!="research" or record.get("validated") is not False:
         raise ValueError("invalid saved forecast")
     tickets=record.get("predictions")
-    if not isinstance(tickets,list) or len(tickets)!=10 or len(set(tickets))!=10:
+    if (not isinstance(tickets,list) or len(tickets)!=10 or
+            not all(isinstance(t, str) for t in tickets) or len(set(tickets))!=10):
         raise ValueError("invalid prediction list")
     valid={"-".join(map(str,t)) for t in TICKETS}
     if any(t not in valid for t in tickets):raise ValueError("invalid ticket")
