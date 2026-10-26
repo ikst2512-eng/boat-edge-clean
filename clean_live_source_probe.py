@@ -100,7 +100,7 @@ def html_diagnostics(body):
     if "スタート展示" in scanner.all_table_rows:
         start = scanner.all_table_rows.index("スタート展示")
         for sample in scanner.all_table_rows[start + 1: start + 20]:
-            match = re.fullmatch(r"([1-6])\s+(F?\.?[0-9]{1,2})", sample)
+            match = re.fullmatch(r"([1-6])\s+([F-]?\.?[0-9]{1,2})", sample)
             if match:
                 course = int(match.group(1))
                 if course in official_st_by_course:
