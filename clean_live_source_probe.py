@@ -4,6 +4,8 @@ import csv
 import io
 import hashlib
 import json
+import re
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -16,6 +18,42 @@ SOURCES = {
     "preview_sui": "https://boatracecsv.github.io/data/previews/sui/{year}/{month}/{day}.csv",
     "official_racelist": "https://www.boatrace.jp/owpc/pc/race/racelist?hd={date}&jcd={venue}&rno={race}",
 }
+
+class OfficialHtmlScanner(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links = []
+        self.title = []
+        self._in_title = False
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "title":
+            self._in_title = True
+        if tag == "a":
+            href = attrs.get("href", "")
+            if "toban=" in href or "racer" in href:
+                self.links.append(href)
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self._in_title = False
+    def handle_data(self, data):
+        if self._in_title:
+            self.title.append(data)
+
+def html_diagnostics(body):
+    try:
+        text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        return {"html_inspection": "blocked_encoding"}
+    if "<html" not in text.lower():
+        return {"html_inspection": "blocked_not_html"}
+    scanner = OfficialHtmlScanner()
+    scanner.feed(text)
+    return {"html_inspection": "structure_only_unverified",
+            "html_title": "".join(scanner.title).strip()[:100],
+            "racer_link_count": len(scanner.links),
+            "toban_parameter_count": len(re.findall(r"toban=", text)),
+            "html_is_race_verified": False}
 
 def probe(date, venue, race, opener=urlopen):
     datetime.strptime(date, "%Y%m%d")
@@ -74,6 +112,7 @@ def probe(date, venue, race, opener=urlopen):
                         entry["race_rows"] = "unreadable_csv"
                 else:
                     entry["race_identity_status"] = "not_parsed"
+                    entry.update(html_diagnostics(body))
         except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
             entry["error_type"] = type(exc).__name__
         report["sources"][name] = entry
@@ -89,4 +128,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count")} for k,v in result["sources"].items()}}, ensure_ascii=False))
