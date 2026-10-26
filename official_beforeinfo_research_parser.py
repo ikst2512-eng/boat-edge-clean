@@ -14,19 +14,26 @@ class _ExhibitionParser(HTMLParser):
         self.boats = []
 
     def handle_starttag(self, tag, attrs):
-        classes = set(dict(attrs).get("class", "").split())
-        if tag in ("script", "style", "template", "noscript") or "hidden" in dict(attrs):
+        attributes = dict(attrs)
+        classes = set((attributes.get("class") or "").split())
+        style = re.sub(r"\s+", "", attributes.get("style") or "").lower()
+        if (tag in ("script", "style", "template", "noscript", "svg", "head")
+                or "hidden" in attributes
+                or (attributes.get("aria-hidden") or "").lower() == "true"
+                or "display:none" in style or "visibility:hidden" in style):
             self.stack.append({"tag": tag, "record": None, "target": None, "blocked": True})
             return
         if any(frame.get("blocked") for frame in self.stack):
             self.stack.append({"tag": tag, "record": None, "target": None, "blocked": True})
             return
-        record = None
-        if "table1_boatImage1" in classes:
-            record = {"number": [], "st": []}
-            self.boats.append(record)
         parent = next((f["record"] for f in reversed(self.stack)
                        if f["record"] is not None), None)
+        record = None
+        if "table1_boatImage1" in classes:
+            if parent is not None:
+                raise ValueError("nested exhibition boat records")
+            record = {"number": [], "st": []}
+            self.boats.append(record)
         record = record or parent
         target = None
         if record is not None and "table1_boatImage1Number" in classes:
