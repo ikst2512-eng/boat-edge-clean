@@ -53,11 +53,16 @@ def collect(day):
             counts["saved"]+=1
         except FileExistsError:counts["already_saved"]+=1
         except (ValueError, KeyError, TypeError, OSError) as e:counts["invalid"]+=1
+    return counts
+
+def validate_run_counts(counts):
+    """Treat a fully invalid scheduled capture as failure, not an empty success."""
     if counts["saved"]+counts["already_saved"]+counts["not_ready"]==0:
         raise ValueError("no valid or cutoff-eligible race records; refusing green run")
-    return counts
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--date",default=datetime.now(JST).strftime("%Y%m%d"))
     a=p.parse_args()
-    print(json.dumps(collect(a.date),ensure_ascii=False))
+    result=collect(a.date)
+    print(json.dumps(result,ensure_ascii=False))
+    validate_run_counts(result)
