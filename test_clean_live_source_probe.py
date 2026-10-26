@@ -28,6 +28,17 @@ class SourceProbeTests(unittest.TestCase):
         from clean_live_source_probe import html_diagnostics
         self.assertEqual(html_diagnostics(html)["lane_registration_candidates"], {})
 
+    def test_official_beforeinfo_numeric_fields_by_lane(self):
+        rows = []
+        for lane, number in enumerate(("4989", "4684", "5046", "3284", "5243", "5464"), 1):
+            rows.append(f'<tr><td>{lane} 選手{lane} 52.0kg 6.{60+lane} -0.5 <a href="/profile?toban={number}">{number}</a></td></tr>')
+        html = ("<html><body><table>" + "".join(rows) + "</table></body></html>").encode()
+        result = html_diagnostics(html)
+        self.assertEqual(len(result["preview_value_candidates"]), 6)
+        self.assertEqual(result["preview_value_candidates"][1]["time"], "6.61")
+        self.assertEqual(result["preview_value_candidates"][6]["tilt"], "-0.5")
+        self.assertIs(result["html_is_race_verified"], False)
+
     def test_official_html_structure_is_not_verification(self):
         html=b'<html><head><title>Race</title></head><body><a href="/racer?toban=1234">A</a></body></html>'
         result=html_diagnostics(html)
