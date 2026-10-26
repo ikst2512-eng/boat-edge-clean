@@ -24,15 +24,15 @@ jobs:
   capture:
     # Branch-only opt-in: both repository variables must be explicitly set.
     # Ordinary pushes and pull requests do not fetch any race data.
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_RACE_KEY != '' && vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE != '') }}
+    if: ${{ github.ref == 'refs/heads/fix/clean-official-preview-integrity-20261027' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.CLEAN_PRERACE_PROBE_RACE_KEY != '' && vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE != '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
       - name: Capture audited HTML (never update site or Fresh)
         env:
-          RACE_KEY: ${{ inputs.race_key || vars.CLEAN_PRERACE_PROBE_RACE_KEY }}
-          VERIFIED_DEADLINE: ${{ inputs.verified_deadline || vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE }}
+          RACE_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.race_key || vars.CLEAN_PRERACE_PROBE_RACE_KEY }}
+          VERIFIED_DEADLINE: ${{ github.event_name == 'workflow_dispatch' && inputs.verified_deadline || vars.CLEAN_PRERACE_PROBE_VERIFIED_DEADLINE }}
         run: |
           python3 run_official_prerace_probe.py --race-key "$RACE_KEY" --deadline "$VERIFIED_DEADLINE" --directory "$RUNNER_TEMP/prerace-evidence" > "$RUNNER_TEMP/probe.json"
           cat "$RUNNER_TEMP/probe.json"
