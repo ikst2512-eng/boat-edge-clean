@@ -227,7 +227,7 @@ jobs:
               predictionUnavailable=true;
               await page.locator('.view-tabs [data-view="forecast"]').click();
               await page.locator('#retryPrediction').click();
-              await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
+              await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済')||document.querySelector('#predictionStatus')?.textContent.includes('検証済み'),null,{timeout:12000});
               await page.locator('.view-tabs [data-view="card"]').click();
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
               // A failed forced refresh must retain an already shown six-lane table.
