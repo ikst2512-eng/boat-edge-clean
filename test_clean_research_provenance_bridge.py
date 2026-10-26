@@ -91,6 +91,28 @@ class BridgeTests(unittest.TestCase):
         result=compare_capture_identity(RACE,{**BEFORE,"start_exhibition":rows},deadline=DEADLINE)
         self.assertEqual(result["status"],"bridged_unverified")
         self.assertFalse(result["actual_entry_verified"])
+    def test_pr15_parser_with_matching_receipt(self):
+        parser_only={k:v for k,v in BEFORE.items() if k not in ("results_seen","unlock","scoring")}
+        receipt={"status":"raw_html_only","race_key":BEFORE["race_key"],
+                 "sha256":BEFORE["raw_sha256"],"fetched_at":BEFORE["captured_at"],
+                 "verified_preview":False,"actual_entry_verified":False,
+                 "results_seen":False,"unlock":False,"scoring":False}
+        result=compare_capture_identity(RACE,parser_only,deadline=DEADLINE,official_receipt=receipt)
+        self.assertEqual(result["status"],"bridged_unverified")
+    def test_receipt_hash_mismatch(self):
+        receipt={"status":"raw_html_only","race_key":BEFORE["race_key"],
+                 "sha256":"b"*64,"fetched_at":BEFORE["captured_at"],
+                 "verified_preview":False,"actual_entry_verified":False,
+                 "results_seen":False,"unlock":False,"scoring":False}
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,BEFORE,deadline=DEADLINE,official_receipt=receipt)
+    def test_receipt_unlock_rejected(self):
+        receipt={"status":"raw_html_only","race_key":BEFORE["race_key"],
+                 "sha256":BEFORE["raw_sha256"],"fetched_at":BEFORE["captured_at"],
+                 "verified_preview":False,"actual_entry_verified":False,
+                 "results_seen":False,"unlock":True,"scoring":False}
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,BEFORE,deadline=DEADLINE,official_receipt=receipt)
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
