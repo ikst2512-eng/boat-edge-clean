@@ -92,6 +92,8 @@ def collect(rows, baseline, candidate):
             pairs.append({"race_key":key, "a":[int(y in ra[:k]) for k in TOPS],
                           "b":[int(y in rb[:k]) for k in TOPS],
                           "logloss_a":-math.log(a[y]), "logloss_b":-math.log(b[y]),
+                          "brier_a":sum((p-int(t==y))**2 for t,p in a.items()),
+                          "brier_b":sum((p-int(t==y))**2 for t,p in b.items()),
                           "confidence_a":a[ra[0]], "confidence_b":b[rb[0]],
                           "correct_a":int(y == ra[0]), "correct_b":int(y == rb[0])})
         except (ValueError, TypeError, KeyError, AttributeError) as e:
@@ -148,6 +150,14 @@ def compare(rows, baseline, candidate):
         "candidate":mean([x["logloss_b"] for x in pairs]), "delta":mean(d),
         "paired_bootstrap_95ci":interval(d,seed=301),
         "paired_signflip_p":paired_p(d,seed=401),
+        "lower_is_better":True}
+    bd = [x["brier_b"]-x["brier_a"] for x in pairs]
+    metrics["multiclass_brier"] = {
+        "baseline":mean([x["brier_a"] for x in pairs]),
+        "candidate":mean([x["brier_b"] for x in pairs]),
+        "delta":mean(bd),
+        "paired_bootstrap_95ci":interval(bd,seed=501),
+        "paired_signflip_p":paired_p(bd,seed=601),
         "lower_is_better":True}
     metrics["top1_ece_10bins"] = {"baseline":ece(pairs,"a"),"candidate":ece(pairs,"b"),
         "note":"Descriptive; very low-probability top tickets require a large sample."}
