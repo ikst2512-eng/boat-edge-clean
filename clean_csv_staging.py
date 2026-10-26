@@ -42,10 +42,13 @@ def map_race_card(csv_text, race_code, source_url, fetched_at):
         if not name or not name.strip() or not registration or not registration.isascii() or not registration.isdigit():
             raise ValueError("incomplete six-racer card")
         racers.append({"lane": lane, "name": name.strip(), "registration": registration})
-    if row.get("レース場コード") and row["レース場コード"].zfill(2) != race_code[8:10]:
+    if not re.fullmatch(r"(?:0?[1-9]|1[0-9]|2[0-4])", row.get("レース場コード", "")) or row["レース場コード"].zfill(2) != race_code[8:10]:
         raise ValueError("venue mismatch")
-    if row.get("レース回") and row["レース回"].zfill(2) != race_code[10:12]:
+    race_no = row.get("レース回", "")
+    if not re.fullmatch(r"(?:[1-9]|1[0-2])R", race_no) or f"{int(race_no[:-1]):02d}" != race_code[10:12]:
         raise ValueError("race number mismatch")
+    if row.get("レース日") != datetime.strptime(race_code[:8], "%Y%m%d").strftime("%Y-%m-%d"):
+        raise ValueError("race date mismatch")
     return {
         "race_code": race_code, "racers": racers,
         "source_url": source_url, "fetched_at": fetched.isoformat(),
