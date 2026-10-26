@@ -50,8 +50,11 @@ def inspect_v5_transport(raw_bytes):
         raise InvalidCandidate("invalid probability")
     if abs(math.fsum(probs.values()) - 1) > 1e-8:
         raise InvalidCandidate("probabilities not normalized")
-    if doc.get("freeze_proof") is not None:
-        raise InvalidCandidate("untrusted embedded freeze proof")
+    forbidden = {"freeze_proof", "formal_approved", "model_authenticity_verified",
+                 "independent_receipt_verified", "input_provenance_verified",
+                 "independent_github_arrival_verified", "result_unlock_token"}
+    if any(field in doc for field in forbidden):
+        raise InvalidCandidate("untrusted embedded approval or provenance claim")
     return {"race_key": f"{code[:8]}-{venue:02d}-{race:02d}",
             "transport_sha256": hashlib.sha256(raw_bytes).hexdigest(),
             "candidate_shape_valid": True, "model_authenticity_verified": False,
