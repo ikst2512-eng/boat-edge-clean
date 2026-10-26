@@ -23,6 +23,20 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
         raise ValueError("cross-race contamination")
     if racelist.get("status") != "html_candidates_unverified":
         raise ValueError("racelist candidates unavailable")
+    racers = racelist.get("racers")
+    if not isinstance(racers, list) or len(racers) != 6:
+        raise ValueError("incomplete racelist")
+    if any(not isinstance(x, dict) or type(x.get("lane")) is not int
+           or not isinstance(x.get("registration"), str)
+           or not re.fullmatch(r"[0-9]{4}", x["registration"])
+           for x in racers):
+        raise ValueError("invalid racelist racer")
+    if sorted(x["lane"] for x in racers) != list(range(1, 7)):
+        raise ValueError("duplicate or missing racelist lane")
+    if len({x["registration"] for x in racers}) != 6:
+        raise ValueError("duplicate racer registration")
+    if racelist.get("official_provenance_verified") is not False:
+        raise ValueError("unsafe racelist provenance promotion")
     if beforeinfo.get("status") != "research_unverified":
         raise ValueError("beforeinfo research unavailable")
     if beforeinfo.get("verified_preview") is not False or beforeinfo.get("actual_entry_verified") is not False:
