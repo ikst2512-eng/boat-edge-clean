@@ -8,6 +8,23 @@ from pathlib import Path
 from scripts.audit_research_outcomes import audit
 
 class AuditTests(unittest.TestCase):
+    def test_malformed_snapshot_objects_are_excluded_without_crashing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "202610270101.json"
+            for value in (
+                [],
+                {"race_code": "202610270101", "status": "research",
+                 "validated": False, "predictions": [{"wrong": "type"}] * 10},
+                {"race_code": "202610270101", "status": "research",
+                 "validated": False, "predictions": "1234567890"},
+            ):
+                path.write_text(json.dumps(value), encoding="utf-8")
+                report = audit(folder, [], [])
+                self.assertEqual(report["valid_count"], 0)
+                self.assertEqual(
+                    report["exclusion_reasons"]["malformed_snapshot_or_manifest"], 1
+                )
+
     @patch('scripts.audit_research_outcomes.subprocess.check_call')
     @patch('scripts.audit_research_outcomes.subprocess.check_output')
     @patch('scripts.audit_research_outcomes.verify_first_add')
