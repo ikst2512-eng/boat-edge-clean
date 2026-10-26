@@ -8,7 +8,7 @@ class ReceiptTests(unittest.TestCase):
     def setUp(self):
         self.code = "202610281201"
         self.path = "research_prospective_pairs/" + self.code + ".json"
-        self.raw = json.dumps({"race_code": self.code, "cutoff_jst": "2026-10-28T12:48:00+09:00"}).encode()
+        self.raw = json.dumps({"race_code": self.code, "cutoff_jst": "2026-10-28T12:48:00+09:00", "status":"research_unvalidated", "prospective_verified":False, "source_snapshot_generated_at":"2026-10-28T12:20:00+09:00", "frozen_at_jst":"2026-10-28T12:30:00+09:00", "baseline_model_id":"baseline", "candidate_model_id":"candidate"}).encode()
         self.digest = hashlib.sha256(self.raw).hexdigest()
         self.blob_sha = hashlib.sha1(b"blob " + str(len(self.raw)).encode() + bytes([0]) + self.raw).hexdigest()
         self.commit = "a"*40
@@ -67,6 +67,24 @@ class ReceiptTests(unittest.TestCase):
     def test_failed_workflow_rejected(self):
         self.responses[self.prefix + "/actions/runs/99"]["conclusion"]="failure"
         with self.assertRaises(ValueError):self.check()
+    def replace_pair_record(self, **updates):
+        record=json.loads(self.raw)
+        record.update(updates)
+        self.raw=json.dumps(record).encode()
+        self.digest=hashlib.sha256(self.raw).hexdigest()
+        self.blob_sha=hashlib.sha1(b"blob "+str(len(self.raw)).encode()+bytes([0])+self.raw).hexdigest()
+        tree=self.responses[self.prefix+"/git/trees/"+self.tree_sha+"?recursive=1"]
+        tree["tree"][0]["sha"]=self.blob_sha
+        self.responses[self.prefix+"/git/blobs/"+self.blob_sha]={"encoding":"base64","content":base64.b64encode(self.raw).decode()}
+    def test_frozen_after_server_push_rejected(self):
+        self.replace_pair_record(frozen_at_jst="2026-10-28T12:45:00+09:00")
+        with self.assertRaisesRegex(ValueError,"chronology"):self.check()
+    def test_post_cutoff_generation_rejected(self):
+        self.replace_pair_record(source_snapshot_generated_at="2026-10-28T12:49:00+09:00")
+        with self.assertRaisesRegex(ValueError,"chronology"):self.check()
+    def test_unvalidated_research_pair_only(self):
+        self.replace_pair_record(status="formal")
+        with self.assertRaisesRegex(ValueError,"unvalidated"):self.check()
     def test_late_receipt_rejected(self):
         self.responses[self.prefix + "/actions/runs/99"]["created_at"]="2026-10-28T03:49:00Z"
         with self.assertRaises(ValueError):self.check()
