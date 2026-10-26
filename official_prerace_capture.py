@@ -120,7 +120,7 @@ def save_raw_receipt(receipt, raw, directory):
         lock_path.unlink(missing_ok=True)
 
 
-def read_raw_receipt(directory, race_key, digest):
+def read_raw_receipt(directory, race_key, digest, *, deadline):
     """Read only a completed immutable raw receipt; never promote to verified data."""
     if not re.fullmatch(r"20\d{6}-(?:0[1-9]|1\d|2[0-4])-(?:0?[1-9]|1[0-2])", race_key or ""):
         raise ValueError("invalid race key")
@@ -152,6 +152,11 @@ def read_raw_receipt(directory, race_key, digest):
         raise ValueError("invalid receipt capture timestamp") from exc
     if captured.tzinfo is None or captured.astimezone(JST).date() != race_day:
         raise ValueError("receipt capture date mismatch")
+    if not isinstance(deadline, datetime) or deadline.tzinfo is None:
+        raise ValueError("verified timezone-aware deadline required")
+    cutoff = deadline.astimezone(JST)
+    if cutoff.date() != race_day or captured.astimezone(JST) >= cutoff - MIN_MARGIN:
+        raise ValueError("receipt was not captured in safe predeadline window")
     if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
         raise ValueError("unsafe receipt flags")
     return receipt, raw
