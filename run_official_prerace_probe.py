@@ -8,6 +8,7 @@ from pathlib import Path
 
 from official_prerace_capture import capture_beforeinfo, save_raw_receipt, read_raw_receipt
 from official_beforeinfo_inspect import inspect_saved_beforeinfo
+from official_beforeinfo_research_parser import research_saved_start_exhibition
 
 
 def run(race_key, deadline_text, directory):
@@ -28,6 +29,12 @@ def run(race_key, deadline_text, directory):
             or diagnostic.get("racers") != []
             or diagnostic.get("start_exhibition") != []):
         raise ValueError("unsafe diagnostic: cannot publish verified or raced data")
+    try:
+        research = research_saved_start_exhibition(directory, race_key, receipt["sha256"], deadline=deadline)
+    except (ValueError, UnicodeError) as exc:
+        research = {"status": "research_unavailable", "reason": type(exc).__name__,
+                    "verified_preview": False, "actual_entry_verified": False,
+                    "start_exhibition": []}
     result = {
         "race_key": race_key,
         "receipt_sha256": receipt["sha256"],
@@ -36,6 +43,7 @@ def run(race_key, deadline_text, directory):
         "deadline": deadline.isoformat(),
         "archive_files": [Path(path).name for path in paths],
         "diagnostic": diagnostic,
+        "research_extraction": research,
         "status": "unverified_raw_only",
     }
     # Publish the provenance summary with the archive, not only in ephemeral logs.
