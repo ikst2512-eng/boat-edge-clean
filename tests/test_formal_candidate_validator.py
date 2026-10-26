@@ -52,6 +52,18 @@ class CandidateTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             validate_candidate(v)
 
+    def test_cutoff_too_close_to_deadline(self):
+        v = sample()
+        v["cutoff_at"] = "2026-10-28T09:04:00+09:00"
+        with self.assertRaises(InvalidCandidate):
+            validate_candidate(v)
+
+    def test_timezone_required(self):
+        v = sample()
+        v["generated_at"] = "2026-10-28T09:00:00"
+        with self.assertRaises(InvalidCandidate):
+            validate_candidate(v)
+
     def test_untrusted_identity(self):
         v = sample()
         v["git_sha"] = "fake"
