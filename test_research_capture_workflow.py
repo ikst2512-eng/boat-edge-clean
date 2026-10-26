@@ -62,6 +62,17 @@ class EvidenceTests(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("existing research snapshot changed", r.stdout)
 
+    def test_reject_missing_tracked_directory(self):
+        p = self.root / "research_snapshots/202610270101.json"
+        p.write_text("{}")
+        run("git", "add", ".", cwd=self.root)
+        run("git", "commit", "-qm", "baseline snapshot", cwd=self.root)
+        p.unlink()
+        (self.root / "research_snapshots").rmdir()
+        r = self.execute()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("tracked research snapshots directory missing", r.stdout)
+
     def test_reject_invalid_added_filename(self):
         (self.root / "research_snapshots/invalid.json").write_text("{}")
         r = self.execute()
