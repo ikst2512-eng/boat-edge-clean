@@ -51,6 +51,19 @@ class FormalFeedLockTests(unittest.TestCase):
             self.assertIs(body["validated"], False)
             self.assertEqual(body["predictions"], [])
 
+    def test_research_fallback_is_never_formal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            research = {"ok": True, "status": "research", "validated": False,
+                        "model_version": "exploratory", "predictions": ["1-2-3"]}
+            with (patch.object(server, "ROOT", Path(directory)),
+                  patch("research_model.predict", return_value=research)):
+                status, body = server.get_predictions(
+                    {"hd": ["20261027"], "jcd": ["01"], "rno": ["1"]})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["status"], "research")
+            self.assertIs(body["validated"], False)
+            self.assertNotEqual(body["status"], "available")
+
     def test_invalid_feed_is_never_available(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
