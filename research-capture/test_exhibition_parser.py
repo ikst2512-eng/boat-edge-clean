@@ -29,6 +29,18 @@ class TestFailClosed(unittest.TestCase):
         with self.assertRaises(ValueError):parse(page(VALID),clean=False)
     def test_two_candidate_tables(self):
         with self.assertRaises(ValueError):parse(page(VALID)+page(VALID))
+    def test_realistic_tables_are_visible(self):
+        # A table with class attributes must not disappear under regex escaping.
+        from exhibition_parser import Tables
+        p=Tables()
+        p.feed('<div><table class="table1"><tr><td>進入</td></tr></table><table><tr><td>1</td></tr></table></div>')
+        self.assertEqual(len(p.tables),2)
+        self.assertEqual(p.tables[0][0][0],"進入")
+    def test_entry_label_is_not_exhibition_time(self):
+        # The 2026-10-25 live DOM had six 進入 tokens, but zero 展示タイム tokens.
+        # Never silently interpret entries as exhibition-time measurements.
+        bogus=page(VALID,heading="進入 / スタート展示")
+        with self.assertRaises(ValueError):parse(bogus)
     def test_invalid_race_id(self):
         with self.assertRaises(AssertionError):
             extract(page(VALID),race_id="bogus",received_before_cutoff=True,result_free_attested=True)
