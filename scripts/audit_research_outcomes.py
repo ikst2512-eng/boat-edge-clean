@@ -169,6 +169,11 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                 exclusions["invalid_model_commit_identifier"] += 1
                 continue
             try:
+                subprocess.check_call(
+                    ["git", "-C", str(git_repo), "merge-base", "--is-ancestor",
+                     model_commit, first_commit],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
+                )
                 committed_model = subprocess.check_output(
                     ["git", "-C", str(git_repo), "show",
                      model_commit + ":research_model.py"],
