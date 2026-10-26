@@ -32,14 +32,14 @@ def wilson(hits, n, z=1.959963984540054):
     return [max(0, mid-delta), min(1, mid+delta)]
 
 
-def audit(snapshot_dir, attestations, results):
+def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None):
     """Returns separate counts for exclusions and a defensible matched sample.
 
     Each manifest must be verified by a separate reviewer against independent
     timestamped receipts, immutable first-added blob, model and source hashes,
     and official results. Self-asserted booleans MUST NOT be used as substitutes.
     """
-    by_code = {}
+    # A reviewer must pin the exact serialized evidence manifest hash independently.\n    # No pin means no score, even when all self-declared verified flags are true.\n    manifest_digest = hashlib.sha256(json.dumps(attestations, ensure_ascii=False,\n                             sort_keys=True, separators=(\",\", \":\")).encode()).hexdigest()\n    authorized = (isinstance(approved_attestations_sha256, str) and\n                  approved_attestations_sha256 == manifest_digest)\n    by_code = {}
     for item in attestations:
         code = item["race_code"]
         if code in by_code:
@@ -131,10 +131,10 @@ def main():
     parser.add_argument("--snapshots",default="research_snapshots")
     parser.add_argument("--attestations",required=True)
     parser.add_argument("--results",required=True)
-    parser.add_argument("--output")
+    parser.add_argument("--output")\n    parser.add_argument("--approved-attestations-sha256",\n                        help="Reviewer-pinned digest of canonical JSON attestations; never derive from input automatically")
     args=parser.parse_args()
     report=audit(args.snapshots,json.loads(Path(args.attestations).read_text()),
-                 json.loads(Path(args.results).read_text()))
+                 json.loads(Path(args.results).read_text()), args.approved_attestations_sha256)
     content=json.dumps(report,ensure_ascii=False,indent=2)
     if args.output:
         Path(args.output).write_text(content+"\n")
