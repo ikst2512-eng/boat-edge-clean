@@ -37,7 +37,7 @@ jobs:
             else
               git add -- research_snapshots/
               # Only newly added twelve-digit race JSON files are allowed.
-              if git diff --cached --name-only --diff-filter=ACDMRTUX -- research_snapshots/ | grep -q .; then
+              if git diff --cached --name-only --diff-filter=CDMRTUX -- research_snapshots/ | grep -q .; then
                 echo 'ERROR: existing research snapshot changed or deleted' >&2
                 exit 1
               fi
