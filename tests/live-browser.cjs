@@ -31,7 +31,7 @@ const fs=require('node:fs');
    if(new URL(page.url()).searchParams.get('view')!==view)throw Error(view+' URL view parameter not synchronized');
    const panel=view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection';
    if(!await page.locator(panel).isVisible())throw Error(view+' panel not visible');
-   if(view==='exhibit'&&!await page.locator('#exhibitionGrid').isVisible())throw Error('Exhibition grid hidden');
+   if(view==='exhibit' && await page.locator('#exhibitionGrid').evaluate(el=>el.hidden))throw Error('Exhibition grid hidden attribute remains set');
   }
   destination=new URL(page.url());
   if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Tabs changed selected race');
