@@ -36,7 +36,12 @@ class AuditTests(unittest.TestCase):
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3",
                      "result_source_id":"synthetic-fixture-only",
                      "result_confirmed_at":"2026-10-26T10:13:00+09:00"}
-            self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)
+            unapproved=audit(d,[att],[outcome])
+            self.assertEqual(unapproved["valid_count"],0)
+            self.assertIsNone(unapproved["metrics"]["top1"]["rate"])
+            self.assertIsNone(unapproved["metrics"]["top10"]["wilson95"])
+            self.assertEqual(unapproved["exclusion_reasons"]["missing_independent_manifest_approval"],1)
+            self.assertEqual(audit(d,[att],[outcome],"0"*64)["valid_count"],0)
             digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
             self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
             att["first_seen_at"] = "2026-10-26T08:58:00+09:00"
