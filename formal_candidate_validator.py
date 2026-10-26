@@ -54,6 +54,9 @@ def validate_candidate(candidate):
     deadline = _timestamp(candidate.get("official_deadline_at"))
     if not created < cutoff < deadline:
         raise InvalidCandidate("not frozen before cutoff")
+    # Structural safety check only: proof of actual publication and receipt is separate.
+    if (deadline - cutoff).total_seconds() < 12 * 60:
+        raise InvalidCandidate("cutoff less than 12 minutes before deadline")
     raw = candidate.get("ranked_120")
     if not isinstance(raw, list) or len(raw) != 120:
         raise InvalidCandidate("exactly 120 combinations required")
