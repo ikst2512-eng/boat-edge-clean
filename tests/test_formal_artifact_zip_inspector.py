@@ -98,6 +98,14 @@ class DownloadedZipTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, digest)
 
+    def test_runner_receipt_inside_cutoff(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["runner_recorded_at"] = "2026-10-28T09:04:00+09:00"
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
     def test_source_digest_malformed(self):
         code, digest, members, make_zip = self.sample()
         candidate = json.loads(members[f"prospective_candidates/{code}.json"])
