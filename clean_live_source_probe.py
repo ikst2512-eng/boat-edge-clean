@@ -280,7 +280,9 @@ def probe(date, venue, race, opener=urlopen):
                     return None
                 return value.removeprefix("0.") if value.startswith("0.") else value
             compare.append(expected is not None and observed is not None and normalize(expected) == normalize(observed))
+        mismatch_samples = [{"boat": boat, "course": csv_st[boat]["コース"], "csv_st": csv_st[boat]["スタート展示"], "official_st": official_st.get(int(csv_st[boat]["コース"]))} for boat in range(1,7)]
         report["official_st_comparison"] = {
+            "samples": mismatch_samples,
             "status": "st_equal_unverified" if all(compare) else "st_mismatch_blocked",
             "all_six_equal": all(compare), "course_is_not_boat": True,
             "official_race_identity_verified": False,
