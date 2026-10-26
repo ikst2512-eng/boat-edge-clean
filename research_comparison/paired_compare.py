@@ -78,8 +78,22 @@ def collect(rows, baseline, candidate):
             a = validate_forecast(f[baseline], dict(r, _expected_model_id=baseline))
             b = validate_forecast(f[candidate], dict(r, _expected_model_id=candidate))
             # Models must be fixed before outcome availability, not selected after evaluation.
-            if not r.get("candidate_pre_registered", False):
-                raise ValueError("candidate not pre-registered")
+            # A Boolean is not proof of preregistration; require an explicit,
+            # dated model pair and fail closed when either identity differs.
+            reg = r.get("pre_registration")
+            if not isinstance(reg, dict):
+                raise ValueError("missing pre-registration record")
+            if reg.get("baseline_model_sha") != f[baseline]["model_sha"] or reg.get("candidate_model_sha") != f[candidate]["model_sha"]:
+                raise ValueError("pre-registered model SHA mismatch")
+            if reg.get("baseline_model_id") != baseline or reg.get("candidate_model_id") != candidate:
+                raise ValueError("pre-registered model ID mismatch")
+            if not reg.get("receipt_verified_independently", False):
+                raise ValueError("pre-registration receipt not independently verified")
+            registered = timestamp(reg["registered_at"])
+            if registered >= timestamp(r["deadline"]):
+                raise ValueError("pre-registration after deadline")
+            if registered > min(timestamp(f[baseline]["first_git_saved_at"]), timestamp(f[candidate]["first_git_saved_at"])):
+                raise ValueError("pre-registration after initial model forecast freeze")
             if f[baseline]["input_sha256"] != f[candidate]["input_sha256"]:
                 raise ValueError("different input")
             for name in (baseline, candidate):
