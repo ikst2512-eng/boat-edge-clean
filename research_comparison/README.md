@@ -70,3 +70,5 @@ The claimed model-pair preregistration must precede both forecasts' `generated_a
 ## Canonical race identity
 
 `race_key` must use `YYYYMMDD-VV-R` (eight-digit date, two-digit official venue code, race number 1–12). This is a format-only guard; official race existence and venue mapping require independent verification. Duplicate canonical keys are excluded.
+
+The offline race-key gate also rejects impossible calendar dates, venue codes outside 01–24, race numbers outside 1–12, and dates inconsistent with the cutoff after converting it to JST. It **does not** verify that the event was actually held or that the cutoff is the official published deadline; those require independent official race-source evidence.
