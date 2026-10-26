@@ -9,6 +9,16 @@ jobs:
   browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: pages
+            url: https://ikst2512-eng.github.io/boat-edge-clean/
+          - target: render
+            url: https://boat-edge-clean.onrender.com/
+    env:
+      CLEAN_SITE_URL: ${{ matrix.url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,7 +37,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: clean-browser-${{ github.run_id }}
+          name: clean-browser-${{ matrix.target }}-${{ github.run_id }}
           path: |
             browser-smoke.log
             test-results/
