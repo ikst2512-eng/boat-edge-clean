@@ -27,6 +27,7 @@ on:
       - 'test_research_pair_publish_guard.py'
       - 'research_pair_git_prepare.py'
       - 'test_research_pair_git_prepare.py'
+      - 'test_research_actual_git_integration.py'
       - 'research_pair_remote_publish.py'
       - 'test_research_pair_remote_publish.py'
       - 'research_pair_dispatch_preflight.py'
@@ -57,7 +58,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
-        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit test_research_results_scorecard test_research_prospective_pair_capture test_run_research_pair_capture test_research_collect_and_pair test_research_pair_publish_guard test_research_pair_git_prepare test_research_pair_remote_publish test_research_pair_pipeline test_research_pair_dispatch_preflight test_research_push_receipt_audit test_research_remote_pair_evidence test_research_receipt_run_audit
+        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit test_research_git_first_seen_audit test_research_results_scorecard test_research_prospective_pair_capture test_run_research_pair_capture test_research_collect_and_pair test_research_pair_publish_guard test_research_pair_git_prepare test_research_actual_git_integration test_research_pair_remote_publish test_research_pair_pipeline test_research_pair_dispatch_preflight test_research_push_receipt_audit test_research_remote_pair_evidence test_research_receipt_run_audit
       - name: Audit all committed research snapshots (informational)
         run: |
           python research_snapshot_replay_audit.py research_snapshots > /tmp/research-replay-audit.json
