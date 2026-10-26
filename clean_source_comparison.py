@@ -1,6 +1,6 @@
 """Fail-closed same-race comparison for isolated untrusted CSV and official records.
 
-Both inputs must already have passed their individual provenance validators.
+Input statuses are not proof of official provenance; a matching comparison never\nauthorizes promotion, publication or a claim of verified official equality.
 No upstream fetching, publication, prediction generation or scoring takes place.
 """
 
@@ -36,7 +36,7 @@ def compare_race_sources(csv_stage, official_stage):
                 mismatches.append(f"lane{lane}.{field}")
     return {
         "race_key": official_stage["race_key"],
-        "status": "matched_unpublished" if not mismatches and not unknown else "blocked_unpublished",
+        "status": "compared_unverified" if not mismatches and not unknown else "blocked_unpublished",\n        "data_equal": not mismatches and not unknown,\n        "official_provenance_verified": False,
         "mismatches": mismatches, "unknown": unknown,
         "sources": {"csv": csv_stage.get("source_url"), "official": official_stage.get("source_url")},
     }
