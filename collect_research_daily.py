@@ -8,11 +8,22 @@ def collect(day):
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
     titles,t1,title_sha=read_rows(BASE+"title/"+path)
     cards,t2,cards_sha=read_rows(BASE+"race_cards/"+path)
-    by_code={r.get("レースコード"):r for r in cards if r.get("レースコード")}
+    # Never silently choose the final duplicate row from a source CSV.
+    by_code={}
+    duplicate_cards=set()
+    for row in cards:
+        code=row.get("レースコード")
+        if not code:continue
+        if code in by_code:duplicate_cards.add(code)
+        else:by_code[code]=row
+    seen_titles=set()
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     for title in titles:
         code=title.get("レースコード","")
         if not(code.isascii() and code.isdigit() and len(code)==12 and code.startswith(day)):continue
+        if code in seen_titles or code in duplicate_cards:
+            counts["invalid"]+=1;continue
+        seen_titles.add(code)
         card=by_code.get(code)
         if card is None:counts["missing"]+=1;continue
         try:
