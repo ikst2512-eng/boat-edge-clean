@@ -38,6 +38,19 @@ class SavedReceiptBridgeTests(unittest.TestCase):
         def bad(*args,**kwargs): raise ValueError("invalid marker")
         with self.assertRaises(ValueError):
             self.run_bridge(bad)
+    def test_matching_reparse_rows_accepted(self):
+        result=bridge_saved_official_receipt(
+            RACE,PARSED,directory="fixture",deadline=AT+timedelta(minutes=15),
+            read_raw_receipt=lambda d,k,h,deadline:(dict(RECEIPT),RAW),
+            reparse_raw=lambda raw:{"status":"research_unverified",
+                                     "start_exhibition":PARSED["start_exhibition"]})
+        self.assertEqual(result["status"],"bridged_unverified")
+    def test_mismatched_reparse_rows_rejected(self):
+        with self.assertRaises(ValueError):
+            bridge_saved_official_receipt(
+                RACE,PARSED,directory="fixture",deadline=AT+timedelta(minutes=15),
+                read_raw_receipt=lambda d,k,h,deadline:(dict(RECEIPT),RAW),
+                reparse_raw=lambda raw:{"status":"research_unverified","start_exhibition":[]})
     def test_unsafe_receipt_rejected(self):
         with self.assertRaises(ValueError):
             self.run_bridge(lambda d,k,h,deadline:({**RECEIPT,"scoring":True},RAW))
