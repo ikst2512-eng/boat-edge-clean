@@ -54,3 +54,7 @@ PR #16 independently implements a paired evaluation script. Its changed paths do
 ## Explicit model-pair pre-registration gate
 
 Each pair now requires a `pre_registration` object containing `baseline_model_id`, `candidate_model_id`, their exact `baseline_model_sha` and `candidate_model_sha` (40-character Git SHAs), `registered_at` as a timezone-aware ISO timestamp, and `receipt_verified_independently: true`. The timestamp must precede the deadline and both initial prediction freezes. A mere `candidate_pre_registered: true` Boolean no longer qualifies. An externally audited immutable receipt is still essential: the tool validates the claimed fields, but cannot establish their authenticity. Work from pre-registered cohorts rather than selecting good-performing candidates retrospectively. Do not use outcome data from locked Fresh records.
+
+## Pre-result source chronology gate
+
+Each model forecast must include `source_received_at` as a timezone-aware timestamp. The evaluator rejects absent receipts, sources received after forecast generation, and sources received at or after the official deadline. This checks timestamp consistency only; the source's actual arrival and authenticity must be verified against trusted external receipts. No historical reconstruction or locked Fresh result access is permitted.
