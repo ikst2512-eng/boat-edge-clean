@@ -76,3 +76,7 @@ The offline race-key gate also rejects impossible calendar dates, venue codes ou
 ## Ambiguous duplicate race handling
 
 All occurrences of a duplicated `race_key` are excluded, even if one appears otherwise valid. This avoids row-order-dependent selection of outcomes or forecasts. Diagnose and resolve upstream duplicates using independently authenticated original records; never select the outcome that favors one candidate.
+
+## Exclusion audit trail
+
+The output includes `excluded_details`, containing a race key and exclusion reason per rejected row, without copying result tickets, feature payloads or probability distributions. Duplicate race occurrences are all excluded. Treat this as diagnostic metadata, not independent proof of outcome access or prospectivity.
