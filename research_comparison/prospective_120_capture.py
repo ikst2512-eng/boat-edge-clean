@@ -9,8 +9,8 @@ from pathlib import Path
 from research_model import probabilities
 
 JST = timezone(timedelta(hours=9))
-SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
-SHA64 = re.compile(r"[0-9a-f]{64}\\Z")
+SHA40 = re.compile(r"[0-9a-f]{40}\Z")
+SHA64 = re.compile(r"[0-9a-f]{64}\Z")
 
 def freeze(destination, *, race_code, rates, model_sha, input_sha256,
            source_received_at, cutoff_jst):
@@ -43,7 +43,7 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
         "predictions":list(p)[:10], "probabilities":p,
         "receipt_status":"LOCAL_EXCLUSIVE_CREATE_NOT_INDEPENDENTLY_VERIFIED",
     }
-    data=(json.dumps(record,ensure_ascii=False,sort_keys=True,allow_nan=False)+"\\n").encode("utf-8")
+    data=(json.dumps(record,ensure_ascii=False,sort_keys=True,allow_nan=False)+"\n").encode("utf-8")
     dest=Path(destination)
     with dest.open("xb") as f:
         f.write(data)
