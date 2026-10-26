@@ -1,4 +1,5 @@
 import sys
+import copy
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -14,7 +15,7 @@ class PairedComparisonTests(unittest.TestCase):
         return {"race_key":"r1","deadline":"2026-10-28T13:00:00+09:00",
                 "input_sha256":"b"*64,"research_outcome_access_approved":True,
                 "outcome_independently_verified":True,"candidate_pre_registered":True,
-                "result":"1-2-3","forecasts":{"a":base,"b":dict(base,model_id="b")}}
+                "result":"1-2-3","forecasts":{"a":base,"b":dict(copy.deepcopy(base),model_id="b")}}
     def test_identical_models_have_zero_paired_delta(self):
         o=compare([self.row()],"a","b")
         self.assertEqual(o["eligible_races"],1)
