@@ -9,7 +9,7 @@ from pathlib import Path
 import json
 import os
 import tempfile
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 import re
 
 JST = timezone(timedelta(hours=9))
@@ -17,7 +17,12 @@ MAX_BYTES = 1_500_000
 MIN_MARGIN = timedelta(minutes=2)
 
 
-def capture_beforeinfo(race_key, deadline, *, now=None, opener=urlopen):
+class _RejectRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("official source redirected")
+
+
+def capture_beforeinfo(race_key, deadline, *, now=None, opener=None):
     """Return a source receipt and raw bytes only for safely predeadline races.
 
     Does not parse HTML, save snapshots, unlock results, or call any result URL.
@@ -40,7 +45,8 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=urlopen):
         raise ValueError("not safely before deadline")
     url = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
     req = Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN/1.0", "Accept": "text/html"})
-    with opener(req, timeout=12) as response:
+    transport = opener if opener is not None else build_opener(_RejectRedirect()).open
+    with transport(req, timeout=12) as response:
         final_url = response.geturl() if hasattr(response, "geturl") else req.full_url
         if final_url != url:
             raise ValueError("official source redirected")
