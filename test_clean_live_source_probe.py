@@ -1,6 +1,6 @@
 import io
 import unittest
-from clean_live_source_probe import probe
+from clean_live_source_probe import probe, html_diagnostics
 
 class Response:
     status=200
@@ -10,6 +10,16 @@ class Response:
     def read(self, n): return b"fixture bytes"
 
 class SourceProbeTests(unittest.TestCase):
+    def test_official_html_structure_is_not_verification(self):
+        html=b'<html><head><title>Race</title></head><body><a href="/racer?toban=1234">A</a></body></html>'
+        result=html_diagnostics(html)
+        self.assertEqual(result["html_inspection"], "structure_only_unverified")
+        self.assertFalse(result["html_is_race_verified"])
+        self.assertEqual(result["racer_link_count"], 1)
+
+    def test_non_html_response_is_blocked(self):
+        self.assertEqual(html_diagnostics(b'not html')["html_inspection"], "blocked_not_html")
+
     def test_reports_retrieval_without_claiming_verification(self):
         result=probe("20261027","12","1",opener=lambda req,timeout: Response())
         self.assertEqual(result["status"],"UNVERIFIED")
