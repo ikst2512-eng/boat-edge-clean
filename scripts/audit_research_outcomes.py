@@ -102,6 +102,20 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                     obj.get("model_source_sha256") != att["model_file_sha256"]):
                 exclusions["provenance_mismatch"] += 1
                 continue
+            # Both original CSV byte digests must be frozen, not merely a
+            # composite string supplied after the result is known.
+            if (obj.get("input_hash_scope") != "source_csv_byte_hashes_ordered_title_cards"
+                    or not all(isinstance(obj.get(k), str) and len(obj[k]) == 64
+                               and all(c in "0123456789abcdef" for c in obj[k])
+                               for k in ("source_title_sha256", "source_cards_sha256"))):
+                exclusions["missing_source_byte_hashes"] += 1
+                continue
+            combined = hashlib.sha256(
+                (obj["source_title_sha256"] + ":" + obj["source_cards_sha256"]).encode("ascii")
+            ).hexdigest()
+            if combined != obj["input_sha256"]:
+                exclusions["input_hash_inconsistent"] += 1
+                continue
             if hashlib.sha256(raw).hexdigest() != att.get("snapshot_sha256"):
                 exclusions["snapshot_hash_mismatch"] += 1
                 continue
