@@ -66,7 +66,7 @@ def predict(hd,jcd,rno):
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
-    record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+    record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_deadline_jst=deadline.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates)
     data=json.dumps(record,ensure_ascii=False,sort_keys=True)
     # Exclusive create: never silently replace a previously saved forecast.

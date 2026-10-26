@@ -20,7 +20,10 @@ class CollectorTests(unittest.TestCase):
    self.assertEqual(collector.collect(self.day)["saved"],1)
   saved=list(self.store.glob("*.json"))
   self.assertEqual(len(saved),1)
-  self.assertEqual(len(json.loads(saved[0].read_text())["predictions"]),10)
+  record=json.loads(saved[0].read_text())
+  self.assertEqual(len(record["predictions"]),10)
+  self.assertEqual(record["source_deadline_jst"],datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST).isoformat())
+  self.assertEqual(datetime.fromisoformat(record["source_deadline_jst"])-datetime.fromisoformat(record["cutoff_jst"]),timedelta(minutes=12))
   with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start),([self.card],start)]):
    self.assertEqual(collector.collect(self.day)["already_saved"],1)
  def test_missing_card(self):
