@@ -65,19 +65,19 @@ class CaptureTests(unittest.TestCase):
         receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt, raw, directory)
-            self.assertEqual(read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])[1], raw)
+            self.assertEqual(read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)[1], raw)
             marker = Path(paths[0]).with_suffix(".complete")
             marker.unlink()
             with self.assertRaises(FileNotFoundError):
-                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
             marker.write_bytes(receipt["sha256"].encode("ascii") + bytes([10]))
             Path(paths[0]).write_bytes(b"tampered")
             with self.assertRaises(ValueError):
-                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
             Path(paths[0]).write_bytes(raw)
             Path(paths[1]).write_text(json.dumps({**receipt, "source": "https://example.com"}))
             with self.assertRaises(ValueError):
-                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
 
     def test_wrong_race_date_and_missing_timestamp_rejected(self):
         receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
@@ -86,10 +86,21 @@ class CaptureTests(unittest.TestCase):
             for stamp in ["2026-10-26T14:55:00+09:00", "2026-10-27T14:55:00", "invalid"]:
                 Path(paths[1]).write_text(json.dumps({**receipt, "fetched_at": stamp}))
                 with self.assertRaises(ValueError):
-                    read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+                    read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
             Path(paths[1]).write_text(json.dumps({k:v for k,v in receipt.items() if k != "fetched_at"}))
             with self.assertRaises(ValueError):
-                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
+
+    def test_readback_rejects_postdeadline_timestamp(self):
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_raw_receipt(receipt, raw, directory)
+            Path(paths[1]).write_text(json.dumps({**receipt, "fetched_at": "2026-10-27T14:59:00+09:00"}))
+            with self.assertRaises(ValueError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline)
+            Path(paths[1]).write_text(json.dumps(receipt))
+            with self.assertRaises(ValueError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"], deadline=self.deadline.replace(tzinfo=None))
 
     def test_lock_rejects_concurrent_writer(self):
         receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
