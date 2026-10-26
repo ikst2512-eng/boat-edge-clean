@@ -43,6 +43,26 @@ class PinnedPR15IntegrationTests(unittest.TestCase):
             self.assertEqual(result["status"],"bridged_unverified")
             self.assertEqual(result["source_sha256"],receipt["sha256"])
             self.assertFalse(result["verified_preview"])
+    def test_missing_completion_marker_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt,racelist,parsed=self.prepare(directory)
+            stem=KEY+"-"+receipt["sha256"]
+            (Path(directory)/(stem+".complete")).unlink()
+            with self.assertRaises((ValueError,FileNotFoundError)):
+                bridge_saved_official_receipt(racelist,parsed,directory=directory,
+                                              deadline=DEADLINE,read_raw_receipt=read_raw_receipt)
+    def test_modified_receipt_metadata_rejected(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            receipt,racelist,parsed=self.prepare(directory)
+            stem=KEY+"-"+receipt["sha256"]
+            path=Path(directory)/(stem+".json")
+            data=json.loads(path.read_text())
+            data["scoring"]=True
+            path.write_text(json.dumps(data))
+            with self.assertRaises(ValueError):
+                bridge_saved_official_receipt(racelist,parsed,directory=directory,
+                                              deadline=DEADLINE,read_raw_receipt=read_raw_receipt)
     def test_tampered_archive_rejected_by_pr15_reader(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt,racelist,parsed=self.prepare(directory)
