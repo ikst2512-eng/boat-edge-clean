@@ -62,3 +62,7 @@ Each model forecast must include `source_received_at` as a timezone-aware timest
 ## Exploratory sample gate
 
 Fewer than 30 eligible paired races result in `INSUFFICIENT_EVIDENCE` even when descriptive metrics are output. This is an operational floor, **not** a power calculation or a proof that 30 races suffice. No sample count alone can authorize promotion without independently audited first-seen evidence, pre-registered cohort and source receipts, permitted outcomes and paired performance validation. Comparing a model against itself is rejected.
+
+## Registration before prediction generation
+
+The claimed model-pair preregistration must precede both forecasts' `generated_at` timestamps (not merely their first Git-saving times). This blocks registering a candidate after inspecting its prediction but before committing its file. The chronology remains self-reported until external first-seen receipts are audited.
