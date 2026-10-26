@@ -18,6 +18,8 @@ class _VisibleText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts = []
         self.stack = []
+        self.heading_stack = []
+        self.headings = []
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -25,6 +27,8 @@ class _VisibleText(HTMLParser):
         hidden = (tag in self.HIDDEN or "hidden" in attributes
                   or (attributes.get("aria-hidden") or "").lower() == "true"
                   or "display:none" in styles or "visibility:hidden" in styles)
+        if tag == "th":
+            self.heading_stack.append([])
         if tag not in self.VOID:
             parent_hidden = self.stack[-1][1] if self.stack else False
             self.stack.append((tag, hidden or parent_hidden))
@@ -33,6 +37,8 @@ class _VisibleText(HTMLParser):
         pass
 
     def handle_endtag(self, tag):
+        if tag == "th" and self.heading_stack:
+            self.headings.append("".join(self.heading_stack.pop()))
         for index in range(len(self.stack) - 1, -1, -1):
             if self.stack[index][0] == tag:
                 del self.stack[index:]
@@ -41,6 +47,8 @@ class _VisibleText(HTMLParser):
     def handle_data(self, data):
         if not self.stack or not self.stack[-1][1]:
             self.parts.append(data)
+            if self.heading_stack:
+                self.heading_stack[-1].append(re.sub(r"\\s+", "", data))
 
 
 def inspect_beforeinfo_html(receipt, raw):
@@ -55,7 +63,7 @@ def inspect_beforeinfo_html(receipt, raw):
     # Preserve element boundaries: hidden sections must not join two text fragments.
     visible = " ".join(re.sub(r"\s+", "", part) for part in parser.parts)
     labels = {
-        "exhibition_time": bool(re.search(r"展示\\s*タイム", visible)),
+        "exhibition_time": "展示タイム" in visible or "展示タイム" in parser.headings,
         "tilt": "チルト" in visible,
         "start_exhibition": "スタート展示" in visible,
         "weather": any(label in visible for label in ("気温", "風速", "水温", "波高")),
