@@ -58,6 +58,21 @@ class ProbeRunnerTests(unittest.TestCase):
                     run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
                 self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_manifest_write_failure_leaves_no_partial_manifest(self):
+        receipt = {"sha256": "a" * 64, "source": "official", "fetched_at": "2026-10-27T14:55:00+09:00"}
+        safe = {"race_key": "20261027-12-01", "verified_preview": False,
+                "actual_entry_verified": False, "racers": [],
+                "start_exhibition": [], "status": "inspection_only"}
+        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \
+             patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \
+             patch("run_official_prerace_probe.read_raw_receipt"), \
+             patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=safe), \
+             patch("run_official_prerace_probe.os.link", side_effect=OSError("simulated link failure")):
+            with tempfile.TemporaryDirectory() as directory:
+                with self.assertRaises(OSError):
+                    run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
+                self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_evidence_is_not_reported_as_verified(self):
         with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64, "source": "https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd=20261027&jcd=12&rno=1", "fetched_at": "2026-10-27T14:55:00+09:00"}, b"html")), \
              patch("run_official_prerace_probe.save_raw_receipt", return_value=["/tmp/probe.html", "/tmp/probe.json"]), \
