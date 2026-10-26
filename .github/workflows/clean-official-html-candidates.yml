@@ -138,6 +138,16 @@ jobs:
                   entry.update(error_type=type(exc).__name__, error=str(exc)[:100])
               batch.append(entry)
           report['additional_races'] = batch
+          report['comparison_summary'] = {
+              'matched': sum(x['status'] == 'matched_unverified' for x in batch)
+                         + int(report.get('comparison_status') == 'matched_unverified'),
+              'blocked': sum(x['status'] != 'matched_unverified' for x in batch)
+                         + int(report.get('comparison_status') != 'matched_unverified'),
+              'timeouts': sum(x.get('error_type') == 'TimeoutError' for x in batch),
+              'expected_races': 1 + len(batch),
+              'all_races_matched': report.get('comparison_status') == 'matched_unverified'
+                                   and all(x['status'] == 'matched_unverified' for x in batch)
+          }
 
           preview_report = {}
           for kind in ('stt', 'tkz', 'sui'):
