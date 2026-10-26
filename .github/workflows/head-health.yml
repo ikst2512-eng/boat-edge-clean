@@ -1,0 +1,25 @@
+name: CLEAN HEAD health regression
+on:
+  pull_request:
+    paths:
+      - server.py
+      - test_head_health.py
+      - .github/workflows/head-health.yml
+  push:
+    branches: [main]
+    paths:
+      - server.py
+      - test_head_health.py
+      - .github/workflows/head-health.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  health:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_head_health
