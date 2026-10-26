@@ -13,7 +13,7 @@ SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
 
 def freeze(destination, *, race_code, rates, model_sha, input_sha256,
-           source_received_at, cutoff_jst):
+           source_received_at, cutoff_jst, input_bytes):
     """Create new forecast bytes only while both source and clock precede cutoff."""
     if not isinstance(race_code, str) or not re.fullmatch(r"20[0-9]{10}", race_code):
         raise ValueError("invalid race code")
@@ -27,6 +27,10 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
         raise ValueError("invalid model SHA")
     if not isinstance(input_sha256, str) or not SHA64.fullmatch(input_sha256):
         raise ValueError("invalid input digest")
+    if not isinstance(input_bytes, bytes) or not input_bytes:
+        raise ValueError("nonempty original input bytes required")
+    if hashlib.sha256(input_bytes).hexdigest() != input_sha256:
+        raise ValueError("input bytes do not match declared SHA256")
     cutoff = datetime.fromisoformat(cutoff_jst)
     received = datetime.fromisoformat(source_received_at)
     if any(t.tzinfo is None or t.utcoffset() is None for t in (cutoff,received)):
@@ -65,12 +69,14 @@ def main():
     p.add_argument("--rates-json",required=True,help="six pre-cutoff national win rates")
     p.add_argument("--model-sha",required=True)
     p.add_argument("--input-sha256",required=True)
+    p.add_argument("--input-file",required=True,type=Path,help="actual raw source bytes for digest verification")
     p.add_argument("--source-received-at",required=True)
     p.add_argument("--cutoff-jst",required=True)
     a=p.parse_args()
     result=freeze(a.destination,race_code=a.race_code,rates=json.loads(a.rates_json),
                   model_sha=a.model_sha,input_sha256=a.input_sha256,
-                  source_received_at=a.source_received_at,cutoff_jst=a.cutoff_jst)
+                  source_received_at=a.source_received_at,cutoff_jst=a.cutoff_jst,
+                  input_bytes=a.input_file.read_bytes())
     print(json.dumps(result,ensure_ascii=False,indent=2))
 if __name__=="__main__":
     main()
