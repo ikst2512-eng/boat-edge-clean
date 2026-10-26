@@ -103,7 +103,7 @@ def save_raw_receipt(receipt, raw, directory):
         marker = root / (stem + ".complete")
         with tempfile.NamedTemporaryFile(dir=root, prefix=".pending-", delete=False) as fp:
             pending.append(Path(fp.name))
-            fp.write(receipt["sha256"].encode("ascii") + b"\\n")
+            fp.write(receipt["sha256"].encode("ascii") + bytes([10]))
             fp.flush()
             os.fsync(fp.fileno())
         os.link(pending[-1], marker)
@@ -118,3 +118,32 @@ def save_raw_receipt(receipt, raw, directory):
             temp.unlink(missing_ok=True)
         os.close(lock_fd)
         lock_path.unlink(missing_ok=True)
+
+
+def read_raw_receipt(directory, race_key, digest):
+    """Read only a completed immutable raw receipt; never promote to verified data."""
+    if not re.fullmatch(r"20\d{6}-(?:0[1-9]|1\d|2[0-4])-(?:0?[1-9]|1[0-2])", race_key or ""):
+        raise ValueError("invalid race key")
+    if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise ValueError("invalid digest")
+    root = Path(directory)
+    stem = race_key + "-" + digest
+    marker = root / (stem + ".complete")
+    if marker.read_bytes() != digest.encode("ascii") + bytes([10]):
+        raise ValueError("invalid receipt completion marker")
+    raw = (root / (stem + ".html")).read_bytes()
+    json_bytes = (root / (stem + ".json")).read_bytes()
+    if not raw or len(raw) > MAX_BYTES or len(json_bytes) > 8192:
+        raise ValueError("invalid receipt size")
+    receipt = json.loads(json_bytes)
+    if not isinstance(receipt, dict) or receipt.get("race_key") != race_key or receipt.get("sha256") != digest or receipt.get("bytes") != len(raw):
+        raise ValueError("receipt mismatch")
+    if sha256(raw).hexdigest() != digest or receipt.get("status") != "raw_html_only":
+        raise ValueError("raw receipt integrity mismatch")
+    hd,jcd,rno = race_key.split("-")
+    expected = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
+    if receipt.get("source") != expected:
+        raise ValueError("receipt race source mismatch")
+    if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
+        raise ValueError("unsafe receipt flags")
+    return receipt, raw
