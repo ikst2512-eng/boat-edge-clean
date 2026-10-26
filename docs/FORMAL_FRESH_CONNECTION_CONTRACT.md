@@ -39,3 +39,26 @@ For every prospective race, the isolated formal producer must emit:
 3. Capture one real race before cutoff; independently verify artifact bytes.
 4. Wire read-only verified output to CLEAN API/UI, retaining fail-closed status.
 5. Formal 100R acceptance requires a separate explicit review; no automatic promotion.
+
+
+## Existing CLEAN transport (investigated 2026-10-27)
+
+The default branch already contains `fresh_prospective_sender.py` and
+`.github/workflows/fresh-prospective-capture.yml`. The sender accepts an
+**existing** snapshot, checks a 15-minute dispatch cutoff, and returns
+`accepted_not_frozen_or_witnessed`; it does not run V1.21.20. The receiver
+performs pre-result checks, creates a separate receipt, and uploads a GitHub
+Actions artifact with **30-day retention** after a 12-minute pre-upload
+recheck. This is candidate transport, not an immutable long-term formal
+snapshot and not independent evidence that the upload finished before cutoff.
+
+Do not substitute a workflow run's start time, an artifact's self-reported
+timestamp, or Git commit author/committer time for externally witnessed upload
+completion. Do not silently map this transport's `race_code` /
+`deadline_at` schema to the offline `race_key` /
+`official_deadline_at` contract: require explicit, separately tested
+canonical transformation and integrity-preserving byte linkage.
+
+Remaining formal producer dependency: locate and hash the actual approved
+V1.21.20 executable, configuration and weights. No model-ready status can
+be inferred from the existence of these transport modules.
