@@ -185,9 +185,13 @@ def get_predictions(params):
             if len(set(ticket.split("-"))) != 3 or ticket in tickets:
                 raise ValueError("duplicate ticket")
             tickets.append(ticket)
-        if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
-            raise ValueError("feed missing validation metadata")
-        return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
+        # Formal Fresh is LOCKED until an independent, immutable pre-deadline
+        # artifact verifier is connected. A feed-controlled `validated: true`
+        # flag and a timestamp are not evidence of pre-result provenance.
+        # Never expose even syntactically valid predictions as formal here.
+        logging.warning("formal_prediction_locked race=%s reason=provenance_verifier_not_connected", key)
+        return 200, {"ok": True, "status": "unavailable", "validated": False,
+                     "predictions": [], "message": "正式Fresh予想は締切前の独立証拠が未検証のため公開できません。"}
     except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
