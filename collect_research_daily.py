@@ -13,6 +13,11 @@ def collect(day):
     # Duplicate source keys are ambiguous: never silently take the last row.
     card_counts=Counter(r.get("レースコード") for r in cards if isinstance(r,dict) and r.get("レースコード"))
     title_counts=Counter(r.get("レースコード") for r in titles if isinstance(r,dict) and r.get("レースコード"))
+    eligible_codes={r.get("レースコード") for r in titles if isinstance(r,dict) and isinstance(r.get("レースコード"),str) and r["レースコード"].isascii() and r["レースコード"].isdigit() and len(r["レースコード"])==12 and r["レースコード"].startswith(day)}
+    if not eligible_codes:
+        raise ValueError("no valid race titles for requested day")
+    if not cards:
+        raise ValueError("race card source is empty")
     by_code={r["レースコード"]:r for r in cards if isinstance(r,dict) and r.get("レースコード") and card_counts[r["レースコード"]]==1}
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     counted_duplicates=set()
@@ -48,6 +53,8 @@ def collect(day):
             counts["saved"]+=1
         except FileExistsError:counts["already_saved"]+=1
         except (ValueError, KeyError, TypeError, OSError) as e:counts["invalid"]+=1
+    if counts["saved"]+counts["already_saved"]+counts["not_ready"]==0:
+        raise ValueError("no valid or cutoff-eligible race records; refusing green run")
     return counts
 if __name__=="__main__":
     p=argparse.ArgumentParser()
