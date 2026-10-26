@@ -120,7 +120,7 @@ jobs:
               if(await page.locator('#races button').count()!==12)throw Error('12 race buttons expected');
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(4).click();
-              if(!((await page.locator('#raceMeta').innerText()).includes('住之江')&&(await page.locator('#raceMeta').innerText()).includes('5R')))throw Error('race selection failed');
+              if(!((await page.locator('#activeRaceLabel').innerText()).includes('住之江')&&(await page.locator('#activeRaceLabel').innerText()).includes('5R')))throw Error('race selection failed');
               await page.locator('.view-tabs [data-view="forecast"]').click();
               for(const n of [3,5,10]){
                 await page.locator('[data-top="'+n+'"]').click();
@@ -236,8 +236,8 @@ jobs:
               // Switching races during pending requests must leave only the latest selection on screen.
               await page.locator('#races button').nth(1).click();
               await page.locator('#races button').first().click();
-              await page.waitForFunction(()=>document.querySelector('#raceMeta')?.textContent.includes('1R'));
-              if(!(await page.locator('#raceMeta').innerText()).includes('住之江'))throw Error('stale race selection');
+              await page.waitForFunction(()=>document.querySelector('#activeRaceLabel')?.textContent.includes('1R'));
+              if(!(await page.locator('#activeRaceLabel').innerText()).includes('住之江'))throw Error('stale race selection');
               if(await page.locator('#races button.on').count()!==1)throw Error('multiple selected race buttons');
               if(await page.locator('#venues button.on').count()!==1)throw Error('multiple selected venue buttons');
 
