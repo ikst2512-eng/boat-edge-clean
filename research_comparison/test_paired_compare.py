@@ -161,6 +161,13 @@ class PairedComparisonTests(unittest.TestCase):
         self.assertEqual(result["excluded_details"],[
             {"race_key":"20261028-12-1","reason":"outcome access not approved"}])
         self.assertNotIn("1-2-3",str(result["excluded_details"]))
+    def test_exclusion_audit_sanitizes_malicious_race_key(self):
+        row=self.row()
+        row["race_key"]="20261028-12-1 result=1-2-3 confidential"
+        output=compare([row],"a","b")
+        self.assertEqual(output["eligible_races"],0)
+        self.assertIsNone(output["excluded_details"][0]["race_key"])
+        self.assertNotIn("confidential",str(output["excluded_details"]))
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
