@@ -37,6 +37,28 @@ class FirstAddEvidenceTests(unittest.TestCase):
             newer = command(root, "rev-parse", "HEAD")
             self.assertEqual(verify_first_add(root, CODE, newer, ref)["reason"],
                              "not_added_in_commit")
+    def test_deleted_and_readded_is_not_first_introduction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command(root, "init", "-q")
+            command(root, "config", "user.name", "Audit Test")
+            command(root, "config", "user.email", "audit@example.invalid")
+            path = root / "research_snapshots" / (CODE + ".json")
+            path.parent.mkdir()
+            path.write_text('{"research":true}', encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "initial")
+            path.unlink()
+            command(root, "add", "-A")
+            command(root, "commit", "-qm", "delete")
+            path.write_text('{"research":true}', encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "re-add")
+            sha = command(root, "rev-parse", "HEAD")
+            ref = "refs/heads/" + command(root, "branch", "--show-current")
+            self.assertEqual(verify_first_add(root, CODE, sha, ref)["reason"],
+                             "path_existed_in_prior_history")
+
     def test_rejects_invalid_identifiers(self):
         with self.assertRaises(ValueError):
             verify_first_add(".", "../not-a-race", "a"*40)
