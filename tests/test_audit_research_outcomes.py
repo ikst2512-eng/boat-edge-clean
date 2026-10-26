@@ -85,6 +85,16 @@ class AuditTests(unittest.TestCase):
                 audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["unverified_first_commit_or_remote_receipt"],1
             )
             att["remote_receipt_verified"] = True
+            # The attested model hash must match the actual frozen Git source.
+            git_model.return_value = b"modified model bytes"
+            rejected = audit(d,[att],[outcome],digest(),git_repo=d)
+            self.assertEqual(rejected["valid_count"],0)
+            self.assertEqual(rejected["exclusion_reasons"]["model_git_source_mismatch"],1)
+            git_model.return_value = b"synthetic model bytes"
+            git_ancestor.side_effect = __import__("subprocess").CalledProcessError(1, "git")
+            rejected = audit(d,[att],[outcome],digest(),git_repo=d)
+            self.assertEqual(rejected["exclusion_reasons"]["model_git_source_unavailable"],1)
+            git_ancestor.side_effect = None
             att["first_seen_at"] = "2026-10-26T08:58:00+09:00"
             self.assertEqual(audit(d,[att],[outcome],digest(),git_repo=d)["exclusion_reasons"]["impossible_evidence_chronology"],1)
             att["first_seen_at"] = "2026-10-26T09:01:00+09:00"
