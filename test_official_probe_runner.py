@@ -1,4 +1,6 @@
 import tempfile
+import json
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 from run_official_prerace_probe import run
@@ -18,7 +20,11 @@ class ProbeRunnerTests(unittest.TestCase):
              patch("run_official_prerace_probe.save_raw_receipt", return_value=["/tmp/probe.html", "/tmp/probe.json"]), \
              patch("run_official_prerace_probe.read_raw_receipt"), \
              patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value={"verified_preview": False, "status": "inspection_only"}):
-            result = run("20261027-12-01", "2026-10-27T15:00:00+09:00", "/tmp")
+            with tempfile.TemporaryDirectory() as directory:
+                result = run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
+                manifest = Path(directory) / ("20261027-12-01-" + "a" * 64 + ".manifest.json")
+                self.assertTrue(manifest.exists())
+                self.assertEqual(json.loads(manifest.read_text()), result)
         self.assertEqual(result["status"], "unverified_raw_only")
         self.assertFalse(result["diagnostic"]["verified_preview"])
 
