@@ -26,3 +26,7 @@ jobs:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
         run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate test_research_candidate_diagnostic test_research_snapshot_replay_audit
+      - name: Audit all committed research snapshots (informational)
+        run: |
+          python research_snapshot_replay_audit.py research_snapshots > /tmp/research-replay-audit.json
+          python -c 'import json; d=json.load(open("/tmp/research-replay-audit.json")); print(json.dumps({k:v for k,v in d.items() if k!="details"},ensure_ascii=False)); assert d["files"]>0'
