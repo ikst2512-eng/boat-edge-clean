@@ -8,7 +8,7 @@ class ProbeRunnerTests(unittest.TestCase):
     def test_invalid_deadline_rejected_without_network(self):
         with patch("run_official_prerace_probe.capture_beforeinfo") as capture:
             with tempfile.TemporaryDirectory() as directory:
-                for bad in ("not-a-date", "2026-10-27T15:00:00"):
+                for bad in ("not-a-date", "2026-10-27T15:00:00", "2026-10-27T06:00:00+00:00", "2026-10-27T15:00:00+08:00"):
                     with self.assertRaises(ValueError):
                         run("20261027-12-01", bad, directory)
             capture.assert_not_called()
