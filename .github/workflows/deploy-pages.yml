@@ -203,15 +203,15 @@ jobs:
               raceText=JSON.stringify(oddPreview);
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示を表示中'));
+              // A rejected incomplete racer card must not replace the last verified six-racer view.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:[race.racers[0],null,race.racers[2],race.racers[3]],beforeinfo:null});
-              await page.locator('#retryPrediction').click();
               await page.locator('.view-tabs [data-view="card"]').click();
-              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),null,{timeout:12000});
-              if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
-              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('missing beforeinfo removed exhibition lane cards');
-              if((await page.locator('#exhibitionGrid .exhibition-boat').first().locator('.exhibition-metric strong').allInnerTexts()).some(v=>v!=='—'))throw Error('unverified exhibition value leaked into cards');
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('前回表示'),null,{timeout:12000});
+              if(await page.locator('#raceDataRows tr').count()!==6)throw Error('incomplete racer card cleared verified six lanes');
+              if((await page.locator('#raceDataRows').innerText()).includes('未提供'))throw Error('unverified partial racer replaced verified six-lane data');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
-              if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
+              if(!await page.locator('#raceDataSection').isVisible())throw Error('rejected refresh hid verified race card');
               // Rechecking an already verified prediction must not duplicate its metadata.
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済'));
