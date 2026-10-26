@@ -100,3 +100,7 @@ The prospective capture CLI now requires `--title-csv` and `--cards-csv` in addi
 ### CSV values bound to forecast
 
 The independent 120-way capture now reads the unique matching `レースコード` row in both supplied original CSVs. It requires all six `艇1..6_全国勝率` values to exactly match supplied rates and the claimed `cutoff_jst` to equal `電話投票締切予定` minus 12 minutes. This rejects valid digests paired with unrelated model features or an arbitrary cutoff. Raw files and receipt times still require independent provenance review; local consistency is not official authenticity.
+
+## Offline research snapshot bridge
+
+Run `python research_comparison/snapshot_bridge.py path/to/frozen-120.json` to produce a comparison-shaped **unverified draft**. The adapter verifies the ordered PR #23 CSV digest chain, all 120 ticket keys and agreement of stored Top10 with probabilities. It reports `ready_for_scoring: false` and lists independent audit blockers. It never invents first Git commit/time, verified receipts, model pre-registration, official results or deadlines, and does not touch production, locked Fresh data or results. Passing a draft directly to `paired_compare.py` must exclude the race until independent provenance has been established and reviewed.
