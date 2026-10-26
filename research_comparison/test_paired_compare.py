@@ -25,6 +25,20 @@ class PairedComparisonTests(unittest.TestCase):
         self.assertEqual(o["eligible_races"],1)
         self.assertEqual(o["metrics"]["top10"]["delta"],0)
         self.assertAlmostEqual(o["metrics"]["log_loss"]["delta"],0)
+        self.assertAlmostEqual(o["metrics"]["multiclass_brier"]["delta"],0)
+    def test_brier_penalizes_wrong_concentrated_forecast(self):
+        r=self.row()
+        y=r["result"]
+        for name in ("a","b"):
+            p=r["forecasts"][name]["probabilities"]
+            p.update({t:0.1/119 for t in TICKETS})
+            p[y]=0.9 if name=="a" else 0.1/119
+            if name=="b":
+                wrong=next(t for t in TICKETS if t != y)
+                p[wrong]=0.9
+        result=compare([r],"a","b")
+        self.assertGreater(result["metrics"]["multiclass_brier"]["delta"],0)
+        self.assertGreater(result["metrics"]["log_loss"]["delta"],0)
     def test_post_deadline_freeze_rejected(self):
         r=self.row()
         r["forecasts"]["b"]["first_git_saved_at"]="2026-10-28T13:01:00+09:00"
