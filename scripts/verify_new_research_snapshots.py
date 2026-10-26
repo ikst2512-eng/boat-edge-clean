@@ -8,6 +8,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from research_model import probabilities
 
 HEX40=re.compile(r"[0-9a-f]{40}\Z")
 HEX64=re.compile(r"[0-9a-f]{64}\Z")
@@ -20,6 +21,14 @@ def check_file(path):
     obj=json.loads(path.read_bytes())
     if not isinstance(obj,dict) or obj.get("race_code")!=path.stem or obj.get("status")!="research" or obj.get("validated") is not False:
         raise ValueError("invalid research snapshot envelope")
+    if obj.get("model_version")!="national-beta0.4-exploratory-v1":
+        raise ValueError("unexpected research model version")
+    try:
+        expected_top10=["-".join(map(str,t)) for t,_ in probabilities(obj["national_win_rates"])[:10]]
+    except (KeyError,TypeError,ValueError,OverflowError) as exc:
+        raise ValueError("invalid national win rates") from exc
+    if obj.get("predictions")!=expected_top10:
+        raise ValueError("stored research Top10 does not replay from input")
     for key in ("source_title_sha256","source_cards_sha256","input_sha256","model_source_sha256"):
         if not isinstance(obj.get(key),str) or not HEX64.fullmatch(obj[key]):
             raise ValueError("missing or malformed "+key)
