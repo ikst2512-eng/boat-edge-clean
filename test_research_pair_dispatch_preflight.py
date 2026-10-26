@@ -1,5 +1,6 @@
 import unittest
 from urllib.error import HTTPError
+from urllib.error import HTTPError
 from research_pair_dispatch_preflight import preflight
 
 class DispatchPreflightTests(unittest.TestCase):
