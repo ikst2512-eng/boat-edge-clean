@@ -73,7 +73,7 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=None):
     return receipt, raw
 
 
-def save_raw_receipt(receipt, raw, directory):
+def save_raw_receipt(receipt, raw, directory, *, deadline):
     """Atomically save research-only evidence outside public race data paths.
 
     No production race JSON is generated. Files are immutable for a race/digest;
@@ -86,6 +86,20 @@ def save_raw_receipt(receipt, raw, directory):
         raise ValueError("invalid receipt race key")
     if any(receipt.get(flag) is not False for flag in ("verified_preview", "actual_entry_verified", "results_seen", "unlock", "scoring")):
         raise ValueError("untrusted receipt flags")
+    hd, jcd, rno = key.split("-")
+    try:
+        race_day = datetime.strptime(hd, "%Y%m%d").date()
+        captured = datetime.fromisoformat(receipt["fetched_at"])
+    except (ValueError, TypeError, KeyError) as exc:
+        raise ValueError("invalid receipt timestamp or date") from exc
+    if not isinstance(deadline, datetime) or deadline.tzinfo is None or captured.tzinfo is None:
+        raise ValueError("verified timezone-aware deadline and capture required")
+    cutoff = deadline.astimezone(JST)
+    if cutoff.date() != race_day or captured.astimezone(JST).date() != race_day or captured.astimezone(JST) >= cutoff - MIN_MARGIN:
+        raise ValueError("receipt not safely predeadline")
+    expected = f"https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd={hd}&jcd={jcd}&rno={int(rno)}"
+    if receipt.get("source") != expected:
+        raise ValueError("receipt official URL mismatch")
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     stem = key + "-" + receipt["sha256"]
