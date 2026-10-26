@@ -1,5 +1,7 @@
 """Read-only real-source acquisition diagnostic. Never stores payloads or publishes data."""
 import argparse
+import csv
+import io
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -38,6 +40,21 @@ def probe(date, venue, race, opener=urlopen):
                 entry["bytes"] = len(body)
                 entry["sha256"] = hashlib.sha256(body).hexdigest()
                 entry["status"] = "retrieved_unverified"
+                if name != "official_racelist":
+                    try:
+                        decoded = body.decode("utf-8-sig")
+                        reader = csv.DictReader(io.StringIO(decoded))
+                        if "レースコード" not in (reader.fieldnames or []):
+                            entry["race_rows"] = "schema_missing_race_code"
+                        else:
+                            target = date + vals["venue"] + f"{int(race):02d}"
+                            matches = sum(row.get("レースコード") == target for row in reader)
+                            entry["race_rows"] = matches
+                            entry["race_identity_status"] = "single_row_unverified" if matches == 1 else "blocked"
+                    except (UnicodeError, csv.Error, ValueError):
+                        entry["race_rows"] = "unreadable_csv"
+                else:
+                    entry["race_identity_status"] = "not_parsed"
         except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
             entry["error_type"] = type(exc).__name__
         report["sources"][name] = entry
