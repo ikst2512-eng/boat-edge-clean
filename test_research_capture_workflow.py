@@ -52,11 +52,34 @@ class EvidenceTests(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("existing research snapshot changed", r.stdout)
 
+    def test_reject_deleted_snapshot(self):
+        p = self.root / "research_snapshots/202610270101.json"
+        p.write_text("{}")
+        run("git", "add", ".", cwd=self.root)
+        run("git", "commit", "-qm", "baseline snapshot", cwd=self.root)
+        p.unlink()
+        r = self.execute()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("existing research snapshot changed", r.stdout)
+
     def test_reject_invalid_added_filename(self):
         (self.root / "research_snapshots/invalid.json").write_text("{}")
         r = self.execute()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("invalid research snapshot path", r.stdout)
+
+    def test_successful_push_to_local_bare_remote(self):
+        remote = self.root / "remote.git"
+        self.assertEqual(run("git", "init", "-q", "--bare", str(remote)).returncode, 0)
+        self.assertEqual(run("git", "remote", "add", "origin", str(remote), cwd=self.root).returncode, 0)
+        self.assertEqual(run("git", "push", "-u", "origin", "HEAD", cwd=self.root).returncode, 0)
+        p = self.root / "research_snapshots/202610270102.json"
+        p.write_text('{"test":2}')
+        r = self.execute()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue((self.root / "capture-evidence/new-snapshots/202610270102.json").exists())
+        self.assertIn("202610270102.json", (self.root / "capture-evidence/snapshot-sha256.txt").read_text())
+        self.assertIn("202610270102.json", run("git", "ls-tree", "-r", "--name-only", "HEAD", cwd=self.root).stdout)
 
     def test_new_snapshot_generates_evidence_before_push(self):
         p = self.root / "research_snapshots/202610270101.json"
