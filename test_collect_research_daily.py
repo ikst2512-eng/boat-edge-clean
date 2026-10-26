@@ -50,6 +50,7 @@ class CollectorTests(unittest.TestCase):
  def test_missing_card(self):
   start=datetime.now(JST)
   with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([],start,"b"*64)]):
-   self.assertEqual(collector.collect(self.day)["missing"],1)
+   with self.assertRaisesRegex(ValueError, "race card source is empty"):
+    collector.collect(self.day)
    self.assertFalse(list(self.store.glob("*.json")))
 if __name__=="__main__":unittest.main()
