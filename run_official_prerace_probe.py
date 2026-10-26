@@ -8,7 +8,7 @@ from pathlib import Path
 
 from official_prerace_capture import capture_beforeinfo, save_raw_receipt
 from official_beforeinfo_inspect import inspect_saved_beforeinfo
-from official_beforeinfo_research_parser import research_saved_start_exhibition, ResearchParseUnavailable
+from official_beforeinfo_research_parser import research_saved_start_exhibition, ResearchParseUnavailable, ExhibitionNotPublished
 
 
 def run(race_key, deadline_text, directory):
@@ -30,6 +30,10 @@ def run(race_key, deadline_text, directory):
         raise ValueError("unsafe diagnostic: cannot publish verified or raced data")
     try:
         research = research_saved_start_exhibition(directory, race_key, receipt["sha256"], deadline=deadline)
+    except ExhibitionNotPublished:
+        research = {"status": "research_unavailable", "reason": "exhibition_not_published",
+                    "verified_preview": False, "actual_entry_verified": False,
+                    "start_exhibition": []}
     except ResearchParseUnavailable as exc:
         research = {"status": "research_unavailable", "reason": type(exc).__name__,
                     "verified_preview": False, "actual_entry_verified": False,
