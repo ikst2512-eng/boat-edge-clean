@@ -50,6 +50,15 @@ def compare_capture_identity(racelist, beforeinfo, *, deadline):
         raise ValueError("invalid exhibition record")
     if sorted(x["boat_number"] for x in rows) != list(range(1,7)):
         raise ValueError("duplicate or missing boat number")
+    import math
+    if (any(type(x.get("exhibition_course")) is not int
+            or type(x.get("exhibition_st")) not in (float, int)
+            or not math.isfinite(x["exhibition_st"])
+            or not -1 < x["exhibition_st"] < 1
+            for x in rows)
+            or sorted(x["exhibition_course"] for x in rows) != list(range(1, 7))):
+        raise ValueError("invalid exhibition course or ST")
+
     try:
         captured = datetime.fromisoformat(beforeinfo["captured_at"])
     except (KeyError, ValueError, TypeError) as e:
