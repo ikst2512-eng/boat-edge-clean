@@ -43,7 +43,12 @@ def run(race_key, deadline_text, directory):
                 or research.get("verified_preview") is not False
                 or research.get("actual_entry_verified") is not False
                 or not isinstance(rows, list) or len(rows) != 6
-                or sorted(row.get("boat_number") for row in rows) != list(range(1, 7))
+                or any(not isinstance(row, dict) for row in rows)
+                or any(type(row.get("boat_number")) is not int for row in rows)
+                or any(type(row.get("exhibition_course")) is not int for row in rows)
+                or any(type(row.get("exhibition_st")) not in (int, float)
+                       or not -1 < row["exhibition_st"] < 1 for row in rows)
+                or sorted(row["boat_number"] for row in rows) != list(range(1, 7))
                 or [row.get("exhibition_course") for row in rows] != list(range(1, 7))):
             raise ValueError("research provenance or six-boat integrity mismatch")
     elif (research.get("status") != "research_unavailable"
