@@ -39,12 +39,14 @@ class ProbeRunnerTests(unittest.TestCase):
                 self.assertEqual(len(evidence), 4)
                 manifest = Path(directory) / ("20261027-12-01-" + result["receipt_sha256"] + ".manifest.json")
                 self.assertEqual(json.loads(manifest.read_text()), result)
+                self.assertEqual(result["deadline"], deadline.isoformat())
+                self.assertEqual(result["fetched_at"], now.isoformat())
                 self.assertEqual(result["diagnostic"]["status"], "inspection_only")
                 self.assertTrue(result["diagnostic"]["sections_present"]["exhibition_time"])
                 self.assertFalse(result["diagnostic"]["verified_preview"])
 
     def test_evidence_is_not_reported_as_verified(self):
-        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64}, b"html")), \
+        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64, "source": "https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd=20261027&jcd=12&rno=1", "fetched_at": "2026-10-27T14:55:00+09:00"}, b"html")), \
              patch("run_official_prerace_probe.save_raw_receipt", return_value=["/tmp/probe.html", "/tmp/probe.json"]), \
              patch("run_official_prerace_probe.read_raw_receipt"), \
              patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value={"verified_preview": False, "status": "inspection_only"}):
