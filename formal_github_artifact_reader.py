@@ -9,6 +9,7 @@ import os
 import re
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.parse import urlsplit
+from urllib.error import HTTPError, URLError
 from formal_candidate_validator import InvalidCandidate
 from formal_artifact_zip_inspector import inspect_downloaded_artifact
 from formal_actions_artifact_audit import inspect_actions_artifact
@@ -56,8 +57,11 @@ def audit(run_id, artifact_id, race_code, expected_sha256, token, opener=None):
         request = Request(API + path, headers={
             "Authorization": "Bearer " + token, "Accept": media,
             "User-Agent": "boat-edge-clean-formal-audit/1.0"})
-        with opener.open(request, timeout=15) as response:
-            data = response.read(2_000_001)
+        try:
+            with opener.open(request, timeout=15) as response:
+                data = response.read(2_000_001)
+        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+            raise InvalidCandidate("GitHub artifact retrieval failed") from None
         if len(data) > 2_000_000:
             raise InvalidCandidate("GitHub response oversized")
         return data
