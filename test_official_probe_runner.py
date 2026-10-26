@@ -6,6 +6,7 @@ from official_prerace_capture import capture_beforeinfo, JST
 import unittest
 from unittest.mock import patch
 from run_official_prerace_probe import run
+from official_beforeinfo_research_parser import ResearchParseUnavailable
 
 
 class ProbeRunnerTests(unittest.TestCase):
@@ -93,6 +94,22 @@ class ProbeRunnerTests(unittest.TestCase):
                         run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
                     self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_archive_integrity_error_is_not_downgraded_to_unavailable(self):
+        receipt = {"sha256": "a" * 64, "source": "official",
+                   "fetched_at": "2026-10-27T14:55:00+09:00"}
+        diagnostic = {"race_key": "20261027-12-01", "status": "inspection_only",
+                      "verified_preview": False, "actual_entry_verified": False,
+                      "racers": [], "start_exhibition": []}
+        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \
+             patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \
+             patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=diagnostic), \
+             patch("run_official_prerace_probe.research_saved_start_exhibition",
+                   side_effect=ValueError("corrupted archive marker")):
+            with tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, "corrupted archive"):
+                    run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
+                self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_research_result_wrong_race_is_rejected_before_manifest(self):
         receipt = {"sha256": "a" * 64, "source": "official", "fetched_at": "2026-10-27T14:55:00+09:00"}
         diagnostic = {"race_key": "20261027-12-01", "status": "inspection_only",
@@ -141,7 +158,7 @@ class ProbeRunnerTests(unittest.TestCase):
         with patch("run_official_prerace_probe.capture_beforeinfo", return_value=({"sha256": "a" * 64, "source": "https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd=20261027&jcd=12&rno=1", "fetched_at": "2026-10-27T14:55:00+09:00"}, b"html")), \
              patch("run_official_prerace_probe.save_raw_receipt", return_value=["/tmp/probe.html", "/tmp/probe.json"]), \
              patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value={"verified_preview": False, "actual_entry_verified": False, "race_key": "20261027-12-01", "racers": [], "start_exhibition": [], "status": "inspection_only"}), \
-             patch("run_official_prerace_probe.research_saved_start_exhibition", side_effect=ValueError("unavailable")):
+             patch("run_official_prerace_probe.research_saved_start_exhibition", side_effect=ResearchParseUnavailable("unavailable")):
             with tempfile.TemporaryDirectory() as directory:
                 result = run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
                 manifest = Path(directory) / ("20261027-12-01-" + "a" * 64 + ".manifest.json")
