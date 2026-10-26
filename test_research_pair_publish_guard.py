@@ -17,7 +17,7 @@ class PublishGuardTests(unittest.TestCase):
                  "source_snapshot_generated_at":now.isoformat(),
                  "status":"research_unvalidated","prospective_verified":False,
                  "baseline":{str(i):1/120 for i in range(120)},
-                 "candidate":{str(i):0.01 for i in range(120)}}
+                 "candidate":{str(i):1/120 for i in range(120)}}
             path.write_text(json.dumps(row),encoding="utf-8")
             self.assertEqual(eligible_paths(root,"20261028",now),[path.as_posix()])
             with self.assertRaisesRegex(ValueError,"cutoff"):
