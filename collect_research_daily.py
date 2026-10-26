@@ -9,6 +9,11 @@ def collect(day):
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
     titles,t1,title_sha=read_rows(BASE+"title/"+path)
     cards,t2,cards_sha=read_rows(BASE+"race_cards/"+path)
+    # Source identifiers must be genuine SHA-256 digests, never empty or malformed.
+    for digest in (title_sha, cards_sha):
+        if (not isinstance(digest, str) or len(digest) != 64 or
+                any(char not in "0123456789abcdef" for char in digest)):
+            raise ValueError("invalid raw CSV source digest")
     if not any(isinstance(row, dict) and isinstance(row.get('レースコード'),str) and len(row['レースコード']) == 12 and row['レースコード'].isascii() and row['レースコード'].isdigit() and row['レースコード'].startswith(day) for row in titles):
         raise ValueError('no valid race titles for requested day')
     if not cards:
