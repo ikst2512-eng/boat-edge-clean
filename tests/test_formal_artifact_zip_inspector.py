@@ -41,6 +41,8 @@ class DownloadedZipTests(unittest.TestCase):
         result = inspect_downloaded_artifact(make_zip(members), code, digest)
         self.assertTrue(result["downloaded_bytes_consistent"])
         self.assertFalse(result["formal_approved"])
+        self.assertEqual(result["workflow_run_id"], 123)
+        self.assertEqual(result["workflow_attempt"], 1)
 
     def test_tampered_bytes(self):
         code, digest, members, make_zip = self.sample()
