@@ -209,7 +209,7 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                 continue
             matched.append({"race_code":code, "outcome":outcome,
                             "rank": picks.index(outcome)+1 if outcome in picks else None})
-        except (ValueError, KeyError, TypeError, UnicodeError):
+        except (ValueError, KeyError, TypeError, UnicodeError, OSError, OverflowError):
             exclusions["malformed_snapshot_or_manifest"] += 1
     for code in by_code.keys()-seen:
         exclusions["attestation_without_snapshot"] += 1
