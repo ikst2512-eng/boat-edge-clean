@@ -80,10 +80,10 @@ class ProbeRunnerTests(unittest.TestCase):
                     "raw_sha256": "a" * 64, "captured_at": receipt["fetched_at"],
                     "verified_preview": False, "actual_entry_verified": False,
                     "start_exhibition": [{"boat_number": i, "exhibition_course": i} for i in range(1, 7)]}
-        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \\
-             patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \\
-             patch("run_official_prerace_probe.read_raw_receipt"), \\
-             patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=diagnostic), \\
+        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \
+             patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \
+             patch("run_official_prerace_probe.read_raw_receipt"), \
+             patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=diagnostic), \
              patch("run_official_prerace_probe.research_saved_start_exhibition", return_value=research):
             with tempfile.TemporaryDirectory() as directory:
                 with self.assertRaises(ValueError):
