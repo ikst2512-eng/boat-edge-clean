@@ -26,8 +26,13 @@ class LegacyDependencyGuard(unittest.TestCase):
             "New or removed legacy references require data-producer and UI validation",
         )
 
+    def test_known_formal_status_read_only_dependency(self):
+        source = (ROOT / "fresh_formal_source_preflight.py").read_text(encoding="utf-8")
+        self.assertIn('STATUS_URL="https://raw.githubusercontent.com/" + LEGACY_REPO + "/main/data/formal_status.json"', source)
+        self.assertEqual(len(LEGACY_PATTERN.findall(source)), 1)
+
     def test_runtime_python_and_workflows_do_not_reference_legacy(self):
-        files = [*(p for p in ROOT.glob("*.py") if not p.name.startswith("test_")), *(ROOT / ".github/workflows").glob("*.yml")]
+        files = [*(p for p in ROOT.glob("*.py") if not p.name.startswith("test_") and p.name != "fresh_formal_source_preflight.py"), *(ROOT / ".github/workflows").glob("*.yml")]
         for file in files:
             with self.subTest(file=str(file.relative_to(ROOT))):
                 self.assertIsNone(
