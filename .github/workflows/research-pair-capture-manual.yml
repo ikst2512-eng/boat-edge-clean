@@ -43,6 +43,7 @@ jobs:
         run: |
           if [ "$PUBLISH" = true ]; then
             python research_pair_pipeline.py --day "$DAY" --commit --push
+            python research_remote_receipt_verify.py --day "$DAY"
           else
             python research_pair_pipeline.py --day "$DAY"
           fi
