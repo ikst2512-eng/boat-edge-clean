@@ -1,5 +1,6 @@
 """Daily research forecast collection. Uses one source fetch per daily CSV."""
 import argparse, json, os, hashlib
+from collections import Counter
 from datetime import datetime, timedelta
 from research_model import JST, BASE, STORE, _record_path, _saved, probabilities, read_rows, model_provenance
 def collect(day):
@@ -16,14 +17,13 @@ def collect(day):
         if not code:continue
         if code in by_code:duplicate_cards.add(code)
         else:by_code[code]=row
-    seen_titles=set()
+    title_counts=Counter(row.get("レースコード") for row in titles)
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     for title in titles:
         code=title.get("レースコード","")
         if not(code.isascii() and code.isdigit() and len(code)==12 and code.startswith(day)):continue
-        if code in seen_titles or code in duplicate_cards:
+        if title_counts[code] != 1 or code in duplicate_cards:
             counts["invalid"]+=1;continue
-        seen_titles.add(code)
         card=by_code.get(code)
         if card is None:counts["missing"]+=1;continue
         try:
