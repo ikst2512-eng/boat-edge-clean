@@ -36,9 +36,10 @@ jobs:
               print('CONFIG_PASS: live odds requires explicit race selection; no stale historical request')
           else:
               hd,jcd,rno=(os.environ[k] for k in ('HD','JCD','RNO'))
-              assert re.fullmatch(r'20[0-9]{6}',hd) and datetime.strptime(hd,'%Y%m%d'), 'invalid hd'
+              assert re.fullmatch(r'20[0-9]{6}',hd), 'invalid hd format'
+              datetime.strptime(hd,'%Y%m%d')
               assert re.fullmatch(r'[0-9]{2}',jcd) and 1<=int(jcd)<=24, 'invalid jcd'
-              assert re.fullmatch(r'[0-9]{1,2}',rno) and 1<=int(rno)<=12, 'invalid rno'
+              assert re.fullmatch(r'[1-9]|1[0-2]',rno), 'invalid rno'
               print('RACE_SELECTION_VALIDATED',hd,jcd,rno)
           PY
       - name: Probe live health and 120 odds
