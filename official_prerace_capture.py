@@ -58,8 +58,9 @@ def capture_beforeinfo(race_key, deadline, *, now=None, opener=None, completed_a
     # Tests may explicitly inject completion; live calls always sample the clock.
     completed = (completed_at if completed_at is not None else datetime.now(timezone.utc)).astimezone(JST)
     if now is not None and completed_at is None:
-        # Legacy deterministic fixtures supply only 'now'; never accept as proof of live capture.
-        completed = started
+        raise ValueError("explicit completion time required for injected test start time")
+    if completed < started:
+        raise ValueError("completion precedes start")
     if len(raw) > MAX_BYTES or not raw or completed >= cutoff - MIN_MARGIN:
         raise ValueError("oversized, empty or late response")
     receipt = {
