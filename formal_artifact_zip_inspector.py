@@ -62,7 +62,14 @@ def inspect_downloaded_artifact(zip_bytes, expected_race_code, expected_candidat
         type(receipt.get("workflow_run_id")) is not int or receipt["workflow_run_id"] <= 0 or
         type(receipt.get("workflow_attempt")) is not int or receipt["workflow_attempt"] <= 0):
         raise InvalidCandidate("receipt does not bind downloaded candidate")
-    _timestamp(receipt.get("runner_recorded_at"))
+    source_digest = candidate.get("source_snapshot_sha256")
+    if not isinstance(source_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", source_digest):
+        raise InvalidCandidate("source snapshot digest invalid")
+    generated = _timestamp(candidate.get("generated_at"))
+    deadline = _timestamp(candidate.get("deadline_at"))
+    recorded = _timestamp(receipt.get("runner_recorded_at"))
+    if not generated <= recorded < deadline:
+        raise InvalidCandidate("runner receipt timestamp outside candidate lifetime")
     if inspected["race_key"].replace("-", "") != expected_race_code:
         raise InvalidCandidate("candidate race mismatch")
     return {"downloaded_bytes_consistent": True, "candidate_sha256": digest,
