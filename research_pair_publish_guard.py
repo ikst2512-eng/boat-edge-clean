@@ -12,13 +12,18 @@ from datetime import datetime
 from pathlib import Path
 from research_model import JST
 
-def eligible_paths(folder, day, now=None):
+def eligible_paths(folder, day, now=None, only_paths=None):
     now = now or datetime.now(JST)
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("aware current time required")
     if len(day) != 8 or not day.isascii() or not day.isdigit():
         raise ValueError("invalid day")
     paths = sorted(Path(folder).glob(day + "*.json"))
+    if only_paths is not None:
+        selected=set(only_paths)
+        paths=[p for p in paths if p.as_posix() in selected]
+        if {p.as_posix() for p in paths} != selected:
+            raise ValueError("requested pair files missing from folder")
     accepted = []
     for path in paths:
         row = json.loads(path.read_text(encoding="utf-8"))
