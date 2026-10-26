@@ -82,3 +82,7 @@ All occurrences of a duplicated `race_key` are excluded, even if one appears oth
 The output includes `excluded_details`, containing a race key and exclusion reason per rejected row, without copying result tickets, feature payloads or probability distributions. Duplicate race occurrences are all excluded. Treat this as diagnostic metadata, not independent proof of outcome access or prospectivity.
 
 For excluded records, `race_key` is included in the audit trail only when it matches the canonical key syntax. Free-form or malformed identifiers are replaced with `null` so that injected result text or private feature data is not echoed by diagnostics.
+
+## Snapshot completeness preflight
+
+Use `python research_comparison/snapshot_preflight.py research_snapshots/<race_code>.json` to diagnose existing saved research files without reading outcomes. Current `research_model.py` and `collect_research_daily.py` save Top10 only, even though the model calculates 120 outcomes in memory. The preflight intentionally never returns `ready: true`: even a complete 120-way map still needs separately authenticated original bytes, source receipts, model registration and cutoff evidence. Never synthesize the missing 110 probabilities from after-the-fact data.
