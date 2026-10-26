@@ -1,7 +1,7 @@
 """Manually triggered research-only capture; never publishes race data."""
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from official_prerace_capture import capture_beforeinfo, save_raw_receipt, read_raw_receipt
@@ -13,8 +13,8 @@ def run(race_key, deadline_text, directory):
         deadline = datetime.fromisoformat(deadline_text)
     except ValueError as exc:
         raise ValueError("deadline must be ISO8601 with timezone") from exc
-    if deadline.tzinfo is None:
-        raise ValueError("deadline timezone required")
+    if deadline.tzinfo is None or deadline.utcoffset() != timedelta(hours=9):
+        raise ValueError("official deadline must include JST +09:00 offset")
     receipt, raw = capture_beforeinfo(race_key, deadline)
     paths = save_raw_receipt(receipt, raw, directory, deadline=deadline)
     read_raw_receipt(directory, race_key, receipt["sha256"], deadline=deadline)
