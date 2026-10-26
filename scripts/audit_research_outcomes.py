@@ -136,6 +136,14 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if not res or res.get("verified") is not True:
                 exclusions["no_verified_result"] += 1
                 continue
+            # A result flag alone is insufficient. Keep source provenance and
+            # a post-deadline verification timestamp on the research side.
+            if not isinstance(res.get("result_source_id"), str) or not res["result_source_id"]:
+                exclusions["missing_result_provenance"] += 1
+                continue
+            if timestamp(res["result_confirmed_at"]) < deadline:
+                exclusions["result_confirmed_before_deadline"] += 1
+                continue
             outcome = res.get("trifecta")
             if outcome not in ("-".join([str(i), str(j), str(k)])
                                for i in range(1,7) for j in range(1,7)
