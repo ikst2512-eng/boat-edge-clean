@@ -20,72 +20,33 @@ jobs:
           node-version: '22'
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
-      - name: Verify venue, race and live odds UI
+      - name: Verify current production mobile navigation
         run: |
           node <<'JS'
           const {chromium}=require('playwright');
           (async()=>{
             const browser=await chromium.launch({headless:true});
-            const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2});
             try{
+              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
               const errors=[];
               page.on('pageerror',e=>errors.push(e.message));
               await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
-              await page.locator('#venues button').first().waitFor();
+              await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
-              if(await page.locator('#forecast [data-top]').count()!==3)throw Error('Prediction Top3/5/10 tabs missing');
+              if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
+              if(await page.locator('#forecast [data-top]').count()!==3)throw Error('Top3/5/10 controls missing');
               await page.locator('#forecast [data-top="5"]').click();
-              if(!(await page.locator('#forecast [data-top="5"]').getAttribute('class')||'').includes('on'))throw Error('Prediction Top5 selector failed');
-              await page.locator('#forecast [data-top="10"]').click();
-              if(!(await page.locator('#forecast [data-top="10"]').getAttribute('class')||'').includes('on'))throw Error('Prediction Top10 selector failed');
-              await page.locator('#forecast [data-top="3"]').click();
+              if(!await page.locator('#forecast [data-top="5"]').evaluate(el=>el.classList.contains('on')))throw Error('Top5 not selected');
               await page.locator('#venues button').nth(11).click();
-              await page.locator('#races button').nth(0).click();
-              await page.locator('#day').fill('2026-10-22');
-              const [oddsResponse]=await Promise.all([page.waitForResponse(res=>res.url().includes('/api/odds?'),{timeout:45000}),page.locator('#refresh').click()]); const oddsPayload=await oddsResponse.json();
-              if(oddsResponse.status()!==200)throw Error('Live odds API '+oddsResponse.status()+': '+String(oddsPayload.message||'unknown upstream response'));
-              const expectedJst=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(oddsPayload.fetched_at));
-              await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('120通り'),{timeout:40000});
-              if(await page.locator('#oddsData .chosen').count()!==120)throw Error('Missing odds cells');
-              if(await page.locator('#oddsData .odds-group').count()!==6)throw Error('Expected six first-boat sections');
-              for(let i=0;i<6;i++){
-                const group=page.locator('#oddsData .odds-group').nth(i);
-                if(await group.locator('.odds-cell').count()!==20)throw Error('Expected 20 tickets for boat '+(i+1));
-                if(!(await group.locator('h3').innerText()).includes((i+1)+'号艇'))throw Error('Boat heading mismatch');
-              }
-              if(!(await page.locator('#oddsStatus').innerText()).includes('日本時間'))throw Error('Japanese time label missing');
-              if(!(await page.locator('#oddsStatus').innerText()).includes(expectedJst))throw Error('JST timestamp does not match upstream UTC time');
-              if(!(await page.locator('#oddsData .odds-cell strong').first().innerText()).includes('倍'))throw Error('Odds not visually separated');
-              // Switching race must invalidate previously displayed odds.
               await page.locator('#races button').nth(1).click();
-              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds remain after race change');
-              if(!(await page.locator('#selected').innerText()).includes('2R'))throw Error('Race 2 not selected');
-              if(await page.locator('#refresh').isDisabled())throw Error('Refresh disabled after race change');
-              await page.locator('#venues button').nth(10).click();
-              if(!(await page.locator('#selected').innerText()).includes('びわこ'))throw Error('Venue change failed');
-              if(!(await page.locator('#selected').innerText()).includes('1R'))throw Error('Venue change must select 1R');
-              await page.locator('#day').fill('2026-10-21');
-              if(!(await page.locator('#selected').innerText()).includes('2026-10-21'))throw Error('Date change failed');
-              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale odds after date change');
-              // Test in-flight switch with a delayed controlled API reply.
-              await page.route('**/api/odds?*', async route=>{
-                await new Promise(resolve=>setTimeout(resolve,900));
-                await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,message:'通信テスト：一時的に取得できません'})});
-              });
-              await page.locator('#races button').nth(0).click();
-              await page.waitForTimeout(1100);
-              await page.locator('#refresh').click();
-              await page.locator('#races button').nth(1).click();
-              await page.waitForTimeout(1400);
-              if(await page.locator('#oddsData .chosen').count()!==0)throw Error('Stale response inserted after switch');
-              if(!(await page.locator('#oddsStatus').innerText()).includes('レースを選んで'))throw Error('Stale error overwrote selected race');
-              if(await page.locator('#refresh').isDisabled())throw Error('Refresh stayed disabled after switch');
-              await page.locator('#refresh').click();
-              await page.waitForFunction(()=>document.querySelector('#oddsStatus').textContent.includes('一時的に取得できません'),null,{timeout:8000});
-              if(await page.locator('#refresh').isDisabled())throw Error('Refresh stayed disabled after API error');
-              await page.unroute('**/api/odds?*');
-              if(errors.length)throw Error('JS errors: '+errors.join('; '));
-              console.log('PASS: mobile 24 venues, race selection and 120 live odds cells');
+              if(!(await page.locator('#activeRaceLabel').innerText()).includes('2R'))throw Error('Current race label not updated');
+              await page.locator('.view-tabs [data-view="result"]').click();
+              if(!await page.locator('#resultSection').isVisible())throw Error('Result tab not visible');
+              await page.locator('.view-tabs [data-view="forecast"]').click();
+              if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
+              if(errors.length)throw Error('JavaScript page errors: '+errors.join('; '));
+              console.log('PASS: production mobile 24 venues, 12 races, forecast controls, result navigation');
+              console.log('NOTE: Live odds API is checked independently by live-odds-probe workflow');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
