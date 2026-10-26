@@ -20,6 +20,8 @@ def _git(*args):
 def prepare(day, folder="research_prospective_pairs", now=None):
     if _git("branch","--show-current") != BRANCH:
         raise ValueError("refuse non-research branch")
+    if _git("diff","--cached","--name-only"):
+        raise ValueError("pre-existing staged changes; refuse research commit")
     test_clock = now is not None
     now=now or datetime.now(JST)
     files=eligible_paths(folder,day,now)
