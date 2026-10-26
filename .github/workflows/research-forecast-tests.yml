@@ -6,15 +6,13 @@ on:
       - 'server.py'
       - 'test_research_model.py'
       - 'test_research_model_provenance.py'
-      - 'test_research_source_digests.py'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
+      - 'test_research_source_digests.py'
       - 'scripts/audit_research_outcomes.py'
       - 'scripts/verify_research_git_first_add.py'
-      - 'tests/test_audit_research_outcomes.py'
-      - 'tests/test_research_audit_git_integration.py'
-      - 'tests/test_verify_research_git_first_add.py'
+      - 'tests/**'
       - '.github/workflows/research-forecast-tests.yml'
   pull_request:
     paths:
@@ -22,15 +20,13 @@ on:
       - 'server.py'
       - 'test_research_model.py'
       - 'test_research_model_provenance.py'
-      - 'test_research_source_digests.py'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
+      - 'test_research_source_digests.py'
       - 'scripts/audit_research_outcomes.py'
       - 'scripts/verify_research_git_first_add.py'
-      - 'tests/test_audit_research_outcomes.py'
-      - 'tests/test_research_audit_git_integration.py'
-      - 'tests/test_verify_research_git_first_add.py'
+      - 'tests/**'
       - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:
 jobs:
@@ -44,10 +40,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
+        run: python -m unittest -v test_research_model test_research_model_provenance test_research_persistence test_collect_research_daily test_research_source_digests
+      - name: Verify audit regressions when auditor branch is integrated
         run: |
-          python -m unittest -v test_research_model test_research_persistence test_collect_research_daily
-          if [ -f test_research_model_provenance.py ] && [ -f test_research_source_digests.py ]; then
-            python -m unittest -v test_research_model_provenance test_research_source_digests
+          if [ -f scripts/audit_research_outcomes.py ]; then
+            python -m unittest discover -s tests -p 'test_*.py' -v
           fi
-      - name: Verify isolated research auditor fixture gates
-        run: python -m unittest discover -s tests -p 'test_*.py' -v
