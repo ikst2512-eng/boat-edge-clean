@@ -13,7 +13,7 @@ SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
 
 def freeze(destination, *, race_code, rates, model_sha, input_sha256,
-           source_received_at, cutoff_jst, input_bytes):
+           source_received_at, cutoff_jst, title_bytes, cards_bytes):
     """Create new forecast bytes only while both source and clock precede cutoff."""
     if not isinstance(race_code, str) or not re.fullmatch(r"20[0-9]{10}", race_code):
         raise ValueError("invalid race code")
@@ -27,10 +27,13 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
         raise ValueError("invalid model SHA")
     if not isinstance(input_sha256, str) or not SHA64.fullmatch(input_sha256):
         raise ValueError("invalid input digest")
-    if not isinstance(input_bytes, bytes) or not input_bytes:
-        raise ValueError("nonempty original input bytes required")
-    if hashlib.sha256(input_bytes).hexdigest() != input_sha256:
-        raise ValueError("input bytes do not match declared SHA256")
+    if any(not isinstance(raw, bytes) or not raw for raw in (title_bytes, cards_bytes)):
+        raise ValueError("both raw title and race_cards CSV bytes required")
+    title_sha256 = hashlib.sha256(title_bytes).hexdigest()
+    cards_sha256 = hashlib.sha256(cards_bytes).hexdigest()
+    composite = hashlib.sha256((title_sha256 + ":" + cards_sha256).encode("ascii")).hexdigest()
+    if composite != input_sha256:
+        raise ValueError("source CSV bytes do not match declared composite input SHA256")
     cutoff = datetime.fromisoformat(cutoff_jst)
     received = datetime.fromisoformat(source_received_at)
     if any(t.tzinfo is None or t.utcoffset() is None for t in (cutoff,received)):
@@ -48,6 +51,8 @@ def freeze(destination, *, race_code, rates, model_sha, input_sha256,
         "race_code":race_code, "status":"research", "validated":False,
         "model_id":"national-beta0.4-exploratory-v1",
         "model_sha":model_sha, "input_sha256":input_sha256,
+        "input_hash_scope":"source_csv_byte_hashes_ordered_title_cards",
+        "source_title_sha256":title_sha256,"source_cards_sha256":cards_sha256,
         "source_received_at":received.isoformat(),
         "generated_at":now.isoformat(), "cutoff_jst":cutoff.isoformat(),
         "predictions":list(p)[:10], "probabilities":p,
@@ -69,14 +74,15 @@ def main():
     p.add_argument("--rates-json",required=True,help="six pre-cutoff national win rates")
     p.add_argument("--model-sha",required=True)
     p.add_argument("--input-sha256",required=True)
-    p.add_argument("--input-file",required=True,type=Path,help="actual raw source bytes for digest verification")
+    p.add_argument("--title-csv",required=True,type=Path,help="raw title CSV bytes")
+    p.add_argument("--cards-csv",required=True,type=Path,help="raw race_cards CSV bytes")
     p.add_argument("--source-received-at",required=True)
     p.add_argument("--cutoff-jst",required=True)
     a=p.parse_args()
     result=freeze(a.destination,race_code=a.race_code,rates=json.loads(a.rates_json),
                   model_sha=a.model_sha,input_sha256=a.input_sha256,
                   source_received_at=a.source_received_at,cutoff_jst=a.cutoff_jst,
-                  input_bytes=a.input_file.read_bytes())
+                  title_bytes=a.title_csv.read_bytes(),cards_bytes=a.cards_csv.read_bytes())
     print(json.dumps(result,ensure_ascii=False,indent=2))
 if __name__=="__main__":
     main()
