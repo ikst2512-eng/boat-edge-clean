@@ -16,7 +16,8 @@ class AuditTests(unittest.TestCase):
                   "generated_at":"2026-10-26T09:00:00+09:00",
                   "cutoff_jst":"2026-10-26T10:00:00+09:00",
                   "source_title_received_jst":"2026-10-26T08:59:00+09:00",
-                  "source_cards_received_jst":"2026-10-26T08:59:00+09:00"}
+                  "source_cards_received_jst":"2026-10-26T08:59:00+09:00",
+                  "model_git_sha":"a"*40, "input_sha256":"c"*64}
             p.write_text(json.dumps(snap))
             self.assertEqual(audit(d,[],[])["valid_count"],0)
             att={"race_code":snap["race_code"],"receipt_verified":True,"model_verified":True,
@@ -28,6 +29,13 @@ class AuditTests(unittest.TestCase):
                  "official_deadline_at":"2026-10-26T10:12:00+09:00"}
             outcome={"race_code":snap["race_code"],"verified":True,"trifecta":"1-2-3"}
             self.assertEqual(audit(d,[att],[outcome])["valid_count"],0)\n            digest=lambda: hashlib.sha256(json.dumps([att],ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()\n            self.assertEqual(audit(d,[att],[outcome],digest())["metrics"]["top1"]["hits"],1)
+            missing=dict(snap)
+            missing.pop("input_sha256")
+            p.write_text(json.dumps(missing))
+            att["snapshot_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["missing_frozen_model_or_input_hash"],1)
+            p.write_text(json.dumps(snap))
+            att["snapshot_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
             att["first_seen_at"]="2026-10-26T10:01:00+09:00"
             report=audit(d,[att],[outcome],digest())
             self.assertEqual(report["valid_count"],0)
