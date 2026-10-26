@@ -67,7 +67,11 @@ class EvidenceTests(unittest.TestCase):
         evidence = self.root / "capture-evidence/new-snapshots/202610270101.json"
         self.assertEqual(evidence.read_bytes(), p.read_bytes())
         hashes = (self.root / "capture-evidence/snapshot-sha256.txt").read_text()
+        import hashlib
+        self.assertIn(hashlib.sha256(p.read_bytes()).hexdigest(), hashes)
         self.assertIn("202610270101.json", hashes)
+        self.assertIn("No configured push destination", r.stdout)
+        self.assertIn("fatal:", (self.root / "capture-evidence/persistence.log").read_text())
 
 if __name__ == "__main__":
     unittest.main()
