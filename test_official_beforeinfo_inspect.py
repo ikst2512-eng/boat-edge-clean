@@ -33,7 +33,7 @@ class InspectionTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self,*args): pass
             def read(self,n): return "<html><body>展示タイム スタート展示</body></html>".encode()
-        receipt, raw = capture_beforeinfo("20261027-22-05", deadline, now=now, opener=lambda *args, **kwargs: Response())
+        receipt, raw = capture_beforeinfo("20261027-22-05", deadline, now=now, completed_at=now, opener=lambda *args, **kwargs: Response())
         with tempfile.TemporaryDirectory() as directory:
             paths = save_raw_receipt(receipt,raw,directory,deadline=deadline)
             inspected = inspect_saved_beforeinfo(directory,receipt["race_key"],receipt["sha256"],deadline=deadline)
