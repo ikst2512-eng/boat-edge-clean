@@ -23,7 +23,7 @@ class GitPrepareTests(unittest.TestCase):
             def git(*args):
                 if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
                 if args[:3]==("diff","--cached","--name-only"):
-                    return str(pair)
+                    return "" if "--diff-filter=A" in args else str(pair)
                 raise AssertionError(args)
             with patch("research_pair_git_prepare._git",side_effect=git),patch(
                 "research_pair_git_prepare.eligible_paths",return_value=[str(pair)]),patch(
