@@ -14,8 +14,13 @@ from research_pair_git_prepare import BRANCH, _git
 def push(day, folder="research_prospective_pairs", dry_run=True):
     if _git("branch","--show-current") != BRANCH:
         raise ValueError("only research branch allowed")
-    if _git("status","--porcelain"):
-        raise ValueError("working tree must be clean")
+    # Collection creates baseline snapshots that are intentionally not committed
+    # by the isolated paired publisher. Allow only their untracked files.
+    changes=_git("status","--porcelain").splitlines()
+    allowed_prefix=f"?? research_snapshots/{day}"
+    if any(not (line.startswith(allowed_prefix) and line.endswith(".json"))
+           for line in changes):
+        raise ValueError("unrelated working-tree changes prevent research push")
     paths=eligible_paths(folder,day,datetime.now(JST))
     if not paths:
         raise ValueError("no eligible paired forecasts to publish")
