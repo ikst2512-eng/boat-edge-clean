@@ -5,6 +5,8 @@ on:
       - 'research_paired_evaluation.py'
       - 'research_paired_uncertainty.py'
       - 'research_provenance_audit.py'
+      - 'research_scenario_candidate.py'
+      - 'test_research_scenario_candidate.py'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
@@ -19,4 +21,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run isolated research evaluation tests
-        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit
+        run: python -m unittest -v test_research_paired_evaluation test_research_paired_uncertainty test_research_provenance_audit test_research_scenario_candidate
