@@ -141,6 +141,70 @@ class GitHubReaderTests(unittest.TestCase):
         with self.assertRaises(InvalidCandidate):
             audit(123, 456, "202610280101", "g" * 64, "fake")
 
+    def test_real_zip_parsing_with_mocked_github_metadata(self):
+        import io
+        import zipfile
+        import hashlib
+        from itertools import permutations
+        code = "202610280101"
+        candidate = {"race_code": code,
+                     "generated_at": "2026-10-28T09:00:00+09:00",
+                     "deadline_at": "2026-10-28T09:15:00+09:00",
+                     "source_snapshot_sha256": "a" * 64,
+                     "probabilities": {"-".join(t): 1/120 for t in permutations("123456", 3)}}
+        raw = json.dumps(candidate).encode()
+        digest = hashlib.sha256(raw).hexdigest()
+        receipt = {"candidate_sha256": digest, "race_code": code,
+                   "schema": "fresh-prospective-receipt-v1",
+                   "status": "candidate_only_not_formal_or_public",
+                   "independent_github_arrival_verified": False,
+                   "workflow_run_id": 123, "workflow_attempt": 1,
+                   "deadline_at": candidate["deadline_at"],
+                   "source_snapshot_sha256": candidate["source_snapshot_sha256"],
+                   "runner_recorded_at": "2026-10-28T09:02:00+09:00"}
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zipped:
+            zipped.writestr(f"prospective_candidates/{code}.json", raw)
+            zipped.writestr("prospective_receipt.json", json.dumps(receipt).encode())
+        archive = buf.getvalue()
+
+        class FakeOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __init__(self, data):
+                        self.data = data
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return self.data
+                url = req.full_url
+                if url.endswith("/actions/runs/123"):
+                    return Response(json.dumps({
+                        "id": 123, "run_attempt": 1, "status": "completed",
+                        "conclusion": "success", "event": "repository_dispatch",
+                        "head_branch": "main",
+                        "path": ".github/workflows/fresh-prospective-capture.yml",
+                        "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"},
+                    }).encode())
+                if "/artifacts?per_page=100" in url:
+                    return Response(json.dumps({
+                        "total_count": 1,
+                        "artifacts": [{
+                            "id": 456, "workflow_run": {"id": 123},
+                            "name": "prospective-v5-123", "expired": False,
+                            "size_in_bytes": len(archive),
+                            "created_at": "2026-10-28T09:02:00+09:00",
+                        }],
+                    }).encode())
+                return Response(archive)
+        result = audit(123, 456, code, digest, "fake", opener=FakeOpener())
+        self.assertTrue(result["artifact_zip_consistent"])
+        self.assertTrue(result["receipt_run_binding_verified"])
+        self.assertFalse(result["independent_upload_time_verified"])
+        self.assertFalse(result["formal_approved"])
+
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
         original = Request("https://api.github.com/example",
