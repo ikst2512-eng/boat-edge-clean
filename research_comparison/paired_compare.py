@@ -69,6 +69,8 @@ def collect(rows, baseline, candidate):
     for r in rows:
         try:
             key = r["race_key"]
+            if not isinstance(key, str) or not re.fullmatch(r"20[0-9]{6}-[0-9]{2}-[0-9]{1,2}", key):
+                raise ValueError("invalid canonical race key")
             if key in seen:
                 raise ValueError("duplicate race")
             seen.add(key)
