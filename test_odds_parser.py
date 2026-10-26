@@ -2,6 +2,8 @@
 from itertools import permutations
 from html import escape
 from server import parse_official_odds_table
+import server
+import time
 
 def make_fixture():
     rows = []
@@ -58,6 +60,29 @@ def test_same_lane_rejected():
     html = make_fixture().replace("<td>2</td><td>3</td><td>123.0</td>", "<td>1</td><td>3</td><td>123.0</td>", 1)
     must_reject(html, "Repeated boat number in a ticket must be rejected")
 
+
+def test_cached_odds_remain_available_during_refresh():
+    """A stored verified response must not turn into 202 during an in-flight refresh."""
+    key = ("20261027", "12", "1")
+    params = {"hd": [key[0]], "jcd": [key[1]], "rno": [key[2]]}
+    saved = {"ok": True, "odds": {"1-2-3": 123.0}, "fetched_at": "2026-10-27T00:00:00+00:00"}
+    with server.LOCK:
+        previous = server.CACHE.get(key)
+        was_inflight = key in server.INFLIGHT
+        server.CACHE[key] = (time.monotonic(), 200, saved)
+        server.INFLIGHT.add(key)
+    try:
+        status, payload = server.get_odds(params)
+        assert status == 200 and payload is saved, "Verified cached odds must take priority over in-flight status"
+    finally:
+        with server.LOCK:
+            if previous is None:
+                server.CACHE.pop(key, None)
+            else:
+                server.CACHE[key] = previous
+            if not was_inflight:
+                server.INFLIGHT.discard(key)
+
 if __name__ == "__main__":
     test_complete_120()
     test_missing_cell_rejected()
@@ -65,4 +90,5 @@ if __name__ == "__main__":
     test_zero_odds_rejected()
     test_extreme_odds_rejected()
     test_same_lane_rejected()
+    test_cached_odds_remain_available_during_refresh()
     print("Odds parser regression tests passed")
