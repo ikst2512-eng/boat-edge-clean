@@ -9,7 +9,7 @@ import re
 import json
 import math
 import random
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 
@@ -71,6 +71,16 @@ def collect(rows, baseline, candidate):
             key = r["race_key"]
             if not isinstance(key, str) or not re.fullmatch(r"20[0-9]{6}-[0-9]{2}-[0-9]{1,2}", key):
                 raise ValueError("invalid canonical race key")
+            date_text, venue_text, race_text = key.split("-")
+            try:
+                datetime.strptime(date_text, "%Y%m%d")
+            except ValueError as exc:
+                raise ValueError("invalid race date") from exc
+            if not (1 <= int(venue_text) <= 24 and 1 <= int(race_text) <= 12):
+                raise ValueError("race venue or number out of range")
+            jst = timezone(timedelta(hours=9))
+            if timestamp(r["deadline"]).astimezone(jst).strftime("%Y%m%d") != date_text:
+                raise ValueError("race date differs from deadline JST date")
             if key in seen:
                 raise ValueError("duplicate race")
             seen.add(key)
