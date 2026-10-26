@@ -64,6 +64,7 @@ def rank(p):
 
 def collect(rows, baseline, candidate):
     pairs, excluded = [], {}
+    excluded_details = []
     key_counts = Counter(row.get('race_key') for row in rows if isinstance(row, dict) and isinstance(row.get('race_key'), str))
     model_identity = {}
     registered_cohort = None
@@ -137,7 +138,8 @@ def collect(rows, baseline, candidate):
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             reason = str(e) or type(e).__name__
             excluded[reason] = excluded.get(reason, 0) + 1
-    return pairs, excluded
+            excluded_details.append({"race_key": r.get("race_key") if isinstance(r, dict) else None, "reason": reason})
+    return pairs, excluded, excluded_details
 
 def mean(xs):
     return sum(xs)/len(xs)
@@ -170,10 +172,11 @@ def ece(pairs, prefix, bins=10):
 def compare(rows, baseline, candidate):
     if baseline == candidate:
         raise ValueError("distinct baseline and candidate required")
-    pairs, excluded = collect(rows, baseline, candidate)
+    pairs, excluded, excluded_details = collect(rows, baseline, candidate)
     output = {"status":"INSUFFICIENT_EVIDENCE", "baseline":baseline, "candidate":candidate,
               "eligible_races":len(pairs), "excluded_races":sum(excluded.values()),
               "exclusion_reasons":excluded,
+              "excluded_details":excluded_details,
               "warning":"Self-declared provenance flags are not independently audited by this script."}
     if not pairs:
         return output
