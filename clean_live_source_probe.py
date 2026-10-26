@@ -271,7 +271,7 @@ def probe(date, venue, race, opener=urlopen):
             def normalize(value):
                 if value is None:
                     return None
-                f_flag = value.startswith("F")
+                f_flag = value.startswith("F") or value.startswith("-")
                 numeric = value[1:] if f_flag else value
                 try:
                     return (f_flag, Decimal(numeric))
