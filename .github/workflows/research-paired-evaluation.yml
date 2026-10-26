@@ -38,6 +38,7 @@ on:
       - 'research_receipt_run_audit.py'
       - 'test_research_receipt_run_audit.py'
       - '.github/workflows/research-push-receipt.yml'
+      - '.github/workflows/research-pair-capture-manual.yml'
       - 'test_research_provenance_audit.py'
       - 'test_research_paired_evaluation.py'
       - 'test_research_paired_uncertainty.py'
