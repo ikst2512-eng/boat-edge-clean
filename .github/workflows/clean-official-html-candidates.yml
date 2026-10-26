@@ -9,6 +9,7 @@ on:
       - test_clean_research_provenance_bridge.py
       - clean_verified_receipt_bridge.py
       - test_clean_verified_receipt_bridge.py
+      - test_clean_pr15_receipt_integration.py
       - test_clean_official_racelist_candidates.py
       - .github/workflows/clean-official-html-candidates.yml
   workflow_dispatch:
@@ -20,12 +21,19 @@ jobs:
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ikst2512-eng/boat-edge-clean
+          ref: 6c4f421eddfa32004948a4b892c32d68723bcfdf
+          path: pr15_source
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Check syntax and safety tests
         run: |
           python -m unittest -v test_clean_diagnostic_retry test_clean_research_provenance_bridge test_clean_verified_receipt_bridge
+          PYTHONPATH=pr15_source:. python -m unittest -v test_clean_pr15_receipt_integration
           python -m py_compile clean_official_racelist_candidates.py test_clean_official_racelist_candidates.py
           python -m unittest -v test_clean_official_racelist_candidates
 
