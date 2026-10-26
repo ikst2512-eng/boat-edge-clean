@@ -160,6 +160,23 @@ jobs:
                   if kind == 'stt':
                       courses = [record[f'艇{i}_コース'] for i in range(1,7)]
                       if sorted(courses) != list('123456'): raise ValueError('invalid six-course permutation')
+                  if kind == 'stt':
+                      import re
+                      for lane in range(1,7):
+                          st = (record.get(f'艇{lane}_スタート展示') or '').strip()
+                          if not re.fullmatch(r'(?:F[.]?[0-9]{1,2}|[.]?[0-9]{1,2}|[0-9][.][0-9]{1,2})', st):
+                              raise ValueError('invalid/missing exhibition ST')
+                  if kind == 'tkz':
+                      import re
+                      for lane in range(1,7):
+                          for field in ('展示タイム','チルト'):
+                              val = (record.get(f'艇{lane}_{field}') or '').strip()
+                              if not re.fullmatch(r'-?[0-9]+(?:[.][0-9]+)?', val):
+                                  raise ValueError('invalid/missing exhibition numeric value')
+                  if kind == 'sui':
+                      required=('風速(m)','風向','波の高さ(cm)','天候','気温(℃)','水温(℃)')
+                      if any(not (record.get(field) or '').strip() for field in required):
+                          raise ValueError('missing water-surface field')
                   entry = {'status':'schema_unverified', 'column_count':len(record),
                            'lane_field_count':len(values), 'nonempty_lane_fields':sum(bool(v and v.strip()) for v in values.values()),
                            'sha256':hashlib.sha256(payload).hexdigest()}
