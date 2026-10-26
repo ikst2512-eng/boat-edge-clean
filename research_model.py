@@ -85,6 +85,10 @@ def predict(hd,jcd,rno):
                 ).hexdigest(), input_hash_scope="source_csv_byte_hashes_ordered_title_cards",
                 **model_provenance())
     data=json.dumps(record,ensure_ascii=False,sort_keys=True)
+    # SHA calculation and model provenance checks also consume time. Refuse a
+    # record if the deadline safety margin elapsed before the actual write.
+    if datetime.now(JST) > cutoff:
+        raise ValueError("research snapshot write missed 12-minute cutoff")
     # Exclusive create: never silently replace a previously saved forecast.
     with _record_path(code).open("x",encoding="utf-8") as out:
         out.write(data)
