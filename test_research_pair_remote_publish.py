@@ -14,7 +14,7 @@ class RemotePublishTests(unittest.TestCase):
             if args[0]=="rev-parse": return "a"*40
             raise AssertionError(args)
         with patch("research_pair_remote_publish._git",side_effect=git),patch(
-             "research_pair_remote_publish.eligible_paths",return_value=[]),patch(
+             "research_pair_remote_publish.eligible_paths",return_value=["research_prospective_pairs/202610281201.json"]),patch(
              "research_pair_remote_publish.subprocess.run") as cmd:
             result=push("20261028")
             cmd.assert_not_called()
