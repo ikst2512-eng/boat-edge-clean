@@ -120,20 +120,11 @@ jobs:
               entry = {'race_key': key, 'status': 'blocked_unverified'}
               try:
                   other_url = f'https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261026&jcd={venue}&rno={race}'
-                  # Retry transient network failures only; never retry parse or data mismatches.
-                  from urllib.error import URLError
-                  import time
-                  for attempt in range(1, 3):
-                      entry['fetch_attempts'] = attempt
-                      try:
-                          with urlopen(Request(other_url, headers={'User-Agent':'BOAT-EDGE-CLEAN-RESEARCH/1.0'}), timeout=10) as response:
-                              other = response.read(2_000_001)
-                          break
-                      except (TimeoutError, URLError):
-                          if attempt == 2:
-                              raise
-                          time.sleep(1)
-                  if len(other) > 2_000_000: raise ValueError('HTML too large')
+                  from clean_diagnostic_retry import fetch_with_retry
+                  other, attempts = fetch_with_retry(
+                      Request(other_url, headers={'User-Agent':'BOAT-EDGE-CLEAN-RESEARCH/1.0'}),
+                      urlopen, attempts=2, timeout=10)
+                  entry['fetch_attempts'] = attempts
                   parsed = extract_six_candidates(other, other_url, key)
                   target = '20261026' + venue + f'{int(race):02d}'
                   matching = [row for row in rows if row.get('レースコード') == target]
