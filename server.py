@@ -159,7 +159,11 @@ def get_predictions(params):
         # Research-only fallback; never mislabel exploratory scores as validated.
         try:
             from research_model import predict
-            return 200, predict(hd, jcd, rno)
+            research = predict(hd, jcd, rno)
+            if (not isinstance(research, dict) or research.get("status") != "research" or
+                    research.get("validated") is not False):
+                raise ValueError("research fallback attempted formal promotion")
+            return 200, research
         except (ValueError, OSError, TimeoutError, KeyError, TypeError) as exc:
             logging.info("research_prediction_unavailable %s", type(exc).__name__)
             return 200, {"ok": True, "status": "unavailable", "predictions": [], "message": "研究予想の入力データが揃っていません。"}
