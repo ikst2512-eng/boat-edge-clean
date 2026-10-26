@@ -5,6 +5,7 @@ Never fills receipt attestations, outcomes, or independent-audit booleans.
 import argparse
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 from paired_compare import TICKETS, timestamp
@@ -32,6 +33,10 @@ def draft(raw, *, filename_sha256):
     probabilities = raw.get("probabilities")
     if not isinstance(probabilities, dict) or set(probabilities) != TICKETS:
         raise ValueError("missing 120-ticket distribution")
+    if any(type(value) not in (int, float) or not math.isfinite(value) or value <= 0 for value in probabilities.values()):
+        raise ValueError("invalid probability values")
+    if abs(math.fsum(probabilities.values()) - 1.0) > 1e-7:
+        raise ValueError("probabilities are not normalized")
     if len(raw.get("predictions", [])) != 10:
         raise ValueError("missing top10")
     ordered = sorted(probabilities, key=lambda t: (-probabilities[t], t))
