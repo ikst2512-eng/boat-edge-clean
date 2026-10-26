@@ -101,7 +101,7 @@ def html_diagnostics(body):
             if lane in preview_values:
                 preview_values = {}
                 break
-            preview_values[lane] = {"registration": row["registrations"][0], "time": found.group(3), "tilt": found.group(4)}
+            preview_values[lane] = {"registration": row["registrations"][0], "time": found.group(4), "tilt": found.group(5)}
     return {"html_inspection": "structure_only_unverified",
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
