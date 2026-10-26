@@ -46,6 +46,14 @@ class ReceiptTests(unittest.TestCase):
     def test_fake_supplied_blob_rejected(self):
         self.responses[self.prefix + "/git/blobs/" + self.blob_sha]["content"]=base64.b64encode(b"forged").decode()
         with self.assertRaises(ValueError):self.check()
+    def test_wrong_blob_size_rejected(self):
+        self.responses[self.prefix + "/git/blobs/" + self.blob_sha]["size"]=len(self.raw)+1
+        with self.assertRaisesRegex(ValueError,"blob size mismatch"):
+            self.check()
+    def test_malformed_base64_rejected(self):
+        self.responses[self.prefix + "/git/blobs/" + self.blob_sha]["content"]="@@@invalid@@@"
+        with self.assertRaises(ValueError):
+            self.check()
     def test_wrong_tree_path_rejected(self):
         self.responses[self.prefix + "/git/trees/" + self.tree_sha + "?recursive=1"]["tree"]=[]
         with self.assertRaises(ValueError):self.check()
