@@ -22,8 +22,8 @@ class InputIntegrityTests(unittest.TestCase):
         self.received = datetime.strptime(self.day + "23:59", "%Y%m%d%H:%M").replace(tzinfo=JST) - timedelta(hours=3)
 
     def collect_rows(self, titles=None, cards=None):
-        with patch.object(collector, "STORE", self.store), patch("research_model.STORE", self.store), patch.object(
-            collector, "read_rows", side_effect=[(titles if titles is not None else [self.title], self.received), (cards if cards is not None else [self.card], self.received)]
+        with patch.object(collector, "model_provenance",return_value={"model_git_sha":"a"*40,"model_source_sha256":"b"*64}), patch.object(collector, "STORE", self.store), patch("research_model.STORE", self.store), patch.object(
+            collector, "read_rows", side_effect=[(titles if titles is not None else [self.title], self.received, "a"*64), (cards if cards is not None else [self.card], self.received,"b"*64)]
         ):
             return collector.collect(self.day)
 
