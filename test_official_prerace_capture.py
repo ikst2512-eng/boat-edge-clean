@@ -79,6 +79,18 @@ class CaptureTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
 
+    def test_wrong_race_date_and_missing_timestamp_rejected(self):
+        receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_raw_receipt(receipt, raw, directory)
+            for stamp in ["2026-10-26T14:55:00+09:00", "2026-10-27T14:55:00", "invalid"]:
+                Path(paths[1]).write_text(json.dumps({**receipt, "fetched_at": stamp}))
+                with self.assertRaises(ValueError):
+                    read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+            Path(paths[1]).write_text(json.dumps({k:v for k,v in receipt.items() if k != "fetched_at"}))
+            with self.assertRaises(ValueError):
+                read_raw_receipt(directory, receipt["race_key"], receipt["sha256"])
+
     def test_lock_rejects_concurrent_writer(self):
         receipt, raw = capture_beforeinfo("20261027-04-10", self.deadline, now=self.now, opener=self.fetch)
         with tempfile.TemporaryDirectory() as directory:
