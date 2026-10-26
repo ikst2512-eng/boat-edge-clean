@@ -6,7 +6,7 @@ from official_prerace_capture import capture_beforeinfo, JST
 import unittest
 from unittest.mock import patch
 from run_official_prerace_probe import run
-from official_beforeinfo_research_parser import ResearchParseUnavailable
+from official_beforeinfo_research_parser import ResearchParseUnavailable, ExhibitionNotPublished
 
 
 class ProbeRunnerTests(unittest.TestCase):
@@ -93,6 +93,23 @@ class ProbeRunnerTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         run("20261027-12-01", "2026-10-27T15:00:00+09:00", directory)
                     self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_not_published_has_specific_reason_and_no_false_values(self):
+        receipt = {"sha256": "a" * 64, "source": "official",
+                   "fetched_at": "2026-10-27T03:46:37+09:00"}
+        diagnostic = {"race_key": "20261027-16-01", "status": "inspection_only",
+                      "verified_preview": False, "actual_entry_verified": False,
+                      "racers": [], "start_exhibition": []}
+        with patch("run_official_prerace_probe.capture_beforeinfo", return_value=(receipt, b"html")), \
+             patch("run_official_prerace_probe.save_raw_receipt", return_value=[]), \
+             patch("run_official_prerace_probe.inspect_saved_beforeinfo", return_value=diagnostic), \
+             patch("run_official_prerace_probe.research_saved_start_exhibition",
+                   side_effect=ExhibitionNotPublished("six empty rows")):
+            with tempfile.TemporaryDirectory() as directory:
+                result = run("20261027-16-01", "2026-10-27T10:42:00+09:00", directory)
+                self.assertEqual(result["research_extraction"]["reason"], "exhibition_not_published")
+                self.assertEqual(result["research_extraction"]["start_exhibition"], [])
+                self.assertFalse(result["research_extraction"]["verified_preview"])
 
     def test_archive_integrity_error_is_not_downgraded_to_unavailable(self):
         receipt = {"sha256": "a" * 64, "source": "official",
