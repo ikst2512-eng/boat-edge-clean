@@ -18,7 +18,11 @@ class NationalModelTests(unittest.TestCase):
     def test_historical_training_leak_block(self):
         with self.assertRaises(ValueError):model.predict("20261021","12","1")
     def test_source_unavailable_blocks(self):
-        with patch.object(model,"read_rows",side_effect=ValueError("not available")):
-            with self.assertRaises(ValueError):model.predict("20261023","12","1")
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(model,"STORE",Path(temp)):
+                with patch.object(model,"read_rows",side_effect=ValueError("not available")):
+                    with self.assertRaises(ValueError):model.predict("20261023","12","1")
 if __name__=="__main__":
     unittest.main()
