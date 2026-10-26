@@ -158,6 +158,11 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
             if res.get("race_code") != code or att.get("race_code") != code:
                 exclusions["race_identity_disagreement"] += 1
                 continue
+            if (not isinstance(att.get("result_source_id"), str) or
+                    att["result_source_id"] != res["result_source_id"] or
+                    att.get("confirmed_trifecta") != res.get("trifecta")):
+                exclusions["result_attestation_mismatch"] += 1
+                continue
             outcome = res.get("trifecta")
             if outcome not in ("-".join([str(i), str(j), str(k)])
                                for i in range(1,7) for j in range(1,7)
