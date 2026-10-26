@@ -104,6 +104,8 @@ def probe(date, venue, race, opener=urlopen):
                                         mapped = map_race_card(decoded, target, url, report["observed_at"])
                                     else:
                                         mapped = stage_preview(decoded, target, name.removeprefix("preview_"), url)
+                                    if name == "race_csv":
+                                        entry["registration_numbers"] = sorted(x["registration"] for x in mapped["racers"])
                                     entry["record_validation"] = "schema_pass_unverified"
                                     entry["record_fields"] = len(mapped["racers"]) if name == "race_csv" else len(mapped["values"])
                                 except (ValueError, KeyError, TypeError) as error:
@@ -117,6 +119,17 @@ def probe(date, venue, race, opener=urlopen):
         except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
             entry["error_type"] = type(exc).__name__
         report["sources"][name] = entry
+    csv_r = report["sources"]["race_csv"].get("registration_numbers")
+    official_r = report["sources"]["official_racelist"].get("registration_candidates")
+    if csv_r is not None and official_r is not None and len(official_r) == 6 and len(csv_r) == 6:
+        equal = csv_r == official_r
+        report["registration_set_comparison"] = {
+            "status": "equal_unverified" if equal else "mismatch_blocked",
+            "same_set": equal, "lane_mapping_verified": False,
+            "official_race_identity_verified": False,
+        }
+    else:
+        report["registration_set_comparison"] = {"status": "not_comparable", "lane_mapping_verified": False}
     return report
 
 if __name__ == "__main__":
@@ -129,4 +142,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
