@@ -117,10 +117,10 @@ def get_odds(params):
     now = time.monotonic()
     with LOCK:
         saved = CACHE.get(key)
-        if key in INFLIGHT:
-            return 202, {"ok": False, "message": "オッズを取得中です。少ししてからもう一度押してください。"}
         if saved and now - saved[0] < (60 if saved[1] == 200 else 5):
             return saved[1], saved[2]
+        if key in INFLIGHT:
+            return 202, {"ok": False, "message": "オッズを取得中です。少ししてからもう一度押してください。"}
         INFLIGHT.add(key)
     logging.info("odds_refresh_started venue=%s race=%s", jcd, rno)
     url = "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=" + hd + "&jcd=" + jcd + "&rno=" + rno
