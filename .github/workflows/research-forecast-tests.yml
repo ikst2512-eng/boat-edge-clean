@@ -9,7 +9,9 @@ on:
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
       - 'scripts/audit_research_outcomes.py'
+      - 'scripts/verify_research_git_first_add.py'
       - 'tests/test_audit_research_outcomes.py'
+      - 'tests/test_verify_research_git_first_add.py'
       - '.github/workflows/research-forecast-tests.yml'
   pull_request:
     paths:
@@ -20,7 +22,9 @@ on:
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
       - 'scripts/audit_research_outcomes.py'
+      - 'scripts/verify_research_git_first_add.py'
       - 'tests/test_audit_research_outcomes.py'
+      - 'tests/test_verify_research_git_first_add.py'
       - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:
 jobs:
@@ -34,4 +38,4 @@ jobs:
       - name: Validate research forecast model and persisted records
         run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily
       - name: Verify isolated research auditor fixture gates
-        run: python -m unittest discover -s tests -p 'test_audit_research_outcomes.py' -v
+        run: python -m unittest discover -s tests -p 'test_*research*.py' -v
