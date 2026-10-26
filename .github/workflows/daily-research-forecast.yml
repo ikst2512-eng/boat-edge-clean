@@ -30,6 +30,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          exec > >(tee capture-evidence/persistence.log) 2>&1
+          echo "run_id=$GITHUB_RUN_ID checkout_sha=$GITHUB_SHA"
           if [ ! -d research_snapshots ]; then
             echo 'No research forecast files produced'
             exit 0
@@ -46,7 +48,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: daily-research-collection-${{ github.run_id }}
-          path: capture-evidence/collection.log
+          path: |
+            capture-evidence/collection.log
+            capture-evidence/persistence.log
           if-no-files-found: warn
           retention-days: 30
       - name: Publish diagnostic summary
