@@ -301,6 +301,17 @@ def probe(date, venue, race, opener=urlopen):
         "values_compared": False,
         "official_race_identity_verified": False,
     }
+    gate = report["readiness_gate"]
+    gate["official_tilt_time_equal_unverified"] = (
+        report["preview_tilt_time_comparison"].get("all_six_equal") is True
+    )
+    gate["official_exhibition_st_equal_unverified"] = (
+        report["official_st_comparison"].get("all_six_equal") is True
+    )
+    gate["official_six_racer_sets_equal_unverified"] = (
+        report["official_preview_probe"].get("six_racer_sets_equal") is True
+    )
+    gate["status"] = "blocked_unverified_official_race_identity_and_provenance"
     return report
 
 if __name__ == "__main__":
