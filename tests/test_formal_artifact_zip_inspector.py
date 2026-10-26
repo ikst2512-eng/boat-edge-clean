@@ -12,7 +12,8 @@ from formal_candidate_validator import InvalidCandidate
 class DownloadedZipTests(unittest.TestCase):
     def sample(self):
         code = "202610280101"
-        candidate = {"race_code": code,
+        candidate = {"race_code": code, "deadline_at": "2026-10-28T09:15:00+09:00",
+                     "source_snapshot_sha256": "a" * 64,
                      "probabilities": {"-".join(t): 1/120 for t in permutations("123456", 3)}}
         raw = json.dumps(candidate).encode()
         digest = hashlib.sha256(raw).hexdigest()
@@ -20,7 +21,10 @@ class DownloadedZipTests(unittest.TestCase):
                               "schema": "fresh-prospective-receipt-v1",
                               "status": "candidate_only_not_formal_or_public",
                               "independent_github_arrival_verified": False,
-                              "workflow_run_id": 123, "workflow_attempt": 1}).encode()
+                              "workflow_run_id": 123, "workflow_attempt": 1,
+                              "deadline_at": candidate["deadline_at"],
+                              "source_snapshot_sha256": candidate["source_snapshot_sha256"],
+                              "runner_recorded_at": "2026-10-28T09:02:00+09:00"}).encode()
         def make_zip(contents):
             mem = io.BytesIO()
             with zipfile.ZipFile(mem, "w") as z:
@@ -66,6 +70,22 @@ class DownloadedZipTests(unittest.TestCase):
         code, digest, members, make_zip = self.sample()
         receipt = members["prospective_receipt.json"]
         members["prospective_receipt.json"] = receipt.replace(b'"race_code":', b'"race_code":"202610280201","race_code":', 1)
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
+    def test_deadline_mismatch(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["deadline_at"] = "2026-10-28T10:15:00+09:00"
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
+    def test_source_digest_mismatch(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["source_snapshot_sha256"] = "b" * 64
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, digest)
 
