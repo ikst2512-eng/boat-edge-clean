@@ -146,6 +146,14 @@ class PairedComparisonTests(unittest.TestCase):
         row=self.row()
         row["deadline"]="2026-10-29T13:00:00+09:00"
         self.assertEqual(compare([row],"a","b")["eligible_races"],0)
+    def test_invalid_row_cannot_suppress_later_valid_same_race(self):
+        invalid=self.row()
+        invalid["research_outcome_access_approved"]=False
+        valid=self.row()
+        result=compare([invalid,valid],"a","b")
+        self.assertEqual(result["eligible_races"],1)
+        self.assertEqual(result["excluded_races"],1)
+        self.assertIn("outcome access not approved",result["exclusion_reasons"])
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
