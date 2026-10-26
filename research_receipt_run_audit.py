@@ -25,8 +25,14 @@ def run_audit(run_id, sha, folder="research_prospective_pairs"):
         run=json.load(response)
     if run.get("id")!=int(run_id) or run.get("head_sha")!=sha:
         raise ValueError("run does not correspond to checked-out commit")
+    import subprocess
+    added = set(subprocess.check_output(
+        ["git", "diff-tree", "--root", "--no-commit-id", "--name-only",
+         "--diff-filter=A", "-r", sha], text=True).splitlines())
     reports=[]
     for path in sorted(Path(folder).glob("*.json")):
+        if path.as_posix() not in added:
+            continue
         if path.is_symlink():
             raise ValueError("symlink pair forbidden")
         raw=path.read_bytes()
@@ -35,6 +41,8 @@ def run_audit(run_id, sha, folder="research_prospective_pairs"):
         import subprocess
         committed=subprocess.check_output(["git","show",f"{sha}:{path.as_posix()}"])
         reports.append(audit_pair_blob(raw,path.as_posix(),run,sha,committed))
+    if not reports:
+        raise ValueError("push did not introduce any new paired forecast files")
     return {"run_id":int(run_id),"inspected":len(reports),
             "remote_pair_evidence_count":sum(x["remote_pair_evidence"] for x in reports),
             "reports":reports,
