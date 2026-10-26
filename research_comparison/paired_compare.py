@@ -65,6 +65,7 @@ def collect(rows, baseline, candidate):
     pairs, excluded = [], {}
     seen = set()
     model_identity = {}
+    registered_cohort = None
     for r in rows:
         try:
             key = r["race_key"]
@@ -93,6 +94,11 @@ def collect(rows, baseline, candidate):
                 raise ValueError("pre-registered model ID mismatch")
             if not reg.get("receipt_verified_independently", False):
                 raise ValueError("pre-registration receipt not independently verified")
+            identity = (reg["baseline_model_id"], reg["candidate_model_id"],
+                        reg["baseline_model_sha"], reg["candidate_model_sha"],
+                        reg["registered_at"])
+            if registered_cohort is not None and identity != registered_cohort:
+                raise ValueError("pre-registration drift across evaluation races")
             registered = timestamp(reg["registered_at"])
             if registered >= timestamp(r["deadline"]):
                 raise ValueError("pre-registration after deadline")
@@ -106,6 +112,8 @@ def collect(rows, baseline, candidate):
                     raise ValueError("model SHA drift across evaluation races")
             for name in (baseline, candidate):
                 model_identity.setdefault(name, f[name]["model_sha"])
+            if registered_cohort is None:
+                registered_cohort = identity
             ra, rb = rank(a), rank(b)
             pairs.append({"race_key":key, "a":[int(y in ra[:k]) for k in TOPS],
                           "b":[int(y in rb[:k]) for k in TOPS],
