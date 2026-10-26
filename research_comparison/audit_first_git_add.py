@@ -33,6 +33,9 @@ def audit(repo, commit, path, expected_sha256, deadline):
     change=git(repo,"diff-tree","--no-commit-id","--name-status","-r",commit,"--",path)
     if change.decode().strip()!=f"A\t{path}":
         raise ValueError("path was not newly added in asserted commit")
+    prior_history=git(repo,"log","--format=%H",parents[1],"--",path)
+    if prior_history.strip():
+        raise ValueError("not the first historical addition of path")
     raw=git(repo,"show",f"{commit}:{path}")
     if hashlib.sha256(raw).hexdigest()!=expected_sha256:
         raise ValueError("frozen blob bytes differ")
