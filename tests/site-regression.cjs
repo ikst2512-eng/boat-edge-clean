@@ -14,6 +14,7 @@ const six=Array.from({length:6},(_,i)=>({lane:i+1}));
 assert.equal(validSixLanes(six),true,'all six official lanes pass');
 for(const bad of [null,[],six.slice(0,5),[...six,{lane:7}],six.map((x,i)=>i===5?{lane:1}:x),six.map((x,i)=>i===5?{lane:7}:x),six.map((x,i)=>i===5?{lane:'6'}:x),[null,...six.slice(1)]])assert.equal(validSixLanes(bad),false,'reject malformed official exhibition lanes');
 assert.ok(script.includes('validSixLanes(raw.beforeinfo?.racers)&&validSixLanes(raw.beforeinfo?.start_exhibition)'),'both exhibition datasets require six unique lanes');
+assert.ok(script.includes('本番進入は未確定'),'do not portray start exhibition as verified actual race course');
 assert.ok(script.includes('entryAudit.source===expectedEntryUrl'),'main-race actual entry must match exact official source URL');
 assert.ok(script.includes('sidecarToken!==window.raceDataRequestId||sidecarKey!==sameRaceKey()'),'late entry response must not overwrite a new race');
 const classify=extract('classifyPredictionMatch'),official=extract('isOfficialResultSource');
@@ -106,7 +107,7 @@ assert.ok(script.includes('previewAt<=Date.now()+300000'),'future exhibition dat
 assert.ok(html.includes('id="mobileRaceCards"'),'mobile six-lane comparison exists');
 assert.ok(script.includes("mobileCards.append(card)"),'mobile cards are populated from saved racers');
 assert.ok(html.includes('#raceDataSection[data-view="card"] .mobile-race-cards'),'mobile cards shown only on card tab');
-assert.ok(script.includes('実進入：未取得・未検証'),'actual entry must not be silently imputed');
+assert.ok(script.includes('スタート展示進入：未取得・未検証'),'actual entry must not be silently imputed');
 assert.ok(script.includes("['平均ST',txt(racer.avg_st)]"),'exhibition must show stable average ST comparison');
 assert.ok(script.includes('new Set(actual).size===6'),'actual entry must contain a six-lane permutation');
 assert.ok(html.includes('id="courseDataNotice"'),'course data coverage status must be visible');
