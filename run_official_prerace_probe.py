@@ -30,7 +30,7 @@ def run(race_key, deadline_text, directory):
     manifest = Path(directory) / (race_key + "-" + receipt["sha256"] + ".manifest.json")
     with manifest.open("x", encoding="utf-8") as handle:
         json.dump(result, handle, ensure_ascii=False, sort_keys=True, indent=2)
-        handle.write("\\n")
+        handle.write("\n")
     return result
 
 
