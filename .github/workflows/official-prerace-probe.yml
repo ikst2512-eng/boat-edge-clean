@@ -41,7 +41,7 @@ jobs:
             'https://www.boatrace.jp/owpc/pc/race/beforeinfo')
           mime=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)
           rm -f "$headers"
-          echo "Beforeinfo route without race parameters: HTTP $code; ${mime:-Content-Type missing}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Beforeinfo route without race parameters: HTTP $code; ${mime:-Content-Type missing}" | tee -a "$GITHUB_STEP_SUMMARY"
           case "$code" in
             2*|3*|4*) echo 'Transport responded; this does not verify a race page' >> "$GITHUB_STEP_SUMMARY" ;;
             *) echo 'Beforeinfo route transport/server failure' >&2; exit 1 ;;
