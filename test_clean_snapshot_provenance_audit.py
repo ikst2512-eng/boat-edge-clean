@@ -1,6 +1,9 @@
 import hashlib
 import unittest
-from clean_snapshot_provenance_audit import audit_snapshot
+import json
+import tempfile
+from pathlib import Path
+from clean_snapshot_provenance_audit import audit_snapshot, audit_saved_directory
 
 def fixture():
     title = "a" * 64
@@ -35,6 +38,14 @@ class SnapshotAuditTests(unittest.TestCase):
     def test_non_jst_timestamp_is_blocked(self):
         x = fixture(); x["generated_at"] = "2026-10-26T06:00:00+00:00"
         self.assertEqual(audit_snapshot(x)["status"], "blocked_non_jst_timestamp")
+    def test_saved_filename_race_identity_mismatch_is_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "202610260102.json"
+            path.write_text(json.dumps(fixture()), encoding="utf-8")
+            result = audit_saved_directory(directory)
+            self.assertEqual(result["statuses"], {"blocked_filename_race_identity": 1})
+            self.assertFalse(result["all_verified"])
+
     def test_missing_deadline_is_blocked(self):
         x = fixture(); x.pop("source_deadline_jst")
         self.assertEqual(audit_snapshot(x)["status"], "blocked_time_evidence_incomplete")
