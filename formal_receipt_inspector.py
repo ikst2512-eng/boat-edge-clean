@@ -37,8 +37,9 @@ def inspect_receipt(candidate_bytes, receipt):
         raise InvalidCandidate("receipt race mismatch")
     first_seen = _timestamp(receipt.get("first_seen_at"))
     cutoff = _timestamp(candidate["cutoff_at"])
-    if first_seen > cutoff:
-        raise InvalidCandidate("receipt after cutoff")
+    generated = _timestamp(candidate["generated_at"])
+    if not generated <= first_seen <= cutoff:
+        raise InvalidCandidate("receipt outside generation-to-cutoff window")
     if not isinstance(receipt.get("repository"), str) or not receipt["repository"]:
         raise InvalidCandidate("receipt origin missing")
     if not isinstance(receipt.get("artifact_commit_sha"), str) or len(receipt["artifact_commit_sha"]) != 40 or any(c not in "0123456789abcdef" for c in receipt["artifact_commit_sha"]):
