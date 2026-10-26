@@ -39,6 +39,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             python clean_live_source_probe.py --date "$RACE_DATE" --venue "$VENUE" --race 2 --output source-probe-race2.json
             python clean_live_source_probe.py --date "$RACE_DATE" --venue 01 --race 1 --output source-probe-venue01.json
+            python clean_live_source_probe.py --date 20261025 --venue 21 --race 1 --output source-probe-prior-day.json
           fi
       - name: Preserve diagnostic metadata only
         if: always()
@@ -49,5 +50,6 @@ jobs:
             source-probe-report.json
             source-probe-race2.json
             source-probe-venue01.json
+            source-probe-prior-day.json
           if-no-files-found: warn
           retention-days: 14
