@@ -98,6 +98,17 @@ class EvidenceTests(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("invalid research snapshot path", r.stdout)
 
+    def test_reject_tampered_input_hash_before_commit(self):
+        p = self.root / "research_snapshots/202610270103.json"
+        record = json.loads(valid_record("202610270103"))
+        record["input_sha256"] = "0" * 64
+        p.write_text(json.dumps(record))
+        r = self.execute()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("input composite hash mismatch", r.stdout)
+        self.assertFalse((self.root / "capture-evidence/snapshot-sha256.txt").exists())
+        self.assertNotIn("202610270103.json", run("git", "ls-tree", "-r", "--name-only", "HEAD", cwd=self.root).stdout)
+
     def test_successful_push_to_local_bare_remote(self):
         remote = self.root / "remote.git"
         self.assertEqual(run("git", "init", "-q", "--bare", str(remote)).returncode, 0)
