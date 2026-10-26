@@ -24,6 +24,25 @@ class InspectionTests(unittest.TestCase):
     def test_script_labels_are_not_evidence(self):
         result=inspect_beforeinfo_html(RECEIPT,b"<html><script>var label='\xe5\xb1\x95\xe7\xa4\xba\xe3\x82\xbf\xe3\x82\xa4\xe3\x83\xa0';</script></html>")
         self.assertFalse(result["sections_present"]["exhibition_time"])
+    def test_hidden_placeholders_never_count_as_official_data(self):
+        samples = (
+            "<template><p>展示タイム</p></template>",
+            "<noscript>展示タイム</noscript>",
+            "<div hidden>展示タイム</div>",
+            '<div aria-hidden="true">展示タイム</div>',
+            '<section style="display: none">展示タイム</section>',
+            '<section style="visibility: hidden">展示タイム</section>',
+            "<svg><text>展示タイム</text></svg>",
+            "<div><script>展示タイム</script></div>",
+        )
+        for sample in samples:
+            raw = ("<html><body>" + sample + "</body></html>").encode("utf-8")
+            result = inspect_beforeinfo_html(RECEIPT, raw)
+            self.assertFalse(result["sections_present"]["exhibition_time"], sample)
+        visible = inspect_beforeinfo_html(
+            RECEIPT, "<html><body><div hidden>展示タイム</div><p>展示タイム</p></body></html>".encode())
+        self.assertTrue(visible["sections_present"]["exhibition_time"])
+
     def test_saved_inspection_requires_complete_verified_receipt(self):
         now = datetime(2026, 10, 27, 14, 55, tzinfo=JST)
         deadline = now + timedelta(minutes=5)
