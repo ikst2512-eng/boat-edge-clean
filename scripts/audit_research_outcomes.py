@@ -10,6 +10,7 @@ import math
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
+from scripts.verify_research_git_first_add import verify_first_add
 
 REQUIRED_EVIDENCE = ("receipt_verified", "model_verified", "inputs_verified", "result_verified")
 TOPS = (1, 3, 5, 10)
@@ -32,7 +33,7 @@ def wilson(hits, n, z=1.959963984540054):
     return [max(0, mid-delta), min(1, mid+delta)]
 
 
-def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None):
+def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None, git_repo=None, trusted_ref='refs/heads/main'):
     """Returns separate counts for exclusions and a defensible matched sample.
 
     Each manifest must be verified by a separate reviewer against independent
@@ -150,6 +151,15 @@ def audit(snapshot_dir, attestations, results, approved_attestations_sha256=None
                     att.get("remote_receipt_verified") is not True):
                 exclusions["unverified_first_commit_or_remote_receipt"] += 1
                 continue
+            if git_repo is None:
+                exclusions["git_history_not_verified"] += 1
+                continue
+            git_proof = verify_first_add(git_repo, code, first_commit, trusted_ref)
+            if (git_proof.get("verified") is not True or
+                    git_proof.get("first_added_blob_sha") != blob or
+                    git_proof.get("snapshot_sha256") != att["snapshot_sha256"]):
+                exclusions["git_first_add_verification_failed"] += 1
+                continue
             if timestamp(att["first_seen_at"]) > timestamp(obj["cutoff_jst"]):
                 exclusions["receipt_after_cutoff"] += 1
                 continue
@@ -221,13 +231,16 @@ def main():
     parser.add_argument("--attestations",required=True)
     parser.add_argument("--results",required=True)
     parser.add_argument("--output")
+    parser.add_argument("--git-repo", help="Local checked-out repository for independent Git ancestry validation")
+    parser.add_argument("--trusted-ref", default="refs/heads/main")
     parser.add_argument(
         "--approved-attestations-sha256",
         help="Independently approved digest of canonical JSON attestations"
     )
     args=parser.parse_args()
     report=audit(args.snapshots,json.loads(Path(args.attestations).read_text()),
-                 json.loads(Path(args.results).read_text()), args.approved_attestations_sha256)
+                 json.loads(Path(args.results).read_text()), args.approved_attestations_sha256,
+                 git_repo=args.git_repo, trusted_ref=args.trusted_ref)
     content=json.dumps(report,ensure_ascii=False,indent=2)
     if args.output:
         Path(args.output).write_text(content+"\n")
