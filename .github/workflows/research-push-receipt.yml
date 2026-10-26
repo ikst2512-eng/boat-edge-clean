@@ -11,6 +11,19 @@ jobs:
   receipt:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit committed pair against server-side run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RECEIPT_RUN_ID: ${{ github.run_id }}
+          RECEIPT_SHA: ${{ github.sha }}
+        run: |
+          python research_receipt_run_audit.py --run-id "$RECEIPT_RUN_ID" --sha "$RECEIPT_SHA"
       - name: Record GitHub-side push identity
         env:
           EVENT_NAME: ${{ github.event_name }}
