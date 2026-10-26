@@ -74,6 +74,38 @@ class PinnedPR15IntegrationTests(unittest.TestCase):
         parsed=research_start_exhibition(html)
         self.assertEqual(len(parsed["start_exhibition"]),6)
         self.assertEqual([x["boat_number"] for x in parsed["start_exhibition"]],list(range(1,7)))
+    def test_saved_legacy_html_reparsed_and_compared(self):
+        html=('<html><body>'+''.join(
+            '<div class="table1_boatImage1"><span class="table1_boatImage1Number">'+str(i)+'</span>'
+            '<span class="table1_boatImage1Time">0.12</span></div>'
+            for i in range(1,7))+'</body></html>').encode()
+        class LegacyResponse(FakeResponse):
+            def read(self,n): return html
+        receipt,raw=capture_beforeinfo(KEY,DEADLINE,now=CAPTURED,
+                                        completed_at=CAPTURED,
+                                        opener=lambda request,timeout: LegacyResponse())
+        with tempfile.TemporaryDirectory() as directory:
+            save_raw_receipt(receipt,raw,directory,deadline=DEADLINE)
+            racers=[{"lane":i,"registration":f"{4000+i}"} for i in range(1,7)]
+            racelist={"race_key":KEY,"status":"html_candidates_unverified",
+                      "official_provenance_verified":False,"racers":racers}
+            parsed=research_start_exhibition(raw)
+            parsed.update({"race_key":KEY,"raw_sha256":receipt["sha256"],
+                           "captured_at":receipt["fetched_at"]})
+            result=bridge_saved_official_receipt(
+                racelist,parsed,directory=directory,deadline=DEADLINE,
+                read_raw_receipt=read_raw_receipt,
+                reparse_raw=research_start_exhibition)
+            self.assertEqual(result["status"],"bridged_unverified")
+            self.assertFalse(result["official_preview_values_equal"])
+            corrupted=dict(parsed)
+            corrupted["start_exhibition"]=[dict(x) for x in parsed["start_exhibition"]]
+            corrupted["start_exhibition"][0]["exhibition_st"]=0.34
+            with self.assertRaises(ValueError):
+                bridge_saved_official_receipt(
+                    racelist,corrupted,directory=directory,deadline=DEADLINE,
+                    read_raw_receipt=read_raw_receipt,
+                    reparse_raw=research_start_exhibition)
     def test_tampered_archive_rejected_by_pr15_reader(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt,racelist,parsed=self.prepare(directory)
