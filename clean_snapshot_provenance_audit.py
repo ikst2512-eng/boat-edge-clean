@@ -37,3 +37,31 @@ def audit_snapshot(record):
             "source_bytes_independently_verified": False,
             "official_preview_bound": False,
             "prediction_snapshot_proven": False}
+
+def audit_saved_directory(directory):
+    """Summarize evidence coverage only; never edit saved research predictions."""
+    import json
+    from collections import Counter
+    from pathlib import Path
+    counts = Counter()
+    total = 0
+    for file in sorted(Path(directory).glob("*.json")):
+        total += 1
+        try:
+            with file.open(encoding="utf-8") as stream:
+                record = json.load(stream)
+            status = audit_snapshot(record)["status"]
+        except (OSError, ValueError, TypeError):
+            status = "blocked_unreadable_json"
+        counts[status] += 1
+    return {"total": total, "statuses": dict(sorted(counts.items())),
+            "all_verified": False, "snapshot_source_bytes_authenticated": False}
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--directory", default="research_snapshots")
+    args = parser.parse_args()
+    print(json.dumps(audit_saved_directory(args.directory), sort_keys=True))
