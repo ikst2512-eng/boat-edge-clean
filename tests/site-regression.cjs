@@ -144,4 +144,11 @@ assert.ok(script.includes("data/site_verified_entries/"),'verified entry sidecar
 assert.ok(script.includes("sidecarToken!==window.raceDataRequestId"),'old race sidecar cannot overwrite current race');
 assert.ok(script.includes("audit.source!==sourceUrl"),'sidecar must match exact prerace source');
 assert.ok(script.includes("fetched>=raceDeadline"),'sidecar capture must predate deadline');
+assert.ok(script.includes("index===0?'prediction-primary':index<3?'prediction-strong':'prediction-standard'"),'forecast tiers must be assigned from current rank');
+assert.ok(script.includes("tier.textContent=index===0?'本命':index<3?'上位':'候補'"),'forecast tier labels must accompany colors');
+assert.ok(script.includes("Object.values(predictionProbabilities).filter(Number.isFinite)"),'probability tier requires actual finite saved model values');
+assert.ok(script.includes("p>=peak*0.8?'probability-high':peak>0&&p>=peak*0.45?'probability-mid'"),'probability highlights must compare within current race, not invent absolute calibration');
+assert.ok(html.includes('#resultSection .comparison-hit{background:#dcf9e8'),'verified hit must be legible');
+assert.ok(html.includes('#resultSection .comparison-miss{background:#fce8e8'),'verified miss must be legible');
+assert.ok(script.includes("if(!isVerifiedResult(raw,key,Date.now(),knownDeadline))throw Error('UNVERIFIED_RESULT')"),'result styling cannot bypass verification');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
