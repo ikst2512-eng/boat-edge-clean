@@ -27,4 +27,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify isolated staging safety
-        run: python -m unittest -v test_clean_source_staging test_clean_csv_staging test_clean_source_comparison test_clean_preview_staging test_clean_live_source_probe test_clean_snapshot_provenance_audit
+        run: |
+          python -m unittest -v test_clean_source_staging test_clean_csv_staging test_clean_source_comparison test_clean_preview_staging test_clean_live_source_probe test_clean_snapshot_provenance_audit
+          python clean_snapshot_provenance_audit.py --directory research_snapshots
