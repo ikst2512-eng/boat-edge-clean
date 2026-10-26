@@ -29,6 +29,7 @@ class AuditTests(unittest.TestCase):
             att={"race_code":snap["race_code"],"receipt_verified":True,"model_verified":True,
                  "inputs_verified":True,"result_verified":True,
                  "receipt_id":"test-only","model_git_sha":"a"*40,
+                 "result_source_id":"synthetic-fixture-only","confirmed_trifecta":"1-2-3",
                  "model_file_sha256":"b"*64,"input_sha256":snap["input_sha256"],
                  "snapshot_sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
                  "first_seen_at":"2026-10-26T09:01:00+09:00",
@@ -54,6 +55,9 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["impossible_evidence_chronology"],1)
             p.write_text(json.dumps(snap))
             att["snapshot_sha256"] = hashlib.sha256(p.read_bytes()).hexdigest()
+            att["confirmed_trifecta"]="2-1-3"
+            self.assertEqual(audit(d,[att],[outcome],digest())["exclusion_reasons"]["result_attestation_mismatch"],1)
+            att["confirmed_trifecta"]="1-2-3"
             invalid_result=dict(outcome)
             invalid_result.pop("result_source_id")
             self.assertEqual(audit(d,[att],[invalid_result],digest())["exclusion_reasons"]["missing_result_provenance"],1)
