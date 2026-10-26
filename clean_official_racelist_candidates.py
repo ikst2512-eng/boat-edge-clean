@@ -24,18 +24,20 @@ class _Rows(HTMLParser):
         if tag == "tr":
             if self.row is not None:
                 raise ValueError("nested race row")
-            self.row = {"lanes": [], "racers": []}
+            self.row = {"lanes": [], "racers": [], "seen_racer_link": False}
         if self.row is None:
             return
         lane_class = attrs.get("class", "")
-        for token in lane_class.split():
-            lane = BOAT.fullmatch(token)
-            if lane:
-                self.row["lanes"].append(int(lane.group(1)))
+        if not self.row["seen_racer_link"]:
+            for token in lane_class.split():
+                lane = BOAT.fullmatch(token)
+                if lane:
+                    self.row["lanes"].append(int(lane.group(1)))
         if tag == "a":
             query = parse_qs(urlparse(attrs.get("href", "")).query)
             token = query.get("toban", [])
             if len(token) == 1 and REG.fullmatch(token[0]):
+                self.row["seen_racer_link"] = True
                 self.anchor = {"registration": token[0], "name": ""}
         if tag in ("td", "th"):
             self.cell = tag
