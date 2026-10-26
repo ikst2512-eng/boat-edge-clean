@@ -62,4 +62,18 @@ class CollectorTests(unittest.TestCase):
    with self.assertRaisesRegex(ValueError, "race card source is empty"):
     collector.collect(self.day)
    self.assertFalse(list(self.store.glob("*.json")))
+ def test_empty_titles_fail_closed(self):
+  with patch.object(collector,"read_rows",side_effect=[([],datetime.now(JST),"a"*64),([self.card],datetime.now(JST),"b"*64)]):
+   with self.assertRaisesRegex(ValueError,"no valid race titles"):
+    collector.collect(self.day)
+ def test_invalid_rate_fails_closed(self):
+  start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
+  for value in ("NaN","Infinity","-1","11",""):
+   with self.subTest(value=value):
+    bad=dict(self.card,**{"艇1_全国勝率":value})
+    with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([bad],start,"b"*64)]):
+     report=collector.collect(self.day)
+    self.assertEqual(report["saved"],0)
+    self.assertEqual(report["invalid"],1)
+    self.assertFalse(list(self.store.glob("*.json")))
 if __name__=="__main__":unittest.main()
