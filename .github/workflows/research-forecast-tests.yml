@@ -7,6 +7,8 @@ on:
       - 'test_research_model.py'
       - 'test_research_model_provenance.py'
       - 'test_research_source_digests.py'
+      - 'test_research_capture_workflow.py'
+      - '.github/workflows/daily-research-forecast.yml'
       - 'test_research_persistence.py'
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
@@ -18,6 +20,8 @@ on:
       - 'collect_research_daily.py'
       - 'test_research_*.py'
       - 'test_collect_research*.py'
+      - 'test_research_capture_workflow.py'
+      - '.github/workflows/daily-research-forecast.yml'
       - '.github/workflows/research-forecast-tests.yml'
   workflow_dispatch:
 jobs:
@@ -29,4 +33,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance
+        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow
