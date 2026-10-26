@@ -49,6 +49,20 @@ class GitHubReaderTests(unittest.TestCase):
             with self.assertRaises(InvalidCandidate):
                 audit(123, 456, "202610280101", "a" * 64, "fake", opener=Opener())
 
+    def test_malformed_run_response_fails_closed(self):
+        class BadOpener:
+            def open(self, req, timeout):
+                class Response:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args):
+                        return False
+                    def read(self, n):
+                        return b"not-json"
+                return Response()
+        with self.assertRaises(InvalidCandidate):
+            audit(123, 456, "202610280101", "a" * 64, "fake", opener=BadOpener())
+
     def test_bad_redirect_host_rejected(self):
         handler = NoAuthCrossHostRedirect()
         original = Request("https://api.github.com/example",
