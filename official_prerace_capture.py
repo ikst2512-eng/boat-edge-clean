@@ -81,26 +81,40 @@ def save_raw_receipt(receipt, raw, directory):
     root.mkdir(parents=True, exist_ok=True)
     stem = key + "-" + receipt["sha256"]
     pairs = [(root / (stem + ".html"), raw), (root / (stem + ".json"), (json.dumps(receipt, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))]
-    if any(path.exists() for path, _ in pairs):
-        raise FileExistsError("receipt already exists; immutable evidence")
+    # Per-receipt exclusive lock prevents concurrent writers from deleting one
+    # another's published files during rollback. Readers must require both files.
+    lock_path = root / (stem + ".lock")
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     pending = []
     created = []
     try:
+        if any(path.exists() for path, _ in pairs):
+            raise FileExistsError("receipt already exists; immutable evidence")
         for path, data in pairs:
             with tempfile.NamedTemporaryFile(dir=root, prefix=".pending-", delete=False) as fp:
                 pending.append(Path(fp.name))
                 fp.write(data)
                 fp.flush()
                 os.fsync(fp.fileno())
-        # Hard links give exclusive publication without overwriting existing evidence.
         for (path, _), temp in zip(pairs, pending):
             os.link(temp, path)
             created.append(path)
+        # Commit marker published last: only receipts with this marker are readable.
+        marker = root / (stem + ".complete")
+        with tempfile.NamedTemporaryFile(dir=root, prefix=".pending-", delete=False) as fp:
+            pending.append(Path(fp.name))
+            fp.write(receipt["sha256"].encode("ascii") + b"\\n")
+            fp.flush()
+            os.fsync(fp.fileno())
+        os.link(pending[-1], marker)
+        created.append(marker)
+        return [str(path) for path, _ in pairs]
     except BaseException:
-        for path in created:
+        for path in reversed(created):
             path.unlink(missing_ok=True)
         raise
     finally:
         for temp in pending:
             temp.unlink(missing_ok=True)
-    return [str(path) for path, _ in pairs]
+        os.close(lock_fd)
+        lock_path.unlink(missing_ok=True)
