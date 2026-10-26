@@ -96,3 +96,7 @@ Prospective capture also rejects non-calendar race dates, venue codes outside 01
 ### Original-byte SHA256 gate
 
 The prospective capture CLI now requires `--title-csv` and `--cards-csv` in addition to `--input-sha256`. Python callers provide `title_bytes` and `cards_bytes`. Matching PR #23, it hashes the raw title and race_cards CSVs separately, then computes SHA256 of the ASCII `title_sha256:cards_sha256` string. The order is significant; a mismatch rejects capture. The record stores both source digests and `input_hash_scope=source_csv_byte_hashes_ordered_title_cards`. This establishes byte-to-declared-hash consistency locally only; it does **not** establish that the file was independently received before cutoff, authentic or generated from the same source used by the model. Keep the independently time-stamped original and verify its provenance separately.
+
+### CSV values bound to forecast
+
+The independent 120-way capture now reads the unique matching `レースコード` row in both supplied original CSVs. It requires all six `艇1..6_全国勝率` values to exactly match supplied rates and the claimed `cutoff_jst` to equal `電話投票締切予定` minus 12 minutes. This rejects valid digests paired with unrelated model features or an arbitrary cutoff. Raw files and receipt times still require independent provenance review; local consistency is not official authenticity.
