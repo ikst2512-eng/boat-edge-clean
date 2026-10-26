@@ -58,7 +58,7 @@ def research_start_exhibition(raw):
         st = "".join(record["st"]).strip().upper()
         if not re.fullmatch(r"[1-6]", number):
             raise ValueError("invalid exhibition boat number")
-        match = re.fullmatch(r"(F|L)?(?:0\\.|\\.)?([0-9]{2})", st)
+        match = re.fullmatch(r"(F|L)?(?:0[.]|[.])?([0-9]{2})", st)
         if not match:
             raise ValueError("invalid exhibition ST")
         value = int(match.group(2)) / 100
