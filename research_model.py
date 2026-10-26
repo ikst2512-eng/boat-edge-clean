@@ -78,7 +78,7 @@ def predict(hd,jcd,rno):
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
-    record=dict(result,race_code=code,cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+    record=dict(result,race_code=code,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
                 source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
                     (title_sha256+":"+cards_sha256).encode("ascii")
