@@ -12,6 +12,8 @@ on:
       - test_clean_preview_staging.py
       - clean_live_source_probe.py
       - test_clean_live_source_probe.py
+      - clean_snapshot_provenance_audit.py
+      - test_clean_snapshot_provenance_audit.py
       - .github/workflows/clean-source-staging-tests.yml
   workflow_dispatch:
 permissions:
@@ -25,4 +27,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify isolated staging safety
-        run: python -m unittest -v test_clean_source_staging test_clean_csv_staging test_clean_source_comparison test_clean_preview_staging test_clean_live_source_probe
+        run: python -m unittest -v test_clean_source_staging test_clean_csv_staging test_clean_source_comparison test_clean_preview_staging test_clean_live_source_probe test_clean_snapshot_provenance_audit
