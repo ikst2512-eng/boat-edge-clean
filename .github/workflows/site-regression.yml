@@ -5,12 +5,14 @@ on:
       - index.html
       - tests/site-regression.cjs
       - .github/workflows/site-regression.yml
+      - .github/workflows/deploy-pages.yml
   workflow_dispatch:
   pull_request:
     paths:
       - index.html
       - tests/site-regression.cjs
       - .github/workflows/site-regression.yml
+      - .github/workflows/deploy-pages.yml
 permissions:
   contents: read
 jobs:
@@ -44,3 +46,35 @@ jobs:
           echo '- Node.js 22 test execution: PASS' >> "$GITHUB_STEP_SUMMARY"
           echo '- Command: `node tests/site-regression.cjs`' >> "$GITHUB_STEP_SUMMARY"
           echo '- Scope: static validation and stored fixtures; not live-browser or Git-first-add proof' >> "$GITHUB_STEP_SUMMARY"
+
+  publish-smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract actual Pages browser fixture from publishing workflow
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import re
+          workflow=pathlib.Path('.github/workflows/deploy-pages.yml').read_text()
+          match=re.search(r'(?ms)^      - name: Browser interaction smoke test\n(.*?)(?=^      - name: |\Z)',workflow)
+          if not match:
+              raise SystemExit('Publishing browser fixture missing')
+          script=re.search(r"(?ms)^          node - <<'JS'\n(.*?)^          JS$",match.group(1))
+          if not script:
+              raise SystemExit('Publishing browser script missing')
+          code='\n'.join(line[10:] if line.startswith('          ') else line for line in script.group(1).splitlines())+'\n'
+          pathlib.Path('publish-browser-smoke.cjs').write_text(code)
+          print('Extracted actual publishing smoke; source assertions unchanged')
+          PY
+          node --check publish-browser-smoke.cjs
+      - name: Run Pages browser smoke before merging
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node publish-browser-smoke.cjs

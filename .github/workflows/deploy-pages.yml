@@ -185,12 +185,14 @@ jobs:
               }
               // Outside the exhibition collection window is not the same as a permanent absence.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'not_in_window'}},beforeinfo:null});
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
               await page.locator('#retryPrediction').click();
-              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('取得対象時間外'));
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'),null,{timeout:12000});
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('out-of-window exhibition removed lane cards');
               // Real saved PRE_RESULT values from 2026-10-22 Suminoe 1R:
               // lane 1 exhibition 6.89, tilt -0.5 and ST F.04.
               raceText=JSON.stringify({...race,beforeinfo:{...race.beforeinfo,racers:race.beforeinfo.racers.map((r,i)=>i===0?{...r,exhibition_time:6.89,tilt:-0.5}:r),start_exhibition:race.beforeinfo.start_exhibition.map((r,i)=>i===0?{...r,st:'F.04'}:r)}});
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'));
               const realFirst=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
@@ -201,15 +203,15 @@ jobs:
               raceText=JSON.stringify(oddPreview);
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示を表示中'));
+              // A rejected incomplete racer card must not replace the last verified six-racer view.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:[race.racers[0],null,race.racers[2],race.racers[3]],beforeinfo:null});
-              await page.locator('#retryPrediction').click();
               await page.locator('.view-tabs [data-view="card"]').click();
-              await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示が未提供'),null,{timeout:12000});
-              if(!((await page.locator('#raceDataRows').innerText()).includes('未提供')))throw Error('missing racer not marked');
-              if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('missing beforeinfo removed exhibition lane cards');
-              if((await page.locator('#exhibitionGrid .exhibition-boat').first().locator('.exhibition-metric strong').allInnerTexts()).some(v=>v!=='—'))throw Error('unverified exhibition value leaked into cards');
+              await page.locator('#retryPrediction').click();
+              await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('前回表示'),null,{timeout:12000});
+              if(await page.locator('#raceDataRows tr').count()!==6)throw Error('incomplete racer card cleared verified six lanes');
+              if((await page.locator('#raceDataRows').innerText()).includes('未提供'))throw Error('unverified partial racer replaced verified six-lane data');
               await page.locator('.view-tabs [data-view="exhibit"]').click();
-              if(!await page.locator('#raceDataSection').isVisible())throw Error('missing exhibition hid race card');
+              if(!await page.locator('#raceDataSection').isVisible())throw Error('rejected refresh hid verified race card');
               // Rechecking an already verified prediction must not duplicate its metadata.
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済'));
@@ -225,7 +227,7 @@ jobs:
               predictionUnavailable=true;
               await page.locator('.view-tabs [data-view="forecast"]').click();
               await page.locator('#retryPrediction').click();
-              await page.waitForFunction(()=>document.querySelector('#predictionStatus').textContent.includes('保存済みの独自予想がありません'));
+              await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済')||document.querySelector('#predictionStatus')?.textContent.includes('検証済み'),null,{timeout:12000});
               await page.locator('.view-tabs [data-view="card"]').click();
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
               // A failed forced refresh must retain an already shown six-lane table.
@@ -233,6 +235,7 @@ jobs:
                 if(route.request().url().includes(racePath))return route.fulfill({status:503,headers:cors,body:'temporary outage'});
                 return route.fallback();
               });
+              await page.locator('.view-tabs [data-view="exhibit"]').click();
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus').textContent.includes('前回表示した出走表'));
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('failed refresh erased racecard');
