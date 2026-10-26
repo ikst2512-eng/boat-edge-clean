@@ -122,3 +122,5 @@ To bind a PR #16 pair to its original source snapshot, run `python research_comp
 The PR #16 pair preflight now reports `source_snapshot_digest_verified_locally` and adds an explicit `source snapshot original bytes not supplied` reason when `--source-snapshot` is omitted. A true local flag is **not** independent receipt verification; `ready_for_scoring` remains false until external audits are complete.
 
 Original snapshot audit now requires the source JSON envelope to be `status: research` and `validated: false`, even when its canonical JSON SHA256 matches the pair's declared digest. Non-research records and invalid pair envelopes are never reported as valid local evidence or complete distributions.
+
+The optional PR #16 source snapshot check also requires its declared generation timestamp, cutoff, and original Top10 predictions to match the paired baseline's Top10 rank. A SHA-consistent but mismatched snapshot is not marked locally verified. This remains a consistency check rather than proof of actual GitHub publication time.
