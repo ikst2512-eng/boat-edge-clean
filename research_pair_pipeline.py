@@ -12,6 +12,10 @@ from research_pair_git_prepare import prepare
 from research_pair_remote_publish import push
 
 def run(day, publish=False, commit=False):
+    # Never replay an earlier/future date as if freshly frozen.
+    today=datetime.now(JST).strftime("%Y%m%d")
+    if day != today:
+        raise ValueError("research prospective pipeline requires current JST date")
     if publish and not commit:
         raise ValueError('remote push requires explicit commit opt-in')
     collected=collect_and_pair(day)
