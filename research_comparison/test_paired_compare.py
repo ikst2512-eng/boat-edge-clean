@@ -154,6 +154,13 @@ class PairedComparisonTests(unittest.TestCase):
         self.assertEqual(result["eligible_races"],0)
         self.assertEqual(result["excluded_races"],2)
         self.assertIn("ambiguous duplicate race",result["exclusion_reasons"])
+    def test_exclusion_audit_details_without_outcomes(self):
+        row=self.row()
+        row["research_outcome_access_approved"]=False
+        result=compare([row],"a","b")
+        self.assertEqual(result["excluded_details"],[
+            {"race_key":"20261028-12-1","reason":"outcome access not approved"}])
+        self.assertNotIn("1-2-3",str(result["excluded_details"]))
     def test_unapproved_outcome_rejected(self):
         r=self.row()
         r["research_outcome_access_approved"]=False
