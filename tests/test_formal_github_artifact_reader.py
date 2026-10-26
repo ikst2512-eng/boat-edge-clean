@@ -83,6 +83,7 @@ class GitHubReaderTests(unittest.TestCase):
                     data = {"id": 123, "run_attempt": 1, "status": "completed",
                             "conclusion": "success", "event": "repository_dispatch",
                             "path": ".github/workflows/fresh-prospective-capture.yml",
+                            "head_branch": "main",
                             "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"}}
                 elif "/artifacts?per_page=100" in url:
                     data = {"total_count": 1, "artifacts": [{"id": 456,
