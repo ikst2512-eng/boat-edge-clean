@@ -1,13 +1,13 @@
 """Daily research forecast collection. Uses one source fetch per daily CSV."""
-import argparse, csv, io, json, os, sys
+import argparse, json, os, hashlib
 from datetime import datetime, timedelta
-from research_model import JST, BASE, STORE, _record_path, _saved, probabilities, read_rows
+from research_model import JST, BASE, STORE, _record_path, _saved, probabilities, read_rows, model_provenance
 def collect(day):
     date=datetime.strptime(day,"%Y%m%d").date()
     if date<=datetime(2026,10,21).date():raise ValueError("training days excluded")
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
-    titles,t1=read_rows(BASE+"title/"+path)
-    cards,t2=read_rows(BASE+"race_cards/"+path)
+    titles,t1,title_sha=read_rows(BASE+"title/"+path)
+    cards,t2,cards_sha=read_rows(BASE+"race_cards/"+path)
     by_code={r.get("レースコード"):r for r in cards if r.get("レースコード")}
     counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
     for title in titles:
@@ -27,7 +27,12 @@ def collect(day):
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
                 "message":"研究予想（未検証・回収率未確認）","cutoff_jst":cutoff.isoformat(),
                 "source_title_received_jst":t1.isoformat(),"source_cards_received_jst":t2.isoformat(),
-                "national_win_rates":rates}
+                "national_win_rates":rates,"source_deadline_jst":deadline.isoformat(),
+                "source_title_sha256":title_sha,"source_cards_sha256":cards_sha,
+                "input_hash_scope":"source_csv_byte_hashes_ordered_title_cards",
+                "input_sha256":hashlib.sha256((title_sha+":"+cards_sha).encode("ascii")).hexdigest(),
+                **model_provenance()}
+            if datetime.now(JST)>cutoff:counts["not_ready"]+=1;continue
             STORE.mkdir(parents=True,exist_ok=True)
             with _record_path(code).open("x",encoding="utf-8") as f:
                 json.dump(record,f,ensure_ascii=False,sort_keys=True)
