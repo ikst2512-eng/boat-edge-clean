@@ -59,6 +59,31 @@ class FirstAddEvidenceTests(unittest.TestCase):
             self.assertEqual(verify_first_add(root, CODE, sha, ref)["reason"],
                              "path_existed_in_prior_history")
 
+    def test_shallow_clone_cannot_claim_first_introduction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "source"
+            root.mkdir()
+            command(root, "init", "-q")
+            command(root, "config", "user.name", "Audit Test")
+            command(root, "config", "user.email", "audit@example.invalid")
+            path = root / "research_snapshots" / (CODE + ".json")
+            path.parent.mkdir()
+            path.write_text('{"research":true}', encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "first")
+            (root / "marker.txt").write_text("later", encoding="utf-8")
+            command(root, "add", ".")
+            command(root, "commit", "-qm", "later")
+            clone = Path(directory) / "shallow"
+            subprocess.check_call(["git", "clone", "-q", "--depth", "1",
+                                   root.as_uri(), str(clone)])
+            sha = command(clone, "rev-parse", "HEAD")
+            ref = "refs/heads/" + command(clone, "branch", "--show-current")
+            self.assertEqual(
+                verify_first_add(clone, CODE, sha, ref)["reason"],
+                "incomplete_git_history"
+            )
+
     def test_rejects_invalid_identifiers(self):
         with self.assertRaises(ValueError):
             verify_first_add(".", "../not-a-race", "a"*40)
