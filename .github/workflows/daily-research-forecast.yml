@@ -36,9 +36,23 @@ jobs:
               echo 'No research forecast files produced'
             else
               git add -- research_snapshots/
+              # Only newly added twelve-digit race JSON files are allowed.
+              if git diff --cached --name-only --diff-filter=CDMRTUX -- research_snapshots/ | grep -q .; then
+                echo 'ERROR: existing research snapshot changed or deleted' >&2
+                exit 1
+              fi
+              if git diff --cached --name-only --diff-filter=A -- research_snapshots/ | grep -Ev '^research_snapshots/[0-9]{12}[.]json$' | grep -q .; then
+                echo 'ERROR: invalid research snapshot path' >&2
+                exit 1
+              fi
               if git diff --cached --quiet; then
                 echo 'No new cutoff-eligible research forecasts'
               else
+                mkdir -p capture-evidence/new-snapshots
+                while IFS= read -r -d '' file; do
+                  cp -- "$file" "capture-evidence/new-snapshots/$(basename "$file")"
+                done < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
+                (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
                 git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
                 git push
               fi
@@ -52,6 +66,8 @@ jobs:
           path: |
             capture-evidence/collection.log
             capture-evidence/persistence.log
+            capture-evidence/new-snapshots/*.json
+            capture-evidence/snapshot-sha256.txt
           if-no-files-found: warn
           retention-days: 30
       - name: Publish diagnostic summary
