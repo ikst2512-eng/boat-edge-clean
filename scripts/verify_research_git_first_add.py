@@ -28,6 +28,12 @@ def verify_first_add(repo, race_code, commit_sha, trusted_ref="refs/heads/main")
         # In a shallow clone, missing ancestors can make a re-add look original.
         if git(repo, "rev-parse", "--is-shallow-repository").strip() != b"false":
             return {"verified": False, "reason": "incomplete_git_history"}
+        # Git replace refs can rewrite apparent ancestry without changing SHA.
+        if git(repo, "replace", "-l").strip():
+            return {"verified": False, "reason": "rewritten_git_history"}
+        git_dir = Path(git(repo, "rev-parse", "--absolute-git-dir").decode().strip())
+        if (git_dir / "info" / "grafts").exists():
+            return {"verified": False, "reason": "rewritten_git_history"}
         git(repo, "merge-base", "--is-ancestor", commit_sha, trusted_ref)
         added = git(repo, "diff-tree", "--root", "--no-commit-id", "-r",
                     "--name-only", "--diff-filter=A", commit_sha, "--", path).decode().splitlines()
