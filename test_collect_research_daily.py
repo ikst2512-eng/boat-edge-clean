@@ -36,6 +36,8 @@ class CollectorTests(unittest.TestCase):
   broken=dict(self.card,艇1_全国勝率="NaN")
   start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
   with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start),([broken],start)]):
+   counts=collector.collect(self.day)
+   self.assertEqual(counts["invalid"],1)
    with self.assertRaisesRegex(ValueError,"no valid or cutoff-eligible"):
-    collector.collect(self.day)
+    collector.validate_run_counts(counts)
 if __name__=="__main__":unittest.main()
