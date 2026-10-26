@@ -16,7 +16,11 @@ class DownloadedZipTests(unittest.TestCase):
                      "probabilities": {"-".join(t): 1/120 for t in permutations("123456", 3)}}
         raw = json.dumps(candidate).encode()
         digest = hashlib.sha256(raw).hexdigest()
-        receipt = json.dumps({"candidate_sha256": digest, "race_code": code}).encode()
+        receipt = json.dumps({"candidate_sha256": digest, "race_code": code,
+                              "schema": "fresh-prospective-receipt-v1",
+                              "status": "candidate_only_not_formal_or_public",
+                              "independent_github_arrival_verified": False,
+                              "workflow_run_id": 123, "workflow_attempt": 1}).encode()
         def make_zip(contents):
             mem = io.BytesIO()
             with zipfile.ZipFile(mem, "w") as z:
@@ -49,6 +53,21 @@ class DownloadedZipTests(unittest.TestCase):
         code, digest, members, make_zip = self.sample()
         with self.assertRaises(InvalidCandidate):
             inspect_downloaded_artifact(make_zip(members), code, "g" * 64)
+
+    def test_forged_approval_status(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = json.loads(members["prospective_receipt.json"])
+        receipt["status"] = "formal_approved"
+        members["prospective_receipt.json"] = json.dumps(receipt).encode()
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
+
+    def test_duplicate_receipt_key(self):
+        code, digest, members, make_zip = self.sample()
+        receipt = members["prospective_receipt.json"]
+        members["prospective_receipt.json"] = receipt.replace(b'"race_code":', b'"race_code":"202610280201","race_code":', 1)
+        with self.assertRaises(InvalidCandidate):
+            inspect_downloaded_artifact(make_zip(members), code, digest)
 
     def test_wrong_receipt_digest(self):
         code, digest, members, make_zip = self.sample()
