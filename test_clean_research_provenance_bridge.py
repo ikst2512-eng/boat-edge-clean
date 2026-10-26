@@ -38,6 +38,16 @@ class BridgeTests(unittest.TestCase):
     def test_utc_deadline_offset_rejected(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,BEFORE,deadline=DEADLINE.astimezone(timezone.utc))
+    def test_invalid_calendar_date(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity({**RACE,"race_key":"20260230-21-01"},
+                                     {**BEFORE,"race_key":"20260230-21-01"},deadline=DEADLINE)
+    def test_non_dict_six_boat_row(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"start_exhibition":[None]+[{"boat_number":i} for i in range(2,7)]},deadline=DEADLINE)
+    def test_boolean_boat_number(self):
+        with self.assertRaises(ValueError):
+            compare_capture_identity(RACE,{**BEFORE,"start_exhibition":[{"boat_number":True}]+[{"boat_number":i} for i in range(2,7)]},deadline=DEADLINE)
     def test_naive_timestamp(self):
         with self.assertRaises(ValueError):
             compare_capture_identity(RACE,{**BEFORE,"captured_at":CAP.replace(tzinfo=None).isoformat()},deadline=DEADLINE)
