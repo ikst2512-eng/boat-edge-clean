@@ -26,14 +26,11 @@ class OfficialHtmlScanner(HTMLParser):
         self.links = []
         self.title = []
         self._in_title = False
-        self.path = []
-        self.racer_anchor_contexts = []
         self.row_candidates = []
         self.all_table_rows = []
         self.current_row = None
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        self.path.append((tag, attrs.get("class", "")))
         if tag == "tr":
             self.current_row = {"registrations": [], "text": []}
         if tag == "title":
@@ -46,7 +43,6 @@ class OfficialHtmlScanner(HTMLParser):
                     found = re.search(r"toban=([0-9]{4})", href)
                     if found and self.current_row is not None:
                         self.current_row["registrations"].append(found.group(1))
-                    self.racer_anchor_contexts.append({"href": href[:180], "ancestors": self.path[-5:]})
     def handle_endtag(self, tag):
         if tag == "tr" and self.current_row is not None:
             if self.current_row["text"]:
@@ -55,11 +51,6 @@ class OfficialHtmlScanner(HTMLParser):
             if unique:
                 self.row_candidates.append({"registrations": unique, "text_sample": " ".join(self.current_row["text"])[:160]})
             self.current_row = None
-        if self.path:
-            for index in range(len(self.path)-1, -1, -1):
-                if self.path[index][0] == tag:
-                    del self.path[index:]
-                    break
         if tag == "title":
             self._in_title = False
     def handle_data(self, data):
@@ -119,15 +110,12 @@ def html_diagnostics(body):
     return {"html_inspection": "structure_only_unverified",
             "html_title": "".join(scanner.title).strip()[:100],
             "racer_link_count": len(scanner.links),
-            "racer_row_contexts": scanner.row_candidates[:12],
-            "table_row_context_samples": scanner.all_table_rows[:70],
             "toban_parameter_count": len(re.findall(r"toban=", text)),
             "html_is_race_verified": False,
             "official_st_by_course": official_st_by_course if set(official_st_by_course) == set(range(1, 7)) else {},
             "preview_value_candidates": preview_values if set(preview_values) == set(range(1,7)) else {},
             "lane_registration_candidates": lane_rows if set(lane_rows) == set(range(1, 7)) else {},
             "registration_order_candidates": order[:12],
-            "racer_anchor_context_samples": scanner.racer_anchor_contexts[:12],
             "registration_candidates": sorted(set(re.findall(r"[?&]toban=([0-9]{4})(?:[&#\"\\s]|$)", text)))[:30]}
 
 def probe(date, venue, race, opener=urlopen):
@@ -324,4 +312,4 @@ if __name__ == "__main__":
     result = probe(args.date, args.venue, args.race)
     output = Path(args.output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates"), "racer_anchor_context_samples": v.get("racer_anchor_context_samples"), "racer_row_contexts": v.get("racer_row_contexts"), "table_row_context_samples": v.get("table_row_context_samples")} for k,v in result["sources"].items()}}, ensure_ascii=False))
+    print(json.dumps({"race_key": result["race_key"], "registration_set_comparison": result["registration_set_comparison"], "registration_order_comparison": result["registration_order_comparison"], "lane_comparison": result["lane_comparison"], "readiness_gate": result["readiness_gate"], "official_preview_probe": result["official_preview_probe"], "preview_tilt_time_comparison": result["preview_tilt_time_comparison"], "official_st_comparison": result["official_st_comparison"], "sources": {k: {"status": v["status"], "race_rows": v.get("race_rows"), "race_identity_status": v.get("race_identity_status"), "csv_columns": v.get("csv_columns"), "csv_total_rows": v.get("csv_total_rows"), "csv_sample_race_codes": v.get("csv_sample_race_codes"), "record_validation": v.get("record_validation"), "validation_error": v.get("validation_error"), "html_inspection": v.get("html_inspection"), "html_title": v.get("html_title"), "racer_link_count": v.get("racer_link_count"), "toban_parameter_count": v.get("toban_parameter_count"), "registration_candidates": v.get("registration_candidates")} for k,v in result["sources"].items()}}, ensure_ascii=False))
