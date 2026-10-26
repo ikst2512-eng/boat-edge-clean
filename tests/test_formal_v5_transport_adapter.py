@@ -20,7 +20,7 @@ class TransportAdapterTests(unittest.TestCase):
         self.assertFalse(result["formal_approved"])
 
     def test_duplicate_json_rejected(self):
-        raw = json.dumps(case()).replace('"validated":', '"race_code":"20261028" + "02" + "01","validated":')
+        raw = json.dumps(case()).replace('"validated":', '"race_code":"202610280201","validated":')
         with self.assertRaises(InvalidCandidate):
             inspect_v5_transport(raw.encode())
 
