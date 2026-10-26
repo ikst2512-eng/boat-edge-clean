@@ -13,12 +13,16 @@ class ReceiptTests(unittest.TestCase):
         self.blob_sha = hashlib.sha1(b"blob " + str(len(self.raw)).encode() + bytes([0]) + self.raw).hexdigest()
         self.commit = "a"*40
         self.tree_sha = "b"*40
+        self.parent_sha = "c"*40
+        self.parent_tree_sha = "d"*40
         self.prefix = "/repos/ikst2512-eng/boat-edge-clean"
         self.responses = {
             self.prefix + "/actions/runs/99": {"event":"push","head_sha":self.commit,
                 "head_branch":"research/prospective","repository":{"full_name":"ikst2512-eng/boat-edge-clean"},
-                "status":"completed","created_at":"2026-10-28T03:40:00Z"},
-            self.prefix + "/git/commits/" + self.commit: {"tree":{"sha":self.tree_sha}},
+                "status":"completed","conclusion":"success","created_at":"2026-10-28T03:40:00Z"},
+            self.prefix + "/git/commits/" + self.commit: {"tree":{"sha":self.tree_sha},"parents":[{"sha":self.parent_sha}]},
+            self.prefix + "/git/commits/" + self.parent_sha: {"tree":{"sha":self.parent_tree_sha}},
+            self.prefix + "/git/trees/" + self.parent_tree_sha + "?recursive=1": {"truncated":False,"tree":[]},
             self.prefix + "/git/trees/" + self.tree_sha + "?recursive=1":
                 {"truncated":False,"tree":[{"path":self.path,"type":"blob","sha":self.blob_sha}]},
             self.prefix + "/git/blobs/" + self.blob_sha:
@@ -40,6 +44,12 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.check()
     def test_wrong_branch_rejected(self):
         self.responses[self.prefix + "/actions/runs/99"]["head_branch"]="main"
+        with self.assertRaises(ValueError):self.check()
+    def test_existing_parent_path_rejected(self):
+        self.responses[self.prefix + "/git/trees/" + self.parent_tree_sha + "?recursive=1"]["tree"]=[{"path":self.path}]
+        with self.assertRaises(ValueError):self.check()
+    def test_failed_workflow_rejected(self):
+        self.responses[self.prefix + "/actions/runs/99"]["conclusion"]="failure"
         with self.assertRaises(ValueError):self.check()
     def test_late_receipt_rejected(self):
         self.responses[self.prefix + "/actions/runs/99"]["created_at"]="2026-10-28T03:49:00Z"
