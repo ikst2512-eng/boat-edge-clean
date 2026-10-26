@@ -39,6 +39,14 @@ class GitReceiptAuditTests(unittest.TestCase):
             later=self.run_git(root,"rev-parse","HEAD")
             with self.assertRaises(ValueError):
                 audit(root,later,"frozen.json",hashlib.sha256((root/"frozen.json").read_bytes()).hexdigest(),future)
+            self.run_git(root,"rm","frozen.json")
+            self.run_git(root,"commit","-qm","deleted forecast")
+            (root/"frozen.json").write_bytes(blob)
+            self.run_git(root,"add","frozen.json")
+            self.run_git(root,"commit","-qm","re-added forecast")
+            readded=self.run_git(root,"rev-parse","HEAD")
+            with self.assertRaises(ValueError):
+                audit(root,readded,"frozen.json",digest,future)
             past=(datetime.now(timezone.utc)-timedelta(days=1)).isoformat()
             with self.assertRaises(ValueError):
                 audit(root,first,"frozen.json",digest,past)
