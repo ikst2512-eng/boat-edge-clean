@@ -28,7 +28,7 @@ class LegacyDependencyGuard(unittest.TestCase):
 
     def test_known_formal_status_read_only_dependency(self):
         source = (ROOT / "fresh_formal_source_preflight.py").read_text(encoding="utf-8")
-        self.assertIn('STATUS_URL="https://raw.githubusercontent.com/" + LEGACY_REPO + "/main/data/formal_status.json"', source)
+        self.assertIn('STATUS_URL="https://raw.githubusercontent.com/' + LEGACY_REPO + '/main/data/formal_status.json"', source)
         self.assertEqual(len(LEGACY_PATTERN.findall(source)), 1)
 
     def test_runtime_python_and_workflows_do_not_reference_legacy(self):
