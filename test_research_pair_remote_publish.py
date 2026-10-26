@@ -61,6 +61,23 @@ class RemotePublishTests(unittest.TestCase):
             return_value=["research_prospective_pairs/202610281201.json"]):
             with self.assertRaisesRegex(ValueError,"unrelated changes"):
                 push("20261028")
+    def test_stale_remote_branch_rejected_without_push(self):
+        from unittest.mock import patch
+        pair="research_prospective_pairs/202610281201.json"
+        def git(*args):
+            if args[0]=="branch": return "research/paired-hit-evaluation-20261027"
+            if args[0]=="status": return ""
+            if args[0]=="diff-tree": return pair
+            if args[0]=="hash-object": return "a"*40
+            if args[0]=="rev-parse": return "a"*40
+            if args[0]=="ls-remote": return "b"*40+"\\trefs/heads/research/paired-hit-evaluation-20261027"
+            raise AssertionError(args)
+        with patch("research_pair_remote_publish._git",side_effect=git),patch(
+             "research_pair_remote_publish.eligible_paths",return_value=[pair]),patch(
+             "research_pair_remote_publish.subprocess.run") as runner:
+            with self.assertRaisesRegex(ValueError,"advanced"):
+                push("20261028",dry_run=False)
+            runner.assert_not_called()
     def test_other_untracked_change_rejected(self):
         with patch("research_pair_remote_publish._git",
                    side_effect=["research/paired-hit-evaluation-20261027","?? predictions.json"]):
