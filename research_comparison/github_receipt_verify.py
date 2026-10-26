@@ -87,7 +87,9 @@ def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
     blob = fetch_json(prefix + "/git/blobs/" + blob_sha)
     if blob.get("encoding") != "base64":
         raise ValueError("unsupported blob encoding")
-    raw = base64.b64decode(blob["content"], validate=False)
+    raw = base64.b64decode(blob["content"], validate=True)
+    if blob.get("size") is not None and blob["size"] != len(raw):
+        raise ValueError("blob size mismatch")
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise ValueError("committed bytes digest mismatch")
     git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
