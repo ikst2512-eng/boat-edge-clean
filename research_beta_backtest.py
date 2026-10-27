@@ -39,12 +39,19 @@ def eligible_rows(items):
                 raise ValueError("invalid_race_date")
             if row.get("independent_receipt_verified") is not True or row.get("result_verified") is not True:
                 raise ValueError("unverified_receipt_or_result")
+            if row.get("result_status") != "final" or row.get("result_source_kind") != "official":
+                raise ValueError("result_not_official_final")
+            if not isinstance(row.get("result_source_url"), str) or not row["result_source_url"].startswith("https://www.boatrace.jp/"):
+                raise ValueError("untrusted_result_source")
             for field, required_length in (("input_sha256", 64), ("first_git_blob_sha", 40), ("receipt_sha256", 64)):
                 value = row.get(field)
                 if not isinstance(value, str) or len(value) != required_length or any(c not in "0123456789abcdef" for c in value):
                     raise ValueError("missing_immutable_digest")
             source, generated, frozen = (aware(row[k]) for k in ("source_received_at", "generated_at", "first_seen_at"))
             deadline = aware(row["deadline"])
+            result_verified_at = aware(row["result_verified_at"])
+            if result_verified_at <= deadline:
+                raise ValueError("result_verified_before_deadline")
             if deadline.strftime("%Y%m%d") != key[:8]:
                 raise ValueError("race_deadline_date_mismatch")
             if not (source <= generated <= frozen <= deadline - timedelta(minutes=12)):
