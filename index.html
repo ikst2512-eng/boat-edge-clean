@@ -254,7 +254,7 @@ function renderDeadlines(data){
  const currentTime=Date.now();
  const upcoming=items.filter(item=>Date.parse(s.date+'T'+item.time+':00+09:00')>currentTime).slice(0,3);
  const updatedAt=Date.parse(data.updated_at),isStale=!Number.isFinite(updatedAt)||Date.now()-updatedAt>30*60000;
- const statusText=(upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
+ const statusText=(data.historical_result_only?'過去の開催実績から開催場を確認（締切時刻は未収録）':upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
  document.getElementById('deadlineStatus').textContent=statusText;
  const signature=upcoming.map(item=>item.key+'@'+item.time).join('|');
  if(list.dataset.signature===signature){
@@ -397,7 +397,7 @@ async function historicalHeldVenues(date){
   else if(archive.status===404){
    let api;
    for(let attempt=0;attempt<3;attempt++){
-    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)throw e;continue}
+    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
     if(api.status!==503)break;
    }
    if(!api?.ok){if(date<fmt(jst()))data=await historicalHeldVenues(date);else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');}
@@ -441,7 +441,7 @@ async function historicalHeldVenues(date){
    }
   }
   if(token!==venueRequest||date!==s.date)return;
-  status.textContent='開催情報：'+available.size+'場｜'+(date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
+  status.textContent='開催情報：'+available.size+'場｜'+(data.historical_result_only?'公開済み確定結果から確認（締切時刻なし）':date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
   venueDateChecked=date;
