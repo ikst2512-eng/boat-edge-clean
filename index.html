@@ -186,61 +186,26 @@ setInterval(()=>{if(!document.hidden&&todayVenueRaces?.date===s.date){renderDead
 setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date!==fmt(jst()))return;loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}else if(activeView==='result'){loadPredictions();loadResult(true)}},60000);
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}if(activeView==='result')loadResult(true)}});
-const EDGE_BASE='https://api.github.com/repos/ikst2512-eng/boat-edge';
-const EDGE_RAW='https://raw.githubusercontent.com/ikst2512-eng/boat-edge';
 async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
-async function edgeJson(url){const r=await fetchTimed(url,{cache:'no-store',headers:{'Accept':'application/vnd.github+json'}});if(!r.ok)throw Error('SOURCE_HTTP_'+r.status);return r.json()}
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 const verifiedCache=new Map();
-const predictionVerificationInFlight=new Map();
-async function verifiedStoredPrediction(key,force=false){
- if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
- if(!force&&predictionVerificationInFlight.has(key))return predictionVerificationInFlight.get(key);
- const pending=verifyPredictionOriginal(key,force);
- if(!force){predictionVerificationInFlight.set(key,pending);pending.finally(()=>{if(predictionVerificationInFlight.get(key)===pending)predictionVerificationInFlight.delete(key)}).catch(()=>{});}
- return pending;
-}
-async function verifyPredictionOriginal(key,force=false){
- if(!force&&verifiedCache.has(key))return verifiedCache.get(key);
- const path='data/site_prediction_snapshots/'+key+'.json';
- const currentRes=await fetchTimed(EDGE_RAW+'/main/'+path,{cache:'no-store'});
- if(currentRes.status===404)throw Error('PREDICTION_NOT_PUBLISHED');
- if(!currentRes.ok)throw Error('SOURCE_HTTP_'+currentRes.status);
- const currentText=await currentRes.text();
- let commits=[],page=1;
- for(;page<=10;page++){
-  const batch=await edgeJson(EDGE_BASE+'/commits?path='+encodeURIComponent(path)+'&per_page=100&page='+page);
-  if(!Array.isArray(batch))throw Error('FIRST_COMMIT_UNCONFIRMED');
-  commits=commits.concat(batch);
-  if(batch.length<100)break;
- }
- if(!commits.length||page>10)throw Error('FIRST_COMMIT_UNCONFIRMED');
- const earliest=commits[commits.length-1];
- const commit=await edgeJson(EDGE_BASE+'/commits/'+encodeURIComponent(earliest.sha));
- const file=commit.files&&commit.files.find(f=>f.filename===path);
- if(!file||file.status!=='added')throw Error('FIRST_ADD_UNCONFIRMED');
- const firstRes=await fetchTimed(EDGE_RAW+'/'+earliest.sha+'/'+path,{cache:'no-store'});
- if(!firstRes.ok)throw Error('SOURCE_HTTP_'+firstRes.status);
- const firstText=await firstRes.text();
- if(firstText!==currentText)throw Error('SNAPSHOT_CHANGED_SINCE_FIRST_ADD');
- const raw=JSON.parse(firstText);
- if(raw.race_key!==key||raw.schema_version!=='boat-edge-server-site-final-v123'||raw.prediction_kind!=='SITE_REFERENCE_V122'||raw.venue_code!==key.split('-')[1]||Number(raw.race_no)!==Number(key.split('-')[2]))throw Error('RACE_OR_MODEL_MISMATCH');
- if(raw.guards?.results_seen!==false||raw.guards?.unlock!==false||raw.guards?.scoring!==false)throw Error('UNSAFE_SOURCE');
- if(!/^[a-f0-9]{64}$/.test(raw.race_sha256)||!/^[a-f0-9]{64}$/.test(raw.odds_sha256))throw Error('SOURCE_SHA_INVALID');
- if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.deadline))throw Error('DEADLINE_INVALID');
- const limit=Date.parse(key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)+'T'+raw.deadline+':00+09:00'),saved=Date.parse(raw.first_saved_at),added=Date.parse(commit.commit?.committer?.date);
- // Git commits carry whole-second timestamps; first_saved_at can include fractional seconds.
- if(![limit,saved,added].every(Number.isFinite)||Math.floor(saved/1000)>Math.floor(added/1000)||added>=limit||limit-saved<120000||limit-saved>600000||limit-added<120000||limit-added>600000)throw Error('FREEZE_TIME_NOT_PROVEN');
- const mode=raw.default_display_mode;
- if(mode!=='tail'||!verifiedTicketArray(raw.modes?.[mode]?.tickets?.map(t=>t.combo)))throw Error('PREDICTIONS_INVALID');
- if(raw.modes[mode].tickets.some(t=>!Number.isFinite(t.p)||t.p<0||t.p>100))throw Error('PREDICTION_SCORE_INVALID');
- if(raw.modes[mode].tickets.some(t=>t.odds!==undefined&&(!Number.isFinite(t.odds)||t.odds<=0)))throw Error('ODDS_INVALID');
- if(raw.modes[mode].tickets.some(t=>t.stake_yen!==undefined&&(!Number.isInteger(t.stake_yen)||t.stake_yen<0)))throw Error('STAKE_INVALID');
- const ordered=raw.modes[mode].tickets.slice().sort((a,b)=>b.p-a.p);
- const modes={};for(const name of ['hit','balance','hole','narrow']){const rows=raw.modes?.[name]?.tickets;if(!Array.isArray(rows)||rows.length<1||rows.length>25||rows.some(t=>!t||!validTicket(t.combo)||!Number.isFinite(t.p)||t.p<0||t.p>100)||new Set(rows.map(t=>t.combo)).size!==rows.length)throw Error('PREDICTIONS_INVALID_'+name);modes[name]={tickets:rows.map(t=>t.combo),probabilities:Object.fromEntries(rows.map(t=>[t.combo,t.p])),odds:Object.fromEntries(rows.filter(t=>Number.isFinite(t.odds)&&t.odds>0).map(t=>[t.combo,t.odds]))};}
- const verified={modes,tickets:modes.hit.tickets,probabilities:modes.hit.probabilities,odds:modes.hit.odds,deadline:raw.deadline,grade:raw.grade,confidence:raw.modes[mode].confidence,version:'保存済み4パターン（本命・バランス・穴・絞り）',created:raw.first_saved_at,inputs:Array.isArray(raw.used_inputs)?raw.used_inputs.filter(v=>typeof v==='string'&&v.length<70):[],proof:earliest.sha.slice(0,12)};
- verifiedCache.set(key,verified);
- return verified;
+async function verifiedFourModeRace(key){
+ const code=key.replaceAll('-','');
+ if(!/^20\\d{10}$/.test(code))throw Error('RACE_KEY_INVALID');
+ const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_performance/verified_races/'+code+'.json';
+ const response=await fetchTimed(url+'?t='+Date.now(),{cache:'no-store'});
+ if(!response.ok)throw Error('FOUR_MODE_VERIFICATION_PENDING');
+ const data=await response.json();
+ if(data.schema!=='CLEAN_VERIFIED_FOUR_MODE_RACE_V1'||data.race_code!==code||
+    data.verified!==true||data.simulated_only!==true||data.budget_yen!==5000||
+    !/^[a-f0-9]{40}$/.test(data.first_git_sha||'')||!validTicket(data.official_finish)||
+    !Number.isInteger(data.official_payout_yen_per_100)||data.official_payout_yen_per_100<100||
+    !data.modes||!['hit','balance','hole','narrow'].every(mode=>{
+       const m=data.modes[mode];return m&&typeof m.hit==='boolean'&&
+          Number.isInteger(m.invested_yen)&&m.invested_yen===5000&&
+          Number.isInteger(m.return_yen)&&m.return_yen>=0;
+    }))throw Error('FOUR_MODE_VERIFICATION_INVALID');
+ return data;
 }
 
 const verifiedRaceCache=new Map();
