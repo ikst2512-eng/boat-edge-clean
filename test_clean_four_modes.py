@@ -30,7 +30,7 @@ class CleanFourModeTests(unittest.TestCase):
         def read(url):
             return (title if "/title/" in url else card,datetime.now(JST),"a"*64)
         with patch.object(model,"read_rows",side_effect=read):
-            output=model.forecast(hd,"01","1")
+            output=model.forecast(hd,"1","1")
         self.assertEqual(output["status"],"provisional")
         self.assertEqual(output["beforeinfo"],"not_required_when_unavailable")
         self.assertFalse(output["validated"])
