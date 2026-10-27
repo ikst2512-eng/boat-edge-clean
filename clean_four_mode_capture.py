@@ -7,6 +7,7 @@ Write-once archives are committed separately by the existing scheduled action.
 import hashlib
 import json
 import os
+from urllib.error import HTTPError, URLError
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -67,4 +68,8 @@ def collect(root=ROOT, now=None, read=read_rows):
 
 
 if __name__=="__main__":
-    print(json.dumps(collect(),ensure_ascii=False))
+    try:
+        result=collect()
+    except (HTTPError, URLError, TimeoutError, ConnectionError) as exc:
+        result={"new_saved":[],"source_pending":type(exc).__name__}
+    print(json.dumps(result,ensure_ascii=False))
