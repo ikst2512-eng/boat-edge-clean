@@ -47,7 +47,7 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
             counts["complete"]+=1
     output={"schema":"CLEAN_FOUR_MODE_PERFORMANCE_V1","simulated_only":True,
             "budget_yen":budget_yen,"counts":counts,"modes":summary(records)}
-    save_atomic(root/"four_mode_performance"/"summary.json",output)
+    save_atomic(root/"four_mode_performance"/("summary-"+str(budget_yen)+".json"),output)
     return output
 
 if __name__=="__main__":
