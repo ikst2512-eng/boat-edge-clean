@@ -117,6 +117,8 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('home must offer 24 venues');
               if(await page.locator('#races button').count()!==12)throw Error('home must offer 12 race choices');
               await page.locator('#venues button').nth(11).click();
+              // Venue selection can navigate to the forecast; restore the home picker before a second selection.
+              await page.evaluate(()=>setView('home'));
               await page.locator('#races button').nth(4).click();
               if(!(await page.locator('#activeRaceLabel').innerText()).includes('5R'))throw Error('race selection failed');
               await page.evaluate(()=>setView('forecast'));
