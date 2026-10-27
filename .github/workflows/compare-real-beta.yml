@@ -1,0 +1,28 @@
+name: Actual CLEAN 144-race model comparison
+on:
+  pull_request:
+    paths:
+      - compare_real_beta.py
+      - .github/workflows/compare-real-beta.yml
+  push:
+    branches: [main]
+    paths:
+      - compare_real_beta.py
+      - .github/workflows/compare-real-beta.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python compare_real_beta.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: actual-144-beta-comparison
+          path: parameter_comparison_20261027.json
