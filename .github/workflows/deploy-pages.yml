@@ -320,7 +320,7 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
               for(const view of ['card','exhibit','forecast']){
-                await page.evaluate(() => setView(''+view+''));
+                await page.evaluate(view => setView(view), view);
                 const visible=view==='forecast'?await page.locator('#forecast').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
