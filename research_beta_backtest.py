@@ -9,6 +9,7 @@ import json
 import math
 from collections import Counter
 from datetime import datetime, timedelta
+import re
 from pathlib import Path
 from research_model import probabilities
 
@@ -29,22 +30,30 @@ def eligible_rows(items):
             if not isinstance(row, dict):
                 raise ValueError("invalid row")
             key = row["race_code"]
-            if not isinstance(key, str) or len(key) != 12 or not key.isascii() or not key.isdigit() or key in seen or counts[key] != 1:
+            if not isinstance(key, str) or not re.fullmatch(r'20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])', key) or key in seen or counts[key] != 1:
                 raise ValueError("duplicate_or_invalid_race")
             seen.add(key)
+            try:
+                datetime.strptime(key[:8], "%Y%m%d")
+            except ValueError:
+                raise ValueError("invalid_race_date")
             if row.get("independent_receipt_verified") is not True or row.get("result_verified") is not True:
                 raise ValueError("unverified_receipt_or_result")
-            for field in ("input_sha256", "first_git_blob_sha", "receipt_sha256"):
+            for field, required_length in (("input_sha256", 64), ("first_git_blob_sha", 40), ("receipt_sha256", 64)):
                 value = row.get(field)
-                if not isinstance(value, str) or len(value) not in (40, 64) or any(c not in "0123456789abcdef" for c in value):
+                if not isinstance(value, str) or len(value) != required_length or any(c not in "0123456789abcdef" for c in value):
                     raise ValueError("missing_immutable_digest")
             source, generated, frozen = (aware(row[k]) for k in ("source_received_at", "generated_at", "first_seen_at"))
             deadline = aware(row["deadline"])
+            if deadline.strftime("%Y%m%d") != key[:8]:
+                raise ValueError("race_deadline_date_mismatch")
             if not (source <= generated <= frozen <= deadline - timedelta(minutes=12)):
                 raise ValueError("cutoff_violation")
             rates = row["national_win_rates"]
-            if len(rates) != 6 or any(type(v) not in (float, int) or not math.isfinite(v) or v <= 0 or v >= 20 for v in rates):
+            if not isinstance(rates, (list, tuple)) or len(rates) != 6 or any(type(v) not in (float, int) or not math.isfinite(v) or v <= 0 or v >= 20 for v in rates):
                 raise ValueError("invalid_win_rates")
+            if not isinstance(row["result"], str) or not re.fullmatch(r"[1-6]-[1-6]-[1-6]", row["result"]):
+                raise ValueError("invalid_result")
             outcome = tuple(int(x) for x in row["result"].split("-"))
             if len(outcome) != 3 or len(set(outcome)) != 3 or any(x not in range(1, 7) for x in outcome):
                 raise ValueError("invalid_result")
@@ -70,6 +79,10 @@ def metrics(rows, beta):
 
 def evaluate(items, betas=(0.0, 0.2, 0.4, 0.6, 0.8), holdout_fraction=0.3):
     rows, exclusions = eligible_rows(items)
+    if not isinstance(holdout_fraction, (int, float)) or not 0 < holdout_fraction < 1:
+        raise ValueError("invalid holdout_fraction")
+    if not betas or any(type(b) not in (float, int) or not math.isfinite(b) for b in betas):
+        raise ValueError("invalid beta candidates")
     rows.sort(key=lambda row: (row[3], row[0]))
     split = int(len(rows)*(1-holdout_fraction))
     train, holdout = rows[:split], rows[split:]
