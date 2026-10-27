@@ -17,6 +17,7 @@ on:
       - 'test_clean_four_mode_capture_e2e.py'
       - 'clean_four_modes.py'
       - 'collect_four_mode_performance.py'
+      - 'test_collect_four_mode_performance_integration.py'
       - 'four_mode_performance.py'
       - 'confirmed_results/**'
   pull_request:
@@ -50,7 +51,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
           fetch-depth: 0
       - name: Verify processing states and payouts
-        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e test_clean_racecard test_four_mode_performance
+        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e test_clean_racecard test_four_mode_performance test_collect_four_mode_performance_integration
       - name: Capture independent four-mode forecasts before deadline
         if: github.event_name != 'pull_request'
         run: python clean_four_mode_capture.py
