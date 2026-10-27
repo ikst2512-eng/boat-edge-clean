@@ -623,22 +623,6 @@ async function loadRaceData(force=false){
   const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
   const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
   entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
-  if(!validEntry){
-   const sidecarToken=token,sidecarKey=key;
-   fetchTimed(EDGE_RAW+'/main/data/site_verified_entries/'+encodeURIComponent(sidecarKey)+'.json',{cache:'no-store'}).then(async response=>{
-    if(!response.ok)return null;
-    return response.json();
-   }).then(record=>{
-    if(!record||sidecarToken!==window.raceDataRequestId||sidecarKey!==sameRaceKey()||displayedRaceKey!==sidecarKey)return;
-    const order=record.actual_entry,audit=record.source_audit?.actual_entry;
-    const fetched=Date.parse(audit?.fetched_at);
-    if(record.race_key!==sidecarKey||!Array.isArray(order)||order.length!==6||order.some(n=>!Number.isInteger(n)||n<1||n>6)||new Set(order).size!==6)return;
-    if(audit?.status!=='ok'||!/^[a-f0-9]{64}$/.test(audit.sha256||'')||typeof audit.source!=='string')return;
-    const sourceUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+sidecarKey.slice(0,8)+'&jcd='+sidecarKey.split('-')[1]+'&rno='+Number(sidecarKey.split('-')[2]);
-    if(audit.source!==sourceUrl||!Number.isFinite(fetched)||fetched>=raceDeadline||fetched>Date.now()+300000)return;
-    entryNote.textContent='実進入（締切前監査済み）：'+order.map((boat,i)=>(i+1)+'コース '+boat+'号艇').join(' ／ ');
-   }).catch(()=>{});
-  }
   exhibitGrid.append(entryNote);
   // The original exhibition feed is an independent per-race source. Its
   // documented item labels are authoritative: never infer labels by venue.
