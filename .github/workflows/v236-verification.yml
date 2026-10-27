@@ -8,6 +8,8 @@ on:
       - 'clean_four_mode_capture.py'
       - 'clean_four_modes.py'
       - 'test_clean_four_modes.py'
+      - 'four_mode_performance.py'
+      - 'test_four_mode_performance.py'
       - 'v236_freeze.py'
       - 'test_v236_freeze.py'
       - 'verification_pipeline.py'
@@ -28,7 +30,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
           fetch-depth: 0
       - name: Verify processing states and payouts
-        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes
+        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_four_mode_performance
       - name: Capture independent four-mode forecasts before deadline
         if: github.event_name != 'pull_request'
         run: python clean_four_mode_capture.py
