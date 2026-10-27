@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+  pull_request:
+    paths:
+      - source_visibility_audit.py
+      - test_source_visibility_audit.py
+      - .github/workflows/source-visibility.yml
 permissions:
   contents: read
 jobs:
@@ -17,4 +22,5 @@ jobs:
       - name: Verify audit behavior without network
         run: python -m unittest -v test_source_visibility_audit
       - name: Check public prediction and results feed sample
+        if: github.event_name != 'pull_request'
         run: python source_visibility_audit.py
