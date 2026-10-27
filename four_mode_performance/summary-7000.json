@@ -1,0 +1,50 @@
+{
+  "budget_yen": 7000,
+  "counts": {
+    "archived": 0,
+    "awaiting_payout": 0,
+    "awaiting_result": 0,
+    "complete": 0,
+    "unverified": 0
+  },
+  "modes": {
+    "balance": {
+      "actual_hit_rate_pct": null,
+      "actual_roi_pct": null,
+      "hits": 0,
+      "invested_yen": 0,
+      "profit_yen": 0,
+      "return_yen": 0,
+      "sample_races": 0
+    },
+    "hit": {
+      "actual_hit_rate_pct": null,
+      "actual_roi_pct": null,
+      "hits": 0,
+      "invested_yen": 0,
+      "profit_yen": 0,
+      "return_yen": 0,
+      "sample_races": 0
+    },
+    "hole": {
+      "actual_hit_rate_pct": null,
+      "actual_roi_pct": null,
+      "hits": 0,
+      "invested_yen": 0,
+      "profit_yen": 0,
+      "return_yen": 0,
+      "sample_races": 0
+    },
+    "narrow": {
+      "actual_hit_rate_pct": null,
+      "actual_roi_pct": null,
+      "hits": 0,
+      "invested_yen": 0,
+      "profit_yen": 0,
+      "return_yen": 0,
+      "sample_races": 0
+    }
+  },
+  "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",
+  "simulated_only": true
+}
