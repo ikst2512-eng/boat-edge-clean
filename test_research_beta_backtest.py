@@ -15,6 +15,9 @@ def fixture(n=50):
         result.append({
             "race_code": f"{deadline:%Y%m%d}{1+i%24:02d}{1+i%12:02d}",
             "independent_receipt_verified": True, "result_verified": True,
+            "result_status": "final", "result_source_kind": "official",
+            "result_source_url": "https://www.boatrace.jp/owpc/pc/race/raceresult",
+            "result_verified_at": (deadline+timedelta(hours=1)).isoformat(),
             "input_sha256": "a"*64, "first_git_blob_sha":"b"*40,
             "receipt_sha256":"c"*64,
             "source_received_at": (deadline-timedelta(minutes=40)).isoformat(),
@@ -91,6 +94,23 @@ class TestBacktest(unittest.TestCase):
             evaluate(fixture(50), holdout_fraction=1)
         with self.assertRaises(ValueError):
             evaluate(fixture(50), betas=(float("nan"),))
+    def test_rejects_preliminary_and_untrusted_results(self):
+        rows=fixture(1)
+        rows[0]["result_status"]="preliminary"
+        accepted, excluded=eligible_rows(rows)
+        self.assertFalse(accepted)
+        self.assertEqual(excluded["result_not_official_final"],1)
+        rows=fixture(1)
+        rows[0]["result_source_url"]="https://other.example/result"
+        accepted, excluded=eligible_rows(rows)
+        self.assertFalse(accepted)
+        self.assertEqual(excluded["untrusted_result_source"],1)
+        rows=fixture(1)
+        rows[0]["result_verified_at"]=rows[0]["generated_at"]
+        accepted, excluded=eligible_rows(rows)
+        self.assertFalse(accepted)
+        self.assertEqual(excluded["result_verified_before_deadline"],1)
+
     def test_normalized_model_and_hits(self):
         accepted,_=eligible_rows(fixture(1))
         score=metrics(accepted,0.4)
