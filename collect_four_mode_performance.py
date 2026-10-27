@@ -60,7 +60,7 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
                              "simulated_only":True}
                     with detail.open("x",encoding="utf-8") as fp:
                         json.dump(payload,fp,ensure_ascii=False,sort_keys=True,indent=2)
-                        fp.write("\\n")
+                        fp.write("\n")
             counts["complete"]+=1
     output={"schema":"CLEAN_FOUR_MODE_PERFORMANCE_V1","simulated_only":True,
             "budget_yen":budget_yen,"counts":counts,"modes":summary(records)}
