@@ -712,7 +712,7 @@ async function loadFourModePerformance(){
  const budget=Number(document.getElementById('performanceBudget').value),status=document.getElementById('fourModeStatus'),grid=document.getElementById('fourModeMetrics');
  grid.replaceChildren();status.textContent='検証済み実績を確認中…';
  try{
-  const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_performance/summary.json';
+  const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_performance/summary-'+budget+'.json';
   const response=await fetchTimed(url+'?cache='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('NOT_YET_PUBLISHED');
   const d=await response.json();
