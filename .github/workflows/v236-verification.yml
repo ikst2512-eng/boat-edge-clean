@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v236-verification.yml'
+      - 'clean_direct_sources.py'
+      - 'test_clean_direct_sources.py'
       - 'clean_four_mode_capture.py'
       - 'test_clean_four_mode_capture_status.py'
       - 'test_clean_four_mode_capture_e2e.py'
