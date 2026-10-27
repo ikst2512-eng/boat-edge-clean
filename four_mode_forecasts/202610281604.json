@@ -1,0 +1,305 @@
+{
+  "beforeinfo": "optional_not_in_snapshot",
+  "deadline_jst": "2026-10-28T12:15:00+09:00",
+  "generated_at_jst": "2026-10-28T07:52:45.823791+09:00",
+  "input_national_win_rates": [
+    5.09,
+    4.62,
+    6.29,
+    4.34,
+    6.82,
+    4.71
+  ],
+  "model_version": "CLEAN_FOUR_MODES_V1_UNCALIBRATED",
+  "modes": {
+    "balance": {
+      "actual_hit_rate_pct": null,
+      "estimated_coverage_pct": 51.13,
+      "target_hit_rate_pct": 50.0,
+      "target_met_by_estimate": true,
+      "tickets": [
+        {
+          "combo": "1-2-4",
+          "p": 5.17338
+        },
+        {
+          "combo": "1-2-3",
+          "p": 5.08787
+        },
+        {
+          "combo": "1-3-2",
+          "p": 4.40379
+        },
+        {
+          "combo": "1-3-5",
+          "p": 4.14726
+        },
+        {
+          "combo": "3-1-4",
+          "p": 2.72497
+        },
+        {
+          "combo": "1-4-2",
+          "p": 2.95011
+        },
+        {
+          "combo": "1-2-5",
+          "p": 3.12113
+        },
+        {
+          "combo": "1-3-4",
+          "p": 2.69358
+        },
+        {
+          "combo": "1-4-3",
+          "p": 2.52256
+        },
+        {
+          "combo": "1-2-6",
+          "p": 2.43705
+        },
+        {
+          "combo": "1-5-2",
+          "p": 2.09501
+        },
+        {
+          "combo": "2-1-3",
+          "p": 1.53862
+        },
+        {
+          "combo": "1-3-6",
+          "p": 2.09501
+        },
+        {
+          "combo": "5-1-6",
+          "p": 1.30924
+        },
+        {
+          "combo": "3-1-2",
+          "p": 1.88652
+        },
+        {
+          "combo": "3-2-1",
+          "p": 1.60703
+        },
+        {
+          "combo": "1-4-5",
+          "p": 1.83847
+        },
+        {
+          "combo": "3-1-5",
+          "p": 1.74677
+        },
+        {
+          "combo": "3-1-6",
+          "p": 1.74677
+        }
+      ]
+    },
+    "hit": {
+      "actual_hit_rate_pct": null,
+      "estimated_coverage_pct": 60.72,
+      "target_hit_rate_pct": 60.0,
+      "target_met_by_estimate": true,
+      "tickets": [
+        {
+          "combo": "1-2-4",
+          "p": 5.17338
+        },
+        {
+          "combo": "1-2-3",
+          "p": 5.08787
+        },
+        {
+          "combo": "1-3-2",
+          "p": 4.40379
+        },
+        {
+          "combo": "1-3-5",
+          "p": 4.14726
+        },
+        {
+          "combo": "1-2-5",
+          "p": 3.12113
+        },
+        {
+          "combo": "1-4-2",
+          "p": 2.95011
+        },
+        {
+          "combo": "3-1-4",
+          "p": 2.72497
+        },
+        {
+          "combo": "1-3-4",
+          "p": 2.69358
+        },
+        {
+          "combo": "1-4-3",
+          "p": 2.52256
+        },
+        {
+          "combo": "1-2-6",
+          "p": 2.43705
+        },
+        {
+          "combo": "1-3-6",
+          "p": 2.09501
+        },
+        {
+          "combo": "1-5-2",
+          "p": 2.09501
+        },
+        {
+          "combo": "3-1-2",
+          "p": 1.88652
+        },
+        {
+          "combo": "1-4-5",
+          "p": 1.83847
+        },
+        {
+          "combo": "3-1-5",
+          "p": 1.74677
+        },
+        {
+          "combo": "3-1-6",
+          "p": 1.74677
+        },
+        {
+          "combo": "1-5-3",
+          "p": 1.66745
+        },
+        {
+          "combo": "1-5-4",
+          "p": 1.66745
+        },
+        {
+          "combo": "3-2-1",
+          "p": 1.60703
+        },
+        {
+          "combo": "2-1-3",
+          "p": 1.53862
+        },
+        {
+          "combo": "1-4-6",
+          "p": 1.32541
+        },
+        {
+          "combo": "5-1-6",
+          "p": 1.30924
+        },
+        {
+          "combo": "5-4-1",
+          "p": 1.30924
+        },
+        {
+          "combo": "2-1-4",
+          "p": 1.25236
+        },
+        {
+          "combo": "3-2-4",
+          "p": 1.18781
+        },
+        {
+          "combo": "3-4-1",
+          "p": 1.18781
+        }
+      ]
+    },
+    "hole": {
+      "actual_hit_rate_pct": null,
+      "estimated_coverage_pct": 4.69,
+      "target_hit_rate_pct": 12.5,
+      "target_met_by_estimate": false,
+      "tickets": [
+        {
+          "combo": "2-4-3",
+          "p": 0.3936
+        },
+        {
+          "combo": "2-5-3",
+          "p": 0.3936
+        },
+        {
+          "combo": "1-6-3",
+          "p": 0.3848
+        },
+        {
+          "combo": "4-1-6",
+          "p": 0.41733
+        },
+        {
+          "combo": "4-5-3",
+          "p": 0.41733
+        },
+        {
+          "combo": "4-6-1",
+          "p": 0.41733
+        },
+        {
+          "combo": "4-6-5",
+          "p": 0.41733
+        },
+        {
+          "combo": "5-2-4",
+          "p": 0.43641
+        },
+        {
+          "combo": "4-2-6",
+          "p": 0.35313
+        },
+        {
+          "combo": "4-3-5",
+          "p": 0.35313
+        },
+        {
+          "combo": "4-3-6",
+          "p": 0.35313
+        },
+        {
+          "combo": "3-2-5",
+          "p": 0.34935
+        }
+      ]
+    },
+    "narrow": {
+      "actual_hit_rate_pct": null,
+      "estimated_coverage_pct": 21.93,
+      "target_hit_rate_pct": 40.0,
+      "target_met_by_estimate": false,
+      "tickets": [
+        {
+          "combo": "1-2-4",
+          "p": 5.17338
+        },
+        {
+          "combo": "1-2-3",
+          "p": 5.08787
+        },
+        {
+          "combo": "1-3-2",
+          "p": 4.40379
+        },
+        {
+          "combo": "1-3-5",
+          "p": 4.14726
+        },
+        {
+          "combo": "1-2-5",
+          "p": 3.12113
+        }
+      ]
+    }
+  },
+  "race_code": "202610281604",
+  "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
+  "source_sha256": {
+    "race_cards": "eaccee494652d4e9c25abcebbe1464a630ab45003d3adb2e1ae50fe2927bd322",
+    "title": "ec23abbd8a4e447db0955c0f9aa5635ba720eeadc7ec6bcf664f5512580f8a44"
+  },
+  "status": "provisional",
+  "target_rates_not_proven": true,
+  "validated": false
+}
