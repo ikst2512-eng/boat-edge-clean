@@ -73,6 +73,7 @@ class TestBacktest(unittest.TestCase):
         self.assertEqual(excluded["invalid_race_date"], 1)
         rows = fixture(1)
         rows[0]["deadline"] = (datetime.fromisoformat(rows[0]["deadline"]) + timedelta(days=1)).isoformat()
+        rows[0]["result_verified_at"] = (datetime.fromisoformat(rows[0]["deadline"]) + timedelta(hours=1)).isoformat()
         accepted, excluded = eligible_rows(rows)
         self.assertEqual(len(accepted), 0)
         self.assertEqual(excluded["race_deadline_date_mismatch"], 1)
