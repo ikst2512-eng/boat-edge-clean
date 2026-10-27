@@ -86,7 +86,7 @@ def publish_status(result,root=ROOT,now=None):
            "production_success_proven":result.get("eligible_forecasts_today",0)>0}
     target=root/"four_mode_forecasts"/"capture_status.json"
     target.parent.mkdir(parents=True,exist_ok=True)
-    content=json.dumps(state,ensure_ascii=False,sort_keys=True,indent=2)+"\\n"
+    content=json.dumps(state,ensure_ascii=False,sort_keys=True,indent=2)+chr(10)
     if not target.exists() or target.read_text(encoding="utf-8")!=content:
         target.write_text(content,encoding="utf-8")
     return state
