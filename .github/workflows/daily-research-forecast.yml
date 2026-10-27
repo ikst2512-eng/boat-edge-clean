@@ -1,8 +1,10 @@
 name: Daily research forecast capture
 on:
   schedule:
-    # 08:10 / 08:35 / 09:00 JST = previous-day 23:10 / 23:35 / same-day 00:00 UTC
-    - cron: '10,35 23 * * *'
+    # Add earlier capture windows to reduce pre-cutoff misses; all records still require verified pre-cutoff sources.
+    # 07:45 / 08:00 / 08:10 / 08:35 / 09:00 JST (UTC previous day 22:45,23:00,23:10,23:35; same day 00:00)
+    - cron: '45 22 * * *'
+    - cron: '0,10,35 23 * * *'
     - cron: '0 0 * * *'
   workflow_dispatch:
 permissions:
@@ -86,3 +88,14 @@ jobs:
           echo "- Git SHA: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           echo '- Output: daily-research-collection artifact (30 days)' >> "$GITHUB_STEP_SUMMARY"
           echo '- Research only: not formal Fresh validation or site publication proof' >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          lines=Path('capture-evidence/collection.log').read_text(errors='replace').splitlines() if Path('capture-evidence/collection.log').exists() else []
+          counts=next((json.loads(line) for line in reversed(lines) if line.startswith('{') and line.endswith('}') and '"not_ready"' in line),None)
+          if counts is None:
+              print('- Coverage: unavailable; collection log did not contain validated counts')
+          else:
+              print(f"- Research capture: saved={counts['saved']}, already_saved={counts['already_saved']}, not_ready={counts['not_ready']}, missing={counts['missing']}, invalid={counts['invalid']}")
+              print('- not_ready means cutoff or source timing prevented capture; never backfill after cutoff')
+          PY
