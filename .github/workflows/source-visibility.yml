@@ -1,0 +1,20 @@
+name: CLEAN upstream data visibility
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify audit behavior without network
+        run: python -m unittest -v test_source_visibility_audit
+      - name: Check public prediction and results feed sample
+        run: python source_visibility_audit.py
