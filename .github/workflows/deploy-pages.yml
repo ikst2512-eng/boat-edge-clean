@@ -117,13 +117,14 @@ jobs:
               await page.route('https://raw.githubusercontent.com/**',route=>route.fulfill({status:404,contentType:'application/json',headers:cors,body:'{}'}));
               await page.route('https://api.github.com/**',route=>route.fulfill({status:404,contentType:'application/json',headers:cors,body:'{}'}));
               await page.goto('file://' + process.cwd() + '/index.html');
+              if(await page.locator('.view-tabs a[data-page]').count()!==4)throw Error('four page navigation links expected');
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('24 venue buttons expected');
               if(await page.locator('#races button').count()!==12)throw Error('12 race buttons expected');
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(4).click();
               if(!((await page.locator('#activeRaceLabel').innerText()).includes('住之江')&&(await page.locator('#activeRaceLabel').innerText()).includes('5R')))throw Error('race selection failed');
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.evaluate(() => setView('forecast'));
               for(const n of [3,5,10]){
                 await page.locator('[data-top="'+n+'"]').click();
                 if(!await page.locator('[data-top="'+n+'"]').evaluate(el=>el.classList.contains('on')))throw Error('Top tab failed: '+n);
@@ -165,14 +166,14 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#deadlineStatus')?.textContent.includes('締切前レースは終了しました'),null,{timeout:12000});
               if(await page.locator('#deadlineList .deadline-item').count()!==0)throw Error('past deadline was incorrectly shown as upcoming');
               // Forecast is the default tab; activating race cards starts their data request.
-              await page.locator('.view-tabs [data-view="card"]').click();
+              await page.evaluate(() => setView('card'));
               await page.locator('#raceDataRows tr').first().waitFor({state:'attached',timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
-              await page.locator('.view-tabs [data-view="result"]').click();
+              await page.evaluate(() => setView('result'));
               if(!await page.locator('#resultSection').isVisible())throw Error('result tab missing');
               await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent.includes('CLEAN確定結果は未取得です'),null,{timeout:12000});
-              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.evaluate(() => setView('exhibit'));
               if(!await page.locator('#raceDataSection').isVisible())throw Error('exhibition tab failed');
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('six exhibition cards missing');
               // Verified real pre-result values from 2026-10-22 Suminoe 1R, not invented fixture readings.
@@ -186,7 +187,7 @@ jobs:
               if(exhibitionCols!==1)throw Error('exhibition must be vertical single-column at 390px: columns='+exhibitionCols);
               if(!(await page.locator('#exhibitionGrid .exhibition-boat').nth(1).innerText()).includes('0.05'))throw Error('numeric exhibition ST hidden');
               if(await page.locator('#raceDataSection .race-data-scroll').isVisible())throw Error('wide racecard table visible in exhibition tab');
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.evaluate(() => setView('forecast'));
               if(!await page.locator('#forecast').isVisible())throw Error('prediction tab failed');
               await page.locator('#predictionRows .prediction-row').first().waitFor({timeout:12000});
               for(const n of [3,5,10]){
@@ -195,14 +196,14 @@ jobs:
               }
               // Outside the exhibition collection window is not the same as a permanent absence.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'not_in_window'}},beforeinfo:null});
-              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.evaluate(() => setView('exhibit'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'),null,{timeout:12000});
               if(await page.locator('#exhibitionGrid .exhibition-boat').count()!==6)throw Error('out-of-window exhibition removed lane cards');
               // Real saved PRE_RESULT values from 2026-10-22 Suminoe 1R:
               // lane 1 exhibition 6.89, tilt -0.5 and ST F.04.
               raceText=JSON.stringify({...race,beforeinfo:{...race.beforeinfo,racers:race.beforeinfo.racers.map((r,i)=>i===0?{...r,exhibition_time:6.89,tilt:-0.5}:r),start_exhibition:race.beforeinfo.start_exhibition.map((r,i)=>i===0?{...r,st:'F.04'}:r)}});
-              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.evaluate(() => setView('exhibit'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('展示を表示中'));
               const realFirst=await page.locator('#exhibitionGrid .exhibition-boat').first().innerText();
@@ -215,12 +216,12 @@ jobs:
               await page.waitForFunction(()=>document.querySelectorAll('#raceDataRows tr').length===6&&document.querySelector('#raceDataStatus').textContent.includes('展示を表示中'));
               // A rejected incomplete racer card must not replace the last verified six-racer view.
               raceText=JSON.stringify({...race,source_audit:{...race.source_audit,beforeinfo:{status:'missing'}},racers:[race.racers[0],null,race.racers[2],race.racers[3]],beforeinfo:null});
-              await page.locator('.view-tabs [data-view="card"]').click();
+              await page.evaluate(() => setView('card'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus')?.textContent.includes('前回表示'),null,{timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('incomplete racer card cleared verified six lanes');
               if((await page.locator('#raceDataRows').innerText()).includes('未提供'))throw Error('unverified partial racer replaced verified six-lane data');
-              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.evaluate(() => setView('exhibit'));
               if(!await page.locator('#raceDataSection').isVisible())throw Error('rejected refresh hid verified race card');
               // Rechecking an already verified prediction must not duplicate its metadata.
               await page.locator('#retryPrediction').click();
@@ -228,24 +229,24 @@ jobs:
               if(await page.locator('#sourceMeta .source-chip').count()!==1)throw Error('duplicate prediction metadata chips');
               // Temporary prediction outage retains verified tickets only for the current race.
               predictionHttpFailure=true;
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.evaluate(() => setView('forecast'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('最新データではありません'));
               if(await page.locator('#predictionRows .prediction-row').count()!==10)throw Error('transient prediction outage erased verified tickets');
               predictionHttpFailure=false;
               // Missing prediction must not clear a previously rendered racecard.
               predictionUnavailable=true;
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.evaluate(() => setView('forecast'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#predictionStatus')?.textContent.includes('初回Git記録照合済')||document.querySelector('#predictionStatus')?.textContent.includes('検証済み'),null,{timeout:12000});
-              await page.locator('.view-tabs [data-view="card"]').click();
+              await page.evaluate(() => setView('card'));
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('missing prediction cleared racecard');
               // A failed forced refresh must retain an already shown six-lane table.
               await page.route('https://raw.githubusercontent.com/**',route=>{
                 if(route.request().url().includes(racePath))return route.fulfill({status:503,headers:cors,body:'temporary outage'});
                 return route.fallback();
               });
-              await page.locator('.view-tabs [data-view="exhibit"]').click();
+              await page.evaluate(() => setView('exhibit'));
               await page.locator('#retryPrediction').click();
               await page.waitForFunction(()=>document.querySelector('#raceDataStatus').textContent.includes('前回表示した出走表'));
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('failed refresh erased racecard');
@@ -287,7 +288,7 @@ jobs:
               url.searchParams.set('race','1');
               url.searchParams.set('view','result');
               await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
-              await page.locator('.view-tabs [data-view="result"]').click();
+              await page.evaluate(() => setView('result'));
               await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent==='CLEAN保存済み結果',null,{timeout:30000});
               const shown=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
               if(shown.join('-')!==expected.finish_order.join('-'))throw Error('Result UI differs from committed CLEAN archive: '+shown.join('-'));
@@ -319,7 +320,7 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
               for(const view of ['card','exhibit','forecast']){
-                await page.locator('.view-tabs [data-view="'+view+'"]').click();
+                await page.evaluate(() => setView(''+view+''));
                 const visible=view==='forecast'?await page.locator('#forecast').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
