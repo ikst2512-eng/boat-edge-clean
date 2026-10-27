@@ -36,15 +36,15 @@ class PipelineTests(unittest.TestCase):
 
     def test_missing_forecast_never_counted(self):
         self.write("confirmed_results", self.result())
-        record = evaluate(self.race, self.root)
+        record = evaluate(self.race, self.root, proof_checker=lambda *args: 'test')
         self.assertEqual(record["state"], "waiting_prediction")
 
     def test_prediction_result_payout_stage_progress(self):
         self.write("v236_forecasts", self.forecast())
-        self.assertEqual(evaluate(self.race, self.root)["state"], "waiting_result")
+        self.assertEqual(evaluate(self.race, self.root, proof_checker=lambda *args: 'test')["state"], "waiting_result")
         self.write("confirmed_results", self.result())
-        self.assertEqual(evaluate(self.race, self.root, payout_loader=lambda *args: (_ for _ in ()).throw(OSError()))["state"], "waiting_payout")
-        scored = evaluate(self.race, self.root, payout_loader=lambda *_: 1230)
+        self.assertEqual(evaluate(self.race, self.root, proof_checker=lambda *args: 'test', payout_loader=lambda *args: (_ for _ in ()).throw(OSError()))["state"], "waiting_payout")
+        scored = evaluate(self.race, self.root, proof_checker=lambda *args: 'test', payout_loader=lambda *_: 1230)
         self.assertEqual(scored["state"], "complete")
         self.assertTrue(scored["hit"])
         self.assertEqual(scored["return_yen"], 4920)
@@ -54,7 +54,7 @@ class PipelineTests(unittest.TestCase):
     def test_missing_candidate(self):
         self.write("v236_forecasts", self.forecast())
         self.write("confirmed_results", self.result((6, 5, 4)))
-        scored = evaluate(self.race, self.root, payout_loader=lambda *_: 1000)
+        scored = evaluate(self.race, self.root, proof_checker=lambda *args: 'test', payout_loader=lambda *_: 1000)
         self.assertEqual(scored["miss_reason"], "second_missing")
         self.assertEqual(scored["profit_yen"], -5000)
 
@@ -63,7 +63,7 @@ class PipelineTests(unittest.TestCase):
         record["saved_at_jst"] = "2026-10-28T14:00:00+09:00"
         self.write("v236_forecasts", record)
         self.write("confirmed_results", self.result())
-        self.assertEqual(evaluate(self.race, self.root)["state"], "invalid_record")
+        self.assertEqual(evaluate(self.race, self.root, proof_checker=lambda *args: 'test')["state"], "invalid_record")
 
     def test_state_persists_and_no_fabricated_roi(self):
         self.write("confirmed_results", self.result())
