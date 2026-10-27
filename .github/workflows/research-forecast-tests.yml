@@ -57,27 +57,26 @@ jobs:
       - name: Inventory frozen forecasts without results access
         run: python research_snapshot_inventory.py --snapshots research_snapshots
 
-      - name: Probe four official historical results (research only, non-blocking)
+      - name: Probe twelve actual official outcomes and evaluate frozen Top10 (research only)
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
         run: |
-          mkdir -p /tmp/boat-edge-official-probe
           python - <<'PY'
           import json
-          from pathlib import Path
           from research_collect_official_results import collect
-          # Historical bounded four-race probe, no predictions or results committed.
-          import tempfile
-          with tempfile.TemporaryDirectory() as d:
-              import shutil
-              sources = [Path(f'research_snapshots/2026102701{i:02d}.json') for i in range(1, 5)]
-              for src in sources:
-                  if src.exists():
-                      shutil.copyfile(src, Path(d)/src.name)
-              result = collect(d, max_races=4)
-              print(json.dumps({'status':result['status'],'fetched':result['fetched'],
-                                    'failed':result['failed'],'failures':result['failures'],
-                                    'tickets': [{'race_code':r['race_code'],'ticket':r['ticket'],
-                                                 'verification_status':r['verification_status']}
-                                                for r in result['results']]}, ensure_ascii=False))
+          from research_batch_result_join import reconcile
+          data = collect('research_snapshots', max_races=12)
+          report = reconcile('research_snapshots', data['results'])
+          print(json.dumps({
+              'status':'EXPLORATORY_UNVERIFIED',
+              'local_metadata_candidates':data['local_metadata_candidates'],
+              'requested':12, 'fetched':data['fetched'],
+              'failed':data['failed'], 'failures':data['failures'],
+              'matched':report['counts'].get('exploratory_matched',0),
+              'top1_hits':report['counts'].get('top1_hits',0),
+              'top3_hits':report['counts'].get('top3_hits',0),
+              'top5_hits':report['counts'].get('top5_hits',0),
+              'top10_hits':report['counts'].get('top10_hits',0),
+              'formal_eligible':0
+          }, ensure_ascii=False))
           PY
