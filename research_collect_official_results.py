@@ -32,7 +32,11 @@ def collect(snapshot_dir, max_races=24, retries=2, timeout=8, sleep_fn=time.slee
         except (ValueError, OSError, TypeError, AttributeError):
             continue
     report["local_metadata_candidates"] = len(selected)
-    for path in selected[:max_races]:
+    consecutive_network_failures = 0
+    for index, path in enumerate(selected[:max_races]):
+        if consecutive_network_failures >= 2:
+            report["circuit_breaker_skipped"] = len(selected[:max_races]) - index
+            break
         key=path.stem
         if not re.fullmatch(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])",key):
             report["failures"].append({"race_code":key,"reason":"invalid_race_code"})
@@ -50,12 +54,14 @@ def collect(snapshot_dir, max_races=24, retries=2, timeout=8, sleep_fn=time.slee
             result=parse_result(data.decode("utf-8"),url)
             result["fetched_at_utc"]=datetime.now(timezone.utc).isoformat()
             report["results"].append(result)
+            consecutive_network_failures = 0
             break
           except (TimeoutError, OSError) as exc:
             if attempt < retries:
                 sleep_fn(min(0.5 * (2 ** attempt), 2))
                 continue
             report["failures"].append({"race_code":key,"reason":type(exc).__name__,"attempts":attempt+1})
+            consecutive_network_failures += 1
           except (ValueError, UnicodeDecodeError) as exc:
             report["failures"].append({"race_code":key,"reason":type(exc).__name__,"attempts":attempt+1})
             break
