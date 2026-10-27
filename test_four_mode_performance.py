@@ -1,7 +1,17 @@
 import unittest
+from datetime import datetime, timezone, timedelta
+from collect_four_mode_performance import pending_result_state
 from four_mode_performance import allocate,evaluate,summary
 
 class FourModePerformanceTests(unittest.TestCase):
+    def test_pending_vs_overdue_is_not_counted_as_miss(self):
+        record={"deadline_jst":"2026-10-28T15:19:00+09:00"}
+        early=datetime(2026,10,28,8,0,tzinfo=timezone(timedelta(hours=9)))
+        late=datetime(2026,10,28,16,0,tzinfo=timezone(timedelta(hours=9)))
+        self.assertEqual(pending_result_state(record,early),"before_deadline")
+        self.assertEqual(pending_result_state(record,late),"overdue_result")
+        with self.assertRaises(ValueError):
+            pending_result_state({"deadline_jst":"2026-10-28T15:19:00"},early)
     def test_budgets(self):
         picks=["1-2-3","2-1-3","3-2-1"]
         for budget in (5000,7500,10000):

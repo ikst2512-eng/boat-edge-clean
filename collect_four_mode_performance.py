@@ -4,17 +4,28 @@ No archived forecast or verified first Git add => not eligible. Real confirmed
 results and official 100-yen trifecta payout are mandatory.
 """
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from four_mode_performance import evaluate,summary
 from verification_pipeline import attest_first_git_add,read_json,validate_result,payout_for,save_atomic
 
 ROOT=Path(__file__).resolve().parent
+JST=timezone(timedelta(hours=9))
 
-def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_first_git_add):
+def pending_result_state(archive,now):
+    """Classify only missing confirmed results; not a verified race outcome."""
+    deadline=datetime.fromisoformat(archive["deadline_jst"])
+    if deadline.utcoffset() is None:
+        raise ValueError("untrusted_deadline")
+    return "before_deadline" if now<deadline else "overdue_result"
+
+
+def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_first_git_add,now=None):
+    now=now or datetime.now(JST)
     archive_dir=root/"four_mode_forecasts"
     result_dir=root/"confirmed_results"
     records=[]
-    counts={"archived":0,"awaiting_result":0,"awaiting_payout":0,"unverified":0,"complete":0}
+    counts={"archived":0,"awaiting_result":0,"before_deadline":0,"overdue_result":0,"awaiting_payout":0,"unverified":0,"complete":0}
     if archive_dir.exists():
         for path in sorted(archive_dir.glob("*.json")):
             if not path.stem.isdigit() or len(path.stem)!=12:continue
@@ -30,6 +41,8 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
             result_path=result_dir/(path.stem+".json")
             if not result_path.is_file():
                 counts["awaiting_result"]+=1
+                try:counts[pending_result_state(archive,now)]+=1
+                except (ValueError,KeyError,TypeError):counts["unverified"]+=1
                 continue
             try:
                 result=read_json(result_path)
