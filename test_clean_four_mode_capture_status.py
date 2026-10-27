@@ -19,6 +19,7 @@ class CaptureStatusTests(unittest.TestCase):
             self.assertEqual(state["http_status"],404)
             self.assertEqual(state["eligible_forecasts_today"],0)
             path=root/"four_mode_forecasts/capture_status.json"
+            self.assertEqual(json.loads(path.read_text(encoding='utf-8'))['http_status'],404)
             old=path.read_bytes()
             publish_status({"new_saved":[],"source_pending":"waiting_for_published_source",
                 "http_status":404,"source_url":state["source_url"]},root,now)
