@@ -8,7 +8,13 @@ from research_model import JST
 
 ROOT = Path(__file__).resolve().parent
 def capture(day=None):
-    day = day or datetime.now(JST).strftime("%Y%m%d")
+    now = datetime.now(JST)
+    day = day or now.strftime("%Y%m%d")
+    # The published daily source may not yet exist just after midnight.
+    # Only today's pre-opening window may be skipped; late failures still fail.
+    if day == now.strftime("%Y%m%d") and now.hour < 6:
+        return {"already_saved": 0, "saved": 0, "date": day,
+                "status": "waiting_for_published_source"}
     status, source = clean_schedule(day)
     if status != 200:
         raise ValueError("independent schedule unavailable: " + source.get("status", "unknown"))
