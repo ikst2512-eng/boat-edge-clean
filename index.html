@@ -497,13 +497,13 @@ async function loadOriginalExhibition(key,token,grid){
   if(record.length===0){status.textContent='オリジナル展示：未配信／公開待ち（通常の展示情報・予想は別途表示）';return;}
   if(record.length!==1)throw Error('ORIGINAL_DUPLICATE');
   const row=record[0],count=Number(row[index['計測数']]);
-  if(!Number.isInteger(count)||count<0||count>3)throw Error('ORIGINAL_COUNT');
+  if(!Number.isInteger(count)||count<1||count>3)throw Error('ORIGINAL_COUNT');
   const labels=[];
   for(let k=1;k<=count;k++){const label=row[index['計測項目'+k]];if(typeof label!=='string'||!label.trim()||label.length>32)throw Error('ORIGINAL_LABEL');labels.push(label.trim());}
   root.replaceChildren();const title=document.createElement('strong');title.textContent='各場オリジナル展示（配信項目名をそのまま表示）';root.append(title);
   for(let lane=1;lane<=6;lane++){
    const line=document.createElement('div');line.className='course-record-line';
-   const vals=labels.map((label,i)=>{const col=lane+'艇_値'+(i+1);const alt=lane+'号艇_値'+(i+1);const value=row[index[col]??index[alt]];return label+' '+(typeof value==='string'&&value.trim()?value.trim():'—');});
+   const vals=labels.map((label,i)=>{const col='艇'+lane+'_値'+(i+1);const value=row[index[col]];return label+' '+(typeof value==='string'&&value.trim()?value.trim():'—');});
    line.textContent=lane+'号艇｜'+vals.join('　');root.append(line);
   }
  }catch(error){
