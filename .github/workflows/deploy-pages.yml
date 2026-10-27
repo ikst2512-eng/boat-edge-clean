@@ -36,9 +36,9 @@ jobs:
           scripts = re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>', page)
           if len(scripts) != 1:
               raise SystemExit('Expected exactly one inline script')
-          for size in (3, 5, 10):
-              if f'data-top="{size}"' not in page:
-                  raise SystemExit(f'Missing Top{size} selector')
+          for mode in ('hit', 'balance', 'hole', 'narrow'):
+              if f'data-mode="{mode}"' not in page:
+                  raise SystemExit(f'Missing prediction mode {mode} selector')
           if "status==='research'" in scripts[0]:
               raise SystemExit('Unverified research prediction fallback')
           ids = re.findall(r'\bid="([^"]+)"', page)
