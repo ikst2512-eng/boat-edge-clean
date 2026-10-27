@@ -44,6 +44,18 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(fetch.call_count,2)
             self.assertEqual(json.loads(path.read_text()),self.complete_record())
 
+    def test_circuit_breaker_stops_outage_storm(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for i in range(1, 5):
+                obj=self.complete_record()
+                obj["race_code"]=f"2026102701{i:02d}"
+                Path(folder,obj["race_code"]+".json").write_text(json.dumps(obj),encoding="utf-8")
+            with patch("research_collect_official_results.urlopen",side_effect=TimeoutError()) as fetch:
+                report=collect(folder,max_races=4,retries=0,sleep_fn=lambda _:None)
+            self.assertEqual(report["failed"],2)
+            self.assertEqual(report["circuit_breaker_skipped"],2)
+            self.assertEqual(fetch.call_count,2)
+
     def test_rejects_unbounded_collection(self):
         with self.assertRaises(ValueError):collect(".",max_races=145)
     def test_no_forecast_mutation_on_failed_fetch(self):
