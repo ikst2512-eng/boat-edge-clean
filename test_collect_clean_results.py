@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from datetime import datetime
+from urllib.error import HTTPError
 from unittest.mock import patch
 import collect_clean_results as c
 
@@ -14,6 +15,20 @@ class ResultCollectorTests(unittest.TestCase):
         records=c.build_records("20261027",(header+row).encode(),datetime.fromisoformat("2026-10-27T17:00:00+09:00"))
         self.assertEqual(records["202610270101"]["finish_order"],[1,2,3])
         self.assertIn("boatracecsv.github.io",records["202610270101"]["source_url"])
+    def test_preopening_current_day_404_waits_but_historical_404_fails(self):
+        class Clock:
+            @staticmethod
+            def now(tz):
+                return datetime.fromisoformat("2026-10-28T03:08:00+09:00")
+            @staticmethod
+            def strptime(*args):
+                return datetime.strptime(*args)
+        def not_found(*args, **kwargs):
+            raise HTTPError("https://example.invalid", 404, "Not Found", {}, None)
+        with patch.object(c, "datetime", Clock), patch.object(c, "urlopen", side_effect=not_found):
+            self.assertEqual(c.collect()["status"], "waiting_for_published_source")
+            with self.assertRaises(HTTPError):
+                c.collect("20261027")
     def test_rejects_duplicate_codes(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
         row="202610270101,2026-10-27T16:00:00+09:00,1,2,3\n"

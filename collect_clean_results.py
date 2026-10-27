@@ -11,6 +11,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 JST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parent
@@ -74,10 +75,15 @@ def collect(day=None):
         raise ValueError("invalid date")
     datetime.strptime(day, "%Y%m%d")
     url = BASE + f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
-    with urlopen(Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN-RESULTS/1.0"}), timeout=15) as response:
-        if response.status != 200:
-            raise ValueError("source unavailable")
-        raw = response.read(2_000_001)
+    try:
+        with urlopen(Request(url, headers={"User-Agent": "BOAT-EDGE-CLEAN-RESULTS/1.0"}), timeout=15) as response:
+            if response.status != 200:
+                raise ValueError("source unavailable")
+            raw = response.read(2_000_001)
+    except HTTPError as exc:
+        if exc.code == 404 and day == now.strftime("%Y%m%d") and now.hour < 6:
+            return {"day": day, "source_races": 0, "saved": 0, "status": "waiting_for_published_source"}
+        raise
     records = build_records(day, raw, now)
     target = ROOT / "confirmed_results"
     saved = 0
