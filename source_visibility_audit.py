@@ -36,7 +36,9 @@ def audit(day=None):
     report = {"requested_date": day, "manifest_error": err,
               "manifest_date": None, "manifest_updated_at": None,
               "races": 0, "prediction_present": 0, "prediction_missing": 0,
-              "result_present": 0, "result_missing": 0, "other_errors": []}
+              "result_present": 0, "result_missing": 0, "other_errors": [],
+              "reference_prediction_present": 0, "confirmed_result_present": 0,
+              "prediction_missing_keys": [], "result_missing_keys": []}
     if not isinstance(manifest, dict):
         report["manifest_error"] = err or "INVALID_MANIFEST"
         return report
@@ -74,10 +76,15 @@ def audit(day=None):
                 obj, error = get_json(f"{prefix}/{key}.json")
                 if error == "HTTP_404":
                     report[category + "_missing"] += 1
+                    report[category + "_missing_keys"].append(key)
                 elif error is not None or not isinstance(obj, dict):
                     report["other_errors"].append({"feed": category, "key": key, "error": error or "INVALID_JSON"})
                 else:
                     report[category + "_present"] += 1
+                    if category == "prediction" and obj.get("prediction_kind") == "SITE_REFERENCE_V122":
+                        report["reference_prediction_present"] += 1
+                    if category == "result" and obj.get("status") == "confirmed":
+                        report["confirmed_result_present"] += 1
     return report
 
 
@@ -91,6 +98,10 @@ if __name__ == "__main__":
         out.write(f"- Formal prediction files: present={report['prediction_present']}, 404={report['prediction_missing']}\n")
         out.write(f"- Result files: present={report['result_present']}, 404={report['result_missing']}\n")
         out.write(f"- Manifest issue: {report['manifest_error']}; other errors: {json.dumps(report['other_errors'], ensure_ascii=False)}\n")
+        out.write(f"- Site-reference snapshots (NOT formal-verified): {report['reference_prediction_present']} / {report['prediction_present']} present\\n")
+        out.write(f"- Confirmed results: {report['confirmed_result_present']} / {report['result_present']} present\\n")
+        out.write(f"- Missing sample race keys: prediction={report['prediction_missing_keys']}, result={report['result_missing_keys']}\\n")
+        out.write("- Presence does not prove first-Git-add validation or official Fresh publication.\\n")
         out.write("- Missing files are NOT proof of a failed collector or permission to backfill after cutoff.\n")
     if report["manifest_error"] or report["other_errors"]:
         raise SystemExit(1)
