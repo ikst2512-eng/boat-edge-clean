@@ -81,8 +81,8 @@ def collect(day=None):
                 raise ValueError("source unavailable")
             raw = response.read(2_000_001)
     except HTTPError as exc:
-        if exc.code == 404 and day == now.strftime("%Y%m%d") and now.hour < 6:
-            return {"day": day, "source_races": 0, "saved": 0, "status": "waiting_for_published_source"}
+        if exc.code == 404 and day == now.strftime("%Y%m%d"):
+            return {"day": day, "source_races": 0, "saved": 0, "status": "waiting_for_published_source", "http_status": 404, "source_url": url}
         raise
     records = build_records(day, raw, now)
     target = ROOT / "confirmed_results"
