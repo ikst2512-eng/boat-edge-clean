@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'clean_four_mode_capture.py'
       - 'clean_four_modes.py'
       - 'test_clean_four_modes.py'
       - 'v236_freeze.py'
@@ -28,6 +29,20 @@ jobs:
           fetch-depth: 0
       - name: Verify processing states and payouts
         run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes
+      - name: Capture independent four-mode forecasts before deadline
+        if: github.event_name != 'pull_request'
+        run: python clean_four_mode_capture.py
+      - name: Commit newly captured four-mode forecasts
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p four_mode_forecasts
+          git add four_mode_forecasts/
+          if ! git diff --cached --quiet; then
+            git commit -m "data: freeze independent four-mode forecast [skip ci]"
+            git push origin HEAD:main
+          fi
       - name: Freeze prospectively committed V236 candidate cohorts
         if: github.event_name != 'pull_request'
         run: python v236_freeze.py
