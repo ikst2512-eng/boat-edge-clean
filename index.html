@@ -510,7 +510,7 @@ async function loadRaceData(force=false){
  try{
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
-  const response=await fetchTimed(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
+  const response=await fetchTimed('/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
   if(!response.ok)throw Error('HTTP_'+response.status);
   const currentText=await response.text();
   raw=JSON.parse(currentText);
