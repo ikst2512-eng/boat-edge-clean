@@ -669,7 +669,7 @@ async function loadRaceData(force=false){
 }
 let displayedPredictionKey='';
 const predictionRetryAt=new Map();
-async async function cleanFourModeForecast(key){
+async function cleanFourModeForecast(key){
  const query='?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
  const res=await fetchTimed('/api/clean-four-modes'+query,{cache:'no-store'});
  if(!res.ok)throw Error('CLEAN_MODEL_UNAVAILABLE_'+res.status);
@@ -683,7 +683,7 @@ async async function cleanFourModeForecast(key){
  }
  return {modes,tickets:modes.hit.tickets,probabilities:modes.hit.probabilities,odds:{},deadline:result.deadline_jst,created:result.generated_at_jst,version:'CLEAN独立4パターン（研究段階・的中率未検証）',inputs:['全国勝率','出走表','直前データ未提供時も計算'],proof:'研究予想・締切前固定記録は未完成',provisional:true,targets:Object.fromEntries(Object.entries(result.modes).map(([k,v])=>[k,{goal:v.target_hit_rate_pct,estimated:v.estimated_coverage_pct}]))};
 }
-function loadPredictions(force=false){
+async function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
  const raceKey=sameRaceKey();
  if(!force&&!verifiedCache.has(raceKey)&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){const keep=displayedPredictionKey===raceKey&&predictionTickets.length>0&&verifiedCache.has(raceKey);if(!keep){predictionTickets=[];predictionModes={};predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();}document.getElementById('predictionStatus').textContent=keep?'再照合待ちです。前回検証済みの買い目を保持中（最新データではありません）。「再読み込み」で今すぐ確認できます。':'予想原本の再確認待ちです。未公開・アクセス制限の場合は5分、通信障害の場合は2分後に自動再確認します。「再読み込み」で今すぐ試せます。';return;}
