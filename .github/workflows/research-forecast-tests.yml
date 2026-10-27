@@ -4,6 +4,8 @@ on:
     paths:
       - 'research_model.py'
       - 'research_beta_backtest.py'
+      - 'research_snapshot_inventory.py'
+      - 'test_research_snapshot_inventory.py'
       - 'test_research_beta_backtest.py'
       - 'server.py'
       - 'test_research_model.py'
@@ -38,4 +40,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_research_beta_backtest
+        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_research_beta_backtest test_research_snapshot_inventory
