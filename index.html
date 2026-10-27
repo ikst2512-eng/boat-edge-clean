@@ -676,42 +676,29 @@ document.getElementById('performanceBudget').addEventListener('change',loadFourM
 async function loadReview(){
  loadFourModePerformance();
  const seq=++reviewSequence,key=sameRaceKey(),root=document.getElementById('reviewMetrics'),status=document.getElementById('reviewStatus'),note=document.getElementById('reviewReason');
- root.replaceChildren();note.textContent='';status.textContent='照合中…';
+ root.replaceChildren();note.textContent='';status.textContent='CLEAN締切前保存記録を照合中…';
  const add=(title,value)=>{const card=document.createElement('div');card.className='box';const label=document.createElement('div');label.className='muted';label.textContent=title;const v=document.createElement('strong');v.textContent=value;card.append(label,v);root.append(card)};
  try{
-  const code=key.replaceAll('-','');
-  const [forecast,response]=await Promise.all([verifiedStoredPrediction(key),fetchTimed('/api/clean-result?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'})]);
+  const [record,res]=await Promise.all([verifiedFourModeRace(key),fetchTimed('/api/clean-result?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'})]);
   if(seq!==reviewSequence||key!==sameRaceKey())return;
-  if(!response.ok)throw Error('RESULT_PENDING');
-  const result=await response.json(),finish=result.finish_order;
-  if(!result.ok||result.status!=='confirmed'||result.race_code!==code||!Array.isArray(finish)||finish.length!==3||finish.some(n=>!Number.isInteger(n)||n<1||n>6)||new Set(finish).size!==3)throw Error('RESULT_UNVERIFIED');
-  if(!Array.isArray(forecast.tickets)||forecast.tickets.length!==15||new Set(forecast.tickets).size!==15)throw Error('FORECAST_UNVERIFIED');
-  const outcome=finish.join('-'),rank=forecast.tickets.indexOf(outcome),hit=rank>=0;
-  add('買い目','15点');add('投資額','5,000円');add('結果',outcome);add('判定',hit?'的中':'不的中');
-  const head=forecast.tickets.some(t=>t[0]===String(finish[0]));
-  const pair=forecast.tickets.some(t=>t.startsWith(finish[0]+'-'+finish[1]+'-'));
-  note.textContent=hit?(rank+1)+'位で的中':!head?'1着候補の不足':!pair?'2着組み合わせの不足':'3着候補の不足';
-  const url='https://boatracecsv.github.io/data/results/payouts/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
-  const payRes=await fetchTimed(url,{cache:'no-store'});
-  if(!payRes.ok)throw Error('PAYOUT_PENDING');
-  const csv=await payRes.text();if(csv.length>2000000)throw Error('PAYOUT_INVALID');
-  const cells=line=>{const a=[];let v='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){v+='"';i++}else q=!q}else if(c===','&&!q){a.push(v);v=''}else v+=c}a.push(v);return a};
-  const lines=csv.replace(/^\uFEFF/,'').split(/\r?\n/),heads=cells(lines.shift()||''),codeCol=heads.indexOf('レースコード'),comboCol=heads.indexOf('3連単_組番'),payCol=heads.indexOf('3連単_払戻金');
-  if([codeCol,comboCol,payCol].some(n=>n<0))throw Error('PAYOUT_SCHEMA');
-  const matched=lines.filter(Boolean).map(cells).filter(c=>c[codeCol]===code);
-  if(matched.length!==1||matched[0][comboCol]!==outcome)throw Error('PAYOUT_MISMATCH');
-  const payText=matched[0][payCol].replace(/[円,\s]/g,'');
-  if(!/^\d{1,8}$/.test(payText)||Number(payText)<100)throw Error('PAYOUT_INVALID');
+  if(!res.ok)throw Error('RESULT_PENDING');
+  const result=await res.json();
+  const finish=result.finish_order;
+  if(!result.ok||result.status!=='confirmed'||result.race_code!==key.replaceAll('-','')||
+     !Array.isArray(finish)||finish.length!==3||!finish.every(n=>Number.isInteger(n)&&n>=1&&n<=6)||
+     record.official_finish!==finish.join('-'))throw Error('RESULT_MISMATCH');
+  add('確定3連単',record.official_finish);
+  add('100円当たり払戻',record.official_payout_yen_per_100.toLocaleString('ja-JP')+'円');
+  for(const [mode,label] of [['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']]){
+   const m=record.modes[mode];
+   add(label,m.hit?'的中 ／ 払戻 '+m.return_yen.toLocaleString('ja-JP')+'円':'不的中 ／ 払戻0円');
+  }
+  status.textContent='CLEAN締切前Git保存・確定結果・公式払戻を照合済み';
+  note.textContent='各方式5,000円の想定購入結果（実際に購入した記録ではありません）。予想の後付け生成は行いません。';
+ }catch(e){
   if(seq!==reviewSequence||key!==sameRaceKey())return;
-  const unit=Math.floor(5000/15/100)*100,extra=(5000-unit*15)/100,stake=hit?unit+(rank<extra?100:0):0,returnYen=hit?Number(payText)*stake/100:0;
-  add('的中買い目の配分',stake.toLocaleString('ja-JP')+'円');
-  add('払戻',returnYen.toLocaleString('ja-JP')+'円');
-  add('損益',(returnYen-5000).toLocaleString('ja-JP')+'円');
-  add('回収率',(100*returnYen/5000).toFixed(1)+'%');
-  status.textContent='選択レースの参考検証（累計実績とは別）';
- }catch(e){if(seq!==reviewSequence||key!==sameRaceKey())return;
-  if(root.children.length)status.textContent='払戻未確認のため回収率は保留';
-  else status.textContent=String(e.message)==='RESULT_PENDING'?'結果待ち':'検証保留：締切前予想または確定結果の証拠不足';
+  status.textContent=e.message==='RESULT_PENDING'?'結果待ち':'検証保留：CLEAN締切前予想または確定結果の証拠不足';
+  note.textContent='締切前の初回Git保存、確定結果、払戻のすべてを確認できたレースだけ実績に反映します。';
  }
 }
 setInterval(()=>{if(!document.hidden&&activeView==='review')loadReview()},60000);
