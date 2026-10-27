@@ -2,15 +2,21 @@ name: CLEAN prospective independent accuracy checks
 on:
   pull_request:
     paths:
+      - audit_clean_first_add.py
+      - test_audit_clean_first_add.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
+      - .github/workflows/clean-first-add-audit.yml
   push:
     branches: [main]
     paths:
+      - audit_clean_first_add.py
+      - test_audit_clean_first_add.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
+      - .github/workflows/clean-first-add-audit.yml
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,3 +31,14 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add
+      - name: Audit existing immutable candidate commits if present
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          candidates=(prospective_predictions/*.json)
+          if [ "${#candidates[@]}" -gt 0 ]; then
+            python audit_clean_first_add.py "${candidates[@]}"
+          else
+            echo 'No prospective candidates to attest yet'
+          fi
