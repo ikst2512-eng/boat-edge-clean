@@ -579,6 +579,7 @@ async function loadRaceData(force=false){
   const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
   const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
   const fastest=measured.length?measured[0].time:null;
+  const dataState=document.createElement('p');dataState.className='muted';dataState.textContent=safePreview?'直前データ：取得済み・締切前確認済み':'直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';exhibitGrid.append(dataState);
   const summary=document.createElement('div');summary.className='exhibition-summary';
   summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未検証｜未取得項目は「—」';
   exhibitGrid.append(summary);
@@ -624,6 +625,18 @@ async function loadRaceData(force=false){
    const name=document.createElement('span');name.className='exhibition-name';name.textContent=racer.name||'未提供';top.append(badge,name);card.append(top);
    const vals=document.createElement('div');vals.className='exhibition-values';
    const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\.?\d+(?:\.\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
+   // Venue-original timing is optional. Display saved audited measurements only;
+   // Kiryu half-lap is NOT the same measurement as a full lap elsewhere.
+   if(safePreview){
+    const first=(obj,keys)=>{for(const k of keys){const value=obj?.[k];if(txt(value)!=='—')return txt(value)}return null};
+    const timings=[
+     [s.venue===0?'半周ラップ':'一周タイム',['half_lap_time','half_lap','half_lap_sec','lap_time','one_lap_time','round_time']],
+     ['まわり足',['turning_time','turn_time','turning_foot_time','mawari_time']],
+     ['直線タイム',['straight_time','straight_sec','straight_exhibition_time']]
+    ];
+    for(const [label,keys] of timings){if(s.venue===0&&label==='半周ラップ'){const v=first(ex,keys.slice(0,3));if(v!==null)measures.push([label,v]);}
+     else {const v=first(ex,s.venue===0?keys:keys.filter(k=>!k.startsWith('half_lap')));if(v!==null)measures.push([label,v]);}}
+   }
    measures.forEach(([label,value],i)=>{const item=document.createElement('div');item.className='exhibition-metric';const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(small,strong);vals.append(item)});
    card.append(vals);exhibitGrid.append(card);
   }
