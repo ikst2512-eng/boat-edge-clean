@@ -60,14 +60,15 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
               if(await page.locator('#forecast [data-top]').count()!==4)throw Error('Top3/5/10 controls missing');
+              await page.evaluate(()=>setView('forecast'));
               await page.locator('#forecast [data-top="5"]').click();
               if(!await page.locator('#forecast [data-top="5"]').evaluate(el=>el.classList.contains('on')))throw Error('Top5 not selected');
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(1).click();
               if(!(await page.locator('#activeRaceLabel').innerText()).includes('2R'))throw Error('Current race label not updated');
-              await page.locator('.view-tabs [data-view="result"]').click();
+              await page.locator('.view-tabs [data-page="result"]').click();
               if(!await page.locator('#resultSection').isVisible())throw Error('Result tab not visible');
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.locator('.view-tabs [data-page="forecast"]').click();
               if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
               if(errors.length)throw Error('JavaScript page errors: '+errors.join('; '));
               console.log('PASS: production mobile 24 venues, 12 races, forecast controls, result navigation');
@@ -109,6 +110,7 @@ jobs:
               });
               if(rows.length!==3||!rows[0].cls.includes('prediction-primary')||!rows[0].prob.includes('probability-high')||rows[0].tier!=='本命'||rows[0].value!=='28.00%')throw Error('Primary mobile forecast incorrect: '+JSON.stringify(rows));
               if(!rows[1].cls.includes('prediction-strong')||!rows[2].cls.includes('prediction-strong'))throw Error('Upper candidate styling absent');
+              await page.evaluate(()=>setView('forecast'));
               await page.locator('#forecast [data-top="5"]').click();
               // The app refreshes predictions asynchronously from its own upstream.
               // Exercise the Top5 handler, then stabilize the fixture to separate
