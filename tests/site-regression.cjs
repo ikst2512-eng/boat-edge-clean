@@ -140,10 +140,9 @@ assert.ok(script.includes("['F / L',r=>String(r.F??'—')"),'F/L included in rac
 assert.ok(script.includes("const weather=safePreview&&raw.beforeinfo?.weather"),'weather must be gated by audited exhibition source');
 assert.ok(script.includes("typeof value==='number'&&Number.isFinite(value)&&value>=0"),'weather must not render fabricated or malformed values');
 assert.ok(script.includes("water.className='exhibition-weather'"),'water observations available in exhibition view');
-assert.ok(script.includes("data/site_verified_entries/"),'verified entry sidecar must be loaded');
-assert.ok(script.includes("sidecarToken!==window.raceDataRequestId"),'old race sidecar cannot overwrite current race');
-assert.ok(script.includes("audit.source!==sourceUrl"),'sidecar must match exact prerace source');
-assert.ok(script.includes("fetched>=raceDeadline"),'sidecar capture must predate deadline');
+assert.ok(script.includes("/api/clean-racecard?hd="),'racecard must be fetched from CLEAN API');
+assert.ok(!script.includes("EDGE_RAW+'/main/data/races/"),'legacy racecard fetch forbidden');
+assert.ok(!script.includes("data/site_verified_entries/"),'legacy actual-entry sidecar fetch forbidden');
 assert.ok(script.includes("index===0?'prediction-primary':index<3?'prediction-strong':'prediction-standard'"),'forecast tiers must be assigned from current rank');
 assert.ok(script.includes("tier.textContent=index===0?'本命':index<3?'上位':'候補'"),'forecast tier labels must accompany colors');
 assert.ok(script.includes("Object.values(predictionProbabilities).filter(Number.isFinite)"),'probability tier requires actual finite saved model values');
