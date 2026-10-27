@@ -70,6 +70,9 @@ def collect(root=ROOT, now=None, read=read_rows):
 if __name__=="__main__":
     try:
         result=collect()
-    except (HTTPError, URLError, TimeoutError, ConnectionError) as exc:
-        result={"new_saved":[],"source_pending":type(exc).__name__}
+    except HTTPError as exc:
+        result={"new_saved":[],"source_pending":"HTTPError","http_status":exc.code,
+                "source_url":exc.url,"retryable":True}
+    except (URLError, TimeoutError, ConnectionError) as exc:
+        result={"new_saved":[],"source_pending":type(exc).__name__,"retryable":True}
     print(json.dumps(result,ensure_ascii=False))
