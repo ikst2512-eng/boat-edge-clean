@@ -40,6 +40,22 @@ class CollectorTests(unittest.TestCase):
    proof.assert_called_once_with()
   for path in self.store.glob("*.json"):
    self.assertEqual(json.loads(path.read_text())["model_git_sha"],"a"*40)
+ def test_late_source_classified_separately_from_clock(self):
+  cutoff=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(minutes=12)
+  source_after_cutoff=cutoff+timedelta(minutes=1)
+  with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],source_after_cutoff,"a"*64),([self.card],source_after_cutoff,"b"*64)]):
+   counts=collector.collect(self.day)
+   self.assertEqual((counts["not_ready"],counts["not_ready_clock"],counts["not_ready_source"]),(1,0,1))
+   self.assertFalse(list(self.store.glob("*.json")))
+ def test_expired_deadline_classified_as_clock_not_source(self):
+  today=datetime.now(JST).strftime("%Y%m%d")
+  title={"レースコード":today+"1201","電話投票締切予定":"00:01"}
+  card=dict(self.card,レースコード=today+"1201")
+  source=datetime.strptime(today+"00:01","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
+  with patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([title],source,"a"*64),([card],source,"b"*64)]):
+   counts=collector.collect(today)
+   self.assertEqual((counts["not_ready"],counts["not_ready_clock"],counts["not_ready_source"]),(1,1,0))
+   self.assertFalse(list(self.store.glob("*.json")))
  def test_missing_card(self):
   start=datetime.now(JST)
   with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([],start,"b"*64)]):
