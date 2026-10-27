@@ -1,0 +1,13 @@
+{
+  "day_jst": "20261028",
+  "eligible_forecasts_today": 0,
+  "excluded": {},
+  "http_status": 404,
+  "last_run_new_count": 0,
+  "production_success_proven": false,
+  "published_card_rows": null,
+  "published_title_rows": null,
+  "schema": "CLEAN_FOUR_MODE_CAPTURE_HEALTH_V1",
+  "source_status": "waiting_for_published_source",
+  "source_url": "https://boatracecsv.github.io/data/programs/title/2026/10/28.csv"
+}\n
