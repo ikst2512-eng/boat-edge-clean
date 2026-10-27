@@ -254,7 +254,7 @@ function renderDeadlines(data){
  const currentTime=Date.now();
  const upcoming=items.filter(item=>Date.parse(s.date+'T'+item.time+':00+09:00')>currentTime).slice(0,3);
  const updatedAt=Date.parse(data.updated_at),isStale=!Number.isFinite(updatedAt)||Date.now()-updatedAt>30*60000;
- const statusText=(data.historical_result_only?'過去の開催実績から開催場を確認（締切時刻は未収録）':upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
+ const statusText=(data.historical_result_only?'過去の確定結果から開催場を確認（締切時刻なし）':upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
  document.getElementById('deadlineStatus').textContent=statusText;
  const signature=upcoming.map(item=>item.key+'@'+item.time).join('|');
  if(list.dataset.signature===signature){
@@ -363,7 +363,6 @@ async function loadResult(quiet=false){
   status.textContent='CLEAN結果データを検証できませんでした';
  }
 }
-// Historical fallback: read confirmed independent race codes, never infer held venues from 24 selectable buttons.
 async function historicalHeldVenues(date){
  if(date>=fmt(jst()))throw Error('HISTORICAL_ONLY');
  const dayCode=date.replaceAll('-','');
@@ -377,246 +376,10 @@ async function historicalHeldVenues(date){
  const headers=cells(lines.shift()||''),idx=headers.indexOf('レースコード');
  if(idx<0)throw Error('HISTORICAL_RESULTS_SCHEMA');
  const groups=new Map();
- for(const line of lines){if(!line.trim())continue;const code=cells(line)[idx];
+ for(const line of lines){
+  if(!line.trim())continue;
+  const code=cells(line)[idx];
   if(!code||code.length!==12||!code.startsWith(dayCode)||!/^(0[1-9]|1[0-9]|2[0-4])$/.test(code.slice(8,10))||!/^(0[1-9]|1[0-2])$/.test(code.slice(10)))continue;
-    if(!groups.has(jcd))groups.set(jcd,[]);
-    groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
-   }
-   data={date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:feed.source_received_jst,venues:[...groups].map(([jcd,races])=>({jcd,races}))};
-   }
-  }else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status);
-  if(!data||!Array.isArray(data.venues))throw Error('SCHEDULE_INVALID');
-  if(token!==venueRequest||date!==s.date)return;
-  if(data.date!==date||data.phase!=='PRE_RESULT'||data.results_seen!==false||data.unlock!==false||data.scoring!==false||!Array.isArray(data.venues)){
-   venueDateChecked=date;todayVenueRaces=null;updateRacePickerLabels();
-   [...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='未確認';button.setAttribute('aria-label',names[i]+'（開催情報未確認）')});
-   // today.json only describes its own date: avoid refetching the same mismatch on every race click.
-   clearDeadlines('この日付の締切データは未確認です');
-   status.textContent='この日付の開催情報は確認できません（全24場から選択可能）';
-   return;
-  }
-  todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();
-  if(pendingVenuePick?.date===date&&pendingVenuePick.venue===s.venue&&pendingVenuePick.race===s.race){pendingVenuePick=null;const choice=nextRaceForVenue(s.venue+1);if(choice!==s.race){s.race=choice;render()}}
-  const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
-  [...vb.children].forEach((b,i)=>{const held=available.has(i+1);b.classList.toggle('held',held);if(held)b.dataset.held='true';else b.removeAttribute('data-held')});
-  updateVenueNextLabels();
-  if(!venueSpecified&&!venueTouched){
-   // Follow the earliest genuinely upcoming race, not an arbitrary venue 1R.
-   // Never change an explicit choice or an archived date.
-   const currentTime=Date.now();
-   const next=data.venues.flatMap(v=>(v.races||[]).map(r=>({venue:Number(v.jcd),race:Number(r.race_no),time:r.deadline})))
-     .filter(r=>r.venue>=1&&r.venue<=24&&r.race>=1&&r.race<=12&&/^\d{2}:\d{2}$/.test(r.time||'')&&Date.parse(s.date+'T'+r.time+':00+09:00')>currentTime)
-     .sort((a,b)=>a.time.localeCompare(b.time)||a.venue-b.venue||a.race-b.race)[0];
-   if(next&&(s.venue!==next.venue-1||s.race!==next.race)){
-    s.venue=next.venue-1;s.race=next.race;render();
-   }
-  }
-  if(token!==venueRequest||date!==s.date)return;
-  status.textContent='開催情報：'+available.size+'場｜'+(data.historical_result_only?'公開済み確定結果から確認（締切時刻なし）':date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
- }catch(e){
-  if(token!==venueRequest||date!==s.date)return;
-  venueDateChecked=date;
-  if(retaining){renderDeadlines(todayVenueRaces);status.textContent='開催情報の再取得に失敗しました。前回取得した開催データを表示中です。締切は現在時刻で判定しています。';}
-  else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
- }
-}
-function mergeVerifiedRaceSnapshots(previous,raw){
- if(!previous)return raw;
- const cardNew=Date.parse(raw.source_audit?.race_card?.fetched_at),cardOld=Date.parse(previous.source_audit?.race_card?.fetched_at);
- const previewNew=raw.verifiedPreview?Date.parse(raw.source_audit?.beforeinfo?.fetched_at):-Infinity;
- const previewOld=previous.verifiedPreview?Date.parse(previous.source_audit?.beforeinfo?.fetched_at):-Infinity;
- const cardSource=cardOld>cardNew?previous:raw;
- const previewSource=previewOld>previewNew?previous:raw;
- return cardSource===previewSource?cardSource:{...cardSource,beforeinfo:previewSource.beforeinfo,verifiedPreview:previewSource.verifiedPreview,source_audit:{...cardSource.source_audit,beforeinfo:previewSource.source_audit?.beforeinfo}};
-}
-let displayedRaceKey='';
-async function loadRaceData(force=false){
- const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
- const key=sameRaceKey(),status=document.getElementById('raceDataStatus'),body=document.getElementById('raceDataRows'),source=document.getElementById('raceDataSource');
- const preserve=force&&displayedRaceKey===key&&body.children.length>0;
- if(!preserve){body.replaceChildren();document.getElementById('exhibitionGrid').replaceChildren();document.getElementById('mobileRaceCards').replaceChildren();document.getElementById('mobileRaceMatrix').replaceChildren();document.getElementById('mobileRacerDetails').open=false;document.getElementById('courseDataNotice').replaceChildren();source.textContent='';displayedRaceKey='';}status.textContent=preserve?'更新情報を確認中（表示中の出走表を保持）…':'保存済み出走表を確認中…';
- try{
-  let raw=force?undefined:verifiedRaceCache.get(key);
-  if(!raw){
-  const response=await fetchTimed(EDGE_RAW+'/main/data/races/'+key+'.json',{cache:'no-store'});
-  if(!response.ok)throw Error('HTTP_'+response.status);
-  const currentText=await response.text();
-  raw=JSON.parse(currentText);
-  if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
-  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
-  const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
-  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('CARD_NOT_PREDEADLINE');
-  const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000;
-  raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
-  }
-  raw=mergeVerifiedRaceSnapshots(verifiedRaceCache.get(key),raw);
-  const safePreview=raw.verifiedPreview;
-  if(!Array.isArray(raw.racers))throw Error('INCOMPLETE_RACE_CARD');
-  const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
-  if(racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||new Set(racers.map(r=>String(r.registration_no||''))).size!==6||racers.some(r=>!/^[0-9]{4}$/.test(String(r.registration_no||''))))throw Error('INCOMPLETE_OR_DUPLICATE_RACE_CARD');
-  verifiedRaceCache.set(key,raw);
-  const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
-  const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
-  const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):typeof v==='string'&&v.trim()&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(v.trim())?v.trim():'—';
-  const byLane=(a,lane)=>a.find(x=>x&&Number(x.lane)===lane)||{};
-  body.replaceChildren();
-  Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1)||{lane:i+1,name:'未提供'}).forEach(r=>{
-   const ex=byLane(preview,r.lane),st=byLane(starts,r.lane),row=document.createElement('tr');
-   const triple=(a,b,c,rate=false)=>txt(a)+' / '+txt(b)+(rate&&txt(b)!=='—'?'%':'')+' / '+txt(c)+(rate&&txt(c)!=='—'?'%':'');
-   const values=[String(r.lane),(r.name||'未提供')+' / '+(r.class||'—'),triple(r.national?.win_rate,r.national?.quinella_rate,r.national?.trio_rate,true),triple(r.local?.win_rate,r.local?.quinella_rate,r.local?.trio_rate,true),txt(r.avg_st)+' / F'+txt(r.F)+' L'+txt(r.L),triple(r.motor?.no,r.motor?.quinella_rate,r.motor?.trio_rate,true),triple(r.boat?.no,r.boat?.quinella_rate,r.boat?.trio_rate,true),txt(ex.exhibition_time)+' / '+txt(ex.tilt),typeof st.st==='string'&&st.st.trim()?st.st:typeof st.st==='number'&&Number.isFinite(st.st)?String(st.st):'—'];
-   values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
-  });
-  const matrix=document.getElementById('mobileRaceMatrix');matrix.replaceChildren();
-  const matrixTable=document.createElement('table');matrixTable.className='boat-matrix-table';const matrixCaption=document.createElement('caption');matrixCaption.textContent='左右にスクロールして6艇を比較';matrixTable.append(matrixCaption);
-  const matrixHead=document.createElement('thead'),matrixHeadRow=document.createElement('tr');
-  for(const label of ['項目','1','2','3','4','5','6']){const cell=document.createElement('th');cell.textContent=label;matrixHeadRow.append(cell)}
-  matrixHead.append(matrixHeadRow);matrixTable.append(matrixHead);
-  const matrixBody=document.createElement('tbody');
-  const displayRate=v=>typeof v==='number'&&Number.isFinite(v)?v.toFixed(1):'—';
-  const fields=[
-   ['選手',r=>r.name||'—'],
-   ['級別',r=>r.class||'—'],
-   ['全国勝率',r=>displayRate(r.national?.win_rate)],
-   ['全国2連率',r=>displayRate(r.national?.quinella_rate)],
-   ['当地勝率',r=>displayRate(r.local?.win_rate)],
-   ['当地2連率',r=>displayRate(r.local?.quinella_rate)],
-   ['平均ST',r=>typeof r.avg_st==='number'&&Number.isFinite(r.avg_st)?r.avg_st.toFixed(2):'—'],
-   ['F / L',r=>String(r.F??'—')+' / '+String(r.L??'—')],
-   ['モーター2連',r=>displayRate(r.motor?.quinella_rate)],
-   ['ボート2連',r=>displayRate(r.boat?.quinella_rate)]
-  ];
-  const orderedRacers=Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1));
-  for(const [label,read] of fields){const tr=document.createElement('tr');const th=document.createElement('th');th.textContent=label;tr.append(th);for(const racer of orderedRacers){const td=document.createElement('td');td.textContent=read(racer);tr.append(td)}matrixBody.append(tr)}
-  matrixTable.append(matrixBody);matrix.append(matrixTable);
-  const mobileCards=document.getElementById('mobileRaceCards');
-  mobileCards.replaceChildren();
-  for(let lane=1;lane<=6;lane++){
-   const racer=racers.find(r=>r.lane===lane)||{lane,name:'未提供'};
-   const card=document.createElement('article');card.className='mobile-racer';
-   const heading=document.createElement('div');heading.className='mobile-racer-heading';
-   const number=document.createElement('span');number.className='lane-badge lane-'+lane;number.textContent=String(lane);
-   const name=document.createElement('strong');name.textContent=racer.name||'未提供';
-   const grade=document.createElement('span');grade.className='mobile-racer-grade';grade.textContent=racer.class||'—';
-   heading.append(number,name,grade);card.append(heading);
-   const metrics=document.createElement('div');metrics.className='mobile-racer-metrics';
-   for(const [label,value] of [['全国勝率',txt(racer.national?.win_rate)],['当地勝率',txt(racer.local?.win_rate)],['全国2連率',txt(racer.national?.quinella_rate)+(txt(racer.national?.quinella_rate)==='—'?'':'%')],['当地2連率',txt(racer.local?.quinella_rate)+(txt(racer.local?.quinella_rate)==='—'?'':'%')],['平均ST',txt(racer.avg_st)],['F / L',txt(racer.F)+' / '+txt(racer.L)],['モーター2連率',txt(racer.motor?.quinella_rate)+(txt(racer.motor?.quinella_rate)==='—'?'':'%')],['ボート2連率',txt(racer.boat?.quinella_rate)+(txt(racer.boat?.quinella_rate)==='—'?'':'%')]]){
-    const item=document.createElement('div');const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(small,strong);metrics.append(item);
-   }
-   card.append(metrics);
-   const specs=document.createElement('div');specs.className='mobile-racer-specs';
-   const specItems=[['登録番号',racer.registration_no],['モーター',txt(racer.motor?.no)],['モーター3連率',txt(racer.motor?.trio_rate)],['ボート',txt(racer.boat?.no)],['ボート3連率',txt(racer.boat?.trio_rate)]];
-   for(const [label,value] of specItems){const chip=document.createElement('span');chip.textContent=label+' '+(value===null||value===undefined||value===''?'—':value);specs.append(chip)}
-   const details=document.createElement('details');details.className='mobile-racer-details';
-   const toggle=document.createElement('summary');toggle.textContent='登録番号・モーター／ボート詳細';
-   details.append(toggle,specs);
-   card.append(details);mobileCards.append(card);
-  }
-  const courseNotice=document.getElementById('courseDataNotice');
-  const isCourseRecord=r=>r&&r.course_stats&&Number.isInteger(r.course_stats.course)&&r.course_stats.course>=1&&r.course_stats.course<=6&&['first_rate','second_rate','third_rate'].every(k=>typeof r.course_stats[k]==='number'&&Number.isFinite(r.course_stats[k])&&r.course_stats[k]>=0&&r.course_stats[k]<=100);
-  const courseRows=racers.filter(isCourseRecord);
-  const courseAudit=raw.source_audit?.course_stats,courseAt=Date.parse(courseAudit?.fetched_at),courseDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
-  const validCourses=courseRows.length===6&&new Set(courseRows.map(r=>r.course_stats.course)).size===6&&courseRows.every(r=>r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01)&&courseAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(courseAudit.sha256||'')&&Number.isFinite(courseAt)&&courseAt<courseDeadline&&courseAt<=Date.now()+300000;
-  courseNotice.replaceChildren();
-  if(validCourses){
-   const heading=document.createElement('strong');heading.textContent='保存済み・実コース別1〜3着率';
-   courseNotice.append(heading);
-   for(const r of courseRows.sort((a,b)=>a.course_stats.course-b.course_stats.course)){
-    const line=document.createElement('div');line.className='course-record-line';
-    line.textContent=r.course_stats.course+'コース｜'+r.name+'｜1着 '+r.course_stats.first_rate.toFixed(1)+'%　2着 '+r.course_stats.second_rate.toFixed(1)+'%　3着 '+r.course_stats.third_rate.toFixed(1)+'%';
-    courseNotice.append(line);
-   }
-  }else courseNotice.textContent='コース別1・2・3着率／決まり手：未取得・未検証（全国・当地の成績から推定しません）';
-  const exhibitGrid=document.getElementById('exhibitionGrid');
-  exhibitGrid.replaceChildren();
-  const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
-  const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
-  const fastest=measured.length?measured[0].time:null;
-  const summary=document.createElement('div');summary.className='exhibition-summary';
-  summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未検証｜未取得項目は「—」';
-  exhibitGrid.append(summary);
-  const weather=safePreview&&raw.beforeinfo?.weather&&typeof raw.beforeinfo.weather==='object'?raw.beforeinfo.weather:null;
-  if(weather){
-   const weatherFields=[['風速',weather.wind_speed_ms,'m/s'],['波高',weather.wave_cm,'cm'],['気温',weather.air_temp_c,'℃'],['水温',weather.water_temp_c,'℃']];
-   const available=weatherFields.filter(([label,value])=>typeof value==='number'&&Number.isFinite(value)&&value>=0);
-   if(available.length){
-    const water=document.createElement('div');water.className='exhibition-weather';
-    const heading=document.createElement('strong');heading.textContent='直前の水面情報';water.append(heading);
-    for(const [label,value,unit] of available){const item=document.createElement('span');item.textContent=label+' '+value+unit;water.append(item)}
-    exhibitGrid.append(water);
-   }
-  }
-  const entryNote=document.createElement('div');entryNote.className='exhibition-entry-note';
-  const actual=Array.isArray(raw.actual_entry)?raw.actual_entry:[];
-  const entryAudit=raw.source_audit?.actual_entry,entryAt=Date.parse(entryAudit?.fetched_at),raceDeadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00');
-  const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
-  entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
-  if(!validEntry){
-   const sidecarToken=token,sidecarKey=key;
-   fetchTimed(EDGE_RAW+'/main/data/site_verified_entries/'+encodeURIComponent(sidecarKey)+'.json',{cache:'no-store'}).then(async response=>{
-    if(!response.ok)return null;
-    return response.json();
-   }).then(record=>{
-    if(!record||sidecarToken!==window.raceDataRequestId||sidecarKey!==sameRaceKey()||displayedRaceKey!==sidecarKey)return;
-    const order=record.actual_entry,audit=record.source_audit?.actual_entry;
-    const fetched=Date.parse(audit?.fetched_at);
-    if(record.race_key!==sidecarKey||!Array.isArray(order)||order.length!==6||order.some(n=>!Number.isInteger(n)||n<1||n>6)||new Set(order).size!==6)return;
-    if(audit?.status!=='ok'||!/^[a-f0-9]{64}$/.test(audit.sha256||'')||typeof audit.source!=='string')return;
-    const sourceUrl='https://www.boatrace.jp/owpc/pc/race/beforeinfo?hd='+sidecarKey.slice(0,8)+'&jcd='+sidecarKey.split('-')[1]+'&rno='+Number(sidecarKey.split('-')[2]);
-    if(audit.source!==sourceUrl||!Number.isFinite(fetched)||fetched>=raceDeadline||fetched>Date.now()+300000)return;
-    entryNote.textContent='実進入（締切前監査済み）：'+order.map((boat,i)=>(i+1)+'コース '+boat+'号艇').join(' ／ ');
-   }).catch(()=>{});
-  }
-  exhibitGrid.append(entryNote);
-  const laneColors=['#a3afbf','#24384d','#db4246','#2579c9','#d3ac18','#25895e'];
-  for(let lane=1;lane<=6;lane++){
-   const racer=racers.find(r=>r.lane===lane)||{name:'未提供'},ex=byLane(preview,lane),st=byLane(starts,lane);
-   const card=document.createElement('article');card.className='exhibition-boat';card.style.setProperty('--ex-lane',laneColors[lane-1]);if(fastest!==null&&numericTime(lane)===fastest)card.classList.add('exhibition-fastest');
-   const top=document.createElement('div');top.className='exhibition-top';
-   const badge=document.createElement('span');badge.className='lane-badge lane-'+lane;badge.textContent=String(lane);
-   const name=document.createElement('span');name.className='exhibition-name';name.textContent=racer.name||'未提供';top.append(badge,name);card.append(top);
-   const vals=document.createElement('div');vals.className='exhibition-values';
-   const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\.?\d+(?:\.\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
-   measures.forEach(([label,value],i)=>{const item=document.createElement('div');item.className='exhibition-metric';const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(small,strong);vals.append(item)});
-   card.append(vals);exhibitGrid.append(card);
-  }
-  const stamp=raw.source_audit.race_card.fetched_at;
-  displayedRaceKey=key;
-  source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';
-  status.textContent=safePreview?'取得済みの出走表と展示を表示中。未提供項目は「—」。':raw.source_audit?.beforeinfo?.status==='not_in_window'?'出走表を表示中。展示は取得対象時間外の記録です（未公開・未提供の確定ではありません）。':'取得済みの出走表を表示中。展示が未提供・未検証でも出走表は表示します。';
- }catch(e){
-  if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
-  const reason=e instanceof Error?e.message:'';
-  if(preserve&&displayedRaceKey===key&&body.children.length){status.textContent='更新情報を確認できませんでした。前回表示した出走表を保持しています。';return;}
-  status.textContent=reason==='CARD_NOT_PREDEADLINE'?'保存データの取得記録が締切前ではないため表示できません。':reason==='HTTP_404'?'このレースの事前出走表は未配信です。':'事前出走表の内容または通信を検証できません。再読み込みをお試しください。';
- }
-}
-let displayedPredictionKey='';
-const predictionRetryAt=new Map();
-async function loadPredictions(force=false){
- const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
- const raceKey=sameRaceKey();
- if(!force&&!verifiedCache.has(raceKey)&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){const keep=displayedPredictionKey===raceKey&&predictionTickets.length>0&&verifiedCache.has(raceKey);if(!keep){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();}document.getElementById('predictionStatus').textContent=keep?'再照合待ちです。前回検証済みの買い目を保持中（最新データではありません）。「再読み込み」で今すぐ確認できます。':'予想原本の再確認待ちです。未公開・アクセス制限の場合は5分、通信障害の場合は2分後に自動再確認します。「再読み込み」で今すぐ試せます。';return;}
- if(force)predictionRetryAt.delete(raceKey);
- const key=sameRaceKey(),retain=displayedPredictionKey===key&&predictionTickets.length>0&&verifiedCache.has(key);
- if(!retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
- const label=document.getElementById('predictionStatus');
- label.textContent=retain?'保存予想を確認中（検証済みの買い目を保持）…':'既存モデルの保存予想と初回Git記録を照合中…';
- try{
-  const confirmed=await verifiedStoredPrediction(key,force);
-  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
-  predictionRetryAt.delete(key);displayedPredictionKey=key;predictionTickets=confirmed.tickets;predictionOdds=confirmed.odds;predictionProbabilities=confirmed.probabilities;const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='締切 '+confirmed.deadline+'｜評価 '+(confirmed.grade||'未記録')+'｜モデル内指標 '+(Number.isFinite(confirmed.confidence)?confirmed.confidence:'未記録')+'（的中率の保証ではありません）｜オッズは保存時点';
-  label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
-  drawPredictions();
- }catch(e){
-  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
-  const reason=e instanceof Error?e.message:'';
-  if(reason==='PREDICTION_NOT_PUBLISHED'||reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429')predictionRetryAt.set(key,Date.now()+300000);
-  else if(e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError)predictionRetryAt.set(key,Date.now()+120000);
-  if(retain&&(reason==='PREDICTION_NOT_PUBLISHED'||reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'||reason==='FIRST_COMMIT_UNCONFIRMED'||e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError)){label.textContent='再取得できませんでした。前回検証済みの予想を表示中（最新データではありません）。';return;}
-  if(retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
-  label.textContent=reason==='SOURCE_HTTP_403'||reason==='SOURCE_HTTP_429'?'予想原本の照合先がアクセス制限中です。出走表・展示はそのまま確認できます。':reason==='PREDICTION_NOT_PUBLISHED'?'このレースの独自予想はまだ保存されていません。公開された予想を再確認します。出走表・展示は確認できます。':reason==='FIRST_COMMIT_UNCONFIRMED'?'予想の初回Git履歴を最後まで確認できません。履歴照合が完了するまで買い目は表示しません。':reason==='FIRST_ADD_UNCONFIRMED'?'初回Git記録がファイル新規追加と確認できません。買い目は表示しません。':reason==='FREEZE_TIME_NOT_PROVEN'?'初回Git保存時刻が締切前2〜10分の条件を満たすと証明できません。買い目は表示しません。':reason==='SNAPSHOT_CHANGED_SINCE_FIRST_ADD'?'予想の初回保存原本と現在の原本が一致しないため、買い目は表示しません。':e?.name==='TimeoutError'||e?.name==='AbortError'?'通信が15秒以内に完了しませんでした。2分後に再確認します。今すぐ試す場合は「再読み込み」を押してください。':e instanceof TypeError?'予想照合先に接続できません。2分後に再確認します。出走表・展示は利用できます。':reason.startsWith('SOURCE_HTTP_')||reason==='SNAPSHOT_UNAVAILABLE'?'予想データの通信に問題があります。出走表・展示はそのまま確認できます。':reason==='RACE_OR_MODEL_MISMATCH'||reason==='PREDICTIONS_INVALID'||reason==='PREDICTION_SCORE_INVALID'||reason==='ODDS_INVALID'||reason==='STAKE_INVALID'?'保存予想のレース情報・モデル形式・買い目データが検証条件と一致しません。':reason==='UNSAFE_SOURCE'||reason==='SOURCE_SHA_INVALID'||reason==='DEADLINE_INVALID'?'保存予想の監査フラグ・原本識別子・締切時刻を確認できません。':'予想原本の検証が完了しないため、買い目は表示しません。';
- }
-};setView(activeView);render();</script></body></html>).test(code||''))continue;
   const venue=code.slice(8,10),no=Number(code.slice(10));
   if(!groups.has(venue))groups.set(venue,new Set());
   groups.get(venue).add(no);
@@ -643,10 +406,11 @@ async function loadHeldVenues(force=false){
   else if(archive.status===404){
    let api;
    for(let attempt=0;attempt<3;attempt++){
-    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)throw e;continue}
+    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
     if(api.status!==503)break;
    }
-   if(!api?.ok)throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');
+   if(!api?.ok){if(date<fmt(jst()))data=await historicalHeldVenues(date);else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');}
+   if(!data){
    const feed=await api.json();
    if(!feed.ok||feed.date!==dayCode||!Array.isArray(feed.races))throw Error('INVALID_INDEPENDENT_SCHEDULE');
    const groups=new Map();
@@ -657,6 +421,7 @@ async function loadHeldVenues(force=false){
     groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
    }
    data={date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:feed.source_received_jst,venues:[...groups].map(([jcd,races])=>({jcd,races}))};
+   }
   }else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status);
   if(!data||!Array.isArray(data.venues))throw Error('SCHEDULE_INVALID');
   if(token!==venueRequest||date!==s.date)return;
@@ -685,7 +450,7 @@ async function loadHeldVenues(force=false){
    }
   }
   if(token!==venueRequest||date!==s.date)return;
-  status.textContent='開催情報：'+available.size+'場｜'+(date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
+  status.textContent='開催情報：'+available.size+'場｜'+(data.historical_result_only?'公開済み結果で確認（締切時刻なし）':date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
   venueDateChecked=date;
