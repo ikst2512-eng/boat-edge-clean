@@ -7,11 +7,15 @@ on:
     branches: [main]
     paths:
       - collect_clean_results.py
+      - clean_results.py
+      - server.py
       - test_collect_clean_results.py
       - .github/workflows/collect-clean-results.yml
   pull_request:
     paths:
       - collect_clean_results.py
+      - clean_results.py
+      - server.py
       - test_collect_clean_results.py
       - .github/workflows/collect-clean-results.yml
 permissions:
