@@ -47,4 +47,11 @@ jobs:
       - name: Validate research forecast model and persisted records
         run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_advanced_card_preview_v392
       - name: Verify isolated Fresh candidate intake
-        run: python -m unittest -v test_fresh_feed_builder test_fresh_formal_source_preflight test_fresh_prospective_capture test_fresh_candidate_receipt test_fresh_candidate_verify test_fresh_prospective_sender
+        run: |
+          set -euo pipefail
+          python test_fresh_feed_builder.py
+          python test_fresh_formal_source_preflight.py
+          python test_fresh_prospective_capture.py
+          python test_fresh_candidate_receipt.py
+          python test_fresh_candidate_verify.py
+          python test_fresh_prospective_sender.py
