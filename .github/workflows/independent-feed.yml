@@ -1,0 +1,27 @@
+name: CLEAN independent feed checks
+on:
+  pull_request:
+    paths:
+      - independent_feed.py
+      - test_independent_feed.py
+      - server.py
+      - .github/workflows/independent-feed.yml
+  push:
+    branches: [main]
+    paths:
+      - independent_feed.py
+      - test_independent_feed.py
+      - server.py
+      - .github/workflows/independent-feed.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_independent_feed test_head_health
