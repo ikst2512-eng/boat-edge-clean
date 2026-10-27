@@ -1,0 +1,27 @@
+name: CLEAN schedule independence
+on:
+  pull_request:
+    paths:
+      - clean_schedule.py
+      - test_clean_schedule.py
+      - server.py
+      - .github/workflows/clean-schedule.yml
+  push:
+    branches: [main]
+    paths:
+      - clean_schedule.py
+      - test_clean_schedule.py
+      - server.py
+      - .github/workflows/clean-schedule.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_clean_schedule test_head_health
