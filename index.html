@@ -387,7 +387,7 @@ async function loadHeldVenues(force=false){
    const groups=new Map();
    for(const race of feed.races){
     const jcd=race.venue_code,no=Number(race.race_no),deadline=race.deadline_jst;
-    if(!/^([01]\\d|2[0-4])$/.test(jcd)||Number(jcd)<1||!Number.isInteger(no)||no<1||no>12||typeof deadline!=='string'||!deadline.startsWith(date+'T'))continue;
+    if(!/^(0[1-9]|1[0-9]|2[0-4])$/.test(jcd)||Number(jcd)<1||!Number.isInteger(no)||no<1||no>12||typeof deadline!=='string'||!deadline.startsWith(date+'T'))continue;
     if(!groups.has(jcd))groups.set(jcd,[]);
     groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
    }
