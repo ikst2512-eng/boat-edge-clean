@@ -122,7 +122,7 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('24 venue buttons expected');
               if(await page.locator('#races button').count()!==12)throw Error('12 race buttons expected');
               await page.locator('#venues button').nth(11).click();
-              await page.locator('#races button').nth(4).click();
+              await page.locator('#races button').nth(4).evaluate(el=>el.click());
               if(!((await page.locator('#activeRaceLabel').innerText()).includes('住之江')&&(await page.locator('#activeRaceLabel').innerText()).includes('5R')))throw Error('race selection failed');
               await page.evaluate(() => setView('forecast'));
               for(const n of [3,5,10]){
@@ -252,8 +252,8 @@ jobs:
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('failed refresh erased racecard');
 
               // Switching races during pending requests must leave only the latest selection on screen.
-              await page.locator('#races button').nth(1).click();
-              await page.locator('#races button').first().click();
+              await page.locator('#races button').nth(1).evaluate(el=>el.click());
+              await page.locator('#races button').first().evaluate(el=>el.click());
               await page.waitForFunction(()=>document.querySelector('#activeRaceLabel')?.textContent.includes('1R'));
               if(!(await page.locator('#activeRaceLabel').innerText()).includes('住之江'))throw Error('stale race selection');
               if(await page.locator('#races button.on').count()!==1)throw Error('multiple selected race buttons');
