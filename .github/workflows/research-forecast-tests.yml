@@ -71,6 +71,7 @@ jobs:
           import json
           import urllib.request
           from research_model import probabilities
+          from research_scenario_candidate import scenario_candidates
           from pathlib import Path
           from research_third_party_payouts import parse_payouts_csv
           url = 'https://boatracecsv.github.io/data/results/payouts/2026/10/27.csv'
@@ -119,6 +120,22 @@ jobs:
                       'train_top3':train_score,'selected_beta':best,
                       'holdout_baseline_top3':base,'holdout_candidate_top3':selected,
                       'top3_delta_hits':selected-base},ensure_ascii=False),flush=True)
+              if train and holdout:
+                  def scenario_hits(rows,n=3):
+                      return sum("-".join(map(str,ticket)) in [p['ticket'] for p in scenario_candidates(rates)[:n]]
+                                 for key,rates,ticket in rows)
+                  comparison={
+                      'evaluation':'SCENARIO_VS_BASELINE_UNSEEN_HOLDOUT_EXPLORATORY',
+                      'train_n':len(train),'holdout_n':len(holdout),
+                      'baseline_top3_train':hits(train,0.4),
+                      'scenario_top3_train':scenario_hits(train),
+                      'baseline_top3_holdout':hits(holdout,0.4),
+                      'scenario_top3_holdout':scenario_hits(holdout),
+                      'baseline_top10_holdout':hits(holdout,0.4,10),
+                      'scenario_top10_holdout':scenario_hits(holdout,10),
+                      'promotion':'BLOCKED_UNTIL_IMPROVEMENT_AND_SOURCE_VERIFIED'
+                  }
+                  print(json.dumps(comparison,ensure_ascii=False),flush=True)
               print(json.dumps({'status':'THIRD_PARTY_EXPLORATORY_NOT_FORMAL',
                                 'payout_rows':records['matched_payout_rows'],
                                 'matched_saved_forecasts':matched,
