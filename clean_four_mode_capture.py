@@ -64,7 +64,32 @@ def collect(root=ROOT, now=None, read=read_rows):
         except (KeyError,ValueError,TypeError,OSError) as exc:
             label=str(exc)[:64] or type(exc).__name__
             excluded[label]=excluded.get(label,0)+1
-    return {"new_saved":saved,"excluded":excluded}
+    return {"new_saved":saved,"excluded":excluded,"date_jst":hd,
+            "published_title_rows":len(titles),"published_card_rows":len(cards),
+            "source_status":"available" if cards else "empty_cards",
+            "eligible_forecasts_today":len(list(out.glob(hd+"*.json"))) if out.exists() else 0}
+
+
+def publish_status(result,root=ROOT,now=None):
+    """Small stable diagnostic; do not overwrite any forecast evidence."""
+    now=now or datetime.now(JST)
+    day=now.strftime("%Y%m%d")
+    state={"schema":"CLEAN_FOUR_MODE_CAPTURE_HEALTH_V1","day_jst":day,
+           "source_status":result.get("source_status",result.get("source_pending","unknown")),
+           "http_status":result.get("http_status"),
+           "source_url":result.get("source_url"),
+           "published_title_rows":result.get("published_title_rows"),
+           "published_card_rows":result.get("published_card_rows"),
+           "eligible_forecasts_today":result.get("eligible_forecasts_today",0),
+           "excluded":result.get("excluded",{}),
+           "last_run_new_count":len(result.get("new_saved",[])),
+           "production_success_proven":result.get("eligible_forecasts_today",0)>0}
+    target=root/"four_mode_forecasts"/"capture_status.json"
+    target.parent.mkdir(parents=True,exist_ok=True)
+    content=json.dumps(state,ensure_ascii=False,sort_keys=True,indent=2)+"\\n"
+    if not target.exists() or target.read_text(encoding="utf-8")!=content:
+        target.write_text(content,encoding="utf-8")
+    return state
 
 
 if __name__=="__main__":
@@ -75,4 +100,4 @@ if __name__=="__main__":
                 "source_url":exc.url,"retryable":True}
     except (URLError, TimeoutError, ConnectionError) as exc:
         result={"new_saved":[],"source_pending":type(exc).__name__,"retryable":True}
-    print(json.dumps(result,ensure_ascii=False))
+    publish_status(result)\n    print(json.dumps(result,ensure_ascii=False))
