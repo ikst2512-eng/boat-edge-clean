@@ -67,6 +67,7 @@ jobs:
           python - <<'PY'
           import json
           import urllib.request
+          from research_model import probabilities
           from pathlib import Path
           from research_third_party_payouts import parse_payouts_csv
           url = 'https://boatracecsv.github.io/data/results/payouts/2026/10/27.csv'
@@ -87,6 +88,34 @@ jobs:
                   rank=picks.index(row['ticket'])+1 if row['ticket'] in picks else 999
                   for k,n in [('top1',1),('top3',3),('top5',5),('top10',10)]:
                       scores[k]+=rank<=n
+              # Chronological train/holdout, no holdout-driven beta selection.
+              from collections import Counter
+              paired=[]
+              for row in records['results']:
+                  path=Path('research_snapshots')/(row['race_code']+'.json')
+                  if not path.is_file(): continue
+                  f=json.loads(path.read_text(encoding='utf-8'))
+                  if f.get('status')!='research' or f.get('validated') is not False: continue
+                  rates=f.get('national_win_rates')
+                  if not isinstance(rates,list) or len(rates)!=6: continue
+                  paired.append((row['race_code'],rates,tuple(map(int,row['ticket'].split('-')))))
+              paired.sort(key=lambda x:x[0])
+              cut=int(len(paired)*0.7)
+              train,holdout=paired[:cut],paired[cut:]
+              betas=(0.0,0.2,0.4,0.6,0.8)
+              def hits(rows,beta,n=3):
+                  return sum(ticket in [t for t,p in probabilities(rates,beta)[:n]]
+                             for key,rates,ticket in rows)
+              if train and holdout:
+                  train_score={str(b):hits(train,b) for b in betas}
+                  best=max(betas,key=lambda b:(train_score[str(b)],-abs(b-0.4)))
+                  base=hits(holdout,0.4)
+                  selected=hits(holdout,best)
+                  print(json.dumps({'evaluation':'CHRONOLOGICAL_EXPLORATORY_NO_OFFICIAL_RECEIPT',
+                      'paired':len(paired),'train_n':len(train),'holdout_n':len(holdout),
+                      'train_top3':train_score,'selected_beta':best,
+                      'holdout_baseline_top3':base,'holdout_candidate_top3':selected,
+                      'top3_delta_hits':selected-base},ensure_ascii=False),flush=True)
               print(json.dumps({'status':'THIRD_PARTY_EXPLORATORY_NOT_FORMAL',
                                 'payout_rows':records['matched_payout_rows'],
                                 'matched_saved_forecasts':matched,
