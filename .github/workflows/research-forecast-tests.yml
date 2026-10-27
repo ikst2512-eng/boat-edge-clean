@@ -6,6 +6,8 @@ on:
       - 'research_beta_backtest.py'
       - 'research_batch_result_join.py'
       - 'research_official_result_parser.py'
+      - 'research_collect_official_results.py'
+      - 'test_research_collect_official_results.py'
       - 'test_research_official_result_parser.py'
       - 'test_research_batch_result_join.py'
       - 'research_snapshot_inventory.py'
@@ -48,7 +50,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_research_beta_backtest test_research_snapshot_inventory test_research_git_first_add_inventory test_research_batch_result_join test_research_official_result_parser
+        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_research_beta_backtest test_research_snapshot_inventory test_research_git_first_add_inventory test_research_batch_result_join test_research_official_result_parser test_research_collect_official_results
 
       - name: Audit Git first additions without outcome access
         run: python research_git_first_add_inventory.py --repo . --snapshots research_snapshots
