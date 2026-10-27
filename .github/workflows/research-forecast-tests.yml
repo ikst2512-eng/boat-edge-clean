@@ -75,7 +75,7 @@ jobs:
                   if src.exists():
                       shutil.copyfile(src, Path(d)/src.name)
               result = collect(d, max_races=4)
-                  print(json.dumps({'status':result['status'],'fetched':result['fetched'],
+              print(json.dumps({'status':result['status'],'fetched':result['fetched'],
                                     'failed':result['failed'],'failures':result['failures'],
                                     'tickets': [{'race_code':r['race_code'],'ticket':r['ticket'],
                                                  'verification_status':r['verification_status']}
