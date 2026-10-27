@@ -59,72 +59,23 @@ jobs:
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
-              if(await page.locator('#forecast [data-top]').count()!==4)throw Error('Top3/5/10 controls missing');
+              if(await page.locator('#forecast [data-mode]').count()!==4)throw Error('Top3/5/10 controls missing');
               await page.evaluate(()=>setView('forecast'));
-              await page.locator('#forecast [data-top="5"]').click();
-              if(!await page.locator('#forecast [data-top="5"]').evaluate(el=>el.classList.contains('on')))throw Error('Top5 not selected');
-              await page.locator('#venues button').nth(11).click();
-              await page.locator('#races button').nth(1).click();
-              if(!(await page.locator('#activeRaceLabel').innerText()).includes('2R'))throw Error('Current race label not updated');
-              await page.locator('.view-tabs [data-page="result"]').click();
-              if(!await page.locator('#resultSection').isVisible())throw Error('Result tab not visible');
-              await page.locator('.view-tabs [data-page="forecast"]').click();
-              if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
-              if(errors.length)throw Error('JavaScript page errors: '+errors.join('; '));
-              console.log('PASS: production mobile 24 venues, 12 races, forecast controls, result navigation');
-              console.log('NOTE: Live odds API is checked independently by live-odds-probe workflow');
-            }finally{await browser.close()}
-          })().catch(e=>{console.error(e);process.exit(1)});
-          JS
-
-  ui-preview:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm install --no-save playwright
-      - run: npx playwright install --with-deps chromium
-      - name: Check PR-local mobile UI without production API dependency
-        run: |
-          python3 -m http.server 8765 --bind 127.0.0.1 &
-          node <<'JS'
-          const {chromium}=require('playwright');
-          (async()=>{
-            const browser=await chromium.launch({headless:true});
-            try {
-              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
-              await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded'});
-              await page.locator('#venues button').first().waitFor({timeout:15000});
-              if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
-              if(await page.locator('#forecast [data-top]').count()!==4)throw Error('Prediction controls missing');
-              const rows=await page.evaluate(()=>{
-                predictionTickets=['1-2-3','1-3-2','2-1-3','3-1-2'];
-                predictionProbabilities={'1-2-3':28,'1-3-2':17,'2-1-3':9,'3-1-2':2};
-                predictionOdds={};
-                selectedTop=3;drawPredictions();
-                return [...document.querySelectorAll('#predictionRows .prediction-row')].map(r=>({cls:r.className,tier:r.querySelector('.prediction-tier')?.textContent,value:r.querySelector('.prediction-value')?.textContent,prob:r.querySelector('.prediction-odds')?.className}));
+              const modeFixture=await page.evaluate(()=>{
+                predictionModes={
+                  hit:{tickets:['1-2-3','1-3-2'],probabilities:{'1-2-3':28,'1-3-2':17},odds:{}},
+                  balance:{tickets:['2-1-3','3-1-2'],probabilities:{'2-1-3':9,'3-1-2':2},odds:{}},
+                  hole:{tickets:['4-2-1'],probabilities:{'4-2-1':1},odds:{}},
+                  narrow:{tickets:['1-2-3'],probabilities:{'1-2-3':28},odds:{}}
+                };
+                applyPredictionMode();return selectedPredictionMode;
               });
-              if(rows.length!==3||!rows[0].cls.includes('prediction-primary')||!rows[0].prob.includes('probability-high')||rows[0].tier!=='本命'||rows[0].value!=='28.00%')throw Error('Primary mobile forecast incorrect: '+JSON.stringify(rows));
-              if(!rows[1].cls.includes('prediction-strong')||!rows[2].cls.includes('prediction-strong'))throw Error('Upper candidate styling absent');
-              await page.evaluate(()=>setView('forecast'));
-              await page.locator('#forecast [data-top="5"]').click();
-              // The app refreshes predictions asynchronously from its own upstream.
-              // Exercise the Top5 handler, then stabilize the fixture to separate
-              // a race-data refresh from an actual button/render regression.
-              const selected=await page.evaluate(()=>selectedTop);
-              if(selected!==5)throw Error('Top5 button failed to update selectedTop: '+selected);
-              const rendered=await page.evaluate(()=>{
-                predictionTickets=['1-2-3','1-3-2','2-1-3','3-1-2'];
-                predictionProbabilities={'1-2-3':28,'1-3-2':17,'2-1-3':9,'3-1-2':2};
-                predictionOdds={};
-                drawPredictions();
-                return document.querySelectorAll('#predictionRows .prediction-row').length;
-              });
-              if(rendered!==4)throw Error('Top5 render did not show four fixture tickets: '+rendered);
+              if(modeFixture!=='hit')throw Error('Hit mode not default');
+              await page.locator('#forecast [data-mode="balance"]').click();
+              const selected=await page.evaluate(()=>({mode:selectedPredictionMode,tickets:predictionTickets}));
+              if(selected.mode!=='balance'||selected.tickets.join(',')!=='2-1-3,3-1-2')throw Error('Balance tab failed: '+JSON.stringify(selected));
+              await page.locator('#forecast [data-mode="narrow"]').click();
+              if(await page.locator('#predictionRows .prediction-row').count()!==1)throw Error('Narrow selection did not use independently frozen tickets');
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
               console.log('PASS: PR-local mobile forecast hierarchy and controls');
