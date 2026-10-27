@@ -11,6 +11,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -51,11 +52,29 @@ def validate_forecast(data, race):
     frozen = datetime.fromisoformat(saved)
     if deadline.utcoffset() is None or frozen.utcoffset() is None or frozen >= deadline:
         raise ValueError("not_frozen_before_deadline")
-    if data.get("predeadline_proof") != "verified":
-        raise ValueError("freeze_proof_missing")
     if sum(stake_for_rank(i) for i in range(15)) != 5000:
         raise ValueError("budget")
     return picks
+
+
+def attest_first_git_add(path, deadline):
+    """Require first Git add of exact unchanged bytes before scheduled deadline."""
+    base = ROOT
+    relative = str(path.relative_to(base))
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(base), *args], stderr=subprocess.DEVNULL, timeout=12)
+    commits = git("log", "--reverse", "--diff-filter=A", "--format=%H", "--", relative).decode().splitlines()
+    if len(commits) != 1:
+        raise ValueError("no_unique_first_add")
+    sha = commits[0]
+    original = git("show", sha + ":" + relative)
+    if original != path.read_bytes():
+        raise ValueError("archive_mutated")
+    first_commit = git("show", "-s", "--format=%cI", sha).decode().strip()
+    recorded = datetime.fromisoformat(first_commit)
+    if recorded >= datetime.fromisoformat(deadline):
+        raise ValueError("first_add_after_deadline")
+    return sha
 
 
 def validate_result(data, race):
@@ -101,7 +120,7 @@ def diagnose(picks, result):
     return "third_missing", -1
 
 
-def evaluate(race, root=ROOT, payout_loader=payout_for):
+def evaluate(race, root=ROOT, payout_loader=payout_for, proof_checker=attest_first_git_add):
     report = {"race_code": race, "model": "V236_coverage15", "budget_yen": 5000}
     if not RE_RACE.fullmatch(race):
         return {**report, "state": "invalid_record", "reason": "race_code"}
@@ -110,8 +129,10 @@ def evaluate(race, root=ROOT, payout_loader=payout_for):
     if not pred_file.is_file():
         return {**report, "state": "waiting_prediction", "reason": "forecast_not_frozen"}
     try:
-        picks = validate_forecast(read_json(pred_file), race)
-    except (ValueError, TypeError, KeyError, OSError) as err:
+        frozen = read_json(pred_file)
+        picks = validate_forecast(frozen, race)
+        proof_checker(pred_file, frozen['deadline_jst'])
+    except (ValueError, TypeError, KeyError, OSError, subprocess.SubprocessError, TimeoutError) as err:
         return {**report, "state": "invalid_record", "reason": str(err), "stage": "prediction"}
     if not res_file.is_file():
         return {**report, "state": "waiting_result", "reason": "official_result_missing"}
