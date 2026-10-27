@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Verify processing states and payouts
         run: python -m unittest -v test_verification_pipeline
       - name: Advance all saved races including unfinished statuses
