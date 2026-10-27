@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
+  workflow_run:
+    workflows: ['CLEAN independent confirmed result collection']
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -35,6 +38,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   review:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
