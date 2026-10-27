@@ -64,17 +64,28 @@ jobs:
           import json,subprocess
           from datetime import datetime,timedelta,timezone
           files=subprocess.check_output(['git','diff','--cached','--name-only','--diff-filter=A','--','prospective_predictions/'],text=True).splitlines()
-          if not files: raise SystemExit('No new files staged')
-          now=datetime.now(timezone.utc)
+          if not files: raise SystemExit('No newly staged records')
+          kept=0
+          excluded=0
           for path in files:
               rec=json.load(open(path,encoding='utf-8'))
               deadline=datetime.fromisoformat(rec['source_deadline_jst'])
               cutoff=datetime.fromisoformat(rec['cutoff_jst'])
               source_times=[datetime.fromisoformat(rec[k]) for k in ('source_title_received_jst','source_cards_received_jst','generated_at')]
-              if deadline-cutoff!=timedelta(minutes=12) or max(source_times)>=cutoff or now>=cutoff or rec['formal'] or rec['scoring']:
-                  raise SystemExit('Unsafe or late prospective commit: '+path)
-          print('Pre-push check passed for',len(files),'candidates')
+              if deadline-cutoff!=timedelta(minutes=12) or max(source_times)>=cutoff or rec['formal'] or rec['scoring']:
+                  raise SystemExit('Malformed prospective candidate: '+path)
+              # Reserve 90 seconds for the Git push/receipt. Never backdate a stale candidate.
+              if datetime.now(timezone.utc)>=cutoff-timedelta(seconds=90):
+                  subprocess.run(['git','reset','-q','--',path],check=True)
+                  excluded+=1
+              else:
+                  kept+=1
+          print(json.dumps({'eligible_for_commit':kept,'excluded_near_cutoff':excluded}))
           PY
+          if git diff --cached --quiet; then
+            echo 'No safe candidate remains for this run'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'data: freeze prospective pre-cutoff candidates (not yet formal)'
