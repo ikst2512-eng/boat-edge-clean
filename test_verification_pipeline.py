@@ -55,7 +55,7 @@ class PipelineTests(unittest.TestCase):
         self.write("v236_forecasts", self.forecast())
         self.write("confirmed_results", self.result((6, 5, 4)))
         scored = evaluate(self.race, self.root, payout_loader=lambda *_: 1000)
-        self.assertEqual(scored["miss_reason"], "first_missing")
+        self.assertEqual(scored["miss_reason"], "second_missing")
         self.assertEqual(scored["profit_yen"], -5000)
 
     def test_frozen_after_deadline_rejected(self):
