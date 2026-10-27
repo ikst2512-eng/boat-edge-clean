@@ -20,7 +20,7 @@ class CleanRacecardTests(unittest.TestCase):
         def read(url):
             return (title if "/title/" in url else [row],datetime.now(JST),"a"*64)
         with patch.object(clean_racecard,"read_rows",side_effect=read):
-            result=clean_racecard.racecard(hd,"01","1")
+            result=clean_racecard.racecard(hd,"1","1")
         self.assertEqual(len(result["racers"]),6)
         self.assertEqual(result["racers"][0]["registration_no"],"4001")
         self.assertIsNone(result["beforeinfo"])
