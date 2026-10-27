@@ -33,14 +33,26 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(result["results"][0]["verification_status"],"UNVERIFIED_SOURCE_RECEIPT")
             self.assertEqual(json.loads(path.read_text()),self.complete_record())
             self.assertEqual(urlopen.call_count,1)
+    def test_transient_timeout_recovers_without_modifying_forecast(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder,"202610270102.json")
+            path.write_text(json.dumps(self.complete_record()),encoding="utf-8")
+            with patch("research_collect_official_results.urlopen",side_effect=[TimeoutError(),FakeResponse()]) as fetch:
+                report=collect(folder,max_races=1,retries=1,sleep_fn=lambda _:None)
+            self.assertEqual(report["fetched"],1)
+            self.assertEqual(report["failed"],0)
+            self.assertEqual(fetch.call_count,2)
+            self.assertEqual(json.loads(path.read_text()),self.complete_record())
+
     def test_rejects_unbounded_collection(self):
         with self.assertRaises(ValueError):collect(".",max_races=145)
     def test_no_forecast_mutation_on_failed_fetch(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder,"202610270102.json")
             path.write_text(json.dumps(self.complete_record()),encoding="utf-8")
-            with patch("research_collect_official_results.urlopen",side_effect=TimeoutError()):
-                result=collect(folder,max_races=1)
+            with patch("research_collect_official_results.urlopen",side_effect=TimeoutError()) as fetch:
+                result=collect(folder,max_races=1,retries=2,sleep_fn=lambda _:None)
+            self.assertEqual(fetch.call_count,3)
             self.assertEqual(result["fetched"],0)
             self.assertEqual(result["failed"],1)
             self.assertEqual(json.loads(path.read_text()),self.complete_record())
