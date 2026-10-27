@@ -81,7 +81,7 @@ def collect(day=None):
                 raise ValueError("source unavailable")
             raw = response.read(2_000_001)
     except HTTPError as exc:
-        if exc.code == 404 and day == now.strftime("%Y%m%d"):
+        if exc.code == 404:
             return {"day": day, "source_races": 0, "saved": 0, "status": "waiting_for_published_source", "http_status": 404, "source_url": url}
         raise
     records = build_records(day, raw, now)
@@ -110,5 +110,12 @@ def collect(day=None):
     return {"day": day, "source_races": len(records), "saved": saved}
 
 
+def collect_recent(now=None, collector=collect):
+    """Retry yesterday as well as today; source 404 is pending, not a miss."""
+    now = now or datetime.now(JST)
+    dates = [(now-timedelta(days=1)).strftime("%Y%m%d"), now.strftime("%Y%m%d")]
+    return {"status": "checked", "days": [collector(day) for day in dates]}
+
+
 if __name__ == "__main__":
-    print(json.dumps(collect(), ensure_ascii=False))
+    print(json.dumps(collect_recent(), ensure_ascii=False))
