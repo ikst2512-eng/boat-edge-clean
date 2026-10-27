@@ -22,8 +22,25 @@ def collect(root=ROOT, now=None, read=read_rows):
     now=now or datetime.now(JST)
     hd=now.strftime("%Y%m%d")
     sub=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    titles,title_received,title_sha=read(BASE+"title/"+sub)
-    cards,card_received,card_sha=read(BASE+"race_cards/"+sub)
+    # Probe both independent upstream datasets, even when the first is missing.
+    # This avoids hiding race-card availability behind a title 404.
+    outcomes={}
+    datasets={}
+    for kind in ("title","race_cards"):
+        url=BASE+kind+"/"+sub
+        try:
+            datasets[kind]=read(url)
+            outcomes[kind]={"status":"available","rows":len(datasets[kind][0])}
+        except HTTPError as exc:
+            outcomes[kind]={"status":"not_published" if exc.code==404 else "http_error","http_status":exc.code,"source_url":url}
+        except (URLError,TimeoutError,ConnectionError,OSError) as exc:
+            outcomes[kind]={"status":"network_error","error_type":type(exc).__name__,"source_url":url}
+    if len(datasets)!=2:
+        return {"new_saved":[],"excluded":{},"date_jst":hd,
+                "source_status":"source_incomplete","source_probes":outcomes,
+                "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
+    titles,title_received,title_sha=datasets["title"]
+    cards,card_received,card_sha=datasets["race_cards"]
     cards_by_code={r.get("レースコード"):r for r in cards}
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
@@ -64,7 +81,7 @@ def collect(root=ROOT, now=None, read=read_rows):
         except (KeyError,ValueError,TypeError,OSError) as exc:
             label=str(exc)[:64] or type(exc).__name__
             excluded[label]=excluded.get(label,0)+1
-    return {"new_saved":saved,"excluded":excluded,"date_jst":hd,
+    return {"new_saved":saved,"excluded":excluded,"source_probes":outcomes,"date_jst":hd,
             "published_title_rows":len(titles),"published_card_rows":len(cards),
             "source_status":"available" if cards else "empty_cards",
             "eligible_forecasts_today":len(list(out.glob(hd+"*.json"))) if out.exists() else 0}
@@ -78,6 +95,7 @@ def publish_status(result,root=ROOT,now=None):
            "source_status":result.get("source_status",result.get("source_pending","unknown")),
            "http_status":result.get("http_status"),
            "source_url":result.get("source_url"),
+           "source_probes":result.get("source_probes",{}),
            "published_title_rows":result.get("published_title_rows"),
            "published_card_rows":result.get("published_card_rows"),
            "eligible_forecasts_today":result.get("eligible_forecasts_today",0),

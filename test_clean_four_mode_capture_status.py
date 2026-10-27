@@ -24,6 +24,22 @@ class CaptureStatusTests(unittest.TestCase):
             publish_status({"new_saved":[],"source_pending":"waiting_for_published_source",
                 "http_status":404,"source_url":state["source_url"]},root,now)
             self.assertEqual(old,path.read_bytes())
+    def test_both_sources_probed_on_title_404(self):
+        from urllib.error import HTTPError
+        from unittest.mock import Mock
+        from clean_four_mode_capture import collect
+        with tempfile.TemporaryDirectory() as tmp:
+            calls=[]
+            def fake_read(url):
+                calls.append(url)
+                if "/title/" in url:
+                    raise HTTPError(url,404,"Not Found",None,None)
+                return ([{"レースコード":"202610280101"}],datetime(2026,10,28,7,0,tzinfo=JST),"a"*64)
+            result=collect(root=Path(tmp),now=datetime(2026,10,28,7,0,tzinfo=JST),read=fake_read)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(result["source_probes"]["title"]["http_status"],404)
+            self.assertEqual(result["source_probes"]["race_cards"]["status"],"available")
+            self.assertEqual(result["eligible_forecasts_today"],0)
     def test_archived_forecasts_counted_separately(self):
         with tempfile.TemporaryDirectory() as tmp:
             state=publish_status({"new_saved":["202610280101"],"source_status":"available",
