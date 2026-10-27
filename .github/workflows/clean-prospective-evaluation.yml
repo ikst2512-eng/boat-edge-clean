@@ -1,0 +1,27 @@
+name: CLEAN prospective independent accuracy checks
+on:
+  pull_request:
+    paths:
+      - evaluate_clean_prospective.py
+      - test_evaluate_clean_prospective.py
+      - .github/workflows/clean-prospective-evaluation.yml
+  push:
+    branches: [main]
+    paths:
+      - evaluate_clean_prospective.py
+      - test_evaluate_clean_prospective.py
+      - .github/workflows/clean-prospective-evaluation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add
