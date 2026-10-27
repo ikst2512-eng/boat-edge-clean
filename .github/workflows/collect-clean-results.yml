@@ -1,0 +1,43 @@
+name: CLEAN independent confirmed result collection
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - collect_clean_results.py
+      - test_collect_clean_results.py
+      - .github/workflows/collect-clean-results.yml
+permissions:
+  contents: write
+concurrency:
+  group: clean-confirmed-results
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate collector and archive reader without network
+        run: python -m unittest -v test_collect_clean_results test_clean_results
+      - name: Collect published results (main only)
+        if: github.event_name != 'pull_request'
+        run: python collect_clean_results.py
+      - name: Commit new result archives (main only)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- confirmed_results/
+          if ! git diff --cached --quiet; then
+            git commit -m 'data: append independently collected confirmed results'
+            git push origin HEAD:main
+          fi
