@@ -65,9 +65,9 @@ jobs:
               await page.locator('#venues button').nth(11).click();
               await page.locator('#races button').nth(1).click();
               if(!(await page.locator('#activeRaceLabel').innerText()).includes('2R'))throw Error('Current race label not updated');
-              await page.locator('.view-tabs [data-view="result"]').click();
+              await page.locator('.view-tabs [data-page="result"]').click();
               if(!await page.locator('#resultSection').isVisible())throw Error('Result tab not visible');
-              await page.locator('.view-tabs [data-view="forecast"]').click();
+              await page.locator('.view-tabs [data-page="forecast"]').click();
               if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
               if(errors.length)throw Error('JavaScript page errors: '+errors.join('; '));
               console.log('PASS: production mobile 24 venues, 12 races, forecast controls, result navigation');
