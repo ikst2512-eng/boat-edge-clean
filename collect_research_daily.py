@@ -19,7 +19,7 @@ def collect(day):
     if not cards:
         raise ValueError("race card source is empty")
     by_code={r["レースコード"]:r for r in cards if isinstance(r,dict) and r.get("レースコード") and card_counts[r["レースコード"]]==1}
-    counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0}
+    counts={"saved":0,"already_saved":0,"not_ready":0,"missing":0,"invalid":0,"not_ready_clock":0,"not_ready_source":0}
     counted_duplicates=set()
     provenance=None  # Freeze one committed model identity for this daily collection.
     for title in titles:
@@ -37,7 +37,10 @@ def collect(day):
             if old is not None:counts["already_saved"]+=1;continue
             deadline=datetime.strptime(day+title["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
             now=datetime.now(JST);cutoff=deadline-timedelta(minutes=12)
-            if max(now,t1,t2)>cutoff:counts["not_ready"]+=1;continue
+            if max(now,t1,t2)>cutoff:
+                counts["not_ready"]+=1
+                counts["not_ready_clock" if now>cutoff else "not_ready_source"]+=1
+                continue
             rates=[float(card[f"艇{i}_全国勝率"]) for i in range(1,7)]
             if any(not math.isfinite(rate) or not 0 <= rate <= 10 for rate in rates):
                 raise ValueError("invalid national win rate")
