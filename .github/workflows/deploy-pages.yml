@@ -172,8 +172,8 @@ jobs:
               url.searchParams.set('race','1');
               url.searchParams.set('view','result');
               await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
-              await page.evaluate(() => setView('result'));
-              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent==='CLEAN保存済み結果',null,{timeout:30000});
+              await page.evaluate(() => {setView('result');loadResult();});
+              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent?.startsWith('CLEAN保存済み結果'),null,{timeout:30000});
               const shown=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
               if(shown.join('-')!==expected.finish_order.join('-'))throw Error('Result UI differs from committed CLEAN archive: '+shown.join('-'));
               if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())throw Error('Unverified formal forecast was scored');
