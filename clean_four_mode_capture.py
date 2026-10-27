@@ -35,6 +35,27 @@ def collect(root=ROOT, now=None, read=read_rows):
             outcomes[kind]={"status":"not_published" if exc.code==404 else "http_error","http_status":exc.code,"source_url":url}
         except (URLError,TimeoutError,ConnectionError,OSError) as exc:
             outcomes[kind]={"status":"network_error","error_type":type(exc).__name__,"source_url":url}
+    direct_meta={}
+    if len(datasets)!=2:
+        # The daily third-party files may be published only after the race.
+        # Fetch directly from their documented pre-race origin, within bounds.
+        from clean_direct_sources import holding_rows,direct_cards
+        try:
+            if "title" not in datasets:
+                datasets["title"]=holding_rows(hd)
+                outcomes["title_direct"]={"status":"available","rows":len(datasets["title"][0])}
+            title_rows,recv_title,sha_title=datasets["title"]
+            old_archive=root/"four_mode_forecasts"
+            existing={p.stem for p in old_archive.glob(hd+"*.json")} if old_archive.exists() else set()
+            if "race_cards" not in datasets:
+                direct,received,combined,hashes,failed=direct_cards(hd,title_rows,existing,now=now)
+                outcomes["race_cards_direct"]={"status":"available" if direct else "unavailable",
+                    "rows":len(direct),"failed":failed,"requested_limit":18}
+                direct_meta=hashes
+                if direct:datasets["race_cards"]=(direct,received,combined)
+        except (HTTPError,URLError,TimeoutError,ValueError,OSError,UnicodeError) as exc:
+            outcomes["direct_error"]={"status":"error","type":type(exc).__name__,
+                "http_status":getattr(exc,"code",None)}
     if len(datasets)!=2:
         return {"new_saved":[],"excluded":{},"date_jst":hd,
                 "source_status":"source_incomplete","source_probes":outcomes,
@@ -68,7 +89,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                     "model_version":"CLEAN_FOUR_MODES_V1_UNCALIBRATED",
                     "deadline_jst":cutoff.isoformat(),"generated_at_jst":now.isoformat(),
                     "beforeinfo":"optional_not_in_snapshot",
-                    "source_sha256":{"title":title_sha,"race_cards":card_sha},
+                    "source_sha256":{"title":title_sha,"race_cards":direct_meta.get(code,card_sha)},
                     "input_national_win_rates":rates,
                     "target_rates_not_proven":True,"modes":forecast}
             out.mkdir(parents=True,exist_ok=True)
