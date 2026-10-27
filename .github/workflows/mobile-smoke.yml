@@ -59,7 +59,7 @@ jobs:
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
-              if(await page.locator('#forecast [data-top]').count()!==3)throw Error('Top3/5/10 controls missing');
+              if(await page.locator('#forecast [data-top]').count()!==4)throw Error('Top3/5/10 controls missing');
               await page.locator('#forecast [data-top="5"]').click();
               if(!await page.locator('#forecast [data-top="5"]').evaluate(el=>el.classList.contains('on')))throw Error('Top5 not selected');
               await page.locator('#venues button').nth(11).click();
@@ -99,7 +99,7 @@ jobs:
               await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded'});
               await page.locator('#venues button').first().waitFor({timeout:15000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
-              if(await page.locator('#forecast [data-top]').count()!==3)throw Error('Prediction controls missing');
+              if(await page.locator('#forecast [data-top]').count()!==4)throw Error('Prediction controls missing');
               const rows=await page.evaluate(()=>{
                 predictionTickets=['1-2-3','1-3-2','2-1-3','3-1-2'];
                 predictionProbabilities={'1-2-3':28,'1-3-2':17,'2-1-3':9,'3-1-2':2};
