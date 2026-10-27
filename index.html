@@ -309,29 +309,38 @@ async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
  if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo=''}
- status.textContent=retainVerified?'確定結果を再確認中（表示を保持）…':'結果データを確認中…';
+ status.textContent=retainVerified?'CLEAN確定結果を再確認中…':'CLEAN確定結果を確認中…';
  try{
-  const res=await fetchTimed(EDGE_RAW+'/main/data/site_results/'+key+'.json',{cache:'no-store'});
+  // This result feed is entirely owned by CLEAN; no old boat-edge fallback.
+  // Use committed immutable archives so Pages and Render show identical results.
+  const code=key.replaceAll('-','');
+  const res=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
   if(token!==resultRequestId||key!==sameRaceKey())return;
-  if(res.status===404){detail.replaceChildren();comparison.replaceChildren();displayedResultCombo='';status.textContent='確定結果は未配信です（表示中は60秒ごとに確認）';return}
+  if(res.status===404){if(!retainVerified){detail.replaceChildren();comparison.replaceChildren()}status.textContent='CLEAN確定結果は未取得です（60秒ごとに再確認）';return}
   if(!res.ok)throw Error('HTTP_'+res.status);
   const raw=await res.json();
   if(token!==resultRequestId||key!==sameRaceKey())return;
-  const order=raw.finish_order,payout=raw.trifecta_payout_yen_per_100;
-  const officialSourceOk=isOfficialResultSource(raw.source,key);
-  const deadlineFromRace=verifiedRaceCache.get(key)?.meta?.deadline;
-  const deadlineFromVenue=todayVenueRaces?.date===s.date?todayVenueRaces.venues?.find(v=>v.jcd===key.split('-')[1])?.races?.find(r=>Number(r.race_no)===s.race)?.deadline:null;
-  const knownDeadline=/^([01]\d|2[0-3]):[0-5]\d$/.test(deadlineFromRace||deadlineFromVenue||'')?(deadlineFromRace||deadlineFromVenue):null;
-  if(!isVerifiedResult(raw,key,Date.now(),knownDeadline))throw Error('UNVERIFIED_RESULT');
-  if(displayedResultCombo!==raw.trifecta){comparison.replaceChildren();displayedResultCombo=raw.trifecta}
+  const order=raw.finish_order,source=raw.source_url,stamp=Date.parse(raw.collected_at_jst),confirmed=Date.parse(raw.confirmed_at_jst);
+  const expected='https://boatracecsv.github.io/data/results/realtime/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
+  const valid=raw.race_code===code&&raw.status==='confirmed'&&source===expected&&Array.isArray(order)&&order.length===3&&new Set(order).size===3&&order.every(n=>Number.isInteger(n)&&n>=1&&n<=6)&&Number.isFinite(stamp)&&Number.isFinite(confirmed)&&stamp>=confirmed&&stamp<=Date.now()+300000;
+  if(!valid)throw Error('INVALID_CLEAN_RESULT');
   const panel=document.createElement('div');panel.className='result-summary';
-  const combo=document.createElement('div');combo.className='result-combo';const label=document.createElement('span');label.textContent='確定3連単 ';combo.append(label);order.forEach((lane,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent=' › ';combo.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+lane;boat.textContent=String(lane);combo.append(boat)});
-  const pay=document.createElement('div');pay.className='result-payout';pay.textContent='払戻 '+payout.toLocaleString('ja-JP')+'円 / 100円';
-  const stamp=document.createElement('p');stamp.className='muted';stamp.textContent='結果の保存記録 '+raw.fetched_at;
-  panel.append(combo,pay,stamp);detail.replaceChildren(panel);status.textContent='保存済み確定結果';
-  // Only confirmed results initiate comparison; no generated predictions.
-  await compareConfirmedResult(key,raw.trifecta,token);
- }catch(e){if(token!==resultRequestId||key!==sameRaceKey())return;const transient=e?.name==='TimeoutError'||e?.name==='AbortError'||e instanceof TypeError||/^HTTP_(?:403|429|5\d\d)$/.test(e?.message||'');if(retainVerified&&transient&&displayedResultKey===key&&detail.children.length>0){status.textContent='確定結果の再取得に失敗しました。前回確認済みの結果を表示中（最新確認ではありません）';return}detail.replaceChildren();comparison.replaceChildren();displayedResultCombo='';status.textContent='結果データを検証できませんでした（未確定・通信エラーは確定扱いしません）'}
+  const combo=document.createElement('div');combo.className='result-combo';
+  const label=document.createElement('span');label.textContent='3連単 着順 ';combo.append(label);
+  order.forEach((lane,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent=' › ';combo.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+lane;boat.textContent=String(lane);combo.append(boat)});
+  const provenance=document.createElement('p');provenance.className='muted';provenance.textContent='CLEAN保存済み結果・取得 '+raw.collected_at_jst+'（公開結果CSVに基づく）';
+  panel.append(combo,provenance);detail.replaceChildren(panel);
+  displayedResultCombo=order.join('-');
+  status.textContent='CLEAN保存済み結果';
+  comparison.replaceChildren();
+  const notice=document.createElement('p');notice.className='muted';notice.textContent='正式予想の締切前保存証拠がCLEANへ移行するまで、的中・不的中の判定は行いません。';
+  comparison.append(notice);
+ }catch(e){
+  if(token!==resultRequestId||key!==sameRaceKey())return;
+  if(retainVerified&&detail.children.length){status.textContent='再取得に失敗しました。前回のCLEAN結果を保持中';return}
+  detail.replaceChildren();comparison.replaceChildren();displayedResultCombo='';
+  status.textContent='CLEAN結果データを検証できませんでした';
+ }
 }
 async function loadHeldVenues(force=false){
  const date=s.date;
