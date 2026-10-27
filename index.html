@@ -254,7 +254,7 @@ function renderDeadlines(data){
  const currentTime=Date.now();
  const upcoming=items.filter(item=>Date.parse(s.date+'T'+item.time+':00+09:00')>currentTime).slice(0,3);
  const updatedAt=Date.parse(data.updated_at),isStale=!Number.isFinite(updatedAt)||Date.now()-updatedAt>30*60000;
- const statusText=(upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
+ const statusText=(data.historical_result_only?'過去の確定結果から開催場を確認（締切時刻なし）':upcoming.length?'締切前'+upcoming.length+'レース｜タップして詳細へ':items.length?'本日の締切前レースは終了しました':'締切情報がありません')+(isStale?'｜開催情報の更新が30分以上前です。再読み込みで確認してください':'');
  document.getElementById('deadlineStatus').textContent=statusText;
  const signature=upcoming.map(item=>item.key+'@'+item.time).join('|');
  if(list.dataset.signature===signature){
@@ -363,6 +363,30 @@ async function loadResult(quiet=false){
   status.textContent='CLEAN結果データを検証できませんでした';
  }
 }
+async function historicalHeldVenues(date){
+ if(date>=fmt(jst()))throw Error('HISTORICAL_ONLY');
+ const dayCode=date.replaceAll('-','');
+ const url='https://boatracecsv.github.io/data/results/realtime/'+date.slice(0,4)+'/'+date.slice(5,7)+'/'+date.slice(8,10)+'.csv';
+ const response=await fetchTimed(url,{cache:'no-store'});
+ if(!response.ok)throw Error('HISTORICAL_RESULTS_HTTP_'+response.status);
+ const csv=await response.text();
+ if(csv.length>2000000)throw Error('HISTORICAL_RESULTS_TOO_LARGE');
+ const lines=csv.replace(/^\uFEFF/,'').split(/\r?\n/);
+ const cells=line=>{const out=[];let value='',quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++}else quoted=!quoted}else if(ch===','&&!quoted){out.push(value);value=''}else value+=ch}out.push(value);return out};
+ const headers=cells(lines.shift()||''),idx=headers.indexOf('レースコード');
+ if(idx<0)throw Error('HISTORICAL_RESULTS_SCHEMA');
+ const groups=new Map();
+ for(const line of lines){
+  if(!line.trim())continue;
+  const code=cells(line)[idx];
+  if(!code||code.length!==12||!code.startsWith(dayCode)||!/^(0[1-9]|1[0-9]|2[0-4])$/.test(code.slice(8,10))||!/^(0[1-9]|1[0-2])$/.test(code.slice(10)))continue;
+  const venue=code.slice(8,10),no=Number(code.slice(10));
+  if(!groups.has(venue))groups.set(venue,new Set());
+  groups.get(venue).add(no);
+ }
+ if(!groups.size)throw Error('HISTORICAL_RESULTS_EMPTY');
+ return {date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:new Date().toISOString(),historical_result_only:true,venues:[...groups].map(([jcd,races])=>({jcd,races:[...races].sort((a,b)=>a-b).map(race_no=>({race_no}))}))};
+}
 async function loadHeldVenues(force=false){
  const date=s.date;
  if(!force&&date===venueDateChecked)return;
@@ -382,10 +406,11 @@ async function loadHeldVenues(force=false){
   else if(archive.status===404){
    let api;
    for(let attempt=0;attempt<3;attempt++){
-    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)throw e;continue}
+    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
     if(api.status!==503)break;
    }
-   if(!api?.ok)throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');
+   if(!api?.ok){if(date<fmt(jst()))data=await historicalHeldVenues(date);else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');}
+   if(!data){
    const feed=await api.json();
    if(!feed.ok||feed.date!==dayCode||!Array.isArray(feed.races))throw Error('INVALID_INDEPENDENT_SCHEDULE');
    const groups=new Map();
@@ -396,6 +421,7 @@ async function loadHeldVenues(force=false){
     groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
    }
    data={date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:feed.source_received_jst,venues:[...groups].map(([jcd,races])=>({jcd,races}))};
+   }
   }else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status);
   if(!data||!Array.isArray(data.venues))throw Error('SCHEDULE_INVALID');
   if(token!==venueRequest||date!==s.date)return;
@@ -424,7 +450,7 @@ async function loadHeldVenues(force=false){
    }
   }
   if(token!==venueRequest||date!==s.date)return;
-  status.textContent='開催情報：'+available.size+'場｜'+(date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
+  status.textContent='開催情報：'+available.size+'場｜'+(data.historical_result_only?'公開済み結果で確認（締切時刻なし）':date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
   venueDateChecked=date;
