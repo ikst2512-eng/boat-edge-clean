@@ -48,8 +48,8 @@ jobs:
           missing = sorted(set(referenced) - set(ids))
           if missing:
               raise SystemExit(f'Missing DOM targets: {missing}')
-          if 'verifiedStoredPrediction' not in scripts[0]:
-              raise SystemExit('Verified frozen prediction loader missing')
+          if 'cleanFourModeForecast' not in scripts[0]:
+              raise SystemExit('CLEAN independent four-mode forecast loader missing')
           Path('/tmp/clean-inline.js').write_text(scripts[0])
           PY
           node --check /tmp/clean-inline.js
