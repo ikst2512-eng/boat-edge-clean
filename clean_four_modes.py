@@ -15,10 +15,16 @@ def rank_modes(prob_rows):
     if len(rows)!=120 or abs(sum(p for _,p in rows)-1)>1e-6:
         raise ValueError("probability_board_invalid")
     hit=rows[:]
-    # Use only pre-race probability estimates; never infer market odds.
-    # More diverse 1st-place coverage distinguishes balance from hit.
-    balance=sorted(rows,key=lambda item:(
-        -(item[1] * (1.0 if item[0][0]!="1" else 0.85)),item[0]))
+    # Spread balance candidates across different 1st/2nd-place branches.
+    # Never hardcode a particular lane as favored.
+    remaining=list(rows)
+    balance=[]
+    while remaining:
+        firsts={x[0][0] for x in balance}
+        pairs={x[0][:3] for x in balance}
+        best=max(remaining,key=lambda x:(x[1]*(1.0+(0.30 if x[0][0] not in firsts else 0)+(0.15 if x[0][:3] not in pairs else 0)),-int(x[0][0]),-int(x[0][2]),-int(x[0][4])))
+        remaining.remove(best)
+        balance.append(best)
     # Hole is low-probability coverage, NOT a fabricated high-odds forecast.
     hole=sorted(rows,key=lambda item:(abs(item[1]-0.004),-item[1],item[0]))
     narrow=rows[:]
