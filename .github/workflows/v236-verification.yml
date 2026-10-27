@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'clean_four_modes.py'
+      - 'test_clean_four_modes.py'
       - 'v236_freeze.py'
       - 'test_v236_freeze.py'
       - 'verification_pipeline.py'
@@ -25,7 +27,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
           fetch-depth: 0
       - name: Verify processing states and payouts
-        run: python -m unittest -v test_verification_pipeline test_v236_freeze
+        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes
       - name: Freeze prospectively committed V236 candidate cohorts
         if: github.event_name != 'pull_request'
         run: python v236_freeze.py
