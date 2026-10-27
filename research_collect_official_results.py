@@ -6,13 +6,16 @@ Every capture is explicitly marked unverified until independent review.
 import argparse
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 from research_official_result_parser import parse_result
 
 BASE="https://www.boatrace.jp/owpc/pc/race/raceresult"
-def collect(snapshot_dir, max_races=24):
+def collect(snapshot_dir, max_races=24, retries=2, timeout=8, sleep_fn=time.sleep):
+    if not 0 <= retries <= 3 or not 2 <= timeout <= 20:
+        raise ValueError('invalid_retry_limits')
     if not 1 <= max_races <= 144:
         raise ValueError("bounded collection required")
     report={"status":"UNVERIFIED_OFFICIAL_RESULT_COLLECTION","results":[],"failures":[]}
@@ -35,9 +38,10 @@ def collect(snapshot_dir, max_races=24):
             report["failures"].append({"race_code":key,"reason":"invalid_race_code"})
             continue
         url=f"{BASE}?hd={key[:8]}&jcd={key[8:10]}&rno={int(key[10:])}"
-        try:
+        for attempt in range(retries+1):
+          try:
             req=Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESEARCH/1.0","Accept":"text/html"})
-            with urlopen(req,timeout=10) as response:
+            with urlopen(req,timeout=timeout) as response:
                 if response.status != 200 or "html" not in response.headers.get("Content-Type","").lower():
                     raise ValueError("not_html_response")
                 data=response.read(1_500_001)
@@ -46,8 +50,15 @@ def collect(snapshot_dir, max_races=24):
             result=parse_result(data.decode("utf-8"),url)
             result["fetched_at_utc"]=datetime.now(timezone.utc).isoformat()
             report["results"].append(result)
-        except (ValueError,TimeoutError,OSError,UnicodeDecodeError) as exc:
-            report["failures"].append({"race_code":key,"reason":type(exc).__name__})
+            break
+          except (TimeoutError, OSError) as exc:
+            if attempt < retries:
+                sleep_fn(min(0.5 * (2 ** attempt), 2))
+                continue
+            report["failures"].append({"race_code":key,"reason":type(exc).__name__,"attempts":attempt+1})
+          except (ValueError, UnicodeDecodeError) as exc:
+            report["failures"].append({"race_code":key,"reason":type(exc).__name__,"attempts":attempt+1})
+            break
     report["fetched"]=len(report["results"])
     report["failed"]=len(report["failures"])
     report["not_attempted"] = max(0, len(selected)-max_races)
