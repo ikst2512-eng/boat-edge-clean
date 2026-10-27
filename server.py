@@ -235,6 +235,16 @@ class Handler(BaseHTTPRequestHandler):
             status, data = get_odds(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
+        elif path == "/api/research-snapshot":
+            from independent_feed import research_snapshot
+            params = parse_qs(parsed.query)
+            status, data = research_snapshot(
+                params.get("hd", [""])[0],
+                params.get("jcd", [""])[0],
+                params.get("rno", [""])[0],
+            )
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/predictions":
             status, data = get_predictions(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
