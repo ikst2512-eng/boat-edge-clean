@@ -1,0 +1,7 @@
+{
+  "budget_yen": 5000,
+  "model": "V236_coverage15",
+  "race_code": "202610270812",
+  "reason": "forecast_not_frozen",
+  "state": "waiting_prediction"
+}
