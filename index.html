@@ -477,6 +477,39 @@ function mergeVerifiedRaceSnapshots(previous,raw){
  const previewSource=previewOld>previewNew?previous:raw;
  return cardSource===previewSource?cardSource:{...cardSource,beforeinfo:previewSource.beforeinfo,verifiedPreview:previewSource.verifiedPreview,source_audit:{...cardSource.source_audit,beforeinfo:previewSource.source_audit?.beforeinfo}};
 }
+
+function csvFields(line){const out=[];let value='',quoted=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++}else quoted=!quoted;}else if(c===','&&!quoted){out.push(value);value='';}else value+=c;}out.push(value);return out;}
+async function loadOriginalExhibition(key,token,grid){
+ const id='originalExhibitionDetails';let root=document.getElementById(id);
+ if(!root){root=document.createElement('section');root.id=id;root.className='exhibition-weather';grid.append(root);}
+ root.replaceChildren();
+ const status=document.createElement('p');status.className='muted';status.textContent='各場オリジナル展示を確認中…';root.append(status);
+ try{
+  const url='https://boatracecsv.github.io/data/previews/original_exhibition/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
+  const response=await fetchTimed(url,{cache:'no-store'});
+  if(!response.ok)throw Error('SOURCE_HTTP_'+response.status);
+  const data=await response.text();if(data.length>2000000)throw Error('ORIGINAL_TOO_LARGE');
+  const rows=data.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(csvFields),headers=rows.shift();
+  if(!headers||!headers.includes('レースコード')||!headers.includes('計測数'))throw Error('ORIGINAL_SCHEMA');
+  const index=Object.fromEntries(headers.map((h,i)=>[h,i]));
+  const record=rows.filter(row=>row[index['レースコード']]===key.replaceAll('-',''));
+  if(token!==window.raceDataRequestId||key!==sameRaceKey()||activeView!=='exhibit')return;
+  if(record.length===0){status.textContent='オリジナル展示：未配信／公開待ち（通常の展示情報・予想は別途表示）';return;}
+  if(record.length!==1)throw Error('ORIGINAL_DUPLICATE');
+  const row=record[0],count=Number(row[index['計測数']]);
+  if(!Number.isInteger(count)||count<0||count>3)throw Error('ORIGINAL_COUNT');
+  const labels=[];
+  for(let k=1;k<=count;k++){const label=row[index['計測項目'+k]];if(typeof label!=='string'||!label.trim()||label.length>32)throw Error('ORIGINAL_LABEL');labels.push(label.trim());}
+  root.replaceChildren();const title=document.createElement('strong');title.textContent='各場オリジナル展示（配信項目名をそのまま表示）';root.append(title);
+  for(let lane=1;lane<=6;lane++){
+   const line=document.createElement('div');line.className='course-record-line';
+   const vals=labels.map((label,i)=>{const col=lane+'艇_値'+(i+1);const alt=lane+'号艇_値'+(i+1);const value=row[index[col]??index[alt]];return label+' '+(typeof value==='string'&&value.trim()?value.trim():'—');});
+   line.textContent=lane+'号艇｜'+vals.join('　');root.append(line);
+  }
+ }catch(error){
+  if(token===window.raceDataRequestId&&key===sameRaceKey())status.textContent='オリジナル展示：未取得（通常の展示情報・予想は継続）';
+ }
+}
 let displayedRaceKey='';
 async function loadRaceData(force=false){
  const token=(window.raceDataRequestId||0)+1;window.raceDataRequestId=token;
@@ -616,6 +649,9 @@ async function loadRaceData(force=false){
    }).catch(()=>{});
   }
   exhibitGrid.append(entryNote);
+  // The original exhibition feed is an independent per-race source. Its
+  // documented item labels are authoritative: never infer labels by venue.
+  if(activeView==='exhibit')loadOriginalExhibition(key,token,exhibitGrid);
   const laneColors=['#a3afbf','#24384d','#db4246','#2579c9','#d3ac18','#25895e'];
   for(let lane=1;lane<=6;lane++){
    const racer=racers.find(r=>r.lane===lane)||{name:'未提供'},ex=byLane(preview,lane),st=byLane(starts,lane);
@@ -625,18 +661,7 @@ async function loadRaceData(force=false){
    const name=document.createElement('span');name.className='exhibition-name';name.textContent=racer.name||'未提供';top.append(badge,name);card.append(top);
    const vals=document.createElement('div');vals.className='exhibition-values';
    const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\.?\d+(?:\.\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
-   // Venue-original timing is optional. Display saved audited measurements only;
-   // Kiryu half-lap is NOT the same measurement as a full lap elsewhere.
-   if(safePreview){
-    const first=(obj,keys)=>{for(const k of keys){const value=obj?.[k];if(txt(value)!=='—')return txt(value)}return null};
-    const timings=[
-     [s.venue===0?'半周ラップ':'一周タイム',['half_lap_time','half_lap','half_lap_sec','lap_time','one_lap_time','round_time']],
-     ['まわり足',['turning_time','turn_time','turning_foot_time','mawari_time']],
-     ['直線タイム',['straight_time','straight_sec','straight_exhibition_time']]
-    ];
-    for(const [label,keys] of timings){if(s.venue===0&&label==='半周ラップ'){const v=first(ex,keys.slice(0,3));if(v!==null)measures.push([label,v]);}
-     else {const v=first(ex,s.venue===0?keys:keys.filter(k=>!k.startsWith('half_lap')));if(v!==null)measures.push([label,v]);}}
-   }
+
    measures.forEach(([label,value],i)=>{const item=document.createElement('div');item.className='exhibition-metric';const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(small,strong);vals.append(item)});
    card.append(vals);exhibitGrid.append(card);
   }
