@@ -142,6 +142,16 @@ jobs:
                 const body=url.includes('/data/today.json')?JSON.stringify({date:'2026-10-22',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,venues:[{jcd:'12',venue:'住之江',races:[{race_no:1,deadline:'15:16'}]}]}):url.includes(racePath)?raceText:url.includes(predPath)?(predictionUnavailable||predictionHttpFailure?null:predText):null;
                 return route.fulfill(predictionHttpFailure&&url.includes(predPath)?{status:503,headers:cors,body:'temporary outage'}:body?{status:200,contentType:'application/json',headers:cors,body}:{status:404,headers:cors,body:'{}'});
               });
+              // Mock the independent dated schedule provider in this isolated browser fixture.
+              // Historical venue presence must no longer depend on legacy today.json.
+              await page.route('https://boat-edge-clean.onrender.com/api/clean-schedule**',route=>{
+                const day=new URL(route.request().url()).searchParams.get('date');
+                const date=day==='20261022'?'2026-10-22':'2026-10-28';
+                return route.fulfill({status:200,contentType:'application/json',headers:cors,body:JSON.stringify({
+                  ok:true,date:day,status:'published_schedule',source_received_jst:date+'T07:00:00+09:00',
+                  races:[{venue_code:'12',race_no:1,deadline_jst:date+'T15:16:00+09:00'}]
+                })});
+              });
               await page.route('https://api.github.com/**',route=>{
                 const url=route.request().url(),path=url.includes(encodeURIComponent(racePath))||url.includes(racePath)?racePath:predPath;
                 const body=url.includes('/commits?')?[{sha}]:{files:[{filename:path,status:'added'}],commit:{committer:{date:'2026-10-22T06:13:00Z'}}};
