@@ -624,7 +624,7 @@ async function loadRaceData(force=false){
    const badge=document.createElement('span');badge.className='lane-badge lane-'+lane;badge.textContent=String(lane);
    const name=document.createElement('span');name.className='exhibition-name';name.textContent=racer.name||'未提供';top.append(badge,name);card.append(top);
    const vals=document.createElement('div');vals.className='exhibition-values';
-   const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\\.?\\d+(?:\\.\\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
+   const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\.?\d+(?:\.\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
    // Venue-original timing is optional. Display saved audited measurements only;
    // Kiryu half-lap is NOT the same measurement as a full lap elsewhere.
    if(safePreview){
