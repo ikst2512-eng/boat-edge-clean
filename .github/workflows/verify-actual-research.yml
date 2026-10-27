@@ -1,0 +1,31 @@
+name: Verify actual CLEAN research results
+on:
+  pull_request:
+    paths:
+      - verify_actual_research_results.py
+      - .github/workflows/verify-actual-research.yml
+  push:
+    branches: [main]
+    paths:
+      - verify_actual_research_results.py
+      - .github/workflows/verify-actual-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify real 2026-10-27 research forecasts against saved results
+        run: python verify_actual_research_results.py --day 20261027
+      - uses: actions/upload-artifact@v4
+        with:
+          name: actual-research-20261027
+          path: research_validation_report.json
+          if-no-files-found: error
