@@ -41,3 +41,6 @@ jobs:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
         run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_research_beta_backtest test_research_snapshot_inventory
+
+      - name: Inventory frozen forecasts without results access
+        run: python research_snapshot_inventory.py --snapshots research_snapshots
