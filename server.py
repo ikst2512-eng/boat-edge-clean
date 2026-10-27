@@ -221,6 +221,16 @@ class Handler(BaseHTTPRequestHandler):
             status, data = clean_schedule(params.get("date", [""])[0])
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
+        elif path == "/api/clean-result":
+            from clean_results import read_result
+            params = parse_qs(parsed.query)
+            status, data = read_result(
+                params.get("hd", [""])[0],
+                params.get("jcd", [""])[0],
+                params.get("rno", [""])[0],
+            )
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/odds":
             status, data = get_odds(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
