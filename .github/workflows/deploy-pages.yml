@@ -166,7 +166,7 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#deadlineStatus')?.textContent.includes('締切前レースは終了しました'),null,{timeout:12000});
               if(await page.locator('#deadlineList .deadline-item').count()!==0)throw Error('past deadline was incorrectly shown as upcoming');
               // Forecast is the default tab; activating race cards starts their data request.
-              await page.evaluate(() => setView('card'));
+              await page.evaluate(() => {setView('card');render();});
               await page.locator('#raceDataRows tr').first().waitFor({state:'attached',timeout:12000});
               if(await page.locator('#raceDataRows tr').count()!==6)throw Error('six-lane data render failed');
               if(!(await page.locator('#raceDataRows tr').first().innerText()).includes('35.00%'))throw Error('numeric-string statistics missing');
