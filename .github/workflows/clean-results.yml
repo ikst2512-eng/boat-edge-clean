@@ -1,0 +1,27 @@
+name: CLEAN confirmed result archive checks
+on:
+  pull_request:
+    paths:
+      - clean_results.py
+      - test_clean_results.py
+      - server.py
+      - .github/workflows/clean-results.yml
+  push:
+    branches: [main]
+    paths:
+      - clean_results.py
+      - test_clean_results.py
+      - server.py
+      - .github/workflows/clean-results.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_clean_results test_head_health

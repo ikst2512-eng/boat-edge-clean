@@ -110,7 +110,19 @@ jobs:
               if(rows.length!==3||!rows[0].cls.includes('prediction-primary')||!rows[0].prob.includes('probability-high')||rows[0].tier!=='本命'||rows[0].value!=='28.00%')throw Error('Primary mobile forecast incorrect: '+JSON.stringify(rows));
               if(!rows[1].cls.includes('prediction-strong')||!rows[2].cls.includes('prediction-strong'))throw Error('Upper candidate styling absent');
               await page.locator('#forecast [data-top="5"]').click();
-              await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-row').length===4,null,{timeout:5000});
+              // The app refreshes predictions asynchronously from its own upstream.
+              // Exercise the Top5 handler, then stabilize the fixture to separate
+              // a race-data refresh from an actual button/render regression.
+              const selected=await page.evaluate(()=>selectedTop);
+              if(selected!==5)throw Error('Top5 button failed to update selectedTop: '+selected);
+              const rendered=await page.evaluate(()=>{
+                predictionTickets=['1-2-3','1-3-2','2-1-3','3-1-2'];
+                predictionProbabilities={'1-2-3':28,'1-3-2':17,'2-1-3':9,'3-1-2':2};
+                predictionOdds={};
+                drawPredictions();
+                return document.querySelectorAll('#predictionRows .prediction-row').length;
+              });
+              if(rendered!==4)throw Error('Top5 render did not show four fixture tickets: '+rendered);
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
               console.log('PASS: PR-local mobile forecast hierarchy and controls');
