@@ -100,4 +100,5 @@ if __name__=="__main__":
                 "source_url":exc.url,"retryable":True}
     except (URLError, TimeoutError, ConnectionError) as exc:
         result={"new_saved":[],"source_pending":type(exc).__name__,"retryable":True}
-    publish_status(result)\n    print(json.dumps(result,ensure_ascii=False))
+    publish_status(result)
+    print(json.dumps(result,ensure_ascii=False))
