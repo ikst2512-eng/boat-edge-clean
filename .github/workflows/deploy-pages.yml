@@ -281,7 +281,7 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent==='CLEAN保存済み結果',null,{timeout:30000});
               const shown=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
               if(shown.join('-')!==expected.finish_order.join('-'))throw Error('Result UI differs from committed CLEAN archive: '+shown.join('-'));
-              if((await page.locator('#resultComparison').innerText()).includes('的中'))throw Error('Unverified formal forecast was scored');
+              if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())throw Error('Unverified formal forecast was scored');
               console.log('CLEAN_RESULT_PUBLISHED_BROWSER_PASS',url.toString(),shown.join('-'));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
