@@ -23,7 +23,7 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
                 archive=read_json(path)
                 if archive.get("race_code")!=path.stem:raise ValueError("race_mismatch")
                 # Original first Git add and exact on-disk bytes must both be unchanged.
-                proof_checker(path,archive["deadline_jst"])
+                first_git_sha=proof_checker(path,archive["deadline_jst"])
             except (ValueError,TypeError,KeyError,OSError,RuntimeError,Exception) as exc:
                 counts["unverified"]+=1
                 continue
@@ -44,6 +44,23 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
                 counts["awaiting_payout"]+=1
                 continue
             records.append(entry)
+            if budget_yen==5000:
+                # Derived results are published only after exact first-Git-add,
+                # CLEAN confirmed result and actual official payout validation.
+                detail_dir=root/"four_mode_performance"/"verified_races"
+                detail_dir.mkdir(parents=True,exist_ok=True)
+                detail=detail_dir/(path.stem+".json")
+                if not detail.exists():
+                    payload={"schema":"CLEAN_VERIFIED_FOUR_MODE_RACE_V1",
+                             "race_code":path.stem,"verified":True,
+                             "budget_yen":budget_yen,"first_git_sha":first_git_sha,
+                             "official_finish":winner,
+                             "official_payout_yen_per_100":payout,
+                             "modes":entry["modes"],
+                             "simulated_only":True}
+                    with detail.open("x",encoding="utf-8") as fp:
+                        json.dump(payload,fp,ensure_ascii=False,sort_keys=True,indent=2)
+                        fp.write("\\n")
             counts["complete"]+=1
     output={"schema":"CLEAN_FOUR_MODE_PERFORMANCE_V1","simulated_only":True,
             "budget_yen":budget_yen,"counts":counts,"modes":summary(records)}
