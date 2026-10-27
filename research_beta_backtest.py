@@ -23,12 +23,13 @@ def eligible_rows(items):
         raise ValueError("expected array")
     rows, seen = [], set()
     excluded = Counter()
+    counts = Counter(item.get('race_code') for item in items if isinstance(item, dict) and isinstance(item.get('race_code'), str))
     for row in items:
         try:
             if not isinstance(row, dict):
                 raise ValueError("invalid row")
             key = row["race_code"]
-            if not isinstance(key, str) or len(key) != 12 or not key.isascii() or not key.isdigit() or key in seen:
+            if not isinstance(key, str) or len(key) != 12 or not key.isascii() or not key.isdigit() or key in seen or counts[key] != 1:
                 raise ValueError("duplicate_or_invalid_race")
             seen.add(key)
             if row.get("independent_receipt_verified") is not True or row.get("result_verified") is not True:
