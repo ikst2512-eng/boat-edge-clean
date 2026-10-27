@@ -59,3 +59,38 @@ jobs:
       - name: Inventory frozen forecasts without results access
         run: python research_snapshot_inventory.py --snapshots research_snapshots
 
+      - name: Test independent CDN payout feed for one historical day (exploratory only)
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          from pathlib import Path
+          from research_third_party_payouts import parse_payouts_csv
+          url = 'https://boatracecsv.github.io/data/results/payouts/2026/10/27.csv'
+          try:
+              with urllib.request.urlopen(url, timeout=7) as response:
+                  data = response.read(2_000_001)
+              if len(data) > 2_000_000: raise ValueError('oversize_csv')
+              records = parse_payouts_csv(data.decode('utf-8-sig'))
+              scores = {'top1':0,'top3':0,'top5':0,'top10':0}
+              matched=0
+              for row in records['results']:
+                  path=Path('research_snapshots')/(row['race_code']+'.json')
+                  if not path.is_file(): continue
+                  forecast=json.loads(path.read_text(encoding='utf-8'))
+                  picks=forecast.get('predictions',[])
+                  if forecast.get('status')!='research' or forecast.get('validated') is not False or len(picks)!=10: continue
+                  matched+=1
+                  rank=picks.index(row['ticket'])+1 if row['ticket'] in picks else 999
+                  for k,n in [('top1',1),('top3',3),('top5',5),('top10',10)]:
+                      scores[k]+=rank<=n
+              print(json.dumps({'status':'THIRD_PARTY_EXPLORATORY_NOT_FORMAL',
+                                'payout_rows':records['matched_payout_rows'],
+                                'matched_saved_forecasts':matched,
+                                'scores':scores,'excluded':records['excluded']},ensure_ascii=False),flush=True)
+          except Exception as e:
+              print(json.dumps({'status':'THIRD_PARTY_FEED_UNAVAILABLE','error':type(e).__name__}),flush=True)
+          PY
