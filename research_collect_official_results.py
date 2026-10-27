@@ -16,7 +16,20 @@ def collect(snapshot_dir, max_races=24):
     if not 1 <= max_races <= 144:
         raise ValueError("bounded collection required")
     report={"status":"UNVERIFIED_OFFICIAL_RESULT_COLLECTION","results":[],"failures":[]}
-    for path in sorted(Path(snapshot_dir).glob("*.json"))[:max_races]:
+    selected = []
+    for path in sorted(Path(snapshot_dir).glob("*.json")):
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+            required = ("race_code", "predictions", "generated_at", "cutoff_jst",
+                        "source_deadline_jst", "model_git_sha", "input_sha256",
+                        "source_title_sha256", "source_cards_sha256")
+            if (obj.get("race_code") == path.stem and obj.get("status") == "research"
+                    and obj.get("validated") is False and all(obj.get(k) for k in required)):
+                selected.append(path)
+        except (ValueError, OSError, TypeError, AttributeError):
+            continue
+    report["local_metadata_candidates"] = len(selected)
+    for path in selected[:max_races]:
         key=path.stem
         if not re.fullmatch(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])",key):
             report["failures"].append({"race_code":key,"reason":"invalid_race_code"})
@@ -37,6 +50,7 @@ def collect(snapshot_dir, max_races=24):
             report["failures"].append({"race_code":key,"reason":type(exc).__name__})
     report["fetched"]=len(report["results"])
     report["failed"]=len(report["failures"])
+    report["not_attempted"] = max(0, len(selected)-max_races)
     return report
 
 if __name__=="__main__":
