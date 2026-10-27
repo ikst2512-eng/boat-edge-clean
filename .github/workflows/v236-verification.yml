@@ -18,6 +18,7 @@ on:
       - 'clean_four_modes.py'
       - 'collect_four_mode_performance.py'
       - 'four_mode_performance.py'
+      - 'confirmed_results/**'
   pull_request:
     paths:
       - 'clean_racecard.py'
