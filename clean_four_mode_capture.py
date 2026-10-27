@@ -71,7 +71,7 @@ if __name__=="__main__":
     try:
         result=collect()
     except HTTPError as exc:
-        result={"new_saved":[],"source_pending":"HTTPError","http_status":exc.code,
+        result={"new_saved":[],"source_pending":"waiting_for_published_source" if exc.code==404 else "HTTPError","http_status":exc.code,
                 "source_url":exc.url,"retryable":True}
     except (URLError, TimeoutError, ConnectionError) as exc:
         result={"new_saved":[],"source_pending":type(exc).__name__,"retryable":True}
