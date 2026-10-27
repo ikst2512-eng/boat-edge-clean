@@ -152,4 +152,11 @@ assert.ok(html.includes('#resultSection .comparison-hit{background:#dcf9e8'),'ve
 assert.ok(html.includes('#resultSection .comparison-miss{background:#fce8e8'),'verified miss must be legible');
 assert.ok(script.includes("raw.race_code===code&&raw.status==='confirmed'")&&script.includes("source===expected")&&script.includes("new Set(order).size===3")&&script.includes("stamp>=confirmed"),'CLEAN result styling cannot bypass race/source/order/timestamp verification');
 assert.ok(script.includes("boat-edge-clean/main/confirmed_results/")&&!script.slice(script.indexOf('async function loadResult(quiet=false){'),script.indexOf('async function loadHeldVenues')).includes("EDGE_RAW"),'result view must not fetch legacy repository');
+assert.ok(script.includes("document.getElementById('resultSection').hidden=view!=='forecast'&&view!=='result'"),'forecast and result must remain visible together');
+assert.ok(script.includes("if(activeView==='forecast'){loadPredictions();loadResult()}"),'forecast selection must refresh both panels');
+assert.ok(script.includes("if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}"),'combined view must poll confirmed results');
+assert.ok(script.includes("data/results/payouts/"),'3連単払戻 must use published payout CSV');
+assert.ok(script.includes("match.length!==1||match[0][ix[1]]!==order.join('-')"),'payout must match exact race and winning ticket');
+assert.ok(script.includes("payout.textContent='3連単払戻金：未確認'"),'missing payout must fail closed');
+assert.ok(!script.includes("id='openResult'"),'combined view must not require a result-switch control');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
