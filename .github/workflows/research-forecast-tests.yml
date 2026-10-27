@@ -57,7 +57,7 @@ jobs:
       - name: Inventory frozen forecasts without results access
         run: python research_snapshot_inventory.py --snapshots research_snapshots
 
-      - name: Probe one official historical result (research only, non-blocking)
+      - name: Probe four official historical results (research only, non-blocking)
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
         run: |
@@ -66,16 +66,15 @@ jobs:
           import json
           from pathlib import Path
           from research_collect_official_results import collect
-          # Historical single-race probe, no predictions or results committed.
+          # Historical bounded four-race probe, no predictions or results committed.
           import tempfile
           with tempfile.TemporaryDirectory() as d:
-              src = Path('research_snapshots/202610270102.json')
-              if not src.exists():
-                  print('probe_snapshot_missing')
-              else:
-                  import shutil
-                  shutil.copyfile(src, Path(d)/src.name)
-                  result = collect(d, max_races=1)
+              import shutil
+              sources = [Path(f'research_snapshots/2026102701{i:02d}.json') for i in range(1, 5)]
+              for src in sources:
+                  if src.exists():
+                      shutil.copyfile(src, Path(d)/src.name)
+              result = collect(d, max_races=4)
                   print(json.dumps({'status':result['status'],'fetched':result['fetched'],
                                     'failed':result['failed'],'failures':result['failures'],
                                     'tickets': [{'race_code':r['race_code'],'ticket':r['ticket'],
