@@ -152,4 +152,10 @@ assert.ok(html.includes('#resultSection .comparison-hit{background:#dcf9e8'),'ve
 assert.ok(html.includes('#resultSection .comparison-miss{background:#fce8e8'),'verified miss must be legible');
 assert.ok(script.includes("raw.race_code===code&&raw.status==='confirmed'")&&script.includes("source===expected")&&script.includes("new Set(order).size===3")&&script.includes("stamp>=confirmed"),'CLEAN result styling cannot bypass race/source/order/timestamp verification');
 assert.ok(script.includes("boat-edge-clean/main/confirmed_results/")&&!script.slice(script.indexOf('async function loadResult(quiet=false){'),script.indexOf('async function loadHeldVenues')).includes("EDGE_RAW"),'result view must not fetch legacy repository');
+const heldSource=script.slice(script.indexOf('async function loadHeldVenues(force=false){'),script.indexOf('function mergeVerifiedRaceSnapshots'));
+assert.ok(heldSource.includes("schedule_snapshots/")&&heldSource.includes("/api/clean-schedule?date="),'historical venues must use CLEAN per-day schedule data');
+assert.ok(!heldSource.includes("EDGE_RAW+'/main/data/today.json'"),'historical venue list must not read legacy today-only manifest');
+assert.ok(heldSource.includes("feed.date!==dayCode"),'API schedule must match requested historical date');
+assert.ok(heldSource.includes("if(token!==venueRequest||date!==s.date)return"),'stale venue request must not overwrite selected day');
+assert.ok(script.includes("s.date===fmt(jst())?'本日のレース '"),'historical venue heading must show selected date');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
