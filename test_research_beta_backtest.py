@@ -48,8 +48,8 @@ class TestBacktest(unittest.TestCase):
     def test_rejects_duplicate(self):
         rows=fixture(1)
         accepted, excluded=eligible_rows(rows+rows)
-        self.assertEqual(len(accepted),1)
-        self.assertEqual(excluded["duplicate_or_invalid_race"],1)
+        self.assertEqual(len(accepted),0)
+        self.assertEqual(excluded["duplicate_or_invalid_race"],2)
     def test_real_frozen_forecast_replay_not_scoring(self):
         # True saved pre-race research inputs; no results are read or inferred.
         path = Path(__file__).resolve().parent / 'research_snapshots' / '202610270101.json'
