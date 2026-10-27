@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
         path = urlsplit(self.path).path.rstrip('/') or '/'
-        if path in ('/', '/index.html', '/healthz'):
+        if path in ('/', '/index.html', '/forecast', '/exhibition', '/card', '/results', '/healthz'):
             status = 200
         else:
             status = 404
@@ -209,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
         path = parsed.path.rstrip("/") or "/"
-        if path in ("/", "/index.html"):
+        if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results"):
             body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/healthz":
