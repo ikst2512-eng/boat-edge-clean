@@ -87,7 +87,7 @@ def load_archived(code):
 
 
 def forecast(hd,jcd,rno):
-    if not re.fullmatch(r"20\d{6}",str(hd)) or not re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]",str(jcd)) or not re.fullmatch(r"[1-9]|1[0-2]",str(rno)):
+    if not re.fullmatch(r"20\d{6}",str(hd)) or not re.fullmatch(r"(?:0?[1-9]|1[0-9]|2[0-4])",str(jcd)) or not re.fullmatch(r"[1-9]|1[0-2]",str(rno)):
         raise ValueError("race_input_invalid")
     datetime.strptime(hd,"%Y%m%d")
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"

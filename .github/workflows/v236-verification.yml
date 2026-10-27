@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'clean_racecard.py'
+      - 'test_clean_racecard.py'
       - 'clean_four_mode_capture.py'
       - 'clean_four_modes.py'
       - 'test_clean_four_modes.py'
@@ -31,7 +33,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
           fetch-depth: 0
       - name: Verify processing states and payouts
-        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_four_mode_performance
+        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_clean_racecard test_four_mode_performance
       - name: Capture independent four-mode forecasts before deadline
         if: github.event_name != 'pull_request'
         run: python clean_four_mode_capture.py
