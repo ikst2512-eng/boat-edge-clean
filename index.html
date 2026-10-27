@@ -378,36 +378,7 @@ async function historicalHeldVenues(date){
  if(idx<0)throw Error('HISTORICAL_RESULTS_SCHEMA');
  const groups=new Map();
  for(const line of lines){if(!line.trim())continue;const code=cells(line)[idx];
-  if(!new RegExp('^'+dayCode+'(0[1-9]|1[0-9]|2[0-4])(0[1-9]|1[0-2])
- const date=s.date;
- if(!force&&date===venueDateChecked)return;
- venueDateChecked=date;
- const token=++venueRequest;
- const status=document.getElementById('venueState');
- const retaining=force&&todayVenueRaces?.date===date;
- status.textContent=retaining?'開催情報を更新中（前回表示を維持）…':'開催情報を確認中…';
- if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach((b,i)=>{b.classList.remove('held');b.removeAttribute('data-held');b.setAttribute('aria-label',names[i]+'（開催状況を確認中）');b.querySelector('.venue-next').textContent='確認中'})}
- try{
-  // Per-day independent source. Archive is preferred, with a CLEAN-only API for past dates.
-  // Do not substitute the old repository's today.json for a different date.
-  const dayCode=date.replaceAll('-','');
-  let data=null;
-  const archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'});
-  if(archive.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
-  else if(archive.status===404){
-   let api;
-   for(let attempt=0;attempt<3;attempt++){
-    try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
-    if(api.status!==503)break;
-   }
-   if(!api?.ok){if(date<fmt(jst()))data=await historicalHeldVenues(date);else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');}
-   if(!data){
-   const feed=await api.json();
-   if(!feed.ok||feed.date!==dayCode||!Array.isArray(feed.races))throw Error('INVALID_INDEPENDENT_SCHEDULE');
-   const groups=new Map();
-   for(const race of feed.races){
-    const jcd=race.venue_code,no=Number(race.race_no),deadline=race.deadline_jst;
-    if(!/^(0[1-9]|1[0-9]|2[0-4])$/.test(jcd)||Number(jcd)<1||!Number.isInteger(no)||no<1||no>12||typeof deadline!=='string'||!deadline.startsWith(date+'T'))continue;
+  if(!code||code.length!==12||!code.startsWith(dayCode)||!/^(0[1-9]|1[0-9]|2[0-4])$/.test(code.slice(8,10))||!/^(0[1-9]|1[0-2])$/.test(code.slice(10)))continue;
     if(!groups.has(jcd))groups.set(jcd,[]);
     groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
    }
