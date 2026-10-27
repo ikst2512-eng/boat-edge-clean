@@ -192,6 +192,33 @@ def get_predictions(params):
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
+
+def get_scenario_research(params):
+    """Isolated scenario research from immutable pre-race snapshots; NOT formal predictions."""
+    try:
+        hd=params.get("hd",[""])[0]; jcd=params.get("jcd",[""])[0]; rno=params.get("rno",[""])[0]
+        if not (re.fullmatch(r"20[0-9]{6}",hd) and re.fullmatch(r"0[1-9]|1[0-9]|2[0-4]",jcd)
+                and re.fullmatch(r"[1-9]|1[0-2]",rno)):
+            return 400, {"ok":False,"status":"invalid_race"}
+        datetime.strptime(hd,"%Y%m%d")
+        key=hd+jcd+f"{int(rno):02d}"
+        from research_model import _saved
+        saved=_saved(key)
+        if saved is None:
+            return 200, {"ok":True,"status":"unavailable","predictions":[]}
+        path=ROOT/"research_snapshots"/(key+".json")
+        if path.is_symlink() or path.stat().st_size>20000:
+            raise ValueError("unsafe_snapshot")
+        record=json.loads(path.read_text(encoding="utf-8"))
+        from research_scenario_candidate import scenario_candidates
+        candidates=scenario_candidates(record.get("national_win_rates"))
+        return 200, {"ok":True,"status":"research_unvalidated","predictions":candidates,
+                     "model_version":"conditional-baseline-research-v0",
+                     "warning":"仮説モデル。実進入・ST・展示・展開の検証は未実施。正式予想ではありません。"}
+    except (ValueError,OSError,TypeError,KeyError) as exc:
+        logging.info("scenario_research_unavailable %s",type(exc).__name__)
+        return 200, {"ok":True,"status":"unavailable","predictions":[]}
+
 class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
@@ -217,6 +244,10 @@ class Handler(BaseHTTPRequestHandler):
             status, kind = 200, "text/plain; charset=utf-8"
         elif path == "/api/odds":
             status, data = get_odds(parse_qs(parsed.query))
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
+        elif path == "/api/research-scenario":
+            status, data = get_scenario_research(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
         elif path == "/api/predictions":
