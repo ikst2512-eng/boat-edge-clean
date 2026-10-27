@@ -16,7 +16,7 @@ class ProspectiveEvaluationTests(unittest.TestCase):
                       "1-4-3","2-1-3","2-1-4","2-3-1","2-3-4"]
         (self.root/"prospective_predictions"/(self.code+".json")).write_text(json.dumps({"predictions":self.tickets}),encoding="utf-8")
     def test_verified_result_and_cutoff_evidence_only(self):
-        with patch.object(ev,"inspect",return_value={"first_add_sha":"a"*40}) as verify, patch.object(ev,"read_result",return_value=(200,{"race_code":self.code,"status":"confirmed","finish_order":[1,4,3]})):
+        with patch.object(ev,"inspect",return_value={"first_add_sha":"a"*40}) as verify, patch.object(ev,"read_result",return_value=(200,{"race_code":self.code,"status":"confirmed","finish_order":[1,4,2]})):
             result=ev.evaluate(self.code,self.root)
         self.assertTrue(result["top5"])
         self.assertFalse(result["top3"])
