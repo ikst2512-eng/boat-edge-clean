@@ -191,7 +191,7 @@ function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s
 const verifiedCache=new Map();
 async function verifiedFourModeRace(key){
  const code=key.replaceAll('-','');
- if(!/^20\\d{10}$/.test(code))throw Error('RACE_KEY_INVALID');
+ if(!/^20\d{10}$/.test(code))throw Error('RACE_KEY_INVALID');
  const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_performance/verified_races/'+code+'.json';
  const response=await fetchTimed(url+'?t='+Date.now(),{cache:'no-store'});
  if(!response.ok)throw Error('FOUR_MODE_VERIFICATION_PENDING');
