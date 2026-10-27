@@ -57,3 +57,27 @@ jobs:
       - name: Inventory frozen forecasts without results access
         run: python research_snapshot_inventory.py --snapshots research_snapshots
 
+      - name: Diagnose official result endpoint (bounded, non-blocking)
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          python - <<'PY'
+          import json, socket, ssl, time, urllib.request
+          host='www.boatrace.jp'
+          url='https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261027&jcd=01&rno=2'
+          def diagnose(label, fn):
+              begin=time.monotonic()
+              try:
+                  value=fn()
+                  print(json.dumps({'stage':label,'ok':True,'detail':str(value)[:120],
+                                    'seconds':round(time.monotonic()-begin,2)}),flush=True)
+              except Exception as exc:
+                  print(json.dumps({'stage':label,'ok':False,'error':type(exc).__name__,
+                                    'seconds':round(time.monotonic()-begin,2)}),flush=True)
+          diagnose('dns',lambda:len(socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)))
+          def request():
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'text/html'}),timeout=8) as response:
+                  return f'{response.status} {response.headers.get("Content-Type","")} bytes={len(response.read(300))}'
+          diagnose('https_result',request)
+          PY
