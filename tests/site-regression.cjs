@@ -150,5 +150,6 @@ assert.ok(script.includes("Object.values(predictionProbabilities).filter(Number.
 assert.ok(script.includes("p>=peak*0.8?'probability-high':peak>0&&p>=peak*0.45?'probability-mid'"),'probability highlights must compare within current race, not invent absolute calibration');
 assert.ok(html.includes('#resultSection .comparison-hit{background:#dcf9e8'),'verified hit must be legible');
 assert.ok(html.includes('#resultSection .comparison-miss{background:#fce8e8'),'verified miss must be legible');
-assert.ok(script.includes("if(!isVerifiedResult(raw,key,Date.now(),knownDeadline))throw Error('UNVERIFIED_RESULT')"),'result styling cannot bypass verification');
+assert.ok(script.includes("raw.race_code===code&&raw.status==='confirmed'")&&script.includes("source===expected")&&script.includes("new Set(order).size===3")&&script.includes("stamp>=confirmed"),'CLEAN result styling cannot bypass race/source/order/timestamp verification');
+assert.ok(script.includes("boat-edge-clean/main/confirmed_results/")&&!script.slice(script.indexOf('async function loadResult(quiet=false){'),script.indexOf('async function loadHeldVenues')).includes("EDGE_RAW"),'result view must not fetch legacy repository');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
