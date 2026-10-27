@@ -96,6 +96,6 @@ jobs:
           if counts is None:
               print('- Coverage: unavailable; collection log did not contain validated counts')
           else:
-              print(f"- Research capture: saved={counts['saved']}, already_saved={counts['already_saved']}, not_ready={counts['not_ready']}, missing={counts['missing']}, invalid={counts['invalid']}")
+              print(f"- Research capture: saved={counts['saved']}, already_saved={counts['already_saved']}, not_ready={counts['not_ready']} (clock={counts.get('not_ready_clock',0)}, late_source={counts.get('not_ready_source',0)}), missing={counts['missing']}, invalid={counts['invalid']}")
               print('- not_ready means cutoff or source timing prevented capture; never backfill after cutoff')
           PY
