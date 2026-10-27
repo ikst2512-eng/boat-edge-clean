@@ -1,0 +1,131 @@
+"""Read-only GitHub server receipt verification for research forecasts.
+
+Fetch commit/path through GitHub's API and match an Actions push run to that
+commit. Never fetch results or assert model quality. API created_at provides
+server observation, not source authenticity or formal Fresh eligibility.
+"""
+import base64
+import hashlib
+import json
+import re
+from datetime import datetime, timedelta
+
+HEX40 = re.compile(r"[a-f0-9]{40}\Z")
+HEX64 = re.compile(r"[a-f0-9]{64}\Z")
+
+def dt(value):
+    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+        raise ValueError("timezone required")
+    return timestamp
+
+def verify(fetch_json, *, repo, branch, commit, path, expected_sha256,
+           official_deadline, run_id):
+    """fetch_json(relative API path) -> decoded dict, from trusted GitHub API."""
+    if repo != "ikst2512-eng/boat-edge-clean":
+        raise ValueError("unapproved repository")
+    if not HEX40.fullmatch(commit) or not HEX64.fullmatch(expected_sha256):
+        raise ValueError("invalid SHA")
+    if not re.fullmatch(r"research_prospective_pairs/[0-9]{12}\.json", path):
+        raise ValueError("unapproved pair path")
+    if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id <= 0:
+        raise ValueError("invalid run ID")
+    cutoff = dt(official_deadline) - timedelta(minutes=12)
+    prefix = "/repos/" + repo
+    run = fetch_json(prefix + "/actions/runs/" + str(run_id))
+    if (run.get("event") != "push" or run.get("head_sha") != commit
+        or run.get("head_branch") != branch
+        or run.get("repository", {}).get("full_name") != repo
+        or run.get("status") != "completed" or run.get("conclusion") != "success"
+        or dt(run["created_at"]) >= cutoff):
+        raise ValueError("server run not an eligible pre-cutoff push")
+    info = fetch_json(prefix + "/git/commits/" + commit)
+    parents = info.get("parents", [])
+    if len(parents) != 1 or not isinstance(parents[0], dict):
+        raise ValueError("single parent required")
+    parent_sha = parents[0].get("sha")
+    if not isinstance(parent_sha, str) or not HEX40.fullmatch(parent_sha):
+        raise ValueError("invalid parent SHA")
+    # Walk every ancestor, including merge branches; fail closed on incomplete history.
+    pending = [parent_sha]
+    visited = set()
+    while pending:
+        ancestor = pending.pop()
+        if ancestor in visited:
+            continue
+        if len(visited) >= 5000:
+            raise ValueError("historical audit limit reached")
+        if not HEX40.fullmatch(ancestor):
+            raise ValueError("invalid ancestor SHA")
+        visited.add(ancestor)
+        historical = fetch_json(prefix + "/git/commits/" + ancestor)
+        historical_tree_sha = historical["tree"]["sha"]
+        if not HEX40.fullmatch(historical_tree_sha):
+            raise ValueError("invalid historical tree SHA")
+        historical_tree = fetch_json(prefix + "/git/trees/" + historical_tree_sha + "?recursive=1")
+        if historical_tree.get("truncated"):
+            raise ValueError("historical tree incomplete")
+        if any(x.get("path") == path for x in historical_tree.get("tree", [])):
+            raise ValueError("file already existed in ancestry")
+        for parent in historical.get("parents", []):
+            ancestor_parent = parent.get("sha") if isinstance(parent, dict) else None
+            if not isinstance(ancestor_parent, str) or not HEX40.fullmatch(ancestor_parent):
+                raise ValueError("invalid ancestry parent")
+            pending.append(ancestor_parent)
+    tree_sha = info["tree"]["sha"]
+    if not HEX40.fullmatch(tree_sha):
+        raise ValueError("invalid tree SHA")
+    tree = fetch_json(prefix + "/git/trees/" + tree_sha + "?recursive=1")
+    if tree.get("truncated"):
+        raise ValueError("truncated tree")
+    found = [x for x in tree.get("tree", []) if x.get("path") == path]
+    if len(found) != 1 or found[0].get("type") != "blob":
+        raise ValueError("path missing from commit tree")
+    blob_sha = found[0].get("sha")
+    if not isinstance(blob_sha, str) or not HEX40.fullmatch(blob_sha):
+        raise ValueError("invalid blob SHA")
+    blob = fetch_json(prefix + "/git/blobs/" + blob_sha)
+    if blob.get("encoding") != "base64":
+        raise ValueError("unsupported blob encoding")
+    raw = base64.b64decode(blob["content"], validate=True)
+    if blob.get("size") is not None and blob["size"] != len(raw):
+        raise ValueError("blob size mismatch")
+    if hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise ValueError("committed bytes digest mismatch")
+    git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+    if git_blob != blob_sha:
+        raise ValueError("blob does not match Git object SHA")
+    record = json.loads(raw)
+    if not isinstance(record, dict):
+        raise ValueError("expected JSON record")
+    expected_code = path.rsplit("/", 1)[1][:-5]
+    if record.get("race_code") != expected_code:
+        raise ValueError("race code/path mismatch")
+    if dt(record["cutoff_jst"]) != cutoff:
+        raise ValueError("record cutoff differs from official cutoff")
+    if record.get("status") != "research_unvalidated" or record.get("prospective_verified") is not False:
+        raise ValueError("not an unvalidated research pair")
+    created = dt(run["created_at"])
+    frozen = dt(record["frozen_at_jst"])
+    source_generated = dt(record["source_snapshot_generated_at"])
+    if not (source_generated <= frozen <= created < cutoff):
+        raise ValueError("research generation, freeze and server receipt chronology invalid")
+    if record.get("baseline_model_id") == record.get("candidate_model_id"):
+        raise ValueError("identical model IDs")
+
+    # A server-observed commit receipt does not attest the model or original inputs.
+    # Explicitly avoid returning an authorization-like validated status.
+    evidence_required = (
+        "independent_source_csv_receipt",
+        "model_source_sha_attestation",
+        "preregistration_server_receipt",
+        "official_deadline_attestation",
+    )
+    return {"status": "SERVER_PUSH_AND_COMMIT_BLOB_MATCH",
+            "run_id": run_id, "run_created_at": run["created_at"],
+            "commit_sha": commit, "blob_sha": blob_sha,
+            "sha256": expected_sha256, "path": path,
+            "parent_absence_checked": True, "full_history_first_add_verified": True, "ancestors_checked": len(visited),
+            "formal_validated": False, "outcome_access_authorized": False,
+            "ready_for_scoring": False, "outstanding_evidence": list(evidence_required),
+            "limitations": "Does not verify source authenticity, prediction model or preregistration."}
