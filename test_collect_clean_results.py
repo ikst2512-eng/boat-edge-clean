@@ -27,8 +27,16 @@ class ResultCollectorTests(unittest.TestCase):
             raise HTTPError("https://example.invalid", 404, "Not Found", {}, None)
         with patch.object(c, "datetime", Clock), patch.object(c, "urlopen", side_effect=not_found):
             self.assertEqual(c.collect()["status"], "waiting_for_published_source")
-            with self.assertRaises(HTTPError):
-                c.collect("20261027")
+            self.assertEqual(c.collect("20261027")["status"], "waiting_for_published_source")
+    def test_retries_yesterday_and_today(self):
+        calls=[]
+        now=datetime.fromisoformat("2026-10-28T08:00:00+09:00")
+        def fake_collect(day):
+            calls.append(day)
+            return {"day":day,"status":"waiting_for_published_source","saved":0}
+        state=c.collect_recent(now=now,collector=fake_collect)
+        self.assertEqual(calls,["20261027","20261028"])
+        self.assertEqual(len(state["days"]),2)
     def test_rejects_duplicate_codes(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
         row="202610270101,2026-10-27T16:00:00+09:00,1,2,3\n"
