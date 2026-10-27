@@ -8,11 +8,15 @@ on:
     branches: [main]
     paths:
       - capture_clean_schedule.py
+      - clean_schedule.py
+      - server.py
       - test_capture_clean_schedule.py
       - .github/workflows/capture-clean-schedule.yml
   pull_request:
     paths:
       - capture_clean_schedule.py
+      - clean_schedule.py
+      - server.py
       - test_capture_clean_schedule.py
       - index.html
       - .github/workflows/capture-clean-schedule.yml
