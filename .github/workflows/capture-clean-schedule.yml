@@ -39,6 +39,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ ! -d schedule_snapshots ]; then
+            echo 'No published schedule snapshots yet; nothing to commit'
+            exit 0
+          fi
           git add -- schedule_snapshots/
           if git diff --cached --name-only --diff-filter=CDMRTUX -- schedule_snapshots/ | grep -q .; then
             echo 'Existing schedule modifications forbidden' >&2
