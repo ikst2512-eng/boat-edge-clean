@@ -669,7 +669,21 @@ async function loadRaceData(force=false){
 }
 let displayedPredictionKey='';
 const predictionRetryAt=new Map();
-async function loadPredictions(force=false){
+async async function cleanFourModeForecast(key){
+ const query='?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
+ const res=await fetchTimed('/api/clean-four-modes'+query,{cache:'no-store'});
+ if(!res.ok)throw Error('CLEAN_MODEL_UNAVAILABLE_'+res.status);
+ const result=await res.json();
+ if(!result.ok||result.status!=='provisional'||!result.modes)throw Error('CLEAN_FORECAST_INVALID');
+ const modes={};
+ for(const name of ['hit','balance','hole','narrow']){
+  const rows=result.modes[name]?.tickets;
+  if(!Array.isArray(rows)||rows.length<1||rows.length>30||rows.some(t=>!validTicket(t.combo)||!Number.isFinite(t.p)||t.p<0||t.p>100)||new Set(rows.map(t=>t.combo)).size!==rows.length)throw Error('CLEAN_MODE_INVALID_'+name);
+  modes[name]={tickets:rows.map(t=>t.combo),probabilities:Object.fromEntries(rows.map(t=>[t.combo,t.p])),odds:{}};
+ }
+ return {modes,tickets:modes.hit.tickets,probabilities:modes.hit.probabilities,odds:{},deadline:result.deadline_jst,created:result.generated_at_jst,version:'CLEAN独立4パターン（研究段階・的中率未検証）',inputs:['全国勝率','出走表','直前データ未提供時も計算'],proof:'研究予想・締切前固定記録は未完成',provisional:true,targets:Object.fromEntries(Object.entries(result.modes).map(([k,v])=>[k,{goal:v.target_hit_rate_pct,estimated:v.estimated_coverage_pct}]))};
+}
+function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;
  const raceKey=sameRaceKey();
  if(!force&&!verifiedCache.has(raceKey)&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){const keep=displayedPredictionKey===raceKey&&predictionTickets.length>0&&verifiedCache.has(raceKey);if(!keep){predictionTickets=[];predictionModes={};predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();}document.getElementById('predictionStatus').textContent=keep?'再照合待ちです。前回検証済みの買い目を保持中（最新データではありません）。「再読み込み」で今すぐ確認できます。':'予想原本の再確認待ちです。未公開・アクセス制限の場合は5分、通信障害の場合は2分後に自動再確認します。「再読み込み」で今すぐ試せます。';return;}
@@ -677,12 +691,12 @@ async function loadPredictions(force=false){
  const key=sameRaceKey(),retain=displayedPredictionKey===key&&predictionTickets.length>0&&verifiedCache.has(key);
  if(!retain){predictionTickets=[];predictionOdds={};predictionProbabilities={};displayedPredictionKey='';document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();drawPredictions();}
  const label=document.getElementById('predictionStatus');
- label.textContent=retain?'保存予想を確認中（検証済みの買い目を保持）…':'既存モデルの保存予想と初回Git記録を照合中…';
+ label.textContent=retain?'CLEAN独立予想を更新中…':'CLEAN独立4パターンの事前予想を計算中…';
  try{
-  const confirmed=await verifiedStoredPrediction(key,force);
+  const confirmed=await cleanFourModeForecast(key);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
-  predictionRetryAt.delete(key);displayedPredictionKey=key;predictionModes=confirmed.modes;applyPredictionMode();const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='締切 '+confirmed.deadline+'｜評価 '+(confirmed.grade||'未記録')+'｜モデル内指標 '+(Number.isFinite(confirmed.confidence)?confirmed.confidence:'未記録')+'（的中率の保証ではありません）｜オッズは保存時点';
-  label.textContent='保存予想（初回Git記録照合済）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
+  predictionRetryAt.delete(key);displayedPredictionKey=key;predictionModes=confirmed.modes;applyPredictionMode();const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='目標的中率：本命60%・バランス50%・穴10〜15%・絞り40%｜実績未検証。現在は研究用の暫定予想であり、締切前保存と正式採点は未完成。';
+  label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
