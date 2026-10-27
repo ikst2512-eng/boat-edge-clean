@@ -15,6 +15,8 @@ on:
       - 'test_collect_research_daily.py'
       - 'test_collect_research_input_integrity.py'
       - '.github/workflows/research-forecast-tests.yml'
+      - 'advanced_card_preview_v392.py'
+      - 'test_advanced_card_preview_v392.py'
   pull_request:
     paths:
       - 'research_model.py'
@@ -25,6 +27,8 @@ on:
       - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
       - '.github/workflows/research-forecast-tests.yml'
+      - 'advanced_card_preview_v392.py'
+      - 'test_advanced_card_preview_v392.py'
   workflow_dispatch:
 jobs:
   research-tests:
@@ -35,4 +39,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate research forecast model and persisted records
-        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow
+        run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_advanced_card_preview_v392
