@@ -161,7 +161,7 @@ function setView(view){
   if(activeView==='card'||activeView==='exhibit')window.raceDataRequestId=(window.raceDataRequestId||0)+1;
  }
  activeView=view;
- document.querySelectorAll('[data-page]').forEach(a=>{const on=a.dataset.page===view;a.classList.toggle('on',on);a.setAttribute('aria-current',on?'page':'false');});b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.setAttribute('aria-pressed',String(on));b.tabIndex=on?0:-1});
+ document.querySelectorAll('[data-page]').forEach(a=>{const on=a.dataset.page===view;a.classList.toggle('on',on);a.setAttribute('aria-current',on?'page':'false');});
  document.getElementById('raceDataSection').hidden=view==='forecast'||view==='result';
  document.getElementById('raceDataSection').dataset.view=view;
  document.getElementById('exhibitionGrid').hidden=view!=='exhibit';
@@ -177,7 +177,7 @@ function setView(view){
 }
 document.querySelectorAll('.view-tabs [data-page],.site-global-nav a[href^="/"]').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);u.search=location.search;a.href=u.pathname+u.search;}));
 // Keyboard navigation stays inside the four tabs; Enter/Space works natively.
-document.querySelector('.view-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...document.querySelectorAll('.view-tabs [role="tab"]')];const current=tabs.indexOf(document.activeElement);if(current<0)return;e.preventDefault();const index=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[index].focus();tabs[index].click()});
+
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
 // Refresh the three imminent deadlines locally every 15 seconds without extra requests.
 setInterval(()=>{if(!document.hidden){updateDeadlineCountdowns();if(todayVenueRaces?.date===s.date&&[...document.querySelectorAll('.deadline-countdown')].some(el=>Number(el.dataset.deadline)<=Date.now()))renderDeadlines(todayVenueRaces)}},1000);
