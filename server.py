@@ -215,6 +215,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/healthz":
             body = b"ok"
             status, kind = 200, "text/plain; charset=utf-8"
+        elif path == "/api/clean-schedule":
+            from clean_schedule import clean_schedule
+            params = parse_qs(parsed.query)
+            status, data = clean_schedule(params.get("date", [""])[0])
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/odds":
             status, data = get_odds(parse_qs(parsed.query))
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
