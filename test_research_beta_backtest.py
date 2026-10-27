@@ -62,6 +62,35 @@ class TestBacktest(unittest.TestCase):
         replay = ['-'.join(map(str, ticket)) for ticket, _ in ranked[:10]]
         self.assertEqual(replay, record['predictions'])
 
+    def test_rejects_bad_race_date_and_mismatched_deadline(self):
+        rows = fixture(1)
+        rows[0]["race_code"] = "202602300101"
+        accepted, excluded = eligible_rows(rows)
+        self.assertEqual(len(accepted), 0)
+        self.assertEqual(excluded["invalid_race_date"], 1)
+        rows = fixture(1)
+        rows[0]["deadline"] = (datetime.fromisoformat(rows[0]["deadline"]) + timedelta(days=1)).isoformat()
+        accepted, excluded = eligible_rows(rows)
+        self.assertEqual(len(accepted), 0)
+        self.assertEqual(excluded["race_deadline_date_mismatch"], 1)
+
+    def test_rejects_wrong_digest_sizes_and_invalid_outcomes(self):
+        rows = fixture(1)
+        rows[0]["first_git_blob_sha"] = "a"*64
+        accepted, excluded = eligible_rows(rows)
+        self.assertFalse(accepted)
+        self.assertEqual(excluded["missing_immutable_digest"], 1)
+        rows = fixture(1)
+        rows[0]["result"] = "1-2-x"
+        accepted, excluded = eligible_rows(rows)
+        self.assertFalse(accepted)
+        self.assertEqual(excluded["invalid_result"], 1)
+
+    def test_rejects_invalid_hyperparameters(self):
+        with self.assertRaises(ValueError):
+            evaluate(fixture(50), holdout_fraction=1)
+        with self.assertRaises(ValueError):
+            evaluate(fixture(50), betas=(float("nan"),))
     def test_normalized_model_and_hits(self):
         accepted,_=eligible_rows(fixture(1))
         score=metrics(accepted,0.4)
