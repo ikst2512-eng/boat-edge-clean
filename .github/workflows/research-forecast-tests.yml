@@ -57,26 +57,3 @@ jobs:
       - name: Inventory frozen forecasts without results access
         run: python research_snapshot_inventory.py --snapshots research_snapshots
 
-      - name: Probe twelve actual official outcomes and evaluate frozen Top10 (research only)
-        if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
-        run: |
-          python - <<'PY'
-          import json
-          from research_collect_official_results import collect
-          from research_batch_result_join import reconcile
-          data = collect('research_snapshots', max_races=12)
-          report = reconcile('research_snapshots', data['results'])
-          print(json.dumps({
-              'status':'EXPLORATORY_UNVERIFIED',
-              'local_metadata_candidates':data['local_metadata_candidates'],
-              'requested':12, 'fetched':data['fetched'],
-              'failed':data['failed'], 'failures':data['failures'],
-              'matched':report['counts'].get('exploratory_matched',0),
-              'top1_hits':report['counts'].get('top1_hits',0),
-              'top3_hits':report['counts'].get('top3_hits',0),
-              'top5_hits':report['counts'].get('top5_hits',0),
-              'top10_hits':report['counts'].get('top10_hits',0),
-              'formal_eligible':0
-          }, ensure_ascii=False))
-          PY
