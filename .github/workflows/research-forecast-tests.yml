@@ -3,12 +3,15 @@ on:
   push:
     paths:
       - 'research_model.py'
+      - 'research_scenario_candidate.py'
+      - 'test_research_scenario_candidate.py'
+      - 'index.html'
       - 'research_beta_backtest.py'
       - 'research_batch_result_join.py'
       - 'research_official_result_parser.py'
       - 'research_collect_official_results.py'
       - 'research_third_party_payouts.py'
-      - 'test_research_third_party_payouts.py'
+      - 'test_research_third_party_payouts test_research_scenario_candidate.py'
       - 'test_research_collect_official_results.py'
       - 'test_research_official_result_parser.py'
       - 'test_research_batch_result_join.py'
