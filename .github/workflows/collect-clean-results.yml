@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - collect_clean_results.py
+      - test_collect_clean_results.py
+      - .github/workflows/collect-clean-results.yml
   pull_request:
     paths:
       - collect_clean_results.py
