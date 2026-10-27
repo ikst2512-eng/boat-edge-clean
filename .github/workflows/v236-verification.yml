@@ -3,6 +3,14 @@ on:
   schedule:
     - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v236-verification.yml'
+      - 'clean_four_mode_capture.py'
+      - 'clean_four_modes.py'
+      - 'collect_four_mode_performance.py'
+      - 'four_mode_performance.py'
   pull_request:
     paths:
       - 'clean_racecard.py'
