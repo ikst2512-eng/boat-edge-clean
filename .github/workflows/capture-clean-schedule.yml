@@ -1,0 +1,52 @@
+name: CLEAN independent daily schedule capture
+on:
+  schedule:
+    - cron: '40 22 * * *'
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - capture_clean_schedule.py
+      - test_capture_clean_schedule.py
+      - .github/workflows/capture-clean-schedule.yml
+  pull_request:
+    paths:
+      - capture_clean_schedule.py
+      - test_capture_clean_schedule.py
+      - index.html
+      - .github/workflows/capture-clean-schedule.yml
+permissions:
+  contents: write
+concurrency:
+  group: clean-schedule-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_capture_clean_schedule test_clean_schedule
+      - name: Capture independent published schedule
+        if: github.event_name != 'pull_request'
+        run: python capture_clean_schedule.py
+      - name: Commit only newly added schedules
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- schedule_snapshots/
+          if git diff --cached --name-only --diff-filter=CDMRTUX -- schedule_snapshots/ | grep -q .; then
+            echo 'Existing schedule modifications forbidden' >&2
+            exit 1
+          fi
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'data: append independent daily race schedule'
+            git push origin HEAD:main
+          fi
