@@ -7,7 +7,15 @@ const fs=require('node:fs');
  fs.mkdirSync('test-results',{recursive:true});
  try{
   page.on('pageerror',e=>errors.push(e.message));
-  const response=await page.goto(process.env.CLEAN_SITE_URL || 'https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:45000});
+  const site=process.env.CLEAN_SITE_URL || 'https://ikst2512-eng.github.io/boat-edge-clean/';
+  const isRender=new URL(site).hostname.endsWith('.onrender.com');
+  let response;
+  for(let attempt=1;attempt<=12;attempt++){
+   response=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+   if(response?.status()!==503 || !isRender)break;
+   console.log('Render is waking (HTTP 503), retry '+attempt+'/12');
+   await page.waitForTimeout(6000);
+  }
   if(!response||!response.ok())throw Error('Published site unavailable: '+response?.status());
   await page.locator('#venueChooser .grid button').first().waitFor();
   const venues=await page.locator('#venueChooser .grid button').count();
