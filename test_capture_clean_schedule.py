@@ -10,7 +10,8 @@ class CaptureTests(unittest.TestCase):
         sample={"date":"20261028","source_sha256":"a"*64,
                 "source_received_jst":"2026-10-28T07:00:00+09:00",
                 "races":[{"venue_code":"12","race_no":1,"deadline_jst":"2026-10-28T15:16:00+09:00"}]}
-        with tempfile.TemporaryDirectory() as root, patch.object(cap,"ROOT",Path(root)), patch.object(cap,"clean_schedule",return_value=(200,sample)):
+        with tempfile.TemporaryDirectory() as root, patch.object(cap,"ROOT",Path(root)), patch.object(cap,"clean_schedule",return_value=(200,sample)), patch.object(cap,"datetime") as clock:
+            clock.now.return_value = datetime(2026,10,28,7,10,tzinfo=cap.JST)
             self.assertEqual(cap.capture("20261028")["saved"],1)
             self.assertEqual(cap.capture("20261028")["already_saved"],1)
             import json
