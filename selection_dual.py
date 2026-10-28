@@ -5,12 +5,16 @@ odds-free experiment and not financial advice, a bet, or production prediction.
 """
 import json
 from pathlib import Path
+from datetime import datetime, timezone
 from research_model import probabilities
 from four_mode_performance import allocate
 
 ROOT=Path(__file__).resolve().parent
 MINIMUM_CONFIDENCE=0.70
 THRESHOLDS=(MINIMUM_CONFIDENCE,)
+# Fixed before subsequent races are inspected; based on the first completed
+# confidence-threshold replay on 2026-10-28 13:23 UTC.
+POLICY_FIXED_AT=datetime(2026,10,28,13,23,tzinfo=timezone.utc)
 
 def report(root=ROOT):
     root=Path(root)
@@ -19,6 +23,7 @@ def report(root=ROOT):
         raise ValueError("unverified_history")
     ledgers={"all":{"races":0,"hits":0,"investment_yen":0,"return_yen":0},
              **{f"confidence_{int(t*100)}":{"races":0,"hits":0,"investment_yen":0,"return_yen":0} for t in THRESHOLDS}}
+    cohorts={k:{"all":{"races":0,"hits":0,"investment_yen":0,"return_yen":0},"confidence_70":{"races":0,"hits":0,"investment_yen":0,"return_yen":0}} for k in ("retrospective","post_policy")}
     seen=set()
     for r in h["races"]:
         code=r["race_code"]
@@ -27,6 +32,11 @@ def report(root=ROOT):
         archive=json.loads((root/"four_mode_forecasts"/(code+".json")).read_text(encoding="utf-8"))
         if archive.get("schema")!="CLEAN_FOUR_MODES_PREDEADLINE_V1" or archive.get("race_code")!=code:
             raise ValueError("archive_mismatch")
+        created=datetime.fromisoformat(archive["generated_at_jst"])
+        deadline=datetime.fromisoformat(archive["deadline_jst"])
+        if created.utcoffset() is None or deadline.utcoffset() is None or created>=deadline:
+            raise ValueError("forecast_not_predeadline")
+        cohort="post_policy" if created.astimezone(timezone.utc)>=POLICY_FIXED_AT else "retrospective"
         finish=r["finish"]
         saved=allocate(archive["modes"]["hole"]["tickets"],10000)
         if (r["modes"]["hole"]["hit"]!=(finish in saved) or
@@ -46,7 +56,12 @@ def report(root=ROOT):
             v["hits"]+=int(finish in stakes)
             v["investment_yen"]+=10000
             v["return_yen"]+=payout
-    for v in ledgers.values():
+            cv=cohorts[cohort][label]
+            cv["races"]+=1
+            cv["hits"]+=int(finish in stakes)
+            cv["investment_yen"]+=10000
+            cv["return_yen"]+=payout
+    for v in list(ledgers.values())+[m for cohort_stats in cohorts.values() for m in cohort_stats.values()]:
         v["profit_yen"]=v["return_yen"]-v["investment_yen"]
         v["hit_rate_pct"]=round(100*v["hits"]/v["races"],2) if v["races"] else None
         v["roi_pct"]=round(100*v["return_yen"]/v["investment_yen"],2) if v["investment_yen"] else None
@@ -67,4 +82,6 @@ def report(root=ROOT):
             "minimum_confidence":MINIMUM_CONFIDENCE,
             "below_minimum_policy":"skip_selection_keep_forecast",
             "ledgers":ledgers,
-            "skipped_below_70":skipped}
+            "skipped_below_70":skipped,
+            "policy_fixed_at_utc":POLICY_FIXED_AT.isoformat(),
+            "cohorts":cohorts}
