@@ -175,6 +175,10 @@ assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed win
 assert.ok(script.includes("record.modes[mode].hit===t.some"),'archived mode hits must match proof-gated race result');
 assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
-assert.ok(script.includes("このレースで的中した予想"),'single race answer checks must summarize winning modes');
+assert.ok(script.includes("review-hit-summary"),'single race answer checks must summarize only winning modes');
 assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
+assert.ok(html.includes('.review-hit-summary'),'verified race wins must be visually prominent');
+assert.ok(script.includes("winners.length?'● 的中：'"),'verified hit summary must include mark');
+assert.ok(script.includes("不的中：4パターンとも該当なし"),'verified all-mode miss must be explicit');
+assert.ok(script.includes("結果待ち（不的中として集計しません）"),'pending results must not be treated as misses');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
