@@ -131,8 +131,8 @@ assert.ok(html.includes('id="mobileRacerDetails"'),'full racer cards remain behi
 assert.ok(script.includes("matrixTable.className='boat-matrix-table'"),'comparative table populated with actual data');
 assert.ok(script.includes("document.getElementById('mobileRaceMatrix').replaceChildren();"),'race switch clears old comparison');
 assert.ok(script.includes("document.getElementById('mobileRacerDetails').hidden=view!=='card'"),'detailed cards hidden outside racer tab');
-assert.ok(html.includes('aria-label="6艇の主要成績比較・横スクロール可能" tabindex="0"'),'comparison table must be keyboard scrollable');
-assert.ok(script.includes("matrixCaption.textContent='左右にスクロールして6艇を比較'"),'mobile users see horizontal scroll guidance');
+assert.ok(html.includes('aria-label="6艇の主要成績比較・横スクロール不要"'),'comparison table must fit screen without scroll');
+assert.ok(script.includes('6艇の主要情報を一覧表示'),'mobile users see the fit-to-screen guidance');
 assert.ok(html.includes('.boat-matrix-table th:first-child{position:sticky;left:0'),'comparison metric label remains in view');
 assert.ok(script.includes("['全国2連率',r=>displayRate(r.national?.quinella_rate)]"),'national quinella rate included in racer matrix');
 assert.ok(script.includes("['当地2連率',r=>displayRate(r.local?.quinella_rate)]"),'local quinella rate included in racer matrix');
@@ -194,4 +194,8 @@ assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved f
 assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
 assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
 assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile tabs are compact five columns');
+assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
+assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
+assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
+assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
