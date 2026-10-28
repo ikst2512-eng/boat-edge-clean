@@ -47,6 +47,47 @@
       "sample_races": 113
     }
   },
+  "recent_30": {
+    "modes": {
+      "balance": {
+        "actual_hit_rate_pct": 40.0,
+        "actual_roi_pct": 37.77,
+        "hits": 12,
+        "invested_yen": 150000,
+        "profit_yen": -93350,
+        "return_yen": 56650,
+        "sample_races": 30
+      },
+      "hit": {
+        "actual_hit_rate_pct": 60.0,
+        "actual_roi_pct": 66.67,
+        "hits": 18,
+        "invested_yen": 150000,
+        "profit_yen": -49990,
+        "return_yen": 100010,
+        "sample_races": 30
+      },
+      "hole": {
+        "actual_hit_rate_pct": 10.0,
+        "actual_roi_pct": 368.59,
+        "hits": 3,
+        "invested_yen": 150000,
+        "profit_yen": 402880,
+        "return_yen": 552880,
+        "sample_races": 30
+      },
+      "narrow": {
+        "actual_hit_rate_pct": 20.0,
+        "actual_roi_pct": 47.93,
+        "hits": 6,
+        "invested_yen": 150000,
+        "profit_yen": -78100,
+        "return_yen": 71900,
+        "sample_races": 30
+      }
+    },
+    "sample_races": 30
+  },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",
   "simulated_only": true
 }
