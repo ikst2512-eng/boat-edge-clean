@@ -1,0 +1,35 @@
+name: CLEAN result source-gap audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - collect_clean_results.py
+      - test_collect_clean_results.py
+      - .github/workflows/clean-result-gap-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - collect_clean_results.py
+      - test_collect_clean_results.py
+      - .github/workflows/clean-result-gap-audit.yml
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_collect_clean_results
+      - name: Inspect published October 28 result rows (read-only)
+        run: |
+          python - <<'PY'
+          import json
+          from collect_clean_results import diagnose_source_gaps
+          print(json.dumps(diagnose_source_gaps("20261028"),ensure_ascii=False,sort_keys=True))
+          PY
