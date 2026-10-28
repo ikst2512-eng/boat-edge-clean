@@ -198,4 +198,8 @@ assert.ok(html.includes('横スクロール不要'),'mobile racecard label must 
 assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
 assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
+assert.ok(html.includes('横スクロール不要'),'mobile racecard must be designed to fit viewport');
+assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
+assert.ok(script.includes("['チルト',r=>txt("),'mobile matrix must show tilt');
+assert.ok(script.includes('直前データ未取得です'),'missing beforeinfo must be explicitly explained');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
