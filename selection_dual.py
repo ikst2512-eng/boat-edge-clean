@@ -25,6 +25,7 @@ def report(root=ROOT):
              **{f"confidence_{int(t*100)}":{"races":0,"hits":0,"investment_yen":0,"return_yen":0} for t in THRESHOLDS}}
     cohorts={k:{"all":{"races":0,"hits":0,"investment_yen":0,"return_yen":0},"confidence_70":{"races":0,"hits":0,"investment_yen":0,"return_yen":0}} for k in ("retrospective","post_policy")}
     audit=[]
+    daily={}
     seen=set()
     for r in h["races"]:
         code=r["race_code"]
@@ -55,6 +56,10 @@ def report(root=ROOT):
                       "selection":"candidate" if signal>=MINIMUM_CONFIDENCE else "skip",
                       "finish":finish,"research_20ticket_hit":finish in stakes,
                       "simulated_return_yen":payout if signal>=MINIMUM_CONFIDENCE else 0})
+        day=code[:8]
+        if day not in daily:
+            daily[day]={"all":{"races":0,"hits":0,"investment_yen":0,"return_yen":0},
+                        "confidence_70":{"races":0,"hits":0,"investment_yen":0,"return_yen":0}}
         labels=["all"]+[f"confidence_{int(t*100)}" for t in THRESHOLDS if signal>=t]
         for label in labels:
             v=ledgers[label]
@@ -62,12 +67,17 @@ def report(root=ROOT):
             v["hits"]+=int(finish in stakes)
             v["investment_yen"]+=10000
             v["return_yen"]+=payout
+            dv=daily[day][label]
+            dv["races"]+=1
+            dv["hits"]+=int(finish in stakes)
+            dv["investment_yen"]+=10000
+            dv["return_yen"]+=payout
             cv=cohorts[cohort][label]
             cv["races"]+=1
             cv["hits"]+=int(finish in stakes)
             cv["investment_yen"]+=10000
             cv["return_yen"]+=payout
-    for v in list(ledgers.values())+[m for cohort_stats in cohorts.values() for m in cohort_stats.values()]:
+    for v in list(ledgers.values())+[m for cohort_stats in cohorts.values() for m in cohort_stats.values()]+[m for day_stats in daily.values() for m in day_stats.values()]:
         v["profit_yen"]=v["return_yen"]-v["investment_yen"]
         v["hit_rate_pct"]=round(100*v["hits"]/v["races"],2) if v["races"] else None
         v["roi_pct"]=round(100*v["return_yen"]/v["investment_yen"],2) if v["investment_yen"] else None
@@ -91,4 +101,5 @@ def report(root=ROOT):
             "skipped_below_70":skipped,
             "policy_fixed_at_utc":POLICY_FIXED_AT.isoformat(),
             "cohorts":cohorts,
+            "verified_daily":daily,
             "recent_verified_races":sorted(audit,key=lambda x:(x["forecast_created_at_jst"],x["race_code"]),reverse=True)[:24]}
