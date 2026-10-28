@@ -18,13 +18,13 @@ class DualSelectionTests(unittest.TestCase):
   self.assertEqual(all_ledger["investment_yen"],count*10000)
   self.assertGreaterEqual(all_ledger["hits"],0)
   self.assertLessEqual(all_ledger["hits"],count)
-  for name in ("confidence_60","confidence_70"):
+  for name in ("confidence_70",):
    ledger=data["ledgers"][name]
    self.assertGreaterEqual(ledger["races"],0)
    self.assertLessEqual(ledger["races"],count)
    self.assertLessEqual(ledger["hits"],ledger["races"])
    self.assertEqual(ledger["investment_yen"],ledger["races"]*10000)
-  self.assertLessEqual(data["ledgers"]["confidence_70"]["races"],data["ledgers"]["confidence_60"]["races"])
+  self.assertEqual(data["minimum_confidence"],0.70)
  def test_navigation_preserves_full_forecast(self):
   html=(ROOT/"index.html").read_text(encoding="utf-8")
   page=(ROOT/"selection.html").read_text(encoding="utf-8")
