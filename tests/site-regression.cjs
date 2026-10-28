@@ -216,7 +216,7 @@ assert.ok(script.includes("的中（締切前保存照合済み）"),'verified w
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
 assert.ok(script.includes("record.official_finish!==item.match"),'a result list hit requires matching certified finish');
 assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
-assert.ok(script.includes("result-list-row.verified-hit"),'verified winning races have visible row highlight');
+assert.ok(html.includes('.result-list-row.verified-hit')&&script.includes("button.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
 assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
