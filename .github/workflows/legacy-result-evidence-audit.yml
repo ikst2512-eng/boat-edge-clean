@@ -9,6 +9,7 @@ on:
       - scripts/legacy_payout_evidence.py
       - scripts/verify_legacy_evidence_links.py
       - scripts/verify_legacy_blob_readback.py
+      - tests/test_legacy_blob_readback.py
       - tests/test_legacy_result_compare.py
       - tests/test_legacy_payout_evidence.py
       - .github/workflows/legacy-result-evidence-audit.yml
@@ -26,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v tests/test_legacy_result_compare.py tests/test_legacy_payout_evidence.py
+        run: python -m unittest -v tests/test_legacy_result_compare.py tests/test_legacy_payout_evidence.py tests/test_legacy_blob_readback.py
       - name: Build pinned race inventory
         run: python scripts/legacy_race_crosswalk.py --output audit_out/crosswalk.json
       - name: Compare every eligible confirmed result
