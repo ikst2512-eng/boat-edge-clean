@@ -36,6 +36,20 @@ const fs=require('node:fs');
    if(await first.locator('.clean-race-actions button').count()!==6)throw Error('Home race card must have six navigation actions');
   }
   console.log('HOME_RACE_CARDS '+cardCount+' (zero may mean schedule/CSV not published)');
+  // Independently published 2026-10-28 snapshot contains 01/1R.
+  // Verify actual CSV-derived names/classes and rendered text, not synthetic boat names.
+  await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-10-28';s.venue=0;s.race=1;setView('home');render();});
+  const published=await page.evaluate(async()=>{const rows=await cleanListRaceCards('2026-10-28',1);const record=rows.get(1);return record?{name:record['艇1_選手名'],grade:record['艇1_級別'],count:rows.size}:null;});
+  if(published?.name&&published.name!=='未提供'){
+   await page.waitForFunction(name=>[...document.querySelectorAll('#homeRaceCardList .clean-racer-name')].some(el=>el.textContent===name),published.name,{timeout:15000});
+   const first=page.locator('#homeRaceCardList .clean-race-card').first();
+   if(await first.locator('.clean-race-lane').count()!==6)throw Error('Published six-boat racecard incomplete');
+   if((await first.locator('.clean-racer-name').first().innerText())!==published.name)throw Error('Racer name mismatch with published CSV');
+   if((await first.locator('.clean-racer-class').first().innerText())!==(published.grade||'—'))throw Error('Racer grade mismatch with published CSV');
+   console.log('PUBLISHED_RACE_CARD_PASS 20261028 01 1R source_rows='+published.count);
+  }else{
+   console.log('PUBLISHED_RACE_CARD_UNVERIFIED CSV unavailable; do not claim live racer data passed');
+  }
   if(isRender){
    for(const date of ['invalid-date',new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Tokyo'}).replaceAll('-','')]){
     const response=await page.request.get(new URL('/api/clean-schedule?date='+date,site).href,{timeout:20000});
