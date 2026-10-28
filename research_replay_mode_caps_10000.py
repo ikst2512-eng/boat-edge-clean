@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from research_model import probabilities
 from research_four_mode_roles import research_modes
+from four_mode_performance import allocate
 
 ROOT=Path(__file__).resolve().parent
 BUDGET=10000
@@ -26,6 +27,15 @@ def replay(history,root=ROOT):
         archive=json.loads((root/"four_mode_forecasts"/(code+".json")).read_text(encoding="utf-8"))
         if archive.get("race_code")!=code or archive.get("schema")!="CLEAN_FOUR_MODES_PREDEADLINE_V1":
             raise ValueError("archive_mismatch")
+        if "modes" in archive:
+            for original_mode in ("hit","balance","hole","narrow"):
+                recorded = race.get("modes",{}).get(original_mode)
+                if recorded is None:
+                    raise ValueError("saved_baseline_required")
+                baseline = allocate(archive["modes"][original_mode]["tickets"], BUDGET)
+                expected = baseline.get(race["finish"],0)*race["payout_per_100_yen"]//100
+                if recorded["hit"] != (race["finish"] in baseline) or recorded["return_yen"] != expected:
+                    raise ValueError("baseline_reconciliation_failed")
         rates=archive.get("input_national_win_rates")
         if not isinstance(rates,list) or len(rates)!=6:
             raise ValueError("saved_inputs_missing")
