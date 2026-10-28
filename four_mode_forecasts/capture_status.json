@@ -3,7 +3,7 @@
   "eligible_forecasts_today": 120,
   "excluded": {},
   "http_status": null,
-  "last_run_new_count": 120,
+  "last_run_new_count": 0,
   "production_success_proven": true,
   "published_card_rows": 120,
   "published_title_rows": 120,
