@@ -186,4 +186,7 @@ assert.ok(script.includes('CLEAN_RESULT_COLLECTION_STATUS_V1'),'only CLEAN audit
 assert.ok(script.includes('未取得は不的中に含めません'),'missing results must never count as losses');
 assert.ok(html.includes('id="recent30Metrics"'),'rolling 30 proof-backed metric is shown');
 assert.ok(script.includes('d.recent_30?.modes?.hit'),'rolling metric uses verified summary');
+assert.ok(script.includes('let fourModePerformanceRequest=0;'),'overlapping verification fetches must have a request token');
+assert.ok(script.includes('if(request!==fourModePerformanceRequest||budget!==Number(document.getElementById(\'performanceBudget\').value))return;'),'outdated responses must never render cards');
+assert.ok(script.includes('grid.replaceChildren();\n  const c=d.counts'),'clear four-mode cards again at the commit point');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
