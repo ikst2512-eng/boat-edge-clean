@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
         path = urlsplit(self.path).path.rstrip('/') or '/'
-        if path in ('/', '/index.html', '/forecast', '/exhibition', '/card', '/results', '/review', '/healthz'):
+        if path in ('/', '/index.html', '/forecast', '/exhibition', '/card', '/results', '/review', '/selection', '/healthz'):
             status = 200
         else:
             status = 404
@@ -212,6 +212,19 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results", "/review"):
             body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/selection":
+            body = (ROOT / "selection.html").read_bytes()
+            status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/api/selection-research":
+            try:
+                from selection_dual import report
+                data = report()
+                status = 200
+            except (ValueError, KeyError, OSError, TypeError) as exc:
+                logging.exception("selection_research_unavailable")
+                status, data = 503, {"ok": False, "error": "RESEARCH_DATA_UNAVAILABLE"}
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/healthz":
             body = b"ok"
             status, kind = 200, "text/plain; charset=utf-8"
