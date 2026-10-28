@@ -1,0 +1,28 @@
+name: CLEAN schedule classification tests
+on:
+  pull_request:
+    paths:
+      - 'clean_schedule.py'
+      - 'capture_clean_schedule.py'
+      - 'test_clean_schedule.py'
+      - 'test_capture_clean_schedule.py'
+      - '.github/workflows/clean-schedule-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'clean_schedule.py'
+      - 'capture_clean_schedule.py'
+      - 'test_clean_schedule.py'
+      - 'test_capture_clean_schedule.py'
+      - '.github/workflows/clean-schedule-tests.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test schedule response classification and immutable captures
+        run: python -m unittest -v test_clean_schedule test_capture_clean_schedule

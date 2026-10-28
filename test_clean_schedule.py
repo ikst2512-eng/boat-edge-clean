@@ -2,7 +2,7 @@ import unittest
 from urllib.error import HTTPError
 from datetime import datetime
 from unittest.mock import patch
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 import clean_schedule as s
 
 
@@ -43,6 +43,29 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(data["upstream_http_status"],404)
         self.assertTrue(data["retryable"])
         self.assertEqual(data["date"],"20261029")
+
+    def test_upstream_timeout_is_retryable_503(self):
+        with patch.object(s, "read_rows", side_effect=URLError("timed out")):
+            status, data = s.clean_schedule("20261029")
+        self.assertEqual((status, data["status"]), (503, "source_unavailable"))
+        self.assertTrue(data["retryable"])
+
+    def test_malformed_csv_is_502_not_upstream_outage(self):
+        with patch.object(s, "read_rows", return_value=([{"レースコード": "202610290101", "電話投票締切予定": ""}], datetime.now(s.JST), "abc")):
+            status, data = s.clean_schedule("20261029")
+        self.assertEqual((status, data["status"]), (502, "source_invalid"))
+        self.assertFalse(data["retryable"])
+
+    def test_source_decode_error_is_502(self):
+        with patch.object(s, "read_rows", side_effect=UnicodeDecodeError("utf-8", b"\\xff", 0, 1, "bad byte")):
+            status, data = s.clean_schedule("20261029")
+        self.assertEqual((status, data["status"]), (502, "source_invalid"))
+
+    def test_unexpected_bug_is_internal_500(self):
+        with patch.object(s, "read_rows", side_effect=RuntimeError("unexpected")):
+            status, data = s.clean_schedule("20261029")
+        self.assertEqual((status, data["status"]), (500, "internal_error"))
+        self.assertFalse(data["retryable"])
 
     def test_upstream_failure_no_old_fallback(self):
         with patch.object(s,"read_rows",side_effect=TimeoutError()):

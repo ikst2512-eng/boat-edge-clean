@@ -6,8 +6,8 @@ verified official result, formal forecast, or guaranteed real-time feed.
 from collections import Counter
 from datetime import datetime
 from urllib.error import HTTPError, URLError
+import logging
 import re
-from urllib.error import HTTPError
 from research_model import BASE, JST, read_rows
 
 
@@ -48,18 +48,17 @@ def clean_schedule(day):
         datetime.strptime(day, "%Y%m%d")
     except ValueError:
         return 400, {"ok": False, "status": "invalid_date"}
+    path = f"{day[:4]}/{day[4:6]}/{day[6:8]}.csv"
     try:
-        path = f"{day[:4]}/{day[4:6]}/{day[6:8]}.csv"
         rows, received_at, digest = read_rows(BASE + "title/" + path)
-        result = parse_schedule(day, rows, received_at)
-        result["source_sha256"] = digest
-        return 200, result
+
     except HTTPError as exc:
         if exc.code in (404, 410):
             return 404, {"ok": False, "status": "schedule_not_published",
                          "source": "boatracecsv.github.io/data/programs/title",
                          "date": day, "upstream_http_status": exc.code,
                          "retryable": exc.code == 404}
+        logging.warning("schedule_upstream_http_error date=%s status=%s", day, exc.code)
         return 503, {"ok": False, "status": "source_unavailable",
                      "reason": "upstream_http_error",
                      "upstream_http_status": exc.code,
@@ -68,6 +67,19 @@ def clean_schedule(day):
     except (TimeoutError, URLError, OSError) as exc:
         return 503, {"ok": False, "status": "source_unavailable",
                      "reason": type(exc).__name__, "date": day, "retryable": True}
-    except Exception as exc:
-        return 503, {"ok": False, "status": "source_unavailable",
+    except (UnicodeError, ValueError, TypeError) as exc:
+        logging.warning("schedule_source_invalid date=%s reason=%s", day, type(exc).__name__)
+        return 502, {"ok": False, "status": "source_invalid",
                      "reason": type(exc).__name__, "date": day, "retryable": False}
+    except Exception:
+        logging.exception("schedule_internal_error date=%s", day)
+        return 500, {"ok": False, "status": "internal_error", "date": day,
+                     "retryable": False}
+    try:
+        result = parse_schedule(day, rows, received_at)
+    except (ValueError, TypeError, KeyError) as exc:
+        logging.warning("schedule_csv_invalid date=%s reason=%s", day, type(exc).__name__)
+        return 502, {"ok": False, "status": "source_invalid",
+                     "reason": type(exc).__name__, "date": day, "retryable": False}
+    result["source_sha256"] = digest
+    return 200, result
