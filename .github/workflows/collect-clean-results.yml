@@ -21,7 +21,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: clean-confirmed-results
+  group: clean-main-data-writers
   cancel-in-progress: false
 jobs:
   collect:
