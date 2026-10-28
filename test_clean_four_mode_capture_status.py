@@ -35,7 +35,8 @@ class CaptureStatusTests(unittest.TestCase):
                 if "/title/" in url:
                     raise HTTPError(url,404,"Not Found",None,None)
                 return ([{"レースコード":"202610280101"}],datetime(2026,10,28,7,0,tzinfo=JST),"a"*64)
-            result=collect(root=Path(tmp),now=datetime(2026,10,28,7,0,tzinfo=JST),read=fake_read)
+            with patch("clean_openapi_sources.load",side_effect=ValueError("fixture_no_secondary_source")):
+                result=collect(root=Path(tmp),now=datetime(2026,10,28,7,0,tzinfo=JST),read=fake_read)
             self.assertEqual(len(calls),2)
             self.assertEqual(result["source_probes"]["title"]["http_status"],404)
             self.assertEqual(result["source_probes"]["race_cards"]["status"],"available")
