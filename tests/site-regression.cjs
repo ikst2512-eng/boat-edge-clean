@@ -194,4 +194,8 @@ assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved f
 assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
 assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
 assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile tabs are compact five columns');
+assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
+assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
+assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
+assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
