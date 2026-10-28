@@ -541,10 +541,6 @@ async function loadRaceData(force=false){
    const values=[String(r.lane),(r.name||'未提供')+' / '+(r.class||'—'),triple(r.national?.win_rate,r.national?.quinella_rate,r.national?.trio_rate,true),triple(r.local?.win_rate,r.local?.quinella_rate,r.local?.trio_rate,true),txt(r.avg_st)+' / F'+txt(r.F)+' L'+txt(r.L),triple(r.motor?.no,r.motor?.quinella_rate,r.motor?.trio_rate,true),triple(r.boat?.no,r.boat?.quinella_rate,r.boat?.trio_rate,true),txt(ex.exhibition_time)+' / '+txt(ex.tilt),typeof st.st==='string'&&st.st.trim()?st.st:typeof st.st==='number'&&Number.isFinite(st.st)?String(st.st):'—'];
    values.forEach((v,i)=>{const cell=document.createElement('td');if(i===0){const tag=document.createElement('span');tag.className='lane-badge lane-'+r.lane;tag.textContent=v;cell.append(tag)}else cell.textContent=v;row.append(cell)});body.append(row);
   });
-  const previewNotice=document.getElementById('courseDataNotice');
-  if(!safePreview){
-   previewNotice.textContent='展示タイム・チルト・展示STは直前データ未取得です（予想や出走表の読み込み失敗ではありません）。';
-  }
   const matrix=document.getElementById('mobileRaceMatrix');matrix.replaceChildren();
   const matrixTable=document.createElement('table');matrixTable.className='boat-matrix-table';const matrixCaption=document.createElement('caption');matrixCaption.textContent='6艇の主要情報を一覧表示';matrixTable.append(matrixCaption);
   const matrixHead=document.createElement('thead'),matrixHeadRow=document.createElement('tr');
@@ -607,6 +603,7 @@ async function loadRaceData(force=false){
     courseNotice.append(line);
    }
   }else courseNotice.textContent='コース別1・2・3着率／決まり手：未取得・未検証（全国・当地の成績から推定しません）';
+  if(!safePreview){const note=document.createElement('p');note.textContent='展示タイム・チルト・展示STはCLEANの直前データ収集が未実装のため未取得です。値を推定表示しません。';courseNotice.append(note)}
   const exhibitGrid=document.getElementById('exhibitionGrid');
   exhibitGrid.replaceChildren();
   const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
