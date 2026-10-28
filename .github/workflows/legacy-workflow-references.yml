@@ -1,0 +1,27 @@
+name: Legacy workflow reference audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_legacy_workflow_references.py
+      - .github/workflows/legacy-workflow-references.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/audit_legacy_workflow_references.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: legacy-workflow-references
+          path: legacy_workflow_references.json
+          retention-days: 90
