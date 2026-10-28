@@ -1,0 +1,33 @@
+name: Daily findings page checks
+on:
+  push:
+    branches: [main, feature/daily-findings-tab]
+    paths:
+      - "daily_findings.py"
+      - "daily_findings.html"
+      - "test_daily_findings.py"
+      - "selection_dual.py"
+      - "four_mode_performance/history-10000.json"
+      - "four_mode_forecasts/**"
+      - "server.py"
+      - "index.html"
+      - ".github/workflows/daily-findings.yml"
+  pull_request:
+    paths:
+      - "daily_findings.py"
+      - "daily_findings.html"
+      - "test_daily_findings.py"
+      - "server.py"
+      - "index.html"
+      - ".github/workflows/daily-findings.yml"
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_daily_findings.py test_selection_dual.py
+      - run: python -m py_compile daily_findings.py server.py
