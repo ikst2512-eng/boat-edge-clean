@@ -26,7 +26,12 @@ def compare(history,root=ROOT):
         if code in seen:raise ValueError("duplicate_race")
         seen.add(code)
         archive=json.loads((root/"four_mode_forecasts"/(code+".json")).read_text(encoding="utf-8"))
-        if archive.get("race_code")!=code:raise ValueError("archive_mismatch")
+        if archive.get("race_code")!=code or archive.get("schema")!="CLEAN_FOUR_MODES_PREDEADLINE_V1":raise ValueError("archive_mismatch")
+        original=allocate(archive["modes"]["hit"]["tickets"],10000)
+        verified=race["modes"]["hit"]
+        expected=original.get(race["finish"],0)*race["payout_per_100_yen"]//100
+        if verified["hit"]!=(race["finish"] in original) or verified["return_yen"]!=expected:
+            raise ValueError("original_settlement_mismatch")
         picks=archive["modes"]["hit"]["tickets"][:12]
         base=allocate(picks,10000)
         for name,n in POLICIES.items():
