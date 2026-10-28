@@ -1,0 +1,52 @@
+name: Audit legacy CLEAN result evidence (read-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/legacy_race_crosswalk.py
+      - scripts/legacy_result_compare.py
+      - tests/test_legacy_result_compare.py
+      - .github/workflows/legacy-result-evidence-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit tests
+        run: python -m unittest -v tests/test_legacy_result_compare.py
+      - name: Build pinned race inventory
+        run: python scripts/legacy_race_crosswalk.py --output audit_out/crosswalk.json
+      - name: Compare every eligible confirmed result
+        run: python scripts/legacy_result_compare.py --crosswalk audit_out/crosswalk.json --output audit_out/results.json
+      - name: Publish machine-readable outcome
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("audit_out/results.json")
+          if p.is_file():
+              x = json.loads(p.read_text())
+              with open(Path(__import__('os').environ['GITHUB_STEP_SUMMARY']), 'a') as f:
+                  f.write("## Legacy vs CLEAN result audit\n\n")
+                  f.write(f"Compared: {x['compared']}\n\n")
+                  for state, count in sorted(x['summary'].items()):
+                      f.write(f"- {state}: {count}\n")
+                  f.write("\nNo prediction provenance, restoration or deletion authorization is asserted.\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: legacy-clean-result-evidence
+          path: audit_out/*.json
+          if-no-files-found: warn
+          retention-days: 90
