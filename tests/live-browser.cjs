@@ -104,7 +104,7 @@ const fs=require('node:fs');
   console.log('MISS_PROOF_DIAGNOSTIC '+JSON.stringify({missProof,actualMiss,missDisplay}));
   if(actualMiss==='◎ 予想的中')throw Error('False hit displayed for verified miss Karatsu 9R');
   if(actualMiss==='予想不的中')console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
-  else console.log('PUBLISHED_VERIFIED_MISS_UNVERIFIED browser failed to resolve proof for Karatsu 9R: '+actualMiss);
+  else throw Error('Verified miss not rendered: '+JSON.stringify({missProof,actualMiss,missDisplay}));
   if((await missCard.locator('.clean-race-state').innerText())!=='結果確定')throw Error('Confirmed Karatsu 9R result missing');
   // A date whose result has not happened must remain pending, not a miss.
   await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-11-05';s.venue=22;s.race=1;setView('result');render();});
