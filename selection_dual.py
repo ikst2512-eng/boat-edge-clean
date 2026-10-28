@@ -51,6 +51,14 @@ def report(root=ROOT):
         v["hit_rate_pct"]=round(100*v["hits"]/v["races"],2) if v["races"] else None
         v["roi_pct"]=round(100*v["return_yen"]/v["investment_yen"],2) if v["investment_yen"] else None
         v["participation_pct"]=round(100*v["races"]/len(seen),2) if seen else None
+    selected=ledgers["confidence_70"]
+    all_races=ledgers["all"]
+    skipped={"races":all_races["races"]-selected["races"],
+             "hits":all_races["hits"]-selected["hits"],
+             "hypothetical_return_yen":all_races["return_yen"]-selected["return_yen"],
+             "actual_investment_yen":0}
+    if skipped["races"]<0 or skipped["hits"]<0 or skipped["hits"]>skipped["races"]:
+        raise ValueError("invalid_skip_counts")
     return {"schema":"CLEAN_DUAL_RESEARCH_V1","sample_races":len(seen),
             "prediction_publication_policy":"all_races_unfiltered",
             "selection_is_observational":True,"odds_free":True,
@@ -58,4 +66,5 @@ def report(root=ROOT):
             "budget_per_selected_race_yen":10000,
             "minimum_confidence":MINIMUM_CONFIDENCE,
             "below_minimum_policy":"skip_selection_keep_forecast",
-            "ledgers":ledgers}
+            "ledgers":ledgers,
+            "skipped_below_70":skipped}
