@@ -62,6 +62,10 @@ def collect(root=ROOT, now=None, read=read_rows):
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
     titles,title_received,title_sha=datasets["title"]
     cards,card_received,card_sha=datasets["race_cards"]
+    title_counts={}
+    for title in titles:
+        code=title.get("レースコード")
+        title_counts[code]=title_counts.get(code,0)+1
     cards_by_code={}
     duplicate_codes=set()
     for card in cards:
@@ -79,6 +83,7 @@ def collect(root=ROOT, now=None, read=read_rows):
         if len(code)!=12 or not code.isdecimal() or not code.startswith(hd):
             continue
         try:
+            if title_counts[code]!=1:raise ValueError("duplicate_title")
             venue,race=int(code[8:10]),int(code[10:12])
             if not 1<=venue<=24 or not 1<=race<=12:
                 raise ValueError("race_code")
