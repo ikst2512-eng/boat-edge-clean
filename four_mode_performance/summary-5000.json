@@ -3,48 +3,48 @@
   "counts": {
     "archived": 132,
     "awaiting_payout": 0,
-    "awaiting_result": 57,
-    "before_deadline": 47,
-    "complete": 75,
-    "overdue_result": 10,
+    "awaiting_result": 55,
+    "before_deadline": 43,
+    "complete": 77,
+    "overdue_result": 12,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 33.33,
-      "actual_roi_pct": 47.24,
-      "hits": 25,
-      "invested_yen": 375000,
-      "profit_yen": -197850,
-      "return_yen": 177150,
-      "sample_races": 75
+      "actual_hit_rate_pct": 35.06,
+      "actual_roi_pct": 49.62,
+      "hits": 27,
+      "invested_yen": 385000,
+      "profit_yen": -193950,
+      "return_yen": 191050,
+      "sample_races": 77
     },
     "hit": {
-      "actual_hit_rate_pct": 49.33,
-      "actual_roi_pct": 57.9,
-      "hits": 37,
-      "invested_yen": 375000,
-      "profit_yen": -157860,
-      "return_yen": 217140,
-      "sample_races": 75
+      "actual_hit_rate_pct": 50.65,
+      "actual_roi_pct": 59.81,
+      "hits": 39,
+      "invested_yen": 385000,
+      "profit_yen": -154740,
+      "return_yen": 230260,
+      "sample_races": 77
     },
     "hole": {
-      "actual_hit_rate_pct": 8.0,
-      "actual_roi_pct": 191.8,
+      "actual_hit_rate_pct": 7.79,
+      "actual_roi_pct": 186.82,
       "hits": 6,
-      "invested_yen": 375000,
-      "profit_yen": 344240,
+      "invested_yen": 385000,
+      "profit_yen": 334240,
       "return_yen": 719240,
-      "sample_races": 75
+      "sample_races": 77
     },
     "narrow": {
-      "actual_hit_rate_pct": 20.0,
-      "actual_roi_pct": 74.83,
-      "hits": 15,
-      "invested_yen": 375000,
-      "profit_yen": -94400,
-      "return_yen": 280600,
-      "sample_races": 75
+      "actual_hit_rate_pct": 20.78,
+      "actual_roi_pct": 74.91,
+      "hits": 16,
+      "invested_yen": 385000,
+      "profit_yen": -96600,
+      "return_yen": 288400,
+      "sample_races": 77
     }
   },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",

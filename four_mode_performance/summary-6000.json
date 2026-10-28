@@ -3,48 +3,48 @@
   "counts": {
     "archived": 132,
     "awaiting_payout": 0,
-    "awaiting_result": 57,
-    "before_deadline": 47,
-    "complete": 75,
-    "overdue_result": 10,
+    "awaiting_result": 55,
+    "before_deadline": 43,
+    "complete": 77,
+    "overdue_result": 12,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 33.33,
-      "actual_roi_pct": 45.23,
-      "hits": 25,
-      "invested_yen": 450000,
-      "profit_yen": -246460,
-      "return_yen": 203540,
-      "sample_races": 75
+      "actual_hit_rate_pct": 35.06,
+      "actual_roi_pct": 48.23,
+      "hits": 27,
+      "invested_yen": 462000,
+      "profit_yen": -239170,
+      "return_yen": 222830,
+      "sample_races": 77
     },
     "hit": {
-      "actual_hit_rate_pct": 49.33,
-      "actual_roi_pct": 55.22,
-      "hits": 37,
-      "invested_yen": 450000,
-      "profit_yen": -201510,
-      "return_yen": 248490,
-      "sample_races": 75
+      "actual_hit_rate_pct": 50.65,
+      "actual_roi_pct": 56.63,
+      "hits": 39,
+      "invested_yen": 462000,
+      "profit_yen": -200390,
+      "return_yen": 261610,
+      "sample_races": 77
     },
     "hole": {
-      "actual_hit_rate_pct": 8.0,
-      "actual_roi_pct": 191.43,
+      "actual_hit_rate_pct": 7.79,
+      "actual_roi_pct": 186.46,
       "hits": 6,
-      "invested_yen": 450000,
-      "profit_yen": 411450,
+      "invested_yen": 462000,
+      "profit_yen": 399450,
       "return_yen": 861450,
-      "sample_races": 75
+      "sample_races": 77
     },
     "narrow": {
-      "actual_hit_rate_pct": 20.0,
-      "actual_roi_pct": 74.83,
-      "hits": 15,
-      "invested_yen": 450000,
-      "profit_yen": -113280,
-      "return_yen": 336720,
-      "sample_races": 75
+      "actual_hit_rate_pct": 20.78,
+      "actual_roi_pct": 74.91,
+      "hits": 16,
+      "invested_yen": 462000,
+      "profit_yen": -115920,
+      "return_yen": 346080,
+      "sample_races": 77
     }
   },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",
