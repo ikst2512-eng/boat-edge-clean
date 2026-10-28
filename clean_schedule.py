@@ -5,6 +5,7 @@ verified official result, formal forecast, or guaranteed real-time feed.
 """
 from collections import Counter
 from datetime import datetime
+from urllib.error import HTTPError, URLError
 import re
 from urllib.error import HTTPError
 from research_model import BASE, JST, read_rows
@@ -55,13 +56,18 @@ def clean_schedule(day):
         return 200, result
     except HTTPError as exc:
         if exc.code in (404, 410):
-            # The daily published CSV is absent; not evidence of a server failure.
-            # No fallback to historical or legacy schedules.
             return 404, {"ok": False, "status": "schedule_not_published",
-                         "source": "boatracecsv.github.io/data/programs/title"}
+                         "source": "boatracecsv.github.io/data/programs/title",
+                         "date": day, "upstream_http_status": exc.code,
+                         "retryable": exc.code == 404}
         return 503, {"ok": False, "status": "source_unavailable",
-                     "reason": "HTTPError"}
+                     "reason": "upstream_http_error",
+                     "upstream_http_status": exc.code,
+                     "date": day,
+                     "retryable": exc.code in (408,429,500,502,503,504)}
+    except (TimeoutError, URLError, OSError) as exc:
+        return 503, {"ok": False, "status": "source_unavailable",
+                     "reason": type(exc).__name__, "date": day, "retryable": True}
     except Exception as exc:
-        # Do not return stale, guessed, or legacy-fallback race schedules.
         return 503, {"ok": False, "status": "source_unavailable",
-                     "reason": type(exc).__name__}
+                     "reason": type(exc).__name__, "date": day, "retryable": False}
