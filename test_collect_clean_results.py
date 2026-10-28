@@ -28,6 +28,19 @@ class ResultCollectorTests(unittest.TestCase):
         with patch.object(c, "datetime", Clock), patch.object(c, "urlopen", side_effect=not_found):
             self.assertEqual(c.collect()["status"], "waiting_for_published_source")
             self.assertEqual(c.collect("20261027")["status"], "waiting_for_published_source")
+    def test_collection_status_shows_upstream_404_and_progress(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            report={"days":[
+                {"day":"20261027","status":"waiting_for_published_source","source_races":0,"saved":0,"http_status":404},
+                {"day":"20261028","source_races":7,"saved":7}
+            ]}
+            data=c.publish_collection_status(report,root=Path(folder))
+            self.assertEqual(data["days"][0]["http_status"],404)
+            self.assertEqual(data["days"][1]["newly_saved"],7)
+            record=json.loads((Path(folder)/"confirmed_results"/"collection_status.json").read_text())
+            self.assertEqual(record,data)
     def test_retries_yesterday_and_today(self):
         calls=[]
         now=datetime.fromisoformat("2026-10-28T08:00:00+09:00")
