@@ -9,7 +9,8 @@ from research_model import probabilities
 from four_mode_performance import allocate
 
 ROOT=Path(__file__).resolve().parent
-THRESHOLDS=(0.6,0.7)
+MINIMUM_CONFIDENCE=0.70
+THRESHOLDS=(MINIMUM_CONFIDENCE,)
 
 def report(root=ROOT):
     root=Path(root)
@@ -55,4 +56,6 @@ def report(root=ROOT):
             "selection_is_observational":True,"odds_free":True,
             "prospectively_validated":False,"investment_is_simulated":True,
             "budget_per_selected_race_yen":10000,
+            "minimum_confidence":MINIMUM_CONFIDENCE,
+            "below_minimum_policy":"skip_selection_keep_forecast",
             "ledgers":ledgers}
