@@ -184,4 +184,6 @@ assert.ok(script.includes("結果待ち（不的中として集計しません�
 assert.ok(html.includes('id="overdueAuditRows"'),'overdue result list must be visible');
 assert.ok(script.includes('CLEAN_RESULT_COLLECTION_STATUS_V1'),'only CLEAN audited result statuses are shown');
 assert.ok(script.includes('未取得は不的中に含めません'),'missing results must never count as losses');
+assert.ok(html.includes('id="recent30Metrics"'),'rolling 30 proof-backed metric is shown');
+assert.ok(script.includes('d.recent_30?.modes?.hit'),'rolling metric uses verified summary');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
