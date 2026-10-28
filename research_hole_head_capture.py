@@ -9,7 +9,7 @@ from research_model import probabilities
 ROOT=Path(__file__).resolve().parent
 
 def first_place_candidates(rates, n):
-    if n not in (1, 2):
+    if n not in (1, 2, 3):
         raise ValueError("invalid_head_count")
     scores = {str(i): 0.0 for i in range(1, 7)}
     for combo, prob in probabilities(rates):
@@ -20,7 +20,7 @@ def analyze(history, root=ROOT):
     if history.get("schema")!="CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1" or history.get("budget_yen")!=10000:
         raise ValueError("verified_history_required")
     seen=set()
-    counts={"one_head":0,"two_heads":0,"original_hole_head":0}
+    counts={"one_head":0,"two_heads":0,"three_heads":0,"original_hole_head":0}
     distinct_heads={}
     for race in history["races"]:
         code=race["race_code"]
@@ -36,6 +36,7 @@ def analyze(history, root=ROOT):
         head=finish[0]
         counts["one_head"]+=int(head in first_place_candidates(archive["input_national_win_rates"],1))
         counts["two_heads"]+=int(head in first_place_candidates(archive["input_national_win_rates"],2))
+        counts["three_heads"]+=int(head in first_place_candidates(archive["input_national_win_rates"],3))
         original={str(t["combo"][0]) for t in archive["modes"]["hole"]["tickets"]}
         distinct_heads[len(original)]=distinct_heads.get(len(original),0)+1
         counts["original_hole_head"]+=int(head in original)
