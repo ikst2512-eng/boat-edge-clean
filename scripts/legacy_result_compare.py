@@ -60,6 +60,28 @@ def compare_record(code, legacy_bytes, clean_bytes):
     }
 
 
+def classify_missing_pair(code, legacy_bytes):
+    """A legacy file is not proof of a confirmed trifecta."""
+    legacy = json.loads(legacy_bytes)
+    expected = f"{code[:8]}-{code[8:10]}-{code[10:]}"
+    if legacy.get("race_key") != expected:
+        raise ValueError("legacy race identity mismatch")
+    state = legacy.get("status")
+    if state == "pending":
+        category = "LEGACY_PENDING_CLEAN_RESULT_MISSING"
+    elif state == "trifecta_not_established":
+        category = "LEGACY_TRIFECTA_NOT_ESTABLISHED"
+    elif state == "confirmed":
+        category = "LEGACY_CONFIRMED_CLEAN_RESULT_MISSING"
+    else:
+        category = "LEGACY_OTHER_STATUS_CLEAN_RESULT_MISSING"
+    return {"race_code": code, "status": category, "legacy_status": state,
+            "legacy_sha256": hashlib.sha256(legacy_bytes).hexdigest(),
+            "legacy_finish_order": legacy.get("finish_order"),
+            "delete_authorized": False,
+            "source_equivalence_verified": False}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--crosswalk", required=True, help="Output from legacy_race_crosswalk.py")
@@ -78,9 +100,21 @@ def main():
         clean_path = f"confirmed_results/{code}.json"
         paths = {v["path"] for v in item["legacy"]}
         clean_paths = {v["path"] for v in item["clean"]}
-        if legacy_path not in paths or clean_path not in clean_paths:
-            records.append({"race_code": code, "status": "RESULT_PAIR_MISSING",
+        if legacy_path not in paths:
+            records.append({"race_code": code, "status": "LEGACY_RESULT_FILE_MISSING",
                             "delete_authorized": False})
+            continue
+        if clean_path not in clean_paths:
+            try:
+                old_sha = next(v["git_blob_sha1"] for v in item["legacy"] if v["path"] == legacy_path)
+                old = github_bytes(LEGACY, old_sha)
+                missing = classify_missing_pair(code, old)
+                missing["legacy_path"] = legacy_path
+                missing["legacy_git_blob_sha1"] = old_sha
+                records.append(missing)
+            except (ValueError, OSError, json.JSONDecodeError) as exc:
+                records.append({"race_code": code, "status": "MISSING_PAIR_AUDIT_ERROR",
+                                "error": str(exc), "delete_authorized": False})
             continue
         try:
             old_sha = next(v["git_blob_sha1"] for v in item["legacy"] if v["path"] == legacy_path)
