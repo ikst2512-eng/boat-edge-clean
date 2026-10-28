@@ -5,6 +5,7 @@ Produces a report with explicit unknowns; does not imply forecast equivalence,
 payout parity, predeadline proof, or safe deletion.
 """
 import argparse
+import base64
 import hashlib
 import json
 import urllib.request
@@ -15,11 +16,15 @@ LEGACY = "ikst2512-eng/boat-edge"
 CLEAN = "ikst2512-eng/boat-edge-clean"
 
 
-def github_bytes(repo, ref, path):
-    url = f"https://raw.githubusercontent.com/{repo}/{ref}/{path}"
-    request = urllib.request.Request(url, headers={"User-Agent": "clean-result-audit"})
+def github_bytes(repo, blob_sha):
+    url = f"https://api.github.com/repos/{repo}/git/blobs/{blob_sha}"
+    request = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json", "User-Agent": "clean-result-audit"})
     with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read()
+        blob = json.load(response)
+    if blob.get("encoding") != "base64" or blob.get("sha") != blob_sha:
+        raise ValueError("GitHub blob identity/encoding mismatch")
+    return base64.b64decode(blob["content"], validate=False)
 
 
 def compare_record(code, legacy_bytes, clean_bytes):
@@ -75,9 +80,13 @@ def main():
                             "delete_authorized": False})
             continue
         try:
-            old = github_bytes(LEGACY, index["legacy_tree_sha"], legacy_path)
-            new = github_bytes(CLEAN, index["clean_tree_sha"], clean_path)
+            old_sha = next(v["git_blob_sha1"] for v in item["legacy"] if v["path"] == legacy_path)
+            new_sha = next(v["git_blob_sha1"] for v in item["clean"] if v["path"] == clean_path)
+            old = github_bytes(LEGACY, old_sha)
+            new = github_bytes(CLEAN, new_sha)
             comparison = compare_record(code, old, new)
+            comparison["legacy_git_blob_sha1"] = old_sha
+            comparison["clean_git_blob_sha1"] = new_sha
             comparison["legacy_path"] = legacy_path
             comparison["clean_path"] = clean_path
             records.append(comparison)
