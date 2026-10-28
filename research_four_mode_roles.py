@@ -8,7 +8,26 @@ import math
 CAPS = {"narrow": 5, "hit": 12, "balance": 15, "hole": 20}
 TARGETS = {"hit": 0.60, "balance": 0.50, "hole": 0.125, "narrow": 0.40}
 
-def research_modes(prob_rows, odds=None):
+def select_hole_with_head_limit(rows, odds, max_heads=2, max_tickets=20):
+    """Restrict *number* of first-place boats, not their lane numbers.
+
+    Determine first-place candidates from aggregate model probability, then
+    select odds-weighted tickets only under those candidate heads.
+    Entirely uncalibrated, research-only and requires pre-race odds.
+    """
+    if type(max_heads) is not int or max_heads not in (1, 2):
+        raise ValueError("max_heads_must_be_1_or_2")
+    head_mass = {str(i): sum(p for combo, p in rows if combo[0] == str(i))
+                 for i in range(1, 7)}
+    allowed = set(sorted(head_mass, key=lambda b: (-head_mass[b], b))[:max_heads])
+    selected = sorted(
+        ((combo, p) for combo, p in rows if combo[0] in allowed),
+        key=lambda item: (-item[1] * odds[item[0]], -odds[item[0]], item[0])
+    )[:max_tickets]
+    return selected, sorted(allowed)
+
+
+def research_modes(prob_rows, odds=None, hole_max_heads=2):
     rows = [("-".join(map(str, ticket)), float(p)) for ticket, p in prob_rows]
     if len(rows) != 120 or len({combo for combo, _ in rows}) != 120 or abs(sum(p for _, p in rows)-1) > 1e-6:
         raise ValueError("invalid_probability_board")
@@ -51,10 +70,11 @@ def research_modes(prob_rows, odds=None):
     # Descriptive EV only: model probabilities are uncalibrated.
     candidates = sorted(rows, key=lambda x: (-x[1]*odds[x[0]],-odds[x[0]],x[0]))
     # Do not label probability-only tickets as verified high-return selections.
-    selections = candidates[:CAPS["hole"]]
+    selections, heads = select_hole_with_head_limit(rows, odds, hole_max_heads, CAPS["hole"])
     result["hole"] = {"tickets":[{"combo":c,"p":round(p*100,5),"odds":odds[c],
                                     "estimated_ev":round(p*odds[c],5)} for c,p in selections],
-                      "max_tickets":CAPS["hole"], "selection":"uncalibrated_expected_value",
+                      "max_tickets":CAPS["hole"], "max_first_place_boats":hole_max_heads,
+                      "first_place_boats":heads, "selection":"uncalibrated_expected_value_head_limited",
                       "status":"research_only_not_a_betting_signal",
                       "target_hit_rate_pct":12.5,"target_proven":False}
     return result
