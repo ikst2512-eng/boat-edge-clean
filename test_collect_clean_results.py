@@ -62,6 +62,20 @@ class ResultCollectorTests(unittest.TestCase):
             self.assertEqual(output["overdue_race_codes"],["202610280101"])
             self.assertEqual(output["checked_at_jst"],now.isoformat())
 
+    def test_missing_source_rows_are_not_declared_losses(self):
+        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
+        csv=(header+"202610280101,2026-10-28T12:00:00+09:00,1,2,3\\n"
+            +"202610280102,2026-10-28T12:00:00+09:00,,,\\n").replace("\\n","\n")
+        reasons=c.source_gap_reasons("20261028",csv.encode(),[
+            "202610280101","202610280102","202610280103"])
+        self.assertEqual(reasons["202610280101"],"row_present_requires_review")
+        self.assertEqual(reasons["202610280102"],"invalid_or_unfinished_finish")
+        self.assertEqual(reasons["202610280103"],"not_in_published_csv")
+    def test_duplicate_source_rows_cannot_be_considered_confirmed(self):
+        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
+        row="202610280101,2026-10-28T12:00:00+09:00,1,2,3\n"
+        self.assertEqual(c.source_gap_reasons("20261028",(header+row+row).encode(),["202610280101"])["202610280101"],"duplicate_source_rows")
+
     def test_retries_yesterday_and_today(self):
         calls=[]
         now=datetime.fromisoformat("2026-10-28T08:00:00+09:00")
