@@ -5,7 +5,7 @@ The odds-aware hole mode fails closed when contemporaneous odds are unavailable.
 """
 import math
 
-CAPS = {"narrow": 5, "hit": 10, "balance": 20, "hole": 30}
+CAPS = {"narrow": 5, "hit": 10, "balance": 15, "hole": 20}
 TARGETS = {"hit": 0.60, "balance": 0.50, "hole": 0.125, "narrow": 0.40}
 
 def research_modes(prob_rows, odds=None):
@@ -25,7 +25,7 @@ def research_modes(prob_rows, odds=None):
                         "target_proven": False}
     # Balance preserves the alternative-first/second-place ordering without peeking at results.
     by_combo = dict(rows)
-    # The production target may stop early. Build an independent, 20-pick diverse ranking.
+    # The production target may stop early. Build an independent, 15-pick diverse ranking.
     remaining = dict(rows)
     diverse = []
     while remaining and len(diverse) < CAPS["balance"]:
@@ -36,11 +36,11 @@ def research_modes(prob_rows, odds=None):
         diverse.append(pick)
         del remaining[pick]
     result["balance"] = {"tickets": [{"combo":c, "p": round(by_combo[c]*100,5)} for c in diverse],
-                         "max_tickets":20, "selection":"branch_diversity",
+                         "max_tickets":CAPS["balance"], "selection":"branch_diversity",
                          "estimated_coverage_pct":round(100*sum(by_combo[c] for c in diverse),2),
                          "target_hit_rate_pct":50.0,"target_proven":False}
     if odds is None:
-        result["hole"] = {"tickets": [], "max_tickets":30,
+        result["hole"] = {"tickets": [], "max_tickets":CAPS["hole"],
                           "selection":"unavailable_without_timestamped_odds",
                           "status":"odds_required", "target_hit_rate_pct":12.5, "target_proven":False}
         return result
@@ -51,7 +51,7 @@ def research_modes(prob_rows, odds=None):
     # Descriptive EV only: model probabilities are uncalibrated.
     candidates = sorted(rows, key=lambda x: (-x[1]*odds[x[0]],-odds[x[0]],x[0]))
     # Do not label probability-only tickets as verified high-return selections.
-    selections = candidates[:30]
+    selections = candidates[:CAPS["hole"]]
     result["hole"] = {"tickets":[{"combo":c,"p":round(p*100,5),"odds":odds[c],
                                     "estimated_ev":round(p*odds[c],5)} for c,p in selections],
                       "max_tickets":30, "selection":"uncalibrated_expected_value",
