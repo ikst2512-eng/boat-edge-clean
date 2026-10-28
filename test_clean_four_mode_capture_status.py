@@ -26,7 +26,7 @@ class CaptureStatusTests(unittest.TestCase):
             self.assertEqual(old,path.read_bytes())
     def test_both_sources_probed_on_title_404(self):
         from urllib.error import HTTPError
-        from unittest.mock import Mock
+        from unittest.mock import Mock, patch
         from clean_four_mode_capture import collect
         with tempfile.TemporaryDirectory() as tmp:
             calls=[]
