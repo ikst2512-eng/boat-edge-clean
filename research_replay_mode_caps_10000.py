@@ -27,6 +27,8 @@ def replay(history,root=ROOT):
         archive=json.loads((root/"four_mode_forecasts"/(code+".json")).read_text(encoding="utf-8"))
         if archive.get("race_code")!=code or archive.get("schema")!="CLEAN_FOUR_MODES_PREDEADLINE_V1":
             raise ValueError("archive_mismatch")
+        if "modes" not in archive:
+            raise ValueError("original_archived_modes_required")
         if "modes" in archive:
             for original_mode in ("hit","balance","hole","narrow"):
                 recorded = race.get("modes",{}).get(original_mode)
