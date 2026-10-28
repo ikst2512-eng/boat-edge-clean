@@ -14,6 +14,8 @@ class FindingsTests(unittest.TestCase):
   self.assertEqual(sum(x["verified_races"] for x in data["recent_days"]),data["latest_verified_sample"])
   self.assertTrue(all(x["verified_races"]==x["candidate_races"]+x["skipped_races"] for x in data["recent_days"]))
   self.assertTrue(all(x["kind"] in ("観測結果","未検証") for x in data["findings"]))
+  self.assertTrue(any("想定回収率" in x["text"] for x in data["findings"]))
+  self.assertTrue(any("将来" in x["text"] for x in data["findings"]))
  def test_tab_and_routes_exist(self):
   h=(ROOT/"index.html").read_text(encoding="utf-8")
   s=(ROOT/"server.py").read_text(encoding="utf-8")
