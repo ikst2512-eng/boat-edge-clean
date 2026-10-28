@@ -23,6 +23,13 @@ class ResearchRoleTests(unittest.TestCase):
         result=research_modes(self.rows,odds)
         self.assertEqual(len(result["hole"]["tickets"]),20)
         self.assertEqual(result["hole"]["status"],"research_only_not_a_betting_signal")
+        self.assertEqual(result["hole"]["max_first_place_boats"],2)
+        self.assertLessEqual(len({t["combo"][0] for t in result["hole"]["tickets"]}),2)
+        one=research_modes(self.rows,odds,hole_max_heads=1)
+        self.assertEqual(len({t["combo"][0] for t in one["hole"]["tickets"]}),1)
+        self.assertEqual(len(one["hole"]["tickets"]),20)
+        with self.assertRaisesRegex(ValueError,"max_heads_must_be_1_or_2"):
+            research_modes(self.rows,odds,hole_max_heads=3)
 
 if __name__=="__main__":
     unittest.main()
