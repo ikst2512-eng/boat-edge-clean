@@ -28,6 +28,9 @@ def diagnose(history, root=ROOT):
         bands = {label: {"races": 0, "hits": 0, "invested_yen": 0, "return_yen": 0}
                  for _, _, label in BANDS}
         winners = []
+        profitable_hits = 0
+        nonprofitable_hits = 0
+        winning_stakes = Counter()
         miss_examples = {"first_missing": [], "second_or_third_missing": [], "third_only_missing": []}
         missing_by_first_boat = Counter()
         missing_third_boats = Counter()
@@ -47,6 +50,15 @@ def diagnose(history, root=ROOT):
                 raise ValueError("history_and_archive_disagree")
             if rank is not None:
                 ranks[str(rank)] += 1
+                if outcome["return_yen"] > outcome["invested_yen"]:
+                    profitable_hits += 1
+                else:
+                    nonprofitable_hits += 1
+                stake = outcome.get("winning_stake_yen")
+                if stake is not None:
+                    if type(stake) is not int or stake < 100 or stake % 100:
+                        raise ValueError("invalid_winning_stake")
+                    winning_stakes[str(stake)] += 1
                 winners.append({"race_code": code, "rank": rank, "return_yen": outcome["return_yen"]})
             else:
                 parts = winner.split("-")
@@ -73,6 +85,9 @@ def diagnose(history, root=ROOT):
         largest = sorted(winners, key=lambda x: x["return_yen"], reverse=True)[:3]
         reports[mode] = {
             "hit_rank_counts": dict(sorted(ranks.items(), key=lambda x: int(x[0]))),
+            "profitable_hits": profitable_hits,
+            "nonprofitable_hits": nonprofitable_hits,
+            "winning_stake_counts": dict(sorted(winning_stakes.items(), key=lambda x: int(x[0]))),
             "miss_types": dict(misses),
             "miss_examples": {reason: rows[:10] for reason, rows in miss_examples.items()},
             "missed_winner_first_boats": dict(sorted(missing_by_first_boat.items())),
