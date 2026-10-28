@@ -6,6 +6,7 @@ verified official result, formal forecast, or guaranteed real-time feed.
 from collections import Counter
 from datetime import datetime
 import re
+from urllib.error import HTTPError
 from research_model import BASE, JST, read_rows
 
 
@@ -52,6 +53,14 @@ def clean_schedule(day):
         result = parse_schedule(day, rows, received_at)
         result["source_sha256"] = digest
         return 200, result
+    except HTTPError as exc:
+        if exc.code in (404, 410):
+            # The daily published CSV is absent; not evidence of a server failure.
+            # No fallback to historical or legacy schedules.
+            return 404, {"ok": False, "status": "schedule_not_published",
+                         "source": "boatracecsv.github.io/data/programs/title"}
+        return 503, {"ok": False, "status": "source_unavailable",
+                     "reason": "HTTPError"}
     except Exception as exc:
         # Do not return stale, guessed, or legacy-fallback race schedules.
         return 503, {"ok": False, "status": "source_unavailable",
