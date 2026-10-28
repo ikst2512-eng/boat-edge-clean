@@ -38,7 +38,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: clean-v236-verification
+  group: clean-main-data-writers
   cancel-in-progress: false
 jobs:
   review:
