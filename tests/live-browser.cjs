@@ -50,6 +50,28 @@ const fs=require('node:fs');
   if(await selectedResultTab.getAttribute('aria-selected')!=='true')throw Error('Result view not restored on reload');
   if(await page.locator('#venueChooser .grid button').nth(3).getAttribute('aria-pressed')!=='true')throw Error('Venue not restored on reload');
   if(await page.locator('.races button').nth(1).getAttribute('aria-pressed')!=='true')throw Error('Race not restored on reload');
+  // Verify small-screen geometry rather than only static CSS declarations.
+  for(const width of [320,360,375,390]){
+   await page.setViewportSize({width,height:844});
+   await page.goto(new URL('/card',site).toString(),{waitUntil:'domcontentloaded',timeout:45000});
+   await page.locator('#mobileRaceMatrix').waitFor();
+   // Source data may be unavailable. Assert the matrix geometry whenever a table exists.
+   const geometry=await page.evaluate(()=>{
+    const panel=document.querySelector('#mobileRaceMatrix');
+    const table=panel?.querySelector('table');
+    const rect=table?.getBoundingClientRect();
+    return {viewport:document.documentElement.clientWidth,documentWidth:document.documentElement.scrollWidth,
+      table:rect?{left:rect.left,right:rect.right,width:rect.width}:null,
+      matrixRows:table?[...table.querySelectorAll('tbody tr th')].map(x=>x.textContent.trim()):[]};
+   });
+   if(geometry.table){
+    if(geometry.table.right>geometry.viewport+2 || geometry.table.left< -2)
+     throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
+    if(geometry.matrixRows.filter(x=>x==='チルト').length!==1 || geometry.matrixRows.filter(x=>x==='展示タイム').length!==1)
+     throw Error('Mobile matrix duplicated tilt/exhibition at '+width+'px');
+   }
+   console.log('Mobile matrix geometry checked at '+width+'px; rendered='+Boolean(geometry.table));
+  }
   if(errors.length)throw Error('Browser errors: '+errors.join(' | '));
   console.log('PASS: published site renders 24 venues, 12 races, 4 panels; venue/race selections and deep-link query persist');
  }catch(e){
