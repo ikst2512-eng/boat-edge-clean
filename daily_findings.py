@@ -2,25 +2,21 @@
 
 Observations are descriptive, never auto-generated claims of discovery.
 """
-from collections import defaultdict
 from selection_dual import report
 
 def daily_findings(root=None):
     data=report(root) if root is not None else report()
-    days=defaultdict(list)
-    # The API contains latest 24 race audit rows; full-day figures use ledger
-    # totals only when all verified races share the same race date.
-    for r in data["recent_verified_races"]:
-        days[r["race_code"][:8]].append(r)
-    all_dates={r["race_code"][:8] for r in data["recent_verified_races"]}
     entries=[]
-    for day in sorted(days,reverse=True):
-        records=days[day]
+    for day,stats in sorted(data["verified_daily"].items(),reverse=True):
+        all_races=stats["all"]
+        selected=stats["confidence_70"]
         entries.append({"date":f"{day[:4]}-{day[4:6]}-{day[6:]}",
-          "sampled_verified_races":len(records),
-          "candidate_races":sum(r["selection"]=="candidate" for r in records),
-          "skipped_races":sum(r["selection"]=="skip" for r in records),
-          "sample_only":True})
+          "verified_races":all_races["races"],"candidate_races":selected["races"],
+          "skipped_races":all_races["races"]-selected["races"],
+          "all_hit_rate_pct":all_races["hit_rate_pct"],
+          "candidate_hit_rate_pct":selected["hit_rate_pct"],
+          "all_roi_pct":all_races["roi_pct"],"candidate_roi_pct":selected["roi_pct"],
+          "sample_only":False})
     summary=data["ledgers"]
     return {"schema":"CLEAN_DAILY_FINDINGS_V1","title":"検証ノート",
       "latest_verified_sample":data["sample_races"],"minimum_confidence":0.7,
