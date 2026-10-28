@@ -79,6 +79,18 @@ const fs=require('node:fs');
     }
    }
   }
+  // Certified 2026-10-28 Karatsu 12R: saved before-deadline verified hit,
+  // official finish 1-4-5. Inspect real rendered verdict rather than a mock.
+  await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-10-28';s.venue=22;s.race=12;setView('result');render();});
+  const hitCard=page.locator('#resultList .clean-race-card').nth(11);
+  await hitCard.locator('.clean-race-verdict').waitFor({timeout:60000});
+  if((await hitCard.locator('.clean-race-verdict').innerText())!=='◎ 予想的中')throw Error('Verified Karatsu 12R hit badge missing');
+  if((await hitCard.locator('.clean-race-state').innerText())!=='結果確定')throw Error('Confirmed result must be independently labelled');
+  if(!(await hitCard.locator('.clean-race-foot').innerText()).includes('1 - 4 - 5'))throw Error('Wrong official finish on hit card');
+  console.log('PUBLISHED_VERIFIED_HIT_PASS 20261028 23 12R: 1-4-5');
+  // Unverified labels must never be rendered as a verified hit.
+  const labels=await page.locator('#resultList .clean-race-verdict').allInnerTexts();
+  if(labels.some(x=>!['◎ 予想的中','予想不的中','予想未検証'].includes(x)))throw Error('Unknown result verification badge');
   // Test the current single-document UI without assuming server-side route rewrites.
   if(await page.locator('.view-tabs a[data-page]').count()!==5)throw Error('Five current page links missing');
   for(const width of [320,360,375,390]){
