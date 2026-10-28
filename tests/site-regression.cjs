@@ -175,4 +175,6 @@ assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed win
 assert.ok(script.includes("record.modes[mode].hit===t.some"),'archived mode hits must match proof-gated race result');
 assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
+assert.ok(script.includes("このレースで的中した予想"),'single race answer checks must summarize winning modes');
+assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
