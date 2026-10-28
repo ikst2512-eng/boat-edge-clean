@@ -6,7 +6,9 @@ on:
     paths:
       - scripts/legacy_race_crosswalk.py
       - scripts/legacy_result_compare.py
+      - scripts/legacy_payout_evidence.py
       - tests/test_legacy_result_compare.py
+      - tests/test_legacy_payout_evidence.py
       - .github/workflows/legacy-result-evidence-audit.yml
 permissions:
   contents: read
@@ -22,11 +24,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v tests/test_legacy_result_compare.py
+        run: python -m unittest -v tests/test_legacy_result_compare.py tests/test_legacy_payout_evidence.py
       - name: Build pinned race inventory
         run: python scripts/legacy_race_crosswalk.py --output audit_out/crosswalk.json
       - name: Compare every eligible confirmed result
         run: python scripts/legacy_result_compare.py --crosswalk audit_out/crosswalk.json --output audit_out/results.json
+      - name: Build isolated payout evidence ledger
+        run: python scripts/legacy_payout_evidence.py --comparison audit_out/results.json --output audit_out/payouts.json
       - name: Publish machine-readable outcome
         if: always()
         run: |
