@@ -164,4 +164,9 @@ for(const label of ['的中率','回収率','的中','購入想定','払戻想�
 }
 assert.ok(script.includes('v.sample_races>0?number(v.actual_hit_rate_pct)'),'unverified hit rates must not be displayed');
 assert.ok(script.includes('v.sample_races>0?number(v.actual_roi_pct)'),'unverified ROI must not be displayed');
+assert.ok(html.includes('id="hitHistoryFilter"'),'winning-race mode filter must be visible');
+assert.ok(html.includes('id="hitHistory"'),'verified winning-race list must be visible');
+assert.ok(script.includes('CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1'),'list must use independently verified result history');
+assert.ok(script.includes("v.modes[filter]?.hit"),'per-mode wins must be filterable');
+assert.ok(script.includes("Object.values(v.modes).some(m=>m.hit)"),'all-modes view must only show actual hits');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
