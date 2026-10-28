@@ -688,9 +688,9 @@ function renderVerifiedHitHistory(){
   for(const mode of ['hit','balance','hole','narrow']){
     const m=v.modes[mode];if(!m?.hit)continue;
     const tag=document.createElement('span');tag.className='hit-history-tag';
-    tag.textContent=labels[mode]+' 的中 '+Number(m.return_yen).toLocaleString('ja-JP')+'円';tags.append(tag);
+    tag.textContent=labels[mode]+' 的中｜'+(m.winning_ticket||v.finish)+' に'+Number(m.winning_stake_yen||0).toLocaleString('ja-JP')+'円→払戻'+Number(m.return_yen).toLocaleString('ja-JP')+'円';tags.append(tag);
   }
-  const meta=document.createElement('div');meta.className='hit-history-meta';meta.textContent='公式100円払戻 '+Number(v.payout_per_100_yen).toLocaleString('ja-JP')+'円 ／ 想定投資額は各予想パターン別';
+  const meta=document.createElement('div');meta.className='hit-history-meta';const selected=filter==='all'?Object.values(v.modes).filter(m=>m.hit):[v.modes[filter]];const earned=selected.reduce((sum,m)=>sum+Number(m.return_yen||0),0),spent=selected.reduce((sum,m)=>sum+Number(m.invested_yen||0),0);const net=earned-spent;meta.textContent='的中した方式の収支 '+(net>=0?'+':'−')+Math.abs(net).toLocaleString('ja-JP')+'円（'+selected.length+'方式分）／ 公式100円払戻 '+Number(v.payout_per_100_yen).toLocaleString('ja-JP')+'円';
   const link=document.createElement('a');link.textContent='このレースの検証を見る';
   link.href='?view=review&date='+code.slice(0,4)+'-'+code.slice(4,6)+'-'+code.slice(6,8)+'&venue='+venue+'&race='+race;
   box.append(head,tags,meta,link);root.append(box);

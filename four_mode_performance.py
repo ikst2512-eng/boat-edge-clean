@@ -34,7 +34,7 @@ def evaluate(archive,result,payout_per_100_yen,budget_yen=5000,first_add_verifie
     for mode in MODES:
         stakes=allocate(modes[mode]["tickets"],budget_yen)
         returns=stakes.get(winner,0)*payout_per_100_yen//100
-        output[mode]={"hit":winner in stakes,"invested_yen":budget_yen,"return_yen":returns}
+        output[mode]={"hit":winner in stakes,"winning_ticket":winner if winner in stakes else None,"winning_stake_yen":stakes.get(winner,0),"invested_yen":budget_yen,"return_yen":returns}
     return {"race_code":race,"verified":True,"modes":output}
 
 def summary(records):
