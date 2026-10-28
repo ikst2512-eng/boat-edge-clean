@@ -18,12 +18,15 @@ class DualSelectionTests(unittest.TestCase):
   self.assertGreaterEqual(all_races["hits"],0)
   self.assertLessEqual(all_races["hits"],all_races["races"])
   self.assertEqual(all_races["profit_yen"],all_races["return_yen"]-all_races["investment_yen"])
-  for name in ("confidence_60","confidence_70"):
+  self.assertEqual(data["minimum_confidence"],0.70)
+  self.assertEqual(data["below_minimum_policy"],"skip_selection_keep_forecast")
+  self.assertNotIn("confidence_60",data["ledgers"])
+  for name in ("confidence_70",):
    selected=data["ledgers"][name]
    self.assertLessEqual(selected["races"],all_races["races"])
    self.assertEqual(selected["investment_yen"],selected["races"]*10000)
    self.assertEqual(selected["profit_yen"],selected["return_yen"]-selected["investment_yen"])
-  self.assertLessEqual(data["ledgers"]["confidence_70"]["races"],data["ledgers"]["confidence_60"]["races"])
+  self.assertLessEqual(data["ledgers"]["confidence_70"]["races"],all_races["races"])
  def test_navigation_preserves_full_forecast(self):
   html=(ROOT/"index.html").read_text(encoding="utf-8")
   page=(ROOT/"selection.html").read_text(encoding="utf-8")
@@ -33,4 +36,6 @@ class DualSelectionTests(unittest.TestCase):
   self.assertIn('"/api/selection-research"',server)
   self.assertIn('"/selection"',server)
   self.assertIn('href="/forecast"',page)
+  self.assertIn("信頼度70%以上",page)
+  self.assertNotIn("信頼度60%以上",page)
 if __name__=="__main__":unittest.main()
