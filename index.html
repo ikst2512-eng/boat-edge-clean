@@ -562,8 +562,6 @@ async function loadRaceData(force=false){
    ['モーター2連',r=>displayRate(r.motor?.quinella_rate)],
    ['展示タイム',r=>txt(byLane(preview,r.lane).exhibition_time)],
    ['チルト',r=>txt(byLane(preview,r.lane).tilt)],
-   ['展示タイム',r=>txt(byLane(preview,r.lane).exhibition_time)],
-   ['チルト',r=>txt(byLane(preview,r.lane).tilt)],
    ['ボート2連',r=>displayRate(r.boat?.quinella_rate)]
   ];
   const orderedRacers=Array.from({length:6},(_,i)=>racers.find(r=>r.lane===i+1));

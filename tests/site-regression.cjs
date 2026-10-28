@@ -197,6 +197,8 @@ assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile ta
 assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
 assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
+assert.strictEqual((script.match(/\['展示タイム',r=>txt\(byLane\(preview,r\.lane\)\.exhibition_time\)\]/g)||[]).length,1,'mobile matrix exhibition time must occur once');
+assert.strictEqual((script.match(/\['チルト',r=>txt\(byLane\(preview,r\.lane\)\.tilt\)\]/g)||[]).length,1,'mobile matrix tilt must occur once');
 assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard must be designed to fit viewport');
 assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
