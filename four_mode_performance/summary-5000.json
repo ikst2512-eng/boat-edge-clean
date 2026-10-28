@@ -3,48 +3,48 @@
   "counts": {
     "archived": 132,
     "awaiting_payout": 0,
-    "awaiting_result": 55,
-    "before_deadline": 43,
-    "complete": 77,
-    "overdue_result": 12,
+    "awaiting_result": 50,
+    "before_deadline": 37,
+    "complete": 82,
+    "overdue_result": 13,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 35.06,
-      "actual_roi_pct": 49.62,
-      "hits": 27,
-      "invested_yen": 385000,
-      "profit_yen": -193950,
-      "return_yen": 191050,
-      "sample_races": 77
+      "actual_hit_rate_pct": 35.37,
+      "actual_roi_pct": 49.01,
+      "hits": 29,
+      "invested_yen": 410000,
+      "profit_yen": -209070,
+      "return_yen": 200930,
+      "sample_races": 82
     },
     "hit": {
-      "actual_hit_rate_pct": 50.65,
-      "actual_roi_pct": 59.81,
-      "hits": 39,
-      "invested_yen": 385000,
-      "profit_yen": -154740,
-      "return_yen": 230260,
-      "sample_races": 77
+      "actual_hit_rate_pct": 51.22,
+      "actual_roi_pct": 59.04,
+      "hits": 42,
+      "invested_yen": 410000,
+      "profit_yen": -167930,
+      "return_yen": 242070,
+      "sample_races": 82
     },
     "hole": {
-      "actual_hit_rate_pct": 7.79,
-      "actual_roi_pct": 186.82,
+      "actual_hit_rate_pct": 7.32,
+      "actual_roi_pct": 175.42,
       "hits": 6,
-      "invested_yen": 385000,
-      "profit_yen": 334240,
+      "invested_yen": 410000,
+      "profit_yen": 309240,
       "return_yen": 719240,
-      "sample_races": 77
+      "sample_races": 82
     },
     "narrow": {
-      "actual_hit_rate_pct": 20.78,
-      "actual_roi_pct": 74.91,
-      "hits": 16,
-      "invested_yen": 385000,
-      "profit_yen": -96600,
-      "return_yen": 288400,
-      "sample_races": 77
+      "actual_hit_rate_pct": 20.73,
+      "actual_roi_pct": 74.83,
+      "hits": 17,
+      "invested_yen": 410000,
+      "profit_yen": -103200,
+      "return_yen": 306800,
+      "sample_races": 82
     }
   },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",

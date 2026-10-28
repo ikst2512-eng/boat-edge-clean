@@ -3,48 +3,48 @@
   "counts": {
     "archived": 132,
     "awaiting_payout": 0,
-    "awaiting_result": 55,
-    "before_deadline": 43,
-    "complete": 77,
-    "overdue_result": 12,
+    "awaiting_result": 50,
+    "before_deadline": 37,
+    "complete": 82,
+    "overdue_result": 13,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 35.06,
-      "actual_roi_pct": 48.07,
-      "hits": 27,
-      "invested_yen": 770000,
-      "profit_yen": -399850,
-      "return_yen": 370150,
-      "sample_races": 77
+      "actual_hit_rate_pct": 35.37,
+      "actual_roi_pct": 47.46,
+      "hits": 29,
+      "invested_yen": 820000,
+      "profit_yen": -430840,
+      "return_yen": 389160,
+      "sample_races": 82
     },
     "hit": {
-      "actual_hit_rate_pct": 50.65,
-      "actual_roi_pct": 59.03,
-      "hits": 39,
-      "invested_yen": 770000,
-      "profit_yen": -315500,
-      "return_yen": 454500,
-      "sample_races": 77
+      "actual_hit_rate_pct": 51.22,
+      "actual_roi_pct": 58.64,
+      "hits": 42,
+      "invested_yen": 820000,
+      "profit_yen": -339170,
+      "return_yen": 480830,
+      "sample_races": 82
     },
     "hole": {
-      "actual_hit_rate_pct": 7.79,
-      "actual_roi_pct": 183.59,
+      "actual_hit_rate_pct": 7.32,
+      "actual_roi_pct": 172.39,
       "hits": 6,
-      "invested_yen": 770000,
-      "profit_yen": 643630,
+      "invested_yen": 820000,
+      "profit_yen": 593630,
       "return_yen": 1413630,
-      "sample_races": 77
+      "sample_races": 82
     },
     "narrow": {
-      "actual_hit_rate_pct": 20.78,
-      "actual_roi_pct": 74.91,
-      "hits": 16,
-      "invested_yen": 770000,
-      "profit_yen": -193200,
-      "return_yen": 576800,
-      "sample_races": 77
+      "actual_hit_rate_pct": 20.73,
+      "actual_roi_pct": 74.83,
+      "hits": 17,
+      "invested_yen": 820000,
+      "profit_yen": -206400,
+      "return_yen": 613600,
+      "sample_races": 82
     }
   },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",
