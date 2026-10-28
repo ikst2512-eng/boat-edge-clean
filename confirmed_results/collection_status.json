@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-10-28T19:04:11.810167+09:00",
+  "checked_at_jst": "2026-10-28T22:41:32.253915+09:00",
   "days": [
     {
       "day": "20261027",
@@ -12,23 +12,22 @@
     {
       "day": "20261028",
       "http_status": null,
-      "newly_saved": 31,
-      "source_races": 113,
+      "newly_saved": 11,
+      "source_races": 124,
       "source_url": null,
       "status": "available"
     }
   ],
   "overdue_race_codes": [
+    "202610280112",
     "202610280306",
     "202610280307",
     "202610280308",
     "202610280309",
     "202610280310",
     "202610280311",
-    "202610280312",
-    "202610280709",
-    "202610281509"
+    "202610280312"
   ],
-  "overdue_result_count": 9,
+  "overdue_result_count": 8,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }
