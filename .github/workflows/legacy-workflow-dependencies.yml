@@ -1,0 +1,29 @@
+name: Audit legacy workflow dependencies
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_legacy_workflow_dependencies.py
+      - .github/workflows/legacy-workflow-dependencies.yml
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/audit_legacy_workflow_dependencies.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: legacy-workflow-dependencies
+          path: legacy_workflow_dependencies.json
+          if-no-files-found: warn
+          retention-days: 90
