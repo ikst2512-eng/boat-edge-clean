@@ -117,5 +117,25 @@ def collect_recent(now=None, collector=collect):
     return {"status": "checked", "days": [collector(day) for day in dates]}
 
 
+def publish_collection_status(report, root=ROOT):
+    """Make upstream publication progress auditable without fabricating results."""
+    items=report.get("days",[])
+    if not isinstance(items,list) or len(items)!=2:raise ValueError("invalid_collection_report")
+    payload={"schema":"CLEAN_RESULT_COLLECTION_STATUS_V1","days":[{
+        "day":x.get("day"),"status":x.get("status","available"),
+        "source_races":x.get("source_races",0),"newly_saved":x.get("saved",0),
+        "http_status":x.get("http_status"),"source_url":x.get("source_url")
+    } for x in items]}
+    folder=root/"confirmed_results"
+    folder.mkdir(parents=True,exist_ok=True)
+    path=folder/"collection_status.json"
+    new=json.dumps(payload,ensure_ascii=False,sort_keys=True,indent=2)+chr(10)
+    if not path.exists() or path.read_text(encoding="utf-8")!=new:
+        path.write_text(new,encoding="utf-8")
+    return payload
+
+
 if __name__ == "__main__":
-    print(json.dumps(collect_recent(), ensure_ascii=False))
+    report=collect_recent()
+    publish_collection_status(report)
+    print(json.dumps(report, ensure_ascii=False))
