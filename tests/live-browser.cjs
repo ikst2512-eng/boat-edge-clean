@@ -24,45 +24,51 @@ const fs=require('node:fs');
   if(await links.count()!==5)throw Error('Expected five page links in current navigation');
   const raceButtons=page.locator('.races button');
   if(await raceButtons.count()!==12)throw Error('Expected twelve race selector buttons');
-  // Selecting a venue navigates to /forecast, where the home race picker is intentionally hidden.
-  // Deep-link the race instead of trying to click a hidden control.
-  await page.goto(new URL('/forecast?venue=4&race=2',site).toString(),{waitUntil:'domcontentloaded',timeout:45000});
-  const destination=new URL(page.url());
-  if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')
-   throw Error('Venue/race selection not synchronized');
-  for(const route of ['forecast','exhibition','card','results','review']){
-   const target=new URL(route,site);
-   target.searchParams.set('venue','4');
-   target.searchParams.set('race','2');
-   const response=await page.goto(target.toString(),{waitUntil:'domcontentloaded',timeout:45000});
-   if(!response?.ok())throw Error('Route unavailable: '+route+' HTTP '+response?.status());
-   const nav=page.locator('.view-tabs a[data-page="'+({exhibition:'exhibit',results:'result'}[route]||route)+'"]');
+  // Navigation must work using actual public links, not guessed Pages paths.
+  const routeIds=['forecast','exhibit','card','result','review'];
+  for(const route of routeIds){
+   await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+   const nav=page.locator('.view-tabs a[data-page="'+route+'"]');
    if(await nav.count()!==1)throw Error('Missing navigation for '+route);
+   await nav.click();
+   if(new URL(page.url()).pathname==='/')throw Error('Navigation did not change route for '+route);
   }
-  // Verify small-screen geometry rather than only static CSS declarations.
   for(const width of [320,360,375,390]){
    await page.setViewportSize({width,height:844});
-   await page.goto(new URL('/card',site).toString(),{waitUntil:'domcontentloaded',timeout:45000});
+   await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+   await page.locator('.view-tabs a[data-page="card"]').click();
    await page.locator('#mobileRaceMatrix').waitFor();
-   // Source data may be unavailable. Assert the matrix geometry whenever a table exists.
+   // Test the actual CSS with a synthetic six-boat matrix if no race feed is available.
    const geometry=await page.evaluate(()=>{
     const panel=document.querySelector('#mobileRaceMatrix');
-    const table=panel?.querySelector('table');
-    const rect=table?.getBoundingClientRect();
+    let table=panel.querySelector('table'),synthetic=false;
+    if(!table){
+     synthetic=true;
+     table=document.createElement('table');table.className='boat-matrix-table';
+     const thead=document.createElement('thead'),heading=document.createElement('tr');
+     ['項目','1','2','3','4','5','6'].forEach(value=>{const cell=document.createElement('th');cell.textContent=value;heading.append(cell)});
+     thead.append(heading);table.append(thead);
+     const tbody=document.createElement('tbody');
+     for(const label of ['選手','全国勝率','展示タイム','チルト']){
+      const tr=document.createElement('tr'),th=document.createElement('th');th.textContent=label;tr.append(th);
+      for(let n=0;n<6;n++){const td=document.createElement('td');td.textContent=label==='選手'?'テスト選手名':'—';tr.append(td)}
+      tbody.append(tr);
+     }
+     table.append(tbody);panel.replaceChildren(table);
+    }
+    const rect=table.getBoundingClientRect();
+    const rows=[...table.querySelectorAll('tbody tr th')].map(x=>x.textContent.trim());
     return {viewport:document.documentElement.clientWidth,documentWidth:document.documentElement.scrollWidth,
-      table:rect?{left:rect.left,right:rect.right,width:rect.width}:null,
-      matrixRows:table?[...table.querySelectorAll('tbody tr th')].map(x=>x.textContent.trim()):[]};
+      bounds:{left:rect.left,right:rect.right},rows,synthetic};
    });
-   if(geometry.table){
-    if(geometry.table.right>geometry.viewport+2 || geometry.table.left< -2)
-     throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
-    if(geometry.matrixRows.filter(x=>x==='チルト').length!==1 || geometry.matrixRows.filter(x=>x==='展示タイム').length!==1)
-     throw Error('Mobile matrix duplicated tilt/exhibition at '+width+'px');
-   }
-   console.log('Mobile matrix geometry checked at '+width+'px; rendered='+Boolean(geometry.table));
+   if(geometry.bounds.right>geometry.viewport+2||geometry.bounds.left< -2)
+    throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
+   if(geometry.rows.filter(x=>x==='チルト').length!==1||geometry.rows.filter(x=>x==='展示タイム').length!==1)
+    throw Error('Duplicated exhibition fields at '+width+'px');
+   console.log('PASS matrix '+width+'px; synthetic fixture='+geometry.synthetic);
   }
   if(errors.length)throw Error('Browser errors: '+errors.join(' | '));
-  console.log('PASS: five navigation pages, venue/race selection and mobile geometry checks');
+  console.log('PASS: current page navigation and matrix CSS geometry checks; fixture runs are not proof of live race data');
  }catch(e){
   console.error('Live browser smoke FAILED:',e);
   await page.screenshot({path:'test-results/live-browser-failure.png',fullPage:true}).catch(()=>{});
