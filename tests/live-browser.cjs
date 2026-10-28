@@ -52,9 +52,13 @@ const fs=require('node:fs');
     const rect=table.getBoundingClientRect();
     const parent=panel.getBoundingClientRect();
     const rows=[...table.querySelectorAll('tbody tr th')].map(x=>x.textContent.trim());
+    const tableStyle=getComputedStyle(table),panelStyle=getComputedStyle(panel);
     return {viewport:document.documentElement.clientWidth,documentWidth:document.documentElement.scrollWidth,
-      bounds:{left:rect.left,right:rect.right},parent:{left:parent.left,right:parent.right,width:parent.width},rows,synthetic};
+      bounds:{left:rect.left,right:rect.right},parent:{left:parent.left,right:parent.right,width:parent.width},rows,synthetic,
+      style:{tableLayout:tableStyle.tableLayout,width:tableStyle.width,minWidth:tableStyle.minWidth,maxWidth:tableStyle.maxWidth,panelOverflow:panelStyle.overflowX},
+      sourceHasFitRule:[...document.styleSheets].some(sheet=>{try{return [...sheet.cssRules].some(rule=>rule.cssText.includes('#mobileRaceMatrix .boat-matrix-table'))}catch(_){return false}})};
    });
+   console.log('MATRIX_DIAGNOSTIC '+width+'px '+JSON.stringify(geometry));
    if(geometry.bounds.right>geometry.viewport+2||geometry.bounds.left< -2)
     throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
    if(geometry.rows.filter(x=>x==='チルト').length!==1||geometry.rows.filter(x=>x==='展示タイム').length!==1)
