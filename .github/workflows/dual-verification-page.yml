@@ -1,0 +1,21 @@
+name: Dual verification page checks
+on:
+  push:
+    branches: [feature/selection-dual-verification]
+  pull_request:
+    paths:
+      - "selection_dual.py"
+      - "selection.html"
+      - "server.py"
+      - "index.html"
+      - "test_selection_dual.py"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_selection_dual.py
+      - run: python -m py_compile selection_dual.py server.py
