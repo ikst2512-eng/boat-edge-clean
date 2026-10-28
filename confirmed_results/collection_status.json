@@ -1,0 +1,21 @@
+{
+  "days": [
+    {
+      "day": "20261027",
+      "http_status": null,
+      "newly_saved": 0,
+      "source_races": 168,
+      "source_url": null,
+      "status": "available"
+    },
+    {
+      "day": "20261028",
+      "http_status": null,
+      "newly_saved": 68,
+      "source_races": 75,
+      "source_url": null,
+      "status": "available"
+    }
+  ],
+  "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
+}
