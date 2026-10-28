@@ -79,8 +79,11 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
                         json.dump(payload,fp,ensure_ascii=False,sort_keys=True,indent=2)
                         fp.write("\n")
             counts["complete"]+=1
+    # Use only the latest proof-verified completed races. Never include pending.
+    recent_30 = sorted(records, key=lambda row: row["race_code"], reverse=True)[:30]
     output={"schema":"CLEAN_FOUR_MODE_PERFORMANCE_V1","simulated_only":True,
-            "budget_yen":budget_yen,"counts":counts,"modes":summary(records)}
+            "budget_yen":budget_yen,"counts":counts,"modes":summary(records),
+            "recent_30":{"sample_races":len(recent_30),"modes":summary(recent_30)}}
     save_atomic(root/"four_mode_performance"/("history-"+str(budget_yen)+".json"),
                 {"schema":"CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1","budget_yen":budget_yen,
                  "simulated_only":True,"races":sorted(history,key=lambda row:row["race_code"],reverse=True)})
