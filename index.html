@@ -532,7 +532,11 @@ async function loadHeldVenues(force=false){
     try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
     if(api.status!==503)break;
    }
-   if(!api?.ok){if(date<fmt(jst()))data=await historicalHeldVenues(date);else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');}
+   if(!api?.ok){
+    if(api?.status===404){throw Error('SCHEDULE_NOT_PUBLISHED');}
+    if(date<fmt(jst()))data=await historicalHeldVenues(date);
+    else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');
+   }
    if(!data){
    const feed=await api.json();
    if(!feed.ok||feed.date!==dayCode||!Array.isArray(feed.races))throw Error('INVALID_INDEPENDENT_SCHEDULE');
