@@ -46,6 +46,21 @@ const fs=require('node:fs');
    if(await first.locator('.clean-race-lane').count()!==6)throw Error('Published six-boat racecard incomplete');
    if((await first.locator('.clean-racer-name').first().innerText())!==published.name)throw Error('Racer name mismatch with published CSV');
    if((await first.locator('.clean-racer-class').first().innerText())!==(published.grade||'—'))throw Error('Racer grade mismatch with published CSV');
+   const details=await page.evaluate(async()=>{
+    const [titles,cards]=await Promise.all([cleanListRaceTitles('2026-10-28',1),cleanListRaceCards('2026-10-28',1)]);
+    const title=titles.get(1),racer=cards.get(1);
+    const first=document.querySelector('#homeRaceCardList .clean-race-card');
+    return {sourceTitle:title?.['レース名']||null,sourceGrade:title?.['グレード']||null,
+      shownTitle:first?.querySelector('.clean-race-tag')?.textContent||null,
+      shownGrade:first?.querySelector('.clean-race-grade')?.textContent||null,
+      sourceBranch:racer?.['艇1_支部']||null,sourceST:racer?.['艇1_全国平均ST']||null,
+      shownExtra:first?.querySelector('.clean-racer-extra')?.textContent||null};
+   });
+   if(details.sourceTitle&&details.shownTitle!==details.sourceTitle)throw Error('Race title CSV/display mismatch '+JSON.stringify(details));
+   if(details.sourceGrade&&details.sourceGrade!=='IP'&&details.shownGrade!==details.sourceGrade)throw Error('Race grade CSV/display mismatch '+JSON.stringify(details));
+   if(details.sourceBranch&&!details.shownExtra?.includes('支部 '+details.sourceBranch))throw Error('Racer branch CSV/display mismatch '+JSON.stringify(details));
+   if(details.sourceST&&Number.isFinite(Number(details.sourceST))&&!details.shownExtra?.includes('ST '+Number(details.sourceST).toFixed(2)))throw Error('Racer ST CSV/display mismatch '+JSON.stringify(details));
+   console.log('PUBLISHED_RACE_TAGS '+JSON.stringify(details));
    console.log('PUBLISHED_RACE_CARD_PASS 20261028 01 1R source_rows='+published.count);
   }else{
    console.log('PUBLISHED_RACE_CARD_UNVERIFIED CSV unavailable; do not claim live racer data passed');
