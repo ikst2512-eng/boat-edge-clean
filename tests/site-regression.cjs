@@ -219,4 +219,19 @@ assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a resul
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
 assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
+
+ // Legacy V284 parity: a pending result is neither a verified miss nor a verified hit.
+ const pendingRace='20261023-04-10';
+ for(const state of ['pending','awaiting_result','provisional','unverified']){
+   assert.equal(resultValidator({...validResult,status:state},pendingRace,now),false,'state '+state+' must not count as confirmed');
+ }
+ assert.ok(script.includes("item.hitState==='miss'?'保存予想不的中':'照合待ち'"),'unverified result rows must explicitly remain awaiting verification');
+ assert.ok(script.includes('結果未確認（不的中には集計しません）'),'unknown results must not be counted as a loss');
+ assert.ok(script.includes("verified.filter(e=>e.hitState==='hit')"),'verified hit count must use explicit hit status');
+ assert.ok(script.includes('照合待ちは不的中扱いしません'),'pending/missing results must remain distinct from misses');
+ assert.ok(script.includes("['保存済み',archived+'R'],['検証完了',completed+'R'],['結果待ち',pending+'R']"),'saved, verified and pending counts must remain distinct');
+ assert.ok(script.includes('結果一致！ ※締切前保存未確認'),'reference-only winning match must disclose unproven predeadline evidence');
+ assert.ok(script.includes('的中確定！ 締切前予想と照合済み'),'verified hit must be gated by predeadline evidence');
+ console.log('PASS: pending results never treated as verified hits or losses; reference matches remain unverified');
+
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
