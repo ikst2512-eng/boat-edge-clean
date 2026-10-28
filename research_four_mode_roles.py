@@ -5,7 +5,7 @@ The odds-aware hole mode fails closed when contemporaneous odds are unavailable.
 """
 import math
 
-CAPS = {"narrow": 5, "hit": 10, "balance": 15, "hole": 20}
+CAPS = {"narrow": 5, "hit": 12, "balance": 15, "hole": 20}
 TARGETS = {"hit": 0.60, "balance": 0.50, "hole": 0.125, "narrow": 0.40}
 
 def research_modes(prob_rows, odds=None):
@@ -17,7 +17,7 @@ def research_modes(prob_rows, odds=None):
     ordered = sorted(rows, key=lambda x: (-x[1], x[0]))
     # The existing balance diversity heuristic is the published baseline.
     result = {}
-    for mode, choices in (("narrow", ordered[:5]), ("hit", ordered[:10])):
+    for mode, choices in (("narrow", ordered[:5]), ("hit", ordered[:CAPS["hit"]])):
         result[mode] = {"tickets": [{"combo": c, "p": round(p * 100, 5)} for c,p in choices],
                         "max_tickets": CAPS[mode], "selection": "model_probability",
                         "estimated_coverage_pct": round(100 * sum(p for _,p in choices),2),
