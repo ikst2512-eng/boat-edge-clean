@@ -1138,7 +1138,7 @@ setView(activeView);render();</script></body></html if(token!==resultListRequest
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
  const verified=await Promise.all(entries.map(async item=>{
   if(item.state!=='確定')return {...item,hitState:'pending'};
-  const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race);
+  const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race).padStart(2,'0');
   try{
    let record;
    for(let attempt=0;attempt<3;attempt++){
