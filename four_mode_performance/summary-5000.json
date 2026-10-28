@@ -3,48 +3,48 @@
   "counts": {
     "archived": 132,
     "awaiting_payout": 0,
-    "awaiting_result": 125,
-    "before_deadline": 64,
-    "complete": 7,
-    "overdue_result": 61,
+    "awaiting_result": 57,
+    "before_deadline": 49,
+    "complete": 75,
+    "overdue_result": 8,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 28.57,
-      "actual_roi_pct": 17.63,
-      "hits": 2,
-      "invested_yen": 35000,
-      "profit_yen": -28830,
-      "return_yen": 6170,
-      "sample_races": 7
+      "actual_hit_rate_pct": 33.33,
+      "actual_roi_pct": 47.24,
+      "hits": 25,
+      "invested_yen": 375000,
+      "profit_yen": -197850,
+      "return_yen": 177150,
+      "sample_races": 75
     },
     "hit": {
-      "actual_hit_rate_pct": 42.86,
-      "actual_roi_pct": 85.31,
-      "hits": 3,
-      "invested_yen": 35000,
-      "profit_yen": -5140,
-      "return_yen": 29860,
-      "sample_races": 7
+      "actual_hit_rate_pct": 49.33,
+      "actual_roi_pct": 57.9,
+      "hits": 37,
+      "invested_yen": 375000,
+      "profit_yen": -157860,
+      "return_yen": 217140,
+      "sample_races": 75
     },
     "hole": {
-      "actual_hit_rate_pct": 14.29,
-      "actual_roi_pct": 1076.46,
-      "hits": 1,
-      "invested_yen": 35000,
-      "profit_yen": 341760,
-      "return_yen": 376760,
-      "sample_races": 7
+      "actual_hit_rate_pct": 8.0,
+      "actual_roi_pct": 191.8,
+      "hits": 6,
+      "invested_yen": 375000,
+      "profit_yen": 344240,
+      "return_yen": 719240,
+      "sample_races": 75
     },
     "narrow": {
-      "actual_hit_rate_pct": 14.29,
-      "actual_roi_pct": 24.0,
-      "hits": 1,
-      "invested_yen": 35000,
-      "profit_yen": -26600,
-      "return_yen": 8400,
-      "sample_races": 7
+      "actual_hit_rate_pct": 20.0,
+      "actual_roi_pct": 74.83,
+      "hits": 15,
+      "invested_yen": 375000,
+      "profit_yen": -94400,
+      "return_yen": 280600,
+      "sample_races": 75
     }
   },
   "schema": "CLEAN_FOUR_MODE_PERFORMANCE_V1",
