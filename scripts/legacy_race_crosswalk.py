@@ -2,6 +2,7 @@
 """Read-only race-key inventory for legacy -> CLEAN. No copies, deletions or scoring."""
 import argparse
 import json
+import os
 import re
 import urllib.request
 from collections import defaultdict
@@ -21,8 +22,10 @@ CLEAN_NAME = re.compile(r"^(\d{8})(\d{2})(\d{2})\.json$")
 
 def fetch_tree(repo, ref):
     url = f"https://api.github.com/repos/{repo}/git/trees/{ref}?recursive=1"
-    request = urllib.request.Request(url, headers={
-        "Accept": "application/vnd.github+json", "User-Agent": "clean-legacy-crosswalk"})
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "clean-legacy-crosswalk"}
+    if os.getenv("GH_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=60) as response:
         doc = json.load(response)
     if doc.get("truncated"):
