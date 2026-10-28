@@ -25,6 +25,7 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
     archive_dir=root/"four_mode_forecasts"
     result_dir=root/"confirmed_results"
     records=[]
+    history=[]
     counts={"archived":0,"awaiting_result":0,"before_deadline":0,"overdue_result":0,"awaiting_payout":0,"unverified":0,"complete":0}
     if archive_dir.exists():
         for path in sorted(archive_dir.glob("*.json")):
@@ -57,6 +58,9 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
                 counts["awaiting_payout"]+=1
                 continue
             records.append(entry)
+            history.append({"race_code":path.stem,"finish":winner,
+                            "payout_per_100_yen":payout,
+                            "modes":entry["modes"]})
             if budget_yen==5000:
                 # Derived results are published only after exact first-Git-add,
                 # CLEAN confirmed result and actual official payout validation.
@@ -77,6 +81,9 @@ def run(root=ROOT,budget_yen=5000,payout_loader=payout_for,proof_checker=attest_
             counts["complete"]+=1
     output={"schema":"CLEAN_FOUR_MODE_PERFORMANCE_V1","simulated_only":True,
             "budget_yen":budget_yen,"counts":counts,"modes":summary(records)}
+    save_atomic(root/"four_mode_performance"/("history-"+str(budget_yen)+".json"),
+                {"schema":"CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1","budget_yen":budget_yen,
+                 "simulated_only":True,"races":sorted(history,key=lambda row:row["race_code"],reverse=True)})
     save_atomic(root/"four_mode_performance"/("summary-"+str(budget_yen)+".json"),output)
     return output
 
