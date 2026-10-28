@@ -94,7 +94,13 @@ const fs=require('node:fs');
   if(labels.some(x=>!['◎ 予想的中','予想不的中','予想未検証'].includes(x)))throw Error('Unknown result verification badge');
   // Actual archived, independently verified miss: Karatsu 9R on 2026-10-28.
   const missCard=page.locator('#resultList .clean-race-card').nth(8);
+  const missProof=await page.evaluate(async()=>{
+   const key='20261028-23-09';
+   try{const proof=await verifiedFourModeRace(key);return {status:'valid',finish:proof.official_finish,modes:Object.values(proof.modes).map(m=>m.hit)}}
+   catch(e){return {status:'error',error:String(e)}}
+  });
   const actualMiss=await missCard.locator('.clean-race-verdict').innerText();
+  console.log('MISS_PROOF_DIAGNOSTIC '+JSON.stringify({missProof,actualMiss}));
   if(actualMiss==='◎ 予想的中')throw Error('False hit displayed for verified miss Karatsu 9R');
   if(actualMiss==='予想不的中')console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
   else console.log('PUBLISHED_VERIFIED_MISS_UNVERIFIED browser failed to resolve proof for Karatsu 9R: '+actualMiss);
