@@ -28,6 +28,9 @@ class DiagnosticsTests(unittest.TestCase):
                                "budget_yen": 5000, "races": races}, root)
             one = report["modes"]["hit"]
             self.assertEqual(one["hit_rank_counts"], {"1": 1})
+            self.assertEqual(one["profitable_hits"], 0)
+            self.assertEqual(one["nonprofitable_hits"], 1)
+            self.assertEqual(one["winning_stake_counts"], {})
             self.assertEqual(one["miss_types"], {"third_only_missing": 1, "first_missing": 1})
             self.assertEqual(one["third_only_missing_boats"], {"4": 1})
             self.assertEqual(one["missed_winner_first_boats"], {"1": 1, "2": 1})
