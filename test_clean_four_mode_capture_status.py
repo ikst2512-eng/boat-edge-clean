@@ -40,6 +40,27 @@ class CaptureStatusTests(unittest.TestCase):
             self.assertEqual(result["source_probes"]["title"]["http_status"],404)
             self.assertEqual(result["source_probes"]["race_cards"]["status"],"available")
             self.assertEqual(result["eligible_forecasts_today"],0)
+    def test_direct_403_keeps_blocked_url_distinct_from_unpublished_404(self):
+        from urllib.error import HTTPError
+        from unittest.mock import patch
+        from clean_four_mode_capture import collect
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,10,29,7,0,tzinfo=JST)
+            def unpublished(url):
+                raise HTTPError(url,404,"Not Found",None,None)
+            blocked="https://race.boatcast.jp/api_txt/getHoldingList2_20261029.json"
+            def blocked_holding(day):
+                raise HTTPError(blocked,403,"Forbidden",None,None)
+            with patch("clean_direct_sources.holding_rows",side_effect=blocked_holding):
+                result=collect(root=Path(tmp),now=now,read=unpublished)
+            self.assertEqual(result["source_status"],"source_incomplete")
+            self.assertEqual(result["source_probes"]["title"]["status"],"not_published")
+            self.assertEqual(result["source_probes"]["race_cards"]["status"],"not_published")
+            direct=result["source_probes"]["direct_error"]
+            self.assertEqual(direct["http_status"],403)
+            self.assertEqual(direct["source_url"],blocked)
+            self.assertEqual(result["new_saved"],[])
+
     def test_archived_forecasts_counted_separately(self):
         with tempfile.TemporaryDirectory() as tmp:
             state=publish_status({"new_saved":["202610280101"],"source_status":"available",
