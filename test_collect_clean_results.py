@@ -41,6 +41,27 @@ class ResultCollectorTests(unittest.TestCase):
             self.assertEqual(data["days"][1]["newly_saved"],7)
             record=json.loads((Path(folder)/"confirmed_results"/"collection_status.json").read_text())
             self.assertEqual(record,data)
+    def test_audit_lists_overdue_without_mislabeling_future_races(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            forecasts=root/"four_mode_forecasts"
+            results=root/"confirmed_results"
+            forecasts.mkdir()
+            results.mkdir()
+            for code,deadline in [
+                ("202610280101","2026-10-28T14:00:00+09:00"),
+                ("202610280102","2026-10-28T16:00:00+09:00"),
+                ("202610280103","2026-10-28T20:00:00+09:00")]:
+                (forecasts/(code+".json")).write_text(json.dumps({"race_code":code,"deadline_jst":deadline}),encoding="utf-8")
+            (results/"202610280102.json").write_text('{"status":"confirmed"}',encoding="utf-8")
+            now=datetime.fromisoformat("2026-10-28T18:00:00+09:00")
+            self.assertEqual(c.audit_missing_results(root,now),["202610280101"])
+            report={"days":[{"day":"20261027","source_races":10,"saved":0},{"day":"20261028","source_races":5,"saved":0}]}
+            output=c.publish_collection_status(report,root,now)
+            self.assertEqual(output["overdue_result_count"],1)
+            self.assertEqual(output["overdue_race_codes"],["202610280101"])
+            self.assertEqual(output["checked_at_jst"],now.isoformat())
+
     def test_retries_yesterday_and_today(self):
         calls=[]
         now=datetime.fromisoformat("2026-10-28T08:00:00+09:00")

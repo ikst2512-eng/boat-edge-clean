@@ -117,11 +117,41 @@ def collect_recent(now=None, collector=collect):
     return {"status": "checked", "days": [collector(day) for day in dates]}
 
 
-def publish_collection_status(report, root=ROOT):
+def audit_missing_results(root=ROOT, now=None):
+    """List only overdue CLEAN frozen races without a confirmed result file.
+
+    Missing files are not treated as misses or fake result confirmations.
+    """
+    now = now or datetime.now(JST)
+    forecasts = root / "four_mode_forecasts"
+    confirmed = root / "confirmed_results"
+    missing = []
+    if forecasts.exists():
+        for file in sorted(forecasts.glob("*.json")):
+            code = file.stem
+            if not RACE_RE.fullmatch(code) or (confirmed / (code + ".json")).is_file():
+                continue
+            try:
+                record = json.loads(file.read_text(encoding="utf-8"))
+                if record.get("race_code") != code:
+                    continue
+                deadline = datetime.fromisoformat(record["deadline_jst"])
+                if deadline.utcoffset() is None or deadline >= now:
+                    continue
+            except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+                continue
+            missing.append(code)
+    return missing
+
+
+def publish_collection_status(report, root=ROOT, now=None):
     """Make upstream publication progress auditable without fabricating results."""
     items=report.get("days",[])
     if not isinstance(items,list) or len(items)!=2:raise ValueError("invalid_collection_report")
-    payload={"schema":"CLEAN_RESULT_COLLECTION_STATUS_V1","days":[{
+    now = now or datetime.now(JST)
+    overdue = audit_missing_results(root, now)
+    payload={"schema":"CLEAN_RESULT_COLLECTION_STATUS_V1","checked_at_jst":now.isoformat(),
+             "overdue_result_count":len(overdue),"overdue_race_codes":overdue,"days":[{
         "day":x.get("day"),"status":x.get("status","available"),
         "source_races":x.get("source_races",0),"newly_saved":x.get("saved",0),
         "http_status":x.get("http_status"),"source_url":x.get("source_url")
