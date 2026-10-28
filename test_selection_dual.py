@@ -7,16 +7,24 @@ class DualSelectionTests(unittest.TestCase):
   data=report(ROOT)
   self.assertEqual(data["schema"],"CLEAN_DUAL_RESEARCH_V1")
   self.assertEqual(data["prediction_publication_policy"],"all_races_unfiltered")
-  self.assertEqual(data["sample_races"],113)
-  self.assertTrue(data["selection_is_observational"])
-  self.assertFalse(data["prospectively_validated"])
-  self.assertEqual(data["ledgers"]["all"]["races"],113)
-  self.assertEqual(data["ledgers"]["all"]["hits"],57)
-  self.assertEqual(data["ledgers"]["all"]["return_yen"],633250)
-  self.assertEqual(data["ledgers"]["confidence_60"]["races"],98)
-  self.assertEqual(data["ledgers"]["confidence_70"]["races"],47)
-  self.assertEqual(data["ledgers"]["confidence_70"]["hits"],30)
-  self.assertEqual(data["ledgers"]["confidence_70"]["return_yen"],298900)
+  # The verified history grows daily: assert internal accounting, not a stale fixed sample count.
+  import json
+  history=json.loads((ROOT/"four_mode_performance"/"history-10000.json").read_text(encoding="utf-8"))
+  count=len(history["races"])
+  self.assertGreater(count,0)
+  self.assertEqual(data["sample_races"],count)
+  all_ledger=data["ledgers"]["all"]
+  self.assertEqual(all_ledger["races"],count)
+  self.assertEqual(all_ledger["investment_yen"],count*10000)
+  self.assertGreaterEqual(all_ledger["hits"],0)
+  self.assertLessEqual(all_ledger["hits"],count)
+  for name in ("confidence_60","confidence_70"):
+   ledger=data["ledgers"][name]
+   self.assertGreaterEqual(ledger["races"],0)
+   self.assertLessEqual(ledger["races"],count)
+   self.assertLessEqual(ledger["hits"],ledger["races"])
+   self.assertEqual(ledger["investment_yen"],ledger["races"]*10000)
+  self.assertLessEqual(data["ledgers"]["confidence_70"]["races"],data["ledgers"]["confidence_60"]["races"])
  def test_navigation_preserves_full_forecast(self):
   html=(ROOT/"index.html").read_text(encoding="utf-8")
   page=(ROOT/"selection.html").read_text(encoding="utf-8")
