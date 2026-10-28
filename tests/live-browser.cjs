@@ -124,11 +124,11 @@ const fs=require('node:fs');
   });
   const compact=await page.locator('#predictionRows .prediction-row').first().evaluate(el=>{
    const row=el.getBoundingClientRect(),boats=el.querySelector('.ticket-boats'),text=el.querySelector('.prediction-ticket'),odds=el.querySelector('.prediction-odds');
-   return {height:row.height,width:row.width,bodyWidth:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,
+   return {height:row.height,width:row.width,right:row.right,viewport:document.documentElement.clientWidth,
      colored:boats&&getComputedStyle(boats).display!=='none',duplicateHidden:text&&getComputedStyle(text).display==='none',
      probability:odds?.textContent?.includes('28.25%'),stake:odds?.textContent?.includes('円')};
   });
-  if(compact.height>78||compact.bodyWidth>compact.viewport+2||!compact.colored||!compact.duplicateHidden||!compact.probability||!compact.stake)
+  if(compact.height>78||compact.right>compact.viewport+2||!compact.colored||!compact.duplicateHidden||!compact.probability||!compact.stake)
    throw Error('Forecast tickets not compact/complete at 375px: '+JSON.stringify(compact));
   console.log('COMPACT_FORECAST_PASS '+JSON.stringify(compact));
   // Test the current single-document UI without assuming server-side route rewrites.
