@@ -2,6 +2,9 @@
 
 NOT the odds-aware hole model. No betting recommendation or prospective proof.
 All variants select tickets from archived pre-race input rates only.
+One-head + 20 tickets is exhaustive: 1 first-place boat has exactly 20
+possible second/third combinations, so first-place capture equals trifecta hit.
+For two/three heads, 20 tickets is partial coverage and can miss combinations.
 """
 import json
 from pathlib import Path
