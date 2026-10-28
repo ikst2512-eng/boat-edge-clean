@@ -515,7 +515,7 @@ async function loadResultList(){
    }
    if(record.official_finish!==item.match){verified.push({...item,hitState:'pending'});continue}
    verified.push({...item,hitState:Object.values(record.modes).some(m=>m.hit)?'hit':'miss',winningModes:[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']].filter(([k])=>record.modes[k].hit).map(([,v])=>v)});
-  }catch(_){verified.push({...item,hitState:'pending'})}
+  }catch(error){console.warn('CLEAN_VERIFY_PENDING',key,String(error));verified.push({...item,hitState:'pending'})}
  }
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
  const [cards,titles]=await Promise.all([cleanListRaceCards(date,venue),cleanListRaceTitles(date,venue)]);
