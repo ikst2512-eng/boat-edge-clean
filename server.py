@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
         path = urlsplit(self.path).path.rstrip('/') or '/'
-        if path in ('/', '/index.html', '/forecast', '/exhibition', '/card', '/results', '/review', '/selection', '/healthz'):
+        if path in ('/', '/index.html', '/forecast', '/exhibition', '/card', '/results', '/review', '/selection', '/daily-findings', '/healthz'):
             status = 200
         else:
             status = 404
@@ -212,6 +212,18 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results", "/review"):
             body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/daily-findings":
+            body = (ROOT / "daily_findings.html").read_bytes()
+            status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/api/daily-findings":
+            try:
+                from daily_findings import daily_findings
+                status, data = 200, daily_findings()
+            except (ValueError, KeyError, OSError, TypeError) as exc:
+                logging.exception("daily_findings_unavailable")
+                status, data = 503, {"ok": False, "error": "FINDINGS_UNAVAILABLE"}
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/selection":
             body = (ROOT / "selection.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
