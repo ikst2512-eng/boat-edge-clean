@@ -768,7 +768,9 @@ async function loadOverdueResultAudit(){
   }
  }catch(_){status.textContent='現在、未取得レースの詳細は確認できません。未検証として扱います。';}
 }
+let fourModePerformanceRequest=0;
 async function loadFourModePerformance(){
+ const request=++fourModePerformanceRequest;
  const budget=Number(document.getElementById('performanceBudget').value),status=document.getElementById('fourModeStatus'),grid=document.getElementById('fourModeMetrics'),progress=document.getElementById('verificationProgress');
  loadVerifiedHitHistory(budget);
  loadOverdueResultAudit();
@@ -780,7 +782,11 @@ async function loadFourModePerformance(){
   const response=await fetchTimed(url+'?cache='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('NOT_YET_PUBLISHED');
   const d=await response.json();
+  if(request!==fourModePerformanceRequest||budget!==Number(document.getElementById('performanceBudget').value))return;
   if(d.schema!=='CLEAN_FOUR_MODE_PERFORMANCE_V1'||d.simulated_only!==true||d.budget_yen!==budget||!d.modes)throw Error('BUDGET_NOT_VERIFIED');
+  // A previous overlapping request may have rendered while this one awaited fetch.
+  // Clear at commit time, not just at request start, to guarantee exactly four cards.
+  grid.replaceChildren();
   const c=d.counts||{},completed=Number(c.complete)||0,archived=Number(c.archived)||0,pending=Number(c.awaiting_result)||0;
   progress.replaceChildren();
   for(const [label,value] of [['保存済み',archived+'R'],['検証完了',completed+'R'],['結果待ち',pending+'R']]){
@@ -811,6 +817,7 @@ async function loadFourModePerformance(){
   }else{recent.textContent='直近30レースの実績は次回集計後に表示します。';}
   status.textContent='締切後の結果未取得 '+(c.overdue_result??0)+'R ／ 締切前 '+(c.before_deadline??0)+'R。回収率100%が損益分岐です。';
  }catch(e){
+  if(request!==fourModePerformanceRequest)return;
   progress.textContent='実績データを取得できませんでした';
   status.textContent='検証済み実績はまだ表示できません。未検証の数値は表示しません。';
  }
