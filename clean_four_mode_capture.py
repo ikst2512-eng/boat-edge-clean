@@ -62,7 +62,16 @@ def collect(root=ROOT, now=None, read=read_rows):
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
     titles,title_received,title_sha=datasets["title"]
     cards,card_received,card_sha=datasets["race_cards"]
-    cards_by_code={r.get("レースコード"):r for r in cards}
+    cards_by_code={}
+    duplicate_codes=set()
+    for card in cards:
+        code=card.get("レースコード")
+        if code in cards_by_code:
+            duplicate_codes.add(code)
+        else:
+            cards_by_code[code]=card
+    for code in duplicate_codes:
+        cards_by_code.pop(code,None)
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
     for title in titles:

@@ -1,0 +1,29 @@
+name: CLEAN four-mode input integrity
+on:
+  pull_request:
+    paths:
+      - clean_four_mode_capture.py
+      - test_clean_duplicate_capture_input.py
+      - test_clean_four_mode_capture_e2e.py
+      - .github/workflows/clean-four-mode-input-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - clean_four_mode_capture.py
+      - test_clean_duplicate_capture_input.py
+      - test_clean_four_mode_capture_e2e.py
+      - .github/workflows/clean-four-mode-input-tests.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_clean_duplicate_capture_input test_clean_four_mode_capture_e2e
