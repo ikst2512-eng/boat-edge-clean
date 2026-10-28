@@ -54,7 +54,7 @@ def research_modes(prob_rows, odds=None):
     selections = candidates[:CAPS["hole"]]
     result["hole"] = {"tickets":[{"combo":c,"p":round(p*100,5),"odds":odds[c],
                                     "estimated_ev":round(p*odds[c],5)} for c,p in selections],
-                      "max_tickets":30, "selection":"uncalibrated_expected_value",
+                      "max_tickets":CAPS["hole"], "selection":"uncalibrated_expected_value",
                       "status":"research_only_not_a_betting_signal",
                       "target_hit_rate_pct":12.5,"target_proven":False}
     return result
