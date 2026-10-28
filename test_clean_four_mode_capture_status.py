@@ -51,7 +51,7 @@ class CaptureStatusTests(unittest.TestCase):
             blocked="https://race.boatcast.jp/api_txt/getHoldingList2_20261029.json"
             def blocked_holding(day):
                 raise HTTPError(blocked,403,"Forbidden",None,None)
-            with patch("clean_direct_sources.holding_rows",side_effect=blocked_holding):
+            with patch("clean_direct_sources.holding_rows",side_effect=blocked_holding),patch("clean_openapi_sources.load",side_effect=ValueError("unavailable_fixture")):
                 result=collect(root=Path(tmp),now=now,read=unpublished)
             self.assertEqual(result["source_status"],"source_blocked")
             self.assertEqual(result["source_probes"]["title"]["status"],"not_published")
