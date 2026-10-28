@@ -175,7 +175,7 @@ assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed win
 assert.ok(script.includes("record.modes[mode].hit===t.some"),'archived mode hits must match proof-gated race result');
 assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
-assert.ok(script.includes("このレースで的中した予想"),'single race answer checks must summarize winning modes');
+assert.ok(script.includes("review-hit-summary"),'single race answer checks must summarize only winning modes');
 assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
 assert.ok(html.includes('.review-hit-summary'),'verified race wins must be visually prominent');
 assert.ok(script.includes("winners.length?'● 的中：'"),'verified hit summary must include mark');
