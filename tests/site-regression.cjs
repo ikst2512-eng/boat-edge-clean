@@ -189,4 +189,9 @@ assert.ok(script.includes('d.recent_30?.modes?.hit'),'rolling metric uses verifi
 assert.ok(script.includes('let fourModePerformanceRequest=0;'),'overlapping verification fetches must have a request token');
 assert.ok(script.includes('if(request!==fourModePerformanceRequest||budget!==Number(document.getElementById(\'performanceBudget\').value))return;'),'outdated responses must never render cards');
 assert.ok(script.includes('grid.replaceChildren();\n  const c=d.counts'),'clear four-mode cards again at the commit point');
+assert.ok(html.includes('id="forecastVenue"')&&html.includes('id="forecastRace"'),'forecast has direct venue and race selectors');
+assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved from home to forecast');
+assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
+assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
+assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile tabs are compact five columns');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
