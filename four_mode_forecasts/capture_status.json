@@ -11,6 +11,7 @@
   "source_probes": {
     "direct_error": {
       "http_status": 403,
+      "source_url": "https://race.boatcast.jp/api_txt/getHoldingList2_20261029.json",
       "status": "error",
       "type": "HTTPError"
     },
