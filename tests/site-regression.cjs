@@ -202,6 +202,8 @@ assert.strictEqual((script.match(/\['チルト',r=>txt\(byLane\(preview,r\.lane\
 assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard must be designed to fit viewport');
 assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
+assert.strictEqual((html.match(/\/\* Six-lane matrix fits a phone viewport without horizontal scrolling\. \*\//g)||[]).length,1,'mobile matrix responsive CSS has one canonical block');
+assert.strictEqual((html.match(/@media\(max-width:720px\)\{#mobileRaceMatrix\{overflow-x:visible!important;max-width:100%\}/g)||[]).length,0,'old duplicate mobile matrix override must not return');
 assert.ok(script.includes("['チルト',r=>txt("),'mobile matrix must show tilt');
 assert.ok(script.includes('直前データ未取得です'),'missing beforeinfo must be explicitly explained');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
