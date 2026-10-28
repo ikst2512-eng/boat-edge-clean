@@ -157,4 +157,11 @@ assert.ok(!heldSource.includes("EDGE_RAW+'/main/data/today.json'"),'historical v
 assert.ok(heldSource.includes("feed.date!==dayCode"),'API schedule must match requested historical date');
 assert.ok(heldSource.includes("if(token!==venueRequest||date!==s.date)return"),'stale venue request must not overwrite selected day');
 assert.ok(script.includes("s.date===fmt(jst())?'本日のレース '"),'historical venue heading must show selected date');
+assert.ok(html.includes('id="verificationProgress"'),'verification progress summary must be present');
+assert.ok(html.includes('class="verification-modes"'),'four-mode responsive card grid must be present');
+for(const label of ['的中率','回収率','的中','購入想定','払戻想定','収支','少数サンプル']){
+ assert.ok(script.includes(label),'verification must display '+label);
+}
+assert.ok(script.includes('v.sample_races>0?number(v.actual_hit_rate_pct)'),'unverified hit rates must not be displayed');
+assert.ok(script.includes('v.sample_races>0?number(v.actual_roi_pct)'),'unverified ROI must not be displayed');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
