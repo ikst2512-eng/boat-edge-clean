@@ -36,5 +36,11 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest -v test_selection_dual.py
       - run: python -m py_compile selection_dual.py server.py
-      - name: Inspect dual ledger from verified records
-        run: python -c 'import json, selection_dual; print(json.dumps(selection_dual.report(), ensure_ascii=False, indent=2))'
+      - name: Inspect and preserve both verified cohort ledgers
+        run: |
+          python -c 'import json, selection_dual; print(json.dumps(selection_dual.report(), ensure_ascii=False, indent=2))' | tee dual-verification-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dual-verification-cohort-results
+          path: dual-verification-results.json
+          retention-days: 14
