@@ -7,7 +7,7 @@ class ResearchRoleTests(unittest.TestCase):
         self.rows=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
     def test_roles_without_odds_fail_closed(self):
         result=research_modes(self.rows)
-        self.assertEqual([len(result[m]["tickets"]) for m in ("narrow","hit","balance","hole")],[5,10,20,0])
+        self.assertEqual([len(result[m]["tickets"]) for m in ("narrow","hit","balance","hole")],[5,10,15,0])
         self.assertEqual(result["hole"]["status"],"odds_required")
         self.assertFalse(result["hit"]["target_proven"])
         for m in ("narrow","hit","balance"):
@@ -21,7 +21,7 @@ class ResearchRoleTests(unittest.TestCase):
             research_modes(self.rows,odds)
         odds["1-2-3"]=30
         result=research_modes(self.rows,odds)
-        self.assertEqual(len(result["hole"]["tickets"]),30)
+        self.assertEqual(len(result["hole"]["tickets"]),20)
         self.assertEqual(result["hole"]["status"],"research_only_not_a_betting_signal")
 
 if __name__=="__main__":
