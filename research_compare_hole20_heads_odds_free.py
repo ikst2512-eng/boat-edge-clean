@@ -45,16 +45,21 @@ def compare(history,root=ROOT):
         if verified["hit"]!=(winner in original) or verified["return_yen"]!=original.get(winner,0)*race["payout_per_100_yen"]//100:
             raise ValueError("original_hole_settlement_mismatch")
         rates=archive["input_national_win_rates"]
+        board=probabilities(rates)
+        mass={i:sum(p for t,p in board if t[0]==i) for i in range(1,7)}
+        ranked_heads=sorted(mass,key=lambda i:(-mass[i],i))
         for n in (1,2,3):
             combos=tickets_under_heads(rates,n)
             stakes=allocate(combos,10000)
             # Head inclusion across the entire first-place candidate pool, not only tickets.
-            board=probabilities(rates)
-            mass={i:sum(p for t,p in board if t[0]==i) for i in range(1,7)}
-            allowed=set(sorted(mass,key=lambda i:(-mass[i],i))[:n])
+            allowed=set(ranked_heads[:n])
             metrics[str(n)]["head_captured"]+=int(int(winner[0]) in allowed)
+            if n==1 and (winner in stakes)!=(int(winner[0]) in allowed):
+                raise ValueError("single_head_exhaustiveness_broken")
             metrics[str(n)]["hits"]+=int(winner in stakes)
             metrics[str(n)]["return_yen"]+=stakes.get(winner,0)*race["payout_per_100_yen"]//100
+    if metrics["1"]["hits"]!=metrics["1"]["head_captured"]:
+        raise ValueError("single_head_capture_invariant_failed")
     cost=len(seen)*10000
     for v in metrics.values():
         v["hit_rate_pct"]=round(100*v["hits"]/len(seen),2) if seen else None
