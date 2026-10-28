@@ -1,4 +1,5 @@
 import unittest
+from urllib.error import HTTPError
 from datetime import datetime
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -33,6 +34,14 @@ class ScheduleTests(unittest.TestCase):
         with patch.object(s,"read_rows",side_effect=error):
             status,data=s.clean_schedule("20261029")
         self.assertEqual((status,data["status"]),(503,"source_unavailable"))
+
+    def test_upstream_missing_daily_file_is_not_empty_schedule(self):
+        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)):
+            status,data=s.clean_schedule("20261029")
+        self.assertEqual(status,503)
+        self.assertEqual(data["upstream_http_status"],404)
+        self.assertTrue(data["retryable"])
+        self.assertEqual(data["date"],"20261029")
 
     def test_upstream_failure_no_old_fallback(self):
         with patch.object(s,"read_rows",side_effect=TimeoutError()):
