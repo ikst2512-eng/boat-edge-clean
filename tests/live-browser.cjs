@@ -52,6 +52,7 @@ const fs=require('node:fs');
     return {title:title?.['レース名']||null,grade:title?.['グレード']||null,branch:racer?.['艇1_支部']||null,st:racer?.['艇1_全国平均ST']||null};
    });
    if(expected.title){
+    await page.waitForFunction(name=>[...document.querySelectorAll('#homeRaceCardList .clean-race-tag')].some(el=>el.textContent===name),expected.title,{timeout:15000});
     const rendered=await first.locator('.clean-race-tag').allInnerTexts();
     if(!rendered.includes(expected.title))throw Error('Published race name mismatch: '+JSON.stringify({expected,rendered}));
    }
