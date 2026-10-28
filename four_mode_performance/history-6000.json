@@ -7,22 +7,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5080
+          "return_yen": 5080,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-4-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1270,
@@ -34,22 +42,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 150400
+          "return_yen": 150400,
+          "winning_stake_yen": 500,
+          "winning_ticket": "4-1-6"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 30080,
@@ -61,22 +77,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 32150
+          "return_yen": 32150,
+          "winning_stake_yen": 500,
+          "winning_ticket": "2-3-6"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 6430,
@@ -88,22 +112,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 31950,
@@ -115,22 +147,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4410
+          "return_yen": 4410,
+          "winning_stake_yen": 300,
+          "winning_ticket": "4-5-1"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2940
+          "return_yen": 2940,
+          "winning_stake_yen": 200,
+          "winning_ticket": "4-5-1"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1470,
@@ -142,22 +182,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1540,
@@ -169,22 +217,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4230
+          "return_yen": 4230,
+          "winning_stake_yen": 300,
+          "winning_ticket": "3-1-2"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4230
+          "return_yen": 4230,
+          "winning_stake_yen": 300,
+          "winning_ticket": "3-1-2"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1410,
@@ -196,22 +252,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 8520
+          "return_yen": 8520,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5680
+          "return_yen": 5680,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 17040
+          "return_yen": 17040,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 1420,
@@ -223,22 +287,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 24420
+          "return_yen": 24420,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 12210,
@@ -250,22 +322,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3850,
@@ -277,22 +357,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 470950
+          "return_yen": 470950,
+          "winning_stake_yen": 500,
+          "winning_ticket": "4-1-5"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 94190,
@@ -304,22 +392,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4380
+          "return_yen": 4380,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-3-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3650
+          "return_yen": 3650,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-3-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 730,
@@ -331,22 +427,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5300,
@@ -358,22 +462,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3080
+          "return_yen": 3080,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-2"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2310
+          "return_yen": 2310,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-2"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 9240
+          "return_yen": 9240,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-3-2"
         }
       },
       "payout_per_100_yen": 770,
@@ -385,22 +497,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 13410
+          "return_yen": 13410,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4470,
@@ -412,22 +532,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 15000
+          "return_yen": 15000,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5000,
@@ -439,22 +567,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5340
+          "return_yen": 5340,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2670,
@@ -466,22 +602,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3630,
@@ -493,22 +637,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2610
+          "return_yen": 2610,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-2"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 1740
+          "return_yen": 1740,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-2"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 10440
+          "return_yen": 10440,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-3-2"
         }
       },
       "payout_per_100_yen": 870,
@@ -520,22 +672,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5490
+          "return_yen": 5490,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-5"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3660
+          "return_yen": 3660,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 21960
+          "return_yen": 21960,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-5"
         }
       },
       "payout_per_100_yen": 1830,
@@ -547,22 +707,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 13320
+          "return_yen": 13320,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-4-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 11100
+          "return_yen": 11100,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-4-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2220,
@@ -574,22 +742,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 21200,
@@ -601,22 +777,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2160
+          "return_yen": 2160,
+          "winning_stake_yen": 300,
+          "winning_ticket": "3-1-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 720,
@@ -628,22 +812,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3080,
@@ -655,22 +847,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2570,
@@ -682,22 +882,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1070,
@@ -709,22 +917,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5600
+          "return_yen": 5600,
+          "winning_stake_yen": 700,
+          "winning_ticket": "1-3-2"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4000
+          "return_yen": 4000,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-3-2"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 9600
+          "return_yen": 9600,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-3-2"
         }
       },
       "payout_per_100_yen": 800,
@@ -736,22 +952,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 12840
+          "return_yen": 12840,
+          "winning_stake_yen": 300,
+          "winning_ticket": "5-1-6"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 8560
+          "return_yen": 8560,
+          "winning_stake_yen": 200,
+          "winning_ticket": "5-1-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4280,
@@ -763,22 +987,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2560,
@@ -790,22 +1022,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 6250,
@@ -817,22 +1057,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4360,
@@ -844,22 +1092,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6480
+          "return_yen": 6480,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-4-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1620,
@@ -871,22 +1127,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3120
+          "return_yen": 3120,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2340
+          "return_yen": 2340,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 9360
+          "return_yen": 9360,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 780,
@@ -898,22 +1162,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 16920
+          "return_yen": 16920,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-5"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 12690
+          "return_yen": 12690,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4230,
@@ -925,22 +1197,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 39330,
@@ -952,22 +1232,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5260,
@@ -979,22 +1267,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6720
+          "return_yen": 6720,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-4-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5040
+          "return_yen": 5040,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1680,
@@ -1006,22 +1302,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 13240,
@@ -1033,22 +1337,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 26550,
@@ -1060,22 +1372,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3800
+          "return_yen": 3800,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-5-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1900,
@@ -1087,22 +1407,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2400
+          "return_yen": 2400,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 1800
+          "return_yen": 1800,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 7200
+          "return_yen": 7200,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 600,
@@ -1114,22 +1442,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 6390,
@@ -1141,22 +1477,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5310,
@@ -1168,22 +1512,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 28300,
@@ -1195,22 +1547,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 26150
+          "return_yen": 26150,
+          "winning_stake_yen": 500,
+          "winning_ticket": "3-4-5"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5230,
@@ -1222,22 +1582,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4850
+          "return_yen": 4850,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-2-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3880
+          "return_yen": 3880,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 11640
+          "return_yen": 11640,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-4"
         }
       },
       "payout_per_100_yen": 970,
@@ -1249,22 +1617,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 8950
+          "return_yen": 8950,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-3-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5370
+          "return_yen": 5370,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1790,
@@ -1276,22 +1652,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3600
+          "return_yen": 3600,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2400
+          "return_yen": 2400,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 14400
+          "return_yen": 14400,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-4"
         }
       },
       "payout_per_100_yen": 1200,
@@ -1303,22 +1687,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 113400
+          "return_yen": 113400,
+          "winning_stake_yen": 500,
+          "winning_ticket": "3-4-5"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 22680,
@@ -1330,22 +1722,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5260,
@@ -1357,22 +1757,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 25560
+          "return_yen": 25560,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 19170
+          "return_yen": 19170,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 76680
+          "return_yen": 76680,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 6390,
@@ -1384,22 +1792,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4880,
@@ -1411,22 +1827,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3360
+          "return_yen": 3360,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2520
+          "return_yen": 2520,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 10080
+          "return_yen": 10080,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 840,
@@ -1438,22 +1862,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2370,
@@ -1465,22 +1897,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 16170
+          "return_yen": 16170,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-5"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 10780
+          "return_yen": 10780,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 5390,
@@ -1492,22 +1932,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 13450
+          "return_yen": 13450,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-3-6"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 8070
+          "return_yen": 8070,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2690,
@@ -1519,22 +1967,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2820
+          "return_yen": 2820,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 2350
+          "return_yen": 2350,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5640
+          "return_yen": 5640,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 470,
@@ -1546,22 +2002,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 8040
+          "return_yen": 8040,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6700
+          "return_yen": 6700,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 16080
+          "return_yen": 16080,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 1340,
@@ -1573,22 +2037,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 1460
+          "return_yen": 1460,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-4-6"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 730,
@@ -1600,22 +2072,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 7740
+          "return_yen": 7740,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-2-5"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5160
+          "return_yen": 5160,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 15480
+          "return_yen": 15480,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-5"
         }
       },
       "payout_per_100_yen": 1290,
@@ -1627,22 +2107,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6940
+          "return_yen": 6940,
+          "winning_stake_yen": 200,
+          "winning_ticket": "4-3-1"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3470,
@@ -1654,22 +2142,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3170,
@@ -1681,22 +2177,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 14660
+          "return_yen": 14660,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 7330,
@@ -1708,22 +2212,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6600
+          "return_yen": 6600,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 2200,
@@ -1735,22 +2247,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5450
+          "return_yen": 5450,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-3-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4360
+          "return_yen": 4360,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1090,
@@ -1762,22 +2282,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 3500
+          "return_yen": 3500,
+          "winning_stake_yen": 200,
+          "winning_ticket": "4-6-5"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1750,
@@ -1789,22 +2317,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 10420,
@@ -1816,22 +2352,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3620,
@@ -1843,22 +2387,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 9750
+          "return_yen": 9750,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6500
+          "return_yen": 6500,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 39000
+          "return_yen": 39000,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "2-1-3"
         }
       },
       "payout_per_100_yen": 3250,
@@ -1870,22 +2422,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 6840
+          "return_yen": 6840,
+          "winning_stake_yen": 600,
+          "winning_ticket": "1-4-2"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 4560
+          "return_yen": 4560,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-4-2"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1140,
@@ -1897,22 +2457,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 24160,
@@ -1924,22 +2492,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 30960,
@@ -1951,22 +2527,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 14070,
@@ -1978,22 +2562,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 68400
+          "return_yen": 68400,
+          "winning_stake_yen": 500,
+          "winning_ticket": "2-4-5"
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 13680,
@@ -2005,22 +2597,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1890,
@@ -2032,22 +2632,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5520
+          "return_yen": 5520,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 5520
+          "return_yen": 5520,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 22080
+          "return_yen": 22080,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-3"
         }
       },
       "payout_per_100_yen": 1840,
@@ -2059,22 +2667,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3080,
@@ -2086,22 +2702,30 @@
         "balance": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 18060
+          "return_yen": 18060,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-4"
         },
         "hit": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 12040
+          "return_yen": 12040,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-4"
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": true,
           "invested_yen": 6000,
-          "return_yen": 72240
+          "return_yen": 72240,
+          "winning_stake_yen": 1200,
+          "winning_ticket": "1-2-4"
         }
       },
       "payout_per_100_yen": 6020,
@@ -2113,22 +2737,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 18720,
@@ -2140,22 +2772,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 1970,
@@ -2167,22 +2807,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 4190,
@@ -2194,22 +2842,30 @@
         "balance": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hit": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "hole": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         },
         "narrow": {
           "hit": false,
           "invested_yen": 6000,
-          "return_yen": 0
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
         }
       },
       "payout_per_100_yen": 3340,
