@@ -210,4 +210,13 @@ assert.ok(script.includes("document.getElementById('resultVenue').value=String(s
 assert.ok(html.includes('#forecast .prediction-row{gap:7px;padding:7px 9px'),'forecast tickets should use compact cards');
 assert.ok(script.includes("button.title=item.race+'Rの保存済み予想を見る'"),'result rows open their existing forecast');
 assert.ok(html.includes('id="forecastResultDetail"'),'forecast must show confirmed result detail');
+assert.ok(script.includes("confirmedForecastResult=order.join('-');confirmedForecastResultKey=key;drawPredictions()"),'confirmed result must refresh matching forecast ticket marks');
+assert.ok(script.includes("結果一致（参考）"),'matching provisional ticket must be marked without claiming verified bet');
+assert.ok(script.includes("的中（締切前保存照合済み）"),'verified winning ticket remains distinct');
+assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
+assert.ok(script.includes("record.official_finish!==item.match"),'a result list hit requires matching certified finish');
+assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
+assert.ok(html.includes('.result-list-row.verified-hit')&&script.includes("button.classList.add('verified-hit')"),'verified winning races have visible row highlight');
+assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
+assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
