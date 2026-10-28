@@ -1,0 +1,330 @@
+{
+  "schema": "CLEAN_LEGACY_EVIDENCE_CROSSWALK_V1",
+  "purpose": "Read-only candidate pointers for human-reviewed preservation. Not a claim of validated predeadline provenance.",
+  "legacy_repository": "ikst2512-eng/boat-edge",
+  "legacy_commit_sha": "29f9e8c85650acd5d8503b4324d7f29399c8b57e",
+  "clean_repository": "ikst2512-eng/boat-edge-clean",
+  "candidate_count": 40,
+  "candidates": [
+    {
+      "race_code": "202610270101",
+      "clean_confirmed_result": "confirmed_results/202610270101.json",
+      "legacy_history": "data/site_prediction_history/20261027-01-01.json",
+      "legacy_history_blob_sha": "64f9e64cdd045b3103179d80bdb94059857bf70e",
+      "legacy_audit": "data/site_prediction_audit/20261027-01-01.json",
+      "legacy_audit_blob_sha": "71b428412efda52d96321c2cbdbb155f729fbaed"
+    },
+    {
+      "race_code": "202610270104",
+      "clean_confirmed_result": "confirmed_results/202610270104.json",
+      "legacy_history": "data/site_prediction_history/20261027-01-04.json",
+      "legacy_history_blob_sha": "56f8e0dea70e6d5af39a9cda758ec4e58e4b0857",
+      "legacy_audit": "data/site_prediction_audit/20261027-01-04.json",
+      "legacy_audit_blob_sha": "77477219803b22311eb2ae29f54689fbc888c290"
+    },
+    {
+      "race_code": "202610270308",
+      "clean_confirmed_result": "confirmed_results/202610270308.json",
+      "legacy_history": "data/site_prediction_history/20261027-03-08.json",
+      "legacy_history_blob_sha": "3b900b7d9061a453d6bf6ad98fe4a2428cfa0362",
+      "legacy_audit": "data/site_prediction_audit/20261027-03-08.json",
+      "legacy_audit_blob_sha": "4b1b59a39fd985e1938d11f366de099c0012deef"
+    },
+    {
+      "race_code": "202610270311",
+      "clean_confirmed_result": "confirmed_results/202610270311.json",
+      "legacy_history": "data/site_prediction_history/20261027-03-11.json",
+      "legacy_history_blob_sha": "a567b3ba42b90377ba2f7709e367febf6c35bef3",
+      "legacy_audit": "data/site_prediction_audit/20261027-03-11.json",
+      "legacy_audit_blob_sha": "e8cb5c7f532ef0d6ab8f41b9e936d3f9a43388e1"
+    },
+    {
+      "race_code": "202610270312",
+      "clean_confirmed_result": "confirmed_results/202610270312.json",
+      "legacy_history": "data/site_prediction_history/20261027-03-12.json",
+      "legacy_history_blob_sha": "6c10f833ccd9ca7a8b2ef7cf55501d6b29c9a681",
+      "legacy_audit": "data/site_prediction_audit/20261027-03-12.json",
+      "legacy_audit_blob_sha": "d940c7bb73e5ea4981038b4862c0940031f1c0e7"
+    },
+    {
+      "race_code": "202610270502",
+      "clean_confirmed_result": "confirmed_results/202610270502.json",
+      "legacy_history": "data/site_prediction_history/20261027-05-02.json",
+      "legacy_history_blob_sha": "b5cbbe946ab7bf5924cce3b27af827fe63f439cd",
+      "legacy_audit": "data/site_prediction_audit/20261027-05-02.json",
+      "legacy_audit_blob_sha": "f6dad26e00277a078792526cc0b8b9f2e1d20a58"
+    },
+    {
+      "race_code": "202610270503",
+      "clean_confirmed_result": "confirmed_results/202610270503.json",
+      "legacy_history": "data/site_prediction_history/20261027-05-03.json",
+      "legacy_history_blob_sha": "b4608fdb187b20f5022b6bb69564fde8e0661a76",
+      "legacy_audit": "data/site_prediction_audit/20261027-05-03.json",
+      "legacy_audit_blob_sha": "627d5c4a43835ff25fa8343420aa384c627ce874"
+    },
+    {
+      "race_code": "202610270508",
+      "clean_confirmed_result": "confirmed_results/202610270508.json",
+      "legacy_history": "data/site_prediction_history/20261027-05-08.json",
+      "legacy_history_blob_sha": "d61c7194d1770b16947c5e21c69c4cd405e62624",
+      "legacy_audit": "data/site_prediction_audit/20261027-05-08.json",
+      "legacy_audit_blob_sha": "fd53752cb68f489dff9742efed78d01a46303e38"
+    },
+    {
+      "race_code": "202610270511",
+      "clean_confirmed_result": "confirmed_results/202610270511.json",
+      "legacy_history": "data/site_prediction_history/20261027-05-11.json",
+      "legacy_history_blob_sha": "163e454125a09c473d79bb0c0915c6c5675477db",
+      "legacy_audit": "data/site_prediction_audit/20261027-05-11.json",
+      "legacy_audit_blob_sha": "a48b53e5bc19b918f27790438cedd8b3383271a3"
+    },
+    {
+      "race_code": "202610270801",
+      "clean_confirmed_result": "confirmed_results/202610270801.json",
+      "legacy_history": "data/site_prediction_history/20261027-08-01.json",
+      "legacy_history_blob_sha": "96123883fff300b3e76384b3b28e5ee136b4db63",
+      "legacy_audit": "data/site_prediction_audit/20261027-08-01.json",
+      "legacy_audit_blob_sha": "1545cd8d34b8fe9550210806f740e5fd9390eef5"
+    },
+    {
+      "race_code": "202610270803",
+      "clean_confirmed_result": "confirmed_results/202610270803.json",
+      "legacy_history": "data/site_prediction_history/20261027-08-03.json",
+      "legacy_history_blob_sha": "0249a0fb4fe911a8bc8339a053bbf40f4ffd1475",
+      "legacy_audit": "data/site_prediction_audit/20261027-08-03.json",
+      "legacy_audit_blob_sha": "de590e1a9f11294ee6ffcccffd6b12a443758286"
+    },
+    {
+      "race_code": "202610270804",
+      "clean_confirmed_result": "confirmed_results/202610270804.json",
+      "legacy_history": "data/site_prediction_history/20261027-08-04.json",
+      "legacy_history_blob_sha": "b7f728026d3204f3823737470c192e57b58908ad",
+      "legacy_audit": "data/site_prediction_audit/20261027-08-04.json",
+      "legacy_audit_blob_sha": "7768c4defd54bb477951c53a8adb0f75afee7e3a"
+    },
+    {
+      "race_code": "202610270902",
+      "clean_confirmed_result": "confirmed_results/202610270902.json",
+      "legacy_history": "data/site_prediction_history/20261027-09-02.json",
+      "legacy_history_blob_sha": "cacde14d4b9f5db134f85ed8ecb197b437af44f7",
+      "legacy_audit": "data/site_prediction_audit/20261027-09-02.json",
+      "legacy_audit_blob_sha": "85080aaedbe329665ef7507f12e5f7fe8401e93d"
+    },
+    {
+      "race_code": "202610271002",
+      "clean_confirmed_result": "confirmed_results/202610271002.json",
+      "legacy_history": "data/site_prediction_history/20261027-10-02.json",
+      "legacy_history_blob_sha": "49a8f577cea5b5d7d19af6fcbf27f36d7cec998e",
+      "legacy_audit": "data/site_prediction_audit/20261027-10-02.json",
+      "legacy_audit_blob_sha": "3ca02bc1a11dd83f51c9fdf27bf99b328784c05d"
+    },
+    {
+      "race_code": "202610271308",
+      "clean_confirmed_result": "confirmed_results/202610271308.json",
+      "legacy_history": "data/site_prediction_history/20261027-13-08.json",
+      "legacy_history_blob_sha": "2915876a785e17ef982a43f77a31ed1d0189c786",
+      "legacy_audit": "data/site_prediction_audit/20261027-13-08.json",
+      "legacy_audit_blob_sha": "cd7d4034aa47fe7919d46a833269dfbd1eb7879c"
+    },
+    {
+      "race_code": "202610271506",
+      "clean_confirmed_result": "confirmed_results/202610271506.json",
+      "legacy_history": "data/site_prediction_history/20261027-15-06.json",
+      "legacy_history_blob_sha": "0b2140f1e173cba920a3b09fa38e80b8398faa33",
+      "legacy_audit": "data/site_prediction_audit/20261027-15-06.json",
+      "legacy_audit_blob_sha": "b6a59c524747605cc60c767afa36eb41a00e1575"
+    },
+    {
+      "race_code": "202610271510",
+      "clean_confirmed_result": "confirmed_results/202610271510.json",
+      "legacy_history": "data/site_prediction_history/20261027-15-10.json",
+      "legacy_history_blob_sha": "eac30d7bc387bf50c79cf1eac333f04ea3b4b088",
+      "legacy_audit": "data/site_prediction_audit/20261027-15-10.json",
+      "legacy_audit_blob_sha": "70b170ac208b6e8b4951c692b51438e03ade9ca9"
+    },
+    {
+      "race_code": "202610271602",
+      "clean_confirmed_result": "confirmed_results/202610271602.json",
+      "legacy_history": "data/site_prediction_history/20261027-16-02.json",
+      "legacy_history_blob_sha": "29422e3b0d5845cd727964e81a6c584ea852f5e5",
+      "legacy_audit": "data/site_prediction_audit/20261027-16-02.json",
+      "legacy_audit_blob_sha": "4ba3f65e916e74cc40892875983e50f53f2555c6"
+    },
+    {
+      "race_code": "202610272201",
+      "clean_confirmed_result": "confirmed_results/202610272201.json",
+      "legacy_history": "data/site_prediction_history/20261027-22-01.json",
+      "legacy_history_blob_sha": "84806b317441338b08c51a1e6a36bdf9dfc07fca",
+      "legacy_audit": "data/site_prediction_audit/20261027-22-01.json",
+      "legacy_audit_blob_sha": "301a2a804b3a36d5d113ffc23705f1f3366f3398"
+    },
+    {
+      "race_code": "202610272210",
+      "clean_confirmed_result": "confirmed_results/202610272210.json",
+      "legacy_history": "data/site_prediction_history/20261027-22-10.json",
+      "legacy_history_blob_sha": "cec8571a8bfb31035b8552d50f9c78a86b9c55a9",
+      "legacy_audit": "data/site_prediction_audit/20261027-22-10.json",
+      "legacy_audit_blob_sha": "ba2210b65390176c6c67de78d41b7eed84dcf4aa"
+    },
+    {
+      "race_code": "202610272211",
+      "clean_confirmed_result": "confirmed_results/202610272211.json",
+      "legacy_history": "data/site_prediction_history/20261027-22-11.json",
+      "legacy_history_blob_sha": "e7a7ab428e9ce602c8b746547124dc77145205d5",
+      "legacy_audit": "data/site_prediction_audit/20261027-22-11.json",
+      "legacy_audit_blob_sha": "dd3efff4590bb52b4106fd7d508c50389cb2ce9e"
+    },
+    {
+      "race_code": "202610272302",
+      "clean_confirmed_result": "confirmed_results/202610272302.json",
+      "legacy_history": "data/site_prediction_history/20261027-23-02.json",
+      "legacy_history_blob_sha": "98661aab752320660530a949d9fedb1fc756e8e9",
+      "legacy_audit": "data/site_prediction_audit/20261027-23-02.json",
+      "legacy_audit_blob_sha": "a952fa3fa6457bde1f01ee4bbf07cfc996e35f2c"
+    },
+    {
+      "race_code": "202610272401",
+      "clean_confirmed_result": "confirmed_results/202610272401.json",
+      "legacy_history": "data/site_prediction_history/20261027-24-01.json",
+      "legacy_history_blob_sha": "b62f85f37ce9b05ed436134766eb64d9cc50ebe9",
+      "legacy_audit": "data/site_prediction_audit/20261027-24-01.json",
+      "legacy_audit_blob_sha": "4af9afd94571bc9eaec289b814ce0e80e893a89a"
+    },
+    {
+      "race_code": "202610272402",
+      "clean_confirmed_result": "confirmed_results/202610272402.json",
+      "legacy_history": "data/site_prediction_history/20261027-24-02.json",
+      "legacy_history_blob_sha": "50b4bcca00c4cd0336fe678a993e120aae4e8d54",
+      "legacy_audit": "data/site_prediction_audit/20261027-24-02.json",
+      "legacy_audit_blob_sha": "ae1fc2928a5434b91152a6b73064d81c23f08f4a"
+    },
+    {
+      "race_code": "202610280301",
+      "clean_confirmed_result": "confirmed_results/202610280301.json",
+      "legacy_history": "data/site_prediction_history/20261028-03-01.json",
+      "legacy_history_blob_sha": "50459508b4e68c90a32d776c6cab276dfd8749d7",
+      "legacy_audit": "data/site_prediction_audit/20261028-03-01.json",
+      "legacy_audit_blob_sha": "b852a1b3f7b92ba977f59c3747784384b5e1d49e"
+    },
+    {
+      "race_code": "202610280302",
+      "clean_confirmed_result": "confirmed_results/202610280302.json",
+      "legacy_history": "data/site_prediction_history/20261028-03-02.json",
+      "legacy_history_blob_sha": "3aad1deda43da124240930c751ce893c8fc11de2",
+      "legacy_audit": "data/site_prediction_audit/20261028-03-02.json",
+      "legacy_audit_blob_sha": "a3368b9bb3708e707d252d92da3608b68be0b743"
+    },
+    {
+      "race_code": "202610280802",
+      "clean_confirmed_result": "confirmed_results/202610280802.json",
+      "legacy_history": "data/site_prediction_history/20261028-08-02.json",
+      "legacy_history_blob_sha": "cd66b5f7f8aa214bc8639393ddc8309e81dd2733",
+      "legacy_audit": "data/site_prediction_audit/20261028-08-02.json",
+      "legacy_audit_blob_sha": "9f85c03fcd52ff3e25addaf28c5c6ce78123d891"
+    },
+    {
+      "race_code": "202610280803",
+      "clean_confirmed_result": "confirmed_results/202610280803.json",
+      "legacy_history": "data/site_prediction_history/20261028-08-03.json",
+      "legacy_history_blob_sha": "48d12a4a7f490849325e8d04fae79df69ed28457",
+      "legacy_audit": "data/site_prediction_audit/20261028-08-03.json",
+      "legacy_audit_blob_sha": "8c98a0c9e0ee2e327bf1737cf2104fc0a7b4016b"
+    },
+    {
+      "race_code": "202610280807",
+      "clean_confirmed_result": "confirmed_results/202610280807.json",
+      "legacy_history": "data/site_prediction_history/20261028-08-07.json",
+      "legacy_history_blob_sha": "532ca4bf0dc231bcd58de21fc59d94b8baa37968",
+      "legacy_audit": "data/site_prediction_audit/20261028-08-07.json",
+      "legacy_audit_blob_sha": "20a4da4c123019e391af81e2b5e885419a54bc8b"
+    },
+    {
+      "race_code": "202610280902",
+      "clean_confirmed_result": "confirmed_results/202610280902.json",
+      "legacy_history": "data/site_prediction_history/20261028-09-02.json",
+      "legacy_history_blob_sha": "f8738e8d5c1f8ea844f9ff2cbd37b7d0cd93f52d",
+      "legacy_audit": "data/site_prediction_audit/20261028-09-02.json",
+      "legacy_audit_blob_sha": "9533f67433bf8c9ad155af923b72a9bf798d70e1"
+    },
+    {
+      "race_code": "202610280903",
+      "clean_confirmed_result": "confirmed_results/202610280903.json",
+      "legacy_history": "data/site_prediction_history/20261028-09-03.json",
+      "legacy_history_blob_sha": "20e223815ed71e2e4747ec9fe0783a83edba4e26",
+      "legacy_audit": "data/site_prediction_audit/20261028-09-03.json",
+      "legacy_audit_blob_sha": "82f94225432099bff57511e2bae8f989eacb42c3"
+    },
+    {
+      "race_code": "202610281006",
+      "clean_confirmed_result": "confirmed_results/202610281006.json",
+      "legacy_history": "data/site_prediction_history/20261028-10-06.json",
+      "legacy_history_blob_sha": "e40f72bcb5c340ccf6a01b802cbb07d7f57c7a89",
+      "legacy_audit": "data/site_prediction_audit/20261028-10-06.json",
+      "legacy_audit_blob_sha": "c46061e9f47bb23036cbde7339785f733647a3bd"
+    },
+    {
+      "race_code": "202610281010",
+      "clean_confirmed_result": "confirmed_results/202610281010.json",
+      "legacy_history": "data/site_prediction_history/20261028-10-10.json",
+      "legacy_history_blob_sha": "376356bd6c5ab1504a6efb33d705a6a3ce494907",
+      "legacy_audit": "data/site_prediction_audit/20261028-10-10.json",
+      "legacy_audit_blob_sha": "108484e271dc2727e964fe85f2acbdd2caaf750a"
+    },
+    {
+      "race_code": "202610281301",
+      "clean_confirmed_result": "confirmed_results/202610281301.json",
+      "legacy_history": "data/site_prediction_history/20261028-13-01.json",
+      "legacy_history_blob_sha": "72ee8246819fa60a70cb59b69bbdf97bb6f66b04",
+      "legacy_audit": "data/site_prediction_audit/20261028-13-01.json",
+      "legacy_audit_blob_sha": "fda62c8c3909435affe65227cfad2340aa140943"
+    },
+    {
+      "race_code": "202610281302",
+      "clean_confirmed_result": "confirmed_results/202610281302.json",
+      "legacy_history": "data/site_prediction_history/20261028-13-02.json",
+      "legacy_history_blob_sha": "4aa3313502d3c98407e68d6231b4d6dd544cfd01",
+      "legacy_audit": "data/site_prediction_audit/20261028-13-02.json",
+      "legacy_audit_blob_sha": "ae8ed05f9dce7faac014bde58afab16e5b00f971"
+    },
+    {
+      "race_code": "202610281601",
+      "clean_confirmed_result": "confirmed_results/202610281601.json",
+      "legacy_history": "data/site_prediction_history/20261028-16-01.json",
+      "legacy_history_blob_sha": "5037f9a424ad909fdd5d0d245f6cd9a3e244eaa0",
+      "legacy_audit": "data/site_prediction_audit/20261028-16-01.json",
+      "legacy_audit_blob_sha": "91b376e5bb8586e2660047a48636bee0dea8bf28"
+    },
+    {
+      "race_code": "202610281602",
+      "clean_confirmed_result": "confirmed_results/202610281602.json",
+      "legacy_history": "data/site_prediction_history/20261028-16-02.json",
+      "legacy_history_blob_sha": "e0373935eb6aa7219af4d4d86874f889894dc360",
+      "legacy_audit": "data/site_prediction_audit/20261028-16-02.json",
+      "legacy_audit_blob_sha": "4e54220744387fb059cdaf0f3bf344732e74e55b"
+    },
+    {
+      "race_code": "202610282201",
+      "clean_confirmed_result": "confirmed_results/202610282201.json",
+      "legacy_history": "data/site_prediction_history/20261028-22-01.json",
+      "legacy_history_blob_sha": "21e50c77a654fed439836ea51456d943fe1f7174",
+      "legacy_audit": "data/site_prediction_audit/20261028-22-01.json",
+      "legacy_audit_blob_sha": "eefa27df7509cc12391669538e42aeddea22e503"
+    },
+    {
+      "race_code": "202610282306",
+      "clean_confirmed_result": "confirmed_results/202610282306.json",
+      "legacy_history": "data/site_prediction_history/20261028-23-06.json",
+      "legacy_history_blob_sha": "2667fe4a09440201d9c1a26143195b1f23b9fe3a",
+      "legacy_audit": "data/site_prediction_audit/20261028-23-06.json",
+      "legacy_audit_blob_sha": "0b2dda5cda44f5c5740cfae67ae6d78c61d0d0d5"
+    },
+    {
+      "race_code": "202610282307",
+      "clean_confirmed_result": "confirmed_results/202610282307.json",
+      "legacy_history": "data/site_prediction_history/20261028-23-07.json",
+      "legacy_history_blob_sha": "370fdaec76799b4054cde1e42c76c20ed695eda8",
+      "legacy_audit": "data/site_prediction_audit/20261028-23-07.json",
+      "legacy_audit_blob_sha": "669c5aa395565a8cb1f30c9143eee84b30ad7c59"
+    }
+  ]
+}
