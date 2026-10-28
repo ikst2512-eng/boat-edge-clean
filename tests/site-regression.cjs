@@ -169,4 +169,6 @@ assert.ok(html.includes('id="hitHistory"'),'verified winning-race list must be v
 assert.ok(script.includes('CLEAN_VERIFIED_FOUR_MODE_HISTORY_V1'),'list must use independently verified result history');
 assert.ok(script.includes("v.modes[filter]?.hit"),'per-mode wins must be filterable');
 assert.ok(script.includes("Object.values(v.modes).some(m=>m.hit)"),'all-modes view must only show actual hits');
+assert.ok(script.includes("winning_stake_yen"),'hit history must show staked amount on actual winning ticket');
+assert.ok(script.includes("的中した方式の収支"),'hit history must show simulated net result');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
