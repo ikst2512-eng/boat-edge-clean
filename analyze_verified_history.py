@@ -28,6 +28,9 @@ def diagnose(history, root=ROOT):
         bands = {label: {"races": 0, "hits": 0, "invested_yen": 0, "return_yen": 0}
                  for _, _, label in BANDS}
         winners = []
+        miss_examples = {"first_missing": [], "second_or_third_missing": [], "third_only_missing": []}
+        missing_by_first_boat = Counter()
+        missing_third_boats = Counter()
         for race in races:
             code = race["race_code"]
             archive = json.loads((root / "four_mode_forecasts" / (code + ".json")).read_text(encoding="utf-8"))
@@ -49,7 +52,13 @@ def diagnose(history, root=ROOT):
                 parts = winner.split("-")
                 first = any(t.startswith(parts[0] + "-") for t in tickets)
                 first_two = any(t.startswith(parts[0] + "-" + parts[1] + "-") for t in tickets)
-                misses["third_only_missing" if first_two else "second_or_third_missing" if first else "first_missing"] += 1
+                reason = "third_only_missing" if first_two else "second_or_third_missing" if first else "first_missing"
+                misses[reason] += 1
+                missing_by_first_boat[parts[0]] += 1
+                if first_two:
+                    missing_third_boats[parts[2]] += 1
+                miss_examples[reason].append({"race_code": code, "actual_finish": winner,
+                    "correct_first_in_tickets": first, "correct_first_two_in_tickets": first_two})
             payout = race["payout_per_100_yen"]
             label = next(label for low, high, label in BANDS if low <= payout < high)
             bucket = bands[label]
@@ -65,6 +74,9 @@ def diagnose(history, root=ROOT):
         reports[mode] = {
             "hit_rank_counts": dict(sorted(ranks.items(), key=lambda x: int(x[0]))),
             "miss_types": dict(misses),
+            "miss_examples": {reason: rows[:10] for reason, rows in miss_examples.items()},
+            "missed_winner_first_boats": dict(sorted(missing_by_first_boat.items())),
+            "third_only_missing_boats": dict(sorted(missing_third_boats.items())),
             "payout_bands": bands,
             "largest_three_hits": largest,
             "top_three_return_share_pct": round(100 * sum(x["return_yen"] for x in largest) / gross, 2) if gross else None,
