@@ -667,9 +667,9 @@ async function loadFourModePerformance(){
    const el=document.createElement('div');el.className='box';
    const h=document.createElement('strong');h.textContent=label;
    const p=document.createElement('p');p.textContent=v.sample_races>0&&Number.isFinite(v.actual_hit_rate_pct)&&Number.isFinite(v.actual_roi_pct)?'的中率 '+v.actual_hit_rate_pct+'% ／ 回収率 '+v.actual_roi_pct+'%':'実績集計待ち';
-   const n=document.createElement('small');n.textContent='検証 '+v.sample_races+'レース';el.append(h,p,n);grid.append(el);
+   const n=document.createElement('small');n.textContent='検証 '+v.sample_races+'レース'+(v.sample_races<30?' ／ 少数サンプル・参考値':'');el.append(h,p,n);grid.append(el);
   }
-  status.textContent='締切前保存・確定結果・払戻金・Git保存証拠を照合した想定購入実績。実際の購入履歴ではありません。';
+  status.textContent='検証完了 '+(d.counts?.complete??0)+'件 ／ 結果待ち '+(d.counts?.awaiting_result??0)+'件（締切後 '+(d.counts?.overdue_result??0)+'件）。締切前保存・確定結果・払戻金・Git保存証拠を照合した想定購入実績。30件未満は参考値で、実際の購入履歴ではありません。';
  }catch(e){status.textContent=e.message==='BUDGET_NOT_VERIFIED'?'この予算の実績は未集計です。5,000円の実績から検証を開始します。':'検証済み実績はまだ公開されていません。未検証数値は表示しません。';}
 }
 document.getElementById('performanceBudget').addEventListener('change',loadFourModePerformance);
