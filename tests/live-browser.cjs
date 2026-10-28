@@ -59,6 +59,8 @@ const fs=require('node:fs');
       sourceHasFitRule:[...document.styleSheets].some(sheet=>{try{return [...sheet.cssRules].some(rule=>rule.cssText.includes('#mobileRaceMatrix .boat-matrix-table'))}catch(_){return false}})};
    });
    console.log('MATRIX_DIAGNOSTIC '+width+'px '+JSON.stringify(geometry));
+   if(!geometry.sourceHasFitRule)
+    throw Error('STALE_DEPLOYMENT: published HTML lacks #mobileRaceMatrix .boat-matrix-table mobile fit CSS at '+site+'; inspect deployed commit/build before editing CSS');
    if(geometry.bounds.right>geometry.viewport+2||geometry.bounds.left< -2)
     throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
    if(geometry.rows.filter(x=>x==='チルト').length!==1||geometry.rows.filter(x=>x==='展示タイム').length!==1)
