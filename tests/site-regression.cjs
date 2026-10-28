@@ -252,4 +252,13 @@ assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverif
  ])assert.ok(script.includes(literal),'missing six-boat/provenance guard: '+message);
  console.log('PASS: six-boat completeness and immutable-source/cutoff guard presence');
 
+for(const [literal,label] of [
+  ["/^2026102803(?:0[6-9]|1[0-2])$/.test(code)",'Oct 28 Edogawa cancelled 6-12 guard'],
+  ["中止・順延（江戸川6〜12R）：的中率・回収率の対象外",'cancelled races excluded from performance'],
+  ["code==='202610280112'",'Oct 28 Kiryu 12 unsettled guard'],
+  ["公式精算確認待ち",'unsettled trifecta clearly pending official settlement'],
+  ["返還等の公式精算は未確認です",'no fabricated refund assertion']
+])assert.ok(script.includes(literal),'missing unsettled-status UI guard: '+label);
+console.log('PASS: cancellation and unsettled trifecta displayed without a hit/miss verdict');
+
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
