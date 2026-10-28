@@ -803,10 +803,12 @@ async function loadReview(){
      record.official_finish!==finish.join('-'))throw Error('RESULT_MISMATCH');
   add('確定3連単',record.official_finish);
   add('100円当たり払戻',record.official_payout_yen_per_100.toLocaleString('ja-JP')+'円');
-  for(const [mode,label] of [['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']]){
-   const m=record.modes[mode];
-   add(label,m.hit?'的中 ／ 払戻 '+m.return_yen.toLocaleString('ja-JP')+'円':'不的中 ／ 払戻0円');
-  }
+  // The four-mode overview is already shown above. Only summarize
+  // the winning modes for this single race, not another set of four cards.
+  const winners=[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']]
+   .filter(([mode])=>record.modes[mode].hit)
+   .map(([mode,label])=>label+' '+record.modes[mode].return_yen.toLocaleString('ja-JP')+'円');
+  add('このレースで的中した予想',winners.length?winners.join(' ／ '):'該当なし');
   status.textContent='CLEAN締切前Git保存・確定結果・公式払戻を照合済み';
   note.textContent='各方式5,000円の想定購入結果（実際に購入した記録ではありません）。予想の後付け生成は行いません。';
  }catch(e){
