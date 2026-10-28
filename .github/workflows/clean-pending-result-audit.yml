@@ -1,0 +1,29 @@
+name: CLEAN pending result coverage audit
+on:
+  pull_request:
+    paths:
+      - audit_clean_pending_results.py
+      - test_audit_clean_pending_results.py
+      - .github/workflows/clean-pending-result-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - audit_clean_pending_results.py
+      - test_audit_clean_pending_results.py
+      - .github/workflows/clean-pending-result-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_audit_clean_pending_results
+      - run: python audit_clean_pending_results.py 20261028
+      - run: python audit_clean_pending_results.py 20261029
