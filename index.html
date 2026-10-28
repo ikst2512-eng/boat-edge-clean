@@ -503,7 +503,7 @@ async function loadResultList(){
  const verified=[];
  for(const item of entries){
   if(item.state!=='確定'){verified.push({...item,hitState:'pending'});continue}
-  const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race);
+  const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race).padStart(2,'0');
   try{
    let record;
    for(let attempt=0;attempt<3;attempt++){
