@@ -52,6 +52,7 @@ const fs=require('node:fs');
     return {title:title?.['レース名']||null,grade:title?.['グレード']||null,branch:racer?.['艇1_支部']||null,st:racer?.['艇1_全国平均ST']||null};
    });
    if(expected.title){
+    await page.waitForFunction(name=>[...document.querySelectorAll('#homeRaceCardList .clean-race-tag')].some(el=>el.textContent===name),expected.title,{timeout:15000});
     const rendered=await first.locator('.clean-race-tag').allInnerTexts();
     if(!rendered.includes(expected.title))throw Error('Published race name mismatch: '+JSON.stringify({expected,rendered}));
    }
@@ -91,6 +92,22 @@ const fs=require('node:fs');
   // Unverified labels must never be rendered as a verified hit.
   const labels=await page.locator('#resultList .clean-race-verdict').allInnerTexts();
   if(labels.some(x=>!['◎ 予想的中','予想不的中','予想未検証'].includes(x)))throw Error('Unknown result verification badge');
+  // Deliberately synthetic forecast data: measure real published CSS, not model accuracy.
+  await page.setViewportSize({width:375,height:844});
+  await page.evaluate(()=>{
+   setView('forecast');
+   predictionModes={hit:{tickets:['1-2-3','1-3-2'],probabilities:{'1-2-3':28.25,'1-3-2':16.5},odds:{}},balance:{tickets:[],probabilities:{},odds:{}},hole:{tickets:[],probabilities:{},odds:{}},narrow:{tickets:[],probabilities:{},odds:{}}};
+   selectedPredictionMode='hit';applyPredictionMode();
+  });
+  const compact=await page.locator('#predictionRows .prediction-row').first().evaluate(el=>{
+   const row=el.getBoundingClientRect(),boats=el.querySelector('.ticket-boats'),text=el.querySelector('.prediction-ticket'),odds=el.querySelector('.prediction-odds');
+   return {height:row.height,width:row.width,bodyWidth:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,
+     colored:boats&&getComputedStyle(boats).display!=='none',duplicateHidden:text&&getComputedStyle(text).display==='none',
+     probability:odds?.textContent?.includes('28.25%'),stake:odds?.textContent?.includes('円')};
+  });
+  if(compact.height>78||compact.bodyWidth>compact.viewport+2||!compact.colored||!compact.duplicateHidden||!compact.probability||!compact.stake)
+   throw Error('Forecast tickets not compact/complete at 375px: '+JSON.stringify(compact));
+  console.log('COMPACT_FORECAST_PASS '+JSON.stringify(compact));
   // Test the current single-document UI without assuming server-side route rewrites.
   if(await page.locator('.view-tabs a[data-page]').count()!==5)throw Error('Five current page links missing');
   for(const width of [320,360,375,390]){
