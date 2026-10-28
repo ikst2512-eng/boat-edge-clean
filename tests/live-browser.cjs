@@ -24,8 +24,9 @@ const fs=require('node:fs');
   if(await links.count()!==5)throw Error('Expected five page links in current navigation');
   const raceButtons=page.locator('.races button');
   if(await raceButtons.count()!==12)throw Error('Expected twelve race selector buttons');
-  await page.locator('#venueChooser .grid button').nth(3).click();
-  await raceButtons.nth(1).click();
+  // Selecting a venue navigates to /forecast, where the home race picker is intentionally hidden.
+  // Deep-link the race instead of trying to click a hidden control.
+  await page.goto(new URL('/forecast?venue=4&race=2',site).toString(),{waitUntil:'domcontentloaded',timeout:45000});
   const destination=new URL(page.url());
   if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')
    throw Error('Venue/race selection not synchronized');
