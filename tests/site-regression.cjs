@@ -208,7 +208,7 @@ assert.ok(html.includes('id="resultVenue"'),'results must have a direct venue se
 assert.ok(script.includes("resultVenue.addEventListener('change'"),'result venue selection must update selected venue');
 assert.ok(script.includes("document.getElementById('resultVenue').value=String(s.venue+1)"),'result venue picker must sync with active race');
 assert.ok(html.includes('#forecast .prediction-row{gap:7px;padding:7px 9px'),'forecast tickets should use compact cards');
-assert.ok(script.includes("button.title=item.race+'Rの保存済み予想を見る'"),'result rows open their existing forecast');
+assert.ok(script.includes("openCleanListTab(view,item.race)")&&script.includes("['AI予想','forecast']"),'result rows open their existing forecast');
 assert.ok(html.includes('id="forecastResultDetail"'),'forecast must show confirmed result detail');
 assert.ok(script.includes("confirmedForecastResult=order.join('-');confirmedForecastResultKey=key;drawPredictions()"),'confirmed result must refresh matching forecast ticket marks');
 assert.ok(script.includes("結果一致！ ※締切前保存未確認"),'matching provisional ticket must be marked without claiming verified bet');
@@ -216,7 +216,7 @@ assert.ok(script.includes("的中確定！ 締切前予想と照合済み"),'ver
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
 assert.ok(script.includes("record.official_finish!==item.match"),'a result list hit requires matching certified finish');
 assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
-assert.ok(html.includes('.result-list-row.verified-hit')&&script.includes("button.classList.add('verified-hit')"),'verified winning races have visible row highlight');
+assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
 assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
