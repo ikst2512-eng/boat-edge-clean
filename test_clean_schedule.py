@@ -38,7 +38,8 @@ class ScheduleTests(unittest.TestCase):
     def test_upstream_missing_daily_file_is_not_empty_schedule(self):
         with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)):
             status,data=s.clean_schedule("20261029")
-        self.assertEqual(status,503)
+        self.assertEqual(status,404)
+        self.assertEqual(data["status"],"schedule_not_published")
         self.assertEqual(data["upstream_http_status"],404)
         self.assertTrue(data["retryable"])
         self.assertEqual(data["date"],"20261029")
