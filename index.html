@@ -500,8 +500,9 @@ async function loadResultList(){
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
  let payouts=new Map();try{payouts=await confirmedPayoutsForDay(date)}catch(_){}
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
- const verified=await Promise.all(entries.map(async item=>{
-  if(item.state!=='確定')return {...item,hitState:'pending'};
+ const verified=[];
+ for(const item of entries){
+  if(item.state!=='確定'){verified.push({...item,hitState:'pending'});continue}
   const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race);
   try{
    let record;
@@ -512,9 +513,9 @@ async function loadResultList(){
      await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
     }
    }
-   if(record.official_finish!==item.match)return {...item,hitState:'pending'};
-   return {...item,hitState:Object.values(record.modes).some(m=>m.hit)?'hit':'miss',winningModes:[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']].filter(([k])=>record.modes[k].hit).map(([,v])=>v)};
-  }catch(_){verified.push({...item,hitState:'pending'});continue}
+   if(record.official_finish!==item.match){verified.push({...item,hitState:'pending'});continue}
+   verified.push({...item,hitState:Object.values(record.modes).some(m=>m.hit)?'hit':'miss',winningModes:[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']].filter(([k])=>record.modes[k].hit).map(([,v])=>v)});
+  }catch(_){verified.push({...item,hitState:'pending'})}
  }
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
  const [cards,titles]=await Promise.all([cleanListRaceCards(date,venue),cleanListRaceTitles(date,venue)]);
