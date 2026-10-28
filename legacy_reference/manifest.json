@@ -1,0 +1,17 @@
+{
+  "schema": "CLEAN_LEGACY_REFERENCE_MANIFEST_V1",
+  "source_repository": "ikst2512-eng/boat-edge",
+  "source_ref": "main",
+  "scope": "read_only_reference_no_runtime_import",
+  "formal_status_source_blob_sha": "a1c2832057aa436b7c84c185e965ff6b01b08d3a",
+  "formal_status_as_of": "2026-10-28T23:12:44+09:00",
+  "formal_status_connected": false,
+  "formal_predictions_ready": false,
+  "files": [
+    "scripts/fresh_core7_blockers.py",
+    "scripts/fresh_csv_http_diagnostic.py",
+    "scripts/deadline_v9/audit_v13_artifact.py",
+    "tests/test_deadline_v13_artifact_auditor.py",
+    "tests/test_deadline_v13_classify.py"
+  ]
+}
