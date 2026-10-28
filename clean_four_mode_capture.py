@@ -55,7 +55,8 @@ def collect(root=ROOT, now=None, read=read_rows):
                 if direct:datasets["race_cards"]=(direct,received,combined)
         except (HTTPError,URLError,TimeoutError,ValueError,OSError,UnicodeError) as exc:
             outcomes["direct_error"]={"status":"error","type":type(exc).__name__,
-                "http_status":getattr(exc,"code",None)}
+                "http_status":getattr(exc,"code",None),
+                "source_url":getattr(exc,"url",None)}
     if len(datasets)!=2:
         return {"new_saved":[],"excluded":{},"date_jst":hd,
                 "source_status":"source_incomplete","source_probes":outcomes,
