@@ -132,7 +132,7 @@ assert.ok(script.includes("matrixTable.className='boat-matrix-table'"),'comparat
 assert.ok(script.includes("document.getElementById('mobileRaceMatrix').replaceChildren();"),'race switch clears old comparison');
 assert.ok(script.includes("document.getElementById('mobileRacerDetails').hidden=view!=='card'"),'detailed cards hidden outside racer tab');
 assert.ok(html.includes('aria-label="6艇の主要成績比較・横スクロール不要"'),'comparison table must fit screen without scroll');
-assert.ok(script.includes("matrixCaption.textContent='左右にスクロールして6艇を比較'"),'mobile users see horizontal scroll guidance');
+assert.ok(script.includes('6艇の主要情報を一覧表示'),'mobile users see the fit-to-screen guidance');
 assert.ok(html.includes('.boat-matrix-table th:first-child{position:sticky;left:0'),'comparison metric label remains in view');
 assert.ok(script.includes("['全国2連率',r=>displayRate(r.national?.quinella_rate)]"),'national quinella rate included in racer matrix');
 assert.ok(script.includes("['当地2連率',r=>displayRate(r.local?.quinella_rate)]"),'local quinella rate included in racer matrix');
