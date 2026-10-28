@@ -1,0 +1,30 @@
+name: Research selective participation checks
+on:
+  push:
+    branches: [research/four-mode-role-rebalance]
+  pull_request:
+    paths:
+      - "research_selective_hole20.py"
+      - "test_research_selective_hole20.py"
+      - "research_compare_hole20_heads_odds_free.py"
+      - "test_research_compare_hole20_heads_odds_free.py"
+      - ".github/workflows/research-selective-participation.yml"
+jobs:
+  selective-verified-history:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run selective participation and head-count regression tests
+        run: python -m unittest -v test_research_selective_hole20.py test_research_compare_hole20_heads_odds_free.py test_research_hole_head_capture.py test_research_four_mode_roles.py
+      - name: Replay all confirmed races at fixed confidence thresholds
+        run: python research_selective_hole20.py | tee research_selective_hole20_results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: research-selective-hole20-results
+          path: research_selective_hole20_results.json
+          retention-days: 7
