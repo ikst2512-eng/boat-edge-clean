@@ -12,6 +12,11 @@ class Hole20SensitivityTests(unittest.TestCase):
             self.assertEqual(len(picks),20)
             self.assertEqual(len(set(picks)),20)
             self.assertLessEqual(len({c[0] for c in picks}),n)
+            if n==1:
+                head=picks[0][0]
+                self.assertEqual({c for c in picks},
+                                 {f"{head}-{second}-{third}" for second in "123456" for third in "123456"
+                                  if len({head,second,third})==3})
         with self.assertRaises(ValueError):
             tickets_under_heads(rates,4)
     def test_verified_settlement_guard(self):
@@ -33,6 +38,7 @@ class Hole20SensitivityTests(unittest.TestCase):
             result=compare(history,root)
             self.assertFalse(result["odds_based_hole_evaluated"])
             self.assertEqual(result["head_variants"]["3"]["hits"],1)
+            self.assertEqual(result["head_variants"]["1"]["hits"],result["head_variants"]["1"]["head_captured"])
             race["modes"]["hole"]["return_yen"]=0
             with self.assertRaisesRegex(ValueError,"original_hole_settlement_mismatch"):
                 compare(history,root)
