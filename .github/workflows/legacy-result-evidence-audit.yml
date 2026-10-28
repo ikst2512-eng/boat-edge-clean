@@ -8,6 +8,8 @@ on:
       - scripts/legacy_result_compare.py
       - scripts/legacy_payout_evidence.py
       - scripts/verify_legacy_evidence_links.py
+      - scripts/verify_legacy_blob_readback.py
+      - tests/test_legacy_blob_readback.py
       - tests/test_legacy_result_compare.py
       - tests/test_legacy_payout_evidence.py
       - .github/workflows/legacy-result-evidence-audit.yml
@@ -25,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v tests/test_legacy_result_compare.py tests/test_legacy_payout_evidence.py
+        run: python -m unittest -v tests/test_legacy_result_compare.py tests/test_legacy_payout_evidence.py tests/test_legacy_blob_readback.py
       - name: Build pinned race inventory
         run: python scripts/legacy_race_crosswalk.py --output audit_out/crosswalk.json
       - name: Compare every eligible confirmed result
@@ -34,6 +36,8 @@ jobs:
         run: python scripts/legacy_payout_evidence.py --comparison audit_out/results.json --output audit_out/payouts.json
       - name: Verify payout/result manifest links
         run: python scripts/verify_legacy_evidence_links.py --comparison audit_out/results.json --payouts audit_out/payouts.json --output audit_out/verification.json
+      - name: Read back original legacy Git blobs and verify SHA-256
+        run: python -m scripts.verify_legacy_blob_readback --comparison audit_out/results.json --output audit_out/legacy_blob_readback.json
       - name: Publish machine-readable outcome
         if: always()
         run: |
