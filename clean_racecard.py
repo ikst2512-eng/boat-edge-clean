@@ -29,10 +29,13 @@ def racecard(hd,jcd,rno):
     deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
     if max(title_fetched,card_fetched)>=deadline:raise ValueError("race_already_closed")
     racers=[]
+    seen_registrations=set()
     for i in range(1,7):
         p=f"艇{i}_"
         number=str(fields.get(p+"登録番号","")).strip()
         if not re.fullmatch(r"\d{4}",number):raise ValueError("six_racers_unavailable")
+        if number in seen_registrations:raise ValueError("duplicate_registration")
+        seen_registrations.add(number)
         racers.append({
           "lane":i,"registration_no":number,
           "name":fields.get(p+"選手名") or "未提供",
