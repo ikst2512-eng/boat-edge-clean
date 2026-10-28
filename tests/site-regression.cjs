@@ -204,4 +204,10 @@ assert.ok(html.includes('横スクロール不要'),'mobile racecard must be des
 assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
 assert.ok(script.includes("['チルト',r=>txt("),'mobile matrix must show tilt');
 assert.ok(script.includes('直前データ未取得です'),'missing beforeinfo must be explicitly explained');
+assert.ok(html.includes('id="resultVenue"'),'results must have a direct venue selector');
+assert.ok(script.includes("resultVenue.addEventListener('change'"),'result venue selection must update selected venue');
+assert.ok(script.includes("document.getElementById('resultVenue').value=String(s.venue+1)"),'result venue picker must sync with active race');
+assert.ok(html.includes('#forecast .prediction-row{gap:7px;padding:7px 9px'),'forecast tickets should use compact cards');
+assert.ok(script.includes("button.title=item.race+'Rの保存済み予想を見る'"),'result rows open their existing forecast');
+assert.ok(html.includes('id="forecastResultDetail"'),'forecast must show confirmed result detail');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
