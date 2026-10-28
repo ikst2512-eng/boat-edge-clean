@@ -1,0 +1,56 @@
+name: CLEAN selection public smoke
+on:
+  push:
+    branches: [main, feature/selection-public-smoke]
+    paths:
+      - "selection.html"
+      - "selection_dual.py"
+      - "server.py"
+      - ".github/workflows/selection-public-smoke.yml"
+  schedule:
+    - cron: '50 15 * * *'
+  workflow_dispatch:
+jobs:
+  production-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check Render public routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://boat-edge-clean.onrender.com"
+          check() {
+            path="$1"
+            out="$(mktemp)"
+            if ! code="$(curl --retry 2 --retry-delay 2 --max-time 45 -L -sS -o "$out" -w '%{http_code}' "$base$path")"; then
+              echo "::error::Render unreachable: $path"
+              return 1
+            fi
+            if [[ "$code" != 200 ]]; then
+              echo "::error::HTTP $code for $path"
+              return 1
+            fi
+            if [[ "$path" == /selection ]]; then
+              grep -q '購入候補・並行検証' "$out" || { echo "::error::Selection page missing"; return 1; }
+            elif [[ "$path" == /forecast ]]; then
+              grep -q '3連単予想' "$out" || { echo "::error::Forecast page missing"; return 1; }
+            else
+              python -m json.tool "$out" >/dev/null
+              python - "$out" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert d["schema"]=="CLEAN_DUAL_RESEARCH_V1"
+          assert d["minimum_confidence"]==0.7
+          assert d["prediction_publication_policy"]=="all_races_unfiltered"
+          assert d["below_minimum_policy"]=="skip_selection_keep_forecast"
+          assert d["ledgers"]["all"]["races"]>=d["ledgers"]["confidence_70"]["races"]
+          assert d["skipped_below_70"]["races"]+d["ledgers"]["confidence_70"]["races"]==d["ledgers"]["all"]["races"]
+          print("Public dual ledger healthy; verified",d["sample_races"],"races, post-policy",d["cohorts"]["post_policy"]["all"]["races"])
+          PY
+            fi
+            rm -f "$out"
+          }
+          check /forecast
+          check /selection
+          check /api/selection-research
