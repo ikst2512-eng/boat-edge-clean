@@ -68,6 +68,54 @@ def build_records(day, raw, collected_at):
     return records
 
 
+
+def source_gap_reasons(day, raw, missing_codes):
+    """Classify source visibility; blank/malformed finish is never a loss."""
+    if not DATE_RE.fullmatch(day):raise ValueError("date")
+    if len(raw)>2_000_000:raise ValueError("source too large")
+    reader=csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
+    required={"レースコード","1着_艇番","2着_艇番","3着_艇番","取得日時"}
+    if not reader.fieldnames or not required.issubset(reader.fieldnames):
+        raise ValueError("unrecognized result schema")
+    wanted=set(missing_codes)
+    matched={}
+    for row in reader:
+        code=row.get("レースコード")
+        if code not in wanted:continue
+        if code in matched:
+            matched[code]="duplicate_source_rows"
+            continue
+        order=[str(row.get(f"{n}着_艇番","")).strip() for n in (1,2,3)]
+        if not all(re.fullmatch("[1-6]",v) for v in order) or len(set(order))!=3:
+            matched[code]="invalid_or_unfinished_finish"
+        elif not row.get("取得日時"):
+            matched[code]="missing_source_timestamp"
+        else:
+            matched[code]="row_present_requires_review"
+    return {code:matched.get(code,"not_in_published_csv") for code in sorted(wanted)}
+
+
+def diagnose_source_gaps(day, root=ROOT, download=None):
+    """Read only published CSV and local unresolved archives; write nothing."""
+    from audit_clean_pending_results import audit
+    pending=audit(root,day)["overdue_race_codes"]
+    if not pending:
+        return {"day":day,"unresolved":0,"reasons":{}}
+    url=BASE+f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
+    if download is None:
+        def download(target):
+            with urlopen(Request(target,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESULTS/1.0"}),timeout=15) as response:
+                return response.read(2_000_001)
+    try:
+        reasons=source_gap_reasons(day,download(url),pending)
+        return {"day":day,"unresolved":len(pending),"reasons":reasons}
+    except HTTPError as exc:
+        if exc.code==404:
+            return {"day":day,"unresolved":len(pending),"source_status":"not_published","http_status":404}
+        raise
+
+
+
 def collect(day=None):
     now = datetime.now(JST)
     day = day or now.strftime("%Y%m%d")
