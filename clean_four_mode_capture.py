@@ -58,6 +58,21 @@ def collect(root=ROOT, now=None, read=read_rows):
                 "http_status":getattr(exc,"code",None),
                 "source_url":getattr(exc,"url",None)}
     if len(datasets)!=2:
+        # Independently published pre-race source; validated six racers and
+        # immutable receipt time. Do not use outcome or after-cutoff data.
+        try:
+            from clean_openapi_sources import load
+            alt_titles,alt_cards,received,digest,meta=load(hd,now=now)
+            # A matched source supplies title and cards as a single snapshot;
+            # do not mix today's partial datasets from different providers.
+            datasets={"title":(alt_titles,received,digest),
+                      "race_cards":(alt_cards,received,digest)}
+            direct_meta={}
+            outcomes["openapi_direct"]={"status":"available",**meta}
+        except (HTTPError,URLError,TimeoutError,ValueError,OSError,UnicodeError,KeyError,TypeError) as exc:
+            outcomes["openapi_direct"]={"status":"unavailable","error_type":type(exc).__name__,
+                                        "http_status":getattr(exc,"code",None)}
+    if len(datasets)!=2:
         return {"new_saved":[],"excluded":{},"date_jst":hd,
                 "source_status":"source_blocked" if outcomes.get("direct_error",{}).get("http_status")==403 else "source_incomplete","source_probes":outcomes,
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}

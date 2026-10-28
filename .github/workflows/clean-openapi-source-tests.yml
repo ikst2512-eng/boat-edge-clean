@@ -1,0 +1,32 @@
+name: CLEAN alternate feed to forecast checks
+on:
+  pull_request:
+    paths:
+      - clean_openapi_sources.py
+      - clean_four_mode_capture.py
+      - test_clean_openapi_sources.py
+      - test_clean_four_mode_capture_status.py
+      - .github/workflows/clean-openapi-source-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - clean_openapi_sources.py
+      - clean_four_mode_capture.py
+      - test_clean_openapi_sources.py
+      - test_clean_four_mode_capture_status.py
+      - .github/workflows/clean-openapi-source-tests.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate alternate pre-race six-boat feed and no late backfill
+        run: python -m unittest -v test_clean_openapi_sources test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e
