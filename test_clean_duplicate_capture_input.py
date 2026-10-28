@@ -33,4 +33,22 @@ class DuplicateCaptureInputTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             self.assertEqual(collect(root=Path(temp),now=now,read=read)["new_saved"],[code])
 
+
+    def test_duplicate_deadline_rows_cannot_freeze_forecast(self):
+        now=datetime(2026,10,28,8,0,tzinfo=JST)
+        fetched=datetime(2026,10,28,7,30,tzinfo=JST)
+        code="202610280101"
+        titles=[
+            {"レースコード":code,"電話投票締切予定":"12:00"},
+            {"レースコード":code,"電話投票締切予定":"12:15"},
+        ]
+        card={"レースコード":code,**{f"艇{i}_全国勝率":str(4+i/10) for i in range(1,7)}}
+        def read(url):
+            return (titles if "/title/" in url else [card],fetched,"a"*64)
+        with tempfile.TemporaryDirectory() as temp:
+            result=collect(root=Path(temp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[])
+            self.assertEqual(result["excluded"].get("duplicate_title"),2)
+            self.assertFalse((Path(temp)/"four_mode_forecasts"/(code+".json")).exists())
+
 if __name__=="__main__": unittest.main()
