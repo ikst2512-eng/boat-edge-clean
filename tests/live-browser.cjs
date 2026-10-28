@@ -46,6 +46,22 @@ const fs=require('node:fs');
    if(await first.locator('.clean-race-lane').count()!==6)throw Error('Published six-boat racecard incomplete');
    if((await first.locator('.clean-racer-name').first().innerText())!==published.name)throw Error('Racer name mismatch with published CSV');
    if((await first.locator('.clean-racer-class').first().innerText())!==(published.grade||'—'))throw Error('Racer grade mismatch with published CSV');
+   const expected=await page.evaluate(async()=>{
+    const [titles,cards]=await Promise.all([cleanListRaceTitles('2026-10-28',1),cleanListRaceCards('2026-10-28',1)]);
+    const title=titles.get(1),racer=cards.get(1);
+    return {title:title?.['レース名']||null,grade:title?.['グレード']||null,branch:racer?.['艇1_支部']||null,st:racer?.['艇1_全国平均ST']||null};
+   });
+   if(expected.title){
+    const rendered=await first.locator('.clean-race-tag').allInnerTexts();
+    if(!rendered.includes(expected.title))throw Error('Published race name mismatch: '+JSON.stringify({expected,rendered}));
+   }
+   if(expected.grade&&expected.grade!=='IP'&&expected.title){
+    if((await first.locator('.clean-race-grade').first().innerText())!==expected.grade)throw Error('Published grade mismatch');
+   }
+   const extra=await first.locator('.clean-racer-extra').first().innerText();
+   if(expected.branch&&!extra.includes('支部 '+expected.branch))throw Error('Published racer branch mismatch');
+   if(expected.st&&Number.isFinite(Number(expected.st))&&!extra.includes('ST '+Number(expected.st).toFixed(2)))throw Error('Published average ST mismatch');
+   console.log('PUBLISHED_RACE_TAGS '+JSON.stringify({title:expected.title?'verified':'not_published',grade:expected.grade?'verified':'not_published',branch:expected.branch?'verified':'not_published',st:expected.st?'verified':'not_published'}));
    console.log('PUBLISHED_RACE_CARD_PASS 20261028 01 1R source_rows='+published.count);
   }else{
    console.log('PUBLISHED_RACE_CARD_UNVERIFIED CSV unavailable; do not claim live racer data passed');
