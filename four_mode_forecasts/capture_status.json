@@ -1,23 +1,30 @@
 {
-  "day_jst": "20261028",
-  "eligible_forecasts_today": 132,
+  "day_jst": "20261029",
+  "eligible_forecasts_today": 0,
   "excluded": {},
   "http_status": null,
   "last_run_new_count": 0,
-  "production_success_proven": true,
-  "published_card_rows": 132,
-  "published_title_rows": 132,
+  "production_success_proven": false,
+  "published_card_rows": null,
+  "published_title_rows": null,
   "schema": "CLEAN_FOUR_MODE_CAPTURE_HEALTH_V1",
   "source_probes": {
+    "direct_error": {
+      "http_status": 403,
+      "status": "error",
+      "type": "HTTPError"
+    },
     "race_cards": {
-      "rows": 132,
-      "status": "available"
+      "http_status": 404,
+      "source_url": "https://boatracecsv.github.io/data/programs/race_cards/2026/10/29.csv",
+      "status": "not_published"
     },
     "title": {
-      "rows": 132,
-      "status": "available"
+      "http_status": 404,
+      "source_url": "https://boatracecsv.github.io/data/programs/title/2026/10/29.csv",
+      "status": "not_published"
     }
   },
-  "source_status": "available",
+  "source_status": "source_incomplete",
   "source_url": null
 }
