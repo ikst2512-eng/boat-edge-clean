@@ -4,7 +4,6 @@ Not used by the production forecast API or archived predeadline forecasts.
 The odds-aware hole mode fails closed when contemporaneous odds are unavailable.
 """
 import math
-from clean_four_modes import rank_modes
 
 CAPS = {"narrow": 5, "hit": 10, "balance": 20, "hole": 30}
 TARGETS = {"hit": 0.60, "balance": 0.50, "hole": 0.125, "narrow": 0.40}
@@ -17,7 +16,6 @@ def research_modes(prob_rows, odds=None):
         raise ValueError("invalid_probability")
     ordered = sorted(rows, key=lambda x: (-x[1], x[0]))
     # The existing balance diversity heuristic is the published baseline.
-    baseline = rank_modes(prob_rows)
     result = {}
     for mode, choices in (("narrow", ordered[:5]), ("hit", ordered[:10])):
         result[mode] = {"tickets": [{"combo": c, "p": round(p * 100, 5)} for c,p in choices],
@@ -27,7 +25,6 @@ def research_modes(prob_rows, odds=None):
                         "target_proven": False}
     # Balance preserves the alternative-first/second-place ordering without peeking at results.
     by_combo = dict(rows)
-    balance = [t["combo"] for t in baseline["balance"]["tickets"]]
     # The production target may stop early. Build an independent, 20-pick diverse ranking.
     remaining = dict(rows)
     diverse = []
