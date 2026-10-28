@@ -24,6 +24,31 @@ const fs=require('node:fs');
   if(await links.count()!==5)throw Error('Expected five page links in current navigation');
   const raceButtons=page.locator('.races button');
   if(await raceButtons.count()!==12)throw Error('Expected twelve race selector buttons');
+  if(await page.locator('#homeRaceCardList').count()!==1)throw Error('STALE_DEPLOYMENT: missing new six-boat home race cards');
+  if(await page.locator('#resultList').count()!==1)throw Error('Missing result race list');
+  // The upstream CSV may not be published; verify UI wiring without inventing racers.
+  await page.evaluate(()=>{setView('home');});
+  await page.waitForTimeout(300);
+  const cardCount=await page.locator('#homeRaceCardList .clean-race-card').count();
+  if(cardCount>0){
+   const first=page.locator('#homeRaceCardList .clean-race-card').first();
+   if(await first.locator('.clean-race-lane').count()!==6)throw Error('A home race card must show exactly six boats');
+   if(await first.locator('.clean-race-actions button').count()!==6)throw Error('Home race card must have six navigation actions');
+  }
+  console.log('HOME_RACE_CARDS '+cardCount+' (zero may mean schedule/CSV not published)');
+  if(isRender){
+   for(const date of ['invalid-date',new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Tokyo'}).replaceAll('-','')]){
+    const response=await page.request.get(new URL('/api/clean-schedule?date='+date,site).href,{timeout:20000});
+    const data=await response.json();
+    if(date==='invalid-date'){
+     if(response.status()!==400||data.status!=='invalid_date')throw Error('Invalid schedule date must be 400');
+    }else{
+     const allowed={200:'published_schedule',404:'schedule_not_published',502:'source_invalid',503:'source_unavailable',500:'internal_error'};
+     if(allowed[response.status()]!==data.status)throw Error('Schedule classification mismatch: '+response.status()+'/'+data.status);
+     console.log('LIVE_SCHEDULE '+date+' '+response.status()+' '+data.status);
+    }
+   }
+  }
   // Test the current single-document UI without assuming server-side route rewrites.
   if(await page.locator('.view-tabs a[data-page]').count()!==5)throw Error('Five current page links missing');
   for(const width of [320,360,375,390]){
