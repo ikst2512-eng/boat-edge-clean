@@ -1,7 +1,16 @@
 name: Dual verification page checks
 on:
   push:
-    branches: [feature/selection-dual-verification]
+    branches: [main, fix/dual-ledger-growing-history]
+    paths:
+      - "selection_dual.py"
+      - "selection.html"
+      - "server.py"
+      - "index.html"
+      - "test_selection_dual.py"
+      - "four_mode_forecasts/**"
+      - "four_mode_performance/history-10000.json"
+      - ".github/workflows/dual-verification-page.yml"
   pull_request:
     paths:
       - "selection_dual.py"
@@ -9,9 +18,17 @@ on:
       - "server.py"
       - "index.html"
       - "test_selection_dual.py"
+      - "four_mode_forecasts/**"
+      - "four_mode_performance/history-10000.json"
+      - ".github/workflows/dual-verification-page.yml"
+  schedule:
+    - cron: '20 15 * * *'
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,3 +36,5 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest -v test_selection_dual.py
       - run: python -m py_compile selection_dual.py server.py
+      - name: Inspect dual ledger from verified records
+        run: python -c 'import json, selection_dual; print(json.dumps(selection_dual.report(), ensure_ascii=False, indent=2))'
