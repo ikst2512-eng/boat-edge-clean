@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime
 from unittest.mock import patch
+from urllib.error import HTTPError
 import clean_schedule as s
 
 
@@ -18,6 +19,20 @@ class ScheduleTests(unittest.TestCase):
 
     def test_invalid_date_without_network(self):
         self.assertEqual(s.clean_schedule("20261340")[0],400)
+
+    def test_not_yet_published_csv_is_not_a_server_failure(self):
+        error=HTTPError("https://example.invalid/file.csv",404,"Not Found",None,None)
+        with patch.object(s,"read_rows",side_effect=error):
+            status,data=s.clean_schedule("20261029")
+        self.assertEqual(status,404)
+        self.assertEqual(data["status"],"schedule_not_published")
+        self.assertNotIn("races",data)
+
+    def test_upstream_503_remains_source_failure(self):
+        error=HTTPError("https://example.invalid/file.csv",503,"unavailable",None,None)
+        with patch.object(s,"read_rows",side_effect=error):
+            status,data=s.clean_schedule("20261029")
+        self.assertEqual((status,data["status"]),(503,"source_unavailable"))
 
     def test_upstream_failure_no_old_fallback(self):
         with patch.object(s,"read_rows",side_effect=TimeoutError()):
