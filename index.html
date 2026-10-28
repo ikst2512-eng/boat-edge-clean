@@ -1128,6 +1128,17 @@ async function loadReview(){
   note.textContent='各方式5,000円の想定購入結果（実際に購入した記録ではありません）。予想の後付け生成は行いません。';
  }catch(e){
   if(seq!==reviewSequence||key!==sameRaceKey())return;
+  const code=key.replaceAll('-','');
+  if(/^2026102803(?:0[6-9]|1[0-2])$/.test(code)){
+   status.textContent='中止・順延（江戸川6〜12R）：的中率・回収率の対象外';
+   note.textContent='10月28日の公式開催情報で中止・順延を確認。未確定結果を不的中扱いしません。';
+   return;
+  }
+  if(code==='202610280112'){
+   status.textContent='3連単不成立の可能性（桐生12R）：公式精算確認待ち';
+   note.textContent='着順が不完全なため実績から除外しています。返還等の公式精算は未確認です。';
+   return;
+  }
   status.textContent=e.message==='RESULT_PENDING'?'結果待ち（不的中として集計しません）':'検証保留：CLEAN締切前予想または確定結果の証拠不足';
   note.textContent='締切前の初回Git保存、確定結果、払戻のすべてを確認できたレースだけ実績に反映します。';
  }
