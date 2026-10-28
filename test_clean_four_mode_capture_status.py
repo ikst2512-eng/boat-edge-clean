@@ -53,7 +53,7 @@ class CaptureStatusTests(unittest.TestCase):
                 raise HTTPError(blocked,403,"Forbidden",None,None)
             with patch("clean_direct_sources.holding_rows",side_effect=blocked_holding):
                 result=collect(root=Path(tmp),now=now,read=unpublished)
-            self.assertEqual(result["source_status"],"source_incomplete")
+            self.assertEqual(result["source_status"],"source_blocked")
             self.assertEqual(result["source_probes"]["title"]["status"],"not_published")
             self.assertEqual(result["source_probes"]["race_cards"]["status"],"not_published")
             direct=result["source_probes"]["direct_error"]
