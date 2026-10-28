@@ -177,4 +177,8 @@ assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket mar
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
 assert.ok(script.includes("このレースで的中した予想"),'single race answer checks must summarize winning modes');
 assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
+assert.ok(html.includes('.review-hit-summary'),'verified race wins must be visually prominent');
+assert.ok(script.includes("winners.length?'● 的中：'"),'verified hit summary must include mark');
+assert.ok(script.includes("不的中：4パターンとも該当なし"),'verified all-mode miss must be explicit');
+assert.ok(script.includes("結果待ち（不的中として集計しません）"),'pending results must not be treated as misses');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
