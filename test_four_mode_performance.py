@@ -27,6 +27,9 @@ class FourModePerformanceTests(unittest.TestCase):
         with self.assertRaises(ValueError):evaluate(archive,result,2400)
         x=evaluate(archive,result,2400,5000,True)
         self.assertEqual(x["modes"]["hit"]["return_yen"],60000)
+        self.assertEqual(x["modes"]["hit"]["winning_ticket"],"1-2-3")
+        self.assertEqual(x["modes"]["hit"]["winning_stake_yen"],2500)
+        self.assertEqual(x["modes"]["hole"]["winning_stake_yen"],2500)
         self.assertEqual(summary([x])["hit"]["actual_roi_pct"],1200)
         archive["generated_at_jst"]=archive["deadline_jst"]
         with self.assertRaises(ValueError):evaluate(archive,result,2400,5000,True)
