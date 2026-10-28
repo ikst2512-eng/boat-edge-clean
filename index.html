@@ -504,7 +504,14 @@ async function loadResultList(){
   if(item.state!=='確定')return {...item,hitState:'pending'};
   const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race);
   try{
-   const record=await verifiedFourModeRace(key);
+   let record;
+   for(let attempt=0;attempt<3;attempt++){
+    try{record=await verifiedFourModeRace(key);break}
+    catch(error){
+     if(error.message!=='FOUR_MODE_VERIFICATION_PENDING'||attempt===2)throw error;
+     await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
+    }
+   }
    if(record.official_finish!==item.match)return {...item,hitState:'pending'};
    return {...item,hitState:Object.values(record.modes).some(m=>m.hit)?'hit':'miss',winningModes:[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']].filter(([k])=>record.modes[k].hit).map(([,v])=>v)};
   }catch(_){return {...item,hitState:'pending'}}
