@@ -94,7 +94,8 @@ const fs=require('node:fs');
   if(labels.some(x=>!['◎ 予想的中','予想不的中','予想未検証'].includes(x)))throw Error('Unknown result verification badge');
   // Actual archived, independently verified miss: Karatsu 9R on 2026-10-28.
   const missCard=page.locator('#resultList .clean-race-card').nth(8);
-  if((await missCard.locator('.clean-race-verdict').innerText())!=='予想不的中')throw Error('Verified miss label incorrect for Karatsu 9R');
+  const actualMiss=await missCard.locator('.clean-race-verdict').innerText();
+  if(actualMiss!=='予想不的中')throw Error('Verified miss label incorrect for Karatsu 9R: '+actualMiss);
   if((await missCard.locator('.clean-race-state').innerText())!=='結果確定')throw Error('Confirmed Karatsu 9R result missing');
   console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
   // A date whose result has not happened must remain pending, not a miss.
