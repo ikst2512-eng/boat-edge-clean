@@ -1,0 +1,31 @@
+name: CLEAN daily Git first-add evidence
+on:
+  pull_request:
+    paths:
+      - audit_clean_first_add_daily.py
+      - test_audit_clean_first_add_daily.py
+      - .github/workflows/clean-first-add-evidence.yml
+  push:
+    branches: [main]
+    paths:
+      - audit_clean_first_add_daily.py
+      - test_audit_clean_first_add_daily.py
+      - .github/workflows/clean-first-add-evidence.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_audit_clean_first_add_daily
+      - name: Check full 2026-10-29 cohort first Git add and unchanged bytes
+        run: python audit_clean_first_add_daily.py 20261029
