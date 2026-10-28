@@ -28,6 +28,8 @@ def select_hole_with_head_limit(rows, odds, max_heads=2, max_tickets=20):
 
 
 def research_modes(prob_rows, odds=None, hole_max_heads=2):
+    if type(hole_max_heads) is not int or hole_max_heads not in (1, 2):
+        raise ValueError("max_heads_must_be_1_or_2")
     rows = [("-".join(map(str, ticket)), float(p)) for ticket, p in prob_rows]
     if len(rows) != 120 or len({combo for combo, _ in rows}) != 120 or abs(sum(p for _, p in rows)-1) > 1e-6:
         raise ValueError("invalid_probability_board")
@@ -68,7 +70,6 @@ def research_modes(prob_rows, odds=None, hole_max_heads=2):
     if any(type(v) not in (float,int) or not math.isfinite(v) or v <= 1 for v in odds.values()):
         raise ValueError("invalid_odds")
     # Descriptive EV only: model probabilities are uncalibrated.
-    candidates = sorted(rows, key=lambda x: (-x[1]*odds[x[0]],-odds[x[0]],x[0]))
     # Do not label probability-only tickets as verified high-return selections.
     selections, heads = select_hole_with_head_limit(rows, odds, hole_max_heads, CAPS["hole"])
     result["hole"] = {"tickets":[{"combo":c,"p":round(p*100,5),"odds":odds[c],
