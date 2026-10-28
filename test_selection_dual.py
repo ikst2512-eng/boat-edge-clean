@@ -7,6 +7,11 @@ class DualSelectionTests(unittest.TestCase):
   data=report(ROOT)
   self.assertEqual(data["schema"],"CLEAN_DUAL_RESEARCH_V1")
   self.assertEqual(data["prediction_publication_policy"],"all_races_unfiltered")
+  self.assertLessEqual(len(data["recent_verified_races"]),24)
+  for item in data["recent_verified_races"]:
+   self.assertIn(item["selection"],("candidate","skip"))
+   self.assertEqual(item["selection"]=="candidate",item["confidence_pct"]>=70 or abs(item["confidence_pct"]-70)<0.005)
+   self.assertIn(item["cohort"],("retrospective","post_policy"))
   # The verified history grows daily: assert internal accounting, not a stale fixed sample count.
   import json
   history=json.loads((ROOT/"four_mode_performance"/"history-10000.json").read_text(encoding="utf-8"))
