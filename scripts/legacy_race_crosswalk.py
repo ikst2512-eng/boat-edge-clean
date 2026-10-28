@@ -15,8 +15,8 @@ PREFIXES = ("data/site_prediction_snapshots/", "data/site_prediction_audit/",
             "data/site_odds/", "data/raw/")
 CLEAN_PREFIXES = ("confirmed_results/", "four_mode_forecasts/",
                   "prospective_predictions/", "four_mode_performance/")
-LEGACY_NAME = re.compile(r"^(\d{8})-(\d{2})-(\d{2})\\.json$")
-CLEAN_NAME = re.compile(r"^(\d{8})(\d{2})(\d{2})\\.json$")
+LEGACY_NAME = re.compile(r"^(\d{8})-(\d{2})-(\d{2})\.json$")
+CLEAN_NAME = re.compile(r"^(\d{8})(\d{2})(\d{2})\.json$")
 
 
 def fetch_tree(repo, ref):
