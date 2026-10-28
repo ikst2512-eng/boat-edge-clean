@@ -13,7 +13,10 @@ class HoleHeadCaptureTests(unittest.TestCase):
         self.assertEqual(len(one),1)
         self.assertEqual(len(two),2)
         self.assertTrue(set(one).issubset(two))
-        with self.assertRaises(ValueError): first_place_candidates(rates,3)
+        three=first_place_candidates(rates,3)
+        self.assertEqual(len(three),3)
+        self.assertTrue(set(two).issubset(three))
+        with self.assertRaises(ValueError): first_place_candidates(rates,4)
 
     def test_result_is_head_only_not_ticket_accuracy(self):
         with tempfile.TemporaryDirectory() as d:
@@ -32,6 +35,7 @@ class HoleHeadCaptureTests(unittest.TestCase):
             result=analyze(h,root)
             self.assertEqual(result["head_candidate_capture_counts"]["one_head"],1)
             self.assertEqual(result["head_candidate_capture_counts"]["two_heads"],1)
+            self.assertEqual(result["head_candidate_capture_counts"]["three_heads"],1)
             self.assertIsNone(result["hole_roi"])
             self.assertIsNone(result["hole_ticket_hit_rates"])
             h["races"].append(h["races"][0])
