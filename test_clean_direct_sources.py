@@ -48,7 +48,7 @@ class DirectSourceTests(unittest.TestCase):
         def missing(url):
             raise HTTPError(url,404,"Not Found",None,None)
         with tempfile.TemporaryDirectory() as temp:
-            with patch("clean_direct_sources.holding_rows",side_effect=lambda day:holding_rows(day,fetch=lambda _:holding_bytes())),patch("clean_direct_sources.direct_cards",side_effect=lambda day,titles,existing,now=None:direct_cards(day,titles,existing,now=now,fetch=lambda _:card_bytes())):
+            with patch("clean_direct_sources.holding_rows",side_effect=lambda day:(holding_rows(day,fetch=lambda _:holding_bytes())[0],NOW,"a"*64)),patch("clean_direct_sources.direct_cards",side_effect=lambda day,titles,existing,now=None:direct_cards(day,titles,existing,now=now,fetch=lambda _:card_bytes())):
                 result=collect(root=Path(temp),now=NOW,read=missing)
             self.assertEqual(result["new_saved"],[DAY+"0101"])
             snapshot=json.loads((Path(temp)/"four_mode_forecasts"/(DAY+"0101.json")).read_text())
