@@ -15,8 +15,8 @@ def select_hole_with_head_limit(rows, odds, max_heads=2, max_tickets=20):
     select odds-weighted tickets only under those candidate heads.
     Entirely uncalibrated, research-only and requires pre-race odds.
     """
-    if type(max_heads) is not int or max_heads not in (1, 2):
-        raise ValueError("max_heads_must_be_1_or_2")
+    if type(max_heads) is not int or max_heads not in (1, 2, 3):
+        raise ValueError("max_heads_must_be_1_to_3")
     head_mass = {str(i): sum(p for combo, p in rows if combo[0] == str(i))
                  for i in range(1, 7)}
     allowed = set(sorted(head_mass, key=lambda b: (-head_mass[b], b))[:max_heads])
@@ -28,8 +28,8 @@ def select_hole_with_head_limit(rows, odds, max_heads=2, max_tickets=20):
 
 
 def research_modes(prob_rows, odds=None, hole_max_heads=2):
-    if type(hole_max_heads) is not int or hole_max_heads not in (1, 2):
-        raise ValueError("max_heads_must_be_1_or_2")
+    if type(hole_max_heads) is not int or hole_max_heads not in (1, 2, 3):
+        raise ValueError("max_heads_must_be_1_to_3")
     rows = [("-".join(map(str, ticket)), float(p)) for ticket, p in prob_rows]
     if len(rows) != 120 or len({combo for combo, _ in rows}) != 120 or abs(sum(p for _, p in rows)-1) > 1e-6:
         raise ValueError("invalid_probability_board")
