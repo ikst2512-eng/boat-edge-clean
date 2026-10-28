@@ -210,4 +210,5 @@ assert.ok(script.includes("document.getElementById('resultVenue').value=String(s
 assert.ok(html.includes('#forecast .prediction-row{gap:7px;padding:7px 9px'),'forecast tickets should use compact cards');
 assert.ok(script.includes("button.title=item.race+'Rの保存済み予想を見る'"),'result rows open their existing forecast');
 assert.ok(html.includes('id="forecastResultDetail"'),'forecast must show confirmed result detail');
+assert.strictEqual((html.match(/@media\(max-width:720px\)\{#mobileRaceMatrix\{overflow-x:visible!important;max-width:100%\}/g)||[]).length,0,'duplicated mobile CSS removed');
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
