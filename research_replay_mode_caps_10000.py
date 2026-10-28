@@ -29,15 +29,14 @@ def replay(history,root=ROOT):
             raise ValueError("archive_mismatch")
         if "modes" not in archive:
             raise ValueError("original_archived_modes_required")
-        if "modes" in archive:
-            for original_mode in ("hit","balance","hole","narrow"):
-                recorded = race.get("modes",{}).get(original_mode)
-                if recorded is None:
-                    raise ValueError("saved_baseline_required")
-                baseline = allocate(archive["modes"][original_mode]["tickets"], BUDGET)
-                expected = baseline.get(race["finish"],0)*race["payout_per_100_yen"]//100
-                if recorded["hit"] != (race["finish"] in baseline) or recorded["return_yen"] != expected:
-                    raise ValueError("baseline_reconciliation_failed")
+        for original_mode in ("hit","balance","hole","narrow"):
+            recorded = race.get("modes",{}).get(original_mode)
+            if recorded is None:
+                raise ValueError("saved_baseline_required")
+            baseline = allocate(archive["modes"][original_mode]["tickets"], BUDGET)
+            expected = baseline.get(race["finish"],0)*race["payout_per_100_yen"]//100
+            if recorded["hit"] != (race["finish"] in baseline) or recorded["return_yen"] != expected:
+                raise ValueError("baseline_reconciliation_failed")
         rates=archive.get("input_national_win_rates")
         if not isinstance(rates,list) or len(rates)!=6:
             raise ValueError("saved_inputs_missing")
