@@ -8,6 +8,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,8 +19,10 @@ CLEAN = "ikst2512-eng/boat-edge-clean"
 
 def github_bytes(repo, blob_sha):
     url = f"https://api.github.com/repos/{repo}/git/blobs/{blob_sha}"
-    request = urllib.request.Request(url, headers={
-        "Accept": "application/vnd.github+json", "User-Agent": "clean-result-audit"})
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "clean-result-audit"}
+    if os.getenv("GH_TOKEN"):
+        headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=30) as response:
         blob = json.load(response)
     if blob.get("encoding") != "base64" or blob.get("sha") != blob_sha:
