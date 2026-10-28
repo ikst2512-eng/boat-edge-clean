@@ -59,7 +59,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                 "source_url":getattr(exc,"url",None)}
     if len(datasets)!=2:
         return {"new_saved":[],"excluded":{},"date_jst":hd,
-                "source_status":"source_incomplete","source_probes":outcomes,
+                "source_status":"source_blocked" if outcomes.get("direct_error",{}).get("http_status")==403 else "source_incomplete","source_probes":outcomes,
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
     titles,title_received,title_sha=datasets["title"]
     cards,card_received,card_sha=datasets["race_cards"]
