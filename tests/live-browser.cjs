@@ -100,7 +100,8 @@ const fs=require('node:fs');
    catch(e){return {status:'error',error:String(e)}}
   });
   const actualMiss=await missCard.locator('.clean-race-verdict').innerText();
-  console.log('MISS_PROOF_DIAGNOSTIC '+JSON.stringify({missProof,actualMiss}));
+  const missDisplay=await missCard.evaluate(el=>({state:el.querySelector('.clean-race-state')?.textContent,foot:el.querySelector('.clean-race-foot')?.textContent}));
+  console.log('MISS_PROOF_DIAGNOSTIC '+JSON.stringify({missProof,actualMiss,missDisplay}));
   if(actualMiss==='◎ 予想的中')throw Error('False hit displayed for verified miss Karatsu 9R');
   if(actualMiss==='予想不的中')console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
   else console.log('PUBLISHED_VERIFIED_MISS_UNVERIFIED browser failed to resolve proof for Karatsu 9R: '+actualMiss);
