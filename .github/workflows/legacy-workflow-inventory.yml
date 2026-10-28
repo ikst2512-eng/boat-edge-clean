@@ -1,0 +1,29 @@
+name: Legacy workflow dependency inventory
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_legacy_workflow_inventory.py
+      - tests/test_audit_legacy_workflow_inventory.py
+      - .github/workflows/legacy-workflow-inventory.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v tests/test_audit_legacy_workflow_inventory.py
+      - run: python scripts/audit_legacy_workflow_inventory.py --output legacy_workflow_inventory.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: legacy-workflow-inventory
+          path: legacy_workflow_inventory.json
+          retention-days: 90
