@@ -234,4 +234,22 @@ assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverif
  assert.ok(script.includes('的中確定！ 締切前予想と照合済み'),'verified hit must be gated by predeadline evidence');
  console.log('PASS: pending results never treated as verified hits or losses; reference matches remain unverified');
 
+
+ // The six-boat card and predeadline source audits must remain fail-closed.
+ for (const [literal,message] of [
+  ["racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6",'six unique lanes'],
+  ["new Set(racers.map(r=>String(r.registration_no||''))).size!==6",'six unique racer registrations'],
+  ["entryAudit?.status==='ok'",'actual entry source audited'],
+  ["entryAudit.sha256||''",'actual entry source digest'],
+  ["entryAt<raceDeadline",'entry recorded before cutoff'],
+  ["entryAt<=Date.now()+300000",'entry future-time guard'],
+  ["courseRows.length===6&&new Set(courseRows.map(r=>r.course_stats.course)).size===6",'six unique course statistics'],
+  ["courseAudit?.status==='ok'",'course statistics audited'],
+  ["courseAt<courseDeadline",'course statistics predeadline'],
+  ["r.course_stats.first_rate+r.course_stats.second_rate+r.course_stats.third_rate<=100.01",'course rate sanity check'],
+  ["const weather=safePreview&&raw.beforeinfo?.weather",'weather only from audited exhibition'],
+  ["typeof value==='number'&&Number.isFinite(value)&&value>=0",'reject malformed weather observations']
+ ])assert.ok(script.includes(literal),'missing six-boat/provenance guard: '+message);
+ console.log('PASS: six-boat completeness and immutable-source/cutoff guard presence');
+
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
