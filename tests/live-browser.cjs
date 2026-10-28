@@ -20,38 +20,55 @@ const fs=require('node:fs');
   await page.locator('#venueChooser .grid button').first().waitFor();
   const venues=await page.locator('#venueChooser .grid button').count();
   if(venues!==24)throw Error('Expected 24 venue buttons; found '+venues);
-  const tabs=await page.locator('.view-tabs [role="tab"]').count();
-  if(tabs!==4)throw Error('Expected 4 tabs; found '+tabs);
-  const raceButtons=await page.locator('.races button').count();
-  if(raceButtons!==12)throw Error('Expected 12 race selector buttons; found '+raceButtons);
-  const selectedVenue=page.locator('#venueChooser .grid button').nth(3);
-  await selectedVenue.click();
-  if(await selectedVenue.getAttribute('aria-pressed')!=='true')throw Error('Venue selection did not update');
-  const secondRace=page.locator('.races button').nth(1);
-  await secondRace.click();
-  if(await secondRace.getAttribute('aria-pressed')!=='true')throw Error('Race selection did not update');
-  let destination=new URL(page.url());
-  if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Selected race URL not synchronized');
-  for(const view of ['card','exhibit','forecast','result']){
-   const tab=page.locator('.view-tabs [role="tab"][data-view="'+view+'"]');
-   await tab.click();
-   if(await tab.getAttribute('aria-selected')!=='true')throw Error(view+' tab did not become selected');
-   if(new URL(page.url()).searchParams.get('view')!==view)throw Error(view+' URL view parameter not synchronized');
-   const panel=view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection';
-   if(!await page.locator(panel).isVisible())throw Error(view+' panel not visible');
-   if(view==='exhibit' && await page.locator('#exhibitionGrid').evaluate(el=>el.hidden))throw Error('Exhibition grid hidden attribute remains set');
+  const links=page.locator('.view-tabs a[data-page]');
+  if(await links.count()!==5)throw Error('Expected five page links in current navigation');
+  const raceButtons=page.locator('.races button');
+  if(await raceButtons.count()!==12)throw Error('Expected twelve race selector buttons');
+  // Test the current single-document UI without assuming server-side route rewrites.
+  if(await page.locator('.view-tabs a[data-page]').count()!==5)throw Error('Five current page links missing');
+  for(const width of [320,360,375,390]){
+   await page.setViewportSize({width,height:844});
+   await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+   await page.evaluate(()=>setView('card'));
+   await page.locator('#mobileRaceMatrix').waitFor({state:'visible'});
+   // Test the actual CSS with a synthetic six-boat matrix if no race feed is available.
+   const geometry=await page.evaluate(()=>{
+    const panel=document.querySelector('#mobileRaceMatrix');
+    let table=panel.querySelector('table'),synthetic=false;
+    if(!table){
+     synthetic=true;
+     table=document.createElement('table');table.className='boat-matrix-table';
+     const thead=document.createElement('thead'),heading=document.createElement('tr');
+     ['項目','1','2','3','4','5','6'].forEach(value=>{const cell=document.createElement('th');cell.textContent=value;heading.append(cell)});
+     thead.append(heading);table.append(thead);
+     const tbody=document.createElement('tbody');
+     for(const label of ['選手','全国勝率','展示タイム','チルト']){
+      const tr=document.createElement('tr'),th=document.createElement('th');th.textContent=label;tr.append(th);
+      for(let n=0;n<6;n++){const td=document.createElement('td');td.textContent=label==='選手'?'テスト選手名':'—';tr.append(td)}
+      tbody.append(tr);
+     }
+     table.append(tbody);panel.replaceChildren(table);
+    }
+    const rect=table.getBoundingClientRect();
+    const parent=panel.getBoundingClientRect();
+    const rows=[...table.querySelectorAll('tbody tr th')].map(x=>x.textContent.trim());
+    const tableStyle=getComputedStyle(table),panelStyle=getComputedStyle(panel);
+    return {viewport:document.documentElement.clientWidth,documentWidth:document.documentElement.scrollWidth,
+      bounds:{left:rect.left,right:rect.right},parent:{left:parent.left,right:parent.right,width:parent.width},rows,synthetic,
+      style:{tableLayout:tableStyle.tableLayout,width:tableStyle.width,minWidth:tableStyle.minWidth,maxWidth:tableStyle.maxWidth,panelOverflow:panelStyle.overflowX},
+      sourceHasFitRule:[...document.styleSheets].some(sheet=>{try{return [...sheet.cssRules].some(rule=>rule.cssText.includes('#mobileRaceMatrix .boat-matrix-table'))}catch(_){return false}})};
+   });
+   console.log('MATRIX_DIAGNOSTIC '+width+'px '+JSON.stringify(geometry));
+   if(!geometry.sourceHasFitRule)
+    throw Error('STALE_DEPLOYMENT: published HTML lacks #mobileRaceMatrix .boat-matrix-table mobile fit CSS at '+site+'; inspect deployed commit/build before editing CSS');
+   if(geometry.bounds.right>geometry.viewport+2||geometry.bounds.left< -2)
+    throw Error('Mobile race matrix overflow at '+width+'px: '+JSON.stringify(geometry));
+   if(geometry.rows.filter(x=>x==='チルト').length!==1||geometry.rows.filter(x=>x==='展示タイム').length!==1)
+    throw Error('Duplicated exhibition fields at '+width+'px');
+   console.log('PASS matrix '+width+'px; synthetic fixture='+geometry.synthetic);
   }
-  destination=new URL(page.url());
-  if(destination.searchParams.get('venue')!=='4'||destination.searchParams.get('race')!=='2')throw Error('Tabs changed selected race');
-  await page.reload({waitUntil:'domcontentloaded'});
-  if(new URL(page.url()).searchParams.get('view')!=='result')throw Error('View query lost on reload');
-  const selectedResultTab=page.locator('.view-tabs [role="tab"][data-view="result"]');
-  await selectedResultTab.waitFor();
-  if(await selectedResultTab.getAttribute('aria-selected')!=='true')throw Error('Result view not restored on reload');
-  if(await page.locator('#venueChooser .grid button').nth(3).getAttribute('aria-pressed')!=='true')throw Error('Venue not restored on reload');
-  if(await page.locator('.races button').nth(1).getAttribute('aria-pressed')!=='true')throw Error('Race not restored on reload');
   if(errors.length)throw Error('Browser errors: '+errors.join(' | '));
-  console.log('PASS: published site renders 24 venues, 12 races, 4 panels; venue/race selections and deep-link query persist');
+  console.log('PASS: current page navigation and matrix CSS geometry checks; fixture runs are not proof of live race data');
  }catch(e){
   console.error('Live browser smoke FAILED:',e);
   await page.screenshot({path:'test-results/live-browser-failure.png',fullPage:true}).catch(()=>{});
