@@ -262,3 +262,26 @@ for(const [literal,label] of [
 console.log('PASS: cancellation and unsettled trifecta displayed without a hit/miss verdict');
 
 console.log('PASS: JS syntax, Top3/5/10 boundaries, official URL validation, predeadline guards, 24-venue entry point');
+
+
+async function testVerifiedFetchFallback(){
+ const begin=script.indexOf('async function verifiedFourModeRace(key){');
+ const end=script.indexOf('\nconst verifiedRaceCache=',begin);
+ assert.ok(begin>=0&&end>begin,'verified fetch function extractable');
+ const source=script.slice(begin,end);
+ const record={schema:'CLEAN_VERIFIED_FOUR_MODE_RACE_V1',race_code:'202610282309',verified:true,simulated_only:true,budget_yen:5000,first_git_sha:'f'.repeat(40),official_finish:'5-3-6',official_payout_yen_per_100:31950,modes:Object.fromEntries(['hit','balance','hole','narrow'].map(k=>[k,{hit:false,invested_yen:5000,return_yen:0}]))};
+ const ctx={validTicket,Date,atob,fetchTimed:async url=>{
+  if(url.includes('raw.githubusercontent.com'))throw Error('RAW_BLOCKED');
+  return {ok:true,json:async()=>({encoding:'base64',content:Buffer.from(JSON.stringify(record)).toString('base64')})};
+ }};
+ const fn=vm.runInNewContext(source+';verifiedFourModeRace',ctx);
+ assert.equal((await fn('20261028-23-09')).official_finish,'5-3-6');
+ ctx.fetchTimed=async url=>({ok:true,json:async()=>url.includes('raw.githubusercontent.com')?record:{encoding:'base64',content:Buffer.from(JSON.stringify({...record,verified:false})).toString('base64')}});
+ assert.equal((await fn('20261028-23-09')).verified,true,'valid primary must not be overwritten');
+ ctx.fetchTimed=async url=>{if(url.includes('raw.githubusercontent.com'))throw Error('RAW_BLOCKED');return {ok:true,json:async()=>({encoding:'base64',content:Buffer.from(JSON.stringify({...record,verified:false})).toString('base64')})}};
+ await assert.rejects(fn('20261028-23-09'),/FOUR_MODE_VERIFICATION_INVALID/);
+ ctx.fetchTimed=async()=>{throw Error('NETWORK_DOWN')};
+ await assert.rejects(fn('20261028-23-09'),/FOUR_MODE_VERIFICATION_PENDING/);
+ console.log('PASS: verified race fallback, strict proof rejection, primary precedence and double-outage pending');
+}
+testVerifiedFetchFallback().catch(error=>{console.error(error);process.exitCode=1});
