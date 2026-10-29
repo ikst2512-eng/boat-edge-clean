@@ -108,7 +108,8 @@ def main():
         # source paths and immutable Git blob IDs for later byte-level verification.
         "legacy_only_races": [
             {"race_code": code, "legacy": legacy[code],
-             "status": "PRESERVATION_REVIEW_REQUIRED"}
+             "status": "NEEDS_RELEVANCE_DECISION_NOT_AUTOMATIC_BACKUP",
+             "copy_authorized": False}
             for code in sorted(set(legacy) - set(clean))
         ],
         "warning": "Git blob SHA-1 is NOT SHA-256; same race is NOT proof of equal predictions, preserved provenance, or safe deletion.",
