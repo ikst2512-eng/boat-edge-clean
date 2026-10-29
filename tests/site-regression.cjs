@@ -290,3 +290,7 @@ assert.ok(!html.includes('本命（旧方式）'),'forecast must not offer old m
 assert.ok(!html.includes('predictionModes.research={...confirmed.modes.hit'),'research must not copy old main tickets');
 assert.ok(html.includes('旧方式の買い目を代用表示しません'),'missing research archive must fail visibly');
 console.log('PASS: forecast top-ten is not filled from old four-mode main picks');
+
+assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
+assert.ok(/<\/script><\/body><\/html>\s*$/.test(html),'no raw source may follow HTML close');
+console.log('PASS: no appended source code visible after HTML');
