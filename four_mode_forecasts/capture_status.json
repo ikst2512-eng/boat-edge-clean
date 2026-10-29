@@ -9,28 +9,13 @@
   "published_title_rows": 144,
   "schema": "CLEAN_FOUR_MODE_CAPTURE_HEALTH_V1",
   "source_probes": {
-    "direct_error": {
-      "http_status": 403,
-      "source_url": "https://race.boatcast.jp/api_txt/getHoldingList2_20261030.json",
-      "status": "error",
-      "type": "HTTPError"
-    },
-    "openapi_direct": {
-      "rejected": 0,
-      "source": "nonofficial_openapi_v1",
-      "status": "available",
-      "url": "https://boatraceopenapi.github.io/api/v1/2026/20261030.json",
-      "valid": 144
-    },
     "race_cards": {
-      "http_status": 404,
-      "source_url": "https://boatracecsv.github.io/data/programs/race_cards/2026/10/30.csv",
-      "status": "not_published"
+      "rows": 144,
+      "status": "available"
     },
     "title": {
-      "http_status": 404,
-      "source_url": "https://boatracecsv.github.io/data/programs/title/2026/10/30.csv",
-      "status": "not_published"
+      "rows": 144,
+      "status": "available"
     }
   },
   "source_status": "available",
