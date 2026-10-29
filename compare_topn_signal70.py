@@ -52,6 +52,8 @@ def compare(day,root=ROOT,scorer=evaluate,signal=head_mass):
             if group is None:group="below_70"
             groups[group]["rejected"]+=1
     for g in groups.values():
+        g["payout_coverage_pct"]=round(100*g["payout_verified"]/g["evaluated"],2) if g["evaluated"] else None
+        g["roi_denominator"]="payout_verified_only_not_all_evaluated_races"
         g["hit_rate_pct"]={k:round(100*v/g["evaluated"],2) if g["evaluated"] else None for k,v in g["hits"].items()}
         g["roi_pct"]={k:round(100*v/(g["payout_verified"]*5000),2) if g["payout_verified"] else None for k,v in g["returns_yen"].items()}
     return {"schema":"CLEAN_TOPN_SIGNAL70_RESEARCH_V1","day_jst":day,"formal":False,
