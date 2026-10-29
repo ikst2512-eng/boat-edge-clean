@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - clean_openapi_sources.py
+      - clean_racecard.py
+      - test_clean_racecard.py
       - clean_four_mode_capture.py
       - test_clean_openapi_sources.py
       - test_clean_four_mode_capture_status.py
@@ -11,6 +13,8 @@ on:
     branches: [main]
     paths:
       - clean_openapi_sources.py
+      - clean_racecard.py
+      - test_clean_racecard.py
       - clean_four_mode_capture.py
       - test_clean_openapi_sources.py
       - test_clean_four_mode_capture_status.py
@@ -29,4 +33,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate alternate pre-race six-boat feed and no late backfill
-        run: python -m unittest -v test_clean_openapi_sources test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e
+        run: python -m unittest -v test_clean_openapi_sources test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e test_clean_racecard
