@@ -209,7 +209,7 @@ assert.ok(script.includes("confirmedForecastResult=order.join('-');confirmedFore
 assert.ok(script.includes("結果一致！ ※締切前保存未確認"),'matching provisional ticket must be marked without claiming verified bet');
 assert.ok(script.includes("的中確定！ 締切前予想と照合済み"),'verified winning ticket remains distinct');
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
-assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
+assert.ok(script.includes("archive.predictions.indexOf(item.match)+1"),'a research list hit must match saved Top-10');
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
 assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
