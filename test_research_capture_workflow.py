@@ -114,6 +114,16 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse((self.root / "capture-evidence/snapshot-sha256.txt").exists())
         self.assertNotIn("202610270103.json", run("git", "ls-tree", "-r", "--name-only", "HEAD", cwd=self.root).stdout)
 
+    def test_actions_detached_head_push_is_explicit(self):
+        """Guard actual GitHub checkout behavior, not just local branch fixtures."""
+        workflow = WORKFLOW.read_text()
+        self.assertIn("git fetch origin main", workflow)
+        self.assertIn("git -c rebase.autoStash=true rebase origin/main", workflow)
+        self.assertIn("git push origin HEAD:main", workflow)
+        self.assertNotIn("git symbolic-ref --short HEAD", workflow)
+        self.assertIn("Research snapshot receipt buffer expired", workflow)
+        self.assertIn("if [ \"${GITHUB_ACTIONS:-}\" = 'true' ]; then", workflow)
+
     def test_successful_push_to_local_bare_remote(self):
         remote = self.root / "remote.git"
         self.assertEqual(run("git", "init", "-q", "--bare", str(remote)).returncode, 0)
