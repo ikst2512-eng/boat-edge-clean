@@ -986,7 +986,7 @@ async function loadPredictions(force=false){
   if(response.status===404){
    // Never fabricate a historical prediction. The server may only create a
    // research snapshot before the model's protected pre-deadline cutoff.
-   const local=await fetchTimed('/api/predictions?hd='+encodeURIComponent(s.date.replaceAll('-',''))+'&jcd='+encodeURIComponent(p(s.venue+1))+'&rno='+encodeURIComponent(String(s.race)),{cache:'no-store'});
+   const local=await fetchTimed('https://boat-edge-clean.onrender.com/api/predictions?hd='+encodeURIComponent(s.date.replaceAll('-',''))+'&jcd='+encodeURIComponent(p(s.venue+1))+'&rno='+encodeURIComponent(String(s.race)),{cache:'no-store'});
    if(!local.ok)throw Error('PREDICTION_API_HTTP_'+local.status);
    const fresh=await local.json();
    if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
