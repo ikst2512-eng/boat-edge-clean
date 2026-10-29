@@ -4,9 +4,9 @@
     "archived": 252,
     "awaiting_payout": 0,
     "awaiting_result": 105,
-    "before_deadline": 91,
+    "before_deadline": 30,
     "complete": 147,
-    "overdue_result": 14,
+    "overdue_result": 75,
     "unverified": 0
   },
   "modes": {
