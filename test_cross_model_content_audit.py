@@ -29,11 +29,14 @@ class CrossModelAuditTests(unittest.TestCase):
         with patch("scripts.cross_model_content_audit.inspect", side_effect=fake_inspect):
             result = audit(doc)
         record = result["races"][0]
-        self.assertEqual(record["decision"], "CROSS_MODEL_DISTINCT_NO_IMPORT")
+        self.assertEqual(record["decision"], "TICKETS_UNCOMPARABLE_MODELS_DISTINCT")
+        self.assertTrue(record["models_distinct"])
+        self.assertFalse(record["tickets_compared"])
         self.assertFalse(record["copy_authorized"])
         self.assertFalse(record["delete_authorized"])
         self.assertEqual(result["content_read_race_count"], 1)
         self.assertEqual(result["compared_race_count"], 0)
+        self.assertEqual(result["tickets_uncomparable_count"], 1)
         self.assertEqual(record["top10_comparisons"], [])
         self.assertFalse(record["historical_evidence_required_proven"])
 
