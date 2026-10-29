@@ -327,8 +327,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if path == "/api/clean-schedule":
-            # Read-only public schedule may be used by the GitHub Pages origin.
+        if path in ("/api/clean-schedule", "/api/predictions"):
+            # Read-only CLEAN data is consumed by the GitHub Pages origin.
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
         self.end_headers()
         if body:
