@@ -192,7 +192,8 @@ jobs:
               });
               if(leaked)throw Error('Public page displays raw JavaScript source: '+leaked);
               const source=await page.content();
-              if(!/<\/script><\/body><\/html>\s*$/.test(source))throw Error('Public HTML closing tags invalid');
+              if(!/<\/body>\s*<\/html>\s*$/i.test(source))throw Error('Public HTML closing tags invalid');
+              if(await page.locator('script:not([src])').count()!==1)throw Error('Published inline script count invalid');
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
