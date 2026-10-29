@@ -767,6 +767,12 @@ async function loadHeldVenues(force=false){
   if(token!==venueRequest||date!==s.date)return;
   venueDateChecked=date;
   if(retaining){renderDeadlines(todayVenueRaces);status.textContent='開催情報の再取得に失敗しました。前回取得した開催データを表示中です。締切は現在時刻で判定しています。';}
+  else if(e?.message==='SCHEDULE_NOT_PUBLISHED'){
+   todayVenueRaces=null;updateRacePickerLabels();
+   [...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='開催未確認';button.setAttribute('aria-label',names[i]+'（開催情報は未公開・選択可能）')});
+   clearDeadlines('開催日程の原本は未公開です');
+   status.textContent='開催情報はまだ公開されていません。全24場から選択して出走表を確認できます。';
+  }
   else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
