@@ -45,7 +45,7 @@ jobs:
         run: python scripts/legacy_race_crosswalk.py --output crosswalk.json
       - name: Compare all matching race prediction originals without modifying either repository
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.LEGACY_READ_TOKEN || github.token }}
         run: python scripts/cross_model_content_audit.py --crosswalk crosswalk.json --output cross_model_audit.json
       - name: Produce summary for manual review
         run: |
