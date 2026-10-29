@@ -285,3 +285,8 @@ async function testVerifiedFetchFallback(){
  console.log('PASS: verified race fallback, strict proof rejection, primary precedence and double-outage pending');
 }
 testVerifiedFetchFallback().catch(error=>{console.error(error);process.exitCode=1});
+
+assert.ok(!html.includes('本命（旧方式）'),'forecast must not offer old main mode');
+assert.ok(!html.includes('predictionModes.research={...confirmed.modes.hit'),'research must not copy old main tickets');
+assert.ok(html.includes('旧方式の買い目を代用表示しません'),'missing research archive must fail visibly');
+console.log('PASS: forecast top-ten is not filled from old four-mode main picks');
