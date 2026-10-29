@@ -38,11 +38,11 @@ jobs:
         run: |
           set -euo pipefail
           hour=$(TZ=Asia/Tokyo date +%H)
+          mkdir -p test-results
           if [ "$hour" -lt 6 ]; then
-            echo 'Daily source not yet published (JST preopening window)'
+            echo 'Daily source not yet published (JST preopening window)' | tee test-results/prospective-capture.log
             exit 0
           fi
-          mkdir -p test-results
           python collect_clean_prospective.py 2>&1 | tee test-results/prospective-capture.log
           test ${PIPESTATUS[0]} -eq 0
       - name: Freeze immutable candidate evidence
