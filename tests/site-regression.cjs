@@ -144,7 +144,7 @@ assert.ok(script.includes("/api/clean-racecard?hd="),'racecard must be fetched f
 assert.ok(!script.includes("EDGE_RAW+'/main/data/races/"),'legacy racecard fetch forbidden');
 assert.ok(!script.includes("data/site_verified_entries/"),'legacy actual-entry sidecar fetch forbidden');
 assert.ok(script.includes("index===0?'prediction-primary':index<3?'prediction-strong':'prediction-standard'"),'forecast tiers must be assigned from current rank');
-assert.ok(script.includes("tier.textContent=index===0?'本命':index<3?'上位':'候補'"),'forecast tier labels must accompany colors');
+assert.ok(script.includes("tier.textContent=index===0?'第1候補':index<3?'上位':'候補'"),'forecast tier labels must accompany colors');
 assert.ok(script.includes("Object.values(predictionProbabilities).filter(Number.isFinite)"),'probability tier requires actual finite saved model values');
 assert.ok(script.includes("p>=peak*0.8?'probability-high':peak>0&&p>=peak*0.45?'probability-mid'"),'probability highlights must compare within current race, not invent absolute calibration');
 assert.ok(html.includes('#resultSection .comparison-hit{background:#dcf9e8'),'verified hit must be legible');
