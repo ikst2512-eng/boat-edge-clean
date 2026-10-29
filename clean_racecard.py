@@ -84,8 +84,13 @@ def racecard(hd,jcd,rno):
     try:
         titles,title_fetched,title_sha=read_rows(BASE+"title/"+path)
     except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError):
-        titles,title_fetched,title_sha=holding_rows(hd)
-        source="CLEAN_DIRECT_PRE_RACE"
+        try:
+            titles,title_fetched,title_sha=holding_rows(hd)
+            source="CLEAN_DIRECT_PRE_RACE"
+        except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError):
+            from clean_openapi_sources import load as load_openapi
+            titles,openapi_cards,title_fetched,title_sha,openapi_audit=load_openapi(hd)
+            source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
     title=[row for row in titles if row.get("レースコード")==code]
     if len(title)!=1:raise ValueError("race_card_not_available")
     meta=title[0]
@@ -105,11 +110,24 @@ def racecard(hd,jcd,rno):
         if isinstance(exc,ValueError) and str(exc) not in ("race_card_not_available","source unavailable"):
             raise
         url=f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt"
-        raw=fetch_bytes(url)
-        fields=parse_card(raw,code)
-        card_fetched=datetime.now(JST)
-        card_sha=hashlib.sha256(raw).hexdigest()
-        source="CLEAN_DIRECT_PRE_RACE"
+        try:
+            raw=fetch_bytes(url)
+            fields=parse_card(raw,code)
+            card_fetched=datetime.now(JST)
+            card_sha=hashlib.sha256(raw).hexdigest()
+            source="CLEAN_DIRECT_PRE_RACE"
+        except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError):
+            from clean_openapi_sources import load as load_openapi
+            if "openapi_cards" not in locals():
+                titles_alt,openapi_cards,openapi_received,openapi_sha,openapi_audit=load_openapi(hd)
+            else:
+                openapi_received,openapi_sha=title_fetched,title_sha
+            matches=[row for row in openapi_cards if row.get("レースコード")==code]
+            if len(matches)!=1:raise ValueError("openapi_race_not_available")
+            fields=matches[0]
+            card_fetched=openapi_received
+            card_sha=openapi_sha
+            source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
     if card_fetched>=deadline:raise ValueError("race_already_closed")
     racers=[]
     seen_registrations=set()
