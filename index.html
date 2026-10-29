@@ -982,7 +982,23 @@ async function loadPredictions(force=false){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   predictionRetryAt.delete(key);displayedPredictionKey=key;predictionModes={research:{tickets:[],probabilities:{},odds:{}}};selectedPredictionMode='research';applyPredictionMode();
   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key.replaceAll('-','')+'.json',{cache:'no-store'});
-  if(!response.ok)throw Error('PREDICTION_NOT_PUBLISHED');
+  if(!response.ok&&response.status!==404)throw Error('SOURCE_HTTP_'+response.status);
+  if(response.status===404){
+   // Never fabricate a historical prediction. The server may only create a
+   // research snapshot before the model's protected pre-deadline cutoff.
+   const local=await fetchTimed('/api/predictions?hd='+encodeURIComponent(s.date.replaceAll('-',''))+'&jcd='+encodeURIComponent(p(s.venue+1))+'&rno='+encodeURIComponent(String(s.race)),{cache:'no-store'});
+   if(!local.ok)throw Error('PREDICTION_API_HTTP_'+local.status);
+   const fresh=await local.json();
+   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+   if(fresh.status!=='research'||fresh.validated!==false||!Array.isArray(fresh.predictions)||fresh.predictions.length!==10||!fresh.predictions.every(validTicket)||new Set(fresh.predictions).size!==10)throw Error('PREDICTION_NOT_PUBLISHED');
+   predictionModes.research={tickets:fresh.predictions,probabilities:{},odds:{}};
+   applyPredictionMode();
+   label.textContent='CLEAN研究予想（締切前の取得分）｜正式な精度検証は未完了';
+   document.getElementById('snapshotMeta').textContent='研究予想APIから取得。Git原本の正式な保存・照合証明は未確認。';
+   document.getElementById('sourceMeta').replaceChildren();
+   drawPredictions();
+   return;
+  }
   const archive=await response.json();
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   if(archive.race_code!==key.replaceAll('-','')||archive.formal!==false||archive.scoring!==false||!Array.isArray(archive.predictions)||archive.predictions.length<1||archive.predictions.length>10||!archive.predictions.every(validTicket)||new Set(archive.predictions).size!==archive.predictions.length)throw Error('PREDICTIONS_INVALID');
