@@ -212,7 +212,7 @@ assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference m
 assert.ok(script.includes("archive.predictions.indexOf(item.match)+1"),'a research list hit must match saved Top-10');
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("研究上位'+item.winningRank+'点目が一致"),'research ticket rank appears on matching results');
-assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
+assert.ok(script.includes('未照合は的中扱いしません'),'unverified races are never scored as hits');
 
  // Legacy V284 parity: a pending result is neither a verified miss nor a verified hit.
  const pendingRace='20261023-04-10';
