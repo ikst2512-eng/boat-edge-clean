@@ -5,6 +5,8 @@ import json
 import os
 import re
 import urllib.request
+import urllib.error
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,8 +28,24 @@ def fetch_tree(repo, ref):
     if os.getenv("GH_TOKEN"):
         headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=60) as response:
-        doc = json.load(response)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                doc = json.load(response)
+            break
+        except urllib.error.HTTPError as exc:
+            # 403 can be a temporary API rate-limit OR a permanent permission error.
+            # Retry only explicit GitHub rate-limiting; never conceal 403 auth failures.
+            remaining = exc.headers.get("X-RateLimit-Remaining", "unknown")
+            retry_after = exc.headers.get("Retry-After")
+            limited = remaining == "0" or retry_after is not None
+            if exc.code not in (403, 429) or not limited or attempt == 2:
+                raise RuntimeError(
+                    f"GitHub tree request blocked for {repo}: HTTP {exc.code}; "
+                    f"rate_limit_remaining={remaining}; retry_after={retry_after}; "
+                    "verify LEGACY_READ_TOKEN read permission or rate limit"
+                ) from exc
+            time.sleep(min(15, max(2, int(retry_after) if retry_after and retry_after.isdigit() else 5)))
     if doc.get("truncated"):
         raise RuntimeError(f"GitHub recursive tree truncated: {repo}; stop, do not trust counts")
     if not doc.get("sha") or not isinstance(doc.get("tree"), list):
