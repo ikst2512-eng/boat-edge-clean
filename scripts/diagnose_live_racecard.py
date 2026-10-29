@@ -12,6 +12,14 @@ def run():
         titles,received,sha=holding_rows(day)
     except (HTTPError, URLError, ValueError, OSError, TimeoutError) as e:
         print("HOLDING_SOURCE_ERROR",type(e).__name__,str(e)[:120],flush=True)
+        try:
+            from clean_openapi_sources import load
+            titles,cards,received,digest,meta=load(day)
+            print("OPENAPI_SOURCE_OK",len(titles),"races",len(cards),"cards",meta["source"],flush=True)
+            for row in titles[:3]:
+                print("OPENAPI_RACE",row["レースコード"],row["電話投票締切予定"],flush=True)
+        except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as alt:
+            print("OPENAPI_SOURCE_ERROR",type(alt).__name__,str(alt)[:120],flush=True)
         return
     print("HOLDING_SOURCE_ROWS",len(titles),flush=True)
     now=datetime.now(JST)
