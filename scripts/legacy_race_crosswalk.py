@@ -104,6 +104,13 @@ def main():
         "legacy_only_race_count": len(set(legacy)-set(clean)),
         "clean_only_race_count": len(set(clean)-set(legacy)),
         "matched_races": records,
+        # Actionable read-only preservation queue: every legacy-only race keeps its
+        # source paths and immutable Git blob IDs for later byte-level verification.
+        "legacy_only_races": [
+            {"race_code": code, "legacy": legacy[code],
+             "status": "PRESERVATION_REVIEW_REQUIRED"}
+            for code in sorted(set(legacy) - set(clean))
+        ],
         "warning": "Git blob SHA-1 is NOT SHA-256; same race is NOT proof of equal predictions, preserved provenance, or safe deletion.",
         "delete_authorized": False
     }
