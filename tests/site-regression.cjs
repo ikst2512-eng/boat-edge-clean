@@ -327,3 +327,7 @@ console.log('PASS: selected-race beforeinfo panel in forecast');
 // Pages review requires a real CLEAN API origin, not a Pages-relative /api path.
 assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-result?hd="),'review must fetch CLEAN result via Render');
 assert.ok(!html.includes("fetchTimed('/api/clean-result?hd="),'review must not request API from GitHub Pages');
+
+// Published Pages must fetch racecard/exhibition from the actual CLEAN API host.
+assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd="),'racecard must use CLEAN Render');
+assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd="),'Pages-relative racecard API would return 404');
