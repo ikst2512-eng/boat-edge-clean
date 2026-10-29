@@ -1,0 +1,25 @@
+name: CLEAN published archived forecast browser check
+on:
+  pull_request:
+    paths:
+      - tests/live-archived-forecast.cjs
+      - .github/workflows/live-archived-forecast.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '40 2 * * *'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Verify actual stored prediction displayed on public site
+        run: node tests/live-archived-forecast.cjs
