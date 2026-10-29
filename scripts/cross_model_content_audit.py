@@ -14,8 +14,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-MODEL_KEYS = ("model_version", "model_id", "model", "prediction_model", "version")
-PICK_KEYS = ("combination", "trifecta", "bet", "ticket", "buy", "kumi", "組番", "買い目")
+MODEL_KEYS = ("model_version", "model_id", "model", "prediction_model", "prediction_kind", "version")
+PICK_KEYS = ("combo", "combination", "trifecta", "bet", "ticket", "buy", "kumi", "組番", "買い目")
 
 
 def fetch_blob(repo, sha):
@@ -53,6 +53,18 @@ def extract_top10(obj):
     """Conservative: only explicit rank-ordered arrays; never infer from arbitrary lists."""
     if not isinstance(obj, dict):
         return None
+    # Historic SITE_REFERENCE_V122 stores the ranked hit-mode forecast here.
+    # Audit/history/snapshot are different evidence wrappers for that forecast.
+    if isinstance(obj.get("revisions"), list):
+        for revision in reversed(obj["revisions"]):
+            if isinstance(revision, dict) and revision.get("hit_mode_top10"):
+                return extract_top10({"ranked_predictions": revision["hit_mode_top10"]})
+    if isinstance(obj.get("snapshot"), dict):
+        return extract_top10(obj["snapshot"])
+    if isinstance(obj.get("modes"), dict):
+        hit = obj["modes"].get("hit")
+        if isinstance(hit, dict) and isinstance(hit.get("tickets"), list):
+            return extract_top10({"ranked_predictions": hit["tickets"]})
     for key in ("top10", "top_10", "top_picks", "ranked_predictions", "predictions"):
         seq = obj.get(key)
         if not isinstance(seq, list) or len(seq) < 10:
