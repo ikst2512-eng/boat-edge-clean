@@ -87,6 +87,8 @@ const updateDetails=()=>{
 updateDetails();
 const raceHome=document.querySelector('[data-home-only]');
 if(raceHome)new MutationObserver(updateDetails).observe(raceHome,{attributes:true,attributeFilter:['hidden']});
+window.addEventListener('popstate',()=>queueMicrotask(updateDetails));
+details.addEventListener('click',()=>queueMicrotask(updateDetails));
 const compactRaceCards=container=>{
  if(!container)return;
  const clean=()=>{
