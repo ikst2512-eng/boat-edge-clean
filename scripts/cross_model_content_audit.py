@@ -108,7 +108,9 @@ def audit(doc):
     prediction_prefixes = ("data/site_prediction_snapshots/",
                            "data/site_prediction_audit/",
                            "data/site_prediction_history/")
-    # Compare legacy to the separately versioned CLEAN prospective model only.\n    # Four-mode forecasts are a distinct cohort and must not inflate this count.\n    clean_prefixes = ("prospective_predictions/",)
+    # Compare legacy to the separately versioned CLEAN prospective model only.
+    # Four-mode forecasts are a distinct cohort and must not inflate this count.
+    clean_prefixes = ("prospective_predictions/",)
     for matched in doc["matched_races"]:
         candidate = {
             "race_code": matched["race_code"],
