@@ -63,7 +63,35 @@ jobs:
                 done < <(git diff --cached --name-only --diff-filter=A -z -- research_snapshots/)
                 (cd capture-evidence/new-snapshots && sha256sum -- *.json) > capture-evidence/snapshot-sha256.txt
                 git -c user.name='research-capture-bot' -c user.email='research-capture-bot@users.noreply.github.com' commit -m 'Archive research forecasts captured before cutoff'
-                git push
+                for attempt in 1 2 3; do
+                  # Research snapshots are immutable. Never push newly added
+                  # predictions after their own cutoff, even when rebasing.
+                  python3 - <<'PY'
+                  import json, subprocess
+                  from datetime import datetime, timedelta, timezone
+                  paths = subprocess.check_output(
+                      ['git', 'diff-tree', '--no-commit-id', '--name-only', '--diff-filter=A', '-r', 'HEAD', '--', 'research_snapshots/'],
+                      text=True).splitlines()
+                  if not paths:
+                      raise SystemExit('No new immutable research snapshots to push')
+                  now = datetime.now(timezone.utc)
+                  for path in paths:
+                      record = json.load(open(path, encoding='utf-8'))
+                      cutoff = datetime.fromisoformat(record['cutoff_jst'])
+                      if now >= cutoff - timedelta(seconds=90):
+                          raise SystemExit('Research snapshot receipt buffer expired; refusing late push: ' + path)
+                  PY
+                  git fetch origin main
+                  git -c rebase.autoStash=true rebase origin/main
+                  if git push origin HEAD:main; then
+                    break
+                  fi
+                  if [ "$attempt" -eq 3 ]; then
+                    echo 'Research snapshot push retries exhausted' >&2
+                    exit 1
+                  fi
+                  sleep "$attempt"
+                done
               fi
             fi
           } 2>&1 | tee capture-evidence/persistence.log
