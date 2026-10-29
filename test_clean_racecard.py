@@ -43,6 +43,21 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(len(preview["racers"]),6)
         self.assertEqual(preview["start_exhibition"][0]["course"],1.0)
 
+    def test_empty_exhibition_is_not_verified(self):
+        hd="20261030";code=hd+"0101"
+        deadline=datetime.strptime(hd+"15:21","%Y%m%d%H:%M").replace(tzinfo=JST)
+        def blank(kind,path):
+            row={"レースコード":code,"締切時刻":"15:21","取得日時":"2026-10-30T15:16:00+09:00"}
+            for lane in range(1,7):
+                prefix=f"艇{lane}_"
+                row.update({prefix+"展示タイム":"",prefix+"チルト":"",
+                            prefix+"コース":str(lane),prefix+"スタート展示":""})
+            return [row],"f"*64
+        with patch.object(clean_racecard,"_preview_rows",side_effect=blank):
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+        self.assertIsNone(preview)
+        self.assertEqual(audit["status"],"invalid_or_incomplete_exhibition")
+
     def test_late_preview_is_rejected(self):
         hd="20261030";code=hd+"0101"
         deadline=datetime.strptime(hd+"15:21","%Y%m%d%H:%M").replace(tzinfo=JST)
