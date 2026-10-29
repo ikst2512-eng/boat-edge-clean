@@ -66,6 +66,7 @@ jobs:
                 for attempt in 1 2 3; do
                   # Research snapshots are immutable. Never push newly added
                   # predictions after their own cutoff, even when rebasing.
+                  if [ "${GITHUB_ACTIONS:-}" = 'true' ]; then
                   python3 - <<'PY'
           import json, subprocess
           from datetime import datetime, timedelta, timezone
@@ -81,6 +82,7 @@ jobs:
               if now >= cutoff - timedelta(seconds=90):
                   raise SystemExit('Research snapshot receipt buffer expired; refusing late push: ' + path)
           PY
+                  fi
                   git fetch origin main
                   git -c rebase.autoStash=true rebase origin/main
                   if git push origin HEAD:main; then
