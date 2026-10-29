@@ -1,9 +1,15 @@
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from scripts.cross_model_content_audit import audit, extract_top10
 
 
 class CrossModelAuditTests(unittest.TestCase):
+    def test_code_does_not_comment_out_clean_prefixes(self):
+        source = Path("scripts/cross_model_content_audit.py").read_text(encoding="utf-8")
+        self.assertIn('    clean_prefixes = ("prospective_predictions/",)', source)
+        self.assertNotIn(r"\n    clean_prefixes", source)
+
     def test_no_automatic_import_or_deletion_for_distinct_models(self):
         doc = {
             "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
