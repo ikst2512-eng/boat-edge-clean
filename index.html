@@ -1169,9 +1169,10 @@ async function loadFourModePerformance(){
   status.textContent='検証済み実績はまだ表示できません。未検証の数値は表示しません。';
  }
 }
-document.getElementById('performanceBudget').addEventListener('change',loadFourModePerformance);
+document.getElementById('performanceBudget').addEventListener('change',()=>{if(document.getElementById('historicalModeArchive').open)loadFourModePerformance()});
+document.getElementById('historicalModeArchive').addEventListener('toggle',event=>{if(event.target.open&&activeView==='review')loadFourModePerformance()});
 async function loadReview(){
- loadFourModePerformance();
+ if(document.getElementById('historicalModeArchive').open)loadFourModePerformance();
  loadTopNResearch();
  loadHoldoutResearch();
  const seq=++reviewSequence,key=sameRaceKey(),root=document.getElementById('reviewMetrics'),status=document.getElementById('reviewStatus'),note=document.getElementById('reviewReason');
