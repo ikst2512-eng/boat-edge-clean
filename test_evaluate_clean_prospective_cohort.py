@@ -16,6 +16,7 @@ class TopNCohortTests(unittest.TestCase):
             r=cohort("20261029",root,scorer)
             self.assertEqual(r["counts"],{"archives":3,"evaluated":1,"awaiting_result":1,"audit_rejected":1})
             self.assertEqual(r["hit_rate_pct"],{"top3":0.0,"top5":100.0,"top10":100.0})
+            self.assertEqual(r["awaiting_result_race_codes"],["202610290102"])
     def test_no_result_yields_null_rates(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIsNone(cohort("20261029",tmp)["hit_rate_pct"]["top10"])
