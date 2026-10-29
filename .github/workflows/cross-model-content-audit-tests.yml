@@ -63,6 +63,7 @@ jobs:
               f"- Matched race IDs: {data['matched_race_count']}",
               f"- Race IDs with blobs read from both sides: {data['content_read_race_count']}",
               f"- Race IDs with top-10 comparisons: {data['compared_race_count']}",
+              f"- Both-sided readable forecast cohort: {data['content_read_race_count']}",
               f"- Missing comparable evidence: {data['no_comparable_evidence_count']}",
               f"- Fetch failures: {data['unresolved_count']}",
               "- Automatic import/deletion: forbidden",
@@ -123,7 +124,8 @@ jobs:
                   lines.append(f"- {k}: {d.get(k, 'UNKNOWN')}")
               lines.append("- Classification: " + ("INCOMPLETE" if
                   not d.get("matched_race_count") or
-                  d.get("compared_race_count") != d.get("matched_race_count") or
+                  not d.get("content_read_race_count") or
+                  d.get("compared_race_count") != d.get("content_read_race_count") or
                   d.get("unresolved_count") else "TOP10_COMPARISON_COVERED (not deletion approval)"))
           else:
               lines.append("- Audit JSON missing: comparison failed or was not executed")
