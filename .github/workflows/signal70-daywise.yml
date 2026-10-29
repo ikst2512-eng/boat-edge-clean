@@ -1,0 +1,28 @@
+name: CLEAN daywise signal70 validation
+on:
+  pull_request:
+    paths:
+      - compare_topn_signal70_days.py
+      - test_compare_topn_signal70_days.py
+      - .github/workflows/signal70-daywise.yml
+  push:
+    branches: [main]
+    paths:
+      - compare_topn_signal70_days.py
+      - test_compare_topn_signal70_days.py
+      - .github/workflows/signal70-daywise.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_compare_topn_signal70_days
+      - run: python compare_topn_signal70_days.py 20261028 20261029
