@@ -39,7 +39,7 @@ jobs:
           day=(datetime.now(ZoneInfo('Asia/Tokyo')).date()-timedelta(days=1)).strftime('%Y%m%d')
           result=cohort(day)
           Path('test-results/prospective-topn-'+day+'.json').write_text(
-              json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\\n',encoding='utf-8')
+              json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(result,ensure_ascii=False,sort_keys=True))
           PY
       - name: Archive cohort evidence
