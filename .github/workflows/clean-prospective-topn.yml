@@ -1,0 +1,28 @@
+name: CLEAN prospective top-N cohort comparison
+on:
+  pull_request:
+    paths:
+      - evaluate_clean_prospective_cohort.py
+      - test_evaluate_clean_prospective_cohort.py
+      - .github/workflows/clean-prospective-topn.yml
+  push:
+    branches: [main]
+    paths:
+      - evaluate_clean_prospective_cohort.py
+      - test_evaluate_clean_prospective_cohort.py
+      - .github/workflows/clean-prospective-topn.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_evaluate_clean_prospective_cohort
+      - run: python evaluate_clean_prospective_cohort.py 20261029
