@@ -38,7 +38,10 @@ jobs:
         run: python -m unittest -v test_collect_clean_results test_clean_results
       - name: Collect published results (main only)
         if: github.event_name != 'pull_request'
-        run: python collect_clean_results.py
+        run: |
+          mkdir -p test-results
+          python collect_clean_results.py 2>&1 | tee test-results/collection-run.log
+          test ${PIPESTATUS[0]} -eq 0
       - name: Commit new result archives (main only)
         if: github.event_name != 'pull_request'
         shell: bash
@@ -62,3 +65,11 @@ jobs:
               sleep "$attempt"
             done
           fi
+      - name: Retain collection run diagnostics
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-collection-${{ github.run_id }}
+          path: test-results/collection-run.log
+          if-no-files-found: warn
+          retention-days: 30
