@@ -43,9 +43,10 @@ class HeadHealthTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 404)
 
     def test_pages_origin_allowed_for_prediction_api(self):
-        with urlopen(self.base + "/api/predictions?hd=not-a-date&jcd=01&rno=1", timeout=3) as response:
-            self.assertEqual(response.status, 400)
-            self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "https://ikst2512-eng.github.io")
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(self.base + "/api/predictions?hd=not-a-date&jcd=01&rno=1", timeout=3)
+        self.assertEqual(caught.exception.code, 400)
+        self.assertEqual(caught.exception.headers.get("Access-Control-Allow-Origin"), "https://ikst2512-eng.github.io")
 
     def test_get_health_still_works(self):
         with urlopen(self.base + "/healthz", timeout=3) as response:
