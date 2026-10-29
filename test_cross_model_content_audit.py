@@ -68,6 +68,17 @@ class CrossModelAuditTests(unittest.TestCase):
         self.assertEqual(result["compared_race_count"], 0)
         self.assertEqual(result["races"][0]["decision"], "NO_COMPARABLE_FORECAST_EVIDENCE")
 
+    def test_actual_legacy_wrappers_extract_hit_top10(self):
+        combos = ["1-4-6", "1-6-4", "1-5-4", "1-4-5", "1-3-4",
+                  "4-1-6", "5-1-4", "4-1-5", "6-1-4", "4-6-1"]
+        ranked = [{"rank": i+1, "combo": combo, "p": 1.0}
+                  for i, combo in enumerate(combos)]
+        self.assertEqual(extract_top10({"revisions": [{"hit_mode_top10": ranked}]}), combos)
+        snapshot = {"prediction_kind": "SITE_REFERENCE_V122",
+                    "modes": {"hit": {"tickets": ranked}}}
+        self.assertEqual(extract_top10(snapshot), combos)
+        self.assertEqual(extract_top10({"snapshot": snapshot}), combos)
+
     def test_fetch_failure_is_not_misreported_as_missing_evidence(self):
         doc = {
             "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
