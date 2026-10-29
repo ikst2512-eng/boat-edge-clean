@@ -1,5 +1,6 @@
-name: Cross-model content audit tests
+name: Cross-model content audit
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'scripts/cross_model_content_audit.py'
@@ -26,3 +27,56 @@ jobs:
         run: python -m py_compile scripts/cross_model_content_audit.py test_cross_model_content_audit.py
       - name: Run isolated unit tests
         run: python -m unittest -v test_cross_model_content_audit.py
+  audit-evidence:
+    if: github.event_name != 'pull_request'
+    needs: unit-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inventory immutable source trees
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/legacy_race_crosswalk.py --output crosswalk.json
+      - name: Compare all matching race prediction originals without modifying either repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/cross_model_content_audit.py --crosswalk crosswalk.json --output cross_model_audit.json
+      - name: Produce summary for manual review
+        run: |
+          python - <<'PY'
+          import json, os
+          from collections import Counter
+          data = json.load(open("cross_model_audit.json"))
+          counts = Counter(r["decision"] for r in data["races"])
+          lines = [
+              "## Legacy/CLEAN read-only race content audit",
+              "",
+              f"- Matched race IDs: {data['matched_race_count']}",
+              f"- Race IDs with blobs read from both sides: {data['content_read_race_count']}",
+              f"- Race IDs with top-10 comparisons: {data['compared_race_count']}",
+              f"- Missing comparable evidence: {data['no_comparable_evidence_count']}",
+              f"- Fetch failures: {data['unresolved_count']}",
+              "- Automatic import/deletion: forbidden",
+              "",
+              "### Decisions (not deletion permissions)",
+          ] + [f"- {k}: {v}" for k,v in sorted(counts.items())]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          PY
+      - name: Preserve comparison evidence for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-model-audit-evidence
+          path: |
+            crosswalk.json
+            cross_model_audit.json
+          if-no-files-found: warn
+          retention-days: 30
