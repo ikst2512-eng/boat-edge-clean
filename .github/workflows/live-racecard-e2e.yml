@@ -1,0 +1,26 @@
+name: Check real live predeadline racecard
+on:
+  pull_request:
+    paths:
+      - scripts/verify_live_racecard_e2e.py
+      - .github/workflows/live-racecard-e2e.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'
+permissions:
+  contents: read
+jobs:
+  syntax:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m py_compile scripts/verify_live_racecard_e2e.py
+  e2e-live-race:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify real scheduled race through live Render API
+        run: python scripts/verify_live_racecard_e2e.py

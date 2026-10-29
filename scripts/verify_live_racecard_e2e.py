@@ -1,0 +1,45 @@
+"""Exercise live Render CLEAN racecard API against today's upstream holding races."""
+import json
+from datetime import datetime,timedelta
+from urllib.request import Request,urlopen
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from clean_direct_sources import holding_rows
+JST=ZoneInfo("Asia/Tokyo")
+now=datetime.now(JST)
+hd=now.strftime("%Y%m%d")
+rows,_,_=holding_rows(hd)
+candidates=[]
+for row in rows:
+    cutoff=datetime.strptime(hd+row["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+    if cutoff>now+timedelta(minutes=22):
+        candidates.append((cutoff,row["レースコード"]))
+candidates.sort()
+if not candidates:
+    raise SystemExit("NO_ELIGIBLE_UPCOMING_RACES: need a real predeadline sample")
+errors=[]
+for _,code in candidates[:6]:
+    url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
+    try:
+        with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=40) as res:
+            data=json.load(res)
+            if res.status!=200:raise ValueError("unexpected HTTP status")
+        if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
+            raise ValueError("wrong race key")
+        if len(data.get("racers",[]))!=6:raise ValueError("missing racer rows")
+        audit=data.get("source_audit",{})
+        if audit.get("race_card",{}).get("status")!="ok":raise ValueError("unverified card source")
+        before=audit.get("beforeinfo",{}).get("status")
+        if before=="ok" and (len((data.get("beforeinfo") or {}).get("racers",[]))!=6):
+            raise ValueError("verified preview missing racers")
+        print(json.dumps({"outcome":"PASS","race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
+        break
+    except (HTTPError,ValueError,TimeoutError,OSError) as exc:
+        errors.append({"race":code,"error":str(exc)[:160]})
+else:
+    print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
+    raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
