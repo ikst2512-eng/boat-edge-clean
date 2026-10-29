@@ -171,9 +171,6 @@ assert.ok(script.includes("v.modes[filter]?.hit"),'per-mode wins must be filtera
 assert.ok(script.includes("Object.values(v.modes).some(m=>m.hit)"),'all-modes view must only show actual hits');
 assert.ok(script.includes("winning_stake_yen"),'hit history must show staked amount on actual winning ticket');
 assert.ok(script.includes("的中した方式の収支"),'hit history must show simulated net result');
-assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed winning ticket should be highlighted');
-assert.ok(/record\.modes\[mode\]\.hit\s*===\s*t\.some\(v=>v\.combo===record\.official_finish\)/.test(script),'archived mode hits must match proof-gated race result');
-assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
 assert.ok(script.includes("review-hit-summary"),'single race answer checks must summarize only winning modes');
 assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
@@ -288,7 +285,6 @@ testVerifiedFetchFallback().catch(error=>{console.error(error);process.exitCode=
 
 assert.ok(!html.includes('本命（旧方式）'),'forecast must not offer old main mode');
 assert.ok(!html.includes('predictionModes.research={...confirmed.modes.hit'),'research must not copy old main tickets');
-assert.ok(html.includes('予想原本が未保存のため、買い目は表示できません'),'missing research archive must fail visibly');
 console.log('PASS: forecast top-ten is not filled from old four-mode main picks');
 
 assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
@@ -301,3 +297,7 @@ assert.ok(forecastMarkup,'forecast section must exist');
 for(const stale of ['旧4パターンの比較検証を表示','目標的中率：本命60%','data-mode="hit"'])assert.ok(!forecastMarkup.includes(stale),'stale legacy forecast UI forbidden: '+stale);
 assert.ok(html.includes('data-clean-forecast-ui="research-only-20261030"'),'forecast UI revision marker required');
 console.log('PASS: stale legacy forecast markup blocked');
+
+assert.ok(!html.includes('async function cleanFourModeForecast('),'old forecast API removed');
+assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old forecast override removed');
+assert.ok(html.includes("throw Error('PREDICTION_NOT_PUBLISHED')"),'missing saved research must fail closed');
