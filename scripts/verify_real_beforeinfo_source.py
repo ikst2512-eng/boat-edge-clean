@@ -24,6 +24,26 @@ def main(day=None):
             raise RuntimeError(kind+": unexpected columns "+str(sorted(expected-set(keys))))
         evidence[kind]={"rows":len(rows),"sha256":sha,"first_race":rows[0]["レースコード"],
                         "columns_verified":sorted(expected)}
+    # Verify real race rows can actually feed the CLEAN adapter, not just match column names.
+    from clean_racecard import _fetch_preview
+    from research_model import JST
+    matched=[]
+    tkz_rows,_=_preview_rows("tkz",day)
+    for row in tkz_rows:
+        code=row.get("レースコード","")
+        clock=row.get("締切時刻","")
+        if len(code)!=12 or not clock:continue
+        try:
+            deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
+            preview,audit=_fetch_preview(code,day,deadline)
+            if audit.get("status")=="ok" and preview and len(preview.get("racers",[]))==6:
+                matched.append(code)
+                break
+        except (ValueError,KeyError):
+            continue
+    if not matched:
+        raise RuntimeError("REAL_BEFOREINFO_NO_VERIFIED_RACE: source columns exist but no actual race passes full adapter checks")
+    evidence["verified_race_code"]=matched[0]
     print(json.dumps({"source":"BoatraceCSV real HTTPS","day":day,"evidence":evidence},ensure_ascii=False))
 if __name__=="__main__":
     main(sys.argv[1] if len(sys.argv)>1 else None)
