@@ -84,6 +84,22 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertIsNone(preview)
         self.assertNotEqual(audit["status"],"ok")
 
+    def test_race_identity_never_accepts_other_races(self):
+        hd="20261030";code=hd+"0101"
+        deadline=datetime.strptime(hd+"15:21","%Y%m%d%H:%M").replace(tzinfo=JST)
+        def unrelated(kind,path):
+            row={"レースコード":"202610300102","締切時刻":"15:21",
+                 "取得日時":"2026-10-30T15:16:00+09:00"}
+            for lane in range(1,7):
+                prefix=f"艇{lane}_"
+                row.update({prefix+"展示タイム":"6.80",prefix+"チルト":"0.0",
+                            prefix+"コース":str(lane),prefix+"スタート展示":"0.12"})
+            return [row],"9"*64
+        with patch.object(clean_racecard,"_preview_rows",side_effect=unrelated):
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+        self.assertIsNone(preview)
+        self.assertNotEqual(audit["status"],"ok")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
