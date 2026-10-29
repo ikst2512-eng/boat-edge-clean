@@ -1,0 +1,29 @@
+name: CLEAN top-N real API smoke
+on:
+  pull_request:
+    paths:
+      - test_topn_api_smoke.py
+      - server.py
+      - evaluate_clean_prospective_cohort.py
+      - .github/workflows/topn-api-smoke.yml
+  push:
+    branches: [main]
+    paths:
+      - test_topn_api_smoke.py
+      - server.py
+      - evaluate_clean_prospective_cohort.py
+      - .github/workflows/topn-api-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_topn_api_smoke
