@@ -5,6 +5,16 @@ const params=location.search;
 nav.innerHTML='<a href="/review">検証</a><a href="/selection">購入候補</a>';
 nav.setAttribute('aria-label','検証と購入候補');
 nav.classList.add('compact-nav');
+nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
+ const destination=new URL(link.href);
+ const date=s?.date,venue=s?.venue,race=s?.race;
+ if(/^\\d{4}-\\d{2}-\\d{2}$/.test(date||'')&&Number.isInteger(venue)&&venue>=0&&venue<24&&Number.isInteger(race)&&race>=1&&race<=12){
+  destination.searchParams.set('date',date);
+  destination.searchParams.set('venue',String(venue+1));
+  destination.searchParams.set('race',String(race));
+ }
+ link.href=destination.pathname+destination.search;
+}));
 const logo=document.querySelector('.site-head .logo');
 if(logo){const a=document.createElement('a');a.href='/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
 const strip=document.querySelector('.active-race-strip');
