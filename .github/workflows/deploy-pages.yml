@@ -79,7 +79,6 @@ jobs:
             echo "Browser diagnostics run after publication; their failures are reported separately."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Verify deployed public page
-        continue-on-error: true
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
