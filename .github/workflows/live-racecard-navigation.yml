@@ -1,0 +1,25 @@
+name: CLEAN published racecard and navigation browser check
+on:
+  pull_request:
+    paths:
+      - tests/live-racecard-navigation.cjs
+      - .github/workflows/live-racecard-navigation.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '15 3 * * *'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Inspect real live racecard API and navigate published Pages
+        run: node tests/live-racecard-navigation.cjs
