@@ -8,7 +8,7 @@ nav.classList.add('compact-nav');
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
  const date=s?.date,venue=s?.venue,race=s?.race;
- if(/^\\d{4}-\\d{2}-\\d{2}$/.test(date||'')&&Number.isInteger(venue)&&venue>=0&&venue<24&&Number.isInteger(race)&&race>=1&&race<=12){
+ if(/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&Number.isInteger(venue)&&venue>=0&&venue<24&&Number.isInteger(race)&&race>=1&&race<=12){
   destination.searchParams.set('date',date);
   destination.searchParams.set('venue',String(venue+1));
   destination.searchParams.set('race',String(race));
