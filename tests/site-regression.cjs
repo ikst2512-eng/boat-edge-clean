@@ -171,9 +171,6 @@ assert.ok(script.includes("v.modes[filter]?.hit"),'per-mode wins must be filtera
 assert.ok(script.includes("Object.values(v.modes).some(m=>m.hit)"),'all-modes view must only show actual hits');
 assert.ok(script.includes("winning_stake_yen"),'hit history must show staked amount on actual winning ticket');
 assert.ok(script.includes("的中した方式の収支"),'hit history must show simulated net result');
-assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed winning ticket should be highlighted');
-assert.ok(/record\.modes\[mode\]\.hit\s*===\s*t\.some\(v=>v\.combo===record\.official_finish\)/.test(script),'archived mode hits must match proof-gated race result');
-assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
 assert.ok(script.includes("review-hit-summary"),'single race answer checks must summarize only winning modes');
 assert.ok(!script.includes("add(label,m.hit?"),'individual answer check must not duplicate four-mode cards');
@@ -294,3 +291,8 @@ console.log('PASS: forecast top-ten is not filled from old four-mode main picks'
 assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
 assert.ok(/<\/script><\/body><\/html>\s*$/.test(html),'no raw source may follow HTML close');
 console.log('PASS: no appended source code visible after HTML');
+
+assert.ok(!html.includes('async function cleanFourModeForecast('),'removed old four-mode forecast API');
+assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'removed old forecast display');
+assert.ok(!html.includes('loadVerifiedForecastForDisplay(key,token)'),'no old forecast display calls');
+console.log('PASS: obsolete forecast runtime removed');
