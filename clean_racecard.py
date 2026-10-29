@@ -1,5 +1,6 @@
 """Independent CLEAN pre-race card adapter from documented public BoatraceCSV fields."""
 from datetime import datetime
+from urllib.error import HTTPError,URLError
 import re
 import csv
 import io
@@ -76,17 +77,40 @@ def racecard(hd,jcd,rno):
     datetime.strptime(hd,"%Y%m%d")
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    titles,title_fetched,title_sha=read_rows(BASE+"title/"+path)
-    cards,card_fetched,card_sha=read_rows(BASE+"race_cards/"+path)
-    title=[r for r in titles if r.get("レースコード")==code]
-    card=[r for r in cards if r.get("レースコード")==code]
-    if len(title)!=1 or len(card)!=1:raise ValueError("race_card_not_available")
-    meta=title[0]; fields=card[0]
+    # Daily generated CSV can be absent before racing closes. Read primary first,
+    # then obtain exactly this race from the independent documented live origin.
+    from clean_direct_sources import holding_rows,fetch_bytes,parse_card,ROOT
+    source="CLEAN_PUBLIC_PRE_RACE_CSV"
+    try:
+        titles,title_fetched,title_sha=read_rows(BASE+"title/"+path)
+    except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError):
+        titles,title_fetched,title_sha=holding_rows(hd)
+        source="CLEAN_DIRECT_PRE_RACE"
+    title=[row for row in titles if row.get("レースコード")==code]
+    if len(title)!=1:raise ValueError("race_card_not_available")
+    meta=title[0]
     deadline_text=meta.get("電話投票締切予定","")
-    if not re.fullmatch(r"[0-2][0-9]:[0-5][0-9]",deadline_text):
+    if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",deadline_text):
         raise ValueError("deadline_not_available")
     deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
-    if max(title_fetched,card_fetched)>=deadline:raise ValueError("race_already_closed")
+    if title_fetched>=deadline:raise ValueError("race_already_closed")
+    try:
+        cards,card_fetched,card_sha=read_rows(BASE+"race_cards/"+path)
+        card=[row for row in cards if row.get("レースコード")==code]
+        if len(card)!=1:raise ValueError("race_card_not_available")
+        fields=card[0]
+    except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
+        # Never silently replace malformed/suspicious source evidence; only
+        # fall back on unavailable daily source, not a wrong-race CSV.
+        if isinstance(exc,ValueError) and str(exc) not in ("race_card_not_available","source unavailable"):
+            raise
+        url=f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt"
+        raw=fetch_bytes(url)
+        fields=parse_card(raw,code)
+        card_fetched=datetime.now(JST)
+        card_sha=hashlib.sha256(raw).hexdigest()
+        source="CLEAN_DIRECT_PRE_RACE"
+    if card_fetched>=deadline:raise ValueError("race_already_closed")
     racers=[]
     seen_registrations=set()
     for i in range(1,7):
@@ -109,7 +133,7 @@ def racecard(hd,jcd,rno):
     return {"schema_version":"boat-edge-race-v5","race_key":f"{hd}-{int(jcd):02d}-{int(rno):02d}",
        "meta":{"date":f"{hd[:4]}-{hd[4:6]}-{hd[6:8]}","venue_code":f"{int(jcd):02d}","race_no":int(rno),
          "deadline":deadline_text,"phase":"PRE_RESULT","results_seen":False,"unlock":False,"scoring":False,
-         "source":"CLEAN_PUBLIC_PRE_RACE_CSV"},
+         "source":source},
        "source_audit":{"race_card":{"status":"ok","fetched_at":card_fetched.isoformat(),"sha256":card_sha},
          "beforeinfo":before_audit},
        "racers":racers,"beforeinfo":beforeinfo}
