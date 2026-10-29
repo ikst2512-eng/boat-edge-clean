@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/audit_legacy_workflow_dependencies.py
+      - tests/test_legacy_workflow_schedule_detection.py
       - .github/workflows/legacy-workflow-dependencies.yml
 permissions:
   contents: read
@@ -19,6 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: python -m unittest -v tests/test_legacy_workflow_schedule_detection.py
       - run: python scripts/audit_legacy_workflow_dependencies.py
       - uses: actions/upload-artifact@v4
         if: always()
