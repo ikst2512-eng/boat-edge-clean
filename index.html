@@ -984,7 +984,7 @@ async function loadPredictions(force=false){
    }
   }catch(_){/* Preserve the provisional ten-ticket research display. */}
 const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='目標的中率：本命60%・バランス50%・穴10〜15%・絞り40%｜実績未検証。現在は研究用の暫定予想であり、締切前保存と正式採点は未完成。';
-  if(selectedPredictionMode!=='research')label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
+  if(selectedPredictionMode==='research'&&!label.textContent.includes('保存済み上位10点'))label.textContent='上位10点の暫定研究予想｜正式な的中率・回収率は未検証';if(selectedPredictionMode!=='research')label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
   loadVerifiedForecastForDisplay(key,token);
  }catch(e){
