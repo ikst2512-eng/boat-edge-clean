@@ -102,7 +102,21 @@ def audit(doc):
         if key not in cache:
             cache[key] = inspect(repo, entry)
         return cache[key]
-    for candidate in doc["prospective_provenance_candidates"]:
+    # Cover every matched race, rather than only prospective provenance candidates.
+    # Select prediction evidence only; never confuse odds/results/raw records
+    # with a forecast or claim that unrelated blobs prove forecast equivalence.
+    prediction_prefixes = ("data/site_prediction_snapshots/",
+                           "data/site_prediction_audit/",
+                           "data/site_prediction_history/")
+    clean_prefixes = ("prospective_predictions/", "four_mode_forecasts/")
+    for matched in doc["matched_races"]:
+        candidate = {
+            "race_code": matched["race_code"],
+            "legacy": [x for x in matched["legacy"]
+                       if x["category"] in prediction_prefixes],
+            "clean": [x for x in matched["clean"]
+                      if x["category"] in clean_prefixes],
+        }
         code = candidate["race_code"]
         record = {"race_code": code, "legacy": [], "clean": [],
                   "copy_authorized": False, "delete_authorized": False}
@@ -131,6 +145,7 @@ def audit(doc):
             for a, b in top_pairs
         ]
         record["decision"] = (
+            "NO_COMPARABLE_FORECAST_EVIDENCE" if not record["legacy"] or not record["clean"] else
             "REVIEW_FETCH_ERRORS" if failures else
             "CROSS_MODEL_DISTINCT_NO_IMPORT" if legacy_models and clean_models
             and not set(legacy_models).intersection(clean_models) else
@@ -142,7 +157,7 @@ def audit(doc):
         "schema": "CLEAN_CROSS_MODEL_CONTENT_AUDIT_V1",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_tree_shas": {"legacy": doc["legacy_tree_sha"], "clean": doc["clean_tree_sha"]},
-        "candidate_count": len(output), "inspected_count": sum(not r["errors"] for r in output),
+        "matched_race_count": len(output), "candidate_count": len(output), "inspected_count": sum(not r["errors"] for r in output),
         "unresolved_count": sum(bool(r["errors"]) for r in output),
         "races": output, "copy_authorized": False, "delete_authorized": False,
         "warning": "Same race or same ticket does not prove model equivalence. Missing top10 is UNKNOWN, not equal. No historical necessity inferred."
