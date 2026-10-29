@@ -227,6 +227,22 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/selection":
             body = (ROOT / "selection.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/api/signal70-holdout-status":
+            from compare_topn_signal70_days import report
+            try:
+                dates=sorted({p.stem[:8] for p in (ROOT/"prospective_predictions").glob("20??????????.json")})
+                data=report(dates) if dates else {"schema":"CLEAN_SIGNAL70_DAYWISE_V1","later_holdout_days":0,"days":[]}
+                response={"schema":"CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
+                          "later_holdout_days":data["later_holdout_days"],
+                          "evaluated_holdout_races":sum(sum(g["evaluated"] for g in d["groups"].values())
+                                                         for d in data["days"] if d["role"]=="later_holdout"),
+                          "discovery_day":"20261029","independently_validated":False}
+                status=200
+            except (ValueError,KeyError,OSError,TypeError):
+                logging.exception("holdout_status_unavailable")
+                status,response=503,{"ok":False,"error":"HOLDOUT_UNAVAILABLE"}
+            body=json.dumps(response,ensure_ascii=False).encode("utf-8")
+            kind="application/json; charset=utf-8"
         elif path == "/api/prospective-topn":
             from evaluate_clean_prospective_cohort import cohort
             params = parse_qs(parsed.query)
