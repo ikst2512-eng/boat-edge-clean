@@ -9,10 +9,10 @@ class CrossModelAuditTests(unittest.TestCase):
             "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
             "legacy_repo": "old/repo", "clean_repo": "new/repo",
             "legacy_tree_sha": "old-tree", "clean_tree_sha": "new-tree",
-            "prospective_provenance_candidates": [{
+            "matched_races": [{
                 "race_code": "202610290101",
-                "legacy": [{"path": "old.json", "git_blob_sha1": "old"}],
-                "clean": [{"path": "new.json", "git_blob_sha1": "new"}],
+                "legacy": [{"path": "old.json", "git_blob_sha1": "old", "category": "data/site_prediction_snapshots/"}],
+                "clean": [{"path": "new.json", "git_blob_sha1": "new", "category": "prospective_predictions/"}],
             }],
         }
         def fake_inspect(repo, entry):
@@ -36,7 +36,7 @@ class CrossModelAuditTests(unittest.TestCase):
     def test_empty_candidates_are_not_successfully_proven(self):
         doc = {"schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
                "legacy_tree_sha": "a", "clean_tree_sha": "b",
-               "prospective_provenance_candidates": []}
+               "matched_races": []}
         result = audit(doc)
         self.assertEqual(result["candidate_count"], 0)
         self.assertFalse(result["delete_authorized"])
