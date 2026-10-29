@@ -13,7 +13,7 @@ on:
       - .github/workflows/signal70-daywise.yml
   workflow_dispatch:
   schedule:
-    - cron: '23 15 * * *' # 00:23 JST, next calendar day
+    - cron: '00 17 * * *' # 02:00 JST, after 01:10 prospective top-N cohort audit
 permissions:
   contents: read
 jobs:
