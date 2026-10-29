@@ -219,10 +219,10 @@ assert.ok(script.includes('未照合は的中扱いしません'),'unverified ra
  for(const state of ['pending','awaiting_result','provisional','unverified']){
    assert.equal(resultValidator({...validResult,status:state},pendingRace,now),false,'state '+state+' must not count as confirmed');
  }
- assert.ok(script.includes("item.hitState==='miss'?'保存予想不的中':'照合待ち'"),'unverified result rows must explicitly remain awaiting verification');
+ assert.ok(script.includes("item.hitState==='miss'?'保存済み研究10点は不的中':'研究予想の証拠照合待ち'"),'unverified research rows must remain pending');
  assert.ok(script.includes('結果未確認（不的中には集計しません）'),'unknown results must not be counted as a loss');
  assert.ok(script.includes("verified.filter(e=>e.hitState==='hit')"),'verified hit count must use explicit hit status');
- assert.ok(script.includes('照合待ちは不的中扱いしません'),'pending/missing results must remain distinct from misses');
+ assert.ok(script.includes('研究予想の証拠照合待ち'),'pending/missing results must remain distinct from misses');
  assert.ok(script.includes("['保存済み',archived+'R'],['検証完了',completed+'R'],['結果待ち',pending+'R']"),'saved, verified and pending counts must remain distinct');
  assert.ok(script.includes('結果一致！ ※締切前保存未確認'),'reference-only winning match must disclose unproven predeadline evidence');
  assert.ok(script.includes('的中確定！ 締切前予想と照合済み'),'verified hit must be gated by predeadline evidence');
