@@ -1,6 +1,8 @@
 name: Cross-model content audit
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 18 * * *'
   pull_request:
     paths:
       - 'scripts/cross_model_content_audit.py'
@@ -34,6 +36,7 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -93,3 +96,37 @@ jobs:
             cross_model_audit.json
           if-no-files-found: warn
           retention-days: 30
+      - name: Record audit outcome in tracking issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          lines = ["### Cross-model content audit execution",
+                   f"Run: {os.environ['WORKFLOW_URL']}",
+                   f"Commit: ${{ github.sha }}",
+                   "Data is read-only. No prediction import or legacy deletion is authorized."]
+          crosswalk = Path("crosswalk.json")
+          audit = Path("cross_model_audit.json")
+          if crosswalk.exists():
+              d = json.loads(crosswalk.read_text())
+              lines.append(f"- Crosswalk matched race IDs: {d.get('matched_race_count', 'UNKNOWN')}")
+          else:
+              lines.append("- Crosswalk missing: source tree inventory failed or was not executed")
+          if audit.exists():
+              d = json.loads(audit.read_text())
+              for k in ("matched_race_count", "content_read_race_count", "compared_race_count",
+                        "tickets_uncomparable_count", "no_comparable_evidence_count", "unresolved_count"):
+                  lines.append(f"- {k}: {d.get(k, 'UNKNOWN')}")
+              lines.append("- Classification: " + ("INCOMPLETE" if
+                  not d.get("matched_race_count") or
+                  d.get("compared_race_count") != d.get("matched_race_count") or
+                  d.get("unresolved_count") else "TOP10_COMPARISON_COVERED (not deletion approval)"))
+          else:
+              lines.append("- Audit JSON missing: comparison failed or was not executed")
+          Path("audit_issue_comment.md").write_text("\n".join(lines) + "\n")
+          PY
+          gh issue comment 329 --repo "${{ github.repository }}" --body-file audit_issue_comment.md
