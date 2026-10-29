@@ -1,0 +1,33 @@
+"""Live source diagnostic. Never writes forecasts or results."""
+from datetime import datetime
+from urllib.error import HTTPError, URLError
+from clean_direct_sources import holding_rows
+from clean_racecard import racecard
+from research_model import JST
+
+def run():
+    day=datetime.now(JST).strftime("%Y%m%d")
+    print("DIAGNOSTIC_DATE",day,flush=True)
+    try:
+        titles,received,sha=holding_rows(day)
+    except (HTTPError, URLError, ValueError, OSError, TimeoutError) as e:
+        print("HOLDING_SOURCE_ERROR",type(e).__name__,str(e)[:120],flush=True)
+        return
+    print("HOLDING_SOURCE_ROWS",len(titles),flush=True)
+    now=datetime.now(JST)
+    upcoming=[]
+    for row in titles:
+        try:
+            deadline=datetime.strptime(day+row["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+            if deadline>now:upcoming.append((deadline,row["レースコード"]))
+        except (KeyError,ValueError):continue
+    upcoming.sort()
+    print("UPCOMING_RACES",len(upcoming),flush=True)
+    for _,code in upcoming[:3]:
+        try:
+            card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
+            print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],flush=True)
+        except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError,TypeError) as e:
+            print("RACECARD_ERROR",code,type(e).__name__,str(e)[:120],flush=True)
+
+if __name__=="__main__":run()
