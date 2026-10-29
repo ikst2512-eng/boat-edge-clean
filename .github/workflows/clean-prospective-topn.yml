@@ -13,7 +13,8 @@ on:
       - .github/workflows/clean-prospective-topn.yml
   workflow_dispatch:
   schedule:
-    - cron: '10 16 * * *' # 01:10 JST
+    - cron: '17 16 * * *' # 01:17 JST, off the busy top of hour
+    - cron: '47 17 * * *' # 02:47 JST, retry if earlier schedule is missed
 permissions:
   contents: read
 jobs:
