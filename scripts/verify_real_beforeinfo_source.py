@@ -2,10 +2,13 @@
 import json
 import sys
 from pathlib import Path
+from datetime import datetime,timedelta
+from zoneinfo import ZoneInfo
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_racecard import _preview_rows
 
-def main(day="2026/10/29.csv"):
+def main(day=None):
+    day=day or (datetime.now(ZoneInfo("Asia/Tokyo"))-timedelta(days=1)).strftime("%Y/%m/%d.csv")
     evidence={}
     for kind in ("tkz","stt","sui"):
         rows,sha=_preview_rows(kind,day)
@@ -23,4 +26,4 @@ def main(day="2026/10/29.csv"):
                         "columns_verified":sorted(expected)}
     print(json.dumps({"source":"BoatraceCSV real HTTPS","day":day,"evidence":evidence},ensure_ascii=False))
 if __name__=="__main__":
-    main(sys.argv[1] if len(sys.argv)>1 else "2026/10/29.csv")
+    main(sys.argv[1] if len(sys.argv)>1 else None)
