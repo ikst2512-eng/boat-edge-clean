@@ -300,7 +300,7 @@ assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old 
 const forecastLoader=script.slice(script.indexOf('async function loadPredictions('),script.indexOf(';let reviewSequence=0;'));
 assert.ok(forecastLoader.startsWith('async function loadPredictions('),'forecast loader must remain present');
 assert.ok(forecastLoader.includes("response.status===404"),'missing archive must trigger fallback');
-assert.ok(forecastLoader.includes("fetchTimed('/api/predictions?hd='"),'fallback must call CLEAN research API');
+assert.ok(forecastLoader.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/predictions?hd='"),'fallback must call CLEAN research API');
 assert.ok(forecastLoader.includes("fresh.status!=='research'"),'never present other API modes as research');
 assert.ok(forecastLoader.includes("fresh.validated!==false"),'fallback must remain visibly exploratory');
 assert.ok(forecastLoader.includes("fresh.predictions.length!==10"),'fallback must require exact ten picks');
