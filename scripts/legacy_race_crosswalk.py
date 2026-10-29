@@ -102,7 +102,9 @@ def main():
         for code in needed_provenance
     ]
     # Minimal provenance selection: only CLEAN's prospective forecasts and
-    # matching legacy prediction/audit/history records. Do not auto-import
+    # matching legacy prediction/audit/history records are NOT equivalent predictions.
+    # Only use them when a specific historical validation requires source proof.
+    # Do not auto-import
     # legacy odds, results, raw inputs, or site-autopilot snapshots.
     provenance_categories = {
         "data/site_prediction_snapshots/",
@@ -118,7 +120,7 @@ def main():
         if current and originals:
             prospective_provenance_candidates.append({
                 "race_code": code, "clean": current, "legacy": originals,
-                "decision": "VERIFY_INITIAL_SAVE_AND_DEADLINE_BEFORE_PRESERVING",
+                "decision": "CROSS_MODEL_ONLY_NO_IMPORT_UNLESS_HISTORICAL_EVALUATION_REQUIRES_IT",
                 "copy_authorized": False,
                 "legacy_prediction_logic_import_authorized": False,
             })
