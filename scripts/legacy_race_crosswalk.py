@@ -101,6 +101,27 @@ def main():
          "copy_authorized": False}
         for code in needed_provenance
     ]
+    # Minimal provenance selection: only CLEAN's prospective forecasts and
+    # matching legacy prediction/audit/history records. Do not auto-import
+    # legacy odds, results, raw inputs, or site-autopilot snapshots.
+    provenance_categories = {
+        "data/site_prediction_snapshots/",
+        "data/site_prediction_audit/",
+        "data/site_prediction_history/",
+    }
+    prospective_provenance_candidates = []
+    for code in sorted(set(legacy) & set(clean)):
+        current = [row for row in clean[code]
+                   if row["category"] == "prospective_predictions/"]
+        originals = [row for row in legacy[code]
+                     if row["category"] in provenance_categories]
+        if current and originals:
+            prospective_provenance_candidates.append({
+                "race_code": code, "clean": current, "legacy": originals,
+                "decision": "VERIFY_INITIAL_SAVE_AND_DEADLINE_BEFORE_PRESERVING",
+                "copy_authorized": False,
+                "legacy_prediction_logic_import_authorized": False,
+            })
     document = {
         "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -117,6 +138,8 @@ def main():
         "clean_only_race_count": len(set(clean)-set(legacy)),
         "matched_races": records,
         "evidence_link_candidates": evidence_link_candidates,
+        "prospective_provenance_candidates": prospective_provenance_candidates,
+        "prospective_provenance_candidate_count": len(prospective_provenance_candidates),
         "no_clean_reference_count": len(no_clean_reference),
         # Actionable read-only preservation queue: every legacy-only race keeps its
         # source paths and immutable Git blob IDs for later byte-level verification.
