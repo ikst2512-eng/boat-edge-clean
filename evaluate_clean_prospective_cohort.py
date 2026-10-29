@@ -28,6 +28,7 @@ def cohort(day, root=ROOT, scorer=evaluate):
     counts={"archives":len(paths),"evaluated":0,"awaiting_result":0,"audit_rejected":0}
     hits={"top3":0,"top5":0,"top10":0}
     rejected=[]
+    awaiting_result_codes=[]
     payout_unavailable=0
     roi={key:{"races":0,"invested_yen":0,"return_yen":0} for key in hits}
     for path in paths:
@@ -35,6 +36,7 @@ def cohort(day, root=ROOT, scorer=evaluate):
             outcome=scorer(path.stem,root)
             if outcome["status"]=="result_unavailable":
                 counts["awaiting_result"]+=1
+                awaiting_result_codes.append(path.stem)
                 continue
             if outcome["status"]!="evaluated" or outcome.get("formal") is not False or outcome.get("audited") is not True:
                 raise ValueError("untrusted evaluation")
@@ -64,6 +66,7 @@ def cohort(day, root=ROOT, scorer=evaluate):
             "counts":counts,"hits":hits,
             "hit_rate_pct":{n:round(100*v/denominator,2) if denominator else None for n,v in hits.items()},
             "unverified_races_excluded":True,"rejected":rejected,
+            "awaiting_result_race_codes":awaiting_result_codes,
             "payout_unavailable":payout_unavailable,"simulated_budget_yen":5000,
             "roi":{k:{**v,"roi_pct":round(100*v["return_yen"]/v["invested_yen"],2) if v["invested_yen"] else None} for k,v in roi.items()}}
 
