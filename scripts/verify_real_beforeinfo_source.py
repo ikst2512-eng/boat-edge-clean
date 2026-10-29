@@ -26,7 +26,6 @@ def main(day=None):
                         "columns_verified":sorted(expected)}
     # Verify real race rows can actually feed the CLEAN adapter, not just match column names.
     from clean_racecard import _fetch_preview
-    from datetime import datetime
     from research_model import JST
     matched=[]
     tkz_rows,_=_preview_rows("tkz",day)
