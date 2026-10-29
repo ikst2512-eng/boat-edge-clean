@@ -83,13 +83,16 @@ jobs:
                   raise SystemExit('Research snapshot receipt buffer expired; refusing late push: ' + path)
           PY
                   fi
-                  if git remote get-url origin >/dev/null 2>&1; then
-                    current_branch=$(git symbolic-ref --short HEAD)
-                    git fetch origin "$current_branch"
-                    git -c rebase.autoStash=true rebase "origin/$current_branch"
-                  fi
-                  if git push; then
-                    break
+                  if [ "${GITHUB_ACTIONS:-}" = 'true' ]; then
+                    git fetch origin main
+                    git -c rebase.autoStash=true rebase origin/main
+                    if git push origin HEAD:main; then
+                      break
+                    fi
+                  else
+                    if git push; then
+                      break
+                    fi
                   fi
                   if [ "$attempt" -eq 3 ]; then
                     echo 'Research snapshot push retries exhausted' >&2
