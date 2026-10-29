@@ -42,7 +42,9 @@ jobs:
             echo 'Daily source not yet published (JST preopening window)'
             exit 0
           fi
-          python collect_clean_prospective.py
+          mkdir -p test-results
+          python collect_clean_prospective.py 2>&1 | tee test-results/prospective-capture.log
+          test ${PIPESTATUS[0]} -eq 0
       - name: Freeze immutable candidate evidence
         if: github.event_name != 'pull_request'
         shell: bash
@@ -90,3 +92,11 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'data: freeze prospective pre-cutoff candidates (not yet formal)'
           git push origin HEAD:main
+      - name: Archive prospective capture diagnostics
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-prospective-capture-${{ github.run_id }}
+          path: test-results/prospective-capture.log
+          if-no-files-found: warn
+          retention-days: 30
