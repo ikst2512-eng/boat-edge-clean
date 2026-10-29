@@ -115,6 +115,12 @@ jobs:
           if crosswalk.exists():
               d = json.loads(crosswalk.read_text())
               lines.append(f"- Crosswalk matched race IDs: {d.get('matched_race_count', 'UNKNOWN')}")
+              lines.append(f"- Formal-prefix Git blobs: {d.get('formal_artifact_count', 'UNKNOWN')}")
+              for item in d.get("formal_artifacts", [])[:30]:
+                  lines.append(f"  - \`{item['path']}\` Git blob \`{item['git_blob_sha1']}\`")
+              if len(d.get("formal_artifacts", [])) > 30:
+                  lines.append("- Full inventory in crosswalk.json artifact")
+              lines.append("- Inventory does not establish formal Fresh acceptance")
           else:
               lines.append("- Crosswalk missing: source tree inventory failed or was not executed")
           if audit.exists():
