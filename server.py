@@ -227,6 +227,18 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/selection":
             body = (ROOT / "selection.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
+        elif path == "/api/prospective-topn":
+            from evaluate_clean_prospective_cohort import cohort
+            params = parse_qs(parsed.query)
+            day = params.get("day", [""])[0]
+            try:
+                data = cohort(day)
+                status = 200
+            except (ValueError, KeyError, OSError, TypeError) as exc:
+                logging.exception("prospective_topn_unavailable")
+                status, data = 422 if str(exc) == "invalid day" else 503, {"ok": False, "error": "TOPN_UNAVAILABLE"}
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/selection-research":
             try:
                 from selection_dual import report
