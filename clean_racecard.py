@@ -50,6 +50,15 @@ def _fetch_preview(code,path,deadline):
         prefix=f"艇{lane}_"
         racers.append({"lane":lane,"exhibition_time":_num(tkz.get(prefix+"展示タイム")),"tilt":_num(tkz.get(prefix+"チルト"))})
         starts.append({"lane":lane,"course":_num(stt.get(prefix+"コース")),"st":stt.get(prefix+"スタート展示") or None})
+    # A CSV row and a timestamp alone do not prove valid exhibition measurements.
+    # Only publish a complete six-boat set; otherwise keep the card and fail closed.
+    times=[r["exhibition_time"] for r in racers]
+    tilts=[r["tilt"] for r in racers]
+    courses=[r["course"] for r in starts]
+    if (any(v is None or not 5.0<=v<=9.0 for v in times)
+        or any(v is None or not -1.0<=v<=3.0 for v in tilts)
+        or sorted(courses)!=[1.,2.,3.,4.,5.,6.]):
+        return None,{"status":"invalid_or_incomplete_exhibition"}
     audit={"status":"ok","fetched_at":max(sources["tkz"][0],sources["stt"][0]).isoformat(),
            "source":"BoatraceCSV predeadline snapshots",
            "sources":{k:{"observed_at":v[0].isoformat(),"sha256":v[2]} for k,v in sources.items()}}
