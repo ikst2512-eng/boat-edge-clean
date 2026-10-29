@@ -35,6 +35,30 @@ class CrossModelAuditTests(unittest.TestCase):
         self.assertIsNone(extract_top10({"predictions": ["1-2-3"] * 10}))
         self.assertIsNone(extract_top10({"top10": ["1-2-3"] * 10}))
 
+    def test_real_clean_prospective_schema_is_ranked(self):
+        picks = ["2-1-3", "1-2-4", "2-1-4", "1-2-3", "1-3-2",
+                 "1-3-5", "2-3-1", "3-1-4", "2-1-5", "2-3-4"]
+        self.assertEqual(extract_top10({"model_version": "clean-prospective-national-beta0.4-v1",
+                                        "predictions": picks}), picks)
+
+    def test_four_mode_is_not_falsely_compared_to_prospective(self):
+        doc = {"schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
+               "legacy_repo": "old/repo", "clean_repo": "new/repo",
+               "legacy_tree_sha": "a", "clean_tree_sha": "b",
+               "matched_races": [{
+                   "race_code": "202610290101",
+                   "legacy": [{"path": "legacy.json", "git_blob_sha1": "old",
+                               "category": "data/site_prediction_snapshots/"}],
+                   "clean": [{"path": "four_mode.json", "git_blob_sha1": "new",
+                              "category": "four_mode_forecasts/"}],
+               }]}
+        with patch("scripts.cross_model_content_audit.inspect",
+                   return_value={"path": "legacy.json", "sha256": "old",
+                                 "models": [], "top10": None}):
+            result = audit(doc)
+        self.assertEqual(result["compared_race_count"], 0)
+        self.assertEqual(result["races"][0]["decision"], "NO_COMPARABLE_FORECAST_EVIDENCE")
+
     def test_fetch_failure_is_not_misreported_as_missing_evidence(self):
         doc = {
             "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
