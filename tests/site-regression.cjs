@@ -209,7 +209,6 @@ assert.ok(script.includes("confirmedForecastResult=order.join('-');confirmedFore
 assert.ok(script.includes("結果一致！ ※締切前保存未確認"),'matching provisional ticket must be marked without claiming verified bet');
 assert.ok(script.includes("的中確定！ 締切前予想と照合済み"),'verified winning ticket remains distinct');
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
-assert.ok(script.includes("record.official_finish!==item.match"),'a result list hit requires matching certified finish');
 assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
 assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
@@ -306,3 +305,6 @@ assert.ok(script.includes("main/prospective_predictions/"),'forecast race cards 
 assert.ok(script.includes("研究10点的中"),'race cards must label research hits');
 assert.ok(script.includes("500円仮定の払戻"),'race cards must display simulated payout');
 console.log('PASS: race cards in forecast; no redundant tabs; research hit payouts');
+
+assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode list verification must not return');
+assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
