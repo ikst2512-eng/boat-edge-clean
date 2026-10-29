@@ -25,7 +25,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
-      - name: Verify current production mobile navigation
+      - name: Verify published Pages mobile navigation and Render API health
         run: |
           node <<'JS'
           const {chromium}=require('playwright');
@@ -38,14 +38,14 @@ jobs:
               // Render may first serve its 503 "Application loading" splash while a sleeping service wakes.
               let response;
               for(let attempt=1;attempt<=12;attempt++){
-                response=await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:90000});
+                response=await page.goto('https://ikst2512-eng.github.io/boat-edge-clean/',{waitUntil:'domcontentloaded',timeout:90000});
                 if(response?.status()!==503)break;
                 console.log('RENDER_WAKING',attempt,'of 12; HTTP 503');
                 await page.waitForTimeout(6000);
               }
               const diagnostics=await page.evaluate(()=>({title:document.title,path:location.pathname,heading:document.querySelector('h1')?.textContent?.trim(),venueCount:document.querySelectorAll('#venues button').length,bodySample:document.body?.innerText?.slice(0,450)}));
-              console.log('RENDER_PRODUCTION_DIAGNOSTICS',JSON.stringify({status:response?.status(),url:page.url(),...diagnostics}));
-              if(response?.status()!==200)throw Error('Render returned HTTP '+response?.status());
+              console.log('PAGES_PRODUCTION_DIAGNOSTICS',JSON.stringify({status:response?.status(),url:page.url(),...diagnostics}));
+              if(response?.status()!==200)throw Error('Pages returned HTTP '+response?.status());
               const health=await page.request.get('https://boat-edge-clean.onrender.com/healthz',{timeout:30000});
               if(health.status()!==200)throw Error('Render backend health failed: HTTP '+health.status());
               console.log('RENDER_BACKEND_HEALTH_PASS',health.status());
@@ -55,31 +55,23 @@ jobs:
               const rejected=await invalidOdds.json();
               if(rejected.ok!==false)throw Error('Render odds accepted invalid race inputs');
               console.log('RENDER_ODDS_INPUT_GUARD_PASS');
-              if(diagnostics.venueCount!==24)throw Error('Render is not serving current CLEAN app; expected 24 venue buttons; '+JSON.stringify(diagnostics));
+              if(diagnostics.venueCount!==24)throw Error('Pages is not serving current CLEAN app; expected 24 venue buttons; '+JSON.stringify(diagnostics));
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
-              if(await page.locator('#forecast [data-mode]').count()!==4)throw Error('Top3/5/10 controls missing');
               await page.evaluate(()=>setView('forecast'));
-              const modeFixture=await page.evaluate(()=>{
-                predictionModes={
-                  hit:{tickets:['1-2-3','1-3-2'],probabilities:{'1-2-3':28,'1-3-2':17},odds:{}},
-                  balance:{tickets:['2-1-3','3-1-2'],probabilities:{'2-1-3':9,'3-1-2':2},odds:{}},
-                  hole:{tickets:['4-2-1'],probabilities:{'4-2-1':1},odds:{}},
-                  narrow:{tickets:['1-2-3'],probabilities:{'1-2-3':28},odds:{}}
-                };
-                applyPredictionMode();return selectedPredictionMode;
+              if(await page.locator('#forecast [data-mode]').count()!==0)throw Error('Old forecast controls still rendered on Pages');
+              if(await page.locator('#forecast .legacy-mode-comparison').count()!==0)throw Error('Legacy comparison remains on forecast');
+              if(await page.locator('#predictionStatus').count()!==1)throw Error('Research forecast status is missing');
+              const research=await page.evaluate(()=>{
+                predictionModes={research:{tickets:['1-2-3','1-3-2'],probabilities:{},odds:{}}};
+                selectedPredictionMode='research';applyPredictionMode();
+                return {mode:selectedPredictionMode,rows:document.querySelectorAll('#predictionRows .prediction-row').length};
               });
-              if(modeFixture!=='research')throw Error('Research mode not default');
-              await page.locator('#forecast .legacy-mode-comparison summary').click();
-              await page.locator('#forecast [data-mode="balance"]').click();
-              const selected=await page.evaluate(()=>({mode:selectedPredictionMode,tickets:predictionTickets}));
-              if(selected.mode!=='balance'||selected.tickets.join(',')!=='2-1-3,3-1-2')throw Error('Balance tab failed: '+JSON.stringify(selected));
-              await page.locator('#forecast [data-mode="narrow"]').click();
-              if(await page.locator('#predictionRows .prediction-row').count()!==1)throw Error('Narrow selection did not use independently frozen tickets');
+              if(research.mode!=='research'||research.rows!==2)throw Error('Research-only forecast fixture failed: '+JSON.stringify(research));
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
-              console.log('PASS: PR-local mobile forecast hierarchy and controls');
+              console.log('PASS: deployed Pages research-only mobile UI; Render API health checked separately');
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
