@@ -30,8 +30,8 @@ def inspect(workflows, contents):
             "inspected": own is not None,
             "referenced_by_filename": incoming,
             "references_filename": outgoing,
-            "manual_dispatch": bool(own and re.search(r"(?m)^\\s*workflow_dispatch\\s*:", own)),
-            "schedule": bool(own and re.search(r"(?m)^\\s*schedule\\s*:", own)),
+            "manual_dispatch": bool(own and re.search(r"(?m)^\s*workflow_dispatch\s*:", own)),
+            "schedule": bool(own and re.search(r"(?m)^\s*schedule\s*:", own)),
             "safe_to_delete": False,
             "warning": "Filename reference search is not complete dependency proof."
         })
