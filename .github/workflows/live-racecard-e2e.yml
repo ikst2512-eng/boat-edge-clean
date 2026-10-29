@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python -m py_compile scripts/verify_live_racecard_e2e.py
+      - name: Exercise actual Render racecard API before racing starts
+        run: python scripts/verify_live_racecard_e2e.py
   e2e-live-race:
     runs-on: ubuntu-latest
     timeout-minutes: 8
