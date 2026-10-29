@@ -20,4 +20,6 @@ class Signal70Tests(unittest.TestCase):
             self.assertEqual(result["groups"]["below_70"]["evaluated"],1)
             self.assertIsNone(result["groups"]["signal_70_plus"]["roi_pct"]["top10"])
             self.assertFalse(result["signal_is_empirical_confidence"])
+            self.assertEqual(result["groups"]["signal_70_plus"]["roi_denominator"],"payout_verified_only_not_all_evaluated_races")
+            self.assertEqual(result["groups"]["signal_70_plus"]["payout_coverage_pct"],0.0)
 if __name__=="__main__":unittest.main()
