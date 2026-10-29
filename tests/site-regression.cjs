@@ -120,7 +120,6 @@ assert.ok(script.includes("document.getElementById('mobileRaceCards').replaceChi
 assert.ok(script.includes("document.getElementById('courseDataNotice').replaceChildren();"),'stale course stats cleared when switching race');
 assert.ok(script.includes("document.getElementById('mobileRaceCards').hidden=view!=='card'"),'exhibition view must hide redundant racer cards');
 assert.ok(script.includes("document.getElementById('courseDataNotice').hidden=view!=='card'"),'course records belong only on racer card view');
-assert.ok(html.includes('.view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))'),'four tabs should use four columns');
 assert.ok(script.includes("document.createElement('details')"),'secondary racer data must be collapsible');
 assert.ok(script.includes("details.append(toggle,specs)"),'equipment details remain available on demand');
 assert.ok(script.includes("racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6"),'race card requires all six unique lanes');
@@ -190,7 +189,6 @@ assert.ok(html.includes('id="forecastVenue"')&&html.includes('id="forecastRace"'
 assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved from home to forecast');
 assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
 assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
-assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile tabs are compact five columns');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
 assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
@@ -301,3 +299,10 @@ console.log('PASS: stale legacy forecast markup blocked');
 assert.ok(!html.includes('async function cleanFourModeForecast('),'old forecast API removed');
 assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old forecast override removed');
 assert.ok(html.includes("throw Error('PREDICTION_NOT_PUBLISHED')"),'missing saved research must fail closed');
+
+assert.ok(!html.includes('<nav class="view-tabs"'),'duplicate top view tabs removed');
+assert.ok(html.indexOf('id="resultList"')>html.indexOf('id="forecast"') && html.indexOf('id="resultList"')<html.indexOf('id="resultSection"'),'race list must appear under forecasts');
+assert.ok(script.includes("main/prospective_predictions/"),'forecast race cards must compare archived Top-10');
+assert.ok(script.includes("研究10点的中"),'race cards must label research hits');
+assert.ok(script.includes("500円仮定の払戻"),'race cards must display simulated payout');
+console.log('PASS: race cards in forecast; no redundant tabs; research hit payouts');
