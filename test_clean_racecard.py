@@ -117,6 +117,25 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(result["meta"]["source"],"CLEAN_DIRECT_PRE_RACE")
         self.assertEqual(len(result["racers"]),6)
 
+    def test_nonofficial_openapi_fallback_only_before_deadline(self):
+        hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
+        code=hd+"0101"
+        title=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        card={"レースコード":code}
+        for lane in range(1,7):
+            card.update({f"艇{lane}_登録番号":str(4000+lane),f"艇{lane}_全国勝率":"5.5"})
+        with patch.object(clean_racecard,"read_rows",side_effect=ValueError("source unavailable")) , \
+             patch("clean_direct_sources.holding_rows",side_effect=OSError("HTTP 403")) , \
+             patch("clean_direct_sources.fetch_bytes",side_effect=OSError("HTTP 403")) , \
+             patch("clean_openapi_sources.load",return_value=(title,[card],datetime.now(JST),"a"*64,{"source":"nonofficial_openapi_v1"})) , \
+             patch.object(clean_racecard,"_fetch_preview",return_value=(None,{"status":"not_published_or_unavailable"})):
+            result=clean_racecard.racecard(hd,"1","1")
+        self.assertEqual(result["meta"]["source"],"CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE")
+        self.assertEqual(len(result["racers"]),6)
+        self.assertEqual(result["racers"][0]["registration_no"],"4001")
+        self.assertIsNone(result["racers"][0]["motor"]["no"])
+        self.assertIsNone(result["beforeinfo"])
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
