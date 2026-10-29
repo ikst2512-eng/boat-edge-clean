@@ -54,6 +54,17 @@ def clean_schedule(day):
 
     except HTTPError as exc:
         if exc.code in (404, 410):
+            # Daily CSV may lag published racecards. Preserve exact race identity.
+            try:
+                from clean_openapi_sources import load
+                titles, _cards, received, digest, metadata = load(day)
+                result = parse_schedule(day, titles, received)
+                result["source"] = metadata["source"]
+                result["source_sha256"] = digest
+                result["status"] = "alternate_published_schedule"
+                return 200, result
+            except (ValueError, KeyError, TypeError, OSError, TimeoutError, URLError, HTTPError) as fallback_error:
+                logging.info("alternate_schedule_not_ready date=%s reason=%s", day, type(fallback_error).__name__)
             return 404, {"ok": False, "status": "schedule_not_published",
                          "source": "boatracecsv.github.io/data/programs/title",
                          "date": day, "upstream_http_status": exc.code,
