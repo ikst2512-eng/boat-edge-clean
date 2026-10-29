@@ -1,0 +1,20 @@
+name: Verify REAL beforeinfo source
+on:
+  pull_request:
+    paths:
+      - clean_racecard.py
+      - scripts/verify_real_beforeinfo_source.py
+      - .github/workflows/verify-real-beforeinfo.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '40 12 * * *'
+permissions:
+  contents: read
+jobs:
+  real-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe published real HTTPS CSV (no fixture)
+        run: python scripts/verify_real_beforeinfo_source.py
