@@ -967,53 +967,6 @@ async function loadRaceData(force=false){
 }
 let displayedPredictionKey='';
 const predictionRetryAt=new Map();
-async function cleanFourModeForecast(key){
- const query='?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
- const res=await fetchTimed('/api/clean-four-modes'+query,{cache:'no-store'});
- if(!res.ok)throw Error('CLEAN_MODEL_UNAVAILABLE_'+res.status);
- const result=await res.json();
- if(!result.ok||result.status!=='provisional'||!result.modes)throw Error('CLEAN_FORECAST_INVALID');
- const modes={};
- for(const name of ['hit','balance','hole','narrow']){
-  const rows=result.modes[name]?.tickets;
-  if(!Array.isArray(rows)||rows.length<1||rows.length>30||rows.some(t=>!validTicket(t.combo)||!Number.isFinite(t.p)||t.p<0||t.p>100)||new Set(rows.map(t=>t.combo)).size!==rows.length)throw Error('CLEAN_MODE_INVALID_'+name);
-  modes[name]={tickets:rows.map(t=>t.combo),probabilities:Object.fromEntries(rows.map(t=>[t.combo,t.p])),odds:{}};
- }
- return {modes,tickets:modes.hit.tickets,probabilities:modes.hit.probabilities,odds:{},deadline:result.deadline_jst,created:result.generated_at_jst,version:'CLEAN独立4パターン（研究段階・的中率未検証）',inputs:['全国勝率','出走表','直前データ未提供時も計算'],proof:'研究予想・締切前固定記録は未完成',provisional:true,targets:Object.fromEntries(Object.entries(result.modes).map(([k,v])=>[k,{goal:v.target_hit_rate_pct,estimated:v.estimated_coverage_pct}]))};
-}
-async function loadVerifiedForecastForDisplay(key,requestToken){
- // Only replace the provisional display after validating the immutable,
- // proof-gated race evaluation against the archived original ticket list.
- const code=key.replaceAll('-');
- try{
-  const record=await verifiedFourModeRace(key);
-  const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_forecasts/'+code+'.json';
-  const res=await fetchTimed(url+'?cache='+Date.now(),{cache:'no-store'});
-  if(!res.ok)throw Error('ARCHIVE_NOT_AVAILABLE');
-  const archive=await res.json();
-  if(requestToken!==window.predictionRequestId||key!==sameRaceKey()||displayedPredictionKey!==key)return;
-  if(archive.schema!=='CLEAN_FOUR_MODES_PREDEADLINE_V1'||archive.race_code!==code||
-     !['hit','balance','hole','narrow'].every(mode=>{
-       const t=archive.modes?.[mode]?.tickets;
-       const present=Array.isArray(t)&&t.length>0&&t.every(v=>validTicket(v.combo)&&Number.isFinite(v.p));
-       if(!present)return false;
-       return record.modes[mode].hit===t.some(v=>v.combo===record.official_finish);
-     }))throw Error('ARCHIVE_RESULT_MISMATCH');
-  const frozen={};
-  for(const mode of ['hit','balance','hole','narrow']){
-   const rows=archive.modes[mode].tickets;
-   frozen[mode]={tickets:rows.map(t=>t.combo),probabilities:Object.fromEntries(rows.map(t=>[t.combo,t.p])),odds:{}};
-  }
-  predictionModes={...frozen,research:predictionModes.research};
-  verifiedForecastWinner=record.official_finish;
-  applyPredictionMode();
-  document.getElementById('predictionStatus').textContent=selectedPredictionMode==='research'?'研究10点は正式採点未検証。旧4パターンの結果照合のみ完了しています。':'● 旧4パターンの確定結果と照合済み｜締切前に保存された買い目を表示。赤文字・的中マークが当たりの3連単です。';
-  document.getElementById('snapshotMeta').textContent='確定3連単 '+record.official_finish+'｜保存済み予想と結果の照合完了（想定購入）';
- }catch(_){
-  // Fail closed: never mark a provisional or unproven ticket as a verified hit.
-  if(requestToken===window.predictionRequestId&&key===sameRaceKey())verifiedForecastWinner=null;
- }
-}
 async function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;verifiedForecastWinner=null;
  const raceKey=sameRaceKey();
@@ -1025,25 +978,20 @@ async function loadPredictions(force=false){
  const label=document.getElementById('predictionStatus');
  label.textContent=retain?'CLEAN独立予想を更新中…':'保存済み研究予想を確認中…';
  try{
-  const confirmed=await cleanFourModeForecast(key);
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   predictionRetryAt.delete(key);displayedPredictionKey=key;predictionModes={research:{tickets:[],probabilities:{},odds:{}}};selectedPredictionMode='research';applyPredictionMode();
-  // Research archive is not a formally verified forecast. Never present it as proven.
-  try{
-   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key.replaceAll('-','')+'.json',{cache:'no-store'});
-   if(response.ok){
-    const archive=await response.json();
-    if(token===window.predictionRequestId&&sameRaceKey()===key&&archive.race_code===key.replaceAll('-','')&&archive.formal===false&&archive.scoring===false&&Array.isArray(archive.predictions)&&archive.predictions.length>0&&archive.predictions.length<=10&&archive.predictions.every(validTicket)&&new Set(archive.predictions).size===archive.predictions.length){
-     predictionModes.research={tickets:archive.predictions,probabilities:{},odds:{}};
-     if(selectedPredictionMode==='research')applyPredictionMode();
-     label.textContent='保存済み上位10点の研究予想｜正式な的中率・回収率は未検証';
-    }
-   }
-  }catch(_){/* Preserve the provisional ten-ticket research display. */}
-const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='研究用の保存済み上位10点のみ表示。検証済みの的中率を保証するものではありません。';
-  if(!label.textContent.includes('保存済み上位10点'))label.textContent='最新10点の保存済み研究予想は未取得です。予想原本が未保存のため、買い目は表示できません。';if(selectedPredictionMode!=='research')label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
+  const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key.replaceAll('-','')+'.json',{cache:'no-store'});
+  if(!response.ok)throw Error('PREDICTION_NOT_PUBLISHED');
+  const archive=await response.json();
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+  if(archive.race_code!==key.replaceAll('-','')||archive.formal!==false||archive.scoring!==false||!Array.isArray(archive.predictions)||archive.predictions.length<1||archive.predictions.length>10||!archive.predictions.every(validTicket)||new Set(archive.predictions).size!==archive.predictions.length)throw Error('PREDICTIONS_INVALID');
+  predictionModes.research={tickets:archive.predictions,probabilities:{},odds:{}};
+  applyPredictionMode();
+  label.textContent='保存済み上位10点の研究予想｜正式な的中率・回収率は未検証';
+  document.getElementById('snapshotMeta').textContent='保存済み研究予想のみ表示。旧方式の買い目は表示しません。';
+  document.getElementById('sourceMeta').replaceChildren();
   drawPredictions();
-  loadVerifiedForecastForDisplay(key,token);
+
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   const reason=e instanceof Error?e.message:'';
