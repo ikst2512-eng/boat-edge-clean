@@ -46,7 +46,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual((status,data["status"]),(503,"source_unavailable"))
 
     def test_upstream_missing_daily_file_is_not_empty_schedule(self):
-        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)):
+        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)), patch("clean_openapi_sources.load",side_effect=ValueError("no alternate schedule")):
             status,data=s.clean_schedule("20261029")
         self.assertEqual(status,404)
         self.assertEqual(data["status"],"schedule_not_published")
