@@ -2,17 +2,23 @@
 import json
 from datetime import datetime,timedelta
 from urllib.request import Request,urlopen
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_direct_sources import holding_rows
+from clean_openapi_sources import load as load_openapi
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
-rows,_,_=holding_rows(hd)
+try:
+    rows,_,_=holding_rows(hd)
+    print('LIVE_CANDIDATE_SOURCE holding',flush=True)
+except (HTTPError,URLError,TimeoutError,OSError,ValueError):
+    rows,_,_,_,meta=load_openapi(hd)
+    print('LIVE_CANDIDATE_SOURCE '+meta['source'],flush=True)
 candidates=[]
 for row in rows:
     cutoff=datetime.strptime(hd+row["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
