@@ -211,7 +211,7 @@ assert.ok(script.includes("的中確定！ 締切前予想と照合済み"),'ver
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
 assert.ok(script.includes("archive.predictions.indexOf(item.match)+1"),'a research list hit must match saved Top-10');
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
-assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
+assert.ok(script.includes("研究上位'+item.winningRank+'点目が一致"),'research ticket rank appears on matching results');
 assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
 
  // Legacy V284 parity: a pending result is neither a verified miss nor a verified hit.
