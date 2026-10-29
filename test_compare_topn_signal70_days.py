@@ -23,6 +23,12 @@ class Tests(unittest.TestCase):
         self.assertFalse(r["calibrated_confidence"])
         self.assertFalse(r["formal"])
 
+    def test_discovery_never_becomes_holdout_when_no_future_date_exists(self):
+        r = report(["20261029"], self.fake)
+        self.assertEqual(r["later_holdout_days"], 0)
+        self.assertEqual(r["days"][0]["role"], "discovery")
+        self.assertFalse(r["calibrated_confidence"])
+
     def test_duplicate_day_fails(self):
         with self.assertRaises(ValueError):
             report(["20261029", "20261029"])
