@@ -48,6 +48,19 @@ class HeadHealthTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 400)
         self.assertEqual(caught.exception.headers.get("Access-Control-Allow-Origin"), "https://ikst2512-eng.github.io")
 
+    def test_missing_racecard_is_not_a_source_outage(self):
+        with patch("clean_racecard.racecard", side_effect=ValueError("race_card_not_available")):
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(self.base + "/api/clean-racecard?hd=20261030&jcd=01&rno=1", timeout=3)
+        self.assertEqual(caught.exception.code, 404)
+        self.assertEqual(caught.exception.headers.get("Access-Control-Allow-Origin"), "https://ikst2512-eng.github.io")
+
+    def test_source_outage_remains_distinct(self):
+        with patch("clean_racecard.racecard", side_effect=OSError("upstream timeout")):
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(self.base + "/api/clean-racecard?hd=20261030&jcd=01&rno=1", timeout=3)
+        self.assertEqual(caught.exception.code, 503)
+
     def test_get_health_still_works(self):
         with urlopen(self.base + "/healthz", timeout=3) as response:
             self.assertEqual(response.status, 200)

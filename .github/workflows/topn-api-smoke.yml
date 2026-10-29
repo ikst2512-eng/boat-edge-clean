@@ -4,6 +4,7 @@ on:
     paths:
       - test_topn_api_smoke.py
       - server.py
+      - test_head_health.py
       - evaluate_clean_prospective_cohort.py
       - .github/workflows/topn-api-smoke.yml
   push:
@@ -11,6 +12,7 @@ on:
     paths:
       - test_topn_api_smoke.py
       - server.py
+      - test_head_health.py
       - evaluate_clean_prospective_cohort.py
       - .github/workflows/topn-api-smoke.yml
   workflow_dispatch:
@@ -26,4 +28,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v test_topn_api_smoke
+      - run: python -m unittest -v test_topn_api_smoke test_head_health
