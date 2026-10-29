@@ -71,4 +71,41 @@ refresh();
 const browserStyle=document.createElement('style');
 browserStyle.textContent='.race-browser-toolbar{display:flex;justify-content:space-between;gap:8px;max-width:900px;margin:0 auto;padding:8px 14px}.race-browser-toolbar button,.race-browser-toolbar a{font-size:14px;font-weight:800;border:1px solid #cbd9e8;border-radius:9px;background:#fff;color:#174066;padding:9px 14px;text-decoration:none;min-height:40px}.race-browser-toolbar button:disabled{opacity:.5}.race-browser-toolbar a{text-align:center}@media(max-width:420px){.race-browser-toolbar button,.race-browser-toolbar a{flex:1}}';
 document.head.append(browserStyle);
+
+const details=document.createElement('nav');details.className='race-detail-shortcuts';
+details.setAttribute('aria-label','選択レースの情報');
+for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
+ const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.raceView=view;
+ b.addEventListener('click',()=>{if(typeof setView!=='function'||typeof render!=='function')return;setView(view);render();document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});});
+ details.append(b);
+}
+toolbar.insertAdjacentElement('afterend',details);
+const updateDetails=()=>{
+ const isHome=!!document.querySelector('[data-home-only]:not([hidden])');
+ details.hidden=isHome;details.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-current',String(b.dataset.raceView===activeView));});
+};
+updateDetails();
+const raceHome=document.querySelector('[data-home-only]');
+if(raceHome)new MutationObserver(updateDetails).observe(raceHome,{attributes:true,attributeFilter:['hidden']});
+const compactRaceCards=container=>{
+ if(!container)return;
+ const clean=()=>{
+  for(const actions of container.querySelectorAll('.clean-race-actions')){
+   if(actions.dataset.compact==='1')continue;
+   const buttons=[...actions.querySelectorAll('button')];
+   const prediction=buttons.find(b=>b.textContent.trim()==='AI予想');
+   if(!prediction)continue;
+   prediction.textContent='このレースの予想を見る';
+   for(const b of buttons)if(b!==prediction)b.remove();
+   actions.dataset.compact='1';
+  }
+ };
+ new MutationObserver(clean).observe(container,{childList:true,subtree:true});
+ clean();
+};
+compactRaceCards(document.getElementById('homeRaceCardList'));
+compactRaceCards(document.getElementById('resultList'));
+const detailStyles=document.createElement('style');
+detailStyles.textContent='.race-detail-shortcuts{display:flex;gap:5px;max-width:900px;margin:0 auto;padding:0 14px 9px}.race-detail-shortcuts[hidden]{display:none!important}.race-detail-shortcuts button{min-width:0;flex:1;font-size:12px;padding:10px 3px;border:1px solid #cbd9e8;background:white;border-radius:8px;color:#174066;font-weight:800}.race-detail-shortcuts button[aria-current="true"]{background:#155eae;border-color:#155eae;color:white}.clean-race-actions{display:flex}.clean-race-actions button{width:100%;max-width:320px;background:#e9f3ff;color:#14528d;font-weight:800}';
+document.head.append(detailStyles);
 })();
