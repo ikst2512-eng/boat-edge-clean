@@ -1,0 +1,30 @@
+name: Navigation regression checks
+on:
+  pull_request:
+    paths:
+      - 'navigation.js'
+      - 'secondary_navigation.js'
+      - 'index.html'
+      - 'server.py'
+      - 'tests/test_navigation_contract.py'
+      - '.github/workflows/navigation-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'navigation.js'
+      - 'secondary_navigation.js'
+      - 'index.html'
+      - 'server.py'
+      - 'tests/test_navigation_contract.py'
+      - '.github/workflows/navigation-regression.yml'
+jobs:
+  navigation-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Navigation contract tests
+        run: python -m unittest discover -s tests -p 'test_navigation_contract.py' -v
