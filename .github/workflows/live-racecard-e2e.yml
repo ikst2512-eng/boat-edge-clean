@@ -1,0 +1,15 @@
+name: Check real live predeadline racecard
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'
+permissions:
+  contents: read
+jobs:
+  e2e-live-race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify real scheduled race through live Render API
+        run: python scripts/verify_live_racecard_e2e.py
