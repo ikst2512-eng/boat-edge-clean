@@ -294,3 +294,10 @@ console.log('PASS: forecast top-ten is not filled from old four-mode main picks'
 assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
 assert.ok(/<\/script><\/body><\/html>\s*$/.test(html),'no raw source may follow HTML close');
 console.log('PASS: no appended source code visible after HTML');
+
+// Reject the exact stale legacy screenshot on all future builds.
+const forecastMarkup=html.match(/<section class="box" id="forecast">([\s\S]*?)<section class="box" id="resultSection"/)?.[1];
+assert.ok(forecastMarkup,'forecast section must exist');
+for(const stale of ['旧4パターンの比較検証を表示','目標的中率：本命60%','data-mode="hit"'])assert.ok(!forecastMarkup.includes(stale),'stale legacy forecast UI forbidden: '+stale);
+assert.ok(html.includes('data-clean-forecast-ui="research-only-20261030"'),'forecast UI revision marker required');
+console.log('PASS: stale legacy forecast markup blocked');
