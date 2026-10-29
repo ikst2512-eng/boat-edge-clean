@@ -4,6 +4,7 @@ on:
     paths:
       - index.html
       - tests/site-regression.cjs
+      - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
@@ -11,6 +12,7 @@ on:
     paths:
       - index.html
       - tests/site-regression.cjs
+      - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
 permissions:
@@ -31,6 +33,8 @@ jobs:
           mkdir -p test-results
           printf 'Commit: %s\nWorkflow run: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" | tee test-results/provenance.txt
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
+      - name: Audit all CLEAN workflow path filters
+        run: python3 tests/audit_workflow_paths.py
       - name: Upload regression evidence
         if: always()
         uses: actions/upload-artifact@v4
