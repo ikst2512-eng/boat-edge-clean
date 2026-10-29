@@ -294,3 +294,8 @@ console.log('PASS: forecast top-ten is not filled from old four-mode main picks'
 assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
 assert.ok(/<\/script><\/body><\/html>\s*$/.test(html),'no raw source may follow HTML close');
 console.log('PASS: no appended source code visible after HTML');
+
+assert.ok(!html.includes('async function cleanFourModeForecast('),'old four-mode forecast API must not drive research forecast');
+assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old four-mode forecast display must not return');
+assert.ok(!html.includes('loadVerifiedForecastForDisplay(key,token)'),'old result must not replace research tickets');
+console.log('PASS: old four-mode forecast runtime removed from forecast page');
