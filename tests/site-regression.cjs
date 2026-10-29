@@ -120,7 +120,6 @@ assert.ok(script.includes("document.getElementById('mobileRaceCards').replaceChi
 assert.ok(script.includes("document.getElementById('courseDataNotice').replaceChildren();"),'stale course stats cleared when switching race');
 assert.ok(script.includes("document.getElementById('mobileRaceCards').hidden=view!=='card'"),'exhibition view must hide redundant racer cards');
 assert.ok(script.includes("document.getElementById('courseDataNotice').hidden=view!=='card'"),'course records belong only on racer card view');
-assert.ok(html.includes('.view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))'),'four tabs should use four columns');
 assert.ok(script.includes("document.createElement('details')"),'secondary racer data must be collapsible');
 assert.ok(script.includes("details.append(toggle,specs)"),'equipment details remain available on demand');
 assert.ok(script.includes("racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6"),'race card requires all six unique lanes');
@@ -190,7 +189,6 @@ assert.ok(html.includes('id="forecastVenue"')&&html.includes('id="forecastRace"'
 assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved from home to forecast');
 assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
 assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
-assert.ok(html.includes('.view-tabs{grid-template-columns:repeat(5,'),'mobile tabs are compact five columns');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
 assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
@@ -211,21 +209,20 @@ assert.ok(script.includes("confirmedForecastResult=order.join('-');confirmedFore
 assert.ok(script.includes("結果一致！ ※締切前保存未確認"),'matching provisional ticket must be marked without claiming verified bet');
 assert.ok(script.includes("的中確定！ 締切前予想と照合済み"),'verified winning ticket remains distinct');
 assert.ok(html.includes('.prediction-row.result-matched-reference'),'reference matches must be visually emphasized');
-assert.ok(script.includes("record.official_finish!==item.match"),'a result list hit requires matching certified finish');
-assert.ok(script.includes("Object.values(record.modes).some(m=>m.hit)"),'a result list hit must come from verified mode performance');
+assert.ok(script.includes("archive.predictions.indexOf(item.match)+1"),'a research list hit must match saved Top-10');
 assert.ok(html.includes('.clean-race-card.verified-hit')&&script.includes("card.classList.add('verified-hit')"),'verified winning races have visible row highlight');
-assert.ok(script.includes("的中 '+item.winningModes.join('・')"),'winning modes are named in results list');
-assert.ok(script.includes("照合待ちは不的中扱いしません"),'unverified races are not losses');
+assert.ok(script.includes("研究上位'+item.winningRank+'点目が一致"),'research ticket rank appears on matching results');
+assert.ok(script.includes('未照合は的中扱いしません'),'unverified races are never scored as hits');
 
  // Legacy V284 parity: a pending result is neither a verified miss nor a verified hit.
  const pendingRace='20261023-04-10';
  for(const state of ['pending','awaiting_result','provisional','unverified']){
    assert.equal(resultValidator({...validResult,status:state},pendingRace,now),false,'state '+state+' must not count as confirmed');
  }
- assert.ok(script.includes("item.hitState==='miss'?'保存予想不的中':'照合待ち'"),'unverified result rows must explicitly remain awaiting verification');
- assert.ok(script.includes('結果未確認（不的中には集計しません）'),'unknown results must not be counted as a loss');
+ assert.ok(script.includes("item.hitState==='miss'?'保存済み研究10点は不的中':'研究予想の証拠照合待ち'"),'unverified research rows must remain pending');
+ assert.ok(script.includes('結果未確認（不的中として集計しません）'),'unknown results must not be counted as a loss');
  assert.ok(script.includes("verified.filter(e=>e.hitState==='hit')"),'verified hit count must use explicit hit status');
- assert.ok(script.includes('照合待ちは不的中扱いしません'),'pending/missing results must remain distinct from misses');
+ assert.ok(script.includes('研究予想の証拠照合待ち'),'pending/missing results must remain distinct from misses');
  assert.ok(script.includes("['保存済み',archived+'R'],['検証完了',completed+'R'],['結果待ち',pending+'R']"),'saved, verified and pending counts must remain distinct');
  assert.ok(script.includes('結果一致！ ※締切前保存未確認'),'reference-only winning match must disclose unproven predeadline evidence');
  assert.ok(script.includes('的中確定！ 締切前予想と照合済み'),'verified hit must be gated by predeadline evidence');
@@ -301,3 +298,13 @@ console.log('PASS: stale legacy forecast markup blocked');
 assert.ok(!html.includes('async function cleanFourModeForecast('),'old forecast API removed');
 assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old forecast override removed');
 assert.ok(html.includes("throw Error('PREDICTION_NOT_PUBLISHED')"),'missing saved research must fail closed');
+
+assert.ok(!html.includes('<nav class="view-tabs"'),'duplicate top view tabs removed');
+assert.ok(html.indexOf('id="resultList"')>html.indexOf('id="forecast"') && html.indexOf('id="resultList"')<html.indexOf('id="resultSection"'),'race list must appear under forecasts');
+assert.ok(script.includes("main/prospective_predictions/"),'forecast race cards must compare archived Top-10');
+assert.ok(script.includes("研究10点的中"),'race cards must label research hits');
+assert.ok(script.includes("500円仮定の払戻"),'race cards must display simulated payout');
+console.log('PASS: race cards in forecast; no redundant tabs; research hit payouts');
+
+assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode list verification must not return');
+assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
