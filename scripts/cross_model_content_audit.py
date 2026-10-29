@@ -146,11 +146,17 @@ def audit(doc):
              "overlapping_tickets": len(set(a["top10"]) & set(b["top10"]))}
             for a, b in top_pairs
         ]
+        record["models_distinct"] = bool(
+            legacy_models and clean_models and
+            not set(legacy_models).intersection(clean_models)
+        )
+        record["tickets_compared"] = bool(record["top10_comparisons"])
         record["decision"] = (
             "REVIEW_FETCH_ERRORS" if failures else
             "NO_COMPARABLE_FORECAST_EVIDENCE" if not record["legacy"] or not record["clean"] else
-            "CROSS_MODEL_DISTINCT_NO_IMPORT" if legacy_models and clean_models
-            and not set(legacy_models).intersection(clean_models) else
+            "TICKETS_UNCOMPARABLE_MODELS_DISTINCT" if not record["tickets_compared"] and record["models_distinct"] else
+            "TICKETS_UNCOMPARABLE" if not record["tickets_compared"] else
+            "CROSS_MODEL_DISTINCT_NO_IMPORT" if record["models_distinct"] else
             "REVIEW_CONTENT_AND_PROVENANCE_NO_IMPORT"
         )
         record["historical_evidence_required_proven"] = False
@@ -160,7 +166,8 @@ def audit(doc):
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_tree_shas": {"legacy": doc["legacy_tree_sha"], "clean": doc["clean_tree_sha"]},
         "matched_race_count": len(output), "candidate_count": len(output),
-        "compared_race_count": sum(bool(r["top10_comparisons"]) for r in output),
+        "compared_race_count": sum(r["tickets_compared"] for r in output),
+        "tickets_uncomparable_count": sum(not r["tickets_compared"] for r in output),
         "content_read_race_count": sum(bool(r["legacy"]) and bool(r["clean"]) and not r["errors"] for r in output),
         "no_comparable_evidence_count": sum(r["decision"] == "NO_COMPARABLE_FORECAST_EVIDENCE" for r in output),
         "unresolved_count": sum(bool(r["errors"]) for r in output),
