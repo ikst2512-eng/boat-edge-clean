@@ -278,7 +278,7 @@ function setView(view){
  document.querySelectorAll('[data-home-only]').forEach(el=>{el.hidden=view!=='home';});
  document.getElementById('forecastQuick').hidden=view!=='forecast';
  document.getElementById('deadlineSection').hidden=view!=='forecast';
- document.querySelectorAll('[data-page]').forEach(a=>{const on=a.dataset.page===view;a.classList.toggle('on',on);a.setAttribute('aria-current',on?'page':'false');});
+
  document.getElementById('raceDataSection').hidden=view==='forecast'||view==='result'||view==='review'||view==='home';
  document.getElementById('raceDataSection').dataset.view=view;
  document.getElementById('exhibitionGrid').hidden=view!=='exhibit';
@@ -292,7 +292,7 @@ function setView(view){
  document.getElementById('raceDataHeading').textContent=view==='exhibit'?'展示情報':'出走表・選手成績';
  const url=new URL(location.href);url.searchParams.delete('view');history.replaceState(null,'',url);
 }
-document.querySelectorAll('.view-tabs [data-page],.site-global-nav a[href^="/"]').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);u.search=location.search;a.href=u.pathname+u.search;}));
+document.querySelectorAll('.site-global-nav a[href^="/"]').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);u.search=location.search;a.href=u.pathname+u.search;}));
 // Keyboard navigation stays inside the four tabs; Enter/Space works natively.
 
 // Poll only the visible result panel; this never invokes prediction/scoring/unlock endpoints.
