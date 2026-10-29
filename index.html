@@ -697,7 +697,8 @@ async function historicalHeldVenues(date){
 }
 async function loadHeldVenues(force=false){
  const date=s.date;
- if(!force&&date===venueDateChecked)return;
+ // A failed or not-yet-published schedule must remain retryable on the same date.
+ if(!force&&date===venueDateChecked&&todayVenueRaces?.date===date)return;
  venueDateChecked=date;
  const token=++venueRequest;
  const status=document.getElementById('venueState');
@@ -765,7 +766,7 @@ async function loadHeldVenues(force=false){
   status.textContent='開催情報：'+available.size+'場｜'+(data.historical_result_only?'公開済み結果で確認（締切時刻なし）':date<fmt(jst())?'過去の開催実績':'締切前は次の3レースのみ表示');
  }catch(e){
   if(token!==venueRequest||date!==s.date)return;
-  venueDateChecked=date;
+  venueDateChecked=null;
   if(retaining){renderDeadlines(todayVenueRaces);status.textContent='開催情報の再取得に失敗しました。前回取得した開催データを表示中です。締切は現在時刻で判定しています。';}
   else if(e?.message==='SCHEDULE_NOT_PUBLISHED'){
    todayVenueRaces=null;updateRacePickerLabels();
