@@ -34,6 +34,18 @@ class TopNApiSmoke(unittest.TestCase):
         self.assertFalse(data["formal"])
         self.assertTrue(data["unverified_races_excluded"])
         print("TOPN_HTTP_SMOKE",json.dumps({"counts":counts,"hit_rate_pct":data["hit_rate_pct"]},sort_keys=True))
+    def test_future_holdout_status_never_claims_validation(self):
+        with urlopen(f"http://127.0.0.1:{PORT}/api/signal70-holdout-status",timeout=30) as r:
+            self.assertEqual(r.status,200)
+            data=json.load(r)
+        self.assertEqual(data["schema"],"CLEAN_SIGNAL70_HOLDOUT_STATUS_V1")
+        self.assertEqual(data["discovery_day"],"20261029")
+        self.assertFalse(data["independently_validated"])
+        self.assertGreaterEqual(data["later_holdout_days"],0)
+        self.assertGreaterEqual(data["evaluated_holdout_races"],0)
+        if data["later_holdout_days"]==0:
+            self.assertEqual(data["evaluated_holdout_races"],0)
+        print("HOLDOUT_HTTP_SMOKE",json.dumps(data,sort_keys=True))
     def test_reject_bad_day(self):
         with self.assertRaises(HTTPError) as err:
             urlopen(f"http://127.0.0.1:{PORT}/api/prospective-topn?day=invalid",timeout=5)
