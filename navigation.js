@@ -86,7 +86,7 @@ back.addEventListener('click',()=>{
  if(document.referrer){try{if(new URL(document.referrer).origin===location.origin){history.back();return;}}catch(_){}}
  if(activeView!=='home'&&originalSetView&&originalRender){
   restoring=true;originalSetView('home');originalRender();
-  current=snapshot();history.replaceState({boatEdgeNav:true,position:0,snapshot:current},'',location.href);
+  current=snapshot();const homeUrl=new URL('/',location.origin);homeUrl.searchParams.set('date',current.date);homeUrl.searchParams.set('venue',String(current.venue+1));homeUrl.searchParams.set('race',String(current.race));history.replaceState({boatEdgeNav:true,position:0,snapshot:current},'',homeUrl);
   restoring=false;refresh();return;
  }
  location.assign('/');
