@@ -78,7 +78,7 @@ jobs:
           python - <<'PY'
           import json
           d = json.load(open("cross_model_audit.json"))
-          if (not d["matched_race_count"] or d["unresolved_count"] or d["no_comparable_evidence_count"] or d["compared_race_count"] != d["matched_race_count"]):
+          if (not d["matched_race_count"] or d["unresolved_count"] or not d["content_read_race_count"] or d["compared_race_count"] != d["content_read_race_count"]):
               raise SystemExit(
                   f"Audit incomplete: matched={d['matched_race_count']} "
                   f"top10-compared={d['compared_race_count']} "
