@@ -47,3 +47,11 @@
 - 旧 `boat-edge` の直近Actionsに、Pages deployment / V133 / 公式 PRE_RESULT 証拠収集 / V250, V251 テストの成功が確認できた。旧サイトは未停止である（全workflowの依存証明ではない）。
 - CLEAN Render最新確認済みliveは `f9e2fa46`、CLEAN GitHub mainは確認時 `29351c78`。Render設定は `autoDeploy=yes` だが実際のライブ反映に遅延・欠落がある。自動デプロイが有効なので、コードpush直後の重複手動deployはしない。mainに追従する運用問題の診断が必要。
 - 削除判定は引き続き **DELETE_BLOCKED**。旧repoや旧Actionsを停止・削除していない。
+
+## 2026-10-30 現行版の同期チェック（更新）
+- GitHub main: `7f77fb7198f20a6747e324f89a04e89cadea82e0`。
+- Render `boat-edge-clean` の最新確認済みlive: `f9e2fa4633bf561d8d121f18ae3a51b0f809b054`。Render APIで取得できた直近5deployすべてが旧コミット。main同期 **FAIL**。
+- CLEAN Actionsでは `c3666642` のGitHub Pages公開成功、`29351c78` の旧workflow依存監査成功を確認。
+- 旧 `boat-edge` ではPagesやPRE_RESULT証拠収集等のActionsが今も成功している。旧本番の停止検証はまだ実施していない。
+- Renderは `autoDeploy=yes`。自動更新が有効なまま新規の手動deployを重複投入せず、まずWebhook/サービス連携・ビルド履歴・deployトリガーの失敗要因を確認する。
+- **停止不可：CLEAN Renderがmain追従し、必要原本の長期復元と旧Actions依存が解消されるまでは旧サイトを削除・アーカイブ・停止しない。**
