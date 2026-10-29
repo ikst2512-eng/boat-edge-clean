@@ -117,6 +117,28 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(result["meta"]["source"],"CLEAN_DIRECT_PRE_RACE")
         self.assertEqual(len(result["racers"]),6)
 
+    def test_openapi_fallback_on_both_upstream_403(self):
+        from urllib.error import HTTPError
+        hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
+        code=hd+"0101"
+        row={"レースコード":code}
+        for lane in range(1,7):
+            row[f"艇{lane}_登録番号"]=str(4000+lane)
+            row[f"艇{lane}_全国勝率"]="5.5"
+        title={"レースコード":code,"電話投票締切予定":"23:59"}
+        stamp=datetime.now(JST)
+        def forbidden(*args,**kwargs):
+            raise HTTPError("https://race.boatcast.jp",403,"Forbidden",None,None)
+        with patch.object(clean_racecard,"read_rows",side_effect=forbidden), \
+             patch("clean_direct_sources.holding_rows",side_effect=forbidden), \
+             patch("clean_direct_sources.fetch_bytes",side_effect=forbidden), \
+             patch("clean_openapi_sources.load",return_value=([title],[row],stamp,"a"*64,{"source":"nonofficial_openapi_v1"})), \
+             patch.object(clean_racecard,"_fetch_preview",return_value=(None,{"status":"not_published_or_unavailable"})):
+            result=clean_racecard.racecard(hd,"1","1")
+        self.assertEqual(result["meta"]["source"],"CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE")
+        self.assertEqual(len(result["racers"]),6)
+        self.assertEqual(result["race_key"],hd+"-01-01")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
