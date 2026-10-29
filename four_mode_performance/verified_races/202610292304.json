@@ -1,0 +1,40 @@
+{
+  "budget_yen": 5000,
+  "first_git_sha": "57d87a26c07be7deadb0c2d502690d4b54fb9d8c",
+  "modes": {
+    "balance": {
+      "hit": false,
+      "invested_yen": 5000,
+      "return_yen": 0,
+      "winning_stake_yen": 0,
+      "winning_ticket": null
+    },
+    "hit": {
+      "hit": false,
+      "invested_yen": 5000,
+      "return_yen": 0,
+      "winning_stake_yen": 0,
+      "winning_ticket": null
+    },
+    "hole": {
+      "hit": false,
+      "invested_yen": 5000,
+      "return_yen": 0,
+      "winning_stake_yen": 0,
+      "winning_ticket": null
+    },
+    "narrow": {
+      "hit": false,
+      "invested_yen": 5000,
+      "return_yen": 0,
+      "winning_stake_yen": 0,
+      "winning_ticket": null
+    }
+  },
+  "official_finish": "3-4-2",
+  "official_payout_yen_per_100": 3140,
+  "race_code": "202610292304",
+  "schema": "CLEAN_VERIFIED_FOUR_MODE_RACE_V1",
+  "simulated_only": true,
+  "verified": true
+}
