@@ -50,7 +50,7 @@ class CleanRacecardTests(unittest.TestCase):
             row={"レースコード":code,"締切時刻":"15:21","取得日時":"2026-10-30T15:16:00+09:00"}
             for lane in range(1,7):
                 prefix=f"艇{lane}_"
-                row.update({prefix+"展示タイム":"","prefix+"チルト":"",
+                row.update({prefix+"展示タイム":"",prefix+"チルト":"",
                             prefix+"コース":str(lane),prefix+"スタート展示":""})
             return [row],"f"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=blank):
