@@ -59,27 +59,18 @@ jobs:
               await page.locator('#venues button').first().waitFor({timeout:20000});
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues not rendered');
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
-              if(await page.locator('#forecast [data-mode]').count()!==4)throw Error('Top3/5/10 controls missing');
               await page.evaluate(()=>setView('forecast'));
-              const modeFixture=await page.evaluate(()=>{
-                predictionModes={
-                  hit:{tickets:['1-2-3','1-3-2'],probabilities:{'1-2-3':28,'1-3-2':17},odds:{}},
-                  balance:{tickets:['2-1-3','3-1-2'],probabilities:{'2-1-3':9,'3-1-2':2},odds:{}},
-                  hole:{tickets:['4-2-1'],probabilities:{'4-2-1':1},odds:{}},
-                  narrow:{tickets:['1-2-3'],probabilities:{'1-2-3':28},odds:{}}
-                };
-                applyPredictionMode();return selectedPredictionMode;
-              });
-              if(modeFixture!=='research')throw Error('Research mode not default');
-              await page.locator('#forecast .legacy-mode-comparison summary').click();
-              await page.locator('#forecast [data-mode="balance"]').click();
-              const selected=await page.evaluate(()=>({mode:selectedPredictionMode,tickets:predictionTickets}));
-              if(selected.mode!=='balance'||selected.tickets.join(',')!=='2-1-3,3-1-2')throw Error('Balance tab failed: '+JSON.stringify(selected));
-              await page.locator('#forecast [data-mode="narrow"]').click();
-              if(await page.locator('#predictionRows .prediction-row').count()!==1)throw Error('Narrow selection did not use independently frozen tickets');
+              if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
+              if(!await page.locator('#predictionStatus').isVisible())throw Error('Prediction status not visible');
+              const state=await page.evaluate(()=>({mode:selectedPredictionMode,rows:document.querySelectorAll('#predictionRows .prediction-row').length}));
+              if(state.mode!=='research')throw Error('Current research forecast is not the default: '+JSON.stringify(state));
+              if(await page.locator('#forecast [data-mode="balance"], #forecast [data-mode="hole"], #forecast [data-mode="narrow"]').count())throw Error('Retired mode controls reappeared');
+              const leaked=await page.evaluate(()=>['if(item.state!==','verifiedFourModeRace(key)','predictionModes=confirmed.modes','if(token!==resultListRequestId'].some(t=>document.body.innerText.includes(t)));
+              if(leaked)throw Error('Raw JavaScript is visible in forecast page');
+              console.log('CURRENT_RESEARCH_FORECAST_UI_PASS',JSON.stringify(state));
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
-              console.log('PASS: PR-local mobile forecast hierarchy and controls');
+              console.log('PASS: current CLEAN mobile research forecast and navigation');
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
