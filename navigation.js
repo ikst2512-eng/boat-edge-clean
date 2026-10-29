@@ -47,10 +47,10 @@ const sync=()=>{
 };
 const refresh=()=>{back.disabled=position===0;back.setAttribute('aria-disabled',String(position===0));};
 if(originalSetView){
- setView=function(view){const result=originalSetView(view);sync();return result;};
+ setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);sync();return result;};
 }
 if(originalRender){
- render=function(){const result=originalRender();sync();return result;};
+ render=function(){const url=location.href,state=history.state;const result=originalRender();history.replaceState(state,'',url);sync();return result;};
 }
 window.addEventListener('popstate',event=>{
  const state=event.state;
@@ -61,6 +61,7 @@ window.addEventListener('popstate',event=>{
  s.date=v.date;s.venue=v.venue;s.race=v.race;
  if(originalSetView)originalSetView(v.view);
  if(originalRender)originalRender();
+ history.replaceState(state,'',location.href);
  restoring=false;refresh();
 });
 back.addEventListener('click',()=>{if(position>0)history.back();else location.assign('/');});
