@@ -26,12 +26,32 @@ class CrossModelAuditTests(unittest.TestCase):
         self.assertEqual(record["decision"], "CROSS_MODEL_DISTINCT_NO_IMPORT")
         self.assertFalse(record["copy_authorized"])
         self.assertFalse(record["delete_authorized"])
+        self.assertEqual(result["compared_race_count"], 1)
         self.assertEqual(record["top10_comparisons"], [])
         self.assertFalse(record["historical_evidence_required_proven"])
 
     def test_does_not_guess_top10_from_ambiguous_predictions(self):
         self.assertIsNone(extract_top10({"predictions": ["1-2-3"] * 10}))
         self.assertIsNone(extract_top10({"top10": ["1-2-3"] * 10}))
+
+    def test_fetch_failure_is_not_misreported_as_missing_evidence(self):
+        doc = {
+            "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
+            "legacy_repo": "old/repo", "clean_repo": "new/repo",
+            "legacy_tree_sha": "a", "clean_tree_sha": "b",
+            "matched_races": [{
+                "race_code": "202610290101",
+                "legacy": [{"path": "old.json", "git_blob_sha1": "old",
+                            "category": "data/site_prediction_snapshots/"}],
+                "clean": [{"path": "new.json", "git_blob_sha1": "new",
+                           "category": "prospective_predictions/"}],
+            }],
+        }
+        with patch("scripts.cross_model_content_audit.inspect", side_effect=OSError("unavailable")):
+            result = audit(doc)
+        self.assertEqual(result["races"][0]["decision"], "REVIEW_FETCH_ERRORS")
+        self.assertEqual(result["compared_race_count"], 0)
+        self.assertEqual(result["unresolved_count"], 1)
 
     def test_empty_candidates_are_not_successfully_proven(self):
         doc = {"schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
