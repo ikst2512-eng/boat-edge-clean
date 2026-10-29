@@ -12,6 +12,8 @@ on:
       - test_evaluate_clean_prospective_cohort.py
       - .github/workflows/clean-prospective-topn.yml
   workflow_dispatch:
+  schedule:
+    - cron: '10 16 * * *' # 01:10 JST
 permissions:
   contents: read
 jobs:
@@ -25,4 +27,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_evaluate_clean_prospective_cohort
-      - run: python evaluate_clean_prospective_cohort.py 20261029
+      - name: Evaluate prior completed day
+        run: |
+          mkdir -p test-results
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from evaluate_clean_prospective_cohort import cohort
+          day=(datetime.now(ZoneInfo('Asia/Tokyo')).date()-timedelta(days=1)).strftime('%Y%m%d')
+          result=cohort(day)
+          Path('test-results/prospective-topn-'+day+'.json').write_text(
+              json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,sort_keys=True))
+          PY
+      - name: Archive cohort evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prospective-topn-${{ github.run_id }}
+          path: test-results/prospective-topn-*.json
+          if-no-files-found: warn
+          retention-days: 90
