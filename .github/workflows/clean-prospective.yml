@@ -91,7 +91,36 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'data: freeze prospective pre-cutoff candidates (not yet formal)'
-          git push origin HEAD:main
+          # Other CLEAN writers update main frequently. Retry only while every
+          # newly committed candidate still has a 90-second receipt buffer.
+          for attempt in 1 2 3; do
+            python - <<'PY'
+          import json,subprocess
+          from datetime import datetime,timedelta,timezone
+          files=subprocess.check_output(
+              ['git','diff-tree','--no-commit-id','--name-only','--diff-filter=A','-r','HEAD','--','prospective_predictions/'],
+              text=True).splitlines()
+          if not files:
+              raise SystemExit('No new candidates to push')
+          now=datetime.now(timezone.utc)
+          for path in files:
+              with open(path,encoding='utf-8') as handle:
+                  candidate=json.load(handle)
+              cutoff=datetime.fromisoformat(candidate['cutoff_jst'])
+              if now>=cutoff-timedelta(seconds=90):
+                  raise SystemExit('Candidate receipt buffer expired; refusing late push: '+path)
+          PY
+            git fetch origin main
+            git -c rebase.autoStash=true rebase origin/main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Prospective push retries exhausted' >&2
+              exit 1
+            fi
+            sleep "$attempt"
+          done
       - name: Archive prospective capture diagnostics
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
