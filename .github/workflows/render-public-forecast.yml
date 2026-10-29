@@ -1,0 +1,19 @@
+name: Check actual Render forecast UI
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 20 * * *'
+  pull_request:
+    paths:
+      - scripts/verify_render_public_forecast.py
+      - .github/workflows/render-public-forecast.yml
+permissions:
+  contents: read
+jobs:
+  check-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public Render HTTP contains research UI rather than retired forecast
+        run: python scripts/verify_render_public_forecast.py
