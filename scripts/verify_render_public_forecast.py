@@ -21,3 +21,19 @@ checks={
 for key,passed in checks.items():print(("PASS" if passed else "FAIL")+" "+key)
 if not all(checks.values()):sys.exit("RENDER_FORECAST_CONTRACT_FAILED")
 print("PASS public Render HTML contains current forecast UI and no old markup")
+
+# Verify the same-origin prediction route still answers on the deployed Render
+# instance; an HTML-only health check cannot catch a broken prediction API.
+import json
+from urllib.parse import urlencode
+api_url="https://boat-edge-clean.onrender.com/api/predictions?"+urlencode({"hd":"20261022","jcd":"12","rno":"1"})
+with urlopen(Request(api_url,headers={"User-Agent":"BOAT-EDGE-CLEAN-DEPLOY-AUDIT/1.0","Cache-Control":"no-cache"}),timeout=45) as response:
+    if response.status!=200:raise SystemExit("RENDER_PREDICTION_API_HTTP_"+str(response.status))
+    payload=json.load(response)
+if payload.get("ok") is not True or payload.get("status") not in ("research","unavailable"):
+    raise SystemExit("RENDER_PREDICTION_API_INVALID_STATUS")
+if payload["status"]=="research":
+    tickets=payload.get("predictions",[])
+    if len(tickets)!=10 or len(set(tickets))!=10 or payload.get("validated") is not False:
+        raise SystemExit("RENDER_PREDICTION_API_INVALID_TICKETS")
+print("PASS deployed same-origin prediction API schema; historical missing research is not fabricated")
