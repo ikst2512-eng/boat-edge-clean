@@ -32,6 +32,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from datetime import datetime, timedelta
           from pathlib import Path
           from zoneinfo import ZoneInfo
@@ -39,12 +40,21 @@ jobs:
           today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
           dates = {(today - timedelta(days=n)).strftime("%Y%m%d") for n in (2, 1)}
           status_path = Path("confirmed_results/collection_status.json")
+          status = {}
           if status_path.is_file():
               status = json.loads(status_path.read_text(encoding="utf-8"))
               for code in status.get("overdue_race_codes", []):
                   if isinstance(code, str) and len(code) == 12 and code.isascii() and code.isdigit():
                       dates.add(code[:8])
-          results = [diagnose_source_gaps(day) for day in sorted(dates)]
+          observed_at = datetime.now(ZoneInfo("Asia/Tokyo")).isoformat()
+          snapshot_at = status.get("checked_at_jst") if status_path.is_file() else None
+          results = []
+          for day in sorted(dates):
+              result = diagnose_source_gaps(day)
+              result["audited_at_jst"] = observed_at
+              result["collection_snapshot_checked_at_jst"] = snapshot_at
+              result["checkout_sha"] = os.environ.get("GITHUB_SHA")
+              results.append(result)
           Path("test-results").mkdir(exist_ok=True)
           Path("test-results/result-source-gaps.json").write_text(json.dumps(results, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           print(json.dumps(results, ensure_ascii=False, sort_keys=True))
