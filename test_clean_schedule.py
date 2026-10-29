@@ -23,11 +23,21 @@ class ScheduleTests(unittest.TestCase):
 
     def test_not_yet_published_csv_is_not_a_server_failure(self):
         error=HTTPError("https://example.invalid/file.csv",404,"Not Found",None,None)
-        with patch.object(s,"read_rows",side_effect=error):
+        with patch.object(s,"read_rows",side_effect=error), patch("clean_openapi_sources.load",side_effect=ValueError("unavailable")):
             status,data=s.clean_schedule("20261029")
         self.assertEqual(status,404)
         self.assertEqual(data["status"],"schedule_not_published")
         self.assertNotIn("races",data)
+
+    def test_unpublished_csv_uses_verified_alternate_schedule(self):
+        error=HTTPError("https://example.invalid/file.csv",404,"Not Found",None,None)
+        titles=[{"レースコード":"202610300101","電話投票締切予定":"15:22"}]
+        with patch.object(s,"read_rows",side_effect=error), patch("clean_openapi_sources.load",return_value=(titles,[],datetime.now(s.JST),"digest",{"source":"nonofficial_openapi_v1"})):
+            status,data=s.clean_schedule("20261030")
+        self.assertEqual(status,200)
+        self.assertEqual(data["status"],"alternate_published_schedule")
+        self.assertEqual(data["source"],"nonofficial_openapi_v1")
+        self.assertEqual(data["races"][0]["race_code"],"202610300101")
 
     def test_upstream_503_remains_source_failure(self):
         error=HTTPError("https://example.invalid/file.csv",503,"unavailable",None,None)
@@ -36,7 +46,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual((status,data["status"]),(503,"source_unavailable"))
 
     def test_upstream_missing_daily_file_is_not_empty_schedule(self):
-        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)):
+        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)), patch("clean_openapi_sources.load",side_effect=ValueError("no alternate schedule")):
             status,data=s.clean_schedule("20261029")
         self.assertEqual(status,404)
         self.assertEqual(data["status"],"schedule_not_published")
