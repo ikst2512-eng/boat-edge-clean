@@ -12,7 +12,15 @@ from clean_direct_sources import holding_rows
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
-rows,_,_=holding_rows(hd)
+try:
+    rows,_,_=holding_rows(hd)
+    source="boatcast_holding"
+except (HTTPError,OSError,ValueError,TimeoutError):
+    # Holding feed may deny GitHub runners with HTTP 403. Use the same
+    # separately validated pre-race source available to the production API.
+    from clean_openapi_sources import load
+    rows,_,_,_,_=load(hd)
+    source="nonofficial_openapi"
 candidates=[]
 for row in rows:
     cutoff=datetime.strptime(hd+row["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
@@ -36,7 +44,7 @@ for _,code in candidates[:6]:
         before=audit.get("beforeinfo",{}).get("status")
         if before=="ok" and (len((data.get("beforeinfo") or {}).get("racers",[]))!=6):
             raise ValueError("verified preview missing racers")
-        print(json.dumps({"outcome":"PASS","race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
+        print(json.dumps({"outcome":"PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
         break
     except (HTTPError,ValueError,TimeoutError,OSError) as exc:
         errors.append({"race":code,"error":str(exc)[:160]})
