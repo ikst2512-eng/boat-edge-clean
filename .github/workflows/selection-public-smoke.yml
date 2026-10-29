@@ -54,3 +54,26 @@ jobs:
           check /forecast
           check /selection
           check /api/selection-research
+      - name: Verify public holdout API remains evidence-safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 2 --retry-delay 3 --max-time 45 -fLsS \
+            https://boat-edge-clean.onrender.com/api/signal70-holdout-status \
+            -o holdout-status.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
+          assert d["schema"]=="CLEAN_SIGNAL70_HOLDOUT_STATUS_V1"
+          assert d["discovery_day"]=="20261029"
+          assert type(d["independently_validated"]) is bool
+          assert type(d["later_holdout_days"]) is int and d["later_holdout_days"]>=0
+          assert type(d["evaluated_holdout_races"]) is int and d["evaluated_holdout_races"]>=0
+          if d["later_holdout_days"]==0:
+              assert d["evaluated_holdout_races"]==0
+              assert d["independently_validated"] is False
+          print("Public holdout schema OK; later days:",
+                d["later_holdout_days"],"evaluated:",d["evaluated_holdout_races"],
+                "independently validated:",d["independently_validated"])
+          PY
