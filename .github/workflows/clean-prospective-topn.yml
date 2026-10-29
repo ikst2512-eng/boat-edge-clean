@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_evaluate_clean_prospective_cohort
-      - name: Evaluate prior completed day
+      - name: Re-evaluate previous two completed days
         run: |
           mkdir -p test-results
           python - <<'PY'
@@ -36,11 +36,13 @@ jobs:
           from pathlib import Path
           from zoneinfo import ZoneInfo
           from evaluate_clean_prospective_cohort import cohort
-          day=(datetime.now(ZoneInfo('Asia/Tokyo')).date()-timedelta(days=1)).strftime('%Y%m%d')
-          result=cohort(day)
-          Path('test-results/prospective-topn-'+day+'.json').write_text(
-              json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
-          print(json.dumps(result,ensure_ascii=False,sort_keys=True))
+          today=datetime.now(ZoneInfo('Asia/Tokyo')).date()
+          for age in (2,1):
+              day=(today-timedelta(days=age)).strftime('%Y%m%d')
+              result=cohort(day)
+              Path('test-results/prospective-topn-'+day+'.json').write_text(
+                  json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+              print(json.dumps(result,ensure_ascii=False,sort_keys=True))
           PY
       - name: Archive cohort evidence
         if: always()
