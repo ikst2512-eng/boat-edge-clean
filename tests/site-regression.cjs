@@ -308,3 +308,9 @@ console.log('PASS: race cards in forecast; no redundant tabs; research hit payou
 
 assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode list verification must not return');
 assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
+
+assert.ok(html.includes('id="forecastPreviewStatus"')&&html.includes('id="forecastPreviewRows"'),'forecast needs visible beforeinfo summary');
+assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview()}'),'forecast route loads live beforeinfo');
+assert.ok(script.includes("raw.source_audit?.beforeinfo?.status!=='ok'"),'reject uncertified preview');
+assert.ok(script.includes('直前情報の一部が不足しているため未検証'),'partial race preview must be withheld');
+console.log('PASS: forecast inline six-boat beforeinfo data-source gating');
