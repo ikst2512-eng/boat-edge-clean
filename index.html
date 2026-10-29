@@ -1194,7 +1194,7 @@ async function loadReview(){
  root.replaceChildren();note.textContent='';status.textContent='CLEAN締切前保存記録を照合中…';
  const add=(title,value)=>{const card=document.createElement('div');card.className='box';const label=document.createElement('div');label.className='muted';label.textContent=title;const v=document.createElement('strong');v.textContent=value;card.append(label,v);root.append(card)};
  try{
-  const [record,res]=await Promise.all([verifiedFourModeRace(key),fetchTimed('/api/clean-result?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'})]);
+  const [record,res]=await Promise.all([verifiedFourModeRace(key),fetchTimed('https://boat-edge-clean.onrender.com/api/clean-result?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'})]);
   if(seq!==reviewSequence||key!==sameRaceKey())return;
   if(!res.ok)throw Error('RESULT_PENDING');
   const result=await res.json();
