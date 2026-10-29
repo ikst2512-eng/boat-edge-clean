@@ -7,7 +7,7 @@ on:
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
-      - .github/workflows/clean-first-add-audit.yml
+      - .github/workflows/clean-first-add-evidence.yml
   push:
     branches: [main]
     paths:
@@ -16,7 +16,7 @@ on:
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
-      - .github/workflows/clean-first-add-audit.yml
+      - .github/workflows/clean-first-add-evidence.yml
   workflow_dispatch:
 permissions:
   contents: read
