@@ -294,3 +294,12 @@ console.log('PASS: forecast top-ten is not filled from old four-mode main picks'
 assert.equal((html.match(/<\/script>/g)||[]).length,1,'only one script closing tag is allowed');
 assert.ok(/<\/script><\/body><\/html>\s*$/.test(html),'no raw source may follow HTML close');
 console.log('PASS: no appended source code visible after HTML');
+
+// Guard against the exact stale user-visible screenshot resurfacing on any deploy.
+const forecastMarkup=html.match(/<section class="box" id="forecast">([\s\S]*?)<section class="box" id="resultSection"/)?.[1];
+assert.ok(forecastMarkup,'forecast section must exist');
+assert.ok(!forecastMarkup.includes('旧4パターンの比較検証を表示'),'obsolete four-mode switcher must not return');
+assert.ok(!forecastMarkup.includes('目標的中率：本命60%'),'unverified legacy goal copy must not return');
+assert.ok(!forecastMarkup.includes('data-mode="hit"'),'old hit-mode selector must not return');
+assert.ok(!html.includes('現在は研究用の暫定予想であり、締切前保存と正式採点は未完成。'),'stale legacy copy must not return');
+console.log('PASS: exact legacy forecast screenshot is prevented from reappearing');
