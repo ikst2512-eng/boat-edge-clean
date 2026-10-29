@@ -244,7 +244,14 @@ async function loadTopNResearch(){
    const heading=document.createElement('strong');heading.textContent='上位'+n+'点';
    const score=document.createElement('p');const rate=data.hit_rate_pct?.[key];
    score.textContent=counts.evaluated===0?'的中率：未算出（結果待ち）':'的中 '+data.hits[key]+'/'+counts.evaluated+'件｜的中率 '+(Number.isFinite(rate)?rate.toFixed(2):'未算出')+'%';
-   card.append(heading,score);root.append(card);
+   const proof=data.roi?.[key];
+   const roiLine=document.createElement('p');
+   if(proof&&Number.isInteger(proof.races)&&Number.isInteger(proof.invested_yen)&&Number.isInteger(proof.return_yen)&&proof.races>0&&proof.invested_yen>0&&Number.isFinite(proof.roi_pct)){
+    roiLine.textContent='想定回収率 '+proof.roi_pct.toFixed(2)+'%｜払戻照合 '+proof.races+'件（各5,000円想定）';
+   }else{
+    roiLine.textContent='想定回収率：未算出（払戻証拠待ち）';
+   }
+   card.append(heading,score,roiLine);root.append(card);
   }
  }catch(_){if(seq===topnResearchRequest){status.textContent='研究予想の検証データを取得できません。未検証を不的中には数えません。';root.replaceChildren();}}
 }
