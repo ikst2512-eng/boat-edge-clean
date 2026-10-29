@@ -124,7 +124,18 @@ def main():
                 "copy_authorized": False,
                 "legacy_prediction_logic_import_authorized": False,
             })
+    # Independent formal-Fresh artifact inventory; never classify SITE files as formal.
+    formal_prefixes = ("data/formal_predictions/", "data/formal/")
+    formal_files = [
+        {"path": row["path"], "git_blob_sha1": row["sha"]}
+        for row in legacy_tree["tree"]
+        if row.get("type") == "blob"
+        and any(row.get("path", "").startswith(prefix) for prefix in formal_prefixes)
+    ]
     document = {
+        "formal_artifact_count": len(formal_files),
+        "formal_artifacts": formal_files,
+        "formal_inventory_is_proof_of_acceptance": False,
         "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "legacy_repo": LEGACY, "legacy_ref": args.legacy_ref,
