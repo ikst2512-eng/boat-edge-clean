@@ -1021,6 +1021,21 @@ async function loadPredictions(force=false){
   if(response.status===404){
    // Never fabricate a historical prediction. The server may only create a
    // research snapshot before the model's protected pre-deadline cutoff.
+   // Check previously frozen research archives before attempting live research.
+   const research=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/research_snapshots/'+key.replaceAll('-','')+'.json',{cache:'no-store'});
+   if(research.ok){
+    const saved=await research.json();
+    if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+    const cutoff=Date.parse(saved.cutoff_jst),created=Date.parse(saved.generated_at);
+    if(saved.race_code!==key.replaceAll('-','')||saved.status!=='research'||saved.validated!==false||!Number.isFinite(cutoff)||!Number.isFinite(created)||created>=cutoff||!Array.isArray(saved.predictions)||saved.predictions.length!==10||!saved.predictions.every(validTicket)||new Set(saved.predictions).size!==10)throw Error('PREDICTIONS_INVALID');
+    predictionModes.research={tickets:saved.predictions,probabilities:{},odds:{}};
+    applyPredictionMode();
+    label.textContent='Git保存済み研究予想（未検証・正式採点対象外）';
+    document.getElementById('snapshotMeta').textContent='研究原本を表示。初回Git保存時刻の正式監査は未完了。';
+    document.getElementById('sourceMeta').replaceChildren();drawPredictions();
+    return;
+   }
+   if(research.status!==404)throw Error('SOURCE_HTTP_'+research.status);
    const local=await fetchTimed('https://boat-edge-clean.onrender.com/api/predictions?hd='+encodeURIComponent(s.date.replaceAll('-',''))+'&jcd='+encodeURIComponent(p(s.venue+1))+'&rno='+encodeURIComponent(String(s.race)),{cache:'no-store'});
    if(!local.ok)throw Error('PREDICTION_API_HTTP_'+local.status);
    const fresh=await local.json();
