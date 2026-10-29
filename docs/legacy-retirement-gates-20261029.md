@@ -41,3 +41,9 @@
 5. 旧サイトを先にアーカイブし、閲覧移行案内・リンク先の確認を行う。最終リポジトリ削除は復元証拠・移行完了・利用影響の確認後に別途実施する。
 
 **現判定: DELETE_BLOCKED / 旧repoのコード・Actions・原本・Pagesは今回削除しない。**
+
+## 2026-10-30 追加実測：復元ワークフローと旧サイトの継続実行
+- 旧原本のアーカイブ復元を扱うCLEAN workflow実行 `40739572811` は **completed/success**。前節の「実行中」はこの時点で解消。ただし、90日artifactとは別の長期保存や全旧予想・払戻等の網羅性は未証明。
+- 旧 `boat-edge` の直近Actionsに、Pages deployment / V133 / 公式 PRE_RESULT 証拠収集 / V250, V251 テストの成功が確認できた。旧サイトは未停止である（全workflowの依存証明ではない）。
+- CLEAN Render最新確認済みliveは `f9e2fa46`、CLEAN GitHub mainは確認時 `29351c78`。Render設定は `autoDeploy=yes` だが実際のライブ反映に遅延・欠落がある。自動デプロイが有効なので、コードpush直後の重複手動deployはしない。mainに追従する運用問題の診断が必要。
+- 削除判定は引き続き **DELETE_BLOCKED**。旧repoや旧Actionsを停止・削除していない。
