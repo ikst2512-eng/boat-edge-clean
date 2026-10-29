@@ -311,8 +311,14 @@ class Handler(BaseHTTPRequestHandler):
                 data = racecard(params.get("hd", [""])[0], params.get("jcd", [""])[0], params.get("rno", [""])[0])
                 status = 200
             except (ValueError, OSError, TimeoutError, KeyError, TypeError) as exc:
-                status = 422 if isinstance(exc, ValueError) and str(exc) in ("invalid_race_key","race_already_closed") else 503
-                data = {"ok": False, "status": "unavailable", "reason": str(exc)[:100]}
+                reason = str(exc)
+                if isinstance(exc, ValueError) and reason in ("invalid_race_key", "race_already_closed"):
+                    status = 422
+                elif isinstance(exc, ValueError) and reason in ("race_card_not_available", "deadline_not_available", "six_racers_unavailable"):
+                    status = 404
+                else:
+                    status = 503
+                data = {"ok": False, "status": "unavailable", "reason": reason[:100]}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
         elif path == "/api/predictions":
