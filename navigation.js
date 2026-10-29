@@ -30,6 +30,11 @@ let syncScheduled=false;
 const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;queueMicrotask(()=>{syncScheduled=false;sync();});};
 const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView});
 const key=p=>[p.date,p.venue,p.race,p.view].join('|');
+const requestedScreen=new URL(location.href).searchParams.get('screen');
+if(location.pathname==='/'&&['forecast','card','exhibit','result','review'].includes(requestedScreen)&&originalSetView&&originalRender){
+ originalSetView(requestedScreen);
+ originalRender();
+}
 const initial=snapshot();
 const existing=history.state&&history.state.boatEdgeNav?history.state:null;
 let position=existing?existing.position:0;
