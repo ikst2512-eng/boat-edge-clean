@@ -55,3 +55,10 @@
 - 旧 `boat-edge` ではPagesやPRE_RESULT証拠収集等のActionsが今も成功している。旧本番の停止検証はまだ実施していない。
 - Renderは `autoDeploy=yes`。自動更新が有効なまま新規の手動deployを重複投入せず、まずWebhook/サービス連携・ビルド履歴・deployトリガーの失敗要因を確認する。
 - **停止不可：CLEAN Renderがmain追従し、必要原本の長期復元と旧Actions依存が解消されるまでは旧サイトを削除・アーカイブ・停止しない。**
+
+## 2026-10-30 選別済み結果原本の復元実測（workflow 40936953310）
+- 監査は completed/success。比較420レース、結果一致412、未確定・CLEAN未取得7、旧3連単未成立1。
+- 一致412件だけ旧Git blob SHA-256を照合し、同412件をアーカイブに格納して復元・ハッシュ一致を確認。
+- artifact ID 12924304439（legacy-clean-result-evidence）、有効期限2027-01-27。これは期限付きであり、長期独立保管ではない。
+- 旧レースでCLEANに参照のないデータを無条件移行しない。結果一致は予想原本や正式Fresh証拠の保存完了を意味しない。
+- **結果一致412件: RESTORE_PASS / LONG_TERM_BACKUP_PENDING**。残りの予想・Freshの必要性を選別し、実体を独立保管し検証するまで旧repoの削除不可。
