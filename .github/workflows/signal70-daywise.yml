@@ -12,6 +12,8 @@ on:
       - test_compare_topn_signal70_days.py
       - .github/workflows/signal70-daywise.yml
   workflow_dispatch:
+  schedule:
+    - cron: '23 15 * * *' # 00:23 JST, next calendar day
 permissions:
   contents: read
 jobs:
@@ -25,4 +27,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_compare_topn_signal70_days
-      - run: python compare_topn_signal70_days.py 20261028 20261029
+      - name: Compare archived days without changing the discovery threshold
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from compare_topn_signal70_days import report
+          import json
+          dates=sorted({p.stem[:8] for p in Path("prospective_predictions").glob("20??????????.json")})
+          if not dates:
+              print("No prospective archives; evaluation skipped")
+          else:
+              result=report(dates)
+              print(json.dumps(result,ensure_ascii=False,sort_keys=True))
+              print("Future holdout days:",result["later_holdout_days"])
+          PY
