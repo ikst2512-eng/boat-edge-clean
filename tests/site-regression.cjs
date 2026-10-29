@@ -297,6 +297,16 @@ console.log('PASS: stale legacy forecast markup blocked');
 
 assert.ok(!html.includes('async function cleanFourModeForecast('),'old forecast API removed');
 assert.ok(!html.includes('async function loadVerifiedForecastForDisplay('),'old forecast override removed');
+const forecastLoader=script.slice(script.indexOf('async function loadPredictions('),script.indexOf(';let reviewSequence=0;'));
+assert.ok(forecastLoader.startsWith('async function loadPredictions('),'forecast loader must remain present');
+assert.ok(forecastLoader.includes("response.status===404"),'missing archive must trigger fallback');
+assert.ok(forecastLoader.includes("fetchTimed('/api/predictions?hd='"),'fallback must call CLEAN research API');
+assert.ok(forecastLoader.includes("fresh.status!=='research'"),'never present other API modes as research');
+assert.ok(forecastLoader.includes("fresh.validated!==false"),'fallback must remain visibly exploratory');
+assert.ok(forecastLoader.includes("fresh.predictions.length!==10"),'fallback must require exact ten picks');
+assert.ok(forecastLoader.includes("new Set(fresh.predictions).size!==10"),'fallback must reject duplicate tickets');
+assert.ok(forecastLoader.includes("if(token!==window.predictionRequestId||sameRaceKey()!==key)return;"),'reject stale race response');
+console.log('PASS: archived prediction 404 fallback guard and research-only validation');
 assert.ok(html.includes("throw Error('PREDICTION_NOT_PUBLISHED')"),'missing saved research must fail closed');
 
 assert.ok(!html.includes('<nav class="view-tabs"'),'duplicate top view tabs removed');
