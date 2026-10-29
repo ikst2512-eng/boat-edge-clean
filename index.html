@@ -1139,6 +1139,7 @@ async function loadFourModePerformance(){
 document.getElementById('performanceBudget').addEventListener('change',loadFourModePerformance);
 async function loadReview(){
  loadFourModePerformance();
+ loadTopNResearch();
  const seq=++reviewSequence,key=sameRaceKey(),root=document.getElementById('reviewMetrics'),status=document.getElementById('reviewStatus'),note=document.getElementById('reviewReason');
  root.replaceChildren();note.textContent='';status.textContent='CLEAN締切前保存記録を照合中…';
  const add=(title,value)=>{const card=document.createElement('div');card.className='box';const label=document.createElement('div');label.className='muted';label.textContent=title;const v=document.createElement('strong');v.textContent=value;card.append(label,v);root.append(card)};
@@ -1785,6 +1786,7 @@ async function loadFourModePerformance(){
 document.getElementById('performanceBudget').addEventListener('change',loadFourModePerformance);
 async function loadReview(){
  loadFourModePerformance();
+ loadTopNResearch();
  const seq=++reviewSequence,key=sameRaceKey(),root=document.getElementById('reviewMetrics'),status=document.getElementById('reviewStatus'),note=document.getElementById('reviewReason');
  root.replaceChildren();note.textContent='';status.textContent='CLEAN締切前保存記録を照合中…';
  const add=(title,value)=>{const card=document.createElement('div');card.className='box';const label=document.createElement('div');label.className='muted';label.textContent=title;const v=document.createElement('strong');v.textContent=value;card.append(label,v);root.append(card)};
