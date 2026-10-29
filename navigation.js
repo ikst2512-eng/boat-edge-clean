@@ -64,7 +64,7 @@ const sync=()=>{
 };
 const refresh=()=>{back.disabled=false;back.setAttribute('aria-disabled','false');};
 if(originalSetView){
- setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();return result;};
+ setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
 if(originalRender){
  render=function(){const url=location.href,state=history.state;const result=originalRender();history.replaceState(state,'',url);scheduleSync();return result;};
@@ -81,7 +81,16 @@ window.addEventListener('popstate',event=>{
  history.replaceState(state,'',location.href);
  restoring=false;refresh();
 });
-back.addEventListener('click',()=>{if(position>0||document.referrer&&new URL(document.referrer).origin===location.origin)history.back();else location.assign('/');});
+back.addEventListener('click',()=>{
+ if(position>0){history.back();return;}
+ if(document.referrer){try{if(new URL(document.referrer).origin===location.origin){history.back();return;}}catch(_){}}
+ if(activeView!=='home'&&originalSetView&&originalRender){
+  restoring=true;originalSetView('home');originalRender();
+  current=snapshot();history.replaceState({boatEdgeNav:true,position:0,snapshot:current},'',location.href);
+  restoring=false;refresh();return;
+ }
+ location.assign('/');
+});
 refresh();
 const browserStyle=document.createElement('style');
 browserStyle.textContent='.race-browser-toolbar{display:flex;justify-content:space-between;gap:8px;max-width:900px;margin:0 auto;padding:8px 14px}.race-browser-toolbar button,.race-browser-toolbar a{font-size:14px;font-weight:800;border:1px solid #cbd9e8;border-radius:9px;background:#fff;color:#174066;padding:9px 14px;text-decoration:none;min-height:40px}.race-browser-toolbar button:disabled{opacity:.5}.race-browser-toolbar a{text-align:center}@media(max-width:420px){.race-browser-toolbar button,.race-browser-toolbar a{flex:1}}';
