@@ -1,0 +1,25 @@
+name: CLEAN published verified payout browser check
+on:
+  pull_request:
+    paths:
+      - tests/live-verified-payout.cjs
+      - .github/workflows/live-verified-payout.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '55 2 * * *'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Compare published four-mode result against verified archival evidence
+        run: node tests/live-verified-payout.cjs
