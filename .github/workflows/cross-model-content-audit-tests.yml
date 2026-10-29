@@ -1,0 +1,28 @@
+name: Cross-model content audit tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/cross_model_content_audit.py'
+      - 'test_cross_model_content_audit.py'
+      - '.github/workflows/cross-model-content-audit-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/cross_model_content_audit.py'
+      - 'test_cross_model_content_audit.py'
+      - '.github/workflows/cross-model-content-audit-tests.yml'
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate syntax
+        run: python -m py_compile scripts/cross_model_content_audit.py test_cross_model_content_audit.py
+      - name: Run isolated unit tests
+        run: python -m unittest -v test_cross_model_content_audit.py
