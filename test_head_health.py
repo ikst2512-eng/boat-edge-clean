@@ -37,6 +37,11 @@ class HeadHealthTests(unittest.TestCase):
                 urlopen(Request(self.base + "/missing", method="HEAD"), timeout=3)
             self.assertEqual(caught.exception.code, 404)
 
+    def test_retired_four_mode_live_endpoint_is_not_exposed(self):
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(self.base + "/api/clean-four-modes?hd=20261030&jcd=12&rno=1", timeout=3)
+        self.assertEqual(caught.exception.code, 404)
+
     def test_get_health_still_works(self):
         with urlopen(self.base + "/healthz", timeout=3) as response:
             self.assertEqual(response.status, 200)
