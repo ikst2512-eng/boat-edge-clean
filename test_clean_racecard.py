@@ -124,10 +124,10 @@ class CleanRacecardTests(unittest.TestCase):
         card={"レースコード":code}
         for lane in range(1,7):
             card.update({f"艇{lane}_登録番号":str(4000+lane),f"艇{lane}_全国勝率":"5.5"})
-        with patch.object(clean_racecard,"read_rows",side_effect=ValueError("source unavailable")), \\
-             patch("clean_direct_sources.holding_rows",side_effect=OSError("HTTP 403")), \\
-             patch("clean_direct_sources.fetch_bytes",side_effect=OSError("HTTP 403")), \\
-             patch("clean_openapi_sources.load",return_value=(title,[card],datetime.now(JST),"a"*64,{"source":"nonofficial_openapi_v1"})), \\
+        with patch.object(clean_racecard,"read_rows",side_effect=ValueError("source unavailable")) , \
+             patch("clean_direct_sources.holding_rows",side_effect=OSError("HTTP 403")) , \
+             patch("clean_direct_sources.fetch_bytes",side_effect=OSError("HTTP 403")) , \
+             patch("clean_openapi_sources.load",return_value=(title,[card],datetime.now(JST),"a"*64,{"source":"nonofficial_openapi_v1"})) , \
              patch.object(clean_racecard,"_fetch_preview",return_value=(None,{"status":"not_published_or_unavailable"})):
             result=clean_racecard.racecard(hd,"1","1")
         self.assertEqual(result["meta"]["source"],"CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE")
