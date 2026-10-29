@@ -299,9 +299,26 @@ async function verifiedFourModeRace(key){
  const code=key.replaceAll('-','');
  if(!/^20\d{10}$/.test(code))throw Error('RACE_KEY_INVALID');
  const url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_performance/verified_races/'+code+'.json';
- const response=await fetchTimed(url+'?t='+Date.now(),{cache:'no-store'});
- if(!response.ok)throw Error('FOUR_MODE_VERIFICATION_PENDING');
- const data=await response.json();
+ let data;
+ try{
+  const response=await fetchTimed(url+'?t='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('RAW_HTTP_'+response.status);
+  data=await response.json();
+ }catch(primaryError){
+  // Only a transport/read failure can use the alternate GitHub contents endpoint.
+  // The exact same strict record validation below applies to either source.
+  const api='https://api.github.com/repos/ikst2512-eng/boat-edge-clean/contents/four_mode_performance/verified_races/'+code+'.json?ref=main';
+  try{
+   const fallback=await fetchTimed(api,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
+   if(!fallback.ok)throw Error('API_HTTP_'+fallback.status);
+   const envelope=await fallback.json();
+   if(envelope.encoding!=='base64'||typeof envelope.content!=='string')throw Error('API_CONTENT_INVALID');
+   data=JSON.parse(atob(envelope.content.replace(/\s/g,'')));
+  }catch(fallbackError){
+   throw Error('FOUR_MODE_VERIFICATION_PENDING raw='+String(primaryError)+' fallback='+String(fallbackError));
+  }
+ }
+
  if(data.schema!=='CLEAN_VERIFIED_FOUR_MODE_RACE_V1'||data.race_code!==code||
     data.verified!==true||data.simulated_only!==true||data.budget_yen!==5000||
     !/^[a-f0-9]{40}$/.test(data.first_git_sha||'')||!validTicket(data.official_finish)||
