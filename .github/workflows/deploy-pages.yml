@@ -134,6 +134,7 @@ jobs:
                 };
                 applyPredictionMode();
               });
+              await page.locator('#forecast .legacy-mode-comparison summary').click();
               for(const mode of modes){
                 await page.locator('#forecast [data-mode="'+mode+'"]').click();
                 const actual=await page.evaluate(()=>({mode:selectedPredictionMode,rows:document.querySelectorAll('#predictionRows .prediction-row').length}));
