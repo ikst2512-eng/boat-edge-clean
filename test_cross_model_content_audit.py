@@ -26,7 +26,8 @@ class CrossModelAuditTests(unittest.TestCase):
         self.assertEqual(record["decision"], "CROSS_MODEL_DISTINCT_NO_IMPORT")
         self.assertFalse(record["copy_authorized"])
         self.assertFalse(record["delete_authorized"])
-        self.assertEqual(result["compared_race_count"], 1)
+        self.assertEqual(result["content_read_race_count"], 1)
+        self.assertEqual(result["compared_race_count"], 0)
         self.assertEqual(record["top10_comparisons"], [])
         self.assertFalse(record["historical_evidence_required_proven"])
 
