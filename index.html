@@ -1041,7 +1041,7 @@ async function loadPredictions(force=false){
    }
   }catch(_){/* Preserve the provisional ten-ticket research display. */}
 const sources=document.getElementById('sourceMeta');sources.replaceChildren();const prefix=document.createElement('span');prefix.className='source-chip';prefix.textContent='保存予想の使用情報';sources.append(prefix);confirmed.inputs.forEach(v=>{const chip=document.createElement('span');chip.className='source-chip';chip.textContent=v;sources.append(chip)});document.getElementById('snapshotMeta').textContent='研究用の保存済み上位10点のみ表示。検証済みの的中率を保証するものではありません。';
-  if(!label.textContent.includes('保存済み上位10点'))label.textContent='最新10点の保存済み研究予想は未取得です。旧方式の買い目を代用表示しません。';if(selectedPredictionMode!=='research')label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
+  if(!label.textContent.includes('保存済み上位10点'))label.textContent='最新10点の保存済み研究予想は未取得です。予想原本が未保存のため、買い目は表示できません。';if(selectedPredictionMode!=='research')label.textContent='保存前の暫定予想（目標的中率は未達成・未実証）｜'+confirmed.version+'｜保存 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(confirmed.created))+' JST｜根拠 '+confirmed.proof;
   drawPredictions();
   loadVerifiedForecastForDisplay(key,token);
  }catch(e){
