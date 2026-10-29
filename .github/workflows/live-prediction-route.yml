@@ -1,0 +1,24 @@
+name: CLEAN public prediction route smoke
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 2 * * *'
+  pull_request:
+    paths:
+      - test_live_prediction_route.py
+      - .github/workflows/live-prediction-route.yml
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify public Pages and Render routes
+        env:
+          CLEAN_LIVE_SMOKE: '1'
+        run: python -m unittest -v test_live_prediction_route
