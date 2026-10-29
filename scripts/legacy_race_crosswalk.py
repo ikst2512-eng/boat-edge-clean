@@ -89,6 +89,18 @@ def main():
                         "sha256_verified": False,
                         "prediction_equivalence_verified": False,
                         "deadline_provenance_verified": False})
+    # Do not mistake absence from CLEAN for a reason to copy legacy files.
+    # Only races actually present in CLEAN are candidates for evidence linkage.
+    # Other races remain in the legacy repository until their value is decided,
+    # but are excluded from every automatic migration/backup queue.
+    needed_provenance = sorted(set(legacy) & set(clean))
+    no_clean_reference = sorted(set(legacy) - set(clean))
+    evidence_link_candidates = [
+        {"race_code": code, "legacy": legacy[code], "clean": clean[code],
+         "decision": "REVIEW_EVIDENCE_LINK_ONLY",
+         "copy_authorized": False}
+        for code in needed_provenance
+    ]
     document = {
         "schema": "CLEAN_LEGACY_RACE_CROSSWALK_V2",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -104,11 +116,13 @@ def main():
         "legacy_only_race_count": len(set(legacy)-set(clean)),
         "clean_only_race_count": len(set(clean)-set(legacy)),
         "matched_races": records,
+        "evidence_link_candidates": evidence_link_candidates,
+        "no_clean_reference_count": len(no_clean_reference),
         # Actionable read-only preservation queue: every legacy-only race keeps its
         # source paths and immutable Git blob IDs for later byte-level verification.
         "legacy_only_races": [
             {"race_code": code, "legacy": legacy[code],
-             "status": "NEEDS_RELEVANCE_DECISION_NOT_AUTOMATIC_BACKUP",
+             "status": "NOT_NEEDED_FOR_CURRENT_CLEAN_RACE_SET_REVIEW_BEFORE_RETIREMENT",
              "copy_authorized": False}
             for code in sorted(set(legacy) - set(clean))
         ],
