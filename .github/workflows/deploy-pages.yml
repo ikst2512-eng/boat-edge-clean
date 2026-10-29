@@ -36,9 +36,8 @@ jobs:
           scripts = re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>', page)
           if len(scripts) != 1:
               raise SystemExit('Expected exactly one inline script')
-          for mode in ('hit', 'balance', 'hole', 'narrow'):
-              if f'data-mode="{mode}"' not in page:
-                  raise SystemExit(f'Missing prediction mode {mode} selector')
+          if 'legacy-mode-comparison' in page or re.search(r'data-mode="(?:hit|balance|hole|narrow)"',page):
+              raise SystemExit('Legacy mode controls must not appear on the research forecast page')
           if "status==='research'" in scripts[0]:
               raise SystemExit('Unverified research prediction fallback')
           ids = re.findall(r'\bid="([^"]+)"', page)
