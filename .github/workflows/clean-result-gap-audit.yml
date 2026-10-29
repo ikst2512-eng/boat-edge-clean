@@ -26,10 +26,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_collect_clean_results
-      - name: Inspect published October 28 result rows (read-only)
+      - name: Inspect published October 28 and 29 result rows (read-only)
         run: |
           python - <<'PY'
           import json
           from collect_clean_results import diagnose_source_gaps
-          print(json.dumps(diagnose_source_gaps("20261028"),ensure_ascii=False,sort_keys=True))
+          for day in ("20261028","20261029"):
+            print(json.dumps(diagnose_source_gaps(day),ensure_ascii=False,sort_keys=True))
           PY
