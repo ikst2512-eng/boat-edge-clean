@@ -29,6 +29,21 @@ class Tests(unittest.TestCase):
         self.assertEqual(r["days"][0]["role"], "discovery")
         self.assertFalse(r["calibrated_confidence"])
 
+    def test_empty_future_day_does_not_count_as_evaluated_holdout(self):
+        r = report(["20261029", "20261030"], self.fake)
+        self.assertEqual(r["later_holdout_days"], 1)
+        self.assertEqual(r["later_holdout_evaluated_days"], 0)
+        self.assertEqual(r["later_holdout_evaluated_races"], 0)
+
+    def test_evaluated_future_day_counts_only_observed_races(self):
+        def source(day):
+            data = self.fake(day)
+            data["groups"] = {"signal_70_plus": {"evaluated": 2}, "below_70": {"evaluated": 3}}
+            return data
+        r = report(["20261029", "20261030"], source)
+        self.assertEqual(r["later_holdout_evaluated_days"], 1)
+        self.assertEqual(r["later_holdout_evaluated_races"], 5)
+
     def test_duplicate_day_fails(self):
         with self.assertRaises(ValueError):
             report(["20261029", "20261029"])

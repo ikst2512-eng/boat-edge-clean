@@ -16,9 +16,14 @@ def report(days, evaluator=compare):
         rows.append({"day_jst":day,"role":"discovery" if day=="20261029" else ("earlier_exploratory" if day<"20261029" else "later_holdout"),
                      "archived":data["archived"],"groups":data["groups"]})
     holdouts=[r for r in rows if r["role"]=="later_holdout"]
+    evaluated_holdouts=[r for r in holdouts if sum(
+        g.get("evaluated", 0) for g in r["groups"].values()) > 0]
     return {"schema":"CLEAN_SIGNAL70_DAYWISE_V1","policy_reference_day":"20261029",
             "threshold":0.70,"calibrated_confidence":False,"formal":False,
-            "later_holdout_days":len(holdouts),"days":rows}
+            "later_holdout_days":len(holdouts),
+            "later_holdout_evaluated_days":len(evaluated_holdouts),
+            "later_holdout_evaluated_races":sum(sum(g.get("evaluated", 0) for g in r["groups"].values()) for r in evaluated_holdouts),
+            "days":rows}
 
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("days",nargs="+");args=p.parse_args()
