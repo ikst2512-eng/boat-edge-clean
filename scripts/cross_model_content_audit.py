@@ -28,7 +28,7 @@ def fetch_blob(repo, sha):
     if result.get("encoding") != "base64" or not isinstance(result.get("content"), str):
         raise ValueError("Unsupported GitHub blob encoding")
     raw = base64.b64decode(result["content"])
-    if hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\\0" + raw).hexdigest() != sha:
+    if hashlib.sha1(b"blob " + str(len(raw)).encode() + bytes([0]) + raw).hexdigest() != sha:
         raise ValueError("Git blob object identity mismatch")
     return raw
 
@@ -157,7 +157,7 @@ def main():
     document = audit(json.loads(Path(a.crosswalk).read_text(encoding="utf-8")))
     dest = Path(a.output)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    dest.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: document[k] for k in ("candidate_count", "inspected_count", "unresolved_count")}))
 
 
