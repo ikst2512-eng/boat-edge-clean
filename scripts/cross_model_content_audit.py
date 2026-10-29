@@ -158,7 +158,8 @@ def audit(doc):
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_tree_shas": {"legacy": doc["legacy_tree_sha"], "clean": doc["clean_tree_sha"]},
         "matched_race_count": len(output), "candidate_count": len(output),
-        "compared_race_count": sum(bool(r["legacy"]) and bool(r["clean"]) and not r["errors"] for r in output),
+        "compared_race_count": sum(bool(r["top10_comparisons"]) for r in output),
+        "content_read_race_count": sum(bool(r["legacy"]) and bool(r["clean"]) and not r["errors"] for r in output),
         "no_comparable_evidence_count": sum(r["decision"] == "NO_COMPARABLE_FORECAST_EVIDENCE" for r in output),
         "unresolved_count": sum(bool(r["errors"]) for r in output),
         "races": output, "copy_authorized": False, "delete_authorized": False,
@@ -175,7 +176,7 @@ def main():
     dest = Path(a.output)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({k: document[k] for k in ("candidate_count", "compared_race_count", "no_comparable_evidence_count", "unresolved_count")}))
+    print(json.dumps({k: document[k] for k in ("candidate_count", "content_read_race_count", "compared_race_count", "no_comparable_evidence_count", "unresolved_count")}))
 
 
 if __name__ == "__main__":
