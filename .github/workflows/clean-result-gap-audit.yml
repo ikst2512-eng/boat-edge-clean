@@ -1,6 +1,8 @@
 name: CLEAN result source-gap audit
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '40 15 * * *' # 00:40 JST, check previous two completed dates
   pull_request:
     paths:
       - collect_clean_results.py
@@ -26,11 +28,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_collect_clean_results
-      - name: Inspect published October 28 and 29 result rows (read-only)
+      - name: Inspect previous two completed dates (read-only)
         run: |
           python - <<'PY'
           import json
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
           from collect_clean_results import diagnose_source_gaps
-          for day in ("20261028","20261029"):
-            print(json.dumps(diagnose_source_gaps(day),ensure_ascii=False,sort_keys=True))
+          today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+          dates = [(today - timedelta(days=n)).strftime("%Y%m%d") for n in (2, 1)]
+          results = [diagnose_source_gaps(day) for day in dates]
+          Path("test-results").mkdir(exist_ok=True)
+          Path("test-results/result-source-gaps.json").write_text(json.dumps(results, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(results, ensure_ascii=False, sort_keys=True))
           PY
+      - name: Archive source-gap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-source-gaps-${{ github.run_id }}
+          path: test-results/result-source-gaps.json
+          if-no-files-found: warn
+          retention-days: 90
