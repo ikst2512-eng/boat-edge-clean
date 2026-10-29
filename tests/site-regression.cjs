@@ -172,7 +172,7 @@ assert.ok(script.includes("Object.values(v.modes).some(m=>m.hit)"),'all-modes vi
 assert.ok(script.includes("winning_stake_yen"),'hit history must show staked amount on actual winning ticket');
 assert.ok(script.includes("的中した方式の収支"),'hit history must show simulated net result');
 assert.ok(script.includes("verifiedForecastWinner===ticket"),'only confirmed winning ticket should be highlighted');
-assert.ok(script.includes("record.modes[mode].hit===t.some"),'archived mode hits must match proof-gated race result');
+assert.ok(/record\.modes\[mode\]\.hit\s*===\s*t\.some\(v=>v\.combo===record\.official_finish\)/.test(script),'archived mode hits must match proof-gated race result');
 assert.ok(script.includes("CLEAN_FOUR_MODES_PREDEADLINE_V1"),'winning ticket marking needs frozen original forecast');
 assert.ok(html.includes(".prediction-row.verified-win"),'winning prediction red style must exist');
 assert.ok(script.includes("review-hit-summary"),'single race answer checks must summarize only winning modes');
