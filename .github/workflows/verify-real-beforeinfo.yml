@@ -17,4 +17,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Probe published real HTTPS CSV (no fixture)
-        run: python scripts/verify_real_beforeinfo_source.py 2026/10/29.csv
+        run: python scripts/verify_real_beforeinfo_source.py
