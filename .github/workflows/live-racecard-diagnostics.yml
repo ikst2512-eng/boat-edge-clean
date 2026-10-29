@@ -16,4 +16,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python scripts/diagnose_live_racecard.py
+      - run: PYTHONPATH=. python scripts/diagnose_live_racecard.py
