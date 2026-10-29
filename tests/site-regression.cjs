@@ -323,3 +323,7 @@ assert.ok(html.includes('id="forecastPreviewStatus"')&&html.includes('id="foreca
 assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview()}'),'forecast must fetch selected race beforeinfo');
 assert.ok(script.includes("raw.source_audit?.beforeinfo?.status!=='ok'"),'reject unsupported preview sources');
 console.log('PASS: selected-race beforeinfo panel in forecast');
+
+// Pages review requires a real CLEAN API origin, not a Pages-relative /api path.
+assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-result?hd="),'review must fetch CLEAN result via Render');
+assert.ok(!html.includes("fetchTimed('/api/clean-result?hd="),'review must not request API from GitHub Pages');
