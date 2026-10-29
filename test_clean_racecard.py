@@ -100,6 +100,23 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertIsNone(preview)
         self.assertNotEqual(audit["status"],"ok")
 
+    def test_direct_origin_used_before_daily_csv_publication(self):
+        hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
+        code=hd+"0101"
+        title=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        row={"レースコード":code}
+        for lane in range(1,7):
+            row.update({f"艇{lane}_登録番号":str(4000+lane),f"艇{lane}_選手名":"選手",
+                        f"艇{lane}_級別":"A1"})
+        with patch.object(clean_racecard,"read_rows",side_effect=ValueError("source unavailable")), \\
+             patch("clean_direct_sources.holding_rows",return_value=(title,datetime.now(JST),"a"*64)), \\
+             patch("clean_direct_sources.fetch_bytes",return_value=b"direct"), \\
+             patch("clean_direct_sources.parse_card",return_value=row), \\
+             patch.object(clean_racecard,"_fetch_preview",return_value=(None,{"status":"not_published_or_unavailable"})):
+            result=clean_racecard.racecard(hd,"1","1")
+        self.assertEqual(result["meta"]["source"],"CLEAN_DIRECT_PRE_RACE")
+        self.assertEqual(len(result["racers"]),6)
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
