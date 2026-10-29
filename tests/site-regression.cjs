@@ -220,7 +220,7 @@ assert.ok(script.includes('未照合は的中扱いしません'),'unverified ra
    assert.equal(resultValidator({...validResult,status:state},pendingRace,now),false,'state '+state+' must not count as confirmed');
  }
  assert.ok(script.includes("item.hitState==='miss'?'保存済み研究10点は不的中':'研究予想の証拠照合待ち'"),'unverified research rows must remain pending');
- assert.ok(script.includes('結果未確認（不的中には集計しません）'),'unknown results must not be counted as a loss');
+ assert.ok(script.includes('結果未確認（不的中として集計しません）'),'unknown results must not be counted as a loss');
  assert.ok(script.includes("verified.filter(e=>e.hitState==='hit')"),'verified hit count must use explicit hit status');
  assert.ok(script.includes('研究予想の証拠照合待ち'),'pending/missing results must remain distinct from misses');
  assert.ok(script.includes("['保存済み',archived+'R'],['検証完了',completed+'R'],['結果待ち',pending+'R']"),'saved, verified and pending counts must remain distinct');
