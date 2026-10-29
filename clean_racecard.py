@@ -102,7 +102,7 @@ def racecard(hd,jcd,rno):
     except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
         # Never silently replace malformed/suspicious source evidence; only
         # fall back on unavailable daily source, not a wrong-race CSV.
-        if isinstance(exc,ValueError) and str(exc)!="race_card_not_available":
+        if isinstance(exc,ValueError) and str(exc) not in ("race_card_not_available","source unavailable"):
             raise
         url=f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt"
         raw=fetch_bytes(url)
