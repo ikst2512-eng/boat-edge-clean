@@ -558,26 +558,24 @@ async function loadResultList(){
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='forecast')return;
  let payouts=new Map();try{payouts=await confirmedPayoutsForDay(date)}catch(_){}
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='forecast')return;
- const verified=[];
- for(const item of entries){
-  if(item.state!=='確定'){verified.push({...item,hitState:'pending'});continue}
-  const key=date.replaceAll('-','')+'-'+String(venue).padStart(2,'0')+'-'+String(item.race).padStart(2,'0');
+ const verified=await Promise.all(entries.map(async item=>{
+  if(item.state!=='確定')return {...item,hitState:'pending'};
+  const payout=payouts.get(item.code);
+  if(!payout||payout.combo!==item.match||!Number.isFinite(payout.amount))return {...item,hitState:'pending'};
   try{
-   let record;
-   for(let attempt=0;attempt<3;attempt++){
-    try{record=await verifiedFourModeRace(key);break}
-    catch(error){
-     if(attempt===2||error.message==='FOUR_MODE_VERIFICATION_INVALID'||error.message==='RACE_KEY_INVALID')throw error;
-     await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
-    }
-   }
-   if(record.official_finish!==item.match){verified.push({...item,hitState:'pending'});continue}
-   verified.push({...item,hitState:Object.values(record.modes).some(m=>m.hit)?'hit':'miss',winningModes:[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']].filter(([k])=>record.modes[k].hit).map(([,v])=>v)});
-  }catch(error){console.warn('CLEAN_VERIFY_PENDING',key,String(error));verified.push({...item,hitState:'pending'})}
- }
+   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+item.code+'.json',{cache:'no-store'});
+   if(!response.ok)return {...item,hitState:'pending'};
+   const archive=await response.json();
+   if(archive.race_code!==item.code||archive.formal!==false||archive.scoring!==false||
+      !Array.isArray(archive.predictions)||archive.predictions.length<1||archive.predictions.length>10||
+      !archive.predictions.every(validTicket)||new Set(archive.predictions).size!==archive.predictions.length)return {...item,hitState:'pending'};
+   const rank=archive.predictions.indexOf(item.match)+1;
+   return {...item,hitState:rank?'hit':'miss',winningRank:rank,simulatedReturn:rank?Math.round(payout.amount*5):0};
+  }catch(_){return {...item,hitState:'pending'}}
+ }));
  if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='forecast')return;
  const [cards,titles]=await Promise.all([cleanListRaceCards(date,venue),cleanListRaceTitles(date,venue)]);
- if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='result')return;
+ if(token!==resultListRequestId||date!==s.date||venue!==s.venue+1||activeView!=='forecast')return;
  const venueSchedule=todayVenueRaces?.date===date?todayVenueRaces.venues.find(v=>Number(v.jcd)===venue):null;
  for(const item of verified){
   const card=document.createElement('article');card.className='clean-race-card';if(item.hitState==='hit')card.classList.add('verified-hit');
@@ -585,7 +583,7 @@ async function loadResultList(){
   const title=document.createElement('strong');title.textContent=item.race+'R';
   const time=document.createElement('span');time.className='clean-race-time';const schedule=venueSchedule?.races?.find(r=>Number(r.race_no)===item.race);time.textContent='締切 '+(schedule?.deadline||'未取得');
   const state=document.createElement('span');state.className='clean-race-state';state.textContent=item.state==='確定'?'結果確定':item.state;state.classList.toggle('confirmed',item.state==='確定');
-  const verdict=document.createElement('span');verdict.className='clean-race-verdict '+(item.hitState==='hit'?'hit':item.hitState==='miss'?'miss':'pending');verdict.textContent=item.hitState==='hit'?'◎ 予想的中':item.hitState==='miss'?'予想不的中':'予想未検証';
+  const verdict=document.createElement('span');verdict.className='clean-race-verdict '+(item.hitState==='hit'?'hit':item.hitState==='miss'?'miss':'pending');verdict.textContent=item.hitState==='hit'?'◎ 研究10点的中':item.hitState==='miss'?'研究10点不的中':'研究予想未照合';
   header.append(title,time,state,verdict);cleanRaceTitleBadge(header,titles.get(item.race));card.append(header);
   const field=document.createElement('div');field.className='clean-race-field';const row=cards.get(item.race);
   for(let lane=1;lane<=6;lane++){
@@ -603,10 +601,13 @@ async function loadResultList(){
   }
   card.append(actions);
   const foot=document.createElement('div');foot.className='clean-race-foot';const payout=payouts.get(item.code);
-  foot.textContent=item.state==='確定'?'3連単 '+item.combo+'｜払戻 '+(payout?.combo===item.match?payout.amount.toLocaleString('ja-JP')+'円':'未確認')+'｜'+(item.hitState==='hit'?'的中 '+item.winningModes.join('・'):item.hitState==='miss'?'保存予想不的中':'照合待ち'):'結果未確認（不的中には集計しません）';
+  foot.textContent=item.state==='確定'
+   ?'3連単 '+item.combo+'｜公式払戻 '+(payout?.combo===item.match?payout.amount.toLocaleString('ja-JP')+'円／100円':'未確認')
+    +'｜'+(item.hitState==='hit'?'研究上位'+item.winningRank+'点目が一致・500円仮定の払戻 '+item.simulatedReturn.toLocaleString('ja-JP')+'円（購入実績ではありません）':item.hitState==='miss'?'保存済み研究10点は不的中':'研究予想の証拠照合待ち')
+   :'結果未確認（不的中として集計しません）';
   card.append(foot);list.append(card);
  }
- status.textContent=names[venue-1]+'｜的中 '+verified.filter(e=>e.hitState==='hit').length+'R・確定 '+entries.filter(e=>e.state==='確定').length+'/12R（照合待ちは不的中扱いしません）';
+ status.textContent=names[venue-1]+'｜研究10点一致 '+verified.filter(e=>e.hitState==='hit').length+'R・結果確定 '+entries.filter(e=>e.state==='確定').length+'/12R（払戻・保存予想の未照合は的中扱いしません）';
 }
 let resultRequestId=0;
 let displayedResultKey='';
