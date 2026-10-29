@@ -303,6 +303,11 @@ assert.ok(forecastLoader.includes("response.status===404"),'missing archive must
 assert.ok(forecastLoader.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/predictions?hd='"),'fallback must call CLEAN research API');
 assert.ok(forecastLoader.includes('main/research_snapshots/'),'archived research fallback must exist');
 assert.ok(forecastLoader.indexOf('main/research_snapshots/')<forecastLoader.indexOf('/api/predictions?hd='),'read existing research archive before live API');
+assert.ok(forecastLoader.includes("saved.race_code!==key.replaceAll('-','')"),'saved research must belong to selected race');
+assert.ok(forecastLoader.includes("saved.status!=='research'")&&forecastLoader.includes("saved.validated!==false"),'saved research cannot be labeled formal');
+assert.ok(forecastLoader.includes("created>=cutoff"),'reject post-cutoff saved research');
+assert.ok(forecastLoader.includes("saved.predictions.length!==10"),'saved research requires exactly ten tickets');
+assert.ok(forecastLoader.includes("new Set(saved.predictions).size!==10"),'reject duplicate saved research tickets');
 assert.ok(forecastLoader.includes("fresh.status!=='research'"),'never present other API modes as research');
 assert.ok(forecastLoader.includes("fresh.validated!==false"),'fallback must remain visibly exploratory');
 assert.ok(forecastLoader.includes("fresh.predictions.length!==10"),'fallback must require exact ten picks');
