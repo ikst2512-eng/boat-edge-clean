@@ -53,7 +53,7 @@ def extract_top10(obj):
     """Conservative: only explicit rank-ordered arrays; never infer from arbitrary lists."""
     if not isinstance(obj, dict):
         return None
-    for key in ("top10", "top_10", "top_picks", "ranked_predictions"):
+    for key in ("top10", "top_10", "top_picks", "ranked_predictions", "predictions"):
         seq = obj.get(key)
         if not isinstance(seq, list) or len(seq) < 10:
             continue
@@ -108,7 +108,7 @@ def audit(doc):
     prediction_prefixes = ("data/site_prediction_snapshots/",
                            "data/site_prediction_audit/",
                            "data/site_prediction_history/")
-    clean_prefixes = ("prospective_predictions/", "four_mode_forecasts/")
+    # Compare legacy to the separately versioned CLEAN prospective model only.\n    # Four-mode forecasts are a distinct cohort and must not inflate this count.\n    clean_prefixes = ("prospective_predictions/",)
     for matched in doc["matched_races"]:
         candidate = {
             "race_code": matched["race_code"],
