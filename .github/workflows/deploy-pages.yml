@@ -170,7 +170,6 @@ jobs:
           JS
       - name: Browser-check deployed page
         timeout-minutes: 2
-        continue-on-error: true
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -187,6 +186,13 @@ jobs:
               await page.route('https://api.github.com/**',r=>r.fulfill({status:404,contentType:'application/json',body:'{}'}));
               const res=await page.goto(process.env.PAGE_URL,{waitUntil:'domcontentloaded',timeout:30000});
               if(!res||res.status()!==200)throw Error('Deployed page HTTP '+res?.status());
+              const leaked=await page.evaluate(()=>{
+                const text=document.body.innerText;
+                return ['if(item.state!==', 'verifiedFourModeRace(key)', 'predictionModes=confirmed.modes', 'if(token!==resultListRequestId'].find(marker=>text.includes(marker))||null;
+              });
+              if(leaked)throw Error('Public page displays raw JavaScript source: '+leaked);
+              const source=await page.content();
+              if(!/<\/script><\/body><\/html>\s*$/.test(source))throw Error('Public HTML closing tags invalid');
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
