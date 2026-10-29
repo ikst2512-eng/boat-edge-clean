@@ -41,7 +41,7 @@ jobs:
           python-version: '3.11'
       - name: Inventory immutable source trees
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.LEGACY_READ_TOKEN || github.token }}
         run: python scripts/legacy_race_crosswalk.py --output crosswalk.json
       - name: Compare all matching race prediction originals without modifying either repository
         env:
@@ -69,6 +69,19 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
               f.write("\n".join(lines) + "\n")
           print("\n".join(lines))
+          PY
+      - name: Fail closed if comparison incomplete
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open("cross_model_audit.json"))
+          if d["unresolved_count"] or d["no_comparable_evidence_count"] or d["compared_race_count"] != d["matched_race_count"]:
+              raise SystemExit(
+                  f"Audit incomplete: matched={d['matched_race_count']} "
+                  f"top10-compared={d['compared_race_count']} "
+                  f"no-evidence={d['no_comparable_evidence_count']} "
+                  f"fetch-errors={d['unresolved_count']}; no deletion permitted"
+              )
           PY
       - name: Preserve comparison evidence for inspection
         if: always()
