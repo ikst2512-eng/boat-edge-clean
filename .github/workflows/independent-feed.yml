@@ -5,7 +5,6 @@ on:
       - independent_feed.py
       - test_independent_feed.py
       - test_head_health.py
-      - .github/workflows/head-health.yml
       - server.py
       - .github/workflows/independent-feed.yml
   push:
@@ -14,7 +13,6 @@ on:
       - independent_feed.py
       - test_independent_feed.py
       - test_head_health.py
-      - .github/workflows/head-health.yml
       - server.py
       - .github/workflows/independent-feed.yml
   workflow_dispatch:
