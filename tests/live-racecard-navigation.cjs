@@ -30,6 +30,14 @@ const {chromium}=require('playwright');
    await page.evaluate(()=>setView('exhibit'));
    const switched=await page.evaluate(()=>({key:sameRaceKey(),visible:!document.getElementById('raceDataSection').hidden}));
    if(switched.key!==expected||!switched.visible)throw Error('EXHIBIT_NAV_MISMATCH '+JSON.stringify(switched));
+   const back=await page.evaluate(()=>{
+    const control=document.getElementById('raceViewBack');
+    if(!control||control.hidden||document.getElementById('raceBrowserToolbar').hidden)
+     throw Error('RACE_VIEW_BACK_CONTROL_MISSING');
+    control.click();
+    return {key:sameRaceKey(),view:activeView,visible:!document.getElementById('raceDataSection').hidden};
+   });
+   if(back.key!==expected||back.view!=='card')throw Error('RACE_VIEW_BACK_MISMATCH '+JSON.stringify({selected,back}));
   }
   // The user-visible back control must restore the previous panel, not reset home.
   await page.evaluate(()=>{setView('card');render();});
@@ -168,7 +176,7 @@ const {chromium}=require('playwright');
     '| --- | --- |',
     '| 公開Pagesの画面遷移 | 成功 |',
     '| 開催情報ソースの取得 | '+(scheduleFeedStatus==='ok'?'成功':'失敗・未取得')+' |',
-    '| 締切前検査の対象数 | '+selections.length+'件（最大3件） |',
+    '| 締切前検査の対象数 | '+selections.length+'件（最大8件） |',
     '| 締切前展示6艇分の本番照合 | '+proof+' |',
     '| 実測対象レース | '+(selected?selections.map(x=>today+'-'+String(x.venue).padStart(2,'0')+'-'+String(x.race).padStart(2,'0')).join(', '):'なし')+' |',
     '',
