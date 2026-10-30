@@ -40,5 +40,13 @@ class ForecastPreviewOriginTests(unittest.TestCase):
         self.assertIn("未取得・未検証", preview)
 
 
+    def test_f_exhibition_start_is_not_treated_as_missing(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        preview = page.split("async function loadForecastPreview()", 1)[1].split("async function loadRaceData(", 1)[0]
+        self.assertNotIn("Number.isFinite(Number(st.st))", preview)
+        self.assertIn("String(st.st??'').trim()", preview)
+        self.assertIn(r"F\.?", preview)
+
+
 if __name__ == "__main__":
     unittest.main()

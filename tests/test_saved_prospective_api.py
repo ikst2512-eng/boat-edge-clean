@@ -25,12 +25,17 @@ class ArchivedProspectiveTests(unittest.TestCase):
             p = root / "prospective_predictions" / "202610300101.json"
             p.write_text(json.dumps(record), encoding="utf-8")
             with patch.object(server, "ROOT", root):
-                status, response = server.get_predictions({"hd": ["20261030"], "jcd": ["1"], "rno": ["1"]})
+                status, response = server.get_predictions({"hd": ["20261030"], "jcd": ["01"], "rno": ["1"]})
             self.assertEqual(status, 200)
             self.assertEqual(response["predictions"], record["predictions"])
             self.assertFalse(response["validated"])
             self.assertFalse(response["formal"])
             self.assertEqual(response["status"], "research")
+
+    def test_unpadded_venue_is_invalid(self):
+        status, response = server.get_predictions({"hd": ["20261030"], "jcd": ["1"], "rno": ["1"]})
+        self.assertEqual(status, 400)
+        self.assertFalse(response["ok"])
 
     def test_archive_generated_after_cutoff_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -46,7 +51,7 @@ class ArchivedProspectiveTests(unittest.TestCase):
             }
             (root / "prospective_predictions" / "202610300101.json").write_text(json.dumps(record))
             with patch.object(server, "ROOT", root):
-                status, response = server.get_predictions({"hd": ["20261030"], "jcd": ["1"], "rno": ["1"]})
+                status, response = server.get_predictions({"hd": ["20261030"], "jcd": ["01"], "rno": ["1"]})
             self.assertEqual(status, 503)
             self.assertEqual(response["predictions"], [])
 
