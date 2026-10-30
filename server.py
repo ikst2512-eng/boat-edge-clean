@@ -154,6 +154,39 @@ def get_predictions(params):
         datetime.strptime(hd, "%Y%m%d")
     except ValueError:
         return 400, {"ok": False, "message": "日付が不正です。"}
+    # A saved pre-result candidate is preferable to recomputing a past race.
+    # It is research evidence only: never call it validated or formal Fresh.
+    code = f"{hd}{int(jcd):02d}{int(rno):02d}"
+    archive = ROOT / "prospective_predictions" / (code + ".json")
+    if archive.is_file() and not archive.is_symlink():
+        try:
+            if archive.stat().st_size > 20000:
+                raise ValueError("archive too large")
+            record = json.loads(archive.read_text(encoding="utf-8"))
+            picks = record.get("predictions")
+            generated = datetime.fromisoformat(record["generated_at"])
+            cutoff = datetime.fromisoformat(record["cutoff_jst"])
+            if (record.get("race_code") != code or
+                record.get("status") != "prospective_candidate" or
+                record.get("validated") is not False or
+                generated.tzinfo is None or cutoff.tzinfo is None or
+                generated >= cutoff or not record.get("model_version") or
+                not isinstance(picks, list) or len(picks) != 10 or
+                any(not isinstance(t, str) or
+                    re.fullmatch(r"[1-6]-[1-6]-[1-6]", t) is None or
+                    len(set(t.split("-"))) != 3 for t in picks) or
+                len(set(picks)) != 10):
+                raise ValueError("unverified archive")
+            return 200, {"ok": True, "status": "research",
+                         "validated": False, "formal": False,
+                         "predictions": picks, "model_version": record["model_version"],
+                         "generated_at": record["generated_at"],
+                         "source": "saved_prospective_candidate",
+                         "message": "締切前保存の研究候補です。正式検証済み予想ではありません。"}
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            logging.warning("archived_prospective_invalid %s", code)
+            return 503, {"ok": False, "status": "error", "predictions": [],
+                         "message": "保存済み研究予想の原本が検証できません。"}
     source = ROOT / "predictions.json"
     if not source.exists():
         # Research-only fallback; never mislabel exploratory scores as validated.
