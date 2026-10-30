@@ -827,7 +827,7 @@ async function loadForecastPreview(){
  const status=document.getElementById('forecastPreviewStatus'),root=document.getElementById('forecastPreviewRows');
  root.replaceChildren();status.textContent='展示・直前の取得状態を確認中…';
  try{
-  const url='/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
+  const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
   const response=await fetchTimed(url,{cache:'no-store'});
   if(token!==forecastPreviewRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   if(!response.ok){status.textContent='展示・直前は配信待ち、または取得できません。出走表・予想は別途確認できます。';return}
