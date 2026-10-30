@@ -860,7 +860,7 @@ async function loadForecastPreview(){
    const ex=raw.beforeinfo.racers.find(v=>Number(v.lane)===lane);
    const st=raw.beforeinfo.start_exhibition.find(v=>Number(v.lane)===lane);
    if(!ex||!st||!Number.isFinite(ex.exhibition_time)||!Number.isFinite(ex.tilt)||
-      !Number.isFinite(st.course)||!Number.isFinite(Number(st.st))) {
+      !Number.isFinite(st.course)||!(/^(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})$/.test(String(st.st??'').trim()))) {
     root.replaceChildren();status.textContent='直前情報の一部が不足しているため未検証として表示を保留';return;
    }
    const row=document.createElement('div');row.className='clean-race-lane';
