@@ -83,13 +83,13 @@ const fs=require('node:fs');
   await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-10-28';s.venue=22;s.race=12;setView('forecast');render();});
   const hitCard=page.locator('#resultList .clean-race-card').nth(11);
   await hitCard.locator('.clean-race-verdict').waitFor({timeout:60000});
-  if((await hitCard.locator('.clean-race-verdict').innerText())!=='◎ 予想的中')throw Error('Verified Karatsu 12R hit badge missing');
+  if((await hitCard.locator('.clean-race-verdict').innerText())!=='◎ 研究10点的中')throw Error('Verified Karatsu 12R hit badge missing');
   if((await hitCard.locator('.clean-race-state').innerText())!=='結果確定')throw Error('Confirmed result must be independently labelled');
   if(!(await hitCard.locator('.clean-race-foot').innerText()).includes('1 - 4 - 5'))throw Error('Wrong official finish on hit card');
   console.log('PUBLISHED_VERIFIED_HIT_PASS 20261028 23 12R: 1-4-5');
   // Unverified labels must never be rendered as a verified hit.
   const labels=await page.locator('#resultList .clean-race-verdict').allInnerTexts();
-  if(labels.some(x=>!['◎ 予想的中','予想不的中','予想未検証'].includes(x)))throw Error('Unknown result verification badge');
+  if(labels.some(x=>!['◎ 研究10点的中','研究10点不的中','研究予想未照合'].includes(x)))throw Error('Unknown result verification badge');
   // Actual archived, independently verified miss: Karatsu 9R on 2026-10-28.
   const missCard=page.locator('#resultList .clean-race-card').nth(8);
   const missProof=await page.evaluate(async()=>{
@@ -100,8 +100,8 @@ const fs=require('node:fs');
   const actualMiss=await missCard.locator('.clean-race-verdict').innerText();
   const missDisplay=await missCard.evaluate(el=>({state:el.querySelector('.clean-race-state')?.textContent,foot:el.querySelector('.clean-race-foot')?.textContent}));
   console.log('MISS_PROOF_DIAGNOSTIC '+JSON.stringify({missProof,actualMiss,missDisplay}));
-  if(actualMiss==='◎ 予想的中')throw Error('False hit displayed for verified miss Karatsu 9R');
-  if(actualMiss==='予想不的中')console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
+  if(actualMiss==='◎ 研究10点的中')throw Error('False hit displayed for verified miss Karatsu 9R');
+  if(actualMiss==='研究10点不的中')console.log('PUBLISHED_VERIFIED_MISS_PASS 20261028 23 9R');
   else throw Error('Verified miss not rendered: '+JSON.stringify({missProof,actualMiss,missDisplay}));
   if((await missCard.locator('.clean-race-state').innerText())!=='結果確定')throw Error('Confirmed Karatsu 9R result missing');
   // A date whose result has not happened must remain pending, not a miss.
@@ -111,7 +111,7 @@ const fs=require('node:fs');
    status:el.querySelector('.clean-race-state')?.textContent,
    verdict:el.querySelector('.clean-race-verdict')?.textContent
   }));
-  if(future.verdict!=='予想未検証'||future.status==='結果確定')throw Error('Future unconfirmed result falsely classified: '+JSON.stringify(future));
+  if(future.verdict!=='研究予想未照合'||future.status==='結果確定')throw Error('Future unconfirmed result falsely classified: '+JSON.stringify(future));
   console.log('PENDING_RESULT_PASS '+JSON.stringify(future));
   // Deliberately synthetic forecast data: measure real published CSS, not model accuracy.
   await page.setViewportSize({width:375,height:844});
