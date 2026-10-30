@@ -33,7 +33,9 @@ const {chromium}=require('playwright');
   }
   // Inspect a live upcoming race with real preview rows when available.
   // Otherwise report an explicit unverified result, never a fabricated pass.
-  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replaceAll('-','');
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  const today=parts.year+parts.month+parts.day;
+  if(!/^20\d{6}$/.test(today))throw Error('INVALID_JST_DAY '+today);
   const origin='https://boat-edge-clean.onrender.com';
   const feed='https://boatraceopenapi.github.io/api/v1/'+today.slice(0,4)+'/'+today+'.json';
   let selected=null;
