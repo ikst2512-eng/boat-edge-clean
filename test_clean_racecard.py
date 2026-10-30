@@ -136,6 +136,22 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertIsNone(result["racers"][0]["motor"]["no"])
         self.assertIsNone(result["beforeinfo"])
 
+    def test_preview_audit_identifies_missing_race_vs_source_failure(self):
+        hd="20261030";code=hd+"0101"
+        deadline=datetime.strptime(hd+"15:21","%Y%m%d%H:%M").replace(tzinfo=JST)
+        def fetch(kind,path):
+            if kind=="tkz":raise OSError("unreachable")
+            if kind=="stt":return [],"f"*64
+            return [{"レースコード":code,"締切時刻":"15:21","取得日時":"2026-10-30T15:22:00+09:00"}],"a"*64
+        with patch.object(clean_racecard,"_preview_rows",side_effect=fetch):
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+        self.assertIsNone(preview)
+        self.assertEqual(audit["source_status"],{
+            "tkz":"source_unavailable",
+            "stt":"race_not_published",
+            "sui":"deadline_or_timestamp_unverified"})
+        self.assertEqual(audit["status"],"not_published_or_unavailable")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")

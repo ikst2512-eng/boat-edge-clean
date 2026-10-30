@@ -34,23 +34,30 @@ def _fetch_preview(code,path,deadline):
     def select(kind):
         try:
             rows,sha=_preview_rows(kind,path)
-            candidates=[]
-            for row in rows:
-                if row.get("レースコード")!=code or row.get("締切時刻")!=deadline.strftime("%H:%M"):continue
-                observed=datetime.fromisoformat(row.get("取得日時",""))
-                if observed.tzinfo is not None and observed<deadline:
-                    candidates.append((observed,row))
-            if candidates:
-                observed,row=max(candidates,key=lambda x:x[0])
-                return kind,(observed,row,sha)
         except (OSError,ValueError,KeyError,UnicodeError):
-            pass
-        return kind,None
+            return kind,None,"source_unavailable"
+        candidates=[]
+        matching=0
+        for row in rows:
+            if row.get("レースコード")!=code:continue
+            matching+=1
+            if row.get("締切時刻")!=deadline.strftime("%H:%M"):continue
+            try:
+                observed=datetime.fromisoformat(row.get("取得日時",""))
+            except (ValueError,TypeError):
+                continue
+            if observed.tzinfo is not None and observed<deadline:
+                candidates.append((observed,row))
+        if candidates:
+            observed,row=max(candidates,key=lambda x:x[0])
+            return kind,(observed,row,sha),"ok"
+        return kind,None,("race_not_published" if not matching else "deadline_or_timestamp_unverified")
     with ThreadPoolExecutor(max_workers=3) as pool:
         found=list(pool.map(select,("tkz","stt","sui")))
-    sources={kind:value for kind,value in found if value is not None}
+    sources={kind:value for kind,value,state in found if value is not None}
+    availability={kind:state for kind,value,state in found}
     if "tkz" not in sources or "stt" not in sources:
-        return None,{"status":"not_published_or_unavailable"}
+        return None,{"status":"not_published_or_unavailable","source_status":availability}
     racers=[];starts=[]
     tkz=sources["tkz"][1];stt=sources["stt"][1]
     for lane in range(1,7):
@@ -66,7 +73,7 @@ def _fetch_preview(code,path,deadline):
         or any(v is None or not -1.0<=v<=3.0 for v in tilts)
         or any(v is None for v in courses)
         or sorted(courses)!=[1.,2.,3.,4.,5.,6.]):
-        return None,{"status":"invalid_or_incomplete_exhibition"}
+        return None,{"status":"invalid_or_incomplete_exhibition","source_status":availability}
     audit={"status":"ok","fetched_at":max(sources["tkz"][0],sources["stt"][0]).isoformat(),
            "source":"BoatraceCSV predeadline snapshots",
            "sources":{k:{"observed_at":v[0].isoformat(),"sha256":v[2]} for k,v in sources.items()}}
