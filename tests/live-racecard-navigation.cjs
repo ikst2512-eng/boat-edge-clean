@@ -66,8 +66,10 @@ const {chromium}=require('playwright');
     const previewWindow=upcoming.filter(x=>x.cutoff<=Date.now()+22*60*1000);
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
     previewWindow.sort((a,b)=>a.cutoff-b.cutoff);
-    selections=[...previewWindow,...upcoming.filter(x=>!previewWindow.includes(x))].slice(0,3);
+    // Sample several distinct races: one unpublished feed must not hide other live exhibitions.
+    selections=[...previewWindow,...upcoming.filter(x=>!previewWindow.includes(x))].slice(0,8);
     selected=selections[0]||null;
+    console.log('LIVE_PROBE_SELECTED_RACES '+JSON.stringify(selections));
     console.log('LIVE_PREVIEW_WINDOW_CANDIDATES '+JSON.stringify({count:previewWindow.length}));
     console.log('LIVE_SCHEDULE_CANDIDATES '+JSON.stringify({date:today,count:upcoming.length,selected}));
    }
