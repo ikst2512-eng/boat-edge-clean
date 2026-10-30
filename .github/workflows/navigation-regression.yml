@@ -9,6 +9,8 @@ on:
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
+      - 'tests/test_preview_completeness.py'
+      - 'clean_racecard.py'
       - '.github/workflows/navigation-regression.yml'
   push:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
+      - 'tests/test_preview_completeness.py'
+      - 'clean_racecard.py'
       - '.github/workflows/navigation-regression.yml'
 jobs:
   navigation-contract:
@@ -35,3 +39,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_navigation_contract.py' -v
           python -m unittest discover -s tests -p 'test_verified_prediction_refresh_contract.py' -v
           python -m unittest discover -s tests -p 'test_forecast_preview_origin.py' -v
+          python -m unittest discover -s tests -p 'test_preview_completeness.py' -v
