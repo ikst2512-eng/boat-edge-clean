@@ -419,13 +419,14 @@ async function confirmedPayoutsForDay(date){
 }
 async function loadForecastResult(){
  const key=sameRaceKey(),token=++forecastResultRequestId,status=document.getElementById('forecastResultStatus'),detail=document.getElementById('forecastResultDetail');
- confirmedForecastResult=null;confirmedForecastResultKey='';drawPredictions();
- detail.replaceChildren();status.textContent='CLEAN確定結果を確認中…';
+ const retain=confirmedForecastResultKey===key&&!!confirmedForecastResult&&detail.children.length>0;
+ if(!retain){confirmedForecastResult=null;confirmedForecastResultKey='';detail.replaceChildren();drawPredictions();}
+ status.textContent=retain?'確定結果を更新中（前回確認済みの結果を表示）…':'CLEAN確定結果を確認中…';
  try{
   const code=key.replaceAll('-','');
   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
   if(token!==forecastResultRequestId||activeView!=='forecast'||key!==sameRaceKey())return;
-  if(response.status===404){status.textContent='結果未取得（予想の的中・不的中には含めません）';return}
+  if(response.status===404){confirmedForecastResult=null;confirmedForecastResultKey='';detail.replaceChildren();drawPredictions();status.textContent='結果未取得（予想の的中・不的中には含めません）';return}
   if(!response.ok)throw Error('RESULT_HTTP');
   const raw=await response.json(),order=raw.finish_order,stamp=Date.parse(raw.collected_at_jst),confirmed=Date.parse(raw.confirmed_at_jst);
   const source='https://boatracecsv.github.io/data/results/realtime/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
@@ -439,7 +440,7 @@ async function loadForecastResult(){
    const payouts=await confirmedPayoutsForDay(s.date),record=payouts.get(code);
    if(token===forecastResultRequestId&&activeView==='forecast'&&key===sameRaceKey()&&record?.combo===order.join('-'))payout.textContent='3連単払戻金：'+record.amount.toLocaleString('ja-JP')+'円（100円あたり）';
   }catch(_){}
- }catch(_){if(token===forecastResultRequestId&&activeView==='forecast'&&key===sameRaceKey()){detail.replaceChildren();status.textContent='確定結果を検証できませんでした'}}
+ }catch(_){if(token===forecastResultRequestId&&activeView==='forecast'&&key===sameRaceKey()){if(!retain)detail.replaceChildren();status.textContent=retain?'再取得に失敗しました。前回確認済みの結果を表示中':'確定結果を検証できませんでした'}}
 }
 async function cleanListRaceCards(date,venue){
  const url='https://boatracecsv.github.io/data/programs/race_cards/'+date.slice(0,4)+'/'+date.slice(5,7)+'/'+date.slice(8,10)+'.csv';
