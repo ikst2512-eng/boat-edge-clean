@@ -5,6 +5,8 @@ on:
       - 'scripts/research_topn_batch_audit.py'
       - 'research_model.py'
       - 'tests/test_research_topn_mass_contract.py'
+      - 'tests/test_snapshot_persistence_workflow.py'
+      - '.github/workflows/persist-research-snapshot.yml'
       - '.github/workflows/research-topn-audit.yml'
   workflow_dispatch:
 jobs:
@@ -18,5 +20,7 @@ jobs:
           python-version: '3.12'
       - name: Check TopN model probability mass contract
         run: python -m unittest discover -s tests -p 'test_research_topn_mass_contract.py' -v
+      - name: Check snapshot persistence workflow ordering
+        run: python -m unittest discover -s tests -p 'test_snapshot_persistence_workflow.py' -v
       - name: Count stored research forecasts against confirmed results
         run: python scripts/research_topn_batch_audit.py
