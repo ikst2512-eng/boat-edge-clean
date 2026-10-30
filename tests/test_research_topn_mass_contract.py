@@ -27,7 +27,7 @@ class TopNMassContract(unittest.TestCase):
         # Mock only external CSV acquisition and Git metadata; exercise actual JSON file write.
         day = "20991231"
         code = day + "0101"
-        titles = [{"レースコード": code, "電話投票締切予定": "2359"}]
+        titles = [{"レースコード": code, "電話投票締切予定": "23:59"}]
         card = {"レースコード": code}
         card.update({f"艇{i}_全国勝率": "6.0" for i in range(1, 7)})
         from datetime import datetime
