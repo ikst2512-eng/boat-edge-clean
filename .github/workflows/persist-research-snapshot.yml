@@ -65,4 +65,15 @@ jobs:
           git add -- research_snapshots/
           git diff --cached --quiet && { echo "No new snapshot generated"; exit 1; }
           git commit -m "research: preserve predeadline snapshot and model mass"
+          python - <<'PY'
+          import json, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+          names = subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).splitlines()
+          if len(names) != 1 or not names[0].startswith("research_snapshots/"):
+              raise ValueError("Expected exactly one new snapshot")
+          record = json.loads(Path(names[0]).read_text(encoding="utf-8"))
+          if datetime.now(timezone.utc) >= datetime.fromisoformat(record["cutoff_jst"]):
+              raise ValueError("Too late to publish before cutoff")
+          PY
           git push origin HEAD:main
