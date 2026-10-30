@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/research_topn_batch_audit.py'
       - 'research_model.py'
+      - 'scripts/select_upcoming_research_race.py'
+      - 'tests/test_scheduled_research_selector.py'
       - 'tests/test_research_topn_mass_contract.py'
       - 'tests/test_snapshot_persistence_workflow.py'
       - '.github/workflows/persist-research-snapshot.yml'
@@ -22,5 +24,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_topn_mass_contract.py' -v
       - name: Check snapshot persistence workflow ordering
         run: python -m unittest discover -s tests -p 'test_snapshot_persistence_workflow.py' -v
+      - name: Check scheduled predeadline selector
+        run: python -m unittest discover -s tests -p 'test_scheduled_research_selector.py' -v
       - name: Count stored research forecasts against confirmed results
         run: python scripts/research_topn_batch_audit.py

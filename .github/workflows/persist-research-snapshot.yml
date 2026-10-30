@@ -1,5 +1,7 @@
 name: Persist predeadline research snapshot
 on:
+  schedule:
+    - cron: '15 2 * * *' # 11:15 JST; actual GitHub start may be delayed
   workflow_dispatch:
     inputs:
       race_date:
@@ -43,6 +45,13 @@ jobs:
           day = os.environ["RACE_DATE"]
           venue = os.environ["VENUE"]
           race = os.environ["RACE"]
+          if not day and not venue and not race:
+              from scripts.select_upcoming_research_race import choose
+              selected = choose()
+              if selected is None:
+                  print("No race safely before cutoff; no forecast created")
+                  raise SystemExit(0)
+              day, venue, race = map(str, selected)
           if len(day) != 8 or not day.isascii() or not day.isdigit():
               raise ValueError("Invalid date")
           if not venue.isascii() or not venue.isdigit() or not 1 <= int(venue) <= 24:
@@ -63,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- research_snapshots/
-          git diff --cached --quiet && { echo "No new snapshot generated"; exit 1; }
+          git diff --cached --quiet && { echo "No new eligible snapshot"; exit 0; }
           python - <<'PY'
           import json, subprocess
           from datetime import datetime, timezone
