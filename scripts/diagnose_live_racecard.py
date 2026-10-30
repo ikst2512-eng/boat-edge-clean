@@ -79,7 +79,24 @@ def run():
                 if card["source_audit"]["beforeinfo"]["status"]=="ok" and live_audit.get("status")=="ok":
                     if len((live.get("beforeinfo") or {}).get("racers",[]))!=6 or len((live.get("beforeinfo") or {}).get("start_exhibition",[]))!=6:
                         raise ValueError("render_verified_preview_incomplete")
-                    print("LOCAL_AND_RENDER_SIX_BOAT_PREVIEW_PASS",code,flush=True)
+                    local_preview=card.get("beforeinfo") or {}
+                    remote_preview=live.get("beforeinfo") or {}
+                    local_sources=card["source_audit"]["beforeinfo"].get("sources") or {}
+                    remote_sources=live_audit.get("sources") or {}
+                    same_snapshots=all(
+                        local_sources.get(kind,{}).get("sha256")
+                        and local_sources[kind]["sha256"]==remote_sources.get(kind,{}).get("sha256")
+                        for kind in ("tkz","stt")
+                    )
+                    if same_snapshots:
+                        for section,keys in (("racers",("lane","exhibition_time","tilt")),
+                                             ("start_exhibition",("lane","course","st"))):
+                            lhs=[tuple(row.get(k) for k in keys) for row in local_preview.get(section,[])]
+                            rhs=[tuple(row.get(k) for k in keys) for row in remote_preview.get(section,[])]
+                            if lhs!=rhs:raise ValueError("RENDER_PREVIEW_VALUE_MISMATCH_"+section)
+                        print("LOCAL_AND_RENDER_SIX_BOAT_PREVIEW_VALUE_PASS",code,flush=True)
+                    else:
+                        print("LOCAL_RENDER_PREVIEW_DIFFERENT_SNAPSHOT_NOT_A_VALUE_PASS",code,flush=True)
             except (HTTPError,URLError,OSError,TimeoutError,ValueError,KeyError,TypeError) as remote:
                 print("RENDER_PREVIEW_COMPARISON_UNAVAILABLE",code,type(remote).__name__,str(remote)[:120],flush=True)
             audit=card["source_audit"]["beforeinfo"]
