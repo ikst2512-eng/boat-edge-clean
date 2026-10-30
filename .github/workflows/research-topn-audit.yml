@@ -1,0 +1,18 @@
+name: Research TopN batch audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/research_topn_batch_audit.py'
+      - '.github/workflows/research-topn-audit.yml'
+  workflow_dispatch:
+jobs:
+  research-topn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Count stored research forecasts against confirmed results
+        run: python scripts/research_topn_batch_audit.py
