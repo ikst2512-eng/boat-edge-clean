@@ -30,7 +30,7 @@ candidates.sort()
 if not candidates:
     raise SystemExit("NO_ELIGIBLE_UPCOMING_RACES: need a real predeadline sample")
 errors=[]
-for _,code in candidates[:6]:
+for _,code in candidates[:24]:
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=40) as res:
@@ -49,5 +49,5 @@ for _,code in candidates[:6]:
     except (HTTPError,ValueError,TimeoutError,OSError) as exc:
         errors.append({"race":code,"error":str(exc)[:160]})
 else:
-    print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
+    print(json.dumps({"outcome":"FAIL","source":source,"eligible":len(candidates),"tried":errors},ensure_ascii=False))
     raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
