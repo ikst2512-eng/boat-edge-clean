@@ -1,21 +1,36 @@
 {
-  "day_jst": "20261030",
-  "eligible_forecasts_today": 144,
+  "day_jst": "20261031",
+  "eligible_forecasts_today": 156,
   "excluded": {},
   "http_status": null,
-  "last_run_new_count": 0,
+  "last_run_new_count": 156,
   "production_success_proven": true,
-  "published_card_rows": 144,
-  "published_title_rows": 144,
+  "published_card_rows": 156,
+  "published_title_rows": 156,
   "schema": "CLEAN_FOUR_MODE_CAPTURE_HEALTH_V1",
   "source_probes": {
+    "direct_error": {
+      "http_status": 403,
+      "source_url": "https://race.boatcast.jp/api_txt/getHoldingList2_20261031.json",
+      "status": "error",
+      "type": "HTTPError"
+    },
+    "openapi_direct": {
+      "rejected": 0,
+      "source": "nonofficial_openapi_v1",
+      "status": "available",
+      "url": "https://boatraceopenapi.github.io/api/v1/2026/20261031.json",
+      "valid": 156
+    },
     "race_cards": {
-      "rows": 144,
-      "status": "available"
+      "http_status": 404,
+      "source_url": "https://boatracecsv.github.io/data/programs/race_cards/2026/10/31.csv",
+      "status": "not_published"
     },
     "title": {
-      "rows": 144,
-      "status": "available"
+      "http_status": 404,
+      "source_url": "https://boatracecsv.github.io/data/programs/title/2026/10/31.csv",
+      "status": "not_published"
     }
   },
   "source_status": "available",
