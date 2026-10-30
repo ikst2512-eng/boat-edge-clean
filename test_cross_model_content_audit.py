@@ -6,6 +6,33 @@ from scripts.cross_model_content_audit import audit, extract_top10
 
 class CrossModelAuditTests(unittest.TestCase):
 
+
+    def test_live_code_reads_clean_or_public_sources_only(self):
+        # Audit scripts deliberately consult the legacy Git repo. In contrast,
+        # the served page and runtime fetchers must never call the old site.
+        import re
+        from urllib.parse import urlsplit
+        sources = ("index.html", "server.py", "research_model.py", "clean_results.py")
+        blocked = ("ikst2512-eng/boat-edge/", "boat-edge/main/",
+                   "site_racer_actual_course/v155_fresh",
+                   "site_racer_actual_course/v156_watch",
+                   "site_autopilot/v236_frozen", "site_autopilot/v236_scored",
+                   "site_autopilot/v253_miss_diagnostics_current")
+        allowed_hosts = {"raw.githubusercontent.com", "api.github.com",
+                         "boatracecsv.github.io", "boat-edge-clean.onrender.com",
+                         "www.boatrace.jp"}
+        for name in sources:
+            source = Path(name).read_text(encoding="utf-8")
+            with self.subTest(source=name):
+                for legacy in blocked:
+                    self.assertNotIn(legacy, source)
+                # Inspect literal remote endpoints only; dynamic host
+                # construction needs separate runtime checks.
+                for value in re.findall(r'https?://[^\\s\\"\\x27<>]+', source):
+                    host = urlsplit(value).hostname
+                    if host and "{" not in host:
+                        self.assertIn(host, allowed_hosts, (name, value))
+
     def test_production_server_does_not_depend_on_legacy_research_files(self):
         # Read-only migration audits may refer to legacy data; production
         # request handling must not depend on these old-site research outputs.
