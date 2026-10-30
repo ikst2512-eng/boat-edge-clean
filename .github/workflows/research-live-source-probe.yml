@@ -29,11 +29,11 @@ jobs:
               candidate = choose(now=now, diagnostics=stats)
               print("source_selection=ok", "candidate=", candidate, "counts=", stats, flush=True)
               with open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a") as out:
-                  out.write("### Research source dry-run\\n")
-                  out.write(f"JST: {now.isoformat()}\\n")
-                  out.write(f"Candidate: {candidate or 'none'}\\n")
+                  out.write("### Research source dry-run\n")
+                  out.write(f"JST: {now.isoformat()}\n")
+                  out.write(f"Candidate: {candidate or 'none'}\n")
                   for k, v in stats.items():
-                      out.write(f"{k}: {v}\\n")
+                      out.write(f"{k}: {v}\n")
           except Exception as error:
               print("source_selection=failed", type(error).__name__, str(error), flush=True)
               traceback.print_exc()
