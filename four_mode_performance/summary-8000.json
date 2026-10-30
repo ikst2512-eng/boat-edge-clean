@@ -1,10 +1,10 @@
 {
   "budget_yen": 8000,
   "counts": {
-    "archived": 396,
+    "archived": 552,
     "awaiting_payout": 0,
-    "awaiting_result": 8,
-    "before_deadline": 0,
+    "awaiting_result": 164,
+    "before_deadline": 156,
     "complete": 388,
     "overdue_result": 8,
     "unverified": 0
