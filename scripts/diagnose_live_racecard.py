@@ -20,7 +20,7 @@ def run():
                 print("OPENAPI_RACE",row["レースコード"],row["電話投票締切予定"],flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as alt:
             print("OPENAPI_SOURCE_ERROR",type(alt).__name__,str(alt)[:120],flush=True)
-            return
+            raise RuntimeError("ALL_LIVE_SCHEDULE_SOURCES_UNAVAILABLE") from alt
     print("HOLDING_SOURCE_ROWS",len(titles),flush=True)
     now=datetime.now(JST)
     upcoming=[]
