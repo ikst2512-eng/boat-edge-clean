@@ -77,7 +77,16 @@ const {chromium}=require('playwright');
      // Cross-check that the actual user-facing forecast preview can consume the same race.
      await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
        {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
-     console.log('LIVE_EXHIBITION_API_PASS '+JSON.stringify({race:expected,exhibition_count:preview.racers.length,entry_count:preview.start_exhibition.length}));
+     const expectedRows=Array.from({length:6},(_,i)=>{
+      const lane=i+1,ex=preview.racers.find(v=>Number(v.lane)===lane),st=preview.start_exhibition.find(v=>Number(v.lane)===lane);
+      if(!ex||!st)throw Error('LIVE_EXHIBITION_MISSING_LANE '+lane);
+      return {lane,text:'展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st};
+     });
+     await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
+     const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
+     if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
+      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({race:expected,exhibition_count:6,values_verified:true}));
     }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
    }else if([400,404,422,502,503].includes(api.http))console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify({race:expected,http:api.http,status:api.body.status}));
    else throw Error('UNEXPECTED_RACE_API_RESPONSE '+api.http);
