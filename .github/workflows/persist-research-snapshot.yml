@@ -73,6 +73,7 @@ jobs:
               output.write("status=created\n")
           PY
       - name: Commit new snapshot to origin
+        id: publish
         if: steps.generate.outputs.status == 'created'
         run: |
           git config user.name "github-actions[bot]"
@@ -136,11 +137,13 @@ jobs:
         env:
           GENERATION: ${{ steps.generate.outcome }}
           RESULT: ${{ steps.generate.outputs.status }}
+          PUBLICATION: ${{ steps.publish.outcome }}
         run: |
           {
             echo '### Research snapshot outcome'
             echo "Generation: ${GENERATION:-unknown}"
             echo "Result: ${RESULT:-not-created}"
+            echo "Publication: ${PUBLICATION:-not-started}"
             echo 'If generation failed, inspect its step log for source, input or cutoff errors.'
             echo 'If generated, inspect publish step and remote commit confirmation.'
           } >> "$GITHUB_STEP_SUMMARY"
