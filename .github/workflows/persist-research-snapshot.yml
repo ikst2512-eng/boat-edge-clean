@@ -49,7 +49,12 @@ jobs:
           if not day and not venue and not race:
               from scripts.select_upcoming_research_race import choose
               try:
-                  selected = choose()
+                  stats = {}
+                  selected = choose(diagnostics=stats)
+                  with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                      summary.write("### Race selection source diagnostics\n")
+                      for key, value in stats.items():
+                          summary.write(f"- {key}: {value}\n")
               except Exception as exc:
                   from urllib.error import HTTPError, URLError
                   if isinstance(exc, HTTPError):
