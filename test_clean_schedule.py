@@ -23,7 +23,7 @@ class ScheduleTests(unittest.TestCase):
 
     def test_not_yet_published_csv_is_not_a_server_failure(self):
         error=HTTPError("https://example.invalid/file.csv",404,"Not Found",None,None)
-        with patch.object(s,"read_rows",side_effect=error), patch("clean_openapi_sources.load",side_effect=ValueError("unavailable")):
+        with patch.object(s,"read_rows",side_effect=error), patch("clean_openapi_sources.load",side_effect=ValueError("unavailable")), patch.object(s,"schedule_from_frozen_candidates",return_value=None):
             status,data=s.clean_schedule("20261029")
         self.assertEqual(status,404)
         self.assertEqual(data["status"],"schedule_not_published")
@@ -39,6 +39,33 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(data["source"],"nonofficial_openapi_v1")
         self.assertEqual(data["races"][0]["race_code"],"202610300101")
 
+    def test_archived_schedule_fallback_has_real_races_only(self):
+        import tempfile, json
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            record={"race_code":"202610300101","status":"prospective_candidate",
+                    "formal":False,"scoring":False,"validated":False,
+                    "source_deadline_jst":"2026-10-30T15:21:00+09:00",
+                    "cutoff_jst":"2026-10-30T15:09:00+09:00",
+                    "generated_at":"2026-10-30T10:44:00+09:00"}
+            (root/"202610300101.json").write_text(json.dumps(record))
+            result=s.schedule_from_frozen_candidates("20261030",root)
+            self.assertEqual(len(result["races"]),1)
+            self.assertTrue(result["partial_coverage"])
+            self.assertEqual(result["races"][0]["race_code"],"202610300101")
+            record["generated_at"]="2026-10-30T16:00:00+09:00"
+            (root/"202610300101.json").write_text(json.dumps(record))
+            self.assertIsNone(s.schedule_from_frozen_candidates("20261030",root))
+
+    def test_schedule_uses_frozen_candidates_if_sources_absent(self):
+        error=HTTPError("https://example.invalid/file.csv",404,"Not Found",None,None)
+        payload={"ok":True,"date":"20261030","races":[{"race_code":"202610300101"}]}
+        with patch.object(s,"read_rows",side_effect=error), patch("clean_openapi_sources.load",side_effect=ValueError("unavailable")), patch.object(s,"schedule_from_frozen_candidates",return_value=payload):
+            status,data=s.clean_schedule("20261030")
+        self.assertEqual(status,200)
+        self.assertEqual(data["races"][0]["race_code"],"202610300101")
+
     def test_upstream_503_remains_source_failure(self):
         error=HTTPError("https://example.invalid/file.csv",503,"unavailable",None,None)
         with patch.object(s,"read_rows",side_effect=error):
@@ -46,7 +73,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual((status,data["status"]),(503,"source_unavailable"))
 
     def test_upstream_missing_daily_file_is_not_empty_schedule(self):
-        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)), patch("clean_openapi_sources.load",side_effect=ValueError("no alternate schedule")):
+        with patch.object(s,"read_rows",side_effect=HTTPError("https://upstream.invalid",404,"not found",{},None)), patch("clean_openapi_sources.load",side_effect=ValueError("no alternate schedule")), patch.object(s,"schedule_from_frozen_candidates",return_value=None):
             status,data=s.clean_schedule("20261029")
         self.assertEqual(status,404)
         self.assertEqual(data["status"],"schedule_not_published")
