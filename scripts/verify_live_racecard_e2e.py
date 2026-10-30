@@ -32,10 +32,10 @@ if not candidates:
 errors=[]
 verified_cards=[]
 verified_previews=[]
-for _,code in candidates[:6]:
+for _,code in candidates[:3]:
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
-        with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=40) as res:
+        with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
             data=json.load(res)
             if res.status!=200:raise ValueError("unexpected HTTP status")
         if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
@@ -50,7 +50,9 @@ for _,code in candidates[:6]:
         if before=="ok":verified_previews.append(code)
         print(json.dumps({"outcome":"CARD_PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
     except (HTTPError,ValueError,TimeoutError,OSError) as exc:
-        errors.append({"race":code,"error":str(exc)[:160]})
+        errors.append({"race":code,"error":str(exc)[:160],"http_status":getattr(exc,"code",None)})
+if errors:
+    print(json.dumps({"outcome":"PARTIAL_FAILURES","tried":errors},ensure_ascii=False))
 if not verified_cards:
     print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
     raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
