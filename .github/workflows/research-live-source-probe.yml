@@ -1,0 +1,41 @@
+name: Research live source probe
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/research-live-source-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect live title and race-card source without saving
+        run: |
+          python - <<'PY'
+          import traceback
+          from datetime import datetime
+          from research_model import JST
+          from scripts.select_upcoming_research_race import choose
+          stats = {}
+          now = datetime.now(JST)
+          print("Probe at JST", now.isoformat(), flush=True)
+          try:
+              candidate = choose(now=now, diagnostics=stats)
+              print("source_selection=ok", "candidate=", candidate, "counts=", stats, flush=True)
+              with open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a") as out:
+                  out.write("### Research source dry-run\\n")
+                  out.write(f"JST: {now.isoformat()}\\n")
+                  out.write(f"Candidate: {candidate or 'none'}\\n")
+                  for k, v in stats.items():
+                      out.write(f"{k}: {v}\\n")
+          except Exception as error:
+              print("source_selection=failed", type(error).__name__, str(error), flush=True)
+              traceback.print_exc()
+              raise
+          PY
