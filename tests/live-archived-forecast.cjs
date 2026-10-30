@@ -8,6 +8,21 @@ const {chromium}=require('playwright');
   const site='https://ikst2512-eng.github.io/boat-edge-clean/';
   const response=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
   if(!response?.ok())throw Error('PUBLIC_SITE_UNAVAILABLE '+response?.status());
+  // Confirm the actual October 30 schedule is reflected in the venue picker.
+  const scheduleResponse=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/20261030.json',{timeout:20000});
+  if(!scheduleResponse.ok())throw Error('TODAY_SCHEDULE_NOT_PUBLISHED '+scheduleResponse.status());
+  const schedule=await scheduleResponse.json();
+  const expectedVenues=schedule.venues.map(v=>v.jcd).sort();
+  const expectedRaceCount=schedule.venues.reduce((n,v)=>n+v.races.length,0);
+  if(schedule.date!=='2026-10-30'||expectedVenues.length!==12||expectedRaceCount!==144)throw Error('TODAY_SCHEDULE_INVALID');
+  const visibleSchedule=await page.evaluate(async()=>{
+   datePinned=true;s.date='2026-10-30';
+   await loadHeldVenues(true);
+   return {date:todayVenueRaces?.date,venues:todayVenueRaces?.venues.map(v=>v.jcd).sort(),raceCount:todayVenueRaces?.venues.reduce((n,v)=>n+v.races.length,0),status:document.getElementById('venueState').textContent};
+  });
+  if(visibleSchedule.date!=='2026-10-30'||JSON.stringify(visibleSchedule.venues)!==JSON.stringify(expectedVenues)||visibleSchedule.raceCount!==expectedRaceCount||visibleSchedule.status.includes('取得できません'))
+   throw Error('PUBLIC_SCHEDULE_DISPLAY_MISMATCH '+JSON.stringify(visibleSchedule));
+  console.log('PASS: 2026-10-30 published venue schedule shows 12 venues / 144 races');
   const race='202610300101';
   const source=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/research_snapshots/'+race+'.json',{timeout:20000});
   if(!source.ok())throw Error('ARCHIVE_NOT_AVAILABLE '+source.status());
