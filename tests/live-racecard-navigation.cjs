@@ -31,6 +31,18 @@ const {chromium}=require('playwright');
    const switched=await page.evaluate(()=>({key:sameRaceKey(),visible:!document.getElementById('raceDataSection').hidden}));
    if(switched.key!==expected||!switched.visible)throw Error('EXHIBIT_NAV_MISMATCH '+JSON.stringify(switched));
   }
+  // The user-visible back control must restore the previous panel, not reset home.
+  await page.evaluate(()=>{setView('card');render();});
+  const beforeBack=await page.evaluate(()=>({key:sameRaceKey(),view:activeView}));
+  await page.evaluate(()=>setView('exhibit'));
+  const backButton=page.locator('.race-browser-toolbar button');
+  if(await backButton.count()!==1)throw Error('PUBLISHED_NAVIGATION_SCRIPT_NOT_LOADED');
+  await backButton.click();
+  await page.waitForFunction(()=>activeView==='card',{timeout:10000});
+  const afterBack=await page.evaluate(()=>({key:sameRaceKey(),view:activeView}));
+  if(afterBack.key!==beforeBack.key||afterBack.view!=='card')
+   throw Error('BROWSER_BACK_RESTORE_FAILED '+JSON.stringify({beforeBack,afterBack}));
+  console.log('PASS_BROWSER_BACK_RESTORES_RACE_PANEL '+afterBack.key);
   // Inspect a live upcoming race with real preview rows when available.
   // Otherwise report an explicit unverified result, never a fabricated pass.
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
