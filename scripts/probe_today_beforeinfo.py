@@ -1,4 +1,5 @@
 """Observe TODAY's actual predeadline preview availability without retroactive scoring."""
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.error import HTTPError, URLError
@@ -50,3 +51,8 @@ if eligible:
         except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
             print("ADAPTER_ERROR",code,type(exc).__name__,flush=True)
 print("ADAPTER_VERIFIED_CURRENT_PREDEADLINE",len(verified),",".join(verified),flush=True)
+# Scheduled samples run during Japanese racing hours. If none of the three
+# source CSVs could be fetched, report a real data-source outage rather than
+# allowing a green workflow with zero verified races.
+if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not sources:
+    raise RuntimeError("SCHEDULED_PREVIEW_ALL_SOURCES_UNAVAILABLE")
