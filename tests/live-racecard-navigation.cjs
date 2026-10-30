@@ -39,7 +39,7 @@ const {chromium}=require('playwright');
   let selected=null;
   try{
    const response=await fetch(feed,{signal:AbortSignal.timeout(10000)});
-   if(response.ok()){
+   if(response.ok){
     const data=await response.json();
     const stadiums=data?.programs?.stadiums||{};
     const upcoming=[];
