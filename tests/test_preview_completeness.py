@@ -26,6 +26,10 @@ class PreviewCompletenessTests(TestCase):
             preview, audit = _fetch_preview(code, "2026/10/30.csv", deadline)
             self.assertIsNone(preview)
             self.assertEqual(audit["status"], "invalid_or_incomplete_exhibition")
+            stt["艇4_スタート展示"] = "INVALID"
+            preview, audit = _fetch_preview(code, "2026/10/30.csv", deadline)
+            self.assertIsNone(preview)
+            self.assertEqual(audit["status"], "invalid_or_incomplete_exhibition")
             stt["艇4_スタート展示"] = "F.01"
             preview, audit = _fetch_preview(code, "2026/10/30.csv", deadline)
             self.assertEqual(audit["status"], "ok")

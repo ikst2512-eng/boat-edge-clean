@@ -72,7 +72,7 @@ def _fetch_preview(code,path,deadline):
     courses=[r["course"] for r in starts]
     # A blank start-exhibition ST is incomplete evidence, even if course is known.
     start_times=[r["st"] for r in starts]
-    if (any(v is None or not str(v).strip() for v in start_times)
+    if (any(v is None or re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})", str(v).strip()) is None for v in start_times)
         or any(v is None or not 5.0<=v<=9.0 for v in times)
         or any(v is None or not -1.0<=v<=3.0 for v in tilts)
         or any(v is None for v in courses)
