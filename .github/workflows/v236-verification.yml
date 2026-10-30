@@ -12,24 +12,11 @@ on:
       - '.github/workflows/v236-verification.yml'
       - 'clean_direct_sources.py'
       - 'test_clean_direct_sources.py'
-      - 'clean_four_mode_capture.py'
-      - 'test_clean_four_mode_capture_status.py'
-      - 'test_clean_four_mode_capture_e2e.py'
-      - 'clean_four_modes.py'
-      - 'collect_four_mode_performance.py'
-      - 'test_collect_four_mode_performance_integration.py'
-      - 'four_mode_performance.py'
       - 'confirmed_results/**'
   pull_request:
     paths:
       - 'clean_racecard.py'
       - 'test_clean_racecard.py'
-      - 'clean_four_mode_capture.py'
-      - 'clean_four_modes.py'
-      - 'test_clean_four_modes.py'
-      - 'four_mode_performance.py'
-      - 'test_four_mode_performance.py'
-      - 'collect_four_mode_performance.py'
       - 'v236_freeze.py'
       - 'test_v236_freeze.py'
       - 'verification_pipeline.py'
@@ -51,32 +38,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
           fetch-depth: 0
       - name: Verify processing states and payouts
-        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_four_modes test_clean_four_mode_capture_status test_clean_four_mode_capture_e2e test_clean_racecard test_four_mode_performance test_collect_four_mode_performance_integration
-      - name: Capture independent four-mode forecasts before deadline
-        if: github.event_name != 'pull_request'
-        run: python clean_four_mode_capture.py
-      - name: Commit newly captured four-mode forecasts
-        if: github.event_name != 'pull_request'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          mkdir -p four_mode_forecasts
-          git add four_mode_forecasts/
-          if ! git diff --cached --quiet; then
-            git commit -m "data: freeze independent four-mode forecast [skip ci]"
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              git -c rebase.autoStash=true rebase origin/main
-              if git push origin HEAD:main; then
-                break
-              fi
-              if [ "$attempt" -eq 5 ]; then
-                echo "main updated concurrently; push retries exhausted" >&2
-                exit 1
-              fi
-              sleep "$attempt"
-            done
-          fi
+        run: python -m unittest -v test_verification_pipeline test_v236_freeze test_clean_racecard
       - name: Freeze prospectively committed V236 candidate cohorts
         if: github.event_name != 'pull_request'
         run: python v236_freeze.py
@@ -104,32 +66,6 @@ jobs:
           fi
       - name: Advance all saved races including unfinished statuses
         run: python verification_pipeline.py
-      - name: Evaluate verified four-mode simulated performance
-        run: |
-          for budget in 5000 6000 7000 8000 9000 10000; do
-            python collect_four_mode_performance.py --budget-yen "$budget"
-          done
-      - name: Commit four-mode summary
-        if: github.event_name != 'pull_request'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add four_mode_performance/
-          if ! git diff --cached --quiet; then
-            git commit -m "data: update verified four-mode performance [skip ci]"
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              git -c rebase.autoStash=true rebase origin/main
-              if git push origin HEAD:main; then
-                break
-              fi
-              if [ "$attempt" -eq 5 ]; then
-                echo "main updated concurrently; push retries exhausted" >&2
-                exit 1
-              fi
-              sleep "$attempt"
-            done
-          fi
       - name: Save updated states to CLEAN
         if: github.event_name != 'pull_request'
         run: |
