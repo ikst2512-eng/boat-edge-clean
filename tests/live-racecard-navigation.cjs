@@ -36,6 +36,7 @@ const {chromium}=require('playwright');
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),30000);
    try{const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});const body=await response.json();return {http:response.status,status:body.status,ok:body.ok,schema:body.schema_version,race:body.race_key,racers:body.racers?.length}}finally{clearTimeout(timeout)}
   },url);
+  if(api.http!==200)throw Error('LIVE_RACECARD_HTTP_'+api.http+' '+JSON.stringify(api));
   if(api.http===200){
    if(api.schema!=='boat-edge-race-v5'||api.race!=='20261030-01-01'||api.racers!==6)throw Error('LIVE_API_INCOMPLETE '+JSON.stringify(api));
    console.log('LIVE_SIX_BOAT_API_PASS '+JSON.stringify(api));
