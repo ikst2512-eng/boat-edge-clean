@@ -30,8 +30,10 @@ def run():
             if deadline>now:upcoming.append((deadline,row["レースコード"]))
         except (KeyError,ValueError):continue
     upcoming.sort()
-    print("UPCOMING_RACES",len(upcoming),flush=True)
-    for _,code in upcoming[:3]:
+    window=[x for x in upcoming if 120 < (x[0]-now).total_seconds() <= 1320]
+    chosen=(window+[x for x in upcoming if x not in window])[:3]
+    print("UPCOMING_RACES",len(upcoming),"PREVIEW_WINDOW_RACES",len(window),flush=True)
+    for _,code in chosen:
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
             print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],"source_status",card["source_audit"]["beforeinfo"].get("source_status"),flush=True)
