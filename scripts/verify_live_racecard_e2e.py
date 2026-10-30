@@ -50,7 +50,9 @@ for _,code in candidates[:6]:
         if before=="ok":verified_previews.append(code)
         print(json.dumps({"outcome":"CARD_PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
     except (HTTPError,ValueError,TimeoutError,OSError) as exc:
-        errors.append({"race":code,"error":str(exc)[:160]})
+        errors.append({"race":code,"error":str(exc)[:160],"http_status":getattr(exc,"code",None)})
+if errors:
+    print(json.dumps({"outcome":"PARTIAL_FAILURES","tried":errors},ensure_ascii=False))
 if not verified_cards:
     print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
     raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
