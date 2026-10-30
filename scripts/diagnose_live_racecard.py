@@ -2,7 +2,7 @@
 from datetime import datetime
 from urllib.error import HTTPError, URLError
 from clean_direct_sources import holding_rows
-from clean_racecard import racecard
+from clean_racecard import racecard, _preview_rows
 from research_model import JST
 
 def run():
@@ -33,6 +33,13 @@ def run():
     window=[x for x in upcoming if 120 < (x[0]-now).total_seconds() <= 1320]
     chosen=(window+[x for x in upcoming if x not in window])[:3]
     print("UPCOMING_RACES",len(upcoming),"PREVIEW_WINDOW_RACES",len(window),flush=True)
+    for kind in ("tkz","stt","sui"):
+        try:
+            rows,sha=_preview_rows(kind,f"{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+            observed=sum(1 for row in rows if row.get("レースコード") in {x[1] for x in window})
+            print("PREVIEW_SOURCE",kind,"rows",len(rows),"near_deadline_matches",observed,"sha256",sha,flush=True)
+        except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as e:
+            print("PREVIEW_SOURCE_ERROR",kind,type(e).__name__,str(e)[:120],flush=True)
     for _,code in chosen:
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
