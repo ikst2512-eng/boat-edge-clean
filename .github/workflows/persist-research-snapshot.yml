@@ -76,4 +76,18 @@ jobs:
               raise ValueError("Too late to publish before cutoff")
           PY
           git commit -m "research: preserve predeadline snapshot and model mass"
+          # Recheck immediately before publishing; commit operations consume cutoff time.
+          python - <<'PY'
+          import json, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+          name = subprocess.check_output(
+              ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+              text=True).splitlines()
+          if len(name) != 1 or not name[0].startswith("research_snapshots/"):
+              raise ValueError("Commit must contain exactly one research snapshot")
+          record = json.loads(Path(name[0]).read_text(encoding="utf-8"))
+          if datetime.now(timezone.utc) >= datetime.fromisoformat(record["cutoff_jst"]):
+              raise ValueError("Publication cutoff passed before Git push")
+          PY
           git push origin HEAD:main
