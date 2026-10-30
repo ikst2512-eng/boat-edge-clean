@@ -1,6 +1,8 @@
 """Live source diagnostic. Never writes forecasts or results."""
 from datetime import datetime
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+import json
 from clean_direct_sources import holding_rows
 from clean_racecard import racecard, _preview_rows
 from research_model import JST
@@ -60,6 +62,26 @@ def run():
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
             print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],"source_status",card["source_audit"]["beforeinfo"].get("source_status"),flush=True)
+            # Compare the same race at the real Render API; never infer live
+            # publication from a successful local source fetch alone.
+            url=("https://boat-edge-clean.onrender.com/api/clean-racecard?hd="+day+
+                 "&jcd="+str(int(code[8:10]))+"&rno="+str(int(code[10:12])))
+            try:
+                with urlopen(Request(url,headers={"User-Agent":"CLEAN-SOURCE-PARITY/1.0"}),timeout=12) as response:
+                    live=json.load(response)
+                    if response.status!=200:raise ValueError("render_http_non_200")
+                expected=f"{day}-{code[8:10]}-{code[10:12]}"
+                if live.get("race_key")!=expected or len(live.get("racers",[]))!=6:
+                    raise ValueError("render_race_identity_or_six_boats_invalid")
+                live_audit=live.get("source_audit",{}).get("beforeinfo",{})
+                print("RENDER_PREVIEW_COMPARISON",code,"local",card["source_audit"]["beforeinfo"]["status"],
+                      "render",live_audit.get("status"),"render_sources",live_audit.get("source_status"),flush=True)
+                if card["source_audit"]["beforeinfo"]["status"]=="ok" and live_audit.get("status")=="ok":
+                    if len((live.get("beforeinfo") or {}).get("racers",[]))!=6 or len((live.get("beforeinfo") or {}).get("start_exhibition",[]))!=6:
+                        raise ValueError("render_verified_preview_incomplete")
+                    print("LOCAL_AND_RENDER_SIX_BOAT_PREVIEW_PASS",code,flush=True)
+            except (HTTPError,URLError,OSError,TimeoutError,ValueError,KeyError,TypeError) as remote:
+                print("RENDER_PREVIEW_COMPARISON_UNAVAILABLE",code,type(remote).__name__,str(remote)[:120],flush=True)
             audit=card["source_audit"]["beforeinfo"]
             if audit["status"]=="ok":
                 preview=card.get("beforeinfo") or {}
