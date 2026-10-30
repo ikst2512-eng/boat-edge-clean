@@ -37,6 +37,7 @@ const {chromium}=require('playwright');
   const origin='https://boat-edge-clean.onrender.com';
   const feed='https://boatraceopenapi.github.io/api/v1/'+today.slice(0,4)+'/'+today+'.json';
   let selected=null;
+  let liveExhibitionVerified=false;
   try{
    const response=await fetch(feed,{signal:AbortSignal.timeout(10000)});
    if(response.ok){
@@ -86,12 +87,14 @@ const {chromium}=require('playwright');
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
      if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
       throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     liveExhibitionVerified=true;
      console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({race:expected,exhibition_count:6,values_verified:true}));
     }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
    }else if([400,404,422,502,503].includes(api.http))console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify({race:expected,http:api.http,status:api.body.status}));
    else throw Error('UNEXPECTED_RACE_API_RESPONSE '+api.http);
   }else console.log('NO_LIVE_UPCOMING_RACE_NOT_A_PASS '+today);
   if(errors.length)throw Error('JS_ERRORS '+errors.join('|'));
-  console.log('PASS: Published Pages switches venue/race and card/exhibition without stale selected race.');
+  console.log('PASS_NAVIGATION: Published Pages switches venue/race and card/exhibition without stale selected race.');
+  console.log(liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
