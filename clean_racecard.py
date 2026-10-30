@@ -39,6 +39,7 @@ def _fetch_preview(code,path,deadline):
             return kind,None,"source_unavailable"
         candidates=[]
         matching=0
+        incomplete=0
         for row in rows:
             if row.get("レースコード")!=code:continue
             matching+=1
@@ -61,21 +62,23 @@ def _fetch_preview(code,path,deadline):
                     course=[_num(row.get(f"艇{i}_コース")) for i in range(1,7)]
                     complete=(all(v is not None for v in course) and
                         sorted(course)==[1.,2.,3.,4.,5.,6.] and
-                        all(re.fullmatch(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})",
+                        all(re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})",
                             str(row.get(f"艇{i}_スタート展示") or "").strip()) for i in range(1,7)))
                 else:
                     complete=True
                 if complete:candidates.append((observed,row))
+                else:incomplete+=1
         if candidates:
             observed,row=max(candidates,key=lambda x:x[0])
             return kind,(observed,row,sha),"ok"
-        return kind,None,("race_not_published" if not matching else "deadline_or_timestamp_unverified")
+        return kind,None,("race_not_published" if not matching else "incomplete_exhibition" if incomplete else "deadline_or_timestamp_unverified")
     with ThreadPoolExecutor(max_workers=3) as pool:
         found=list(pool.map(select,("tkz","stt","sui")))
     sources={kind:value for kind,value,state in found if value is not None}
     availability={kind:state for kind,value,state in found}
     if "tkz" not in sources or "stt" not in sources:
-        return None,{"status":"not_published_or_unavailable","source_status":availability}
+        status=("invalid_or_incomplete_exhibition" if any(availability.get(k)=="incomplete_exhibition" for k in ("tkz","stt")) else "not_published_or_unavailable")
+        return None,{"status":status,"source_status":availability}
     racers=[];starts=[]
     tkz=sources["tkz"][1];stt=sources["stt"][1]
     for lane in range(1,7):
