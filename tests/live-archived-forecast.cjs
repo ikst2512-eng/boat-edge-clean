@@ -140,6 +140,19 @@ const {chromium}=require('playwright');
   const selected=await page.evaluate(()=>({view:activeView,key:sameRaceKey()}));
   if(selected.view!=='forecast'||selected.key!=='20261030-01-01')throw Error('DAILY_REVIEW_LINK_BROKEN '+JSON.stringify(selected));
   console.log('PASS: Daily 10/30 review displays all 144 races and opens selected race');
+  // Public stylesheet and review venue groups must respect the requested palette.
+  await page.evaluate(()=>{setView('review');render()});
+  await page.waitForFunction(()=>document.querySelectorAll('#dailyReviewRows details.daily-review-venue').length===12,{timeout:45000});
+  const theme=await page.evaluate(()=>({
+   background:getComputedStyle(document.body).backgroundColor,
+   header:getComputedStyle(document.querySelector('header')).backgroundColor,
+   important:getComputedStyle(document.getElementById('dailyReviewSummary')).borderTopColor,
+   venues:document.querySelectorAll('#dailyReviewRows details.daily-review-venue').length,
+   reviewFocused:document.body.classList.contains('review-focused')
+  }));
+  if(theme.background!=='rgb(255, 255, 255)'||theme.header!=='rgb(234, 246, 255)'||theme.important!=='rgb(187, 38, 56)'||theme.venues!==12||!theme.reviewFocused)
+   throw Error('PUBLIC_THEME_OR_REVIEW_MISMATCH '+JSON.stringify(theme));
+  console.log('PASS: live white/pale-blue/red theme and 12 grouped review venues');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
