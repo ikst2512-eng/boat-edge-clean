@@ -7,12 +7,13 @@ from pathlib import Path
 from research_model import JST, BASE, read_rows
 
 
-def choose(now=None, root=None):
+def choose(now=None, root=None, diagnostics=None):
     now = now or datetime.now(JST)
     root = root or Path(__file__).resolve().parents[1]
     day = now.strftime("%Y%m%d")
     rows, received, _ = read_rows(BASE + f"title/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
     cards, cards_received, _ = read_rows(BASE + f"race_cards/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+    stats = {"title_rows": len(rows), "card_rows": len(cards), "valid_cards": 0, "too_close": 0, "already_saved": 0, "eligible": 0}
     card_codes = set()
     for card in cards:
         code = card.get("レースコード", "")
@@ -21,6 +22,7 @@ def choose(now=None, root=None):
                 card_codes.add(code)
         except (ValueError, TypeError, KeyError):
             continue
+    stats["valid_cards"] = len(card_codes)
     possible = []
     for row in rows:
         code = row.get("レースコード", "")
@@ -37,10 +39,15 @@ def choose(now=None, root=None):
         if code not in card_codes:
             continue
         if min((cutoff - now).total_seconds(), (cutoff - received).total_seconds(), (cutoff - cards_received).total_seconds()) < 1800:
+            stats["too_close"] += 1
             continue
         if (root / "research_snapshots" / (code + ".json")).exists():
+            stats["already_saved"] += 1
             continue
         possible.append((deadline, code, day, venue, race))
+    stats["eligible"] = len(possible)
+    if diagnostics is not None:
+        diagnostics.update(stats)
     if not possible:
         return None
     return min(possible)[2:]
