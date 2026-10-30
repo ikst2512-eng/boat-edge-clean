@@ -77,8 +77,14 @@ const {chromium}=require('playwright');
      const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
      const body=await response.json();
      return {http:response.status,body};
+    }catch(error){
+     return {http:0,error:String(error),body:null};
     }finally{clearTimeout(timeout)}
    },url);
+   if(api.http===0){
+    console.log('LIVE_RACE_API_TIMEOUT_OR_NETWORK_NOT_A_PASS '+JSON.stringify({url,error:api.error}));
+    continue;
+   }
    const expected=today+'-'+String(selected.venue).padStart(2,'0')+'-'+String(selected.race).padStart(2,'0');
    if(api.http===200){
     const d=api.body;
