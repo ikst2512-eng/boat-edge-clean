@@ -54,6 +54,17 @@ const {chromium}=require('playwright');
    if(JSON.stringify(tickets)!==JSON.stringify(record.predictions))throw Error('SECONDARY_DISPLAY_MISMATCH '+item.race);
    console.log('PASS: race switch displays exact saved forecast '+item.race);
   }
+  // Today's finished races must show actual saved results beside saved forecasts.
+  const settledCode='202610300301';
+  const confirmedResp=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+settledCode+'.json',{timeout:20000});
+  if(!confirmedResp.ok())throw Error('CONFIRMED_RESULT_MISSING '+confirmedResp.status());
+  const confirmed=await confirmedResp.json();
+  if(confirmed.race_code!==settledCode||confirmed.status!=='confirmed')throw Error('CONFIRMED_RESULT_INVALID');
+  await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
+  await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果',{timeout:35000});
+  const visible=await page.evaluate(()=>({text:document.getElementById('forecastResultDetail').textContent,predictions:predictionTickets.slice()}));
+  if(!visible.text.includes(confirmed.finish_order.join(' - '))||visible.predictions.length!==10)throw Error('FORECAST_RESULT_NOT_VISIBLE '+JSON.stringify(visible));
+  console.log('PASS: Oct 30 venue 03 race 1 both confirmed result and saved 10 predictions visible');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
