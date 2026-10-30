@@ -110,8 +110,8 @@ def run():
                     else:
                         print("LOCAL_RENDER_PREVIEW_DIFFERENT_SNAPSHOT_NOT_A_VALUE_PASS",code,flush=True)
             except ValueError as remote:
-                if str(remote).startswith("RENDER_PREVIEW_VALUE_MISMATCH_"):
-                    print("RENDER_PREVIEW_VALUES_MISMATCH",code,str(remote),flush=True)
+                if str(remote).startswith(("RENDER_PREVIEW_VALUE_MISMATCH_", "render_race_identity_or_six_boats_invalid", "render_verified_preview_incomplete")):
+                    print("RENDER_PREVIEW_INTEGRITY_MISMATCH",code,str(remote),flush=True)
                     raise RuntimeError("RENDER_PREVIEW_VALUES_MISMATCH_"+code) from remote
                 print("RENDER_PREVIEW_COMPARISON_INVALID",code,str(remote)[:120],flush=True)
             except (HTTPError,URLError,OSError,TimeoutError,KeyError,TypeError) as remote:
