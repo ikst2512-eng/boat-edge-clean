@@ -55,8 +55,13 @@ const {chromium}=require('playwright');
       }
      }
     }
+    // A race closing soon is more likely to have published exhibition data.
+    // Prefer the 2–22 minute pre-cutoff window; preserve fallback for diagnostics.
+    const previewWindow=upcoming.filter(x=>x.cutoff<=Date.now()+22*60*1000);
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
-    selected=upcoming[0]||null;
+    previewWindow.sort((a,b)=>a.cutoff-b.cutoff);
+    selected=previewWindow[0]||upcoming[0]||null;
+    console.log('LIVE_PREVIEW_WINDOW_CANDIDATES '+JSON.stringify({count:previewWindow.length}));
     console.log('LIVE_SCHEDULE_CANDIDATES '+JSON.stringify({date:today,count:upcoming.length,selected}));
    }
   }catch(e){console.log('LIVE_SCHEDULE_LOOKUP_UNAVAILABLE '+String(e).slice(0,130));}
