@@ -79,7 +79,17 @@ def run():
                 if card["source_audit"]["beforeinfo"]["status"]=="ok" and live_audit.get("status")=="ok":
                     if len((live.get("beforeinfo") or {}).get("racers",[]))!=6 or len((live.get("beforeinfo") or {}).get("start_exhibition",[]))!=6:
                         raise ValueError("render_verified_preview_incomplete")
-                    print("LOCAL_AND_RENDER_SIX_BOAT_PREVIEW_PASS",code,flush=True)
+                    def normalized(preview):
+                        return (
+                            sorted((int(r["lane"]),float(r["exhibition_time"]),float(r["tilt"]))
+                                   for r in preview["racers"]),
+                            sorted((int(r["lane"]),int(r["course"]),str(r["st"]).strip())
+                                   for r in preview["start_exhibition"])
+                        )
+                    if normalized(card["beforeinfo"])!=normalized(live["beforeinfo"]):
+                        print("LOCAL_RENDER_SIX_BOAT_VALUES_MISMATCH",code,flush=True)
+                    else:
+                        print("LOCAL_AND_RENDER_SIX_BOAT_VALUES_MATCH",code,flush=True)
             except (HTTPError,URLError,OSError,TimeoutError,ValueError,KeyError,TypeError) as remote:
                 print("RENDER_PREVIEW_COMPARISON_UNAVAILABLE",code,type(remote).__name__,str(remote)[:120],flush=True)
             audit=card["source_audit"]["beforeinfo"]
