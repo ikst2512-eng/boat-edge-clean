@@ -152,6 +152,22 @@ class CleanRacecardTests(unittest.TestCase):
             "sui":"deadline_or_timestamp_unverified"})
         self.assertEqual(audit["status"],"not_published_or_unavailable")
 
+    def test_future_timestamped_preview_is_rejected_before_deadline(self):
+        now=datetime.now(JST)
+        hd=now.strftime("%Y%m%d")
+        code=hd+"0101"
+        deadline=now+timedelta(hours=2)
+        future=now+timedelta(hours=1)
+        row={"レースコード":code,"締切時刻":deadline.strftime("%H:%M"),
+             "取得日時":future.isoformat()}
+        for i in range(1,7):
+            row.update({f"艇{i}_展示タイム":"6.8",f"艇{i}_チルト":"0",
+                        f"艇{i}_コース":str(i),f"艇{i}_スタート展示":"0.12"})
+        with patch.object(clean_racecard,"_preview_rows",return_value=([row],"f"*64)):
+            preview,audit=clean_racecard._fetch_preview(code,"future.csv",deadline)
+        self.assertIsNone(preview)
+        self.assertEqual(audit["source_status"]["tkz"],"deadline_or_timestamp_unverified")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
