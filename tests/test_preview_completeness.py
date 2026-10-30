@@ -33,6 +33,7 @@ class PreviewCompletenessTests(TestCase):
             stt["艇4_スタート展示"] = "F.01"
             preview, audit = _fetch_preview(code, "2026/10/30.csv", deadline)
             self.assertEqual(audit["status"], "ok")
+            self.assertEqual(audit["source_status"], {"tkz": "ok", "stt": "ok", "sui": "race_not_published"})
             self.assertEqual(len(preview["start_exhibition"]), 6)
 
 
