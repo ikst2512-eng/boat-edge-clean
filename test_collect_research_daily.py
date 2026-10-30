@@ -14,6 +14,18 @@ class CollectorTests(unittest.TestCase):
   self.code=self.day+"1201"
   self.title={"レースコード":self.code,"電話投票締切予定":"23:59"}
   self.card={"レースコード":self.code,**{f"艇{i}_全国勝率":"6.0" for i in range(1,7)}}
+ def test_primary_csv_outage_uses_independent_pre_race_program(self):
+  start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
+  source={"source":"nonofficial_openapi_v1","valid":1,"rejected":0}
+  with patch.object(collector,"model_provenance",return_value={"model_git_sha":"a"*40,"model_source_sha256":"b"*64}),patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=OSError("primary unavailable")),patch("clean_openapi_sources.load",return_value=([self.title],[self.card],start,"c"*64,source)) as alternate:
+   result=collector.collect(self.day)
+  self.assertEqual(result["saved"],1)
+  alternate.assert_called_once_with(self.day)
+  record=json.loads(next(self.store.glob("*.json")).read_text())
+  self.assertEqual(record["input_source_kind"],"nonofficial_openapi_v1")
+  self.assertEqual(record["source_title_sha256"],"c"*64)
+  self.assertEqual(len(record["predictions"]),10)
+
  def test_save_and_reuse(self):
   start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
   with patch.object(collector,"model_provenance",return_value={"model_git_sha":"a"*40,"model_source_sha256":"b"*64}),patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([self.card],start,"b"*64)]):
