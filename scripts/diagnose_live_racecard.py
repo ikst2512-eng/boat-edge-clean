@@ -85,6 +85,7 @@ def run():
                     print("SOURCE_RENDER_PREVIEW_DIVERGENCE",code,
                           "source_verified_render_unavailable",render_status,
                           live_audit.get("source_status"),flush=True)
+                    raise RuntimeError("SOURCE_VERIFIED_BUT_RENDER_PREVIEW_MISSING_"+code)
                 elif local_status!="ok" and render_status=="ok":
                     print("SOURCE_RENDER_PREVIEW_DIVERGENCE",code,
                           "render_verified_source_unavailable",local_status,flush=True)
