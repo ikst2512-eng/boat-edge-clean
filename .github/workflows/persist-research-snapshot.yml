@@ -130,3 +130,17 @@ jobs:
               out.write(f"- Remote verification checked at UTC: {datetime.now(timezone.utc).isoformat()}\\n")
               out.write("- Scope: research only; remote verification time is not GitHub's server commit timestamp\\n")
           PY
+
+      - name: Summarize research snapshot run
+        if: always()
+        env:
+          GENERATION: ${{ steps.generate.outcome }}
+          RESULT: ${{ steps.generate.outputs.status }}
+        run: |
+          {
+            echo '### Research snapshot outcome'
+            echo "Generation: ${GENERATION:-unknown}"
+            echo "Result: ${RESULT:-not-created}"
+            echo 'If generation failed, inspect its step log for source, input or cutoff errors.'
+            echo 'If generated, inspect publish step and remote commit confirmation.'
+          } >> "$GITHUB_STEP_SUMMARY"
