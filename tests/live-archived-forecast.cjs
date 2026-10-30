@@ -65,6 +65,15 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>displayedPredictionKey==='20261030-03-01'&&predictionTickets.length===10,{timeout:30000});
   const visible=await page.evaluate(()=>({text:document.getElementById('forecastResultDetail').textContent,predictions:predictionTickets.slice()}));
   if(!visible.text.includes(confirmed.finish_order.join(' - '))||visible.predictions.length!==10)throw Error('FORECAST_RESULT_NOT_VISIBLE '+JSON.stringify(visible));
+  // Verify repeated same-race refresh never blanks already validated views.
+  await page.evaluate(()=>{loadPredictions(true);loadForecastResult();});
+  const refreshState=await page.evaluate(()=>({
+   tickets:predictionTickets.slice(),result:document.getElementById('forecastResultDetail').textContent,
+   status:document.getElementById('forecastResultStatus').textContent
+  }));
+  if(JSON.stringify(refreshState.tickets)!==JSON.stringify(visible.predictions)||!refreshState.result.includes(confirmed.finish_order.join(' - ')))
+   throw Error('SAME_RACE_REFRESH_BLANKED_VIEW '+JSON.stringify(refreshState));
+  await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果',{timeout:35000});
   console.log('PASS: Oct 30 venue 03 race 1 both confirmed result and saved 10 predictions visible');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
