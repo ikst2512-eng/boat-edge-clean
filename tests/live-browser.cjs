@@ -80,7 +80,7 @@ const fs=require('node:fs');
   }
   // Certified 2026-10-28 Karatsu 12R: saved before-deadline verified hit,
   // official finish 1-4-5. Inspect real rendered verdict rather than a mock.
-  await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-10-28';s.venue=22;s.race=12;setView('result');render();});
+  await page.evaluate(()=>{datePinned=true;venueTouched=true;s.date='2026-10-28';s.venue=22;s.race=12;setView('forecast');render();});
   const hitCard=page.locator('#resultList .clean-race-card').nth(11);
   await hitCard.locator('.clean-race-verdict').waitFor({timeout:60000});
   if((await hitCard.locator('.clean-race-verdict').innerText())!=='◎ 予想的中')throw Error('Verified Karatsu 12R hit badge missing');
