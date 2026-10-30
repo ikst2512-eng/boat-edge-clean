@@ -98,7 +98,7 @@ const {chromium}=require('playwright');
   // Independently verify all 12 completed races for two different venues.
   for(const venue of [0,2]){
    await page.evaluate(v=>{s.venue=v;s.race=1;setView('forecast');render();},venue);
-   await page.waitForFunction(v=>document.querySelectorAll('#resultList .clean-race-card').length===12&&document.getElementById('resultListStatus').textContent.includes(names[v]),venue,{timeout:45000});
+   await page.waitForFunction(v=>document.querySelectorAll('#resultList .clean-race-card').length===12&&document.getElementById('resultListStatus').textContent.includes(names[v]+'｜')&&document.getElementById('resultListStatus').textContent.includes('結果確定 12/12R'),venue,{timeout:45000});
    const states=await page.evaluate(()=>[...document.querySelectorAll('#resultList .clean-race-card')].map((node,i)=>({
      race:node.querySelector('.clean-race-head strong')?.textContent,
      state:node.querySelector('.clean-race-state')?.textContent
