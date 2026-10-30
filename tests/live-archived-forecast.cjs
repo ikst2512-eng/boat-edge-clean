@@ -62,6 +62,7 @@ const {chromium}=require('playwright');
   if(confirmed.race_code!==settledCode||confirmed.status!=='confirmed')throw Error('CONFIRMED_RESULT_INVALID');
   await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果',{timeout:35000});
+  await page.waitForFunction(()=>displayedPredictionKey==='20261030-03-01'&&predictionTickets.length===10,{timeout:30000});
   const visible=await page.evaluate(()=>({text:document.getElementById('forecastResultDetail').textContent,predictions:predictionTickets.slice()}));
   if(!visible.text.includes(confirmed.finish_order.join(' - '))||visible.predictions.length!==10)throw Error('FORECAST_RESULT_NOT_VISIBLE '+JSON.stringify(visible));
   console.log('PASS: Oct 30 venue 03 race 1 both confirmed result and saved 10 predictions visible');
