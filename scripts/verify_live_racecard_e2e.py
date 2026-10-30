@@ -24,7 +24,7 @@ except (HTTPError,OSError,ValueError,TimeoutError):
 candidates=[]
 for row in rows:
     cutoff=datetime.strptime(hd+row["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
-    if cutoff>now+timedelta(minutes=22):
+    if cutoff>now+timedelta(minutes=2):
         candidates.append((cutoff,row["レースコード"]))
 candidates.sort()
 # Prefer a currently published, race-matched predeadline exhibition over
