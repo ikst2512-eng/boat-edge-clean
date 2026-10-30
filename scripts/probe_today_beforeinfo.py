@@ -9,9 +9,11 @@ now=datetime.now(ZoneInfo("Asia/Tokyo"))
 day=now.strftime("%Y/%m/%d.csv")
 print("PROBE_DAY",day,"NOW_JST",now.isoformat(),flush=True)
 sources={}
+rows_by_kind={}
 for kind in ("tkz","stt","sui"):
     try:
         rows,digest=_preview_rows(kind,day)
+        rows_by_kind[kind]=rows
         before=[]
         for row in rows:
             try:
@@ -33,7 +35,7 @@ from clean_racecard import _fetch_preview
 eligible=sorted(sources.get("tkz",set()) & sources.get("stt",set()))
 verified=[]
 if eligible:
-    tkz_rows,_=_preview_rows("tkz",day)
+    tkz_rows=rows_by_kind["tkz"]
     cutoff_by_code={row.get("レースコード"):row.get("締切時刻") for row in tkz_rows}
     for code in eligible[:6]:
         try:
