@@ -33,6 +33,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Generate before cutoff and persist immutable source file
+        id: generate
         env:
           RACE_DATE: ${{ inputs.race_date }}
           VENUE: ${{ inputs.venue }}
@@ -50,6 +51,8 @@ jobs:
               selected = choose()
               if selected is None:
                   print("No race safely before cutoff; no forecast created")
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                      output.write("status=no_eligible_race\n")
                   raise SystemExit(0)
               day, venue, race = map(str, selected)
           if len(day) != 8 or not day.isascii() or not day.isdigit():
@@ -66,8 +69,11 @@ jobs:
           if not target.is_file() or "topn_model_mass_pct" not in target.read_text(encoding="utf-8"):
               raise ValueError("New snapshot not created with TopN mass")
           print("Created research-only snapshot", code, forecast["model_version"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("status=created\n")
           PY
       - name: Commit new snapshot to origin
+        if: steps.generate.outputs.status == 'created'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
