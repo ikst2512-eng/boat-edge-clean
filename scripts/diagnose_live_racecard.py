@@ -60,6 +60,20 @@ def run():
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
             print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],"source_status",card["source_audit"]["beforeinfo"].get("source_status"),flush=True)
+            audit=card["source_audit"]["beforeinfo"]
+            if audit["status"]=="ok":
+                preview=card.get("beforeinfo") or {}
+                ex=preview.get("racers") or []
+                starts=preview.get("start_exhibition") or []
+                if len(ex)!=6 or len(starts)!=6:
+                    raise ValueError("VERIFIED_PREVIEW_INCOMPLETE")
+                if sorted(int(r["lane"]) for r in ex)!=list(range(1,7)):
+                    raise ValueError("VERIFIED_PREVIEW_LANES_INVALID")
+                if sorted(int(r["course"]) for r in starts)!=list(range(1,7)):
+                    raise ValueError("VERIFIED_PREVIEW_COURSES_INVALID")
+                print("LOCAL_SIX_BOAT_PREVIEW_PASS",code,"observed_at",audit["fetched_at"],flush=True)
+            else:
+                print("LOCAL_SIX_BOAT_PREVIEW_NOT_VERIFIED",code,audit["status"],flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError,TypeError) as e:
             print("RACECARD_ERROR",code,type(e).__name__,str(e)[:120],flush=True)
 
