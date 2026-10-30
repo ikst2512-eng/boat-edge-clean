@@ -27,6 +27,31 @@ for row in rows:
     if cutoff>now+timedelta(minutes=22):
         candidates.append((cutoff,row["レースコード"]))
 candidates.sort()
+# Prefer a currently published, race-matched predeadline exhibition over
+# arbitrary earliest races; separately retain the ordinary racecard sample.
+preview_candidates=set()
+try:
+    from clean_racecard import _preview_rows
+    path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
+    matched={}
+    for kind in ("tkz","stt"):
+        preview_rows,_=_preview_rows(kind,path)
+        selected=set()
+        for row in preview_rows:
+            try:
+                code=row["レースコード"]
+                observed=datetime.fromisoformat(row["取得日時"])
+                cutoff=datetime.strptime(hd+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+                if observed.tzinfo and observed<=datetime.now(JST) and observed<cutoff and datetime.now(JST)<cutoff:
+                    selected.add(code)
+            except (ValueError,KeyError,TypeError):
+                continue
+        matched[kind]=selected
+    preview_candidates=matched["tkz"] & matched["stt"]
+except (OSError,ValueError,KeyError,TimeoutError):
+    pass
+candidates.sort(key=lambda item:(item[1] not in preview_candidates,item[0]))
+print(json.dumps({"outcome":"PREVIEW_CANDIDATES","eligible":len(preview_candidates)},ensure_ascii=False))
 if not candidates:
     raise SystemExit("NO_ELIGIBLE_UPCOMING_RACES: need a real predeadline sample")
 errors=[]
@@ -69,7 +94,7 @@ for _,code in candidates[:3]:
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
-        print(json.dumps({"outcome":"CARD_PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
+        print(json.dumps({"outcome":"CARD_PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before,"preview_source_status":audit.get("beforeinfo",{}).get("source_status")},ensure_ascii=False))
     except (HTTPError,ValueError,TimeoutError,OSError) as exc:
         errors.append({"race":code,"error":str(exc)[:160],"http_status":getattr(exc,"code",None)})
 if errors:
