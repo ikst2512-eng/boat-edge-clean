@@ -40,7 +40,7 @@ const fs=require('node:fs');
   const published=await page.evaluate(async()=>{const rows=await cleanListRaceCards('2026-10-28',1);const record=rows.get(1);return record?{name:record['艇1_選手名'],grade:record['艇1_級別'],count:rows.size}:null;});
   if(published?.name&&published.name!=='未提供'){
    await page.waitForFunction(name=>[...document.querySelectorAll('#homeRaceCardList .clean-racer-name')].some(el=>el.textContent===name),published.name,{timeout:15000});
-   const first=page.locator('#homeRaceCardList .clean-race-card').first();
+   const first=page.locator('#homeRaceCardList .clean-race-card').filter({has:page.locator('.clean-racer-name',{hasText:published.name})}).first();
    if(await first.locator('.clean-race-lane').count()!==6)throw Error('Published six-boat racecard incomplete');
    if((await first.locator('.clean-racer-name').first().innerText())!==published.name)throw Error('Racer name mismatch with published CSV');
    if((await first.locator('.clean-racer-class').first().innerText())!==(published.grade||'—'))throw Error('Racer grade mismatch with published CSV');
