@@ -21,6 +21,15 @@ class VerifiedPredictionRefreshContract(unittest.TestCase):
         self.assertIn("if(retain&&(reason===", block)
         self.assertIn("前回検証済みの予想を表示中", block)
 
+    def test_topn_controls_and_rendering_stay_in_sync(self):
+        html = (Path(__file__).resolve().parents[1] / "index.html").read_text(encoding="utf-8")
+        for top in (3, 5, 10):
+            self.assertIn(f'data-prediction-top="{top}"', html)
+        self.assertIn("selectedTop=Number(button.dataset.predictionTop)", html)
+        self.assertIn("predictionTickets.slice(0,selectedTop).forEach", html)
+        self.assertIn("b.setAttribute('aria-pressed',String(b===button))", html)
+        self.assertNotIn("selectedTop=predictionTickets.length;drawPredictions()", html)
+
 
 if __name__ == "__main__":
     unittest.main()
