@@ -67,7 +67,15 @@ const {chromium}=require('playwright');
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
     previewWindow.sort((a,b)=>a.cutoff-b.cutoff);
     // Sample several distinct races: one unpublished feed must not hide other live exhibitions.
-    selections=[...previewWindow,...upcoming.filter(x=>!previewWindow.includes(x))].slice(0,8);
+    // Diversify venues: eight early races from three venues can miss an
+    // independently published preview at another course entirely.
+    const ordered=[...previewWindow,...upcoming.filter(x=>!previewWindow.includes(x))];
+    const usedVenues=new Set();
+    const distinct=ordered.filter(x=>{
+     if(usedVenues.has(x.venue))return false;
+     usedVenues.add(x.venue);return true;
+    });
+    selections=[...distinct,...ordered.filter(x=>!distinct.includes(x))].slice(0,8);
     selected=selections[0]||null;
     console.log('LIVE_PROBE_SELECTED_RACES '+JSON.stringify(selections));
     console.log('LIVE_PREVIEW_WINDOW_CANDIDATES '+JSON.stringify({count:previewWindow.length}));
