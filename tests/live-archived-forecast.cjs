@@ -34,7 +34,7 @@ const {chromium}=require('playwright');
    const record=await archived.json();
    if(record.race_code!==item.race||record.status!=='research'||record.predictions?.length!==10)throw Error('SECONDARY_ARCHIVE_INVALID '+item.race);
    await page.evaluate(v=>{s.venue=v.venue;s.race=v.race;setView('forecast');render();},{venue:item.venue,race:Number(item.race.slice(10))});
-   await page.waitForFunction(expected=>displayedPredictionKey===expected&&predictionTickets.length===10,item.race.slice(0,8)+'-'+item.race.slice(8,10)+'-'+Number(item.race.slice(10)),{timeout:35000});
+   await page.waitForFunction(expected=>displayedPredictionKey===expected&&predictionTickets.length===10,item.race.slice(0,8)+'-'+item.race.slice(8,10)+'-'+item.race.slice(10),{timeout:35000});
    const tickets=await page.evaluate(()=>predictionTickets.slice());
    if(JSON.stringify(tickets)!==JSON.stringify(record.predictions))throw Error('SECONDARY_DISPLAY_MISMATCH '+item.race);
    console.log('PASS: race switch displays exact saved forecast '+item.race);
