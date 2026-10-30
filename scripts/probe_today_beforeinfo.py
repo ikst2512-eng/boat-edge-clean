@@ -43,3 +43,19 @@ for code in eligible[:6]:
     except (ValueError,KeyError,OSError,TimeoutError) as error:
         print("SIX_LANE_ERROR",code,type(error).__name__,flush=True)
 print("VERIFIED_CURRENT_PREDEADLINE",len(verified),flush=True)
+
+# A common race code in two CSVs is not enough: validate the complete adapter.
+from clean_racecard import _fetch_preview
+verified=[]
+for code in sorted(sources.get("tkz",set()) & sources.get("stt",set())):
+    try:
+        deadline_text=next(row["締切時刻"] for row in _preview_rows("tkz",day)[0] if row.get("レースコード")==code)
+        deadline=datetime.strptime(code[:8]+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+        preview,audit=_fetch_preview(code,day,deadline)
+        if audit.get("status")=="ok" and len((preview or {}).get("racers",[]))==6:
+            verified.append(code)
+        else:
+            print("ADAPTER_UNVERIFIED",code,audit.get("status"),flush=True)
+    except (OSError,ValueError,KeyError,TypeError) as exc:
+        print("ADAPTER_ERROR",code,type(exc).__name__,flush=True)
+print("ADAPTER_VERIFIED_CURRENT_PREDEADLINE",len(verified),",".join(verified),flush=True)
