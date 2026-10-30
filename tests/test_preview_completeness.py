@@ -36,6 +36,34 @@ class PreviewCompletenessTests(TestCase):
             self.assertEqual(len(preview["start_exhibition"]), 6)
 
 
+    def test_newer_partial_snapshot_does_not_hide_valid_six_lanes(self):
+        code = "202610300301"
+        deadline = datetime.fromisoformat("2026-10-30T15:00:00+09:00")
+        base = {"レースコード": code, "締切時刻": "15:00",
+                "取得日時": "2026-10-30T14:48:00+09:00"}
+        tkz = dict(base)
+        stt = dict(base)
+        for lane in range(1, 7):
+            tkz[f"艇{lane}_展示タイム"] = "6.72"
+            tkz[f"艇{lane}_チルト"] = "0.0"
+            stt[f"艇{lane}_コース"] = str(lane)
+            stt[f"艇{lane}_スタート展示"] = "0.13"
+        partial_tkz = dict(tkz, **{"取得日時": "2026-10-30T14:51:00+09:00",
+                                     "艇6_展示タイム": ""})
+        partial_stt = dict(stt, **{"取得日時": "2026-10-30T14:52:00+09:00",
+                                     "艇2_スタート展示": ""})
+        rows = {"tkz": [tkz, partial_tkz], "stt": [stt, partial_stt], "sui": []}
+        with patch("clean_racecard._preview_rows",
+                   side_effect=lambda kind, path: (rows[kind], "b" * 64)):
+            preview, audit = _fetch_preview(code, "2026/10/30.csv", deadline)
+        self.assertEqual(audit["status"], "ok")
+        self.assertEqual(len(preview["racers"]), 6)
+        self.assertEqual(len(preview["start_exhibition"]), 6)
+        self.assertEqual(preview["racers"][5]["exhibition_time"], 6.72)
+        self.assertEqual(preview["start_exhibition"][1]["st"], "0.13")
+        self.assertEqual(audit["fetched_at"], "2026-10-30T14:48:00+09:00")
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()
