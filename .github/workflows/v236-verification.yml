@@ -20,6 +20,10 @@ on:
       - 'v236_freeze.py'
       - 'test_v236_freeze.py'
       - 'verification_pipeline.py'
+      - 'collect_four_mode_performance.py'
+      - 'four_mode_performance.py'
+      - 'test_collect_four_mode_performance_integration.py'
+      - 'test_four_mode_performance.py'
       - 'test_verification_pipeline.py'
       - '.github/workflows/v236-verification.yml'
 permissions:
