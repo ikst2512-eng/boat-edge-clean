@@ -6,7 +6,7 @@ on:
   pull_request:
     paths:
       - 'scripts/cross_model_content_audit.py'
-      - 'test_cross_model_content_audit.py'
+      - 'test_cross_model_content_audit.py'\n      - 'index.html'\n      - 'server.py'\n      - 'research_model.py'\n      - 'clean_results.py'
       - '.github/workflows/cross-model-content-audit-tests.yml'
   push:
     branches: [main]
