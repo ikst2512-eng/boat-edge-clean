@@ -13,6 +13,8 @@ def collect(day):
     try:
         titles,t1,title_sha256=read_rows(BASE+"title/"+path)
         cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
+        if not titles or not cards:
+            raise OSError("primary source returned an empty pre-race feed")
         source_kind="public_pre_race_csv"
     except (OSError,TimeoutError) as exc:
         from clean_openapi_sources import load
