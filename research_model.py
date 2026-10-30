@@ -76,12 +76,15 @@ def predict(hd,jcd,rno):
     now=datetime.now(JST)
     if max(t1,t2,now)>cutoff:raise ValueError("not received before 12-minute cutoff")
     rates=[float(matching_c[0][f"艇{i}_全国勝率"]) for i in range(1,7)]
-    predictions=["-".join(map(str,t)) for t,p in probabilities(rates)[:10]]
+    ranked=probabilities(rates)
+    predictions=["-".join(map(str,t)) for t,p in ranked[:10]]
+    # Uncalibrated model mass, not an empirical hit rate or buy recommendation.
+    topn_model_mass_pct={str(n):round(100*sum(p for _,p in ranked[:n]),4) for n in (3,5,10)}
     result={"ok":True,"status":"research","predictions":predictions,
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
-    record=dict(result,race_code=code,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+    record=dict(result,race_code=code,topn_model_mass_pct=topn_model_mass_pct,confidence_calibrated=False,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
                 source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
                     (title_sha256+":"+cards_sha256).encode("ascii")
