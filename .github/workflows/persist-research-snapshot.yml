@@ -48,7 +48,22 @@ jobs:
           race = os.environ["RACE"]
           if not day and not venue and not race:
               from scripts.select_upcoming_research_race import choose
-              selected = choose()
+              try:
+                  selected = choose()
+              except Exception as exc:
+                  from urllib.error import HTTPError, URLError
+                  if isinstance(exc, HTTPError):
+                      reason = "source_http_" + str(exc.code)
+                  elif isinstance(exc, (URLError, TimeoutError, OSError)):
+                      reason = "source_transport_error"
+                  elif isinstance(exc, (ValueError, KeyError, TypeError)):
+                      reason = "source_invalid_data"
+                  else:
+                      raise
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                      output.write("status=" + reason + "\\n")
+                  print("::warning::Research source unavailable: " + reason)
+                  raise SystemExit(0)
               if selected is None:
                   print("No race safely before cutoff; no forecast created")
                   with open(os.environ["GITHUB_OUTPUT"], "a") as output:
