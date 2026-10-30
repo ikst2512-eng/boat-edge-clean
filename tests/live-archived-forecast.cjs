@@ -126,6 +126,18 @@ const {chromium}=require('playwright');
   }));
   if(linked.count!==12||!linked.first?.includes('2 - 3 - 1'))throw Error('RACE_CARD_FINISH_NOT_LINKED '+JSON.stringify(linked));
   console.log('PASS: every completed race displays its confirmed finish on the same race card');
+  // End-to-end date-wide review: all scheduled races are visible, and a row opens its own race.
+  await page.evaluate(()=>{datePinned=true;s.date='2026-10-30';setView('review');render();});
+  await page.locator('#dailyReviewDate').fill('2026-10-30');
+  await page.locator('#dailyReviewReload').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#dailyReviewRows .daily-review-row').length===144,{timeout:45000});
+  await page.waitForFunction(()=>document.getElementById('dailyReviewSummary').textContent.includes('確認 144/144R'),{timeout:90000});
+  const review=await page.evaluate(()=>({rows:document.querySelectorAll('#dailyReviewRows .daily-review-row').length,summary:document.getElementById('dailyReviewSummary').textContent,first:document.querySelector('#dailyReviewRows .daily-review-row')?.textContent}));
+  if(review.rows!==144||!review.summary.includes('対象 144R'))throw Error('DAILY_REVIEW_INCOMPLETE '+JSON.stringify(review));
+  await page.locator('#dailyReviewRows .daily-review-row').first().click();
+  const selected=await page.evaluate(()=>({view:activeView,key:sameRaceKey()}));
+  if(selected.view!=='forecast'||selected.key!=='20261030-01-01')throw Error('DAILY_REVIEW_LINK_BROKEN '+JSON.stringify(selected));
+  console.log('PASS: Daily 10/30 review displays all 144 races and opens selected race');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
