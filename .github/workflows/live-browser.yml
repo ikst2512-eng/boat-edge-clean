@@ -15,16 +15,6 @@ jobs:
   browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: pages
-            url: https://ikst2512-eng.github.io/boat-edge-clean/
-          - target: render
-            url: https://boat-edge-clean.onrender.com/
-    env:
-      CLEAN_SITE_URL: ${{ matrix.url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,7 +25,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.58.2
           npx playwright install --with-deps --only-shell chromium
-      - name: Test published site (${{ matrix.target }})
+      - name: Test real published Pages and Render API
         shell: bash
         run: |
           set -o pipefail
@@ -46,7 +36,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: clean-browser-${{ matrix.target }}-${{ github.run_id }}
+          name: clean-browser-pages-${{ github.run_id }}
           path: |
             browser-smoke.log
             test-results/
