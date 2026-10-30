@@ -26,6 +26,16 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(record["source_title_sha256"],"c"*64)
   self.assertEqual(len(record["predictions"]),10)
 
+ def test_http_unavailable_uses_alternate_before_cutoff(self):
+  start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
+  metadata={"source":"nonofficial_openapi_v1","valid":1,"rejected":0}
+  with patch.object(collector,"model_provenance",return_value={"model_git_sha":"a"*40,"model_source_sha256":"b"*64}),patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=ValueError("source unavailable")),patch("clean_openapi_sources.load",return_value=([self.title],[self.card],start,"d"*64,metadata)) as alternate:
+   self.assertEqual(collector.collect(self.day)["saved"],1)
+  alternate.assert_called_once_with(self.day)
+  record=json.loads(next(self.store.glob("*.json")).read_text())
+  self.assertEqual(record["input_source_kind"],"nonofficial_openapi_v1")
+  self.assertEqual(len(record["predictions"]),10)
+
  def test_save_and_reuse(self):
   start=datetime.strptime(self.day+"23:59","%Y%m%d%H:%M").replace(tzinfo=JST)-timedelta(hours=3)
   with patch.object(collector,"model_provenance",return_value={"model_git_sha":"a"*40,"model_source_sha256":"b"*64}),patch.object(collector,"STORE",self.store),patch("research_model.STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([self.card],start,"b"*64)]):
