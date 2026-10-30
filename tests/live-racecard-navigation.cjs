@@ -118,6 +118,26 @@ const {chromium}=require('playwright');
   }else console.log('NO_LIVE_UPCOMING_RACE_NOT_A_PASS '+today);
   if(errors.length)throw Error('JS_ERRORS '+errors.join('|'));
   console.log('PASS_NAVIGATION: Published Pages switches venue/race and card/exhibition without stale selected race.');
-  console.log(liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS');
+  const exhibitionVerdict=liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS';
+  console.log(exhibitionVerdict);
+  if(process.env.GITHUB_STEP_SUMMARY){
+   const fs=require('node:fs');
+   const proof=liveExhibitionVerified?'実証済み（APIと画面の6艇分が一致）':'未実証（展示6艇分の一致確認なし）';
+   const rows=[
+    '## BOAT EDGE CLEAN 公開ブラウザ検証',
+    '',
+    '| 検証項目 | 結果 |',
+    '| --- | --- |',
+    '| 公開Pagesの画面遷移 | 成功 |',
+    '| 締切前展示6艇分の本番照合 | '+proof+' |',
+    '| 実測対象レース | '+(selected?selections.map(x=>today+'-'+String(x.venue).padStart(2,'0')+'-'+String(x.race).padStart(2,'0')).join(', '):'なし')+' |',
+    '',
+    '判定: \`'+exhibitionVerdict+'\`',
+    '',
+    'Navigation CI成功だけでは展示実測成功を意味しません。',
+    ''
+   ];
+   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,rows.join('\n')+'\n');
+  }
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
