@@ -97,7 +97,12 @@ def run():
                         print("LOCAL_AND_RENDER_SIX_BOAT_PREVIEW_VALUE_PASS",code,flush=True)
                     else:
                         print("LOCAL_RENDER_PREVIEW_DIFFERENT_SNAPSHOT_NOT_A_VALUE_PASS",code,flush=True)
-            except (HTTPError,URLError,OSError,TimeoutError,ValueError,KeyError,TypeError) as remote:
+            except ValueError as remote:
+                if str(remote).startswith("RENDER_PREVIEW_VALUE_MISMATCH_"):
+                    print("RENDER_PREVIEW_VALUES_MISMATCH",code,str(remote),flush=True)
+                    raise RuntimeError("RENDER_PREVIEW_VALUES_MISMATCH_"+code) from remote
+                print("RENDER_PREVIEW_COMPARISON_INVALID",code,str(remote)[:120],flush=True)
+            except (HTTPError,URLError,OSError,TimeoutError,KeyError,TypeError) as remote:
                 print("RENDER_PREVIEW_COMPARISON_UNAVAILABLE",code,type(remote).__name__,str(remote)[:120],flush=True)
             audit=card["source_audit"]["beforeinfo"]
             if audit["status"]=="ok":
