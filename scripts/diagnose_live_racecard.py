@@ -76,6 +76,15 @@ def run():
                 live_audit=live.get("source_audit",{}).get("beforeinfo",{})
                 print("RENDER_PREVIEW_COMPARISON",code,"local",card["source_audit"]["beforeinfo"]["status"],
                       "render",live_audit.get("status"),"render_sources",live_audit.get("source_status"),flush=True)
+                local_status=card["source_audit"]["beforeinfo"]["status"]
+                render_status=live_audit.get("status")
+                if local_status=="ok" and render_status!="ok":
+                    print("SOURCE_RENDER_PREVIEW_DIVERGENCE",code,
+                          "source_verified_render_unavailable",render_status,
+                          live_audit.get("source_status"),flush=True)
+                elif local_status!="ok" and render_status=="ok":
+                    print("SOURCE_RENDER_PREVIEW_DIVERGENCE",code,
+                          "render_verified_source_unavailable",local_status,flush=True)
                 if card["source_audit"]["beforeinfo"]["status"]=="ok" and live_audit.get("status")=="ok":
                     if len((live.get("beforeinfo") or {}).get("racers",[]))!=6 or len((live.get("beforeinfo") or {}).get("start_exhibition",[]))!=6:
                         raise ValueError("render_verified_preview_incomplete")
