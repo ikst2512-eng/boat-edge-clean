@@ -29,5 +29,16 @@ class ForecastPreviewOriginTests(unittest.TestCase):
         self.assertIn("推測表示しません", preview)
 
 
+    def test_source_diagnostics_remain_visible_when_preview_unverified(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        preview = page.split("async function loadForecastPreview()", 1)[1].split("async function loadRaceData(", 1)[0]
+        self.assertIn("raw.source_audit?.beforeinfo?.source_status", preview)
+        for kind in ("tkz", "stt", "sui"):
+            self.assertIn("explain('"+kind+"')", preview)
+        for state in ("source_unavailable", "race_not_published", "deadline_or_timestamp_unverified"):
+            self.assertIn(state, preview)
+        self.assertIn("未取得・未検証", preview)
+
+
 if __name__ == "__main__":
     unittest.main()
