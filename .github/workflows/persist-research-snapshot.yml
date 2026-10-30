@@ -62,8 +62,8 @@ jobs:
                       raise
                   with open(os.environ["GITHUB_OUTPUT"], "a") as output:
                       output.write("status=" + reason + "\n")
-                  print("::warning::Research source unavailable: " + reason)
-                  raise SystemExit(0)
+                  print("::error::Research source unavailable: " + reason)
+                  raise RuntimeError("research source failed: " + reason) from exc
               if selected is None:
                   print("No race safely before cutoff; no forecast created")
                   with open(os.environ["GITHUB_OUTPUT"], "a") as output:
