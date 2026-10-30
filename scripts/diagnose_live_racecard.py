@@ -33,13 +33,29 @@ def run():
     window=[x for x in upcoming if 120 < (x[0]-now).total_seconds() <= 1320]
     chosen=(window+[x for x in upcoming if x not in window])[:3]
     print("UPCOMING_RACES",len(upcoming),"PREVIEW_WINDOW_RACES",len(window),flush=True)
+    seen_preview={}
     for kind in ("tkz","stt","sui"):
         try:
             rows,sha=_preview_rows(kind,f"{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
-            observed=sum(1 for row in rows if row.get("レースコード") in {x[1] for x in window})
+            eligible={x[1]:x[0] for x in upcoming}
+            matched=set()
+            for row in rows:
+                code=row.get("レースコード")
+                if code not in eligible or row.get("締切時刻")!=eligible[code].strftime("%H:%M"):continue
+                try:
+                    timestamp=datetime.fromisoformat(row.get("取得日時",""))
+                except (ValueError,TypeError):continue
+                if timestamp.tzinfo and timestamp<=now and timestamp<eligible[code]:matched.add(code)
+            seen_preview[kind]=matched
+            observed=len(matched & {x[1] for x in window})
             print("PREVIEW_SOURCE",kind,"rows",len(rows),"near_deadline_matches",observed,"sha256",sha,flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as e:
             print("PREVIEW_SOURCE_ERROR",kind,type(e).__name__,str(e)[:120],flush=True)
+    if "tkz" in seen_preview and "stt" in seen_preview:
+        published=seen_preview["tkz"] & seen_preview["stt"]
+        priority=[x for x in upcoming if x[1] in published]
+        chosen=(priority+[x for x in chosen if x not in priority])[:3]
+        print("PUBLISHED_PREDEADLINE_PREVIEW_CANDIDATES",len(priority),"SELECTED",[x[1] for x in chosen],flush=True)
     for _,code in chosen:
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
