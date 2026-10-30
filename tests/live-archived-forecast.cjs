@@ -95,6 +95,18 @@ const {chromium}=require('playwright');
   })));
   if(list.length!==12||list.some((item,i)=>item.race!==(i+1)+'R'))throw Error('RESULT_LIST_RACE_ORDER_INVALID '+JSON.stringify(list));
   console.log('PASS: published venue 06 result list has 12 ordered race cards');
+  // Independently verify all 12 completed races for two different venues.
+  for(const venue of [0,2]){
+   await page.evaluate(v=>{s.venue=v;s.race=1;setView('forecast');render();},venue);
+   await page.waitForFunction(v=>document.querySelectorAll('#resultList .clean-race-card').length===12&&document.getElementById('resultListStatus').textContent.includes(names[v]+'｜')&&document.getElementById('resultListStatus').textContent.includes('結果確定 12/12R'),venue,{timeout:45000});
+   const states=await page.evaluate(()=>[...document.querySelectorAll('#resultList .clean-race-card')].map((node,i)=>({
+     race:node.querySelector('.clean-race-head strong')?.textContent,
+     state:node.querySelector('.clean-race-state')?.textContent
+   })));
+   if(states.length!==12||states.some((v,i)=>v.race!==(i+1)+'R'||v.state!=='結果確定'))
+    throw Error('CONFIRMED_LIST_MISMATCH_VENUE_'+(venue+1)+' '+JSON.stringify(states));
+   console.log('PASS: venue '+(venue+1)+' all twelve results confirmed');
+  }
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
