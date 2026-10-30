@@ -20,7 +20,7 @@ def run():
                 print("OPENAPI_RACE",row["レースコード"],row["電話投票締切予定"],flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as alt:
             print("OPENAPI_SOURCE_ERROR",type(alt).__name__,str(alt)[:120],flush=True)
-        return
+            return
     print("HOLDING_SOURCE_ROWS",len(titles),flush=True)
     now=datetime.now(JST)
     upcoming=[]
@@ -34,7 +34,7 @@ def run():
     for _,code in upcoming[:3]:
         try:
             card=racecard(day,str(int(code[8:10])),str(int(code[10:12])))
-            print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],flush=True)
+            print("RACECARD_OK",code,"racers",len(card["racers"]),"source",card["meta"]["source"],"preview",card["source_audit"]["beforeinfo"]["status"],"source_status",card["source_audit"]["beforeinfo"].get("source_status"),flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError,TypeError) as e:
             print("RACECARD_ERROR",code,type(e).__name__,str(e)[:120],flush=True)
 
