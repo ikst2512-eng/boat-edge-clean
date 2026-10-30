@@ -837,7 +837,9 @@ async function loadForecastPreview(){
   if(raw.race_key!==key||raw.source_audit?.beforeinfo?.status!=='ok'||!Number.isFinite(observed)||!Number.isFinite(deadline)||observed>=deadline||
      !Array.isArray(raw.beforeinfo?.racers)||raw.beforeinfo.racers.length!==6||
      !Array.isArray(raw.beforeinfo?.start_exhibition)||raw.beforeinfo.start_exhibition.length!==6){
-   status.textContent='直前情報は未取得・未検証（展示タイム・チルト・展示STを推測表示しません）';return;
+   const source=raw.source_audit?.beforeinfo?.source_status||{};
+   const explain=k=>({ok:'取得済',source_unavailable:'取得元に接続不可',race_not_published:'対象レース未公開',deadline_or_timestamp_unverified:'時刻未検証'})[source[k]]||'未検証';
+   status.textContent='直前情報は未取得・未検証｜展示:'+explain('tkz')+'｜スタート展示:'+explain('stt')+'｜水面:'+explain('sui')+'（数値は推測表示しません）';return;
   }
   for(let lane=1;lane<=6;lane++){
    const ex=raw.beforeinfo.racers.find(v=>Number(v.lane)===lane);
