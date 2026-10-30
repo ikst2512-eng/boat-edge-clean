@@ -13,6 +13,19 @@ def run():
     stats = {"matched": 0, "top3": 0, "top5": 0, "top10": 0,
              "rejected": 0, "forecast_only": len(forecast_paths.keys() - result_paths.keys()),
              "result_only": len(result_paths.keys() - forecast_paths.keys())}
+    mass_coverage = {"all_forecasts": len(forecast_paths), "with_topn_mass": 0, "without_topn_mass": 0, "invalid_topn_mass": 0}
+    for path in forecast_paths.values():
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            mass = saved.get("topn_model_mass_pct")
+            if mass is None:
+                mass_coverage["without_topn_mass"] += 1
+            elif (isinstance(mass, dict) and all(isinstance(mass.get(str(n)), (int, float)) and not isinstance(mass[str(n)], bool) for n in (3, 5, 10)) and 0 < mass["3"] < mass["5"] < mass["10"] <= 100 and saved.get("confidence_calibrated") is False):
+                mass_coverage["with_topn_mass"] += 1
+            else:
+                mass_coverage["invalid_topn_mass"] += 1
+        except (OSError, ValueError, TypeError, AttributeError):
+            mass_coverage["invalid_topn_mass"] += 1
     by_model = {}
     confidence_coverage = {"stored_numeric_confidence": 0, "missing_confidence": 0}
     for race_code in sorted(forecast_paths.keys() & result_paths.keys()):
@@ -47,7 +60,7 @@ def run():
             stats["rejected"] += 1
     for n in (3, 5, 10):
         stats[f"top{n}_rate_pct"] = round(100 * stats[f"top{n}"] / stats["matched"], 2) if stats["matched"] else None
-    return {"counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage,
+    return {"counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage, "mass_coverage": mass_coverage,
             "confidence_70_pct_selection": "not_computed_without_verified_pre_race_confidence"}
 
 
