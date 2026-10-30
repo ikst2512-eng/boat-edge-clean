@@ -27,6 +27,18 @@ const {chromium}=require('playwright');
   }));
   if(!shown.visible||JSON.stringify(shown.tickets)!==JSON.stringify(saved.predictions))
    throw Error('DISPLAY_ARCHIVE_MISMATCH '+JSON.stringify(shown));
+  const additional=[{race:'202610300102',venue:0},{race:'202610300701',venue:6}];
+  for(const item of additional){
+   const archived=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/research_snapshots/'+item.race+'.json',{timeout:20000});
+   if(!archived.ok())throw Error('SECONDARY_ARCHIVE_MISSING '+item.race+' '+archived.status());
+   const record=await archived.json();
+   if(record.race_code!==item.race||record.status!=='research'||record.predictions?.length!==10)throw Error('SECONDARY_ARCHIVE_INVALID '+item.race);
+   await page.evaluate(v=>{s.venue=v.venue;s.race=v.race;setView('forecast');render();},{venue:item.venue,race:Number(item.race.slice(10))});
+   await page.waitForFunction(expected=>displayedPredictionKey===expected&&predictionTickets.length===10,item.race.slice(0,8)+'-'+item.race.slice(8,10)+'-'+item.race.slice(10),{timeout:35000});
+   const tickets=await page.evaluate(()=>predictionTickets.slice());
+   if(JSON.stringify(tickets)!==JSON.stringify(record.predictions))throw Error('SECONDARY_DISPLAY_MISMATCH '+item.race);
+   console.log('PASS: race switch displays exact saved forecast '+item.race);
+  }
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
