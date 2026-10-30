@@ -3,7 +3,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - tests/live-browser.cjs
+      - tests/live-racecard-navigation.cjs
+      - tests/live-verified-payout.cjs
+      - tests/live-archived-forecast.cjs
       - .github/workflows/live-browser.yml
   schedule:
     - cron: '25 1 * * *'
@@ -37,7 +39,9 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          node tests/live-browser.cjs 2>&1 | tee browser-smoke.log
+          node tests/live-racecard-navigation.cjs 2>&1 | tee browser-smoke.log
+          node tests/live-verified-payout.cjs 2>&1 | tee -a browser-smoke.log
+          node tests/live-archived-forecast.cjs 2>&1 | tee -a browser-smoke.log
       - name: Preserve browser test log
         if: always()
         uses: actions/upload-artifact@v4
