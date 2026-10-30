@@ -1,7 +1,7 @@
 name: Persist predeadline research snapshot
 on:
   schedule:
-    - cron: '15 2 * * *' # 11:15 JST; actual GitHub start may be delayed
+    - cron: '15 2,3,4,5,6 * * *' # 11:15–15:15 JST; retries for data publication delays
   workflow_dispatch:
     inputs:
       race_date:
