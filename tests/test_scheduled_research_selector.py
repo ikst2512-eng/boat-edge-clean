@@ -14,8 +14,16 @@ class SelectionContract(unittest.TestCase):
         rows = [{"レースコード":date+"0101","電話投票締切予定":"11:35"},
                 {"レースコード":date+"0102","電話投票締切予定":"12:40"},
                 {"レースコード":date+"0103","電話投票締切予定":"13:10"}]
+        cards = []
+        for row in rows:
+            card = {"レースコード": row["レースコード"]}
+            card.update({f"艇{i}_全国勝率": "6.0" for i in range(1, 7)})
+            cards.append(card)
         with TemporaryDirectory() as temp:
-            with patch("scripts.select_upcoming_research_race.read_rows",return_value=(rows,now,"hash")):
+            with patch("scripts.select_upcoming_research_race.read_rows",side_effect=[
+                (rows,now,"title"),(cards,now,"cards"),
+                (rows,now,"title"),(cards,now,"cards")
+            ]):
                 self.assertEqual(choose(now,Path(temp)),(date,1,2))
                 target=Path(temp)/"research_snapshots"
                 target.mkdir()
