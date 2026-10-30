@@ -168,6 +168,31 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertIsNone(preview)
         self.assertEqual(audit["source_status"]["tkz"],"deadline_or_timestamp_unverified")
 
+    def test_newer_partial_snapshot_does_not_hide_complete_predeadline_snapshot(self):
+        now=datetime.now(JST)
+        deadline=now+timedelta(hours=2)
+        hd=now.strftime("%Y%m%d")
+        code=hd+"0101"
+        base={"レースコード":code,"締切時刻":deadline.strftime("%H:%M"),
+              "取得日時":(now-timedelta(minutes=3)).isoformat()}
+        complete=dict(base)
+        for i in range(1,7):
+            complete.update({f"艇{i}_展示タイム":"6.8",f"艇{i}_チルト":"0",
+                             f"艇{i}_コース":str(i),f"艇{i}_スタート展示":"0.12"})
+        partial=dict(complete)
+        partial["取得日時"]=(now-timedelta(minutes=1)).isoformat()
+        partial["艇3_展示タイム"]=""
+        partial["艇4_スタート展示"]=""
+        def read(kind,path):
+            rows=[complete,partial]
+            return rows,"f"*64
+        with patch.object(clean_racecard,"_preview_rows",side_effect=read):
+            preview,audit=clean_racecard._fetch_preview(code,"fixture.csv",deadline)
+        self.assertEqual(audit["status"],"ok")
+        self.assertEqual(len(preview["racers"]),6)
+        self.assertEqual(preview["racers"][2]["exhibition_time"],6.8)
+        self.assertEqual(preview["start_exhibition"][3]["st"],"0.12")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
