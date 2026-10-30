@@ -157,11 +157,11 @@ const {chromium}=require('playwright');
   await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果'&&predictionTickets.length===10,{timeout:35000});
   const combined=await page.evaluate(()=>({
-   panel:document.querySelector('#forecast .forecast-combined-race'),
+   hasPanel:!!document.querySelector('#forecast .forecast-combined-race'),
    result:document.querySelector('#forecast .forecast-combined-race #forecastResultDetail')?.textContent,
    ticketCount:document.querySelectorAll('#forecast .forecast-combined-race #predictionRows .prediction-row').length,
    border:getComputedStyle(document.querySelector('#forecast .forecast-combined-race .forecast-result-preview')).borderTopColor
-  })).then(({panel,...rest})=>({...rest,hasPanel:!!panel}));
+  }));
   if(!combined.hasPanel||!combined.result?.includes('2 - 3 - 1')||combined.ticketCount!==10||combined.border!=='rgb(187, 38, 56)')
    throw Error('COMBINED_FORECAST_RESULT_LAYOUT_BROKEN '+JSON.stringify(combined));
   console.log('PASS: published race forecast and confirmed result share one panel');
