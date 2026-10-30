@@ -16,7 +16,9 @@ def collect(day):
         if not titles or not cards:
             raise OSError("primary source returned an empty pre-race feed")
         source_kind="public_pre_race_csv"
-    except (OSError,TimeoutError) as exc:
+    except (OSError, TimeoutError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc) != 'source unavailable':
+            raise
         from clean_openapi_sources import load
         titles,cards,observed,digest,metadata=load(day)
         t1=t2=observed

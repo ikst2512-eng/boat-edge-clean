@@ -72,7 +72,9 @@ def predict(hd,jcd,rno):
         if not titles or not cards:
             raise OSError("empty pre-race source")
         source_kind="public_pre_race_csv"
-    except (OSError, TimeoutError):
+    except (OSError, TimeoutError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc) != 'source unavailable':
+            raise
         from clean_openapi_sources import load
         titles,cards,observed,digest,source=load(hd)
         t1=t2=observed
