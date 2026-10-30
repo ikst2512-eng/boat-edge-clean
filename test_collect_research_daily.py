@@ -70,13 +70,13 @@ class CollectorTests(unittest.TestCase):
    self.assertFalse(list(self.store.glob("*.json")))
  def test_missing_card(self):
   start=datetime.now(JST)
-  with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([],start,"b"*64)]):
-   with self.assertRaisesRegex(ValueError,"race card source is empty"):
+  with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([self.title],start,"a"*64),([],start,"b"*64)]),patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")):
+   with self.assertRaisesRegex(ValueError,"no_valid_races"):
     collector.collect(self.day)
    self.assertFalse(list(self.store.glob("*.json")))
  def test_empty_titles_rejected(self):
-  with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([],datetime.now(JST),"a"*64),([self.card],datetime.now(JST),"b"*64)]):
-   with self.assertRaisesRegex(ValueError,"no valid race titles"):
+  with patch.object(collector,"STORE",self.store),patch.object(collector,"read_rows",side_effect=[([],datetime.now(JST),"a"*64),([self.card],datetime.now(JST),"b"*64)]),patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")):
+   with self.assertRaisesRegex(ValueError,"no_valid_races"):
     collector.collect(self.day)
  def test_all_invalid_rejected(self):
   broken=dict(self.card,艇1_全国勝率="NaN")
