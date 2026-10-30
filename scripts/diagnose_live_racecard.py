@@ -53,6 +53,9 @@ def run():
             print("PREVIEW_SOURCE",kind,"rows",len(rows),"near_deadline_matches",observed,"sha256",sha,flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError) as e:
             print("PREVIEW_SOURCE_ERROR",kind,type(e).__name__,str(e)[:120],flush=True)
+    # Missing both critical feeds during a genuine 2–22 minute race window
+    # is an actionable upstream outage, not a successful exhibition check.
+    critical_sources_unavailable=bool(window) and not any(k in seen_preview for k in ("tkz","stt"))
     if "tkz" in seen_preview and "stt" in seen_preview:
         published=seen_preview["tkz"] & seen_preview["stt"]
         priority=[x for x in upcoming if x[1] in published]
@@ -129,5 +132,9 @@ def run():
                 print("LOCAL_SIX_BOAT_PREVIEW_NOT_VERIFIED",code,audit["status"],flush=True)
         except (HTTPError,URLError,ValueError,OSError,TimeoutError,KeyError,TypeError) as e:
             print("RACECARD_ERROR",code,type(e).__name__,str(e)[:120],flush=True)
+
+    if critical_sources_unavailable:
+        print("LIVE_PREVIEW_CRITICAL_SOURCES_UNAVAILABLE",day,"preview_window_races",len(window),flush=True)
+        raise RuntimeError("LIVE_PREVIEW_CRITICAL_SOURCES_UNAVAILABLE")
 
 if __name__=="__main__":run()
