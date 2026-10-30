@@ -131,7 +131,7 @@ const {chromium}=require('playwright');
     'Navigation CI成功だけでは展示実測成功を意味しません。',
     ''
    ];
-   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,rows.join('\\n')+'\\n');
+   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,rows.join('\n')+'\n');
   }
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
