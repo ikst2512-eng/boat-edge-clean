@@ -6,6 +6,7 @@ import csv
 import io
 import hashlib
 from urllib.request import Request,urlopen
+from concurrent.futures import ThreadPoolExecutor
 from research_model import BASE,JST,read_rows
 
 
@@ -28,8 +29,9 @@ def _preview_rows(kind,path):
 
 def _fetch_preview(code,path,deadline):
     """Only use race-matched and independently time-stamped predeadline data."""
-    sources={}
-    for kind in ("tkz","stt","sui"):
+    # Concurrent independent source reads keep server response bounded when
+    # one published preview CSV is unavailable or slow.
+    def select(kind):
         try:
             rows,sha=_preview_rows(kind,path)
             candidates=[]
@@ -40,9 +42,13 @@ def _fetch_preview(code,path,deadline):
                     candidates.append((observed,row))
             if candidates:
                 observed,row=max(candidates,key=lambda x:x[0])
-                sources[kind]=(observed,row,sha)
+                return kind,(observed,row,sha)
         except (OSError,ValueError,KeyError,UnicodeError):
-            continue
+            pass
+        return kind,None
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        found=list(pool.map(select,("tkz","stt","sui")))
+    sources={kind:value for kind,value in found if value is not None}
     if "tkz" not in sources or "stt" not in sources:
         return None,{"status":"not_published_or_unavailable"}
     racers=[];starts=[]
