@@ -116,6 +116,10 @@ const {chromium}=require('playwright');
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
      if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
       throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     if(Date.now()>=deadline){
+      console.log('LIVE_EXHIBITION_DISPLAY_AFTER_CUTOFF_NOT_A_PASS '+expected);
+      continue;
+     }
      liveExhibitionVerified=true;
      console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({race:expected,exhibition_count:6,values_verified:true}));
     }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
