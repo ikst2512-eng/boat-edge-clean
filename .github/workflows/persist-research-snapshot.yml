@@ -61,7 +61,7 @@ jobs:
                   else:
                       raise
                   with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-                      output.write("status=" + reason + "\\n")
+                      output.write("status=" + reason + "\n")
                   print("::warning::Research source unavailable: " + reason)
                   raise SystemExit(0)
               if selected is None:
@@ -139,12 +139,12 @@ jobs:
           record = json.loads(Path(changed[0]).read_text(encoding="utf-8"))
           sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
-              out.write("### Remote-persisted research snapshot\\n")
-              out.write(f"- Race: {record['race_code']}\\n")
-              out.write(f"- Commit: {sha}\\n")
-              out.write(f"- Cutoff JST: {record['cutoff_jst']}\\n")
-              out.write(f"- Remote verification checked at UTC: {datetime.now(timezone.utc).isoformat()}\\n")
-              out.write("- Scope: research only; remote verification time is not GitHub's server commit timestamp\\n")
+              out.write("### Remote-persisted research snapshot\n")
+              out.write(f"- Race: {record['race_code']}\n")
+              out.write(f"- Commit: {sha}\n")
+              out.write(f"- Cutoff JST: {record['cutoff_jst']}\n")
+              out.write(f"- Remote verification checked at UTC: {datetime.now(timezone.utc).isoformat()}\n")
+              out.write("- Scope: research only; remote verification time is not GitHub's server commit timestamp\n")
           PY
 
       - name: Summarize research snapshot run
