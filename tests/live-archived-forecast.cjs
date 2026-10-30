@@ -75,6 +75,18 @@ const {chromium}=require('playwright');
    throw Error('SAME_RACE_REFRESH_BLANKED_VIEW '+JSON.stringify(refreshState));
   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果',{timeout:35000});
   console.log('PASS: Oct 30 venue 03 race 1 both confirmed result and saved 10 predictions visible');
+  for(const target of [{code:'202610300302',venue:2,race:2},{code:'202610300602',venue:5,race:2}]){
+   const base='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
+   const [pr,rr]=await Promise.all([page.request.get(base+'prospective_predictions/'+target.code+'.json'),page.request.get(base+'confirmed_results/'+target.code+'.json')]);
+   if(!pr.ok()||!rr.ok())throw Error('RACE_SOURCES_MISSING '+target.code);
+   const [forecast,result]=await Promise.all([pr.json(),rr.json()]);
+   await page.evaluate(item=>{s.venue=item.venue;s.race=item.race;setView('forecast');render();},target);
+   await page.waitForFunction(code=>displayedPredictionKey===code.slice(0,8)+'-'+code.slice(8,10)+'-'+code.slice(10)&&predictionTickets.length===10,target.code,{timeout:35000});
+   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果',{timeout:35000});
+   const data=await page.evaluate(()=>({tickets:predictionTickets.slice(),result:document.getElementById('forecastResultDetail').textContent}));
+   if(JSON.stringify(data.tickets)!==JSON.stringify(forecast.predictions)||!data.result.includes(result.finish_order.join(' - ')))throw Error('CROSS_VENUE_FORECAST_RESULT_MISMATCH '+target.code);
+   console.log('PASS: cross-venue forecast and result '+target.code);
+  }
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
