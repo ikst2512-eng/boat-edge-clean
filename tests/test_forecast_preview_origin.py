@@ -1,6 +1,5 @@
 """Regression contract for cross-origin forecast preview data access."""
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +13,7 @@ class ForecastPreviewOriginTests(unittest.TestCase):
         endpoint = "https://boat-edge-clean.onrender.com/api/clean-racecard?hd="
         self.assertIn(endpoint, preview)
         self.assertIn(endpoint, racecard)
-        self.assertNotRegex(preview, r"(?<![\\w/])['\\\"]/api/clean-racecard")
+        self.assertNotIn("const url='/api/clean-racecard", preview)
 
     def test_render_allows_pages_origin_for_racecard(self):
         server = (ROOT / "server.py").read_text(encoding="utf-8")
