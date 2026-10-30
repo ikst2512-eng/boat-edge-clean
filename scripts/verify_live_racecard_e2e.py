@@ -32,10 +32,10 @@ if not candidates:
 errors=[]
 verified_cards=[]
 verified_previews=[]
-for _,code in candidates[:6]:
+for _,code in candidates[:3]:
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
-        with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=40) as res:
+        with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
             data=json.load(res)
             if res.status!=200:raise ValueError("unexpected HTTP status")
         if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
