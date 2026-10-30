@@ -12,6 +12,15 @@ def choose(now=None, root=None):
     root = root or Path(__file__).resolve().parents[1]
     day = now.strftime("%Y%m%d")
     rows, received, _ = read_rows(BASE + f"title/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+    cards, cards_received, _ = read_rows(BASE + f"race_cards/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+    card_codes = set()
+    for card in cards:
+        code = card.get("レースコード", "")
+        try:
+            if all(0 < float(card[f"艇{i}_全国勝率"]) < 20 for i in range(1, 7)):
+                card_codes.add(code)
+        except (ValueError, TypeError, KeyError):
+            continue
     possible = []
     for row in rows:
         code = row.get("レースコード", "")
@@ -25,7 +34,9 @@ def choose(now=None, root=None):
         except (ValueError, KeyError):
             continue
         cutoff = deadline - timedelta(minutes=12)
-        if min((cutoff - now).total_seconds(), (cutoff - received).total_seconds()) < 1800:
+        if code not in card_codes:
+            continue
+        if min((cutoff - now).total_seconds(), (cutoff - received).total_seconds(), (cutoff - cards_received).total_seconds()) < 1800:
             continue
         if (root / "research_snapshots" / (code + ".json")).exists():
             continue
