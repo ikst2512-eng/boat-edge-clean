@@ -39,11 +39,15 @@ const {chromium}=require('playwright');
   let selected=null;
   let selections=[];
   let liveExhibitionVerified=false;
+  let scheduleFeedStatus='unavailable';
   const raceDiagnostics=[];
   try{
    const response=await fetch(feed,{signal:AbortSignal.timeout(10000)});
+   if(!response.ok)throw Error('LIVE_SCHEDULE_FEED_HTTP_'+response.status);
    if(response.ok){
     const data=await response.json();
+    if(!data?.programs?.stadiums || typeof data.programs.stadiums!=='object')throw Error('LIVE_SCHEDULE_FEED_SCHEMA_INVALID');
+    scheduleFeedStatus='ok';
     const stadiums=data?.programs?.stadiums||{};
     const upcoming=[];
     for(const [venue,info] of Object.entries(stadiums)){
@@ -126,6 +130,7 @@ const {chromium}=require('playwright');
   // Scheduled monitoring must detect an actual live-data gap rather than
   // silently passing because navigation worked. Nighttime / no-race runs
   // remain explicitly unverified, never a fabricated exhibition success.
+  if(process.env.GITHUB_EVENT_NAME==='schedule' && scheduleFeedStatus!=='ok')throw Error('SCHEDULED_LIVE_SCHEDULE_SOURCE_UNAVAILABLE');
   if(process.env.GITHUB_EVENT_NAME==='schedule' && selections.length>0 && !liveExhibitionVerified){
    throw Error('SCHEDULED_LIVE_EXHIBITION_UNVERIFIED_WITH_ELIGIBLE_RACES '+JSON.stringify({
     date:today,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
