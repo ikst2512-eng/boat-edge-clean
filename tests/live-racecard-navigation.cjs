@@ -145,6 +145,8 @@ const {chromium}=require('playwright');
     '| 検証項目 | 結果 |',
     '| --- | --- |',
     '| 公開Pagesの画面遷移 | 成功 |',
+    '| 開催情報ソースの取得 | '+(scheduleFeedStatus==='ok'?'成功':'失敗・未取得')+' |',
+    '| 締切前検査の対象数 | '+selections.length+'件（最大3件） |',
     '| 締切前展示6艇分の本番照合 | '+proof+' |',
     '| 実測対象レース | '+(selected?selections.map(x=>today+'-'+String(x.venue).padStart(2,'0')+'-'+String(x.race).padStart(2,'0')).join(', '):'なし')+' |',
     '',
