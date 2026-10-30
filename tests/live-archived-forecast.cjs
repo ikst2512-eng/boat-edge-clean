@@ -117,6 +117,15 @@ const {chromium}=require('playwright');
     throw Error('CONFIRMED_LIST_MISMATCH_VENUE_'+(venue+1)+' '+JSON.stringify(states));
    console.log('PASS: venue '+(venue+1)+' all twelve results confirmed');
   }
+  // Verify the linked per-race finish appears on the selected race card.
+  await page.evaluate(()=>{s.venue=2;s.race=1;setView('forecast');render();});
+  await page.waitForFunction(()=>document.getElementById('resultListStatus').textContent.includes('結果確定 12/12R'),{timeout:45000});
+  const linked=await page.evaluate(()=>({
+   first:document.querySelector('#resultList .clean-race-card .clean-inline-finish')?.textContent,
+   count:document.querySelectorAll('#resultList .clean-race-card .clean-inline-finish').length
+  }));
+  if(linked.count!==12||!linked.first?.includes('2 - 3 - 1'))throw Error('RACE_CARD_FINISH_NOT_LINKED '+JSON.stringify(linked));
+  console.log('PASS: every completed race displays its confirmed finish on the same race card');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
