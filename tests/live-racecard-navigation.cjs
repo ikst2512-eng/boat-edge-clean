@@ -61,6 +61,7 @@ const {chromium}=require('playwright');
   let selected=null;
   let selections=[];
   let liveExhibitionVerified=false;
+  let previewWindowCount=0;
   let scheduleFeedStatus='unavailable';
   const raceDiagnostics=[];
   try{
@@ -86,6 +87,7 @@ const {chromium}=require('playwright');
     // A race closing soon is more likely to have published exhibition data.
     // Prefer the 2–22 minute pre-cutoff window; preserve fallback for diagnostics.
     const previewWindow=upcoming.filter(x=>x.cutoff<=Date.now()+22*60*1000);
+    previewWindowCount=previewWindow.length;
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
     previewWindow.sort((a,b)=>a.cutoff-b.cutoff);
     // Sample several distinct races: one unpublished feed must not hide other live exhibitions.
@@ -192,9 +194,9 @@ const {chromium}=require('playwright');
    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,rows.join('\n')+'\n');
   }
   if(process.env.GITHUB_EVENT_NAME==='schedule' && scheduleFeedStatus!=='ok')throw Error('SCHEDULED_LIVE_SCHEDULE_SOURCE_UNAVAILABLE');
-  if(process.env.GITHUB_EVENT_NAME==='schedule' && selections.length>0 && !liveExhibitionVerified){
+  if(process.env.GITHUB_EVENT_NAME==='schedule' && previewWindowCount>0 && !liveExhibitionVerified){
    throw Error('SCHEDULED_LIVE_EXHIBITION_UNVERIFIED_WITH_ELIGIBLE_RACES '+JSON.stringify({
-    date:today,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
+    date:today,near_cutoff_candidates:previewWindowCount,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
    }));
   }
  }finally{await browser.close()}
