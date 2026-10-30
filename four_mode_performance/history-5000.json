@@ -2,6 +2,391 @@
   "budget_yen": 5000,
   "races": [
     {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1640,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1230,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4100,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 410,
+      "race_code": "202610302312"
+    },
+    {
+      "finish": "2-1-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 9010,
+      "race_code": "202610302311"
+    },
+    {
+      "finish": "4-3-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 43640,
+          "winning_stake_yen": 400,
+          "winning_ticket": "4-3-5"
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 10910,
+      "race_code": "202610302310"
+    },
+    {
+      "finish": "4-5-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3470,
+          "winning_stake_yen": 100,
+          "winning_ticket": "4-5-1"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3470,
+      "race_code": "202610302309"
+    },
+    {
+      "finish": "3-2-4",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 15200,
+      "race_code": "202610302308"
+    },
+    {
+      "finish": "2-3-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3140,
+      "race_code": "202610302307"
+    },
+    {
+      "finish": "1-6-4",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 32260,
+      "race_code": "202610302306"
+    },
+    {
+      "finish": "1-3-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7980,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5320,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 2660,
+      "race_code": "202610302305"
+    },
+    {
+      "finish": "1-6-2",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 4510,
+      "race_code": "202610302304"
+    },
+    {
+      "finish": "1-3-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4920,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3690,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1230,
+      "race_code": "202610302303"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1600,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1280,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3200,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 320,
+      "race_code": "202610302302"
+    },
+    {
       "finish": "1-4-3",
       "modes": {
         "balance": {
@@ -35,6 +420,391 @@
       },
       "payout_per_100_yen": 1120,
       "race_code": "202610302301"
+    },
+    {
+      "finish": "5-2-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 19820,
+      "race_code": "202610301812"
+    },
+    {
+      "finish": "2-1-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2700,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1800,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 9000,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "2-1-3"
+        }
+      },
+      "payout_per_100_yen": 900,
+      "race_code": "202610301811"
+    },
+    {
+      "finish": "1-3-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 9920,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7440,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 24800,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-3-2"
+        }
+      },
+      "payout_per_100_yen": 2480,
+      "race_code": "202610301810"
+    },
+    {
+      "finish": "1-4-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2450,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-4-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1470,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 490,
+      "race_code": "202610301809"
+    },
+    {
+      "finish": "1-4-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2430,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1620,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 810,
+      "race_code": "202610301808"
+    },
+    {
+      "finish": "1-3-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5910,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3940,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1970,
+      "race_code": "202610301807"
+    },
+    {
+      "finish": "1-5-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4410,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-5-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2940,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-5-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1470,
+      "race_code": "202610301806"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2480,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1860,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6200,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 620,
+      "race_code": "202610301805"
+    },
+    {
+      "finish": "1-2-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4600,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3450,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 11500,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-5"
+        }
+      },
+      "payout_per_100_yen": 1150,
+      "race_code": "202610301804"
+    },
+    {
+      "finish": "1-6-2",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7520,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-6-2"
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1880,
+      "race_code": "202610301803"
+    },
+    {
+      "finish": "1-2-6",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2520,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-6"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2520,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 840,
+      "race_code": "202610301802"
     },
     {
       "finish": "1-2-3",
@@ -72,6 +842,671 @@
       "race_code": "202610301801"
     },
     {
+      "finish": "2-1-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 11790,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7860,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3930,
+      "race_code": "202610301608"
+    },
+    {
+      "finish": "1-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2550,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-5-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 850,
+      "race_code": "202610301607"
+    },
+    {
+      "finish": "6-1-4",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3850,
+      "race_code": "202610301606"
+    },
+    {
+      "finish": "1-3-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2680,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2010,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6700,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-3-2"
+        }
+      },
+      "payout_per_100_yen": 670,
+      "race_code": "202610301605"
+    },
+    {
+      "finish": "3-1-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6280,
+          "winning_stake_yen": 200,
+          "winning_ticket": "3-1-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3140,
+      "race_code": "202610301604"
+    },
+    {
+      "finish": "4-2-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 5620,
+      "race_code": "202610301603"
+    },
+    {
+      "finish": "3-4-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 6240,
+      "race_code": "202610301602"
+    },
+    {
+      "finish": "1-4-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4380,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2920,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1460,
+      "race_code": "202610301601"
+    },
+    {
+      "finish": "1-4-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6320,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-4-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4740,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1580,
+      "race_code": "202610301412"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 8490,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5660,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 28300,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 2830,
+      "race_code": "202610301411"
+    },
+    {
+      "finish": "6-2-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 2250,
+      "race_code": "202610301410"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2160,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1620,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5400,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 540,
+      "race_code": "202610301409"
+    },
+    {
+      "finish": "5-6-2",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 29160,
+      "race_code": "202610301408"
+    },
+    {
+      "finish": "1-4-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 6500,
+      "race_code": "202610301407"
+    },
+    {
+      "finish": "3-2-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1450,
+      "race_code": "202610301406"
+    },
+    {
+      "finish": "2-4-1",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 8970,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-4-1"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5980,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-4-1"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 2990,
+      "race_code": "202610301405"
+    },
+    {
+      "finish": "6-4-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 218130,
+      "race_code": "202610301404"
+    },
+    {
+      "finish": "6-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 7690,
+      "race_code": "202610301403"
+    },
+    {
+      "finish": "1-4-2",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4140,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-2"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2760,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-2"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1380,
+      "race_code": "202610301402"
+    },
+    {
       "finish": "1-6-2",
       "modes": {
         "balance": {
@@ -105,6 +1540,1231 @@
       },
       "payout_per_100_yen": 12540,
       "race_code": "202610301401"
+    },
+    {
+      "finish": "1-2-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7710,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5140,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 25700,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-5"
+        }
+      },
+      "payout_per_100_yen": 2570,
+      "race_code": "202610301309"
+    },
+    {
+      "finish": "5-1-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 38670,
+      "race_code": "202610301308"
+    },
+    {
+      "finish": "1-2-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2880,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1920,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 9600,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-5"
+        }
+      },
+      "payout_per_100_yen": 960,
+      "race_code": "202610301307"
+    },
+    {
+      "finish": "1-4-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6380,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3190,
+      "race_code": "202610301306"
+    },
+    {
+      "finish": "1-3-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 9240,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-3-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6930,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 23100,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-3-5"
+        }
+      },
+      "payout_per_100_yen": 2310,
+      "race_code": "202610301305"
+    },
+    {
+      "finish": "1-4-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5580,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3720,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1860,
+      "race_code": "202610301304"
+    },
+    {
+      "finish": "1-4-5",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5460,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-4-5"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3640,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-4-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1820,
+      "race_code": "202610301303"
+    },
+    {
+      "finish": "1-3-6",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 10380,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-6"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6920,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3460,
+      "race_code": "202610301302"
+    },
+    {
+      "finish": "1-3-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3030,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2020,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1010,
+      "race_code": "202610301301"
+    },
+    {
+      "finish": "1-3-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3300,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-3-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2200,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-3-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1100,
+      "race_code": "202610300809"
+    },
+    {
+      "finish": "4-5-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1320,
+          "winning_stake_yen": 400,
+          "winning_ticket": "4-5-6"
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 330,
+      "race_code": "202610300808"
+    },
+    {
+      "finish": "1-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 4170,
+      "race_code": "202610300807"
+    },
+    {
+      "finish": "1-5-4",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5820,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-5-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1940,
+      "race_code": "202610300806"
+    },
+    {
+      "finish": "6-2-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 12010,
+      "race_code": "202610300805"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2850,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2850,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 9500,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 950,
+      "race_code": "202610300804"
+    },
+    {
+      "finish": "2-3-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 11300,
+      "race_code": "202610300803"
+    },
+    {
+      "finish": "2-1-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 10140,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 6760,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3380,
+      "race_code": "202610300802"
+    },
+    {
+      "finish": "4-1-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 14400,
+          "winning_stake_yen": 400,
+          "winning_ticket": "4-1-6"
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3600,
+      "race_code": "202610300801"
+    },
+    {
+      "finish": "1-2-6",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1590,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-6"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1060,
+          "winning_stake_yen": 200,
+          "winning_ticket": "1-2-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 530,
+      "race_code": "202610300608"
+    },
+    {
+      "finish": "2-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 5550,
+          "winning_stake_yen": 100,
+          "winning_ticket": "2-5-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 5550,
+      "race_code": "202610300607"
+    },
+    {
+      "finish": "1-2-6",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 4040,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-6"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3030,
+          "winning_stake_yen": 300,
+          "winning_ticket": "1-2-6"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1010,
+      "race_code": "202610300606"
+    },
+    {
+      "finish": "1-2-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1950,
+          "winning_stake_yen": 500,
+          "winning_ticket": "1-2-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 1560,
+          "winning_stake_yen": 400,
+          "winning_ticket": "1-2-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3900,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "1-2-3"
+        }
+      },
+      "payout_per_100_yen": 390,
+      "race_code": "202610300605"
+    },
+    {
+      "finish": "2-3-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 18210,
+      "race_code": "202610300604"
+    },
+    {
+      "finish": "2-1-3",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3180,
+          "winning_stake_yen": 300,
+          "winning_ticket": "2-1-3"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2120,
+          "winning_stake_yen": 200,
+          "winning_ticket": "2-1-3"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 10600,
+          "winning_stake_yen": 1000,
+          "winning_ticket": "2-1-3"
+        }
+      },
+      "payout_per_100_yen": 1060,
+      "race_code": "202610300603"
+    },
+    {
+      "finish": "2-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 19500,
+      "race_code": "202610300602"
+    },
+    {
+      "finish": "3-1-4",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3570,
+          "winning_stake_yen": 300,
+          "winning_ticket": "3-1-4"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 2380,
+          "winning_stake_yen": 200,
+          "winning_ticket": "3-1-4"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1190,
+      "race_code": "202610300601"
+    },
+    {
+      "finish": "6-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 68900,
+      "race_code": "202610300309"
+    },
+    {
+      "finish": "2-4-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 51680,
+          "winning_stake_yen": 400,
+          "winning_ticket": "2-4-3"
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 12920,
+      "race_code": "202610300308"
+    },
+    {
+      "finish": "3-2-1",
+      "modes": {
+        "balance": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 11790,
+          "winning_stake_yen": 300,
+          "winning_ticket": "3-2-1"
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 7860,
+          "winning_stake_yen": 200,
+          "winning_ticket": "3-2-1"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 3930,
+      "race_code": "202610300307"
+    },
+    {
+      "finish": "3-1-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": true,
+          "invested_yen": 5000,
+          "return_yen": 3420,
+          "winning_stake_yen": 200,
+          "winning_ticket": "3-1-5"
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1710,
+      "race_code": "202610300306"
+    },
+    {
+      "finish": "1-4-6",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1350,
+      "race_code": "202610300305"
+    },
+    {
+      "finish": "2-4-5",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 1900,
+      "race_code": "202610300304"
+    },
+    {
+      "finish": "2-5-3",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 2040,
+      "race_code": "202610300303"
+    },
+    {
+      "finish": "3-1-2",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 2130,
+      "race_code": "202610300302"
+    },
+    {
+      "finish": "2-3-1",
+      "modes": {
+        "balance": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hit": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "hole": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        },
+        "narrow": {
+          "hit": false,
+          "invested_yen": 5000,
+          "return_yen": 0,
+          "winning_stake_yen": 0,
+          "winning_ticket": null
+        }
+      },
+      "payout_per_100_yen": 9240,
+      "race_code": "202610300301"
     },
     {
       "finish": "1-2-4",
