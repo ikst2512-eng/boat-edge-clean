@@ -26,36 +26,27 @@ for kind in ("tkz","stt","sui"):
         print("PREVIEW",kind,"unavailable",type(exc).__name__,str(exc)[:120],flush=True)
 print("MATCHED_CURRENT_PREDEADLINE",len(sources.get("tkz",set())&sources.get("stt",set())),flush=True)
 
-# Run the real six-lane CLEAN adapter against today's predeadline matches.
+# One adapter check per eligible race. The cutoff must come from tkz rows,
+# not the final CSV fetched by the preceding source loop.
 from clean_racecard import _fetch_preview
 eligible=sorted(sources.get("tkz",set()) & sources.get("stt",set()))
 verified=[]
-for code in eligible[:6]:
-    try:
-        deadline_text=next(row["締切時刻"] for row in rows if row.get("レースコード")==code)
-        deadline=datetime.strptime(code[:8]+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
-        preview,audit=_fetch_preview(code,day,deadline)
-        if audit.get("status")=="ok" and preview and len(preview["racers"])==6 and len(preview["start_exhibition"])==6:
-            verified.append(code)
-            print("VERIFIED_SIX_LANE",code,"source",audit["source"],flush=True)
-        else:
-            print("SIX_LANE_NOT_VERIFIED",code,audit.get("status"),flush=True)
-    except (ValueError,KeyError,OSError,TimeoutError) as error:
-        print("SIX_LANE_ERROR",code,type(error).__name__,flush=True)
-print("VERIFIED_CURRENT_PREDEADLINE",len(verified),flush=True)
-
-# A common race code in two CSVs is not enough: validate the complete adapter.
-from clean_racecard import _fetch_preview
-verified=[]
-for code in sorted(sources.get("tkz",set()) & sources.get("stt",set())):
-    try:
-        deadline_text=next(row["締切時刻"] for row in _preview_rows("tkz",day)[0] if row.get("レースコード")==code)
-        deadline=datetime.strptime(code[:8]+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
-        preview,audit=_fetch_preview(code,day,deadline)
-        if audit.get("status")=="ok" and len((preview or {}).get("racers",[]))==6:
-            verified.append(code)
-        else:
-            print("ADAPTER_UNVERIFIED",code,audit.get("status"),flush=True)
-    except (OSError,ValueError,KeyError,TypeError) as exc:
-        print("ADAPTER_ERROR",code,type(exc).__name__,flush=True)
+if eligible:
+    tkz_rows,_=_preview_rows("tkz",day)
+    cutoff_by_code={row.get("レースコード"):row.get("締切時刻") for row in tkz_rows}
+    for code in eligible[:6]:
+        try:
+            deadline_text=cutoff_by_code.get(code)
+            if not deadline_text:
+                print("ADAPTER_ERROR",code,"missing_tkz_deadline",flush=True)
+                continue
+            deadline=datetime.strptime(code[:8]+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+            preview,audit=_fetch_preview(code,day,deadline)
+            if audit.get("status")=="ok" and len((preview or {}).get("racers",[]))==6 and len((preview or {}).get("start_exhibition",[]))==6:
+                verified.append(code)
+                print("VERIFIED_SIX_LANE",code,"source",audit.get("source"),flush=True)
+            else:
+                print("SIX_LANE_NOT_VERIFIED",code,audit.get("status"),flush=True)
+        except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
+            print("ADAPTER_ERROR",code,type(exc).__name__,flush=True)
 print("ADAPTER_VERIFIED_CURRENT_PREDEADLINE",len(verified),",".join(verified),flush=True)
