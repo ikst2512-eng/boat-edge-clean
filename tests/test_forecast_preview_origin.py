@@ -45,7 +45,7 @@ class ForecastPreviewOriginTests(unittest.TestCase):
         preview = page.split("async function loadForecastPreview()", 1)[1].split("async function loadRaceData(", 1)[0]
         self.assertNotIn("Number.isFinite(Number(st.st))", preview)
         self.assertIn("String(st.st??'').trim()", preview)
-        self.assertIn("F\\\\.?", preview)
+        self.assertIn(r"F\.?", preview)
 
 
 if __name__ == "__main__":
