@@ -120,6 +120,14 @@ const {chromium}=require('playwright');
   console.log('PASS_NAVIGATION: Published Pages switches venue/race and card/exhibition without stale selected race.');
   const exhibitionVerdict=liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS';
   console.log(exhibitionVerdict);
+  // Scheduled monitoring must detect an actual live-data gap rather than
+  // silently passing because navigation worked. Nighttime / no-race runs
+  // remain explicitly unverified, never a fabricated exhibition success.
+  if(process.env.GITHUB_EVENT_NAME==='schedule' && selections.length>0 && !liveExhibitionVerified){
+   throw Error('SCHEDULED_LIVE_EXHIBITION_UNVERIFIED_WITH_ELIGIBLE_RACES '+JSON.stringify({
+    date:today,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
+   }));
+  }
   if(process.env.GITHUB_STEP_SUMMARY){
    const fs=require('node:fs');
    const proof=liveExhibitionVerified?'実証済み（APIと画面の6艇分が一致）':'未実証（展示6艇分の一致確認なし）';
