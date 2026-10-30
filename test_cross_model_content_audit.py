@@ -5,6 +5,23 @@ from scripts.cross_model_content_audit import audit, extract_top10
 
 
 class CrossModelAuditTests(unittest.TestCase):
+
+    def test_production_server_does_not_depend_on_legacy_research_files(self):
+        # Read-only migration audits may refer to legacy data; production
+        # request handling must not depend on these old-site research outputs.
+        production = Path("server.py").read_text(encoding="utf-8")
+        forbidden = (
+            "site_racer_actual_course/v155_fresh",
+            "site_racer_actual_course/v156_watch",
+            "site_autopilot/v236_frozen",
+            "site_autopilot/v236_scored",
+            "site_autopilot/v253_miss_diagnostics_current",
+            "ikst2512-eng/boat-edge/",
+        )
+        for path in forbidden:
+            with self.subTest(legacy_path=path):
+                self.assertNotIn(path, production)
+
     def test_code_does_not_comment_out_clean_prefixes(self):
         source = Path("scripts/cross_model_content_audit.py").read_text(encoding="utf-8")
         self.assertIn('    clean_prefixes = ("prospective_predictions/",)', source)
