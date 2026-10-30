@@ -35,7 +35,9 @@ const {chromium}=require('playwright');
   await page.evaluate(()=>{setView('card');render();});
   const beforeBack=await page.evaluate(()=>({key:sameRaceKey(),view:activeView}));
   await page.evaluate(()=>setView('exhibit'));
-  await page.locator('.race-browser-toolbar button').click();
+  const backButton=page.locator('.race-browser-toolbar button');
+  if(await backButton.count()!==1)throw Error('PUBLISHED_NAVIGATION_SCRIPT_NOT_LOADED');
+  await backButton.click();
   await page.waitForFunction(()=>activeView==='card',{timeout:10000});
   const afterBack=await page.evaluate(()=>({key:sameRaceKey(),view:activeView}));
   if(afterBack.key!==beforeBack.key||afterBack.view!=='card')
