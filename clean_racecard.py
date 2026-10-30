@@ -31,6 +31,7 @@ def _fetch_preview(code,path,deadline):
     """Only use race-matched and independently time-stamped predeadline data."""
     # Concurrent independent source reads keep server response bounded when
     # one published preview CSV is unavailable or slow.
+    observed_now=datetime.now(JST)
     def select(kind):
         try:
             rows,sha=_preview_rows(kind,path)
@@ -46,7 +47,7 @@ def _fetch_preview(code,path,deadline):
                 observed=datetime.fromisoformat(row.get("取得日時",""))
             except (ValueError,TypeError):
                 continue
-            if observed.tzinfo is not None and observed<deadline:
+            if observed.tzinfo is not None and observed<=observed_now and observed<deadline:
                 candidates.append((observed,row))
         if candidates:
             observed,row=max(candidates,key=lambda x:x[0])
