@@ -48,7 +48,24 @@ def _fetch_preview(code,path,deadline):
             except (ValueError,TypeError):
                 continue
             if observed.tzinfo is not None and observed<=observed_now and observed<deadline:
-                candidates.append((observed,row))
+                # A newer partial snapshot must not hide earlier, complete,
+                # independently time-stamped measurements for this same race.
+                if kind=="tkz":
+                    complete=all(
+                        (_num(row.get(f"艇{i}_展示タイム")) is not None and
+                         5<=_num(row.get(f"艇{i}_展示タイム"))<=9 and
+                         _num(row.get(f"艇{i}_チルト")) is not None and
+                         -1<=_num(row.get(f"艇{i}_チルト"))<=3)
+                        for i in range(1,7))
+                elif kind=="stt":
+                    course=[_num(row.get(f"艇{i}_コース")) for i in range(1,7)]
+                    complete=(all(v is not None for v in course) and
+                        sorted(course)==[1.,2.,3.,4.,5.,6.] and
+                        all(re.fullmatch(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})",
+                            str(row.get(f"艇{i}_スタート展示") or "").strip()) for i in range(1,7)))
+                else:
+                    complete=True
+                if complete:candidates.append((observed,row))
         if candidates:
             observed,row=max(candidates,key=lambda x:x[0])
             return kind,(observed,row,sha),"ok"
