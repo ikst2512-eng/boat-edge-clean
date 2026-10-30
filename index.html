@@ -1228,7 +1228,7 @@ async function loadDailyReview(){
  const token=++dailyReviewToken,day=(document.getElementById('dailyReviewDate').value||s.date).replaceAll('-','');
  const summary=document.getElementById('dailyReviewSummary'),root=document.getElementById('dailyReviewRows');
  root.replaceChildren();summary.textContent='選択日の開催場・レース一覧を取得中…';
- if(!/^20\\d{6}$/.test(day)){summary.textContent='日付を確認してください';return}
+ if(!/^20\d{6}$/.test(day)){summary.textContent='日付を確認してください';return}
  const base='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
  try{
   const response=await fetchTimed(base+'schedule_snapshots/'+day+'.json',{cache:'no-store'});
