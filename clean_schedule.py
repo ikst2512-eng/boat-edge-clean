@@ -4,10 +4,12 @@ Does not read ikst2512-eng/boat-edge. This is schedule discovery, not a
 verified official result, formal forecast, or guaranteed real-time feed.
 """
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.error import HTTPError, URLError
 import logging
 import re
+import json
+from pathlib import Path
 from research_model import BASE, JST, read_rows
 
 
@@ -41,6 +43,39 @@ def parse_schedule(day, rows, received_at):
             "races": sorted(races, key=lambda r: (r["deadline_jst"], r["race_code"]))}
 
 
+
+def schedule_from_frozen_candidates(day, root=None):
+    """Recover only race deadlines preserved in immutable CLEAN candidate files."""
+    root = root or Path(__file__).resolve().parent / "prospective_predictions"
+    races = []
+    for path in sorted(root.glob(day + "[0-9]" * 4 + ".json")):
+        code = path.stem
+        if not re.fullmatch(day + r"(0[1-9]|1[0-9]|2[0-4])(0[1-9]|1[0-2])", code) or path.is_symlink():
+            continue
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            deadline = datetime.fromisoformat(record["source_deadline_jst"])
+            created = datetime.fromisoformat(record["generated_at"])
+            cutoff = datetime.fromisoformat(record["cutoff_jst"])
+            if (record.get("race_code") != code or record.get("status") != "prospective_candidate"
+                    or record.get("formal") is not False or record.get("scoring") is not False
+                    or record.get("validated") is not False or deadline.date().strftime("%Y%m%d") != day
+                    or deadline - cutoff != timedelta(minutes=12)
+                    or created >= cutoff):
+                continue
+            races.append({"race_code": code, "venue_code": code[8:10],
+                          "race_no": int(code[10:12]), "deadline_jst": deadline.isoformat()})
+        except (OSError, ValueError, KeyError, TypeError, OverflowError):
+            continue
+    if not races:
+        return None
+    return {"ok": True, "date": day, "status": "frozen_candidate_schedule",
+            "formal": False, "results_confirmed": False,
+            "source": "CLEAN frozen pre-cutoff candidates (partial coverage)",
+            "partial_coverage": True,
+            "source_received_jst": None,
+            "races": sorted(races, key=lambda row: (row["deadline_jst"], row["race_code"]))}
+
 def clean_schedule(day):
     if not isinstance(day, str) or not re.fullmatch(r"[0-9]{8}", day):
         return 400, {"ok": False, "status": "invalid_date"}
@@ -65,6 +100,9 @@ def clean_schedule(day):
                 return 200, result
             except (ValueError, KeyError, TypeError, OSError, TimeoutError, URLError, HTTPError) as fallback_error:
                 logging.info("alternate_schedule_not_ready date=%s reason=%s", day, type(fallback_error).__name__)
+            frozen = schedule_from_frozen_candidates(day)
+            if frozen is not None:
+                return 200, frozen
             return 404, {"ok": False, "status": "schedule_not_published",
                          "source": "boatracecsv.github.io/data/programs/title",
                          "date": day, "upstream_http_status": exc.code,
