@@ -116,6 +116,7 @@ jobs:
               d = json.loads(crosswalk.read_text())
               lines.append(f"- Crosswalk matched race IDs: {d.get('matched_race_count', 'UNKNOWN')}")
               lines.append(f"- Formal-prefix Git blobs: {d.get('formal_artifact_count', 'UNKNOWN')}")
+              lines.append(f"- Legacy workflow YAML files: {d.get('legacy_workflow_count', 'UNKNOWN')} (dependency review required)")
               for item in d.get("formal_artifacts", [])[:30]:
                   lines.append(f"  - \`{item['path']}\` Git blob \`{item['git_blob_sha1']}\`")
               if len(d.get("formal_artifacts", [])) > 30:
