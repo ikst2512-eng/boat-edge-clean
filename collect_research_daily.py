@@ -8,8 +8,19 @@ def collect(day):
     date=datetime.strptime(day,"%Y%m%d").date()
     if date<=datetime(2026,10,21).date():raise ValueError("training days excluded")
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
-    titles,t1,title_sha256=read_rows(BASE+"title/"+path)
-    cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
+    # Prefer primary public CSVs. A network-level outage may use the
+    # existing independent nonofficial pre-race program, never results.
+    try:
+        titles,t1,title_sha256=read_rows(BASE+"title/"+path)
+        cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
+        source_kind="public_pre_race_csv"
+    except (OSError,TimeoutError) as exc:
+        from clean_openapi_sources import load
+        titles,cards,observed,digest,metadata=load(day)
+        t1=t2=observed
+        title_sha256=cards_sha256=digest
+        source_kind=metadata["source"]
+        print("RESEARCH_SOURCE_FALLBACK",type(exc).__name__,source_kind,flush=True)
     # Duplicate source keys are ambiguous: never silently take the last row.
     card_counts=Counter(r.get("レースコード") for r in cards if isinstance(r,dict) and r.get("レースコード"))
     title_counts=Counter(r.get("レースコード") for r in titles if isinstance(r,dict) and r.get("レースコード"))
@@ -49,6 +60,7 @@ def collect(day):
                 provenance=model_provenance()
             record={"ok":True,"status":"research","validated":False,"race_code":code,"predictions":tickets,
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
+                "input_source_kind":source_kind,
                 "message":"研究予想（未検証・回収率未確認）","cutoff_jst":cutoff.isoformat(),
                 "source_deadline_jst":deadline.isoformat(),
                 "source_title_received_jst":t1.isoformat(),"source_cards_received_jst":t2.isoformat(),
