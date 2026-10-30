@@ -153,6 +153,18 @@ const {chromium}=require('playwright');
   if(theme.background!=='rgb(255, 255, 255)'||theme.header!=='rgb(234, 246, 255)'||theme.important!=='rgb(187, 38, 56)'||theme.venues!==12||!theme.reviewFocused)
    throw Error('PUBLIC_THEME_OR_REVIEW_MISMATCH '+JSON.stringify(theme));
   console.log('PASS: live white/pale-blue/red theme and 12 grouped review venues');
+  // Verify the selected race's result and saved tickets share one panel in production.
+  await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
+  await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果'&&predictionTickets.length===10,{timeout:35000});
+  const combined=await page.evaluate(()=>({
+   hasPanel:!!document.querySelector('#forecast .forecast-combined-race'),
+   result:document.querySelector('#forecast .forecast-combined-race #forecastResultDetail')?.textContent,
+   ticketCount:document.querySelectorAll('#forecast .forecast-combined-race #predictionRows .prediction-row').length,
+   border:getComputedStyle(document.querySelector('#forecast .forecast-combined-race .forecast-result-preview')).borderTopColor
+  }));
+  if(!combined.hasPanel||!combined.result?.includes('2 - 3 - 1')||combined.ticketCount!==10||combined.border!=='rgb(187, 38, 56)')
+   throw Error('COMBINED_FORECAST_RESULT_LAYOUT_BROKEN '+JSON.stringify(combined));
+  console.log('PASS: published race forecast and confirmed result share one panel');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
