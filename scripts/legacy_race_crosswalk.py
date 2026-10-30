@@ -150,7 +150,20 @@ def main():
         if row.get("type") == "blob"
         and any(row.get("path", "").startswith(prefix) for prefix in formal_prefixes)
     ]
+    # Inventory the exact workflow YAML blobs from the same pinned legacy tree.
+    # File presence alone never proves a workflow is active or safe to delete.
+    workflow_files = [
+        {"path": row["path"], "git_blob_sha1": row["sha"]}
+        for row in legacy_tree["tree"]
+        if row.get("type") == "blob"
+        and row.get("path", "").startswith(".github/workflows/")
+        and row.get("path", "").endswith((".yml", ".yaml"))
+    ]
     document = {
+        "legacy_workflow_count": len(workflow_files),
+        "legacy_workflow_blobs": workflow_files,
+        "workflow_dependency_graph_verified": False,
+        "workflow_deletion_authorized": False,
         "formal_artifact_count": len(formal_files),
         "formal_artifacts": formal_files,
         "formal_inventory_is_proof_of_acceptance": False,
