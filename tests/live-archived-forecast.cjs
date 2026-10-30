@@ -87,6 +87,14 @@ const {chromium}=require('playwright');
    if(JSON.stringify(data.tickets)!==JSON.stringify(forecast.predictions)||!data.result.includes(result.finish_order.join(' - ')))throw Error('CROSS_VENUE_FORECAST_RESULT_MISMATCH '+target.code);
    console.log('PASS: cross-venue forecast and result '+target.code);
   }
+  // The selected venue's complete result list must include 12 distinct race rows.
+  await page.waitForFunction(()=>document.querySelectorAll('#resultList .clean-race-card').length===12,{timeout:35000});
+  const list=await page.evaluate(()=>[...document.querySelectorAll('#resultList .clean-race-card')].map(node=>({
+    race:node.querySelector('.clean-race-head strong')?.textContent,
+    status:node.querySelector('.clean-race-state')?.textContent
+  })));
+  if(list.length!==12||list.some((item,i)=>item.race!==(i+1)+'R'))throw Error('RESULT_LIST_RACE_ORDER_INVALID '+JSON.stringify(list));
+  console.log('PASS: published venue 06 result list has 12 ordered race cards');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
