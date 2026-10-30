@@ -24,7 +24,10 @@ class SelectionContract(unittest.TestCase):
                 (rows,now,"title"),(cards,now,"cards"),
                 (rows,now,"title"),(cards,now,"cards")
             ]):
-                self.assertEqual(choose(now,Path(temp)),(date,1,2))
+                diagnostics = {}
+                self.assertEqual(choose(now,Path(temp),diagnostics),(date,1,2))
+                self.assertEqual(diagnostics["eligible"],2)
+                self.assertEqual(diagnostics["too_close"],1)
                 target=Path(temp)/"research_snapshots"
                 target.mkdir()
                 (target/(date+"0102.json")).write_text("{}")
