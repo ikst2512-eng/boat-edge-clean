@@ -45,7 +45,9 @@ const {chromium}=require('playwright');
     const upcoming=[];
     for(const [venue,info] of Object.entries(stadiums)){
      for(const [race,entry] of Object.entries(info.races||{})){
-      const cutoff=new Date((entry.closed_at||'').replace(' ','T')+'+09:00');
+      const rawCutoff=entry?.closed_at;
+      if(typeof rawCutoff!=='string'||!/20\d\d-\d\d-\d\d \d\d:\d\d:\d\d/.test(rawCutoff))continue;
+      const cutoff=new Date(rawCutoff.replace(' ','T')+'+09:00');
       if(Number(venue)>=1&&Number(venue)<=24&&Number(race)>=1&&Number(race)<=12
          &&Number.isFinite(cutoff.getTime())&&cutoff.getTime()>Date.now()+120000){
        upcoming.push({venue:Number(venue),race:Number(race),cutoff:cutoff.getTime()});
@@ -54,6 +56,7 @@ const {chromium}=require('playwright');
     }
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
     selected=upcoming[0]||null;
+    console.log('LIVE_SCHEDULE_CANDIDATES '+JSON.stringify({date:today,count:upcoming.length,selected}));
    }
   }catch(e){console.log('LIVE_SCHEDULE_LOOKUP_UNAVAILABLE '+String(e).slice(0,130));}
   if(selected){
