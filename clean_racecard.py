@@ -98,7 +98,7 @@ def _fetch_preview(code,path,deadline):
         or any(v is None for v in courses)
         or sorted(courses)!=[1.,2.,3.,4.,5.,6.]):
         return None,{"status":"invalid_or_incomplete_exhibition","source_status":availability}
-    audit={"status":"ok","fetched_at":max(sources["tkz"][0],sources["stt"][0]).isoformat(),
+    audit={"status":"ok","source_status":availability,"fetched_at":max(sources["tkz"][0],sources["stt"][0]).isoformat(),
            "source":"BoatraceCSV predeadline snapshots",
            "sources":{k:{"observed_at":v[0].isoformat(),"sha256":v[2]} for k,v in sources.items()}}
     preview={"racers":racers,"start_exhibition":starts}
