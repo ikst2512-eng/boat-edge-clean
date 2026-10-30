@@ -1,0 +1,24 @@
+name: CLEAN today's predeadline exhibition source probe
+on:
+  pull_request:
+    paths:
+      - scripts/probe_today_beforeinfo.py
+      - .github/workflows/today-beforeinfo-probe.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '15 4,6,8,10 * * *'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe same-day predeadline CSV evidence
+        env:
+          PYTHONPATH: .
+        run: python scripts/probe_today_beforeinfo.py
