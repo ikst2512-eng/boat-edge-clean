@@ -3,86 +3,86 @@
   "counts": {
     "archived": 396,
     "awaiting_payout": 0,
-    "awaiting_result": 152,
-    "before_deadline": 142,
-    "complete": 244,
-    "overdue_result": 10,
+    "awaiting_result": 149,
+    "before_deadline": 138,
+    "complete": 247,
+    "overdue_result": 11,
     "unverified": 0
   },
   "modes": {
     "balance": {
-      "actual_hit_rate_pct": 47.54,
-      "actual_roi_pct": 71.72,
-      "hits": 116,
-      "invested_yen": 2196000,
-      "profit_yen": -621100,
-      "return_yen": 1574900,
-      "sample_races": 244
+      "actual_hit_rate_pct": 47.77,
+      "actual_roi_pct": 71.76,
+      "hits": 118,
+      "invested_yen": 2223000,
+      "profit_yen": -627800,
+      "return_yen": 1595200,
+      "sample_races": 247
     },
     "hit": {
-      "actual_hit_rate_pct": 59.43,
-      "actual_roi_pct": 72.83,
-      "hits": 145,
-      "invested_yen": 2196000,
-      "profit_yen": -596730,
-      "return_yen": 1599270,
-      "sample_races": 244
+      "actual_hit_rate_pct": 59.51,
+      "actual_roi_pct": 72.57,
+      "hits": 147,
+      "invested_yen": 2223000,
+      "profit_yen": -609710,
+      "return_yen": 1613290,
+      "sample_races": 247
     },
     "hole": {
-      "actual_hit_rate_pct": 4.92,
-      "actual_roi_pct": 79.24,
-      "hits": 12,
-      "invested_yen": 2196000,
-      "profit_yen": -455930,
-      "return_yen": 1740070,
-      "sample_races": 244
+      "actual_hit_rate_pct": 5.26,
+      "actual_roi_pct": 82.79,
+      "hits": 13,
+      "invested_yen": 2223000,
+      "profit_yen": -382610,
+      "return_yen": 1840390,
+      "sample_races": 247
     },
     "narrow": {
-      "actual_hit_rate_pct": 20.9,
-      "actual_roi_pct": 63.07,
-      "hits": 51,
-      "invested_yen": 2196000,
-      "profit_yen": -810900,
-      "return_yen": 1385100,
-      "sample_races": 244
+      "actual_hit_rate_pct": 21.05,
+      "actual_roi_pct": 63.49,
+      "hits": 52,
+      "invested_yen": 2223000,
+      "profit_yen": -811620,
+      "return_yen": 1411380,
+      "sample_races": 247
     }
   },
   "recent_30": {
     "modes": {
       "balance": {
-        "actual_hit_rate_pct": 63.33,
-        "actual_roi_pct": 114.28,
-        "hits": 19,
+        "actual_hit_rate_pct": 66.67,
+        "actual_roi_pct": 116.31,
+        "hits": 20,
         "invested_yen": 270000,
-        "profit_yen": 38550,
-        "return_yen": 308550,
+        "profit_yen": 44050,
+        "return_yen": 314050,
         "sample_races": 30
       },
       "hit": {
-        "actual_hit_rate_pct": 70.0,
-        "actual_roi_pct": 100.46,
-        "hits": 21,
+        "actual_hit_rate_pct": 73.33,
+        "actual_roi_pct": 102.37,
+        "hits": 22,
         "invested_yen": 270000,
-        "profit_yen": 1250,
-        "return_yen": 271250,
+        "profit_yen": 6390,
+        "return_yen": 276390,
         "sample_races": 30
       },
       "hole": {
-        "actual_hit_rate_pct": 0.0,
-        "actual_roi_pct": 0.0,
-        "hits": 0,
+        "actual_hit_rate_pct": 3.33,
+        "actual_roi_pct": 37.16,
+        "hits": 1,
         "invested_yen": 270000,
-        "profit_yen": -270000,
-        "return_yen": 0,
+        "profit_yen": -169680,
+        "return_yen": 100320,
         "sample_races": 30
       },
       "narrow": {
-        "actual_hit_rate_pct": 13.33,
-        "actual_roi_pct": 19.07,
-        "hits": 4,
+        "actual_hit_rate_pct": 16.67,
+        "actual_roi_pct": 28.8,
+        "hits": 5,
         "invested_yen": 270000,
-        "profit_yen": -218520,
-        "return_yen": 51480,
+        "profit_yen": -192240,
+        "return_yen": 77760,
         "sample_races": 30
       }
     },
