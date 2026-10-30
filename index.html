@@ -1022,7 +1022,7 @@ async function loadPredictions(force=false){
  label.textContent=retain?'CLEAN独立予想を更新中…':'保存済み研究予想を確認中…';
  try{
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
-  predictionRetryAt.delete(key);displayedPredictionKey=key;predictionModes={research:{tickets:[],probabilities:{},odds:{}}};selectedPredictionMode='research';applyPredictionMode();
+  predictionRetryAt.delete(key);displayedPredictionKey=key;if(!retain){predictionModes={research:{tickets:[],probabilities:{},odds:{}}};selectedPredictionMode='research';applyPredictionMode();}
   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key.replaceAll('-','')+'.json',{cache:'no-store'});
   if(!response.ok&&response.status!==404)throw Error('SOURCE_HTTP_'+response.status);
   if(response.status===404){
