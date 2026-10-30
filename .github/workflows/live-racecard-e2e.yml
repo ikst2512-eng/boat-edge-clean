@@ -4,6 +4,7 @@ on:
     paths:
       - scripts/verify_live_racecard_e2e.py
       - .github/workflows/live-racecard-e2e.yml
+      - clean_racecard.py
   workflow_dispatch:
   schedule:
     - cron: '0 5 * * *'
