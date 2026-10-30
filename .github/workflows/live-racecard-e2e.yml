@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: python -m py_compile scripts/verify_live_racecard_e2e.py
   e2e-live-race:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
