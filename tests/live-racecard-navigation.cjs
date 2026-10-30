@@ -130,12 +130,6 @@ const {chromium}=require('playwright');
   // Scheduled monitoring must detect an actual live-data gap rather than
   // silently passing because navigation worked. Nighttime / no-race runs
   // remain explicitly unverified, never a fabricated exhibition success.
-  if(process.env.GITHUB_EVENT_NAME==='schedule' && scheduleFeedStatus!=='ok')throw Error('SCHEDULED_LIVE_SCHEDULE_SOURCE_UNAVAILABLE');
-  if(process.env.GITHUB_EVENT_NAME==='schedule' && selections.length>0 && !liveExhibitionVerified){
-   throw Error('SCHEDULED_LIVE_EXHIBITION_UNVERIFIED_WITH_ELIGIBLE_RACES '+JSON.stringify({
-    date:today,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
-   }));
-  }
   if(process.env.GITHUB_STEP_SUMMARY){
    const fs=require('node:fs');
    const proof=liveExhibitionVerified?'実証済み（APIと画面の6艇分が一致）':'未実証（展示6艇分の一致確認なし）';
@@ -158,6 +152,12 @@ const {chromium}=require('playwright');
     ''
    ];
    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,rows.join('\n')+'\n');
+  }
+  if(process.env.GITHUB_EVENT_NAME==='schedule' && scheduleFeedStatus!=='ok')throw Error('SCHEDULED_LIVE_SCHEDULE_SOURCE_UNAVAILABLE');
+  if(process.env.GITHUB_EVENT_NAME==='schedule' && selections.length>0 && !liveExhibitionVerified){
+   throw Error('SCHEDULED_LIVE_EXHIBITION_UNVERIFIED_WITH_ELIGIBLE_RACES '+JSON.stringify({
+    date:today,eligible_checked:selections.length,races:selections.map(x=>[x.venue,x.race])
+   }));
   }
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
