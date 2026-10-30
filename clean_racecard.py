@@ -69,7 +69,10 @@ def _fetch_preview(code,path,deadline):
     times=[r["exhibition_time"] for r in racers]
     tilts=[r["tilt"] for r in racers]
     courses=[r["course"] for r in starts]
-    if (any(v is None or not 5.0<=v<=9.0 for v in times)
+    # A blank start-exhibition ST is incomplete evidence, even if course is known.
+    start_times=[r["st"] for r in starts]
+    if (any(v is None or not str(v).strip() for v in start_times)
+        or any(v is None or not 5.0<=v<=9.0 for v in times)
         or any(v is None or not -1.0<=v<=3.0 for v in tilts)
         or any(v is None for v in courses)
         or sorted(courses)!=[1.,2.,3.,4.,5.,6.]):
