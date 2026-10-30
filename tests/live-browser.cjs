@@ -12,7 +12,7 @@ const fs=require('node:fs');
   let response;
   for(let attempt=1;attempt<=12;attempt++){
    response=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
-   if(response?.status()!==703 || !isRender)break;
+   if(response?.status()!==503 || !isRender)break;
    console.log('Render is waking (HTTP 503), retry '+attempt+'/12');
    await page.waitForTimeout(6000);
   }
