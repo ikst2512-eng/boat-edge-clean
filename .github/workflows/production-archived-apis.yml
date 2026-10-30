@@ -1,0 +1,20 @@
+name: Production archived forecast and result E2E
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/verify_production_archived_apis.py
+      - .github/workflows/production-archived-apis.yml
+permissions:
+  contents: read
+jobs:
+  live-archived-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile smoke test
+        run: python -m py_compile scripts/verify_production_archived_apis.py
+      - name: Verify real archived forecast and confirmed result on Render
+        run: python scripts/verify_production_archived_apis.py
