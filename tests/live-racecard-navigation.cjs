@@ -31,17 +31,57 @@ const {chromium}=require('playwright');
    const switched=await page.evaluate(()=>({key:sameRaceKey(),visible:!document.getElementById('raceDataSection').hidden}));
    if(switched.key!==expected||!switched.visible)throw Error('EXHIBIT_NAV_MISMATCH '+JSON.stringify(switched));
   }
-  const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261030&jcd=01&rno=1';
-  const api=await page.evaluate(async url=>{
-   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),30000);
-   try{const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});const body=await response.json();return {http:response.status,status:body.status,ok:body.ok,schema:body.schema_version,race:body.race_key,racers:body.racers?.length}}finally{clearTimeout(timeout)}
-  },url);
-  if(api.http===200){
-   if(api.schema!=='boat-edge-race-v5'||api.race!=='20261030-01-01'||api.racers!==6)throw Error('LIVE_API_INCOMPLETE '+JSON.stringify(api));
-   console.log('LIVE_SIX_BOAT_API_PASS '+JSON.stringify(api));
-  }else if([400,404,422,502,503].includes(api.http)){
-   console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify(api));
-  }else throw Error('UNEXPECTED_RACE_API_RESPONSE '+JSON.stringify(api));
+  // Inspect a live upcoming race with real preview rows when available.
+  // Otherwise report an explicit unverified result, never a fabricated pass.
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replaceAll('-','');
+  const origin='https://boat-edge-clean.onrender.com';
+  const feed='https://boatraceopenapi.github.io/api/v1/'+today.slice(0,4)+'/'+today+'.json';
+  let selected=null;
+  try{
+   const response=await fetch(feed,{signal:AbortSignal.timeout(10000)});
+   if(response.ok()){
+    const data=await response.json();
+    const stadiums=data?.programs?.stadiums||{};
+    const upcoming=[];
+    for(const [venue,info] of Object.entries(stadiums)){
+     for(const [race,entry] of Object.entries(info.races||{})){
+      const cutoff=new Date((entry.closed_at||'').replace(' ','T')+'+09:00');
+      if(Number(venue)>=1&&Number(venue)<=24&&Number(race)>=1&&Number(race)<=12
+         &&Number.isFinite(cutoff.getTime())&&cutoff.getTime()>Date.now()+120000){
+       upcoming.push({venue:Number(venue),race:Number(race),cutoff:cutoff.getTime()});
+      }
+     }
+    }
+    upcoming.sort((a,b)=>a.cutoff-b.cutoff);
+    selected=upcoming[0]||null;
+   }
+  }catch(e){console.log('LIVE_SCHEDULE_LOOKUP_UNAVAILABLE '+String(e).slice(0,130));}
+  if(selected){
+   const url=origin+'/api/clean-racecard?hd='+today+'&jcd='+selected.venue+'&rno='+selected.race;
+   const api=await page.evaluate(async url=>{
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+    try{
+     const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
+     const body=await response.json();
+     return {http:response.status,body};
+    }finally{clearTimeout(timeout)}
+   },url);
+   const expected=today+'-'+String(selected.venue).padStart(2,'0')+'-'+String(selected.race).padStart(2,'0');
+   if(api.http===200){
+    const d=api.body;
+    if(d.schema_version!=='boat-edge-race-v5'||d.race_key!==expected||d.racers?.length!==6)throw Error('LIVE_API_INCOMPLETE '+expected);
+    console.log('LIVE_SIX_BOAT_API_PASS '+expected);
+    const preview=d.beforeinfo,audit=d.source_audit?.beforeinfo;
+    if(audit?.status==='ok'){
+     if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('LIVE_EXHIBITION_INCOMPLETE '+expected);
+     // Cross-check that the actual user-facing forecast preview can consume the same race.
+     await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
+       {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
+     console.log('LIVE_EXHIBITION_API_PASS '+JSON.stringify({race:expected,exhibition_count:preview.racers.length,entry_count:preview.start_exhibition.length}));
+    }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
+   }else if([400,404,422,502,503].includes(api.http))console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify({race:expected,http:api.http,status:api.body.status}));
+   else throw Error('UNEXPECTED_RACE_API_RESPONSE '+api.http);
+  }else console.log('NO_LIVE_UPCOMING_RACE_NOT_A_PASS '+today);
   if(errors.length)throw Error('JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published Pages switches venue/race and card/exhibition without stale selected race.');
  }finally{await browser.close()}
