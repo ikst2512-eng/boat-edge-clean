@@ -44,8 +44,29 @@ for _,code in candidates[:3]:
         audit=data.get("source_audit",{})
         if audit.get("race_card",{}).get("status")!="ok":raise ValueError("unverified card source")
         before=audit.get("beforeinfo",{}).get("status")
-        if before=="ok" and (len((data.get("beforeinfo") or {}).get("racers",[]))!=6):
-            raise ValueError("verified preview missing racers")
+        if before=="ok":
+            preview=data.get("beforeinfo") or {}
+            exhibitions=preview.get("racers") or []
+            starts=preview.get("start_exhibition") or []
+            if len(exhibitions)!=6 or len(starts)!=6:
+                raise ValueError("verified preview missing six racers or starts")
+            if sorted(entry.get("lane") for entry in exhibitions)!=list(range(1,7)):
+                raise ValueError("verified preview missing six unique exhibition lanes")
+            if sorted(entry.get("lane") for entry in starts)!=list(range(1,7)):
+                raise ValueError("verified preview missing six unique starting lanes")
+            if sorted(entry.get("course") for entry in starts)!=list(range(1,7)):
+                raise ValueError("verified preview course permutation invalid")
+            for entry in exhibitions:
+                if not isinstance(entry.get("exhibition_time"),(int,float)) or not 5<=entry["exhibition_time"]<=9:
+                    raise ValueError("verified exhibition time invalid")
+                if not isinstance(entry.get("tilt"),(int,float)) or not -1<=entry["tilt"]<=3:
+                    raise ValueError("verified tilt invalid")
+            from datetime import datetime as _datetime
+            fetched=_datetime.fromisoformat(audit["beforeinfo"]["fetched_at"])
+            deadline=_datetime.strptime(hd+data["meta"]["deadline"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+            if fetched.tzinfo is None or fetched>=deadline:
+                raise ValueError("verified exhibition not predeadline")
+            print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
         print(json.dumps({"outcome":"CARD_PASS","schedule_source":source,"race":code,"card_source":data["meta"]["source"],"preview_status":before},ensure_ascii=False))
