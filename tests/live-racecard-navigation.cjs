@@ -77,6 +77,10 @@ const {chromium}=require('playwright');
     console.log('LIVE_SIX_BOAT_API_PASS '+expected);
     const preview=d.beforeinfo,audit=d.source_audit?.beforeinfo;
     if(audit?.status==='ok'){
+     const observed=Date.parse(audit.fetched_at||'');
+     const deadline=Date.parse(d.meta?.date+'T'+d.meta?.deadline+':00+09:00');
+     if(!Number.isFinite(observed)||!Number.isFinite(deadline)||observed>=deadline||observed>Date.now())
+      throw Error('LIVE_EXHIBITION_TIMESTAMP_INVALID '+JSON.stringify({race:expected,observed:audit.fetched_at,deadline:d.meta?.deadline}));
      if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('LIVE_EXHIBITION_INCOMPLETE '+expected);
      // Cross-check that the actual user-facing forecast preview can consume the same race.
      await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
