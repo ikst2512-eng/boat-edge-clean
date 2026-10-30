@@ -133,7 +133,7 @@ jobs:
                 if(await page.locator('[data-home-only]:visible').count()!==0)throw Error('home grid leaked into '+view);
               }
               if(errors.length)throw Error('JavaScript errors: '+errors.join('; '));
-              console.log('CLEAN_BROWSER_SMOKE_PASS: four modes, home-only venues, mobile navigation');
+              console.log('CLEAN_BROWSER_SMOKE_PASS: race view, home-only venues, mobile navigation');
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
