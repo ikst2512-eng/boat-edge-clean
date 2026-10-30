@@ -1383,4 +1383,4 @@ async function loadReview(){
  }
 }
 setInterval(()=>{if(!document.hidden&&activeView==='review')loadReview()},60000);
-setView(activeView);render();</script></body></html>
+setView(activeView);render();const navScript=document.createElement('script');navScript.src='navigation.js';document.body.append(navScript);</script></body></html>
