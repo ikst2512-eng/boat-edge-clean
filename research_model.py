@@ -66,8 +66,18 @@ def predict(hd,jcd,rno):
     old=_saved(code)
     if old is not None:return old
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    titles,t1,title_sha256=read_rows(BASE+"title/"+path)
-    cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
+    try:
+        titles,t1,title_sha256=read_rows(BASE+"title/"+path)
+        cards,t2,cards_sha256=read_rows(BASE+"race_cards/"+path)
+        if not titles or not cards:
+            raise OSError("empty pre-race source")
+        source_kind="public_pre_race_csv"
+    except (OSError, TimeoutError):
+        from clean_openapi_sources import load
+        titles,cards,observed,digest,source=load(hd)
+        t1=t2=observed
+        title_sha256=cards_sha256=digest
+        source_kind=source["source"]
     matching_t=[r for r in titles if r.get("レースコード")==code]
     matching_c=[r for r in cards if r.get("レースコード")==code]
     if len(matching_t)!=1 or len(matching_c)!=1:raise ValueError("race missing")
@@ -84,7 +94,7 @@ def predict(hd,jcd,rno):
             "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
             "message":"研究予想（未検証・回収率未確認）","validated":False}
     STORE.mkdir(parents=True,exist_ok=True)
-    record=dict(result,race_code=code,topn_model_mass_pct=topn_model_mass_pct,confidence_calibrated=False,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
+    record=dict(result,race_code=code,input_source_kind=source_kind,topn_model_mass_pct=topn_model_mass_pct,confidence_calibrated=False,source_deadline_jst=deadline.isoformat(),cutoff_jst=cutoff.isoformat(),source_title_received_jst=t1.isoformat(),
                 source_cards_received_jst=t2.isoformat(),national_win_rates=rates,source_title_sha256=title_sha256,
                 source_cards_sha256=cards_sha256, input_sha256=hashlib.sha256(
                     (title_sha256+":"+cards_sha256).encode("ascii")
