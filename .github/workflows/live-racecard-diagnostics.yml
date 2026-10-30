@@ -5,6 +5,8 @@ on:
       - scripts/diagnose_live_racecard.py
       - .github/workflows/live-racecard-diagnostics.yml
   workflow_dispatch:
+  schedule:
+    - cron: '45 3,6,9 * * *'
 permissions:
   contents: read
 jobs:
