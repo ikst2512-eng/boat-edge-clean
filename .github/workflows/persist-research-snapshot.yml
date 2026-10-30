@@ -1,0 +1,68 @@
+name: Persist predeadline research snapshot
+on:
+  workflow_dispatch:
+    inputs:
+      race_date:
+        description: "JST race date YYYYMMDD"
+        required: true
+        type: string
+      venue:
+        description: "Venue code 1-24"
+        required: true
+        type: string
+      race:
+        description: "Race number 1-12"
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: research-snapshot-persistence
+  cancel-in-progress: false
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate before cutoff and persist immutable source file
+        env:
+          RACE_DATE: ${{ inputs.race_date }}
+          VENUE: ${{ inputs.venue }}
+          RACE: ${{ inputs.race }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from research_model import predict
+          day = os.environ["RACE_DATE"]
+          venue = os.environ["VENUE"]
+          race = os.environ["RACE"]
+          if len(day) != 8 or not day.isascii() or not day.isdigit():
+              raise ValueError("Invalid date")
+          if not venue.isascii() or not venue.isdigit() or not 1 <= int(venue) <= 24:
+              raise ValueError("Invalid venue")
+          if not race.isascii() or not race.isdigit() or not 1 <= int(race) <= 12:
+              raise ValueError("Invalid race")
+          code = f"{day}{int(venue):02d}{int(race):02d}"
+          target = Path("research_snapshots") / (code + ".json")
+          if target.exists():
+              raise ValueError("Snapshot already tracked: no overwrite")
+          forecast = predict(day, venue, race)
+          if not target.is_file() or "topn_model_mass_pct" not in target.read_text(encoding="utf-8"):
+              raise ValueError("New snapshot not created with TopN mass")
+          print("Created research-only snapshot", code, forecast["model_version"])
+          PY
+      - name: Commit new snapshot to origin
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- research_snapshots/
+          git diff --cached --quiet && { echo "No new snapshot generated"; exit 1; }
+          git commit -m "research: preserve predeadline snapshot and model mass"
+          git push origin HEAD:main
