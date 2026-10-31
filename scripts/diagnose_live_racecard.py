@@ -3,6 +3,7 @@ from datetime import datetime
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import json
+import re
 from clean_direct_sources import holding_rows
 from clean_racecard import racecard, _preview_rows
 from research_model import JST
@@ -48,6 +49,28 @@ def run():
                     timestamp=datetime.fromisoformat(row.get("取得日時",""))
                 except (ValueError,TypeError):continue
                 if timestamp.tzinfo and timestamp<=now and timestamp<eligible[code]:matched.add(code)
+            if kind in ("tkz","stt"):
+                for row in rows:
+                    code=row.get("レースコード")
+                    if code not in eligible or row.get("締切時刻")!=eligible[code].strftime("%H:%M"):continue
+                    missing=[]
+                    for lane in range(1,7):
+                        if kind=="tkz":
+                            for key,lo,hi in (("展示タイム",5,9),("チルト",-1,3)):
+                                field=f"艇{lane}_{key}"
+                                try: value=float(row.get(field))
+                                except (ValueError,TypeError): value=None
+                                if value is None or not lo<=value<=hi:missing.append(field)
+                        else:
+                            field=f"艇{lane}_コース"
+                            try: course=float(row.get(field))
+                            except (ValueError,TypeError): course=None
+                            if course is None or not 1<=course<=6:missing.append(field)
+                            field=f"艇{lane}_スタート展示"
+                            if not re.fullmatch(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})",str(row.get(field) or "").strip()):
+                                missing.append(field)
+                    if missing:
+                        print("PREVIEW_INCOMPLETE_FIELDS",kind,code,sorted(missing),flush=True)
             seen_preview[kind]=matched
             observed=len(matched & {x[1] for x in window})
             print("PREVIEW_SOURCE",kind,"rows",len(rows),"near_deadline_matches",observed,"sha256",sha,flush=True)
