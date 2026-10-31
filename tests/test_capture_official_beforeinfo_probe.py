@@ -1,5 +1,7 @@
 import tempfile
 import json
+import hashlib
+import json
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -15,7 +17,13 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertFalse(result["t12_eligible"])
             self.assertFalse(result["forecast_usable"])
             self.assertEqual(result["complete_six_lanes"],"unverified")
-            self.assertTrue((Path(d)/"20261101/202611010708/manifest.json").exists())
+            manifest_path=Path(d)/"20261101/202611010708/manifest.json"
+            self.assertTrue(manifest_path.exists())
+            saved=json.loads(manifest_path.read_text())
+            raw=(manifest_path.parent/"beforeinfo.html").read_bytes()
+            self.assertEqual(saved["sha256"],hashlib.sha256(raw).hexdigest())
+            self.assertEqual(saved["received_at_jst"],now.isoformat())
+            self.assertFalse(saved["forecast_usable"])
             manifest=(Path(d)/"20261101/202611010708/manifest.json").read_text(encoding="utf-8")
             self.assertTrue(manifest.endswith("\n"))
             self.assertEqual(json.loads(manifest),result)
