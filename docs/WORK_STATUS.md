@@ -555,3 +555,8 @@
 ## 2026-11-01 公式直前情報の原本保存完了マーカー
 - 公式beforeinfo実験の原本保存で、HTML本文を排他的に保存した後にのみ `manifest.json` を作成するよう変更。完了manifestの存在を保存手順の最終マーカーとする（commit `6c27e34023165e6536c9c9309707f55ed580186c`）。保存テストにHTML本体存在確認を追加（`cbf68485a8dc9be53e717b2ca3a1b30343943451`）。ただしマシン停止時のfsync/完全なatomicityは未実装。
 - 公式ページ直接接続は実行環境のDNS名前解決失敗で断念。CI成功、公式6艇実受信、T-12時刻成立は**未確認**。既存の正式予想パイプライン・旧サイトは変更なし。
+
+## 2026-11-01 PR #763 公式beforeinfo部分保存の失敗時清掃
+- append-only公式HTML取得でHTML保存後のmanifest書込が失敗すると、不完全な保存ディレクトリが残り得た。書込みエラー時にmanifest・HTML・空ディレクトリを撤去する処理を追加。既存の成功時保存原本や予想生成は変更なし。
+- manifest書込を強制失敗させる回帰テストを追加。PR head `90ab220a357cbbd9befc86997d02edc51afd6b01` の既存Late preview evidence integrity run `41247012805` はsuccess。main squash `abd2f6abac00b21abf5e0d1738c629b1535b7bd0`。
+- 公式beforeinfoの実受信・6艇完全性・T-12時刻成立は未証明。旧サイト停止なし。
