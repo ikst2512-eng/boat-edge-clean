@@ -31,6 +31,36 @@ class MassCohortAudit(unittest.TestCase):
             self.assertEqual(result["by_mass_cohort"]["without_topn_mass"]["matched"], 1)
             self.assertEqual(result["by_mass_cohort"]["with_topn_mass"]["top3"], 1)
 
+    def test_invalid_finishes_and_tickets_are_rejected(self):
+        valid_tickets = ["1-2-3", "1-3-2", "2-1-3", "2-3-1", "3-1-2",
+                         "3-2-1", "1-2-4", "1-4-2", "4-1-2", "4-2-1"]
+        cases = [
+            ([1, 1, 2], valid_tickets),
+            ([1, 2, 7], valid_tickets),
+            ([True, 2, 3], valid_tickets),
+            (["1", 2, 3], valid_tickets),
+            ([1, 2, 3], valid_tickets[:-1] + ["1-2-7"]),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "research_snapshots").mkdir()
+            (root / "confirmed_results").mkdir()
+            for i, (finish, tickets) in enumerate(cases, start=1):
+                code = f"2026103101{i:02d}"
+                (root / "research_snapshots" / (code + ".json")).write_text(json.dumps({
+                    "race_code": code, "status": "research", "validated": False,
+                    "predictions": tickets,
+                }))
+                (root / "confirmed_results" / (code + ".json")).write_text(json.dumps({
+                    "race_code": code, "status": "confirmed", "finish_order": finish,
+                }))
+            with patch.object(audit, "ROOT", root):
+                result = audit.run()
+            self.assertEqual(result["counts"]["matched"], 0)
+            self.assertEqual(result["counts"]["rejected"], len(cases))
+            self.assertIsNone(result["counts"]["top10_rate_pct"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
