@@ -5,6 +5,8 @@ on:
       - 'scripts/collect_live_preview_evidence.py'
       - '.github/workflows/research-live-preview-evidence.yml'
       - 'tests/test_late_preview_paired_coverage.py'
+      - 'scripts/late_preview_feature_pairs.py'
+      - 'tests/test_late_preview_feature_pairs.py'
   schedule:
     # 09:00-21:45 JST every 15 minutes; capture eligibility remains fail-closed.
     - cron: '*/15 0-12 * * *'
@@ -22,8 +24,12 @@ jobs:
           python-version: '3.12'
       - name: Test same-race paired preview completeness
         run: python -m unittest discover -s tests -p 'test_late_preview_paired_coverage.py' -v
+      - name: Test validated preview feature extraction
+        run: python -m unittest discover -s tests -p 'test_late_preview_feature_pairs.py' -v
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
+      - name: Summarize fully validated late-preview features
+        run: python scripts/late_preview_feature_pairs.py
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4
