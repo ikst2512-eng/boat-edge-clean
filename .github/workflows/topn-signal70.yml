@@ -41,5 +41,24 @@ jobs:
         run: python compare_topn_signal70.py 20261029
       - name: Compare observed signal groups Oct 30
         run: python compare_topn_signal70.py 20261030
+      - name: Reconcile October 31 audited cohort and payout coverage
+        run: |
+          python - <<'PY'
+          import json
+          from aggregate_prospective_topn import summary
+          from compare_topn_signal70 import compare
+          strict = summary(("20261031",))
+          observed = compare("20261031")
+          groups = observed["groups"]
+          evaluated = sum(g["evaluated"] for g in groups.values())
+          pending = sum(g["awaiting_result"] for g in groups.values())
+          rejected = sum(g["rejected"] for g in groups.values())
+          if (evaluated, pending, rejected) != tuple(strict["counts"][k] for k in ("evaluated", "awaiting_result", "audit_rejected")):
+              raise SystemExit("OCT31_COHORT_MISMATCH")
+          print(json.dumps({"day":"20261031","archived":strict["counts"]["archives"],
+              "evaluated":evaluated,"pending":pending,"rejected":rejected,
+              "payout_verified":sum(g["payout_verified"] for g in groups.values()),
+              "top10_hits":sum(g["hits"]["top10"] for g in groups.values())},sort_keys=True))
+          PY
       - name: October 31 independent follow-up (pending excluded)
         run: python compare_topn_signal70.py 20261031
