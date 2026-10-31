@@ -40,6 +40,22 @@ class MultiDayTopNTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summary(["20261029"], source)
 
+    def test_rejection_reasons_counted_once_across_two_days(self):
+        def evaluator(day):
+            data = self.fake(day)
+            data["counts"] = {"archives": 3, "evaluated": 1, "awaiting_result": 0, "audit_rejected": 2}
+            data["hits"] = {"top3": 0, "top5": 0, "top10": 0}
+            data["rejected"] = [
+                {"race_code": day+"0101", "reason": "missing first-add: SHA"},
+                {"race_code": day+"0102", "reason": "missing first-add: parent"},
+            ]
+            data["roi"] = {k: {"races": 0, "invested_yen": 0, "return_yen": 0} for k in data["hits"]}
+            return data
+        result = summary(["20261029", "20261030"], evaluator)
+        self.assertEqual(result["counts"]["audit_rejected"], 4)
+        self.assertEqual(result["rejection_reasons"], {"missing first-add": 4})
+        self.assertEqual(sum(result["rejection_reasons"].values()), 4)
+
     def test_duplicate_dates_rejected(self):
         with self.assertRaises(ValueError):
             summary(["20261029", "20261029"], self.fake)
