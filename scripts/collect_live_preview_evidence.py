@@ -72,6 +72,8 @@ def collect(day, root, fetch=None):
             summary["kinds"][kind]={"status":"unavailable_or_invalid","error":type(error).__name__}
             if isinstance(error, HTTPError):
                 summary["kinds"][kind]["http_status"]=error.code
+                summary["kinds"][kind]["checked_at_jst"]=datetime.now(JST).isoformat()
+                summary["kinds"][kind]["availability_interpretation"]="not_published_or_missing" if error.code==404 else "http_failure"
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
