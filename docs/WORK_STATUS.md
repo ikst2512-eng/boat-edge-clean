@@ -545,3 +545,8 @@
 ## 2026-11-01 公式beforeinfo原本のハッシュ整合性テスト
 - 公式直前情報HTML保存の回帰テストに、保存済み `beforeinfo.html` 原本のSHA-256を実バイトから再計算して `manifest.json` の `sha256` と一致すること、実HTTP受信時刻、`forecast_usable=false` の保存状態を検証する条件を追加（main `f1649f6de4bb2898da04df480503137b39455332`）。既存の `late-preview-capture.yml` にテスト実行設定あり。
 - 実公式ページの受信・6艇抽出・T-12成立・当該GitHub Actions成功は未確認。公式取得経路は引き続き実験専用で、正式予想に使用しない。
+
+## 2026-11-01 PR #761 公式beforeinfo独立保存JSON修復
+- `scripts/capture_official_beforeinfo_probe.py` のmanifest末尾をリテラルのバックスラッシュnから実改行に修復。既存テストで `json.loads`、返却manifestとの一致、HTML保存バイト同一性を確認。
+- 既存preview証拠CIへテスト・pathトリガーを追加。PR head `ea48dfd1c68dd67b7a0c526a66816497cbd6bf9c`、run `41246854917` のvalidateはsuccess。main squash `d33e368ad0170ef477888a90ec1108b6a2dad760`。
+- 公式HTMLの保存可能性のみでT-12・6艇・初回Git記録・予想利用適格の証明ではない。実レースprobeの取得成功は未確認。旧サイト変更・停止なし。
