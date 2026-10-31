@@ -45,6 +45,29 @@ class TopNCohortTests(unittest.TestCase):
             no_proof=cohort("20261029",root,scored)
             self.assertIsNone(no_proof["roi"]["top3"]["roi_pct"])
             self.assertEqual(no_proof["payout_unavailable"],1)
+    def test_inconsistent_rank_is_rejected_not_counted_as_miss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            (d/"202610290101.json").write_text("{}")
+            def scorer(code, root):
+                return {"status":"evaluated","formal":False,"audited":True,
+                        "rank":2,"top3":False,"top5":True,"top10":True}
+            data=cohort("20261029",root,scorer)
+            self.assertEqual(data["counts"]["audit_rejected"],1)
+            self.assertEqual(data["counts"]["evaluated"],0)
+            self.assertIsNone(data["hit_rate_pct"]["top10"])
+
+    def test_nonmonotonic_hits_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            (d/"202610290101.json").write_text("{}")
+            def scorer(code, root):
+                return {"status":"evaluated","formal":False,"audited":True,
+                        "top3":True,"top5":False,"top10":True}
+            data=cohort("20261029",root,scorer)
+            self.assertEqual(data["counts"]["audit_rejected"],1)
+            self.assertEqual(data["counts"]["evaluated"],0)
+
     def test_unverified_payout_is_rejected(self):
         import json
         with tempfile.TemporaryDirectory() as tmp:
