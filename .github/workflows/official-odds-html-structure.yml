@@ -13,19 +13,34 @@ jobs:
       - name: Capture structural summary without odds values
         run: |
           python - <<'PY'
-          import datetime, urllib.request, collections, html.parser
+          import datetime, urllib.request, collections, re, json
           from server import OddsTableReader
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
-          url='https://www.boatrace.jp/owpc/pc/race/odds3t?hd='+day+'&jcd=01&rno=1'
+          schedule_url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+day+'.json'
           try:
-              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN/1.0'}),timeout=15) as r:
-                  body=r.read(1500001)
-                  print('HTTP',r.status,'content-type',r.headers.get('Content-Type'),'bytes',len(body))
-              parser=OddsTableReader()
-              parser.feed(body.decode('utf-8',errors='replace'))
-              print('table-count',len(parser.tables))
-              for index,rows in enumerate(parser.tables[:20]):
-                  print('table',index,'rows',len(rows),'widths',dict(collections.Counter(map(len,rows))))
+              with urllib.request.urlopen(schedule_url,timeout=12) as response:
+                  schedule=json.load(response)
+              venues=[str(v.get('jcd')).zfill(2) for v in schedule.get('venues',[]) if v.get('races')]
+              print('scheduled-venues',venues[:12])
           except Exception as exc:
-              print('DIAGNOSIS_UNAVAILABLE',type(exc).__name__,str(exc)[:150])
+              print('schedule-unavailable',type(exc).__name__)
+              venues=[]
+          if not venues:
+              print('NO_CONFIRMED_ACTIVE_VENUE: no false odds parser conclusion')
+          for venue in venues[:3]:
+              url='https://www.boatrace.jp/owpc/pc/race/odds3t?hd='+day+'&jcd='+venue+'&rno=1'
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'text/html'}),timeout=15) as response:
+                      body=response.read(1500001)
+                      print('venue',venue,'HTTP',response.status,'bytes',len(body))
+                  html=body.decode('utf-8',errors='replace')
+                  parser=OddsTableReader()
+                  parser.feed(html)
+                  title=re.search(r'<title[^>]*>(.*?)</title>',html,re.I|re.S)
+                  title_text=re.sub(r'\\s+',' ',title.group(1)).strip()[:100] if title else 'NO_TITLE'
+                  print('venue',venue,'title',title_text,'table-count',len(parser.tables))
+                  print('venue',venue,'table-shapes',[(len(rows),dict(collections.Counter(map(len,rows)))) for rows in parser.tables[:5]])
+                  print('venue',venue,'html-markers',{'odds': 'オッズ' in html,'race': 'レース' in html,'error': any(x in html for x in ('ページが見つかりません','該当するデータがありません','開催していません'))})
+              except Exception as exc:
+                  print('venue',venue,'DIAGNOSIS_UNAVAILABLE',type(exc).__name__,str(exc)[:100])
           PY
