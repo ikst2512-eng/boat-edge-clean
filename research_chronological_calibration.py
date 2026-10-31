@@ -46,7 +46,10 @@ def load_pairs(root=ROOT):
             order = result["finish_order"]
             if len(rates) != 6 or len(order) < 3 or len(set(order[:3])) != 3 or any(type(n) is not int or n not in range(1, 7) for n in order[:3]):
                 continue
-            probabilities(rates)
+            ranked = probabilities(rates, 0.4)
+            expected = ["-".join(map(str, t)) for t, _ in ranked[:10]]
+            if forecast.get("predictions") != expected:
+                continue  # Do not calibrate against tampered or mismatched frozen tickets.
             ticket = tuple(order[:3])
             rows.append((code, rates, ticket))
         except (ValueError, KeyError, TypeError, OSError):
