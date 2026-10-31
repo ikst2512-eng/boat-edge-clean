@@ -275,3 +275,10 @@
 ### 2026-11-01 最新欠損診断のCI実証（PR #723）
 - 専用CIが最新修正に反応しない問題に対し、既存 `late-preview-evidence-tests.yml` のpush対象へ作業ブランチを一時的に追加。run `41239801304` / commit `5aa3dee0` において保存・取得分類・JST日跨ぎ・T-12監査・6艇ペアの5系統すべてテストステップ成功、jobもsuccess。
 - これは `incomplete_pair_reasons_by_race` を含む現行コードの回帰テスト成功であり、実競走のT-12データ取得成功ではない。統合前に作業ブランチ専用CI条件を除く必要がある。main未統合。
+
+### 2026-11-01 PR #723 継続引き継ぎ（GitHub API再確認）
+- 対象リポジトリは `ikst2512-eng/boat-edge-clean`。PR head `996a2b9` 時点で main から57コミットahead / 4コミットbehind、mergeable=false。mainの差分は `docs/WORK_STATUS.md` と `scripts/verify_live_racecard_e2e.py`。履歴を失うforce pushやmain直接統合はしない。
+- 最新の専用CI通過は先行作業の報告に基づく。GitHub APIのcommit-PRワークフロー検索は `996a2b9` と今回の作業コミットで0件だったため、この検索だけで新たなCI成功を主張しない。
+- 一時的なpushブランチ指定を `.github/workflows/late-preview-evidence-tests.yml` から除去し、`push: main` と `pull_request` の既存テスト経路を維持（commit `5066d1202d52fc1fde30e36ebc7baf20560d4742`）。
+- 今回の作業はT-12実データ収集の成功を示さない。STT・TKZの同一レース・同一締切の6艇データ、受信JST時刻、ソース時刻、締切前12分の照合は未完了。
+- 次: `docs/WORK_STATUS.md` のmain追加14行を保存したままPR側の記録と統合し、CIを再確認。実レースについて08:00以降の定期実行ログ・artifactを照合。モデル/UIは触らずメイン担当のmain統合判断に委譲。
