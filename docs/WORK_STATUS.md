@@ -343,3 +343,10 @@
 ## 2026-11-01 重複PR #654の安全整理
 - #654の変更対象3ファイルをmainと照合し、paired_six_lane_coverage、ステップ要約、import修正が#723統合済みであることを確認。証拠保持期間はPR案14日より強い現行90日。重複の#654へ根拠をコメントし、state=closed / reason=duplicate とした。#654の古いコードをmainに再適用していない。
 - 実レースT-12 COMPLETE_PAIR成功は未証明。旧repo/Pagesや保存原本は変更していない。
+
+
+## 2026-11-01 定期preview監査を日次自動化
+- 既存 `.github/workflows/audit-preview-scheduled-runs.yml` は従来 `pull_request` / `workflow_dispatch` のみで自動定時監査がなく、実行ログ `41240537814` の `scheduled_runs=0` を翌日以降自動追跡できなかった。
+- main commit `2bf7a5361f9bbb8b2efcd066c88a07f1741d28a7` で既存workflowへ `cron: '17 14 * * *'`（JST 23:17、収集予定終了後）を追加。新しいworkflow・取得writer・モデル変更は作っていない。main再取得でcron反映を確認。
+- 注意: GitHub scheduled Actionsの起動は遅延・欠落し得る。設定反映のみ確認済みで、初回の定時実行成功・収集のT-12完全6艇ペアは未確認。監査はrun件数と状態のみ集計し、race evidence本体はcapture artifactで別途確認が必要。
+- 次: 08:03–21:58 JSTのcapture scheduled run、23:17 JST以降のaudit scheduled run、それぞれのartifactで同一レースSTT+TKZ 6艇の締切・受信時刻を実測する。取得できなければ欠損原因とジョブ動作を分離して修正する。
