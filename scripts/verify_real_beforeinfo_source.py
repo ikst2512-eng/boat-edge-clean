@@ -17,9 +17,9 @@ def main(day=None):
         keys=rows[0].keys()
         expected={"レースコード","締切時刻","取得日時"}
         if kind=="tkz":
-            expected|={"艇1_展示タイム","艇1_チルト"}
+            expected|={f"艇{i}_{field}" for i in range(1,7) for field in ("展示タイム","チルト")}
         if kind=="stt":
-            expected|={"艇1_コース","艇1_スタート展示"}
+            expected|={f"艇{i}_{field}" for i in range(1,7) for field in ("コース","スタート展示")}
         if not expected.issubset(keys):
             raise RuntimeError(kind+": unexpected columns "+str(sorted(expected-set(keys))))
         evidence[kind]={"rows":len(rows),"sha256":sha,"first_race":rows[0]["レースコード"],
