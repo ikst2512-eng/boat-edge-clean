@@ -25,6 +25,20 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
         self.assertEqual(result["scheduled_last_24h"], 1)
         self.assertEqual(result["schedule_health"], "recent_scheduled_run_observed")
 
+    def test_recent_failure_is_not_counted_as_success(self):
+        rows = [
+            {"event":"schedule", "created_at":"2026-11-01T13:00:00Z",
+             "status":"completed", "conclusion":"failure"},
+            {"event":"schedule", "created_at":"2026-11-01T14:00:00Z",
+             "status":"completed", "conclusion":"success"},
+            {"event":"workflow_dispatch", "created_at":"2026-11-01T14:30:00Z",
+             "status":"completed", "conclusion":"success"},
+        ]
+        result = summarize(rows, now=NOW)
+        self.assertEqual(result["scheduled_last_24h"], 2)
+        self.assertEqual(result["successful_scheduled_last_24h"], 1)
+        self.assertEqual(result["failed_scheduled_last_24h"], 1)
+
     def test_invalid_timestamps_not_recent(self):
         result = summarize([{"event":"schedule", "created_at":"invalid"}], now=NOW)
         self.assertEqual(result["scheduled_last_24h"], 0)
