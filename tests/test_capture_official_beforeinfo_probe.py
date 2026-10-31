@@ -37,6 +37,19 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(r["status"],"official_probe_failed")
             self.assertFalse(r["t12_eligible"])
             self.assertEqual(list(Path(d).rglob("*.html")),[])
+    def test_partial_manifest_write_cleans_evidence_directory(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as d:
+            original=Path.open
+            def fail_manifest(path,*args,**kwargs):
+                if str(path).endswith("manifest.json"):
+                    raise OSError("disk failure")
+                return original(path,*args,**kwargs)
+            with patch.object(Path,"open",fail_manifest):
+                result=capture("202611010708",d,fetch=lambda url:b"<html>ok</html>")
+            self.assertEqual(result["status"],"official_probe_failed")
+            self.assertFalse((Path(d)/"20261101/202611010708").exists())
+
     def test_rejects_bad_race_code(self):
         for code in ("202611010799","202611010000","2026110107AA","202611010708/../"):
             with self.assertRaises(ValueError):capture(code)
