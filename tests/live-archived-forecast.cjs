@@ -15,11 +15,16 @@ const {chromium}=require('playwright');
   const expectedVenues=schedule.venues.map(v=>v.jcd).sort();
   const expectedRaceCount=schedule.venues.reduce((n,v)=>n+v.races.length,0);
   if(schedule.date!=='2026-10-30'||expectedVenues.length!==12||expectedRaceCount!==144)throw Error('TODAY_SCHEDULE_INVALID');
-  const visibleSchedule=await page.evaluate(async()=>{
+  let visibleSchedule;
+  for(let attempt=0;attempt<3;attempt++){
+   visibleSchedule=await page.evaluate(async()=>{
    datePinned=true;s.date='2026-10-30';
    await loadHeldVenues(true);
    return {date:todayVenueRaces?.date,venues:todayVenueRaces?.venues.map(v=>v.jcd).sort(),raceCount:todayVenueRaces?.venues.reduce((n,v)=>n+v.races.length,0),status:document.getElementById('venueState').textContent};
-  });
+   });
+   if(visibleSchedule.date==='2026-10-30'&&visibleSchedule.raceCount===144)break;
+   await page.waitForTimeout(1500);
+  }
   if(visibleSchedule.date!=='2026-10-30'||JSON.stringify(visibleSchedule.venues)!==JSON.stringify(expectedVenues)||visibleSchedule.raceCount!==expectedRaceCount||visibleSchedule.status.includes('取得できません'))
    throw Error('PUBLIC_SCHEDULE_DISPLAY_MISMATCH '+JSON.stringify(visibleSchedule));
   console.log('PASS: 2026-10-30 published venue schedule shows 12 venues / 144 races');
