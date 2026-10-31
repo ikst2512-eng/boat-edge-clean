@@ -1,8 +1,23 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from scripts.evaluate_late_research_topn import evaluate
+
+
+class HistoricalCliTest(unittest.TestCase):
+    def test_historical_date_with_empty_archive_is_not_invented(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            run=subprocess.run([sys.executable,"-m","scripts.evaluate_late_research_topn",
+                                "--day","20261031","--late-root",tmp],
+                               capture_output=True,text=True,check=True)
+            report=json.loads(run.stdout)
+            self.assertEqual(report["date"],"20261031")
+            self.assertEqual(report["paired_races"],0)
+            self.assertIsNone(report["topn"]["10"]["late_hit_rate_pct"])
 
 
 class PairedTopNTest(unittest.TestCase):
