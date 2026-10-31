@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/audit_preview_scheduled_runs.py'
       - '.github/workflows/audit-preview-scheduled-runs.yml'
+      - '.github/workflows/late-preview-capture.yml'
   workflow_dispatch:
 permissions:
   contents: read
