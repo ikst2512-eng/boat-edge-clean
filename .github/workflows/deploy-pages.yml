@@ -261,7 +261,10 @@ jobs:
                 const visible=view==='forecast'?await page.locator('#forecast').isVisible():view==='result'?await page.locator('#resultSection').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
-              // Actual archived-result values are asserted by the dedicated\n              // 'Verify published CLEAN confirmed result in browser' step above.\n              // Keep this step focused on the four navigation panels.\n              if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
+              // Actual archived-result values are asserted by the dedicated
+              // 'Verify published CLEAN confirmed result in browser' step above.
+              // Keep this step focused on the four navigation panels.
+              if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
               require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs; archived result separately verified)\n');
             }finally{await browser.close()}
