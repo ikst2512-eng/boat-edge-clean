@@ -397,3 +397,7 @@
 - 2026-11-01 JST 05:47:33のSTT/TKZ/SUI/original_exhibition/od3は各HTTP 404、status=`not_yet_expected`、sources_available=0、sources_unavailable=5、saved_total=0、race_rows_total=0。
 - audit原本は records=0、invalid=0、paired_complete_6boat_stt_tkz=0、paired_complete_12min_observable=0、t12_evidence_by_race=[]。公開想定時間前の実行結果なので日中の失敗・T-12の成功のいずれも断定できない。
 - 実scheduled captureの最新run一覧は現接続のGitHubアクションで取得できない。次の検証対象は08時以降に起動されたschedule eventのartifact。旧サイト停止禁止、モデル/UI変更なし。
+
+## 2026-11-01 PR #741 四タブ公開Pagesブラウザ検証統合
+- 既存PR #741を確認し、`deploy-pages.yml` のPlaywright公開テストが `card/exhibit/forecast/result` 4タブの可視状態（resultは `#resultSection`）を検証する修正を確認。PR head `652112dc7a1be359045c633578611dcb0643330d` のGitHub Actions run `41241757093` で `check` / `publish-smoke` ともsuccessを実確認。mainへsquash `98c08e2e728b22ab4fdf14286bb0b31958aee095` として統合。
+- 成功したのはPRでの既存検証ジョブ。**統合後のGitHub Pages再公開とiPhone Safari実機操作は未確認**。実レースT-12展示6艇証拠も未確認であり、旧repo/Pagesは停止していない。
