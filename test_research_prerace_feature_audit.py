@@ -17,6 +17,8 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 "generated_at": "2026-10-30T09:00:00+09:00",
                 "cutoff_jst": "2026-10-30T09:10:00+09:00",
                 "source_deadline_jst": "2026-10-30T09:22:00+09:00",
+                "source_title_received_jst": "2026-10-30T09:01:00+09:00",
+                "source_cards_received_jst": "2026-10-30T09:02:00+09:00",
                 "national_win_rates": [8, 6, 6, 6, 6, 6],
                 "predictions": ["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2","1-3-4","1-3-5","1-3-6","1-4-2","1-4-3"]
             }
@@ -51,6 +53,8 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 {"national_win_rates": [True, 6, 6, 6, 6, 6]},
                 {"generated_at": "2026-10-30T09:00:00"},
                 {"generated_at": "2026-10-30T09:30:00+09:00"},
+                {"source_cards_received_jst": "2026-10-30T09:11:00+09:00"},
+                {"source_deadline_jst": "2026-10-30T09:23:00+09:00"},
             ):
                 fp.write_text(json.dumps({**forecast, **change}))
                 audited = analyze(root)
