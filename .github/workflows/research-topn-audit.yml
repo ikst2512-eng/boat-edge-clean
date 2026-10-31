@@ -1,5 +1,10 @@
 name: Research TopN batch audit
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'research_snapshots/**'
+      - 'confirmed_results/**'
   pull_request:
     paths:
       - 'scripts/research_topn_batch_audit.py'
@@ -40,4 +45,19 @@ jobs:
       - name: Verify research mass cohorts
         run: python -m unittest discover -s tests -p 'test_research_mass_cohort_audit.py' -v
       - name: Count stored research forecasts against confirmed results
-        run: python scripts/research_topn_batch_audit.py
+        run: |
+          python scripts/research_topn_batch_audit.py > /tmp/research-topn-audit.json
+          cat /tmp/research-topn-audit.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          audit = json.loads(Path("/tmp/research-topn-audit.json").read_text())["audit"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("## Research TopN audit (research only)\n")
+              out.write("Not a calibrated confidence score or validated betting performance.\n\n")
+              for name, values in audit["by_mass_cohort"].items():
+                  out.write(f"### {name} — matched {values['matched']}\n")
+                  for n in (3, 5, 10):
+                      out.write(f"- Top{n}: {values['top'+str(n)]} / {values['matched']} ({values['top'+str(n)+'_rate_pct']}%)\n")
+              out.write(f"\nStored snapshots with TopN mass: {audit['mass_coverage']['with_topn_mass']} / {audit['mass_coverage']['all_forecasts']}\n")
+          PY
