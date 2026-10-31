@@ -1,0 +1,261 @@
+{
+  "schema_version": "boat-edge-server-site-final-v123",
+  "snapshot_window": "FINAL_15M",
+  "race_key": "20261008-01-04",
+  "prediction_kind": "SITE_REFERENCE_V122",
+  "selection_policy": "V122_SCENARIO_AWARE_PROBABILITY_FIRST",
+  "mode_policy": "BALANCE10_WAVE12_15_18_V133_FIXED",
+  "used_inputs": [
+    "当地3か月コース",
+    "展示タイム"
+  ],
+  "first_saved_at": "2026-10-08T07:36:48.814867+00:00",
+  "saved_at": "2026-10-08T07:36:48.814874+00:00",
+  "minutes_to_deadline": 11.19,
+  "venue": "桐生",
+  "venue_code": "01",
+  "race_no": 4,
+  "deadline": "16:48",
+  "grade": "C+",
+  "race_sha256": "51b983a35da869c4073e05af444a853d2ab3d429d9ddee9ea973b3855db8a02c",
+  "odds_sha256": null,
+  "guards": {
+    "results_seen": false,
+    "unlock": false,
+    "scoring": false
+  },
+  "modes": {
+    "hit": {
+      "confidence": 74,
+      "tickets": [
+        {
+          "combo": "1-5-6",
+          "p": 13.619992298486691,
+          "odds": null,
+          "stake_yen": 1300
+        },
+        {
+          "combo": "1-6-5",
+          "p": 13.507445643474433,
+          "odds": null,
+          "stake_yen": 1300
+        },
+        {
+          "combo": "1-4-5",
+          "p": 12.959490297888898,
+          "odds": null,
+          "stake_yen": 1300
+        },
+        {
+          "combo": "1-5-2",
+          "p": 12.838413326404902,
+          "odds": null,
+          "stake_yen": 1300
+        },
+        {
+          "combo": "1-2-5",
+          "p": 12.780801935722103,
+          "odds": null,
+          "stake_yen": 1200
+        },
+        {
+          "combo": "5-1-6",
+          "p": 7.276369672079315,
+          "odds": null,
+          "stake_yen": 800
+        },
+        {
+          "combo": "5-1-2",
+          "p": 6.871943075344826,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "6-1-5",
+          "p": 6.870222829814157,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "5-6-1",
+          "p": 6.796759627797863,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "6-5-1",
+          "p": 6.478561292986809,
+          "odds": null,
+          "stake_yen": 700
+        }
+      ]
+    },
+    "balance": {
+      "confidence": 69,
+      "tickets": [
+        {
+          "combo": "1-5-6",
+          "p": 13.619992298486691,
+          "odds": null,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-6-5",
+          "p": 13.507445643474433,
+          "odds": null,
+          "stake_yen": 1400
+        },
+        {
+          "combo": "1-4-5",
+          "p": 12.959490297888898,
+          "odds": null,
+          "stake_yen": 1400
+        },
+        {
+          "combo": "1-5-2",
+          "p": 12.838413326404902,
+          "odds": null,
+          "stake_yen": 1400
+        },
+        {
+          "combo": "1-2-5",
+          "p": 12.780801935722103,
+          "odds": null,
+          "stake_yen": 1400
+        },
+        {
+          "combo": "5-1-6",
+          "p": 7.276369672079315,
+          "odds": null,
+          "stake_yen": 800
+        },
+        {
+          "combo": "5-1-2",
+          "p": 6.871943075344826,
+          "odds": null,
+          "stake_yen": 800
+        },
+        {
+          "combo": "5-1-4",
+          "p": 3.5685321933083753,
+          "odds": null,
+          "stake_yen": 500
+        },
+        {
+          "combo": "6-1-5",
+          "p": 3.539775431674762,
+          "odds": null,
+          "stake_yen": 400
+        },
+        {
+          "combo": "5-6-1",
+          "p": 3.501924659717125,
+          "odds": null,
+          "stake_yen": 400
+        }
+      ]
+    },
+    "hole": {
+      "confidence": 64,
+      "tickets": [
+        {
+          "combo": "5-1-6",
+          "p": 3.7490362736468086,
+          "odds": null,
+          "stake_yen": 800
+        },
+        {
+          "combo": "5-1-4",
+          "p": 3.5685321933083753,
+          "odds": null,
+          "stake_yen": 800
+        },
+        {
+          "combo": "5-1-2",
+          "p": 3.5406617614222458,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "6-1-5",
+          "p": 3.539775431674762,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "5-6-1",
+          "p": 3.501924659717125,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "6-5-1",
+          "p": 3.3379779179788445,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "5-6-4",
+          "p": 3.244235369453098,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "2-1-5",
+          "p": 3.2432346117833957,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "5-6-2",
+          "p": 3.218954888470018,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "5-2-6",
+          "p": 3.2150294123257415,
+          "odds": null,
+          "stake_yen": 700
+        },
+        {
+          "combo": "1-5-6",
+          "p": 7.0361759471612135,
+          "odds": null,
+          "stake_yen": 1400
+        },
+        {
+          "combo": "1-6-5",
+          "p": 6.978033618621228,
+          "odds": null,
+          "stake_yen": 1400
+        }
+      ]
+    },
+    "narrow": {
+      "confidence": 62,
+      "tickets": [
+        {
+          "combo": "1-5-6",
+          "p": 13.619992298486691,
+          "odds": null,
+          "stake_yen": 3400
+        },
+        {
+          "combo": "1-6-5",
+          "p": 13.507445643474433,
+          "odds": null,
+          "stake_yen": 3400
+        },
+        {
+          "combo": "1-4-5",
+          "p": 12.959490297888898,
+          "odds": null,
+          "stake_yen": 3200
+        }
+      ]
+    }
+  },
+  "stake_plan_version": "V141-10000-PROSPECTIVE",
+  "stake_saved_at": "2026-10-08T07:36:48.814874+00:00"
+}
