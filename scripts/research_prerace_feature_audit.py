@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def analyze(root=ROOT):
     output={}
     for cohort in ("discovery", "holdout"):
-        output[cohort]={k:{"n":0,"top10":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
+        output[cohort]={k:{"n":0,"top3":0,"top5":0,"top10":0,"head1_actual":0,"head1_top10_hit":0,"head1_top10_miss":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
     rejected=0
     for path in sorted((root/"research_snapshots").glob("*.json")):
         result_path=root/"confirmed_results"/path.name
@@ -46,7 +46,9 @@ def analyze(root=ROOT):
                            for t in tickets)):
                 raise ValueError("invalid tickets")
             winning="-".join(map(str,q["finish_order"][:3]))
-            hit=int(winning in tickets)
+            rank=tickets.index(winning)+1 if winning in tickets else None
+            hit=int(rank is not None)
+            actual_head1=finish[0]==1
             cohort="discovery" if code[:8]<="20261029" else "holdout"
             keys=("all","lane1_strongest" if rates[0]>=max(rates) else "lane1_not_strongest","lane1_lead_2plus" if rates[0]-max(rates[1:])>=2 else "lane1_lead_under2")
             if rates[0] > max(rates[1:]):
@@ -56,6 +58,11 @@ def analyze(root=ROOT):
             for key in keys:
                 output[cohort][key]["n"]+=1
                 output[cohort][key]["top10"]+=hit
+                output[cohort][key]["top3"]+=int(rank is not None and rank<=3)
+                output[cohort][key]["top5"]+=int(rank is not None and rank<=5)
+                output[cohort][key]["head1_actual"]+=int(actual_head1)
+                output[cohort][key]["head1_top10_hit"]+=int(actual_head1 and hit)
+                output[cohort][key]["head1_top10_miss"]+=int(actual_head1 and not hit)
         except (ValueError,TypeError,KeyError,IndexError,OSError,AttributeError):
             rejected+=1
     for cohorts in output.values():
@@ -66,6 +73,11 @@ def analyze(root=ROOT):
             row["selection_pct"]=round(100*row["n"]/baseline["n"],2) if baseline["n"] else None
             row["lift_pp"]=round(100*row["top10"]/row["n"]-baseline_pct,2) if row["n"] and baseline_pct is not None else None
             row["sample_sufficient_30"]=row["n"]>=30
+            row["head1_actual_pct"]=round(100*row["head1_actual"]/row["n"],2) if row["n"] else None
+            row["head1_top10_hit_given_head1_pct"]=round(100*row["head1_top10_hit"]/row["head1_actual"],2) if row["head1_actual"] else None
+            row["head1_top10_miss_given_head1"]=row["head1_top10_miss"]
+            for top in ("top3","top5"):
+                row[top+"_rate_pct"]=round(100*row[top]/row["n"],2) if row["n"] else None
     return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output}
 
 if __name__=="__main__":
