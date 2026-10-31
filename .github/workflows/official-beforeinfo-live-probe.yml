@@ -37,7 +37,24 @@ jobs:
                       source.BASE = base
                       result = source.probe(date, 12, 10)
                       print("official_http_probe=success", name, result, flush=True)
-                      summary.write(f"- {name}: raw_response_received; bytes={result['bytes']}; exhibition=unverified; entry=unverified\n")
+                      summary.write(f"- {name}: raw_response_received; bytes={result['bytes']}; exhibition=unverified; entry=unverified\\n")
+                      from urllib.request import Request, urlopen
+                      with urlopen(Request(result["source_url"], headers={"User-Agent":"BOAT-EDGE-CLEAN-RESEARCH/1.0"}), timeout=10) as response:
+                          page=response.read(1_000_001).decode("utf-8",errors="replace")
+                      from html.parser import HTMLParser
+                      class PageText(HTMLParser):
+                          def __init__(self):
+                              super().__init__()
+                              self.words=[]
+                          def handle_data(self, data):
+                              value=" ".join(data.split())
+                              if value: self.words.append(value)
+                      parsed=PageText()
+                      parsed.feed(page)
+                      markers=("展示タイム","展示ST","スタート展示","進入","チルト","周回","レース情報")
+                      for marker in markers:
+                          hits=[i for i, word in enumerate(parsed.words) if marker in word]
+                          print("beforeinfo_marker",name,marker,"count",len(hits),"sample",[" / ".join(parsed.words[max(0,i-2):i+5])[:260] for i in hits[:2]],flush=True)
                   except (HTTPError, URLError, OSError, TimeoutError, ValueError) as e:
                       print("official_http_probe=unavailable", name, type(e).__name__, str(e), flush=True)
                       summary.write(f"- {name}: unavailable ({type(e).__name__}); exhibition=unverified; entry=unverified\n")
