@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'scripts/research_topn_batch_audit.py'
+      - 'scripts/research_selective_top10_backtest.py'
       - 'tests/test_research_mass_cohort_audit.py'
       - 'research_model.py'
       - 'collect_research_daily.py'
@@ -46,6 +47,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_workflow_embedded_python.py' -v
       - name: Verify research mass cohorts
         run: python -m unittest discover -s tests -p 'test_research_mass_cohort_audit.py' -v
+      - name: Out-of-time Top10 selectivity research
+        run: python scripts/research_selective_top10_backtest.py
       - name: Count stored research forecasts against confirmed results
         run: |
           python scripts/research_topn_batch_audit.py > /tmp/research-topn-audit.json
