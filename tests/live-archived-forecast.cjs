@@ -212,7 +212,7 @@ const {chromium}=require('playwright');
     const first=state();tab('result').click();const second=state();tab('exhibition').click();const third=state();tab('races').click();const fourth=state();tab('prediction').click();
     return {first,second,third,fourth,homeDeadline:document.querySelector('[data-home-only] #deadlineSection')!==null}
   });
-  if(!tabUi.legacyPublishedPage&&(!tabUi.homeDeadline||!tabUi.first.prediction||tabUi.first.result||!tabUi.second.result||tabUi.second.prediction||!tabUi.third.exhibition||tabUi.third.result||!tabUi.fourth.races||tabUi.fourth.prediction)throw Error('FORECAST_TABS_NOT_EXCLUSIVE '+JSON.stringify(tabUi));
+  if(!tabUi.legacyPublishedPage&&(!tabUi.homeDeadline||!tabUi.first.prediction||tabUi.first.result||!tabUi.second.result||tabUi.second.prediction||!tabUi.third.exhibition||tabUi.third.result||!tabUi.fourth.races||tabUi.fourth.prediction))throw Error('FORECAST_TABS_NOT_EXCLUSIVE '+JSON.stringify(tabUi));
   await page.evaluate(()=>{setView('home');render()});
   const homeUi=await page.evaluate(()=>({back:!document.getElementById('raceBrowserToolbar').hidden,home:!document.querySelector('[data-home-only]').hidden}));
   if(homeUi.back||!homeUi.home)throw Error('HOME_BACK_STILL_VISIBLE '+JSON.stringify(homeUi));
