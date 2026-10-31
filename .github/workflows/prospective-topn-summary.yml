@@ -15,3 +15,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest -v test_aggregate_prospective_topn
+      - name: Report actual archived Top-N results for Oct 29 and Oct 30
+        run: python aggregate_prospective_topn.py 20261029 20261030
