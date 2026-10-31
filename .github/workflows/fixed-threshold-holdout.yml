@@ -1,0 +1,20 @@
+name: Fixed threshold Top-N discovery and holdout
+on:
+  pull_request:
+    paths: [compare_fixed_threshold_holdout.py, test_compare_fixed_threshold_holdout.py, .github/workflows/fixed-threshold-holdout.yml]
+  push:
+    branches: [main]
+    paths: [compare_fixed_threshold_holdout.py, test_compare_fixed_threshold_holdout.py, .github/workflows/fixed-threshold-holdout.yml]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_compare_fixed_threshold_holdout
+      - run: python compare_fixed_threshold_holdout.py
