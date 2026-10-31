@@ -39,7 +39,10 @@ class AuditLatePreview(unittest.TestCase):
                 early_record["source_row"]["取得日時"]="2026-10-31T19:44:00+09:00"
                 early_record["source_observed_jst"]="2026-10-31T19:44:00+09:00"
                 early_path.write_text(json.dumps(early_record))
-            self.assertEqual(audit(folder)["paired_complete_12min_observable"],1)
+            early_audit=audit(folder)
+            self.assertEqual(early_audit["paired_complete_12min_observable"],1)
+            self.assertEqual(early_audit["t12_observable_race_codes"],[code])
+            self.assertEqual(early_audit["t12_evidence_by_race"][0]["stt_received_at_jst"],"2026-10-31T19:45:00+09:00")
             for kind in ("stt","tkz"):
                 early_path=Path(folder)/"20261031"/kind/(code+".json")
                 early_path.write_text(json.dumps(record(code,kind)))
