@@ -540,3 +540,8 @@
 - `tests/test_capture_official_beforeinfo_probe.py` （`a986e9e`）に正常受信・取得失敗・不正レースコード・保存先衝突の回帰テストを追加。
 - 既存の収集workflowにテストを組み込み、workflow_dispatchの任意 `official_probe_race_code` 指定時だけ公式HTMLの検証取得を走らせ、別artifactに含める（`8a0917e`）。定期収集と本番予想モデルの挙動は変更しない。新しい定期ジョブは増やさない。
 - **新しいGitHub Actionsの実行成功、公式ページの実受信、T-12での展示・進入6艇の成立は未確認。** 次は公式取得原本の実時刻・6艇抽出を検証し、その後でT-12条件を別途判定する。旧サイト停止なし。
+
+
+## 2026-11-01 公式beforeinfo原本のハッシュ整合性テスト
+- 公式直前情報HTML保存の回帰テストに、保存済み `beforeinfo.html` 原本のSHA-256を実バイトから再計算して `manifest.json` の `sha256` と一致すること、実HTTP受信時刻、`forecast_usable=false` の保存状態を検証する条件を追加（main `f1649f6de4bb2898da04df480503137b39455332`）。既存の `late-preview-capture.yml` にテスト実行設定あり。
+- 実公式ページの受信・6艇抽出・T-12成立・当該GitHub Actions成功は未確認。公式取得経路は引き続き実験専用で、正式予想に使用しない。
