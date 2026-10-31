@@ -42,7 +42,7 @@ class DualSelectionTests(unittest.TestCase):
   html=(ROOT/"index.html").read_text(encoding="utf-8")
   page=(ROOT/"selection.html").read_text(encoding="utf-8")
   server=(ROOT/"server.py").read_text(encoding="utf-8")
-  self.assertIn('href="/forecast"',html)
+  self.assertIn("['予想','forecast']", (ROOT/"navigation.js").read_text(encoding="utf-8"))
   self.assertIn('href="/selection"',html)
   self.assertIn('"/api/selection-research"',server)
   self.assertIn('"/selection"',server)
