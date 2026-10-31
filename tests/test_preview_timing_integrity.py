@@ -14,4 +14,14 @@ class Timing(unittest.TestCase):
         self.assertEqual(classify(row,datetime(2026,10,31,17,45,tzinfo=JST)),"pre_cutoff_observed")
         row.pop("取得日時")
         self.assertEqual(classify(row,datetime(2026,10,31,17,40,tzinfo=JST)),"unknown_time")
+    def test_cross_day_stale_source_cannot_pass_t12(self):
+        row={"レースコード":"202611010101","締切時刻":"19:00",
+             "取得日時":"2026-10-31T18:30:00+09:00"}
+        received=datetime(2026,11,1,18,40,tzinfo=JST)
+        self.assertEqual(classify(row,received,margin_minutes=12),"unknown_time")
+        row["取得日時"]="2026-11-01T18:30:00+09:00"
+        self.assertEqual(classify(row,received,margin_minutes=12),"pre_cutoff_observed")
+        yesterday=datetime(2026,10,31,18,40,tzinfo=JST)
+        self.assertEqual(classify(row,yesterday,margin_minutes=12),"unknown_time")
+
 if __name__=="__main__":unittest.main()
