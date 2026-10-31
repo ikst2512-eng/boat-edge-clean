@@ -407,7 +407,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(t
 async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
 // Confirmed result files are published with Pages as a same-origin fallback when GitHub Raw fails.
 async function fetchCleanResultArchive(code){
- if(!/^20\\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
+ if(!/^20\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
  const remote='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json';
  let response;
  try{response=await fetchTimed(remote,{cache:'no-store'});if(response.ok)return response}catch(_){/* try verified local archive */}
