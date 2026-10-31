@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from research_model import JST
 from late_preview_capture import save_preview, KINDS, six_lane_status
 from scripts.preview_timing_integrity import classify
+from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 BASE="https://boatracecsv.github.io/data/previews/"
 def collect(day=None, root=None, fetch=None, clock=None):
@@ -40,6 +41,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
                                    "pre_deadline_2min":gate,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
             report["kinds"][kind]={"error":type(err).__name__,"saved":0}
+    report["paired_six_lane_coverage"] = paired_six_lane_coverage(day,root)
     return report
 
 if __name__=="__main__":
