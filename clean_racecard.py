@@ -113,6 +113,7 @@ def racecard(hd,jcd,rno):
         raise ValueError("invalid_race_key")
     datetime.strptime(hd,"%Y%m%d")
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"
+    historical=datetime.strptime(hd,"%Y%m%d").date()<datetime.now(JST).date()
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     # Daily generated CSV can be absent before racing closes. Read primary first,
     # then obtain exactly this race from the independent documented live origin.
@@ -140,7 +141,7 @@ def racecard(hd,jcd,rno):
     if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",deadline_text):
         raise ValueError("deadline_not_available")
     deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
-    if title_fetched>=deadline:raise ValueError("race_already_closed")
+    if title_fetched>=deadline and not historical:raise ValueError("race_already_closed")
     try:
         cards,card_fetched,card_sha=read_rows(BASE+"race_cards/"+path)
         card=[row for row in cards if row.get("レースコード")==code]
@@ -168,7 +169,7 @@ def racecard(hd,jcd,rno):
             if len(matches)!=1:raise ValueError("race_card_not_available")
             fields=matches[0]
             source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
-    if card_fetched>=deadline:raise ValueError("race_already_closed")
+    if card_fetched>=deadline and not historical:raise ValueError("race_already_closed")
     racers=[]
     seen_registrations=set()
     for i in range(1,7):
@@ -187,11 +188,11 @@ def racecard(hd,jcd,rno):
           "local":{"win_rate":_num(fields.get(p+"当地勝率")),"quinella_rate":_num(fields.get(p+"当地2連対率")),"trio_rate":_num(fields.get(p+"当地3連対率"))},
           "motor":{"no":_num(fields.get(p+"モーター番号")),"quinella_rate":_num(fields.get(p+"モーター2連対率")),"trio_rate":_num(fields.get(p+"モーター3連対率"))},
           "boat":{"no":_num(fields.get(p+"ボート番号")),"quinella_rate":_num(fields.get(p+"ボート2連対率")),"trio_rate":_num(fields.get(p+"ボート3連対率"))}})
-    beforeinfo,before_audit=_fetch_preview(code,path,deadline)
+    beforeinfo,before_audit=(None,{"status":"not_verified_historical"}) if historical else _fetch_preview(code,path,deadline)
     return {"schema_version":"boat-edge-race-v5","race_key":f"{hd}-{int(jcd):02d}-{int(rno):02d}",
        "meta":{"date":f"{hd[:4]}-{hd[4:6]}-{hd[6:8]}","venue_code":f"{int(jcd):02d}","race_no":int(rno),
-         "deadline":deadline_text,"phase":"PRE_RESULT","results_seen":False,"unlock":False,"scoring":False,
-         "source":source},
-       "source_audit":{"race_card":{"status":"ok","fetched_at":card_fetched.isoformat(),"sha256":card_sha},
+         "deadline":deadline_text,"phase":"HISTORICAL_READ_ONLY" if historical else "PRE_RESULT","results_seen":False,"unlock":False,"scoring":False,
+         "source":source,"historical_reference_only":historical},
+       "source_audit":{"race_card":{"status":"ok","fetched_at":card_fetched.isoformat(),"sha256":card_sha,"predeadline_verified":not historical and card_fetched<deadline},
          "beforeinfo":before_audit},
        "racers":racers,"beforeinfo":beforeinfo}

@@ -930,9 +930,9 @@ async function loadRaceData(force=false){
   const currentText=await response.text();
   raw=JSON.parse(currentText);
   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
-  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
+  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.date!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8)||raw.meta?.venue_code!==key.split('-')[1]||Number(raw.meta?.race_no)!==Number(key.split('-')[2])||!['PRE_RESULT','HISTORICAL_READ_ONLY'].includes(raw.meta?.phase)||raw.meta?.results_seen!==false||raw.meta?.unlock!==false||raw.meta?.scoring!==false||raw.source_audit?.race_card?.status!=='ok')throw Error('PRE_RACE_SOURCE_NOT_VERIFIED');
   const deadline=Date.parse(raw.meta.date+'T'+raw.meta.deadline+':00+09:00'),cardAt=Date.parse(raw.source_audit.race_card.fetched_at),previewAt=Date.parse(raw.source_audit?.beforeinfo?.fetched_at);
-  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('CARD_NOT_PREDEADLINE');
+  if(!Number.isFinite(deadline)||!Number.isFinite(cardAt)||cardAt>Date.now()+300000|| (raw.meta.phase==='PRE_RESULT'&&cardAt>=deadline)|| (raw.meta.phase==='HISTORICAL_READ_ONLY'&&raw.meta.historical_reference_only!==true))throw Error('CARD_EVIDENCE_INVALID');
   const safePreview=raw.source_audit?.beforeinfo?.status==='ok'&&Number.isFinite(previewAt)&&previewAt<deadline&&previewAt<=Date.now()+300000;
   raw={...raw,verifiedPreview:safePreview,verifiedFirstCommit:null};
   }
@@ -942,6 +942,7 @@ async function loadRaceData(force=false){
   const racers=raw.racers.filter(r=>r&&Number.isInteger(r.lane)&&r.lane>=1&&r.lane<=6);
   if(racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||new Set(racers.map(r=>String(r.registration_no||''))).size!==6||racers.some(r=>!/^[0-9]{4}$/.test(String(r.registration_no||''))))throw Error('INCOMPLETE_OR_DUPLICATE_RACE_CARD');
   verifiedRaceCache.set(key,raw);
+  if(raw.meta.phase==='HISTORICAL_READ_ONLY')status.textContent='過去の出走表（参考閲覧用・締切前の取得証明ではありません）';
   const preview=safePreview&&Array.isArray(raw.beforeinfo?.racers)?raw.beforeinfo.racers:[];
   const starts=safePreview&&Array.isArray(raw.beforeinfo?.start_exhibition)?raw.beforeinfo.start_exhibition:[];
   const txt=v=>typeof v==='number'&&Number.isFinite(v)?String(v):typeof v==='string'&&v.trim()&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(v.trim())?v.trim():'—';
