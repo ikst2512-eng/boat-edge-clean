@@ -432,3 +432,9 @@
 - preview timingの追加ゲートとして、12桁レースコードの先頭8桁（日付）とCSV締切日時の日付が異なる場合は `unknown_time` とする（commit `6cf4f704f7fb8a5459a0f3c06ef37755bcd59991`）。既存の同日受信・ソース時刻ゲートと組み合わせ、誤った他日締切を根拠にT-12合格としない。
 - 不一致の日付を不合格、日付が一致する正常例を合格にするテストを既存 `tests/test_preview_timing_integrity.py` に追加（commit `82b2f10fb45119cf2483d1b4f78f6d5bbe069bf0`）。既存preview CIが対象ファイルを監視する。
 - **最新CIの成功と実レースT-12完全6艇保存成功は未確認。** 旧サイト・予想モデルは変更しない。
+
+
+## 2026-11-01 T-12締切境界の回帰テスト
+- main `9523560e0777b52f0c3fe7d6f82574e7e73d71ef` で、19:00締切のT-12に対しSTT/TKZのsourceとHTTP受信が18:47:59なら時刻条件合格、18:48:00ちょうどなら不合格となる既存 `classify` の保守的仕様を回帰テストに固定。
+- 変更対象は既存 `tests/test_preview_timing_integrity.py` のみ。既存 `late-preview-evidence-tests.yml` がmain pushでこのテストを実行する設定は確認済み。**新しいコミットのCI成功と実レースT-12完全6艇取得は未確認**。
+- 予想/UI・旧サイト変更なし。8:03 JST以降の定期収集実測が次の検証対象。
