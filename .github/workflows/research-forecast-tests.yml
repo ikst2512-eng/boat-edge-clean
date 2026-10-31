@@ -4,6 +4,10 @@ on:
     paths:
       - 'research_model.py'
       - 'research_chronological_calibration.py'
+      - 'scripts/research_prerace_feature_audit.py'
+      - 'test_research_prerace_feature_audit.py'
+      - 'scripts/research_prerace_feature_audit.py'
+      - 'test_research_prerace_feature_audit.py'
       - 'test_research_chronological_calibration.py'
       - 'server.py'
       - 'test_research_model.py'
@@ -59,5 +63,9 @@ jobs:
           python test_fresh_candidate_receipt.py
           python test_fresh_candidate_verify.py
           python test_fresh_prospective_sender.py
+      - name: Verify date-separated pre-race feature holdout
+        run: |
+          python -m unittest -v test_research_prerace_feature_audit
+          python scripts/research_prerace_feature_audit.py
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
