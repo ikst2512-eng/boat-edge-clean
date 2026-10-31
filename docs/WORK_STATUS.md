@@ -406,3 +406,8 @@
 - 統合済みPR #741（main squash `98c08e2e728b22ab4fdf14286bb0b31958aee095`）の GitHub Actions `Publish BOAT EDGE CLEAN` run `41241825770` / deploy job `124657111905` はsuccess。
 - 実jobログに `DEPLOYED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/` を確認。公開URLのブラウザで24場、12R、`card/exhibit/forecast/result` 4タブの表示判定とJSエラー検査が成功。
 - **前記「Pages再公開未確認」を今回解消**。ただしiPhone Safari実機、個別実レースの4タブ中身、Render APIの締切前6艇T-12証明は未確認。旧repo停止は禁止のまま。
+
+## 2026-11-01 本番応答時切断ログの整理（PR #742）
+- Render本番でレース切替中の `BrokenPipeError` が観測されていた。既存PR #742の `server.py` はレスポンス本文の `wfile.write` のみ `BrokenPipeError` / `ConnectionResetError` を捕捉し、無害なクライアント切断の例外ログを抑制する。HTTP状態・データ判定は変更しない。
+- PR head `ba2017442d1ffc3ce8ebaa84959545a612ea523c` に対するCLEAN regression run `41241878387` がsuccess、Navigation regressionもsuccessと確認。main統合 `80b1adbc504a4450414e319b11ce812de5004c47`。統合後デプロイと実ブラウザ検証は未確認。
+- #741の4タブ公開Pages smokeはPR CIで成功済み。公開後のiPhone Safari実機表示と実レースT-12完全6艇ペアは未証明。旧repo/Pages停止なし。
