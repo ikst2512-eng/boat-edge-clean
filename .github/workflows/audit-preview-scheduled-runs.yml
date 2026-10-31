@@ -6,6 +6,12 @@ on:
       - '.github/workflows/audit-preview-scheduled-runs.yml'
       - '.github/workflows/late-preview-capture.yml'
       - 'tests/test_audit_preview_scheduled_runs.py'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/audit_preview_scheduled_runs.py'
+      - 'tests/test_audit_preview_scheduled_runs.py'
+      - '.github/workflows/audit-preview-scheduled-runs.yml'
   workflow_dispatch:
   schedule:
     # 14:17 UTC = 23:17 JST, after the 08:03–21:58 JST capture window.
