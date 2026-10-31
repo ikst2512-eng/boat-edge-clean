@@ -12,6 +12,9 @@ const {chromium}=require('playwright');
   const scheduleResponse=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/20261030.json',{timeout:20000});
   if(!scheduleResponse.ok())throw Error('TODAY_SCHEDULE_NOT_PUBLISHED '+scheduleResponse.status());
   const schedule=await scheduleResponse.json();
+  // Serve the already independently fetched immutable schedule in the browser;
+  // do not make this odds DOM test depend on a second raw-GitHub request.
+  await page.route('**/schedule_snapshots/20261030.json',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(schedule)}));
   const expectedVenues=schedule.venues.map(v=>v.jcd).sort();
   const expectedRaceCount=schedule.venues.reduce((n,v)=>n+v.races.length,0);
   if(schedule.date!=='2026-10-30'||expectedVenues.length!==12||expectedRaceCount!==144)throw Error('TODAY_SCHEDULE_INVALID');
