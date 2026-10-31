@@ -443,3 +443,9 @@
 - PR #744をsquashでmain `25501e5ae702750d04fde87cb3a970688025c58e` に統合。既存のPages Playwright検査を拡張し、2026-10-27・1場1Rの保存済みCLEAN確定結果（3連単3-4-1）について、結果タブの可視性だけでなく公開ページ上の1/2/3着数値と「CLEAN保存済み結果」状態まで確認。
 - PR head `70bfface681b7234d9adf69096372000d85eb68c` のCLEAN CI `check` / `publish-smoke` はsuccess。main同コミットのCLEAN regression/odds parser CIもsuccess。
 - mainの公開ワークフロー run `41242390056` は記録時点で実行中。公開ブラウザ `DEPLOYED_ARCHIVED_RESULT_PASS` の実行済みログは未確認、iPhone Safari実機・T-12六艇展示証明も未取得。予想・収集のパイプライン、旧サイトには変更なし。
+
+## 2026-11-01 PR #747 本番および公開Pages検査の判定
+- PR #744の公開Pages workflow run `41242390056`、job `124658770360` の実ログを確認。`Verify Oct 31 archived forecast and visible receipt warning`、`Verify published CLEAN confirmed result in browser` はsuccess。一方 `Browser-check deployed page` が `#resultDetail .result-summary` の30秒待機でfailureとなり、**workflow全体はfailure**。4タブ実データ全件の成功とはしない。
+- PR #747の修正では、公開ブラウザ確認で結果レースを選んだ後に `await loadResult(true)` を明示して選択レースの取得完了を待つ。PR head `0d7ae7dfaa7d872c912a1a6b7f6a74ccb48686e2` に対する既存CLEAN回帰 `check` と `publish-smoke` はともにsuccess。squash main `f8a955d69690d22b333511667f55bdb0f45e455c`。
+- Render `dep-dbj5kb2vcj2c73elciog` はこのmain SHAと一致して `live`。ただし **Pagesのmain pushデプロイ後テスト成功は本接続で未取得**。Render liveとPages公開ブラウザ成功を同一視しない。
+- 次は既存Pages publish runで `Browser-check deployed page` の再実行成否と `DEPLOYED_ARCHIVED_RESULT_PASS` ログを直接確認。続いて2026-10-31の出走表・展示・結果・予想4タブを実データごとに検証。旧repo/Pages・原本は未変更、旧サイト撤去ゲートは未達。
