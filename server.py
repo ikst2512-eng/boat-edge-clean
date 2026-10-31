@@ -221,7 +221,7 @@ def get_predictions(params):
         if record.get("validated") is not True or not record.get("model_version") or not record.get("generated_at"):
             raise ValueError("feed missing validation metadata")
         return 200, {"ok": True, "status": "available", "predictions": tickets, "model_version": str(record["model_version"])[:80], "generated_at": str(record["generated_at"])[:40]}
-    except (OSError, ValueError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
@@ -258,7 +258,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 from daily_findings import daily_findings
                 status, data = 200, daily_findings()
-            except (ValueError, KeyError, OSError, TypeError) as exc:
+            except (ValueError, KeyError, OSError, TypeError):
                 logging.exception("daily_findings_unavailable")
                 status, data = 503, {"ok": False, "error": "FINDINGS_UNAVAILABLE"}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -299,7 +299,7 @@ class Handler(BaseHTTPRequestHandler):
                 from selection_dual import report
                 data = report()
                 status = 200
-            except (ValueError, KeyError, OSError, TypeError) as exc:
+            except (ValueError, KeyError, OSError, TypeError):
                 logging.exception("selection_research_unavailable")
                 status, data = 503, {"ok": False, "error": "RESEARCH_DATA_UNAVAILABLE"}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
