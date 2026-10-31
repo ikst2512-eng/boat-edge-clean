@@ -66,3 +66,9 @@
 - 修正(PR #723に追加): `collect_late_preview_once.py` が全源失敗時 `source_unavailable`、一部失敗時 `partial_source_failure`、全取得時 `sources_retrieved` と集計し、5源のavailable/unavailable数と保存件数を報告。`late-preview-capture.yml` Actions summaryに上流状態を明示。
 - テスト: 404全件失敗・一部失敗の回帰テスト2件追加。今回の追記後CIは結果を確認するまで未検証扱い。
 - 未完了: 実データのT-12完全6艇ペア、公式beforeinfo/BOATERS/競艇日和の可用性と時刻証拠、収集ジョブ依存関係の安全な整理。main未統合。
+
+### 2026-11-01 続行: 404の公開時間帯判定
+- 既存 `scripts/collect_live_preview_evidence.py` に上流CSV想定時間帯 `08:00-22:59 JST` の記述を確認。以前の04:32 JSTに観測された5件の404を恒常的な取得元障害と断定しない。
+- PR #723で午前8時前の全HTTP 404を `not_yet_expected`、各ソースを `before_expected_publication_window` として明示する判定を追加。午前8時以降の404は未公開・欠落の可能性を別分類。既存のスケジュールは依存関係未確認のため停止しない。
+- 回帰テスト: 午前4:32の全404を期待公開前と判定するケースを追加。実データ取得保証とは区別し、今回の追記後のCIは結果確認まで未検証。
+- 次の実測: 08:00-22:59 JSTの実行でHTTP応答、CSV行、6艇STT+TKZ完全ペア、T-12受信・ソース時刻を照合する。結果がなければ成功扱いしない。
