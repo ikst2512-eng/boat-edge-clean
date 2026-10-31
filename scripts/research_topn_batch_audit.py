@@ -46,9 +46,14 @@ def run():
             if (forecast.get("race_code") != race_code or result.get("race_code") != race_code
                 or forecast.get("status") != "research" or forecast.get("validated") is not False
                 or result.get("status") != "confirmed" or len(tickets) != 10
-                or len(set(tickets)) != 10 or len(finish) < 3
+                or len(set(tickets)) != 10
+                or not isinstance(finish, list) or len(finish) < 3
+                or any(type(n) is not int or n not in range(1, 7) for n in finish[:3])
+                or len(set(finish[:3])) != 3
                 or any(not isinstance(t, str) or len(t.split("-")) != 3
-                       or len(set(t.split("-"))) != 3 for t in tickets)):
+                       or len(set(t.split("-"))) != 3
+                       or any(part not in {"1", "2", "3", "4", "5", "6"} for part in t.split("-"))
+                       for t in tickets)):
                 raise ValueError("invalid pair")
             winning = "-".join(str(n) for n in finish[:3])
             position = tickets.index(winning) + 1 if winning in tickets else 0
