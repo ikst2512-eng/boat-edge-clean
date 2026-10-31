@@ -29,6 +29,14 @@ class LatePreviewCaptureTest(unittest.TestCase):
                 save_preview(csv_bytes(rows),"stt","20261031",when,root)
             self.assertEqual(path.read_bytes(),original)
 
+    def test_source_one_minute_before_deadline_is_rejected(self):
+        row={"レースコード":"202610312311","締切時刻":"20:00",
+             "取得日時":"2026-10-31T19:59:00+09:00","艇1_コース":"1"}
+        with tempfile.TemporaryDirectory() as root:
+            receipt=datetime(2026,10,31,19,57,tzinfo=JST)
+            self.assertEqual(save_preview(csv_bytes([row]),"stt","20261031",receipt,root),[])
+            self.assertEqual(list(Path(root).rglob("*.json")),[])
+
     def test_six_lane_exhibition_completeness_is_explicit(self):
         tkz={f"艇{i}_{key}": str(value) for i in range(1,7)
              for key,value in (("展示タイム",6.7),("チルト",0))}

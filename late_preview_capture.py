@@ -41,7 +41,7 @@ def save_preview(raw, kind, day, received_at, root):
         if code in seen:raise ValueError("duplicate race")
         seen.add(code)
         # Strictly before the deadline, but separate from research minus-12-minute cutoffs.
-        if classify(row,received_at,margin_minutes=0)!="pre_cutoff_observed":continue
+        if classify(row,received_at,margin_minutes=2)!="pre_cutoff_observed":continue
         deadline=datetime.strptime(day+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
         # Receipt must leave a minimum two-minute operational buffer.
         if received_at>=deadline-timedelta(minutes=2):continue
