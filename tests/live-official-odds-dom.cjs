@@ -38,8 +38,8 @@ const {chromium}=require('playwright');
   const token=await page.evaluate(()=>window.predictionRequestId);
   await page.evaluate(token=>loadTicketOdds(sameRaceKey(),token),token);
   try{await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-odds').length===10&&
-     [...document.querySelectorAll('#predictionRows .prediction-odds')].every(x=>x.textContent.includes('取得済オッズ')),null,{timeout:10000});}
-  catch{console.log('LIVE_ODDS_DOM_UNVERIFIED odds_not_displayed race='+key);return;}
+     [...document.querySelectorAll('#predictionRows .prediction-odds')].every(x=>x.textContent.includes('取得済オッズ')),null,{timeout:42000});}
+  catch{throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key); }
   const displayed=await page.evaluate(()=>({tickets:predictionTickets.slice(),odds:{...predictionOdds}}));
   if(JSON.stringify(displayed.tickets)!==JSON.stringify(tickets))throw Error('LIVE_ODDS_REORDERED_FORECAST');
   for(const ticket of tickets)if(displayed.odds[ticket]!==odds[ticket])throw Error('LIVE_ODDS_DOM_API_MISMATCH '+ticket);
