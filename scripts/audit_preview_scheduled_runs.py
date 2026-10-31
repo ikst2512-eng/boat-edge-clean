@@ -57,6 +57,8 @@ def main():
                 and datetime.fromisoformat(run["created_at"].replace("Z","+00:00")).astimezone(jst).date()==today]
     report["today_scheduled_runs"]=len(today_runs)
     report["schedule_missing_today"]=(os.environ.get("GITHUB_EVENT_NAME")=="schedule" and not today_runs)
+    report["all_today_captures_failed"]=(os.environ.get("GITHUB_EVENT_NAME")=="schedule" and bool(today_runs)
+        and all(run.get("status")=="completed" and run.get("conclusion")=="failure" for run in today_runs))
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
     if path:
@@ -67,6 +69,8 @@ def main():
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
     if report["schedule_missing_today"]:
         raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")
+    if report["all_today_captures_failed"]:
+        raise SystemExit("ALL_TODAY_SCHEDULED_PREVIEW_CAPTURES_FAILED")
 
 if __name__=="__main__":
     main()
