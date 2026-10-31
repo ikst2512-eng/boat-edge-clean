@@ -121,3 +121,8 @@
 - 6艇完全ペアであってもT-12時刻に間に合わないレースについて、STT/TKZそれぞれの時刻判定・受信時刻・レースコードを監査JSONの `paired_complete_but_not_t12` に出力するよう修正。完全性合格と予想時点の利用可能性を分離する。
 - `tests/test_audit_late_preview_evidence.py` に不合格理由の回帰アサーション追加。Actions run `41238036094` の4種ユニットテストステップ成功を確認。実レースT-12完全ペア取得は未証明。
 - main未統合、サイトとモデルは未変更。
+
+### 2026-11-01 PR #723統合前の競合確認
+- GitHub APIでPR #723は `mergeable=false`。未統合PR #654と `.github/workflows/late-preview-capture.yml` および `collect_late_preview_once.py` に変更範囲重複を確認。両PRのパッチ内容も照合済み。#654はペア保持・収集報告、#723は保存衝突対策・取得失敗分類・T-12監査なので、一方を無条件で削除/上書きできない。
+- PR #723の対象テスト最新成功run `41238036094`、別系統 `cross-model-content-audit-tests.yml` は失敗履歴あり。現状でmain統合しない。
+- 統合前に#654のペア保持ロジック、#723の状態分類・監査を両立させ、同一の収集ワークフローで回帰テストし、PRのmergeable/CIを再確認する。`late-preview-evidence-tests.yml` の一時的作業ブランチpush条件を統合前に削除する。
