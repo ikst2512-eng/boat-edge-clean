@@ -186,8 +186,8 @@ assert.ok(script.includes('let fourModePerformanceRequest=0;'),'overlapping veri
 assert.ok(script.includes('if(request!==fourModePerformanceRequest||budget!==Number(document.getElementById(\'performanceBudget\').value))return;'),'outdated responses must never render cards');
 assert.ok(script.includes('grid.replaceChildren();\n  const c=d.counts'),'clear four-mode cards again at the commit point');
 assert.ok(html.includes('id="forecastVenue"')&&html.includes('id="forecastRace"'),'forecast has direct venue and race selectors');
-assert.ok(html.includes('id="deadlineSection" hidden'),'deadline list is moved from home to forecast');
-assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='forecast'"),'deadline list only visible on forecast');
+assert.ok(html.includes('id="deadlineSection" hidden'),'home deadline section exists');
+assert.ok(script.includes("document.getElementById('deadlineSection').hidden=view!=='home'"),'deadline list only visible on home');
 assert.ok(script.includes("forecastVenue.addEventListener('change'"),'forecast venue selector changes race selection');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard label must describe fit-to-screen');
 assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed'),'six-lane table must fit small viewports');
