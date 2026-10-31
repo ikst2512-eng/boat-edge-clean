@@ -1,0 +1,76 @@
+name: CLEAN live official trifecta odds probe
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/live-official-odds-probe.yml'
+  schedule:
+    - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
+permissions:
+  contents: read
+jobs:
+  live-odds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Query a real upcoming race and test Render official odds
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timedelta
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          from clean_openapi_sources import load
+          from research_model import JST
+          now = datetime.now(JST)
+          day = now.strftime("%Y%m%d")
+          def report(message):
+              print(message, flush=True)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+                  output.write(message + "\n")
+          try:
+              titles, cards, received, digest, provenance = load(day, now=now)
+          except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError) as exc:
+              report("SOURCE_UNAVAILABLE " + type(exc).__name__ + " (not an odds success)")
+              raise SystemExit(0)
+          candidates = []
+          for row in titles:
+              try:
+                  close = datetime.strptime(day + row["電話投票締切予定"], "%Y%m%d%H:%M").replace(tzinfo=JST)
+                  if now + timedelta(minutes=8) < close < now + timedelta(hours=3):
+                      candidates.append((close, row["レースコード"]))
+              except (KeyError, ValueError):
+                  continue
+          if not candidates:
+              report("NO_UPCOMING_RACE_TO_PROBE (not an odds success)")
+              raise SystemExit(0)
+          code = min(candidates)[1]
+          url = ("https://boat-edge-clean.onrender.com/api/odds?hd=" + code[:8] +
+                 "&jcd=" + code[8:10] + "&rno=" + str(int(code[10:12])))
+          try:
+              with urlopen(Request(url, headers={"User-Agent":"BOAT-EDGE-CLEAN-ODDS-PROBE/1.0"}), timeout=25) as response:
+                  status = response.status
+                  raw = response.read(200000)
+                  payload = json.loads(raw)
+          except HTTPError as exc:
+              report("RENDER_ODDS_HTTP_ERROR race=" + code + " status=" + str(exc.code))
+              raise SystemExit(0)
+          except (URLError, TimeoutError, ValueError, OSError, json.JSONDecodeError) as exc:
+              report("RENDER_ODDS_TRANSPORT_ERROR race=" + code + " reason=" + type(exc).__name__)
+              raise SystemExit(0)
+          odds = payload.get("odds")
+          valid = (status == 200 and payload.get("ok") is True and isinstance(odds, dict)
+                   and len(odds) == 120 and
+                   all(isinstance(v, (int,float)) and not isinstance(v,bool) and 0 < v <= 1000000 for v in odds.values()))
+          report(("LIVE_ODDS_120_VALIDATED " if valid else "LIVE_ODDS_UNVERIFIED ") + "race=" + code + " http=" + str(status)
+                 + " combinations=" + str(len(odds) if isinstance(odds,dict) else 0))
+          if valid:
+              from itertools import permutations
+              expected = {"-".join(map(str, t)) for t in permutations(range(1,7),3)}
+              if set(odds) != expected:
+                  raise SystemExit("ODDS_COMBINATIONS_MISMATCH")
+          PY
