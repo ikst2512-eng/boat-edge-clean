@@ -97,6 +97,7 @@ def clean_schedule(day):
                 result["source"] = metadata["source"]
                 result["source_sha256"] = digest
                 result["status"] = "alternate_published_schedule"
+                result["venue_race_counts"] = dict(sorted(Counter(r["venue_code"] for r in result["races"]).items()))
                 return 200, result
             except (ValueError, KeyError, TypeError, OSError, TimeoutError, URLError, HTTPError) as fallback_error:
                 logging.info("alternate_schedule_not_ready date=%s reason=%s", day, type(fallback_error).__name__)
