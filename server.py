@@ -18,7 +18,6 @@ LOCK = threading.Lock()
 CACHE = {}
 INFLIGHT = set()
 ALL_TICKETS = {"-".join(map(str, p)) for p in permutations(range(1, 7), 3)}
-TICKET_RE = re.compile(r"(?<![0-9])([1-6])\s*[-－]\s*([1-6])\s*[-－]\s*([1-6])\s*(?:[：:]|\s)+\s*([0-9]+(?:\.[0-9]+)?)(?![0-9])")
 
 
 from html.parser import HTMLParser
