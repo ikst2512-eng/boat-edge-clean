@@ -57,7 +57,8 @@ if not candidates:
 errors=[]
 verified_cards=[]
 verified_previews=[]
-for _,code in candidates[:3]:
+verified_t12=[]
+for source_deadline,code in candidates[:3]:
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
@@ -70,6 +71,7 @@ for _,code in candidates[:3]:
         deadline_text=data.get("meta",{}).get("deadline")
         if not isinstance(deadline_text,str):raise ValueError("race deadline missing")
         response_deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        if response_deadline!=source_deadline:raise ValueError("API deadline differs from independent race schedule")
         if datetime.now(JST)>=response_deadline:raise ValueError("race cutoff passed before response verification")
         if len(data.get("racers",[]))!=6:raise ValueError("missing racer rows")
         audit=data.get("source_audit",{})
@@ -107,6 +109,10 @@ for _,code in candidates[:3]:
                     raise ValueError("preview source is not independently predeadline: "+kind)
                 if not isinstance(sha,str) or len(sha)!=64 or any(c not in "0123456789abcdef" for c in sha.lower()):
                     raise ValueError("preview source SHA256 missing: "+kind)
+            t12_limit=deadline-timedelta(minutes=12)
+            if all(_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])<=t12_limit for kind in ("tkz","stt")):
+                verified_t12.append(code)
+                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,"observed_by":t12_limit.isoformat()},ensure_ascii=False))
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
@@ -121,4 +127,7 @@ if not verified_cards:
 if not verified_previews:
     print(json.dumps({"outcome":"PREDEADLINE_EXHIBITION_NOT_VERIFIED","card_verified_count":len(verified_cards),"preview_verified_count":0,"failed":errors},ensure_ascii=False))
     raise SystemExit("NO_SIX_BOAT_PREDEADLINE_EXHIBITION_VERIFIED")
-print(json.dumps({"outcome":"PASS","card_verified_count":len(verified_cards),"preview_verified_count":len(verified_previews),"preview_not_yet_verified":len(verified_cards)-len(verified_previews),"failed":errors},ensure_ascii=False))
+if not verified_t12:
+    print(json.dumps({"outcome":"T12_UNVERIFIED","card_verified_count":len(verified_cards),"preview_verified_count":len(verified_previews),"failed":errors},ensure_ascii=False))
+    raise SystemExit("NO_T12_SIX_BOAT_PAIR_VERIFIED")
+print(json.dumps({"outcome":"PASS","card_verified_count":len(verified_cards),"preview_verified_count":len(verified_previews),"t12_verified_count":len(verified_t12),"preview_not_yet_verified":len(verified_cards)-len(verified_previews),"failed":errors},ensure_ascii=False))
