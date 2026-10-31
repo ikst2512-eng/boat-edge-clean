@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
  try{
   const page=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   await page.goto('https://boat-edge-clean.onrender.com/',{waitUntil:'domcontentloaded',timeout:60000});
-  await page.waitForSelector('#predictionRows',{timeout:30000});
+  await page.waitForSelector('#predictionRows',{state:'attached',timeout:30000});
   const actual=await page.evaluate(()=>{
    const tickets=['1-2-3','1-3-2','2-1-3','2-3-1','3-1-2','3-2-1','1-2-4','1-4-2','2-1-4','2-4-1'];
    selectedPredictionMode='research';
