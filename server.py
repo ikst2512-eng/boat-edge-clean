@@ -176,7 +176,17 @@ def get_predictions(params):
                     len(set(t.split("-"))) != 3 for t in picks) or
                 len(set(picks)) != 10):
                 raise ValueError("unverified archive")
+            # An archived candidate is research-only; source receipt order may be unverified.
+            receipts = [datetime.fromisoformat(record[k]) for k in
+                        ("source_title_received_jst", "source_cards_received_jst")
+                        if isinstance(record.get(k), str)]
+            receipt_order_verified = (
+                len(receipts) == 2 and all(
+                    t.tzinfo is not None and t <= generated for t in receipts)
+            )
             return 200, {"ok": True, "status": "research",
+                         "receipt_order_verified": receipt_order_verified,
+                         "provenance_warning": None if receipt_order_verified else "SOURCE_RECEIPT_ORDER_UNVERIFIED",
                          "validated": False, "formal": False,
                          "predictions": picks, "model_version": record["model_version"],
                          "generated_at": record["generated_at"],
