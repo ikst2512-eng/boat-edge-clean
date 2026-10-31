@@ -4,6 +4,7 @@ No exhibition, entry-course, wall or odds fields exist in these saved records:
 do not invent or backfill them. Discovery / holdout are separated by race date.
 """
 import json, sys
+from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 ROOT=Path(__file__).resolve().parents[1]
@@ -21,11 +22,26 @@ def analyze(root=ROOT):
             q=json.loads(result_path.read_text())
             code=path.stem
             if p.get("race_code")!=code or q.get("race_code")!=code or p.get("status")!="research" or q.get("status")!="confirmed":raise ValueError("invalid provenance")
-            if p["generated_at"]>=p["cutoff_jst"]:raise ValueError("late forecast")
+            generated=datetime.fromisoformat(p["generated_at"])
+            cutoff=datetime.fromisoformat(p["cutoff_jst"])
+            deadline=datetime.fromisoformat(p["source_deadline_jst"])
+            if (generated.tzinfo is None or cutoff.tzinfo is None or deadline.tzinfo is None
+                    or not generated < cutoff < deadline):
+                raise ValueError("unverified predeadline forecast")
+            finish=q["finish_order"]
+            if (not isinstance(finish,list) or len(finish)<3
+                    or any(type(n) is not int or n not in range(1,7) for n in finish[:3])
+                    or len(set(finish[:3]))!=3):
+                raise ValueError("invalid finish")
             rates=p["national_win_rates"]
             if len(rates)!=6 or any(not isinstance(x,(int,float)) or isinstance(x,bool) or not 0<x<20 for x in rates):raise ValueError("invalid rates")
             tickets=p["predictions"]
-            if len(tickets)!=10:raise ValueError("invalid ticket count")
+            if (not isinstance(tickets,list) or len(tickets)!=10 or len(set(tickets))!=10
+                    or any(not isinstance(t,str) or len(t.split("-"))!=3
+                           or len(set(t.split("-")))!=3
+                           or any(v not in {"1","2","3","4","5","6"} for v in t.split("-"))
+                           for t in tickets)):
+                raise ValueError("invalid tickets")
             winning="-".join(map(str,q["finish_order"][:3]))
             hit=int(winning in tickets)
             cohort="discovery" if code[:8]<="20261029" else "holdout"
@@ -33,7 +49,7 @@ def analyze(root=ROOT):
             for key in keys:
                 output[cohort][key]["n"]+=1
                 output[cohort][key]["top10"]+=hit
-        except (ValueError,TypeError,KeyError,IndexError,OSError):
+        except (ValueError,TypeError,KeyError,IndexError,OSError,AttributeError):
             rejected+=1
     for cohorts in output.values():
         for row in cohorts.values():
