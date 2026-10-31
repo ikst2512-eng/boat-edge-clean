@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 
 def outside_second_candidate(rates):
-    """Research-only fixed 10-ticket alternative; factor chosen a priori, not on holdout."""
+    """Research-only post-hoc hypothesis, never an evidence-backed model change."""
     ranked = probabilities(rates)
     return ["-".join(map(str, t)) for t, _ in sorted(
         ranked, key=lambda item: (-item[1] * (1.25 if item[0][0] == 1 and item[0][1] >= 4 else 1.0), -item[1])
@@ -24,6 +24,8 @@ def analyze(root=ROOT):
     for cohort in ("discovery", "holdout"):
         output[cohort]={k:{"n":0,"top3":0,"top5":0,"top10":0,"head1_actual":0,"head1_top10_hit":0,"head1_top10_miss":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
     rejected=0
+    advanced_fields=("motor","exhibition","entry","st","wind","course")
+    feature_presence={cohort:{"records":0,"direct_fields":{key:0 for key in advanced_fields}} for cohort in ("discovery","holdout")}
     comparison={k:{"n":0,"baseline_hits":0,"candidate_hits":0,"gained":0,"lost":0,"unchanged_hits":0,"actual_second_counts":{str(i):0 for i in range(2,7)},"baseline_second_counts":{str(i):0 for i in range(2,7)},"candidate_second_counts":{str(i):0 for i in range(2,7)}} for k in ("discovery","holdout")}
     strongest_head1_misses={"discovery":[],"holdout":[]}
     for path in sorted((root/"research_snapshots").glob("*.json")):
@@ -62,6 +64,9 @@ def analyze(root=ROOT):
             hit=int(rank is not None)
             actual_head1=finish[0]==1
             cohort="discovery" if code[:8]<="20261029" else "holdout"
+            feature_presence[cohort]["records"]+=1
+            for field in advanced_fields:
+                feature_presence[cohort]["direct_fields"][field]+=int(field in p and p[field] is not None)
             keys=("all","lane1_strongest" if rates[0]>=max(rates) else "lane1_not_strongest","lane1_lead_2plus" if rates[0]-max(rates[1:])>=2 else "lane1_lead_under2")
             if rates[0] > max(rates[1:]):
                 keys += ("lane1_unique_strongest",)
@@ -117,7 +122,8 @@ def analyze(root=ROOT):
                 row[top+"_rate_pct"]=round(100*row[top]/row["n"],2) if row["n"] else None
     return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output,
             "strongest_lane1_head1_top10_misses":strongest_head1_misses,
-            "fixed_outside_second_comparison":comparison}
+            "fixed_outside_second_comparison":comparison,
+            "saved_advanced_feature_presence":feature_presence}
 
 if __name__=="__main__":
     print(json.dumps(analyze(),ensure_ascii=False,indent=2))
