@@ -43,7 +43,9 @@ def analyze(root=ROOT):
             confirmed = datetime.fromisoformat(q["confirmed_at_jst"])
             if (any(x.utcoffset() != timedelta(hours=9) for x in (generated, cutoff, deadline, *received, confirmed))
                     or deadline-cutoff != timedelta(minutes=12)
-                    or max(generated, *received) >= cutoff or confirmed <= deadline):
+                    or max(generated, *received) >= cutoff or max(received) > generated
+                    or deadline.strftime("%Y%m%d") != code[:8]
+                    or confirmed <= deadline):
                 raise ValueError("unverified predeadline forecast")
             finish=q["finish_order"]
             if (not isinstance(finish,list) or len(finish)<3
