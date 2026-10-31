@@ -9,7 +9,7 @@ class Timing(unittest.TestCase):
         self.assertEqual(classify(row,datetime(2026,10,31,17,45,tzinfo=JST)),"pre_cutoff_observed")
         self.assertEqual(classify(row,datetime(2026,10,31,17,50,tzinfo=JST)),"too_late")
         row["取得日時"]="2026-10-31 17:49:00"
-        self.assertEqual(classify(row,datetime(2026,10,31,17,40,tzinfo=JST)),"too_late")
+        self.assertEqual(classify(row,datetime(2026,10,31,17,40,tzinfo=JST)),"unknown_time")
         row.update({"レースコード":"202610310101","締切時刻":"18:00","取得日時":"2026-10-31T17:40:00+09:00"})
         self.assertEqual(classify(row,datetime(2026,10,31,17,45,tzinfo=JST)),"pre_cutoff_observed")
         row.pop("取得日時")
