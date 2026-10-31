@@ -197,3 +197,8 @@
 - 保存データのモデルタグと買い目内容が矛盾した模擬例の回帰テストを追加（`d1119f8`）。
 - GitHub Actions Research forecast checks run `41240833430` / job `124654191975` **success**。研究41テスト＋特徴量監査1テスト合格。時系列train457、holdout130、選択beta0.4を維持。これは精度改善を示すものではない。
 - 別件のcross-model workflowのPRブランチ改行修復（`10430fb`）後の再実行は依然成功証拠未取得。CI全体が成功したとは主張しない。main未統合、PR #722 Draft。
+
+### 2026-11-01 研究スナップショットの不正ファイル除外を強化
+- `scripts/research_prerace_feature_audit.py` の入力境界に、レースコードが12桁数字以外、シンボリックリンク、20KB超過のスナップショット/結果の除外を追加（`2725776`）。実データの内容を加工せず不適格として`rejected`に計上。
+- `test_research_prerace_feature_audit.py` に不正ファイル名・過大ファイル・シンボリックリンク3ケースの回帰テスト追加（`03638c7`）。
+- GitHub Actions Research forecast checks run `41241122691` **success**。別系統のcross-model監査は過去の失敗のみ確認し、修正後の成功ジョブは未取得。main未統合、PR #722 Draft。
