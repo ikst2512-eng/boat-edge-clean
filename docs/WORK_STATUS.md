@@ -168,3 +168,8 @@
 - `test_research_chronological_calibration.py` に保存順位の逆順改変を拒否する回帰ケースを追加（`5ce9047`）。初回CI run `41239828961` は、実コード側のチェック追加が未反映だったため失敗。その後コードを再確認して修正。
 - GitHub Actions Research forecast checks run `41239883715` job `124651402230` は**success**。研究コホートは train457/holdout130、選択beta0.4。holdout Top10 53/130=40.77%で精度改善とはみなさない。
 - 出走表以外の展示・ST・進入・モーターの新規データ結合は未達、正式Git first-addの証拠確認も未達。モデル重み/公開予想/mainは不変更、PR #722 Draft。
+
+### 2026-11-01 研究用モデルバージョン検証の追加
+- `research_chronological_calibration.py` のベースラインbeta0.4評価で、保存された `model_version` が明示されている場合、`national-beta0.4-exploratory-v1` 以外を除外。保存予想Top10が再計算と一致する条件も継続。コードcommit `e44c8c4`、回帰テストcommit `8e695ef`。
+- GitHub Actions Research forecast checks run `41240098122` job `124652025696` **success**。研究41テストとfeature audit1テスト成功。時系列研究train457、holdout130、beta0.4、holdout Top10 53/130=40.77%。
+- `model_version` が欠損した古いデータは後方互換のため許容している。これは独立したGit初回保存監査の代替ではない。将来モデルの結果をベースラインと混在させない目的で、本番モデル・保存済み予想・mainを変更しない。PR #722 Draft。
