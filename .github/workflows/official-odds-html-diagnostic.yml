@@ -8,14 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
+      - uses: actions/checkout@v4
       - name: Diagnose official response structure without storing user data
         run: |
           python - <<'PY'
           from urllib.request import Request,urlopen
           from html.parser import HTMLParser
+          from server import parse_official_odds_table
           import datetime,re
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
-          url=f'https://www.boatrace.jp/owpc/pc/race/odds3t?hd={day}&jcd=01&rno=1'
+          url=f'https://www.boatrace.jp/owpc/pc/race/odds3t?hd={day}&jcd=24&rno=12'
           class Inspect(HTMLParser):
               def __init__(self):super().__init__();self.tags={};self.title='';self.in_title=False
               def handle_starttag(self,t,a):
@@ -33,6 +35,15 @@ jobs:
               p=Inspect();p.feed(body)
               print('HTML title:',repr(p.title[:180]))
               print('Table tags:',p.tags.get('table',0),'rows:',p.tags.get('tr',0),'scripts:',p.tags.get('script',0))
+              if p.tags.get('table',0):
+                  odds=parse_official_odds_table(body)
+                  assert len(odds)==120
+                  print('Official odds parser: PASS 120 unique trifecta combinations')
+                  api=f'https://boat-edge-clean.onrender.com/api/odds?hd={day}&jcd=24&rno=12'
+                  with urlopen(api,timeout=25) as rr:
+                      payload=__import__('json').load(rr)
+                      assert rr.status==200 and payload.get('ok') is True and len(payload.get('odds',{}))==120
+                      print('Render odds API: PASS 120 official combinations')
               print('Leading HTML:',repr(re.sub(r'\\s+',' ',body[:450])))
               print('Known access-block indicators:',{k:(k.lower() in body.lower()) for k in ['access denied','captcha','maintenance','JavaScriptを有効','アクセスが集中']})
           except Exception as e:
