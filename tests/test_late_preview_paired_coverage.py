@@ -2,6 +2,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1] / 'scripts'))
 from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 
