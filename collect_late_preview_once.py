@@ -44,7 +44,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
             reason=("upstream_http" if isinstance(err,HTTPError) else
                     "upstream_transport" if isinstance(err,(URLError,TimeoutError)) else
                     "local_or_invalid_source")
-            report["kinds"][kind]={"status":"unavailable","reason":reason,
+            report["kinds"][kind]={"status":"unavailable","error":type(err).__name__,"reason":reason,
                                    "http_status":err.code if isinstance(err,HTTPError) else None,
                                    "received_at_jst":now().isoformat(),"saved":0,
                                    "source_rows":None,"pre_deadline_2min":None,
