@@ -19,16 +19,28 @@ jobs:
         run: |
           python - <<'PY'
           from datetime import datetime
-          from scripts.probe_official_beforeinfo import probe
+          from scripts import probe_official_beforeinfo as source
+          from urllib.error import HTTPError, URLError
           from research_model import JST
           now = datetime.now(JST)
-          try:
-              result = probe(now.strftime("%Y%m%d"), 12, 10)
-              print("official_http_probe=success", result, flush=True)
-          except Exception as e:
-              import os
-              print("official_http_probe=unavailable", type(e).__name__, str(e), flush=True)
-              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-                  summary.write("Official beforeinfo: unavailable; exhibition/entry not verified.\\n")
-                  summary.write(f"Reason: {type(e).__name__}: {e}\\n")
+          import os
+          date = now.strftime("%Y%m%d")
+          endpoints = (
+              ("pc", "https://www.boatrace.jp/owpc/pc/race/beforeinfo"),
+              ("mobile", "https://www.boatrace.jp/owsp/sp/race/beforeinfo"),
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Official beforeinfo accessibility (raw only)\n")
+              for name, base in endpoints:
+                  original = source.BASE
+                  try:
+                      source.BASE = base
+                      result = source.probe(date, 12, 10)
+                      print("official_http_probe=success", name, result, flush=True)
+                      summary.write(f"- {name}: raw_response_received; bytes={result['bytes']}; exhibition=unverified; entry=unverified\n")
+                  except (HTTPError, URLError, OSError, TimeoutError, ValueError) as e:
+                      print("official_http_probe=unavailable", name, type(e).__name__, str(e), flush=True)
+                      summary.write(f"- {name}: unavailable ({type(e).__name__}); exhibition=unverified; entry=unverified\n")
+                  finally:
+                      source.BASE = original
           PY
