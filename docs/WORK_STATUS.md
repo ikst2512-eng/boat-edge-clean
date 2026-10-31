@@ -251,3 +251,8 @@
 - PR #654の変更3ファイルを差分照合。`scripts/research_preview_csv_probe.py` のimport修正は既にmainに存在し、#723ブランチとSHA一致。`collect_late_preview_once.py` の `paired_six_lane_coverage` と `late-preview-capture.yml` のpaired audit出力は#723に取り込み済み。#654の保持期間14日は#723の90日が包含する。
 - #723は `mergeable=true` をGitHubで確認。統合後CIは `41238926355` integrity success / `41238926467` capture success / `41238926369` source diagnostics success。収集runでは `not_yet_expected`、5 HTTPError、保存0件、T-12ペア0件。
 - #654自体は未統合で残す（別担当のPRを無断クローズしない）。二重統合は避け、メイン統合担当は#723の統合後に#654をclose/supersededで整理可能か確認する。mainは本担当から変更しない。
+
+### 2026-11-01 最新main再取り込み・収集PR検証
+- mainが進行中に前進したため、既存PR #723へ最新mainを保全して再取り込み。merge commit `c2076f3095c31fa630c87955f852c2d9662e7832`、GitHub `mergeable=true`、比較で `behind=0` を確認。main本体は変更していない。
+- 統合後Actionsの実ジョブで `Late preview evidence integrity` run `41239159375` success、`Research preview CSV source diagnostics` run `41239159337` success、`Preview capture (pull_request)` run `41239159305` success を確認。これは収集処理/テストの正常終了であり、ライブT-12 6艇取得成功ではない。
+- #654の処理は#723へ保持済み、#654の独立PRは無断終了しない。データ取得側main統合はメイン開発担当に引き継ぐ。
