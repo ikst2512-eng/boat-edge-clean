@@ -1,0 +1,50 @@
+name: CLEAN independently verified trifecta payouts
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 9-14 * * *' # 18:20-23:20 JST, catch up published payouts
+  pull_request:
+    paths: [collect_clean_payouts.py, test_collect_clean_payouts.py, .github/workflows/collect-clean-payouts.yml]
+permissions:
+  contents: write
+concurrency:
+  group: clean-payout-evidence-writer
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_collect_clean_payouts
+      - name: Collect today and yesterday from published payout CSV
+        if: github.event_name != 'pull_request'
+        run: |
+          python - <<'PY'
+          from datetime import datetime,timedelta,timezone
+          from collect_clean_payouts import collect
+          now=datetime.now(timezone(timedelta(hours=9)))
+          for days_back in (1,0):
+              print(collect((now-timedelta(days=days_back)).strftime("%Y%m%d")))
+          PY
+      - name: Commit immutable, result-matched payout records
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d payout_evidence ]; then echo 'No payout evidence yet'; exit 0; fi
+          git add -- payout_evidence/
+          if git diff --cached --name-only --diff-filter=CDMRTUX -- payout_evidence/ | grep -q .; then
+            echo 'Existing payout evidence modifications prohibited' >&2
+            exit 1
+          fi
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'data: archive result-matched payout evidence'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
