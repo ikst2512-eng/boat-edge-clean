@@ -100,3 +100,9 @@
 - GitHubの取得可能な `fetch_commit_workflow_runs` はPRトリガーの実行のみ対象で、Pagesのpush workflowは検索結果0件でも成功/未実施の判定不可。Web・コンテナからGitHub Pages URLはアクセス不可。公開Pagesの成果物実測は未確認。
 - Render管理APIで最新live deploy `dep-dbj4ma3m8hqs73fed5a0`（commit `df92a926162dba2ec922e898b25e69b56e2bbd12`、#726 clean racecard CSVフォールバック、2026-10-31 20:11:03 UTC終了）を確認。Renderはliveだが10/31のレース画面E2Eは未確認。
 - 未統合#725は別の予想1ページUI作業のため維持。旧サイト/旧リポジトリの無断削除なし。GitHub Pagesの公開runを閲覧できる経路とブラウザ検証が必要。
+
+## 2026-11-01 GitHub Pagesプロジェクト配下の検証リンク修正
+- `navigation.js` は `/review` をRender用ルートとして持つが、GitHub Pagesプロジェクトサイト `/boat-edge-clean/` にはそのパスのページがない。Pagesホストでは既存 `screen=review` に置換し、プロジェクト配下での画面復元を受け入れるよう修正（main `51b2a3ba43fe181e93341341a5a454c6076816d3`）。Render用ルートは変更なし。
+- 既存 `tests/site-regression.cjs` にPagesホスト・パス・screenクエリの回帰アサーションを追加（main `8b714fbb487403eecdcafd6e5e6136dcea2a7d5c`）。コードの再取得では修正存在を確認したがCI実行成功、GitHub Pages配布成功、実ブラウザ動作は未確認。
+- Web側からPages/Render公開URLへ直接アクセス不可。Renderの要求ログ指定期間は0件（無通信の証拠とは扱わない）。旧サイト削除や担当外PRの統合は実施していない。
+- 次：Pages Actionsのデプロイ結果と10/31履歴タブの実機再現。旧サイトのGitHub Pages/旧リポジトリの依存確認を継続。
