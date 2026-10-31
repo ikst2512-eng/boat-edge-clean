@@ -372,3 +372,7 @@
 - 既存mainには夜間scheduled監査時に同日JSTのcapture scheduled runが0件なら失敗終了するゲートも実装済み。定期実行が0件の原因を「ソース404」と同一視しない。
 - 変更後のGitHub Actions合格はまだ確認できていない。07時台以前の手動/PR captureが成功してもT-12証拠と扱わない。08時以降の実scheduled runと `late_preview_audit_report.json` を取得し、race code・6艇完全性・受信時刻を精査する。
 - 予想モデル、UI、旧サイトは未変更。旧サイト停止ゲートは未達。
+
+## 2026-11-01 夜間監査で全収集失敗を検出
+- 夜間監査が当日の定期収集run数を数えるだけだったため、1回以上実行されたがすべてfailureの場合にも正常終了する可能性があった。main `d27ba36e8064a8f850c711bc6e1445edb86221ea` で、夜間schedule監査時のみ当日定期収集の全ジョブがcompleted/failureなら `ALL_TODAY_SCHEDULED_PREVIEW_CAPTURES_FAILED` として不合格にする。手動・PR監査は診断のまま。main再取得で反映確認。
+- この変更のCI/実行結果およびT-12実レース完全6艇ペアは未確認。旧サイトは停止・変更していない。
