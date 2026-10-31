@@ -169,3 +169,8 @@
 - 既存PR #733を重複PR作成せずmainへsquash統合: `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c`。既存 live E2Eで `tkz` と `stt` 双方の `observed_at` を独立照合し、各取得時刻が未来や締切後なら不合格、各source SHA256がない・不正なら不合格。mainのコード再取得で実装を確認。
 - PR head `7da145c0c1d62b0cebf0d026c817732266fb27e6` のActions run `41239549160` は歴史出走表・結果・120オッズ・構文でsuccess、`e2e-live-race` はPR実行でskipped。締切前実測成功はなお未確認。
 - PR #732のRender deploy `dep-dbj50gjil8vc73a6dom0` がliveと確認済み。今回統合した#733のRenderデプロイ・定期E2E結果はまだ未確認。独立証拠保全とCLEAN実レース6艇展示成功を満たすまで旧repo/Pagesは停止しない。
+
+## 2026-11-01 #733本番反映とソース監査スキーマ確認
+- Render `list_deploys` で `dep-dbj520ivcj2c73eknlh0` / commit `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c` finished 2026-10-31 20:35:57 UTC、status `live` を確認。後続 `eb13773c` は確認時点で更新中であり、最新版のlive状態を同一視しない。
+- main `clean_racecard.py` の `beforeinfo` source audit構造 `sources.tkz/stt.observed_at` および `sha256` が既存 #733 E2Eの検査対象と一致するとコード照合。コード・スキーマ一致は実レースの検証成功ではない。
+- 旧repo/publicationは未停止。次はscheduleによる`e2e-live-race`の実行結果で `EXHIBITION_PASS` と独立時刻・SHA証拠を確認すること。旧データの独立保全も残る。
