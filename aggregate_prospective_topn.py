@@ -12,7 +12,6 @@ def summary(days, evaluator=cohort):
     roi = {k: {"races": 0, "invested_yen": 0, "return_yen": 0} for k in hits}
     rows = []
     rejection_reasons = {}
-    rejection_reasons = {}
     for day in sorted(days):
         if not isinstance(day, str) or len(day) != 8 or not day.isascii() or not day.isdigit() or not day.startswith("20"):
             raise ValueError("invalid day")
