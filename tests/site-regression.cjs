@@ -444,5 +444,5 @@ assert.ok(script.includes("fresh.provenance_warning==='SOURCE_RECEIPT_ORDER_UNVE
 assert.ok(script.includes('研究予想API：元データ受信順序・時刻証拠が未検証です'),'fallback API warning must be visible');
 
 const archivedResultWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(archivedResultWorkflow.includes('DEPLOYED_ARCHIVED_RESULT_PASS 202610270101 3-4-1'),'published browser test must verify a real archived race result');
+assert.ok(archivedResultWorkflow.includes('CLEAN_RESULT_PUBLISHED_BROWSER_PASS'),'published browser test must verify a real archived race result');
 assert.ok(archivedResultWorkflow.includes("#resultDetail .result-combo .boat-num"),'published browser test must inspect actual three boat numbers');
