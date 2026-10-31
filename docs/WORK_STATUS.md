@@ -178,3 +178,10 @@
 ## 2026-11-01 締切前E2Eの独立締切照合
 - main `6f06a63c051cd90ae678087af738ed109eea9567` にて既存の `scripts/verify_live_racecard_e2e.py` を修正。これまでAPI応答の `meta.deadline` が締切前かは確認していたが、独立した開催情報から得た締切と同じか検証していなかった。候補選定時の締切を保持し `response_deadline != source_deadline` は不合格にする。取得元不一致時の偽陽性を防止するためで、収集機構・モデルは変更なし。
 - mainからコード再取得し修正の存在を確認。実スケジュールCIの成功、6艇展示データ取得成功は未確認。Render本番は前回 `eb13773c` がlive、最新mainに対するデプロイは別途確認が必要。旧Pagesや旧repoの停止なし。
+
+## 2026-11-01 Render本番確認（01統合）
+- Render workspace `My Workspace` の web service `boat-edge-clean` (`srv-dbcthfrncjis73djj8qg`) は **別repo `ikst2512-eng/boat-edge-clean` の main** をauto-deployする。旧 `ikst2512-eng/boat-edge` のPR/CIをCLEANの本番反映と混同しない。
+- 2026-11-01 05:39 JST、Render deploy `dep-dbj5395h3lcs7386ofkg` が `live`。SHA `4659cbe66ff64b81a0d5874eafe8608f2d01d585` は確認時のCLEAN main最新commitと一致。Renderログでbuild successful、`python server.py` 起動、`HEAD /` と `GET /` が200を確認。
+- これは**トップHTTP疎通とデプロイ一致の証拠**であり、過去日(2026-10-31)の出走表/予想/展示/結果4タブ、API成功、実機Safariの証明ではない。外部ブラウザからの取得はこの確認環境で未成立。
+- 旧サイト停止は issue #708 にある証拠保全・移行後機能同等性・ロールバック条件の未達につき未実施。現在のRender一覧はCLEAN web service 1件で、旧公開は旧repoのPages側で管理。旧repoの証拠やpublishを無断破棄しない。
+- **次のP0**: CLEANの10/31実レースに対するAPI/画面E2Eを既存テストで証明→旧予想原本・初回Git時刻/SHA・結果原本の復元可能バックアップ照合→旧Pages/writerを段階停止。新規の監査ワークフローを重複作成しない。
