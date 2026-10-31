@@ -5,6 +5,9 @@ on:
       - 'scripts/collect_live_preview_evidence.py'
       - '.github/workflows/research-live-preview-evidence.yml'
       - 'tests/test_late_preview_paired_coverage.py'
+  schedule:
+    # 09:00-21:45 JST every 15 minutes; capture eligibility remains fail-closed.
+    - cron: '*/15 0-12 * * *'
   workflow_dispatch:
 permissions:
   contents: read
