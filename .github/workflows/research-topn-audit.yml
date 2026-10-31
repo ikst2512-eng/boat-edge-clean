@@ -11,6 +11,8 @@ on:
     paths:
       - 'scripts/research_topn_batch_audit.py'
       - 'scripts/research_selective_top10_backtest.py'
+      - 'tests/test_research_selective_top10_backtest.py'
+      - 'scripts/research_selective_top10_backtest.py'
       - 'scripts/research_prerace_feature_audit.py'
       - 'tests/test_research_mass_cohort_audit.py'
       - 'research_model.py'
@@ -50,6 +52,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_mass_cohort_audit.py' -v
       - name: Out-of-time lane strength study
         run: python scripts/research_prerace_feature_audit.py
+      - name: Verify selective Top10 deadline and finish validation
+        run: python -m unittest discover -s tests -p 'test_research_selective_top10_backtest.py' -v
       - name: Out-of-time Top10 selectivity research
         run: python scripts/research_selective_top10_backtest.py
       - name: Count stored research forecasts against confirmed results
