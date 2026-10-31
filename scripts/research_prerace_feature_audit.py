@@ -29,8 +29,14 @@ def analyze(root=ROOT):
     comparison={k:{"n":0,"baseline_hits":0,"candidate_hits":0,"gained":0,"lost":0,"unchanged_hits":0,"actual_second_counts":{str(i):0 for i in range(2,7)},"baseline_second_counts":{str(i):0 for i in range(2,7)},"candidate_second_counts":{str(i):0 for i in range(2,7)}} for k in ("discovery","holdout")}
     strongest_head1_misses={"discovery":[],"holdout":[]}
     for path in sorted((root/"research_snapshots").glob("*.json")):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 20000 or len(path.stem) != 12 or not path.stem.isascii() or not path.stem.isdigit():
+            rejected += 1
+            continue
         result_path=root/"confirmed_results"/path.name
         if not result_path.is_file():continue
+        if result_path.is_symlink() or result_path.stat().st_size > 20000:
+            rejected += 1
+            continue
         try:
             p=json.loads(path.read_text())
             q=json.loads(result_path.read_text())
