@@ -46,6 +46,8 @@ class PriorArtifactTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result=retrieve(day,tmp,"example/repo","mock",fetch)
             self.assertEqual(result["imported_immutable_candidates"],1)
+            self.assertEqual(result["artifacts_with_imported_candidates"],1)
+            self.assertEqual(result["coverage_status"],"candidate_found")
 
 if __name__=="__main__":
     unittest.main()
