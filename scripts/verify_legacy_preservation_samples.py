@@ -14,7 +14,7 @@ def verify(root=ROOT):
     manifest = json.loads((root / "legacy_preservation/samples/manifest.json").read_text(encoding="utf-8"))
     assert manifest["source_repository"] == "ikst2512-eng/boat-edge"
     records = manifest["records"]
-    assert len(records) >= 11, "preservation sample count regressed"
+    assert len(records) >= 19, "preservation sample count regressed"
     seen = set()
     for row in records:
         rel = row["archive_path"]
