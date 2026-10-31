@@ -1191,7 +1191,7 @@ async function loadRaceData(force=false){
   const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
   const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
   const fastest=measured.length?measured[0].time:null;
-  const dataState=document.createElement('p');dataState.className='muted';dataState.textContent=safePreview?'直前データ：取得済み・締切前確認済み':'直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';exhibitGrid.append(dataState);
+  const dataState=document.createElement('p');dataState.className='muted';dataState.textContent=safePreview?'直前データ：取得記録は締切前・Git初回登録未照合':'直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';exhibitGrid.append(dataState);
   const summary=document.createElement('div');summary.className='exhibition-summary';
   summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未検証｜未取得項目は「—」';
   exhibitGrid.append(summary);

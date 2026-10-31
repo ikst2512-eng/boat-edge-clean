@@ -227,8 +227,8 @@ jobs:
               await page.evaluate(()=>setView('exhibit'));
               if(!(await page.locator('#exhibitionGrid').isVisible()))throw Error('PUBLIC_HISTORICAL_EXHIBITION_TAB_HIDDEN');
               const exhibition=await page.locator('#exhibitionGrid').innerText();
-              if(!exhibition.includes('直前データ：未取得／公開待ち／取得記録の検証待ち')&&!exhibition.includes('直前データ：取得済み・締切前確認済み'))throw Error('PUBLIC_HISTORICAL_EXHIBITION_STATE_MISSING');
-              const hasData=exhibition.includes('直前データ：取得済み・締切前確認済み');
+              if(!exhibition.includes('直前データ：未取得／公開待ち／取得記録の検証待ち')&&!exhibition.includes('直前データ：取得記録は締切前・Git初回登録未照合'))throw Error('PUBLIC_HISTORICAL_EXHIBITION_STATE_MISSING');
+              const hasData=exhibition.includes('直前データ：取得記録は締切前・Git初回登録未照合');
               if(hasData&&!exhibition.includes('取得 6/6艇'))throw Error('PUBLIC_HISTORICAL_EXHIBITION_INCOMPLETE_VERIFIED_COUNT');
               console.log('CLEAN_HISTORICAL_EXHIBITION_STATUS_BROWSER_PASS 202610310708',hasData?'verified':'unverified');
             }finally{await browser.close()}
