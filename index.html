@@ -772,7 +772,7 @@ async function loadHeldVenues(force=false){
   let data=null;
   const archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'});
   if(archive.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
-  else if(archive.status===404){
+  else if(archive.status===404||(date<fmt(jst())&&archive.status>=500)){
    let api;
    for(let attempt=0;attempt<3;attempt++){
     try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
