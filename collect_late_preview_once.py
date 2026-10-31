@@ -30,14 +30,16 @@ def collect(day=None, root=None, fetch=None, clock=None):
             received=now()
             rows=list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
             gate={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
+            early={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
             six_lanes={"complete":0,"incomplete":0,"not_applicable":0}
             for row in rows:
                 gate[classify(row,received,margin_minutes=2)]+=1
+                early[classify(row,received,margin_minutes=12)]+=1
                 six_lanes[six_lane_status(kind,row)]+=1
             written=save_preview(raw,kind,day,received,root)
             report["kinds"][kind]={"received_at_jst":received.isoformat(),"saved":len(written),
                                    "race_codes":written[:5],"source_rows":len(rows),
-                                   "pre_deadline_2min":gate,"six_lane_validation":six_lanes}
+                                   "pre_deadline_2min":gate,"pre_deadline_12min":early,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
             # A missing upstream daily CSV is different from invalid rows or a transport failure.
             # Never log full response bodies, credentials, or make a failed read look successful.
@@ -47,7 +49,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
             report["kinds"][kind]={"status":"unavailable","error":type(err).__name__,"reason":reason,
                                    "http_status":err.code if isinstance(err,HTTPError) else None,
                                    "received_at_jst":now().isoformat(),"saved":0,
-                                   "source_rows":None,"pre_deadline_2min":None,
+                                   "source_rows":None,"pre_deadline_2min":None,"pre_deadline_12min":None,
                                    "six_lane_validation":None}
     return report
 
