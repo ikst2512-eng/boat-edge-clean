@@ -35,7 +35,7 @@ def load_pairs(root=ROOT):
             confirmed = datetime.fromisoformat(result["confirmed_at_jst"])
             deadline = datetime.fromisoformat(forecast["source_deadline_jst"])
             received = [datetime.fromisoformat(forecast[k]) for k in ("source_title_received_jst", "source_cards_received_jst")]
-            if (any(x.tzinfo is None for x in (generated, cutoff, confirmed, deadline, *received))
+            if (any(x.utcoffset() != timedelta(hours=9) for x in (generated, cutoff, confirmed, deadline, *received))
                     or deadline - cutoff != timedelta(minutes=12)
                     or max(generated, *received) >= cutoff
                     or max(received) > generated
