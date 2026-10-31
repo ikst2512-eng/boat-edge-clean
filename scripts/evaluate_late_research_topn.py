@@ -19,13 +19,16 @@ def evaluate(day, late_root, repo_root):
     root=Path(repo_root)
     counts={str(n):{"early_hits":0,"late_hits":0} for n in (3,5,10)}
     rows=[]
+    rejected={"invalid_race_code":0,"missing_early_or_result":0,"invalid_or_missing_fields":0,"invalid_timestamps":0,"outside_cutoff":0,"invalid_provenance":0,"invalid_result":0}
     for file in sorted((Path(late_root)/day).glob("*.json")):
         code=file.stem
         if len(code)!=12 or not code.isascii() or not code.isdigit() or not code.startswith(day):
+            rejected["invalid_race_code"]+=1
             continue
         early_file=root/"research_snapshots"/(code+".json")
         result_file=root/"confirmed_results"/(code+".json")
         if not early_file.is_file() or not result_file.is_file():
+            rejected["missing_early_or_result"]+=1
             continue
         try:
             late=json.loads(file.read_text(encoding="utf-8"))
@@ -37,9 +40,11 @@ def evaluate(day, late_root, repo_root):
             early_generated=datetime.fromisoformat(early["generated_at"])
             cutoff=datetime.fromisoformat(early["cutoff_jst"])
             if any(t.utcoffset() is None for t in (generated,received,deadline,early_generated,cutoff)):
+                rejected["invalid_timestamps"]+=1
                 continue
             if not (received<=generated<deadline-timedelta(minutes=2)
                     and early_generated<cutoff<=deadline-timedelta(minutes=12)):
+                rejected["outside_cutoff"]+=1
                 continue
             if (late.get("race_code")!=code or early.get("race_code")!=code
                     or result.get("race_code")!=code
@@ -47,10 +52,12 @@ def evaluate(day, late_root, repo_root):
                     or late.get("status")!="research_candidate_unvalidated"
                     or early.get("status")!="research"
                     or result.get("status")!="confirmed"):
+                rejected["invalid_provenance"]+=1
                 continue
             finish=result["finish_order"][:3]
             if (len(finish)!=3 or any(type(x)!=int or x not in range(1,7) for x in finish)
                     or len(set(finish))!=3):
+                rejected["invalid_result"]+=1
                 continue
             early_hits=ticket_hits(early["predictions"],finish)
             late_hits=ticket_hits(late["predictions"],finish)
@@ -60,6 +67,7 @@ def evaluate(day, late_root, repo_root):
             rows.append({"race_code":code,"finish":"-".join(map(str,finish)),
                          "early_hits":early_hits,"late_hits":late_hits})
         except (ValueError,KeyError,TypeError,AttributeError,OSError,IndexError):
+            rejected["invalid_or_missing_fields"]+=1
             continue
     paired=len(rows)
     for n in (3,5,10):
@@ -68,7 +76,7 @@ def evaluate(day, late_root, repo_root):
         entry["early_hit_rate_pct"]=round(100*entry["early_hits"]/paired,2) if paired else None
         entry["late_hit_rate_pct"]=round(100*entry["late_hits"]/paired,2) if paired else None
         entry["difference_points"]=round(100*(entry["late_hits"]-entry["early_hits"])/paired,2) if paired else None
-    return {"date":day,"paired_races":paired,"topn":counts,"rows":rows,
+    return {"date":day,"paired_races":paired,"topn":counts,"rows":rows,"rejected":rejected,
             "note":"unvalidated mechanical late baseline; comparison only, no proven lift"}
 
 
