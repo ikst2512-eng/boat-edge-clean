@@ -51,6 +51,34 @@ const {chromium}=require('playwright');
   if(afterBack.key!==beforeBack.key||afterBack.view!=='card')
    throw Error('BROWSER_BACK_RESTORE_FAILED '+JSON.stringify({beforeBack,afterBack}));
   console.log('PASS_BROWSER_BACK_RESTORES_RACE_PANEL '+afterBack.key);
+  // Independently timestamped source and Render agreed for 2026-10-31 Heiwajima 1R.
+  // Exercise the actual published DOM even after its cutoff, but never count
+  // retrospective evidence as a live, predeadline exhibition pass.
+  const historyUrl='https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261031&jcd=4&rno=1';
+  const history=await page.evaluate(async url=>{
+    try{
+      const response=await fetch(url,{signal:AbortSignal.timeout(12000)});
+      return response.ok?await response.json():null;
+    }catch{return null;}
+  },historyUrl);
+  if(history?.source_audit?.beforeinfo?.status==='ok' && history?.race_key==='20261031-04-01'){
+    const preview=history.beforeinfo;
+    if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('HISTORICAL_PREVIEW_INCOMPLETE');
+    await page.evaluate(()=>{
+      datePinned=true;venueTouched=true;s.date='2026-10-31';s.venue=3;s.race=1;
+      setView('forecast');render();
+    });
+    await page.waitForFunction(()=>sameRaceKey()==='20261031-04-01'&&
+      document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length===6,null,{timeout:12000});
+    const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
+    for(let i=1;i<=6;i++){
+      const ex=preview.racers.find(x=>Number(x.lane)===i);
+      const st=preview.start_exhibition.find(x=>Number(x.lane)===i);
+      const expected='展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st;
+      if(!displayed[i-1].includes(expected))throw Error('HISTORICAL_EXHIBITION_DOM_MISMATCH '+i+' '+JSON.stringify(displayed[i-1]));
+    }
+    console.log('HISTORICAL_EXHIBITION_DOM_PASS_NOT_PREDEADLINE 20261031-04-01 six_lanes');
+  }else console.log('HISTORICAL_EXHIBITION_SOURCE_UNAVAILABLE_NOT_A_PASS 20261031-04-01');
   // Inspect a live upcoming race with real preview rows when available.
   // Otherwise report an explicit unverified result, never a fabricated pass.
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
