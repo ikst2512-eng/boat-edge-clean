@@ -39,6 +39,7 @@ jobs:
           report=json.loads(Path("late_preview_capture_report.json").read_text())
           from scripts.audit_late_preview_evidence import audit
           coverage=audit()
+          Path("late_preview_audit_report.json").write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
           print("verified_preview_pair_audit="+json.dumps(coverage,ensure_ascii=False))
           print("verified_t12_pairs="+str(coverage['paired_complete_12min_observable']))
           for kind, data in report["kinds"].items():
@@ -58,5 +59,6 @@ jobs:
           path: |
             late_preview_evidence/**/*.json
             late_preview_capture_report.json
+            late_preview_audit_report.json
           if-no-files-found: ignore
           retention-days: 90
