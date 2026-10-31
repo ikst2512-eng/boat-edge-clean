@@ -25,6 +25,8 @@ def paired_six_lane_coverage(day, root):
             try:
                 record = json.loads(file.read_text(encoding="utf-8"))
                 if (record.get("race_code") == file.stem and record.get("kind") == kind
+                        and isinstance(record.get("source_row"), dict)
+                        and record["source_row"].get("レースコード") == file.stem
                         and record.get("six_lane_validation") == "complete"
                         and isinstance(record.get("source_row"), dict)
                         and six_lane_status(kind, record["source_row"]) == "complete"
