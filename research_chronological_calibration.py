@@ -37,7 +37,10 @@ def load_pairs(root=ROOT):
             received = [datetime.fromisoformat(forecast[k]) for k in ("source_title_received_jst", "source_cards_received_jst")]
             if (any(x.tzinfo is None for x in (generated, cutoff, confirmed, deadline, *received))
                     or deadline - cutoff != timedelta(minutes=12)
-                    or max(generated, *received) >= cutoff or not cutoff < deadline < confirmed):
+                    or max(generated, *received) >= cutoff
+                    or max(received) > generated
+                    or deadline.strftime("%Y%m%d") != code[:8]
+                    or not cutoff < deadline < confirmed):
                 continue
             rates = forecast["national_win_rates"]
             order = result["finish_order"]
