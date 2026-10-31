@@ -262,9 +262,9 @@ jobs:
                 if(!visible)throw Error('Public tab broken: '+view);
               }
               // Prove the published results tab renders real archived data, not merely a visible empty panel.
-              await page.evaluate(() => {
+              await page.evaluate(async () => {
                 s.date='2026-10-27';s.venue=0;s.race=1;
-                setView('result');render();
+                setView('result');render();await loadResult(true);
               });
               await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000});
               const actual=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
