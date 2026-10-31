@@ -401,3 +401,8 @@
 ## 2026-11-01 PR #741 四タブ公開Pagesブラウザ検証統合
 - 既存PR #741を確認し、`deploy-pages.yml` のPlaywright公開テストが `card/exhibit/forecast/result` 4タブの可視状態（resultは `#resultSection`）を検証する修正を確認。PR head `652112dc7a1be359045c633578611dcb0643330d` のGitHub Actions run `41241757093` で `check` / `publish-smoke` ともsuccessを実確認。mainへsquash `98c08e2e728b22ab4fdf14286bb0b31958aee095` として統合。
 - 成功したのはPRでの既存検証ジョブ。**統合後のGitHub Pages再公開とiPhone Safari実機操作は未確認**。実レースT-12展示6艇証拠も未確認であり、旧repo/Pagesは停止していない。
+
+## 2026-11-01 PR #741 公開Pagesブラウザ再検証完了
+- 統合済みPR #741（main squash `98c08e2e728b22ab4fdf14286bb0b31958aee095`）の GitHub Actions `Publish BOAT EDGE CLEAN` run `41241825770` / deploy job `124657111905` はsuccess。
+- 実jobログに `DEPLOYED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/` を確認。公開URLのブラウザで24場、12R、`card/exhibit/forecast/result` 4タブの表示判定とJSエラー検査が成功。
+- **前記「Pages再公開未確認」を今回解消**。ただしiPhone Safari実機、個別実レースの4タブ中身、Render APIの締切前6艇T-12証明は未確認。旧repo停止は禁止のまま。
