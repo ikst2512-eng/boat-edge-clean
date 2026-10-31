@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from research_chronological_calibration import load_pairs
 from research_chronological_calibration import metrics, report
+from research_model import probabilities
 
 class CalibrationTests(unittest.TestCase):
     def test_no_lookahead_without_second_date(self):
@@ -35,6 +36,7 @@ class CalibrationTests(unittest.TestCase):
                 "source_title_received_jst": "2026-10-30T10:00:00+09:00",
                 "source_cards_received_jst": "2026-10-30T11:49:00+09:00",
                 "national_win_rates": [5.0] * 6,
+                "predictions": ["-".join(map(str, t)) for t, _ in probabilities([5.0] * 6, 0.4)[:10]],
             }
             result = {
                 "race_code": code, "status": "confirmed",
@@ -47,6 +49,10 @@ class CalibrationTests(unittest.TestCase):
             record["source_cards_received_jst"] = "2026-10-30T11:47:00+09:00"
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(len(load_pairs(root)), 1)
+            record["predictions"] = list(reversed(record["predictions"]))
+            (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
+            self.assertEqual(load_pairs(root), [])
+            record["predictions"] = ["-".join(map(str, t)) for t, _ in probabilities([5.0] * 6, 0.4)[:10]]
             record["generated_at"] = "2026-10-30T10:00:00+09:00"
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(load_pairs(root), [])
