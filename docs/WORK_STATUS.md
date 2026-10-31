@@ -522,3 +522,8 @@
 - 上流BoatraceCSVの一次仕様 https://boatracecsv.github.io/docs/data/previews.html を照合。 `data/previews/{stt,tkz,sui,original_exhibition}/YYYY/MM/DD.csv` は **「締切5分前のスナップショット」** を保存する方式で、更新ジョブはJST 08:00〜22:59に5分間隔で稼働する。既存 `collect_late_preview_once.py` は同CSVを参照しており、このソースだけではT-12時点の6艇展示・進入取得を証明できない設計上の制約がある。
 - 今までの「定期実行を8:03から回せばT-12完全ペアが得られる」という前提を撤回。既存収集・監査は **T-5資料の観測・保存実験として維持** し、T-12達成を主張しない。T-12実行に必要な別の公開取得元（公式beforeinfo等）の実時刻・6艇揃い・安定性を独立に検証することを最優先へ変更。取得後の予想生成への混入は禁止。
 - これは一次文書の仕様確認であり、本日8:03以降の実CSV到着・CI成功を確認したものではない。旧サイト停止・予想モデル変更なし。
+
+## 2026-11-01 旧予想サンプル3件の継続的バイト同一性ゲート
+- 保全済み3件（PR #758）について、manifestが指すCLEAN内JSON原本を実バイトで読み込み、Git blob SHA-1（blob header + NUL + body）を再計算し旧repoのsource_blob_shaと一致させる検証を `scripts/verify_legacy_preservation_samples.py` に追加。対象パス、race_key、重複・件数も照合。commit `89295bfa`, `f98df7d9`。
+- 既存 `research-forecast-tests.yml` に検証コマンドを組み込み、サンプルまたはmanifest更新時にも実行する設定を追加（commit `63e717a9`）。新workflowは作成しない。
+- **実Actionsの成功未確認**。Git blob同一性は初回Git追加時刻・締切前証明・全件保全・独立長期保管を意味しない。旧サイト停止不可。
