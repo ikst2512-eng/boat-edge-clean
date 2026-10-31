@@ -24,4 +24,14 @@ class Timing(unittest.TestCase):
         yesterday=datetime(2026,10,31,18,40,tzinfo=JST)
         self.assertEqual(classify(row,yesterday,margin_minutes=12),"unknown_time")
 
+    def test_deadline_date_must_match_race_code(self):
+        row={"レースコード":"202611010101","締切時刻":"2026-10-31 19:00:00",
+             "取得日時":"2026-10-31T18:30:00+09:00"}
+        received=datetime(2026,10,31,18,40,tzinfo=JST)
+        self.assertEqual(classify(row,received,margin_minutes=12),"unknown_time")
+        row["締切時刻"]="2026-11-01 19:00:00"
+        row["取得日時"]="2026-11-01T18:30:00+09:00"
+        received=datetime(2026,11,1,18,40,tzinfo=JST)
+        self.assertEqual(classify(row,received,margin_minutes=12),"pre_cutoff_observed")
+
 if __name__=="__main__":unittest.main()
