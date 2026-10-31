@@ -46,7 +46,10 @@ def collect(day, root, fetch=None):
             else:
                 raw,received=fetch(url)
             records=save_preview(raw,kind,day,received,root)
-            summary["kinds"][kind]={"status":"ok","saved":len(records)}
+            states=[json.loads((Path(root)/day/kind/(code+".json")).read_text(encoding="utf-8")).get("six_lane_validation") for code in records]
+            summary["kinds"][kind]={"status":"ok","saved":len(records),
+                                    "six_lane_complete":states.count("complete"),
+                                    "six_lane_incomplete":states.count("incomplete")}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as error:
             summary["kinds"][kind]={"status":"unavailable_or_invalid","error":type(error).__name__}
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
