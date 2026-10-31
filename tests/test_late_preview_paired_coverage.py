@@ -82,6 +82,14 @@ class PairedPreviewCoverageTests(unittest.TestCase):
             early=paired_six_lane_coverage(day,root)
             self.assertEqual(early["paired_12min_observable"],1)
             self.assertEqual(early["paired_12min_codes"],["202610310101"])
+            # The original row must identify the same race as its saved file.
+            tkz_path=root/day/"tkz"/"202610310101.json"
+            tkz_item=json.loads(tkz_path.read_text())
+            tkz_item["source_row"]["レースコード"]="202610310102"
+            tkz_path.write_text(json.dumps(tkz_item))
+            self.assertEqual(paired_six_lane_coverage(day,root)["paired_12min_observable"],0)
+            tkz_item["source_row"]["レースコード"]="202610310101"
+            tkz_path.write_text(json.dumps(tkz_item))
             stt_path=root/day/"stt"/"202610310101.json"
             stt_item=json.loads(stt_path.read_text())
             stt_item["received_at_jst"]="2026-10-31T19:49:00+09:00"
