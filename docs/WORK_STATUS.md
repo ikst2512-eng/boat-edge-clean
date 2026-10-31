@@ -134,3 +134,12 @@
 - mainの `research_snapshots/202610310912.json` と `prospective_predictions/202610310912.json` をGitHub APIで直接取得。どちらも同じ10点 `[1-2-4,1-2-3,1-3-2,1-3-5,1-2-5,1-4-2,1-3-4,1-4-3,1-2-6,1-3-6]` を保存。研究snapshotの `generated_at` は2026-10-31 10:49:20 JST、`cutoff_jst` 16:00 JST、`source_deadline_jst` 16:12 JST、`status=research`,`validated=false`。prospective candidateは同日10:27 JST、`formal=false`,`scoring=false`,`attestation=pending Git remote first-add verification`。
 - この10点は存在するが、初回Git保存時刻監査は未完了。正式的中率/回収率への算入不可。過去レース出走表と結果のRender本番HTTP検証は#727/#728のCIで成功済み。展示・予想のブラウザ表示とオッズ、Pages公開正常性は未検証。
 - 旧リポジトリはAGENTS.mdの変更禁止に従って未変更。担当外PRには干渉せず、次に公開ブラウザの10/31予想・展示表示と初回保存監査を優先する。
+
+
+## 2026-11-01 過去レース「予想」ショートカット状態同期修正
+- Render本番の `2026-10-31 津12R` で、出走表6艇（守屋美穂ほか）と確定結果 `2-1-3 / 6,230円` は表示できた。一方、予想内の「展示」を開いた後に上部「予想」を押すと、URLだけ `screen=forecast` へ戻り内部ペインは展示のまま残る不具合を再現。
+- PR #729 で、上部「予想」から入る時だけ内部ペインを `prediction` へ戻す最小修正と回帰テストを追加。Navigation CI run `41238782673` は success。squash main commit `39c2172bb5a95481a3a7f5968df1e80813386a53`。
+- ローカル: `python -m unittest tests.test_navigation_contract` 6件成功、`node tests/site-regression.cjs` 成功、`git diff --check` 成功。Playwrightローカル実行はブラウザ実体未導入のため未実施（CIと本番ブラウザで代替確認）。
+- Render deploy `dep-dbj4t9qqphnc73dpt340` は後続main `75aafbffda84320751896610d4a4615dfe02be31` で live。GitHub比較でこのcommitは修正commit `39c2172` の1 commit後（behind 0）と確認。本番ブラウザで同じ津12Rを「展示→上部の予想」と操作し、`predictionVisible=true`、`exhibitionHidden=true`、内部選択 `prediction`、保存済み研究予想10点の表示を確認。
+- 予想モデル昇格なし。正式的中率・回収率は未検証のまま。#722/#723/#654（研究・収集）と#725（UIドラフト）は未変更・未統合。
+- 旧 `boat-edge` は別リポジトリ/別Pagesで、CLEAN Renderに旧サービスはない。ただし旧側の証拠保全・Actions依存が未解消で安全削除条件を満たさないため、停止・削除なし。残る最大障害は旧サイトの長期復元証拠/外部依存の未証明と、#725の実データ連携未完了。
