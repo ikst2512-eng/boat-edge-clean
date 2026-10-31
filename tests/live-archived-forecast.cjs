@@ -75,6 +75,25 @@ const {chromium}=require('playwright');
   if(!currentShown.visible||JSON.stringify(currentShown.tickets)!==JSON.stringify(current.predictions))
    throw Error('OCT31_RESEARCH_FORECAST_DISPLAY_MISMATCH '+JSON.stringify(currentShown));
   console.log('PASS: 2026-10-31 race 02-02 research Top10 matches publicly displayed forecast');
+  // Exercise the actual public UI with a full 120-combination API fixture.
+  // This checks rendering and immutable ticket order, NOT live upstream availability.
+  const allOdds={};
+  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
+   if(a!==b&&a!==c&&b!==c)allOdds[a+'-'+b+'-'+c]=12.5;
+  }
+  await page.route('**/api/odds?**',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:JSON.stringify({ok:true,odds:allOdds,fetched_at:new Date().toISOString()})
+  }));
+  await page.evaluate(()=>loadTicketOdds(sameRaceKey(),window.predictionRequestId));
+  await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-odds small').length>=20 &&
+   [...document.querySelectorAll('#predictionRows .prediction-odds')].every(el=>el.textContent.includes('取得済オッズ 12.5倍')),
+   null,{timeout:15000});
+  const afterOdds=await page.evaluate(()=>predictionTickets.slice());
+  if(JSON.stringify(afterOdds)!==JSON.stringify(current.predictions))
+   throw Error('OFFICIAL_ODDS_CHANGED_TICKET_ORDER');
+  console.log('PASS: mock full-120 odds payload renders 10 ticket odds in published DOM without changing ranks');
+
   // Today's finished races must show actual saved results beside saved forecasts.
   const settledCode='202610300301';
   const confirmedResp=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+settledCode+'.json',{timeout:20000});
