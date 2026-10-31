@@ -129,3 +129,8 @@
 - `historical-result-smoke` job success、`historical-production-smoke` job success。両者は2026-10-31 09場12Rを対象にRender本番の確定結果・6艇出走表APIをHTTP検証する。race identity/着順・source provenance・6艇/監査等を検査。これにより**当該実レースの出走表・確定結果API**は本番HTTP成功確認済み。ブラウザDOM・研究予想・展示の表示証明ではない。
 - `e2e-live-race` はPR起動の仕様によりskip。締切前予想・展示の可用性の証明と混同しない。旧リポジトリの無断変更/削除もしていない。新規テスト/PRは既存#728と重複するため作らない。
 - 次は2026-10-31保存済み予想の原本存在と展示の証拠を照合、公開ブラウザの表示を実測。旧サイト公開元の停止は所有データ/参照の安全性を確認してから。
+
+## 2026-11-01 202610310912保存予想原本の直接照合
+- mainの `research_snapshots/202610310912.json` と `prospective_predictions/202610310912.json` をGitHub APIで直接取得。どちらも同じ10点 `[1-2-4,1-2-3,1-3-2,1-3-5,1-2-5,1-4-2,1-3-4,1-4-3,1-2-6,1-3-6]` を保存。研究snapshotの `generated_at` は2026-10-31 10:49:20 JST、`cutoff_jst` 16:00 JST、`source_deadline_jst` 16:12 JST、`status=research`,`validated=false`。prospective candidateは同日10:27 JST、`formal=false`,`scoring=false`,`attestation=pending Git remote first-add verification`。
+- この10点は存在するが、初回Git保存時刻監査は未完了。正式的中率/回収率への算入不可。過去レース出走表と結果のRender本番HTTP検証は#727/#728のCIで成功済み。展示・予想のブラウザ表示とオッズ、Pages公開正常性は未検証。
+- 旧リポジトリはAGENTS.mdの変更禁止に従って未変更。担当外PRには干渉せず、次に公開ブラウザの10/31予想・展示表示と初回保存監査を優先する。
