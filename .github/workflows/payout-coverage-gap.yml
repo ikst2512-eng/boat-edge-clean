@@ -1,0 +1,18 @@
+name: CLEAN payout coverage gap audit
+on:
+  pull_request:
+    paths: [audit_payout_coverage.py, test_audit_payout_coverage.py, .github/workflows/payout-coverage-gap.yml]
+  push:
+    branches: [main]
+    paths: [audit_payout_coverage.py, test_audit_payout_coverage.py, .github/workflows/payout-coverage-gap.yml]
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_audit_payout_coverage
+      - run: python audit_payout_coverage.py 20261029 20261030 20261031
