@@ -21,6 +21,10 @@ class Integration(unittest.TestCase):
             self.assertTrue((Path(folder)/"20261031"/"stt"/"202610310111.json").is_file())
             second=collect(day="20261031",root=folder,fetch=fetch,clock=now)
             self.assertEqual(second["kinds"]["stt"]["error"],"FileExistsError")
+            self.assertEqual(second["kinds"]["stt"]["status"],"capture_invalid")
+            self.assertEqual(second["capture_invalid"],5)
+            self.assertEqual(second["sources_unavailable"],0)
+            self.assertEqual(second["status"],"capture_invalid")
     def test_total_upstream_outage_is_explicit_not_success(self):
         from urllib.error import HTTPError
         def unavailable(url):
