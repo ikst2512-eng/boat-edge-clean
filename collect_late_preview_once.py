@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from research_model import JST
 from late_preview_capture import save_preview, KINDS, six_lane_status
 from scripts.preview_timing_integrity import classify
+from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 BASE="https://boatracecsv.github.io/data/previews/"
 def collect(day=None, root=None, fetch=None, clock=None):
@@ -72,6 +73,9 @@ def collect(day=None, root=None, fetch=None, clock=None):
                       "partial_capture_failure" if available < len(KINDS) else
                       "sources_retrieved_no_rows" if report["race_rows_total"] == 0 else
                       "sources_retrieved")
+    # Retain PR #654's independent per-race STT/TKZ paired coverage, without
+    # treating a successfully fetched CSV as proof of preforecast availability.
+    report["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return report
 
 if __name__=="__main__":
