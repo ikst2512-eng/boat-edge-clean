@@ -135,6 +135,22 @@ def racecard(hd,jcd,rno):
             titles,title_fetched,title_sha=alternate_program()
             source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
     title=[row for row in titles if row.get("レースコード")==code]
+    if not title and source=="CLEAN_PUBLIC_PRE_RACE_CSV":
+        # A published daily file can precede this race's publication.
+        # Try the race-specific live source before reporting a missing card.
+        try:
+            titles,title_fetched,title_sha=holding_rows(hd)
+            source="CLEAN_DIRECT_PRE_RACE"
+            title=[row for row in titles if row.get("レースコード")==code]
+        except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError):
+            pass
+    if not title and source!="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE":
+        alt_titles,alt_fetched,alt_sha=alternate_program()
+        alt_match=[row for row in alt_titles if row.get("レースコード")==code]
+        if len(alt_match)==1:
+            title=alt_match
+            title_fetched,title_sha=alt_fetched,alt_sha
+            source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
     if len(title)!=1:raise ValueError("race_card_not_available")
     meta=title[0]
     deadline_text=meta.get("電話投票締切予定","")

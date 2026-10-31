@@ -34,6 +34,10 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("async function loadPredictions", self.index)
         self.assertIn("function openCleanListTab", self.index)
 
+    def test_prediction_shortcut_resets_nested_forecast_tab(self):
+        self.assertIn("view==='forecast'&&typeof setForecastPane==='function'", self.nav)
+        self.assertIn("setForecastPane('prediction')", self.nav)
+
     def test_history_and_direct_link_restore_are_present(self):
         for snippet in ("history.pushState(", "addEventListener('popstate'",
                         "history.back()", "requestedScreen",

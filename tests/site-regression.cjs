@@ -338,3 +338,25 @@ assert.ok(!html.includes("fetchTimed('/api/clean-result?hd="),'review must not r
 // Published Pages must fetch racecard/exhibition from the actual CLEAN API host.
 assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd="),'racecard must use CLEAN Render');
 assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd="),'Pages-relative racecard API would return 404');
+
+// Historical schedule fallback: an unavailable CLEAN API must not hide a past date.
+const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
+assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
+assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
+assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
+console.log('PASS: historical schedule 404/503 fallback regression');
+
+// GitHub Pages must ship the runtime navigation script referenced by index.html.
+const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
+assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages must publish both runtime assets');
+assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
+assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
+console.log('PASS: Pages navigation asset packaging and verification');
+
+// Project-scoped GitHub Pages review links must not navigate to a missing /review route.
+const navigation=fs.readFileSync('navigation.js','utf8');
+assert.ok(navigation.includes("location.hostname.endsWith('.github.io')"),'restrict Pages route handling to GitHub Pages');
+assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pages review must navigate via single-page screen query');
+assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
+console.log('PASS: Pages project-path review navigation regression');
