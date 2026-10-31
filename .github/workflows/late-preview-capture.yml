@@ -53,4 +53,4 @@ jobs:
             late_preview_evidence/**/*.json
             late_preview_capture_report.json
           if-no-files-found: ignore
-          retention-days: 300
+          retention-days: 90
