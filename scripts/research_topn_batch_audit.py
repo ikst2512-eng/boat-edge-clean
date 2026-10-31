@@ -1,5 +1,6 @@
 """Research-only batch audit of already stored forecasts and confirmed results."""
 import json
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,12 @@ def run():
         try:
             forecast = json.loads(forecast_paths[race_code].read_text(encoding="utf-8"))
             result = json.loads(result_paths[race_code].read_text(encoding="utf-8"))
+            generated = datetime.fromisoformat(forecast["generated_at"])
+            cutoff = datetime.fromisoformat(forecast["cutoff_jst"])
+            source_deadline = datetime.fromisoformat(forecast["source_deadline_jst"])
+            if (generated.tzinfo is None or cutoff.tzinfo is None or source_deadline.tzinfo is None
+                or not generated < cutoff < source_deadline):
+                raise ValueError("not_verified_predeadline_snapshot")
             tickets = forecast["predictions"]
             finish = result["finish_order"]
             if (forecast.get("race_code") != race_code or result.get("race_code") != race_code
