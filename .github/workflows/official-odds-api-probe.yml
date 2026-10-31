@@ -27,7 +27,14 @@ jobs:
           assert code==400 and obj.get('ok') is False, (code,obj)
           print('Invalid-input validation: PASS (HTTP 400)')
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
-          code,obj=request('hd='+day+'&jcd=01&rno=1')
+          schedule='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+day+'.json'
+          with urllib.request.urlopen(schedule,timeout=20) as response:
+              held=json.load(response)
+          active=[str(v['jcd']).zfill(2) for v in held.get('venues',[]) if v.get('races')]
+          assert active, 'No active venues recorded for today'
+          venue=active[0]
+          print('Active venue code:',venue)
+          code,obj=request('hd='+day+'&jcd='+venue+'&rno=1')
           print('Live official odds probe:',code,'ok=',obj.get('ok'))
           if code==200:
               odds=obj.get('odds')
