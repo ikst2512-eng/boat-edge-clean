@@ -506,3 +506,8 @@
 ## 2026-11-01 定期収集でCSV保存互換性テストを実行
 - `.github/workflows/late-preview-capture.yml` は、mainで修正済みの日時全体・ISOタイムゾーン付き締切保存とappend-onlyテスト `test_late_preview_capture.py` を実行していなかった。既存の収集ジョブのテストステップに `python -m unittest -v test_late_preview_capture` を追加（commit `b7a03d5d234de0617a6b4de83598836d39fdc0e6`）。これによりCSV取得ステップ開始前に保存処理の回帰を検出する設定。
 - 新規workflow・PR・ジョブの追加なし。**更新後のCI実行結果・8:03以降のSTT/TKZ完全6艇T-12受信は未検証**。旧サイト/モデル変更なし。
+
+## 2026-11-01 PR #756 出走表6艇の公開E2E検証追加
+- PR #756 head `8aa9652dba0364a885ea06909a83815b98ea9b1f` のActions run `41243938240` は `check` と `publish-smoke` ともsuccess。既存Pages公開後ブラウザworkflowへ2026-10-31蒲郡8RのCLEAN racecard API取得、出走表6行・艇番1〜6・Git初回登録時刻未照合の表示確認を追加。
+- main squash `e1b4971dcca03df9e9f5a5e8bb0cfdd01e4b1141` 統合済み。追加のAPI実データ検証は**Pages公開後のみ実行**されるため、PR CI successでは実データ6艇PASSとしない。最新Renderのmain SHA反映とPages公開ジョブの実ログは現時点未確認。
+- 展示の6艇実値・T-12完全ペア時刻・旧サイトの独立証拠保全は引き続き未証明。旧repo/Pagesの撤去なし。
