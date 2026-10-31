@@ -4,9 +4,6 @@ document.documentElement.dataset.cleanNavigationInit='1';
 const nav=document.querySelector('.site-global-nav');
 if(!nav)return;
 const params=location.search;
-nav.innerHTML='<a href="/review">検証</a><a href="/selection">購入候補</a>';
-nav.setAttribute('aria-label','検証と購入候補');
-nav.classList.add('compact-nav');
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
  const date=s?.date,venue=s?.venue,race=s?.race;
