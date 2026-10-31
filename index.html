@@ -325,7 +325,17 @@ function setForecastPane(pane){
  Object.entries(panes).forEach(([key,node])=>{node.hidden=key!==pane});
  root.querySelectorAll('[data-forecast-pane]').forEach(button=>{const selected=button.dataset.forecastPane===pane;button.classList.toggle('on',selected);button.setAttribute('aria-selected',String(selected))});
 }
-document.querySelectorAll('[data-forecast-pane]').forEach(button=>button.addEventListener('click',()=>setForecastPane(button.dataset.forecastPane)));
+document.querySelectorAll('[data-forecast-pane]').forEach(button=>button.addEventListener('click',()=>{
+ const pane=button.dataset.forecastPane;
+ setForecastPane(pane);
+ // Reload the selected historical pane on demand, rather than relying on
+ // requests made before the user opened it.
+ if(activeView!=='forecast')return;
+ if(pane==='prediction')loadPredictions(true);
+ else if(pane==='result')loadForecastResult();
+ else if(pane==='exhibition')loadForecastPreview();
+ else if(pane==='races')loadResultList();
+}));
 function setView(view,fromBack=false){
  if(!['home','card','exhibit','forecast','result','review'].includes(view))return;
 
