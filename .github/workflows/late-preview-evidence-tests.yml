@@ -1,7 +1,7 @@
 name: Late preview evidence integrity
 on:
   pull_request:
-    paths: [late_preview_capture.py, test_late_preview_capture.py, .github/workflows/late-preview-evidence-tests.yml]
+    paths: [late_preview_capture.py, collect_late_preview_once.py, test_late_preview_capture.py, tests/test_collect_late_preview_once.py, .github/workflows/late-preview-evidence-tests.yml]
   push:
     branches: [main]
     paths: [late_preview_capture.py, test_late_preview_capture.py, .github/workflows/late-preview-evidence-tests.yml]
@@ -15,3 +15,4 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_late_preview_capture
+      - run: python -m unittest discover -s tests -p 'test_collect_late_preview_once.py' -v
