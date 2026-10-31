@@ -20,10 +20,17 @@ def parse_jst(value):
 
 def classify(row, received_at, margin_minutes=12):
     deadline=parse_jst(row.get("締切時刻"))
+    if deadline is None:
+        code=row.get("レースコード","")
+        hhmm=row.get("締切時刻","")
+        if isinstance(code,str) and len(code)==12 and code.isascii() and code.isdigit() and isinstance(hhmm,str):
+            try: deadline=datetime.strptime(code[:8]+hhmm,"%Y%m%d%H:%M").replace(tzinfo=JST)
+            except ValueError: pass
     source_time=parse_jst(row.get("取得日時"))
     if deadline is None or source_time is None: return "unknown_time"
     if deadline.tzinfo is None or received_at.tzinfo is None: return "unknown_time"
     cutoff=deadline-timedelta(minutes=margin_minutes)
+    if source_time>received_at: return "unknown_time"
     if source_time>=cutoff or received_at>=cutoff: return "too_late"
     return "pre_cutoff_observed"
 
