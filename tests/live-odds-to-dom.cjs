@@ -22,7 +22,7 @@ const {chromium}=require('playwright');
     const rows=Array.from(document.querySelectorAll('#predictionRows .prediction-row'));
     return {status:live.status,count:rows.length,rows:rows.map(r=>({ticket:r.querySelector('.prediction-ticket')?.textContent,odds:r.querySelector('.prediction-odds')?.textContent})),expected:tickets.map(t=>data.odds[t])};
   },tickets);
-  if(result.unavailable){console.log('LIVE_ODDS_UNAVAILABLE',result.status);return}
+  if(result.unavailable)throw Error('LIVE_ODDS_UNAVAILABLE_HTTP_'+result.status);
   if(result.count!==10)throw Error('Count mismatch '+result.count);
   result.rows.forEach((row,i)=>{
     if(row.ticket!==tickets[i])throw Error('Ticket rank mismatch '+i);
