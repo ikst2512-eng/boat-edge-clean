@@ -32,3 +32,15 @@ jobs:
               except URLError as e:
                   print(json.dumps({'day':day,'status':'network_error','reason':str(e.reason)[:120]}))
           PY
+      - name: Count actual finish-matched payouts without committing
+        run: |
+          python - <<'PY'
+          import json
+          from urllib.request import urlopen,Request
+          from collect_clean_payouts import parse
+          for day in ('20261030','20261031'):
+              url=f'https://boatracecsv.github.io/data/results/payouts/{day[:4]}/{day[4:6]}/{day[6:]}.csv'
+              with urlopen(Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN-PAYOUTS/1.0'}),timeout=15) as response:
+                  rows=parse(day,response.read(2_000_001))
+              print(json.dumps({'day':day,'result_matched_payouts':len(rows)},sort_keys=True))
+          PY
