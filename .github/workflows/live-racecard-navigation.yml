@@ -6,7 +6,8 @@ on:
       - .github/workflows/live-racecard-navigation.yml
   workflow_dispatch:
   schedule:
-    # UTC -> JST: 12:15, 14:15, 16:15, 18:15.
+    # UTC -> JST: 10:55, 11:55, 12:15, 14:15, 16:15, 18:15.
+    - cron: '55 1,2 * * *'
     - cron: '15 3,5,7,9 * * *'
 permissions:
   contents: read
