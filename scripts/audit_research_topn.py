@@ -30,7 +30,8 @@ codes = [DAY + str(venue["jcd"]).zfill(2) + str(race["race_no"]).zfill(2)
 assert len(codes) == len(set(codes)) and len(codes) >= 100
 
 def check(code):
-    prediction, pe = read("prospective_predictions/" + code + ".json")\n    has_confidence = isinstance(prediction, dict) and isinstance(prediction.get("confidence_pct"), (int, float)) and not isinstance(prediction.get("confidence_pct"), bool)
+    prediction, pe = read("prospective_predictions/" + code + ".json")
+    has_confidence = isinstance(prediction, dict) and isinstance(prediction.get("confidence_pct"), (int, float)) and not isinstance(prediction.get("confidence_pct"), bool)
     result, re = read("confirmed_results/" + code + ".json")
     if pe == "read_error" or re == "read_error" or pe == "http_error" or re == "http_error":
         return code, "retrieval_error", None, False
@@ -67,7 +68,11 @@ for _, state, _, _ in records:
     counts[state] = counts.get(state, 0) + 1
 sample = counts.get("matched", 0)
 print("SCHEDULE_RACES", len(codes), "RESEARCH_ONLY formal_scoring=false")
-print("EVIDENCE_COUNTS", json.dumps(counts, sort_keys=True))\nconfidence_count=sum(flag for _,state,_,flag in records if state=="matched")\nprint("CONFIDENCE_AVAILABILITY",confidence_count,"/",sample,"audited paired races")\nif confidence_count == 0:\n    print("CONFIDENCE_70_COHORT: NOT_EVALUABLE (no calibrated confidence_pct in audited records)")
+print("EVIDENCE_COUNTS", json.dumps(counts, sort_keys=True))
+confidence_count=sum(flag for _,state,_,flag in records if state=="matched")
+print("CONFIDENCE_AVAILABILITY",confidence_count,"/",sample,"audited paired races")
+if confidence_count == 0:
+    print("CONFIDENCE_70_COHORT: NOT_EVALUABLE (no calibrated confidence_pct in audited records)")
 if sample:
     for n in (3,5,10):
         hits = sum(state=="matched" and rank is not None and rank<=n for _,state,rank,_ in records)
