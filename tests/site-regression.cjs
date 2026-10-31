@@ -368,3 +368,6 @@ console.log('PASS: Pages project-path review navigation regression');
 assert.ok(script.includes("const receiptOrderVerified=Number.isFinite(generatedAt)"),'archived forecast UI must verify timestamp ordering');
 assert.ok(script.includes("titleReceived<=generatedAt&&cardsReceived<=generatedAt"),'both source receipts must precede generation');
 assert.ok(script.includes("時刻証拠未検証：元データの受信時刻が生成時刻より後"),'uncertain archive evidence must be explained in the visible forecast');
+
+assert.ok(script.includes("fresh.provenance_warning==='SOURCE_RECEIPT_ORDER_UNVERIFIED'"),'fallback forecast must propagate API provenance warning');
+assert.ok(script.includes('研究予想API：元データ受信順序・時刻証拠が未検証です'),'fallback API warning must be visible');
