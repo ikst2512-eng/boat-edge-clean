@@ -138,3 +138,10 @@
 - `.github/workflows/late-preview-capture.yml` は収集ファイルを90日保存のActions artifactへアップロード。研究用の `.github/workflows/research-live-preview-evidence.yml` に独立した早期予想×遅延候補のTop3/5/10比較、同一レース監査、artifact保存がすでに実装されている。重複する結合/取得PRは作らない。収集側のopen PR #654と#723は別担当であり変更しない。
 - `scripts/evaluate_late_research_topn.py` はearly snapshot、late candidate、confirmed resultの3点をrace_codeで結合し、取得時刻と締切2分前の検査を実施する。**late candidateの比較結果を、締切12分前に得られた情報の改善効果として流用しない**。
 - 本調査で、研究用587件の早期予想にSTT/TKZの真正T-12の事前6艇データがマッチするレース数はまだ確認不能。Actionsの収集artifact実体と受信時刻を取得して同一race_codeで監査後に初めて検証可能。正式予想のモデル重みは変更しない。
+
+### 2026-11-01 Actions実行ログ・成果物の直前データ検証
+- GitHub Actions `41234936608`（Research independent late preview evidence、成功、2026-11-01 04:35 JST）を実際に取得。job `124636595726` のログ: `paired_late_complete=0`、`paired_t12_source_and_receipt=0`、`upstream_candidate_count=0`、`saved_count=0`、`paired_races=0`。独立保管artifact `independent-late-preview-41234936608`（ID 13055063253、サイズ1457 bytes、expired=false）の存在も確認。実体ZIPの内容は取得していない。
+- GitHub Actions `41234665968`（Preview capture、成功、2026-11-01 04:32 JST）のjob `124635806441`: `paired_complete_6boat_stt_tkz=0`、`paired_complete_12min_observable=0`、`eligible_saved_rows=0`。artifact `late-preview-evidence-41234665968`（ID 13054373774、756 bytes）の存在を確認。
+- 取得元STT/TKZ/他CSVがこの時刻に利用できず、研究runには404 `before_upstream_schedule_or_missing` の診断あり。朝4時台の当日レース取得なので、この結果のみで日中の収集不良や前日取得不可と断定しない。
+- CI成功は収集/検証ジョブの正常終了であり **6艇データ取得成功や的中率向上の証拠ではない**。本確認のマッチは0件のためTopNのモデル改善効果は評価不可。収集担当PR #654/#723と重複する新規取得処理は作らない。
+- 次: 実際にレースが行われる時間帯のスケジュール実行ログと短期保存artifactについて、6艇完成、T-12両ソース受信、race_code一致、確定結果との対応を確認する。
