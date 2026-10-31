@@ -29,6 +29,31 @@ def candidate(pair):
             "not_a_calibrated_probability":True}
 
 
+def exhibition_sensitive_candidate(pair):
+    """Unvalidated contrast: permit large exhibition differences to alter course ranks.
+
+    Scale is deliberately fixed before outcome inspection, not estimated accuracy.
+    """
+    boats=pair["boats"]
+    if (len(boats)!=6 or sorted(x["boat"] for x in boats)!=list(range(1,7))
+            or sorted(x["entry_course"] for x in boats)!=list(range(1,7))):
+        raise ValueError("invalid six-boat evidence")
+    times=[x["exhibition_time"] for x in boats]
+    if any(type(t) not in (int,float) or not 5.0 <= t <= 9.0 for t in times):
+        raise ValueError("invalid exhibition timing")
+    # One tenth of a second changes rank score by 0.5 course places.
+    # This is a preregisterable heuristic, not a fitted probability.
+    ranked=sorted(boats,key=lambda x:(x["entry_course"]+5*(x["exhibition_time"]-min(times)),x["entry_course"],x["boat"]))
+    ids=[x["boat"] for x in ranked]
+    tickets=["-".join(map(str,t)) for t in permutations(ids,3)][:10]
+    return {"race_code":pair["race_code"],"predictions":tickets,
+            "generated_from_received_at_jst":pair["both_sources_received_at_jst"],
+            "model_version":"late-course-exhibition-contrast-v1",
+            "status":"research_candidate_unvalidated","validated":False,
+            "uses_features":["entry_course","exhibition_time"],
+            "not_a_calibrated_probability":True}
+
+
 def build_candidates(day, preview_root):
     pairs=build(day,preview_root)["records"]
     rows=[candidate(pair) for pair in pairs]
