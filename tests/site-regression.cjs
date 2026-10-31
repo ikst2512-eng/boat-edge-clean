@@ -442,3 +442,7 @@ assert.ok(script.includes("時刻証拠未検証：元データの受信時刻�
 
 assert.ok(script.includes("fresh.provenance_warning==='SOURCE_RECEIPT_ORDER_UNVERIFIED'"),'fallback forecast must propagate API provenance warning');
 assert.ok(script.includes('研究予想API：元データ受信順序・時刻証拠が未検証です'),'fallback API warning must be visible');
+
+const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(pagesWorkflow.includes('DEPLOYED_ARCHIVED_RESULT_PASS 202610270101 3-4-1'),'published browser test must verify a real archived race result');
+assert.ok(pagesWorkflow.includes("#resultDetail .result-combo .boat-num"),'published browser test must inspect actual three boat numbers');
