@@ -5,6 +5,11 @@ on:
     paths:
       - '.github/workflows/late-preview-capture.yml'
   workflow_dispatch:
+    inputs:
+      official_probe_race_code:
+        description: 'Optional YYYYMMDDjjrr for isolated official beforeinfo HTTP proof (not T-12 certified)'
+        required: false
+        type: string
   schedule:
     # UTC previous day 23:03-23:58 = JST 08:03-08:58.
     # UTC current day 00:03-12:58 = JST 09:03-21:58.
@@ -32,6 +37,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_late_preview_evidence.py' -v
           python -m unittest discover -s tests -p 'test_preview_schedule_jst.py' -v
           python -m unittest discover -s tests -p 'test_preview_timing_integrity.py' -v
+          python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_probe.py' -v
       - name: Fetch and save only deadline-eligible live rows
         run: python collect_late_preview_once.py
       - name: Verify complete predeadline exhibition and entry pairs
@@ -61,6 +67,11 @@ jobs:
               for kind, data in report["kinds"].items():
                   summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
           PY
+      - name: Probe official beforeinfo (manual, independent; never forecast eligible)
+        if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
+        env:
+          OFFICIAL_RACE_CODE: ${{ inputs.official_probe_race_code }}
+        run: python scripts/capture_official_beforeinfo_probe.py "$OFFICIAL_RACE_CODE"
       - name: Upload separate short-retention evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,5 +81,7 @@ jobs:
             late_preview_evidence/**/*.json
             late_preview_capture_report.json
             late_preview_audit_report.json
+            official_preview_probe/**/*.html
+            official_preview_probe/**/*.json
           if-no-files-found: ignore
           retention-days: 90
