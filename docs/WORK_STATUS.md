@@ -390,3 +390,10 @@
 ## 2026-11-01 夜間監査の失敗ゲートに回帰テスト追加
 - 日次判定を純関数 `daily_capture_health` に分離 (`4ddabd6da85c59372a459e86a7afd7be23885fa8`)。収集0件、scheduled全failure、成功混在、手動監査免除のテストを追加 (`d1dc847d0600400dd410ad8d2cf3f992516a8c38`)。push CIトリガーは既存mainに存在。
 - CI成功、当日scheduled収集、実レースT-12完全6艇ペアは未確認。旧repo/Pagesは未変更。
+
+
+## 2026-11-01 実artifact原本の内容照合
+- GitHub Actions run `41240537819` の artifact `13056953412` ZIPを直接取得し、`late_preview_capture_report.json` と `late_preview_audit_report.json` を展開して内容確認した。単なるジョブログ推測ではない。
+- 2026-11-01 JST 05:47:33のSTT/TKZ/SUI/original_exhibition/od3は各HTTP 404、status=`not_yet_expected`、sources_available=0、sources_unavailable=5、saved_total=0、race_rows_total=0。
+- audit原本は records=0、invalid=0、paired_complete_6boat_stt_tkz=0、paired_complete_12min_observable=0、t12_evidence_by_race=[]。公開想定時間前の実行結果なので日中の失敗・T-12の成功のいずれも断定できない。
+- 実scheduled captureの最新run一覧は現接続のGitHubアクションで取得できない。次の検証対象は08時以降に起動されたschedule eventのartifact。旧サイト停止禁止、モデル/UI変更なし。
