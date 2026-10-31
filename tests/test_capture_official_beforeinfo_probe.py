@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,10 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertFalse(result["forecast_usable"])
             self.assertEqual(result["complete_six_lanes"],"unverified")
             self.assertTrue((Path(d)/"20261101/202611010708/manifest.json").exists())
+            manifest=(Path(d)/"20261101/202611010708/manifest.json").read_text(encoding="utf-8")
+            self.assertTrue(manifest.endswith("\n"))
+            self.assertEqual(json.loads(manifest),result)
+            self.assertEqual((Path(d)/"20261101/202611010708/beforeinfo.html").read_bytes(),b"<html>beforeinfo</html>")
             self.assertEqual(capture("202611010708",d,fetch=lambda url:b"x",clock=lambda:now)["status"],"official_probe_failed")
     def test_failure_fails_closed(self):
         def missing(url): raise TimeoutError("offline")
