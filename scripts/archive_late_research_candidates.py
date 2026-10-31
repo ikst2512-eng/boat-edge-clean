@@ -44,7 +44,9 @@ def archive(day, preview_root, output_root, now=None):
             saved.append(code)
         except (KeyError,ValueError,TypeError,OSError,AttributeError):
             skipped["invalid_source"]+=1
-    return {"day":day,"saved_count":len(saved),"saved_codes":saved,"skipped":skipped,
+    return {"day":day,"upstream_candidate_count":len(candidates),
+            "archive_state":"no_valid_preview_pairs" if not candidates else ("saved" if saved else "all_candidates_skipped"),
+            "saved_count":len(saved),"saved_codes":saved,"skipped":skipped,
             "status":"isolated_prospective_research_not_published"}
 
 
