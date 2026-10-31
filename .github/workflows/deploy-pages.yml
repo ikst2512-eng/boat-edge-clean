@@ -258,10 +258,19 @@ jobs:
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
+              const selectedRace=await page.evaluate(()=>sameRaceKey());
               for(const view of ['card','exhibit','forecast','result']){
                 await page.evaluate(view => setView(view), view);
-                const visible=view==='forecast'?await page.locator('#forecast').isVisible():view==='result'?await page.locator('#resultSection').isVisible():await page.locator('#raceDataSection').isVisible();
-                if(!visible)throw Error('Public tab broken: '+view);
+                const panels=await page.evaluate(()=>({
+                  card:!document.getElementById('raceDataSection').hidden&&document.getElementById('raceDataSection').dataset.view==='card',
+                  exhibit:!document.getElementById('raceDataSection').hidden&&document.getElementById('raceDataSection').dataset.view==='exhibit',
+                  forecast:!document.getElementById('forecast').hidden,
+                  result:!document.getElementById('resultSection').hidden,
+                  race:sameRaceKey()
+                }));
+                if(panels.race!==selectedRace)throw Error('Selected race changed while switching tabs: '+view);
+                if(['card','exhibit','forecast','result'].filter(key=>panels[key]).join(',')!==view)
+                  throw Error('Tab visibility not exclusive: '+view+' '+JSON.stringify(panels));
               }
               // Actual archived-result values are asserted by the dedicated
               // 'Verify published CLEAN confirmed result in browser' step above.
