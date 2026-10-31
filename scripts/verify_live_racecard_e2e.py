@@ -108,4 +108,7 @@ if errors:
 if not verified_cards:
     print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
     raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
+if not verified_previews:
+    print(json.dumps({"outcome":"PREDEADLINE_EXHIBITION_NOT_VERIFIED","card_verified_count":len(verified_cards),"preview_verified_count":0,"failed":errors},ensure_ascii=False))
+    raise SystemExit("NO_SIX_BOAT_PREDEADLINE_EXHIBITION_VERIFIED")
 print(json.dumps({"outcome":"PASS","card_verified_count":len(verified_cards),"preview_verified_count":len(verified_previews),"preview_not_yet_verified":len(verified_cards)-len(verified_previews),"failed":errors},ensure_ascii=False))
