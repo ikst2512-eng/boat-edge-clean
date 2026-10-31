@@ -383,7 +383,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
         self.end_headers()
         if body:
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                # The client may disconnect during rapid race navigation.
+                # Response handling has already finished; avoid a noisy traceback.
+                return
 
 if __name__ == "__main__":
     ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "10000"))), Handler).serve_forever()
