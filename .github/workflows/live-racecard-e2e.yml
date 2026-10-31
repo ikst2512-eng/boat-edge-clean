@@ -44,6 +44,29 @@ jobs:
           assert data.get("source_audit", {}).get("race_card", {}).get("status") == "ok", "source audit missing"
           print("HISTORICAL_RENDER_SIX_RACER_SMOKE_PASS", data["race_key"], data["meta"]["source"])
           PY
+  historical-result-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify confirmed result independently via CLEAN production
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+          url="https://boat-edge-clean.onrender.com/api/clean-result?hd=20261031&jcd=09&rno=12"
+          with urlopen(Request(url,headers={"User-Agent":"CLEAN-result-smoke/1.0"}),timeout=35) as response:
+              assert response.status==200, f"HTTP {response.status}"
+              result=json.load(response)
+          assert result.get("race_code")=="202610310912", "wrong race"
+          assert result.get("ok") is True and result.get("status")=="confirmed"
+          order=result.get("finish_order")
+          assert isinstance(order,list) and len(order)==3 and len(set(order))==3
+          assert all(type(v) is int and 1<=v<=6 for v in order)
+          assert str(result.get("source_url","")).startswith("https://")
+          assert result.get("confirmed_at_jst") and result.get("collected_at_jst")
+          print("HISTORICAL_CLEAN_CONFIRMED_RESULT_PASS", result["race_code"], order)
+          PY
   e2e-live-race:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
