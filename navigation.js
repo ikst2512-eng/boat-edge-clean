@@ -4,6 +4,12 @@ document.documentElement.dataset.cleanNavigationInit='1';
 const nav=document.querySelector('.site-global-nav');
 if(!nav)return;
 const params=location.search;
+// GitHub Pages project sites cannot serve Render's /review route directly.
+// Use the existing single-page screen query without changing Render routes.
+if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')){
+ const review=nav.querySelector('a[href="/review"]');
+ if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
+}
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
  const date=s?.date,venue=s?.venue,race=s?.race;
@@ -31,7 +37,7 @@ const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;qu
 const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView});
 const key=p=>[p.date,p.venue,p.race,p.view].join('|');
 const requestedScreen=new URL(location.href).searchParams.get('screen');
-if(location.pathname==='/'&&['forecast','card','exhibit','result','review'].includes(requestedScreen)&&originalSetView&&originalRender){
+if((location.pathname==='/'||location.pathname.startsWith('/boat-edge-clean/'))&&['forecast','card','exhibit','result','review'].includes(requestedScreen)&&originalSetView&&originalRender){
  originalSetView(requestedScreen);
  originalRender();
 }
