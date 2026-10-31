@@ -86,3 +86,9 @@
 - 原因: `late-preview-evidence-tests.yml` のPR pathsには `collect_late_preview_once.py` と `tests/test_collect_late_preview_once.py` が含まれておらず、収集レポートの続行修正コミットで対象CIが再実行されていなかった。
 - 変更: 取得レポート・テストファイルをpathsへ追加し、同ワークフローで `test_collect_late_preview_once.py` を明示実行。既存CIを拡張し、重複CIは新設しない。
 - 検証: 変更後Actions実行を確認するまで成功扱いしない。main未統合。
+
+### 2026-11-01 CI実行証拠（データ収集PR #723）
+- Actions run `41237387015` / job `124643904867` / commit `df04f6c0071e62541e0d814b853e40bb162bd2f3`: `Late preview evidence integrity` 成功。`test_late_preview_capture` 3件および `test_collect_late_preview_once.py` 6件の計9件が成功。URL: https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/41237387015
+- 収集CIのpush対象に作業ブランチを追加し、対象コードの継続変更でも実行されるように修正した。PR作業完了・main統合時には一時的なブランチ指定を除去すること。
+- ここで証明できたのはfixtureを含む保存・取得状態判定のテスト成功のみ。ライブ上流データのT-12完全6艇ペア、公開時間帯の取得成功、BOATERS・競艇日和の6艇確保は未証明。
+- 別ワークフロー `cross-model-content-audit-tests.yml` の失敗は残存（担当範囲外）。main未統合。
