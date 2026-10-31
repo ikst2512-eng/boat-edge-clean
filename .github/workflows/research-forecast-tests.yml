@@ -4,6 +4,8 @@ on:
     paths:
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
+      - 'scripts/verify_legacy_preservation_samples.py'
+      - 'legacy_preservation/samples/**'
       - 'test_aggregate_prospective_topn.py'
       - 'research_chronological_calibration.py'
       - 'test_research_chronological_calibration.py'
@@ -28,6 +30,8 @@ on:
     paths:
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
+      - 'scripts/verify_legacy_preservation_samples.py'
+      - 'legacy_preservation/samples/**'
       - 'test_aggregate_prospective_topn.py'
       - 'research_chronological_calibration.py'
       - 'test_research_chronological_calibration.py'
@@ -65,5 +69,7 @@ jobs:
           python test_fresh_prospective_sender.py
       - name: Verify Top-N audit rejection accounting
         run: python -m unittest -v test_aggregate_prospective_topn
+      - name: Verify archived legacy sample Git blob hashes
+        run: python scripts/verify_legacy_preservation_samples.py
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
