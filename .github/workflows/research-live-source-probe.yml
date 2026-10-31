@@ -39,3 +39,25 @@ jobs:
               traceback.print_exc()
               raise
           PY
+      - name: Generate real forecast in temporary workspace only
+        run: |
+          python - <<'PY'
+          import json
+          import tempfile
+          from pathlib import Path
+          import research_model
+          from scripts.select_upcoming_research_race import choose
+          candidate = choose()
+          if candidate is None:
+              print("dryrun=no_eligible_race")
+              raise SystemExit(0)
+          with tempfile.TemporaryDirectory() as temp:
+              research_model.STORE = Path(temp)
+              forecast = research_model.predict(*candidate)
+              code = f"{candidate[0]}{candidate[1]:02d}{candidate[2]:02d}"
+              record = json.loads((Path(temp) / (code + ".json")).read_text())
+              assert record["race_code"] == code
+              assert len(record["predictions"]) == 10
+              assert "topn_model_mass_pct" in record
+              print("dryrun=generated", "race=", code, "cutoff=", record["cutoff_jst"], "mass=", record["topn_model_mass_pct"])
+          PY
