@@ -1,4 +1,4 @@
-import io, json, tempfile, unittest, zipfile
+import io, json, tempfile, unittest, zipfile, subprocess, sys
 from pathlib import Path
 from scripts.evaluate_previous_day_late_artifacts import extract_candidates, retrieve
 
@@ -12,6 +12,12 @@ def archive(entries):
 
 
 class PriorArtifactTest(unittest.TestCase):
+    def test_recheck_cli_supports_delayed_result_window(self):
+        run=subprocess.run([sys.executable,"-m","scripts.evaluate_previous_day_late_artifacts","--help"],
+                           capture_output=True,text=True,check=True)
+        self.assertIn("--days-ago",run.stdout)
+        self.assertIn("{1,2,3}",run.stdout)
+
     def test_only_valid_late_candidates_are_imported_and_immutable(self):
         day="20261031"
         code="202610310708"

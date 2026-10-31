@@ -72,7 +72,11 @@ def retrieve(day, root, repository, token, fetch=None):
 
 if __name__=="__main__":
     from scripts.evaluate_late_research_topn import evaluate
-    day=(datetime.now(JST)-timedelta(days=1)).strftime("%Y%m%d")
+    import argparse
+    parser=argparse.ArgumentParser(description="Recheck preserved prospective late evidence")
+    parser.add_argument("--days-ago",type=int,choices=(1,2,3),default=1)
+    args=parser.parse_args()
+    day=(datetime.now(JST)-timedelta(days=args.days_ago)).strftime("%Y%m%d")
     repository=os.environ["GITHUB_REPOSITORY"]
     token=os.environ["GITHUB_TOKEN"]
     root=Path("late_research_candidates")
