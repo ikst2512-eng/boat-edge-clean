@@ -29,6 +29,8 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             fp.write_text(json.dumps(forecast))
             good = analyze(root)
             self.assertEqual(good["cohorts"]["holdout"]["all"]["n"], 1)
+            self.assertEqual(good["saved_advanced_feature_presence"]["holdout"]["records"], 1)
+            self.assertTrue(all(v==0 for v in good["saved_advanced_feature_presence"]["holdout"]["direct_fields"].values()))
             self.assertEqual(good["cohorts"]["holdout"]["lane1_strongest"]["selection_pct"], 100.0)
             self.assertEqual(good["cohorts"]["holdout"]["lane1_strongest"]["lift_pp"], 0.0)
             self.assertFalse(good["cohorts"]["holdout"]["lane1_strongest"]["sample_sufficient_30"])
