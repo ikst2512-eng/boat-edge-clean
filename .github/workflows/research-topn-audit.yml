@@ -1,5 +1,7 @@
 name: Research TopN batch audit
 on:
+  schedule:
+    - cron: '25 13 * * *' # 22:25 JST daily; catches GITHUB_TOKEN bot commits
   push:
     branches: [main]
     paths:
