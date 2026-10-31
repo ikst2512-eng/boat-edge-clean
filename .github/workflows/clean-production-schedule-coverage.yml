@@ -1,0 +1,52 @@
+name: CLEAN production schedule coverage smoke
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'JST race date (YYYYMMDD), blank for current JST date'
+        required: false
+        type: string
+  schedule:
+    - cron: '17 22 * * *'
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect live schedule and racecard coverage
+        env:
+          INPUT_DATE: ${{ inputs.date }}
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os, urllib.request
+          from zoneinfo import ZoneInfo
+          day = os.environ.get("INPUT_DATE") or datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d")
+          if len(day) != 8 or not day.isascii() or not day.isdigit():
+              raise SystemExit("invalid date input")
+          base = "https://boat-edge-clean.onrender.com"
+          with urllib.request.urlopen(f"{base}/api/clean-schedule?date={day}", timeout=35) as response:
+              schedule = json.load(response)
+          if not schedule.get("ok") or not isinstance(schedule.get("races"), list):
+              raise SystemExit(f"schedule not ready: {schedule.get('status')}")
+          races = schedule["races"]
+          counts = {}
+          for row in races:
+              venue = str(row["venue_code"])
+              counts[venue] = counts.get(venue, 0) + 1
+          advertised = schedule.get("venue_race_counts")
+          if advertised is None:
+              raise SystemExit("production schedule lacks venue_race_counts")
+          if {str(k): int(v) for k, v in advertised.items()} != counts:
+              raise SystemExit("venue_race_counts does not match published races")
+          print(f"date={day} source={schedule.get('source')} races={len(races)} venue_counts={json.dumps(counts, sort_keys=True)}")
+          print(f"venue_12_published={counts.get('12', 0)}")
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as out:
+                  out.write(f"### CLEAN production schedule {day}\\n\\n")
+                  out.write(f"Source: {schedule.get('source')}\\n\\n")
+                  out.write(f"Venue 12: **{counts.get('12', 0)}** races; total **{len(races)}**.\\n\\n")
+                  out.write(f"Venue counts: \\x60{json.dumps(counts, sort_keys=True)}\\x60\\n")
+          PY
