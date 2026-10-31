@@ -42,3 +42,5 @@ jobs:
               summary.write("Research simulations only; missing payout never counts as a loss or a zero return.\\n")
 
           PY
+      - name: October 31 payout-verified Top-N ROI
+        run: python aggregate_prospective_topn.py 20261031
