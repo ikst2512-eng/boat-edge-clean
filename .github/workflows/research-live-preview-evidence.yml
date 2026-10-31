@@ -44,6 +44,26 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_evaluate_late_research_topn.py' -v
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
+      - name: Report strict twelve-minute source-and-receipt pair coverage
+        run: |
+          python - <<'PY'
+          import json,os
+          from datetime import datetime
+          from research_model import JST
+          from pathlib import Path
+          from scripts.collect_live_preview_evidence import paired_six_lane_coverage
+          day=datetime.now(JST).strftime("%Y%m%d")
+          counts=paired_six_lane_coverage(day,Path("late_preview_evidence"))
+          if counts["paired_12min_observable"]>counts["paired_complete"]:
+              raise SystemExit("T12_COHORT_EXCEEDS_ALL_COMPLETE_PAIRS")
+          print("STRICT_T12_PREVIEW_COVERAGE "+json.dumps({
+              "day":day,"paired_late_complete":counts["paired_complete"],
+              "paired_t12_source_and_receipt":counts["paired_12min_observable"],
+              "t12_codes":counts["paired_12min_codes"],
+              "forecast_accuracy_verified":False},sort_keys=True))
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as summary:
+              summary.write(f"\nStrict T-12 complete preview pairs: **{counts['paired_12min_observable']}**; later T-2 pairs: **{counts['paired_complete']}**. Research timing evidence only; no forecast accuracy proven.\n")
+          PY
       - name: Summarize fully validated late-preview features
         run: python -m scripts.late_preview_feature_pairs
       - name: Report matching early research and confirmed results
