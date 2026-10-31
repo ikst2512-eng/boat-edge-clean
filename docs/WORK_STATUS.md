@@ -527,3 +527,8 @@
 - 保全済み3件（PR #758）について、manifestが指すCLEAN内JSON原本を実バイトで読み込み、Git blob SHA-1（blob header + NUL + body）を再計算し旧repoのsource_blob_shaと一致させる検証を `scripts/verify_legacy_preservation_samples.py` に追加。対象パス、race_key、重複・件数も照合。commit `89295bfa`, `f98df7d9`。
 - 既存 `research-forecast-tests.yml` に検証コマンドを組み込み、サンプルまたはmanifest更新時にも実行する設定を追加（commit `63e717a9`）。新workflowは作成しない。
 - **実Actionsの成功未確認**。Git blob同一性は初回Git追加時刻・締切前証明・全件保全・独立長期保管を意味しない。旧サイト停止不可。
+
+## 2026-11-01 PR #759 展示の締切前証拠表示を厳密化
+- `index.html` 展示の従来ラベル「直前データ：取得済み・締切前確認済み」は、`source_audit.beforeinfo.fetched_at` の時刻条件から初回Git登録まで証明したと誤解され得たため「直前データ：取得記録は締切前・Git初回登録未照合」へ修正。未検証表示・6艇カウントは維持。
+- 既存 `.github/workflows/deploy-pages.yml` の同ラベル判定を更新。PR #759 head `023d3715792b1d02556670086ba590bf48b593a8` のCI run `41246633156` は `check` と `publish-smoke` がsuccess。main squash `5a9030935f53ff7bbb7a807da7e24a54158425db`。
+- Render deploy `dep-dbj6cut659jc739hvpb0` は確認時点queued。Pages統合後の公開実データ表示は未確認であり、T-12実レース完全STT+TKZ 6艇原本、初回Git証拠、旧サイト独立保全は未達。旧repo/Pagesを変更・停止していない。
