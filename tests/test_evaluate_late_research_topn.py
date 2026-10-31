@@ -49,6 +49,12 @@ class PairedTopNTest(unittest.TestCase):
             self.assertEqual(report["topn"]["3"]["late_hits"],1)
             self.assertEqual(report["topn"]["3"]["early_hits"],0)
             self.assertEqual(report["topn"]["10"]["early_hits"],1)
+            # Reject an early-baseline cutoff that was actually only T-5.
+            early["cutoff_jst"]="2026-10-31T17:05:00+09:00"
+            (root/"research_snapshots"/(code+".json")).write_text(json.dumps(early))
+            self.assertEqual(evaluate(day,root/"late",root)["paired_races"],0)
+            early["cutoff_jst"]="2026-10-31T16:58:00+09:00"
+            (root/"research_snapshots"/(code+".json")).write_text(json.dumps(early))
             late["generated_at_jst"]="2026-10-31T17:09:00+09:00"
             (root/"late"/day/(code+".json")).write_text(json.dumps(late))
             self.assertEqual(evaluate(day,root/"late",root)["paired_races"],0)
