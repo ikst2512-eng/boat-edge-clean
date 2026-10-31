@@ -61,6 +61,17 @@ class Integration(unittest.TestCase):
             self.assertEqual(result["sources_unavailable"],4)
             self.assertEqual(result["saved_total"],0)
 
+    def test_all_sources_empty_is_not_claimed_as_race_data(self):
+        def empty(url):
+            return "レースコード\n".encode()
+        with tempfile.TemporaryDirectory() as folder:
+            result=collect(day="20261031",root=folder,fetch=empty,
+                           clock=lambda:datetime(2026,10,31,18,55,tzinfo=JST))
+            self.assertEqual(result["status"],"sources_retrieved_no_rows")
+            self.assertEqual(result["sources_available"],5)
+            self.assertEqual(result["race_rows_total"],0)
+            self.assertEqual(result["saved_total"],0)
+
     def test_late_race_not_written(self):
         now=lambda:datetime(2026,10,31,18,59,tzinfo=JST)
         with tempfile.TemporaryDirectory() as folder:
