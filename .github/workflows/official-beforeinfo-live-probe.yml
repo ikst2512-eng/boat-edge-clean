@@ -19,6 +19,7 @@ jobs:
         run: |
           python - <<'PY'
           from datetime import datetime
+          from pathlib import Path
           from scripts import probe_official_beforeinfo as source
           from urllib.error import HTTPError, URLError
           from research_model import JST
@@ -45,6 +46,9 @@ jobs:
                       result = source.probe(date, 12, 10, fetch=capture)
                       print("official_http_probe=success", name, result, flush=True)
                       summary.write(f"- {name}: raw_response_received; bytes={result['bytes']}; exhibition=unverified; entry=unverified\\n")
+                      # Keep the exact successful HTML for offline structure validation.
+                      Path("beforeinfo-evidence").mkdir(exist_ok=True)
+                      Path(f"beforeinfo-evidence/{name}.html").write_bytes(raw_data[0])
                       page=raw_data[0].decode("utf-8",errors="replace")
                       from html.parser import HTMLParser
                       class PageText(HTMLParser):
@@ -66,3 +70,11 @@ jobs:
                   finally:
                       source.BASE = original
           PY
+      - name: Archive successful raw official HTML for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-beforeinfo-html-${{ github.run_id }}
+          path: beforeinfo-evidence/*.html
+          if-no-files-found: ignore
+          retention-days: 3
