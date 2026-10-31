@@ -95,8 +95,18 @@ for _,code in candidates[:3]:
             from datetime import datetime as _datetime
             fetched=_datetime.fromisoformat(audit["beforeinfo"]["fetched_at"])
             deadline=_datetime.strptime(hd+data["meta"]["deadline"],"%Y%m%d%H:%M").replace(tzinfo=JST)
-            if fetched.tzinfo is None or fetched>=deadline:
+            if fetched.tzinfo is None or fetched>=deadline or fetched>datetime.now(JST):
                 raise ValueError("verified exhibition not predeadline")
+            # Both essential source snapshots must independently predate the cutoff.
+            # A valid max timestamp alone does not establish their provenance.
+            for kind in ("tkz","stt"):
+                receipt=audit["beforeinfo"].get("sources",{}).get(kind,{})
+                observed=_datetime.fromisoformat(receipt.get("observed_at",""))
+                sha=receipt.get("sha256","")
+                if observed.tzinfo is None or observed>datetime.now(JST) or observed>=deadline:
+                    raise ValueError("preview source is not independently predeadline: "+kind)
+                if not isinstance(sha,str) or len(sha)!=64 or any(c not in "0123456789abcdef" for c in sha.lower()):
+                    raise ValueError("preview source SHA256 missing: "+kind)
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
