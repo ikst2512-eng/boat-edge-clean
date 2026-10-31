@@ -25,4 +25,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_compare_topn_signal70
-      - run: python compare_topn_signal70.py 20261029
+      - name: Compare observed signal groups Oct 29
+        run: python compare_topn_signal70.py 20261029
+      - name: Compare observed signal groups Oct 30
+        run: python compare_topn_signal70.py 20261030
