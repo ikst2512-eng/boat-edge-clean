@@ -55,6 +55,8 @@ def report(days=("20261029","20261030"),root=ROOT,scorer=evaluate,signal=head_ma
         for row in rows.values():
             row["hit_rate_pct"]={k:round(100*v/row["selected"],2) if row["selected"] else None for k,v in row["hits"].items()}
             row["selected_pct"]=round(100*row["selected"]/examined,2) if examined else None
+            row["sample_adequate_for_decision"]=row["selected"]>=30
+            row["selection_evidence_status"]="insufficient_sample" if row["selected"]<30 else "research_only_not_validated"
             row["lift_pp"]={key:round(100*row["hits"][key]/row["selected"]-100*all_hits[key]/examined,2) if row["selected"] and examined else None for key in all_hits}
             row["roi_pct"]={k:round(100*v/(row["payout_verified"]*5000),2) if row["payout_verified"] else None for k,v in row["return_yen"].items()}
         output.append({"day":day,"role":"discovery" if day=="20261029" else "later_holdout",
