@@ -49,8 +49,10 @@ jobs:
           for kind, data in report["kinds"].items():
               print(f"{kind}: source={data.get('source_rows', 'unavailable')} eligible={data.get('pre_deadline_2min', {})} six_lanes={data.get('six_lane_validation', {})}")
           print(f"eligible_saved_rows={len(files)}")
+          print(f"capture_source_status={report['status']} available={report['sources_available']} unavailable={report['sources_unavailable']}")
           with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as summary:
               summary.write(f"Late preview evidence saved: {len(files)} race-kind records. No main forecast changes.\n")
+              summary.write(f"**Upstream source status: {report['status']}**; available={report['sources_available']}, unavailable={report['sources_unavailable']}, saved={report['saved_total']}. Workflow execution success does not mean upstream data was available.\n")
               summary.write(f"**Verified complete six-boat STT+TKZ pairs: {coverage['paired_complete_6boat_stt_tkz']}**; T-12 observable: {coverage['paired_complete_12min_observable']}; invalid records: {coverage['invalid']}; observed race codes: {coverage['races']}.\n")
               for kind, data in report["kinds"].items():
                   summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
