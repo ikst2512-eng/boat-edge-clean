@@ -37,7 +37,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
                 early[classify(row,received,margin_minutes=12)]+=1
                 six_lanes[six_lane_status(kind,row)]+=1
             written=save_preview(raw,kind,day,received,root)
-            report["kinds"][kind]={"received_at_jst":received.isoformat(),"saved":len(written),
+            report["kinds"][kind]={"status":"retrieved","received_at_jst":received.isoformat(),"saved":len(written),
                                    "race_codes":written[:5],"source_rows":len(rows),
                                    "pre_deadline_2min":gate,"pre_deadline_12min":early,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
@@ -56,15 +56,17 @@ def collect(day=None, root=None, fetch=None, clock=None):
                                    "received_at_jst":checked_at.isoformat(),"saved":0,
                                    "source_rows":None,"pre_deadline_2min":None,"pre_deadline_12min":None,
                                    "six_lane_validation":None}
-    available=sum(1 for entry in report["kinds"].values() if entry.get("status") != "unavailable")
+    available=sum(1 for entry in report["kinds"].values() if entry.get("status") == "retrieved")
     report["sources_available"]=available
     report["sources_unavailable"]=len(KINDS)-available
     report["saved_total"]=sum(entry["saved"] for entry in report["kinds"].values())
+    report["race_rows_total"]=sum(entry.get("source_rows") or 0 for entry in report["kinds"].values())
     # A successful Actions job must not be mistaken for successful upstream acquisition.
     before_window=(available == 0 and all(entry.get("availability_interpretation")=="before_expected_publication_window" for entry in report["kinds"].values()))
     report["status"]=("not_yet_expected" if before_window else
                       "source_unavailable" if available == 0 else
                       "partial_source_failure" if available < len(KINDS) else
+                      "sources_retrieved_no_rows" if report["race_rows_total"] == 0 else
                       "sources_retrieved")
     return report
 
