@@ -560,3 +560,8 @@
 - append-only公式HTML取得でHTML保存後のmanifest書込が失敗すると、不完全な保存ディレクトリが残り得た。書込みエラー時にmanifest・HTML・空ディレクトリを撤去する処理を追加。既存の成功時保存原本や予想生成は変更なし。
 - manifest書込を強制失敗させる回帰テストを追加。PR head `90ab220a357cbbd9befc86997d02edc51afd6b01` の既存Late preview evidence integrity run `41247012805` はsuccess。main squash `abd2f6abac00b21abf5e0d1738c629b1535b7bd0`。
 - 公式beforeinfoの実受信・6艇完全性・T-12時刻成立は未証明。旧サイト停止なし。
+
+## 2026-11-01 旧予想原本19件の保全（PR #764）
+- 旧repoの実在する予想JSONを8件追加取得し、保全サンプルを11件から19件へ拡張。8件を旧repoから再取得し保全先のGit blob SHAと一致することを検証。
+- manifestを19件へ更新し、既存ハッシュ照合スクリプトの最低件数を19に変更。PR head `57f851ccffe7ff364b73efd7e506499ea3ff9768` の Research forecast checks run `41247126568` はsuccess。main squash `02453f445e7f1129c9bffac361ce235b531ab623` で統合。
+- 保全対象はサンプル19件のみ。初回Git追加時刻・全件原本・オッズ・Fresh・独立長期ストレージでの復元は未検証。旧repo/Pagesは停止・変更なし。
