@@ -20,7 +20,7 @@ class CrossModelAuditTests(unittest.TestCase):
                    "site_autopilot/v253_miss_diagnostics_current")
         allowed_hosts = {"raw.githubusercontent.com", "api.github.com",
                          "boatracecsv.github.io", "boat-edge-clean.onrender.com",
-                         "www.boatrace.jp"}
+                         "www.boatrace.jp", "ikst2512-eng.github.io"}
         for name in sources:
             source = Path(name).read_text(encoding="utf-8")
             with self.subTest(source=name):
