@@ -165,6 +165,12 @@ const {chromium}=require('playwright');
   if(!combined.hasPanel||!combined.result?.includes('2 - 3 - 1')||combined.ticketCount!==10||combined.border!=='rgb(187, 38, 56)')
    throw Error('COMBINED_FORECAST_RESULT_LAYOUT_BROKEN '+JSON.stringify(combined));
   console.log('PASS: published race forecast and confirmed result share one panel');
+  // Verify a real, newly archived 2026-10-31 forecast is visible through the published UI.
+  await page.evaluate(()=>{s.date='2026-10-31';s.venue=23;s.race=1;datePinned=true;venueTouched=true;setView('forecast');render()});
+  await page.waitForFunction(()=>displayedPredictionKey==='20261031-24-01'&&predictionTickets.length===10,{timeout:45000});
+  const live31=await page.evaluate(()=>({key:displayedPredictionKey,tickets:predictionTickets.slice(),status:document.getElementById('predictionStatus').textContent}));
+  if(live31.tickets.length!==10||!live31.status.includes('研究予想'))throw Error('OCT31_FORECAST_NOT_VISIBLE '+JSON.stringify(live31));
+  console.log('PASS: 2026-10-31 actual stored ten-ticket research prediction appears in published forecast');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
