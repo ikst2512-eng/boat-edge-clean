@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - 'research_model.py'
+      - 'aggregate_prospective_topn.py'
+      - 'test_aggregate_prospective_topn.py'
       - 'research_chronological_calibration.py'
       - 'test_research_chronological_calibration.py'
       - 'server.py'
@@ -25,6 +27,8 @@ on:
   pull_request:
     paths:
       - 'research_model.py'
+      - 'aggregate_prospective_topn.py'
+      - 'test_aggregate_prospective_topn.py'
       - 'research_chronological_calibration.py'
       - 'test_research_chronological_calibration.py'
       - 'collect_research_daily.py'
@@ -59,5 +63,7 @@ jobs:
           python test_fresh_candidate_receipt.py
           python test_fresh_candidate_verify.py
           python test_fresh_prospective_sender.py
+      - name: Verify Top-N audit rejection accounting
+        run: python -m unittest -v test_aggregate_prospective_topn
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
