@@ -54,6 +54,22 @@ class PriorArtifactTest(unittest.TestCase):
             self.assertEqual(report["coverage_status"],"no_prior_day_candidate_found")
             self.assertEqual(len(calls),6)
 
+    def test_duplicate_immutable_candidate_still_counts_each_source_artifact(self):
+        day="20261031"
+        code="202610310708"
+        blob=archive({"late_research_candidates/"+day+"/"+code+".json":{
+            "race_code":code,"status":"research_candidate_unvalidated","research_only":True}})
+        def fetch(url):
+            if "page=1" in url:
+                return json.dumps({"artifacts":[
+                    {"name":"independent-late-preview-1","expired":False,"archive_download_url":"https://example.test/a"},
+                    {"name":"independent-late-preview-2","expired":False,"archive_download_url":"https://example.test/b"}]}).encode()
+            return blob
+        with tempfile.TemporaryDirectory() as tmp:
+            result=retrieve(day,tmp,"example/repo","mock",fetch)
+            self.assertEqual(result["imported_immutable_candidates"],1)
+            self.assertEqual(result["artifacts_with_imported_candidates"],2)
+
     def test_recovers_eligible_artifact_without_inventing_data(self):
         day="20261031"
         code="202610310708"
