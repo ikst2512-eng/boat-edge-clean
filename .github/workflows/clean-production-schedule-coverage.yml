@@ -48,5 +48,5 @@ jobs:
                   out.write(f"### CLEAN production schedule {day}\\n\\n")
                   out.write(f"Source: {schedule.get('source')}\\n\\n")
                   out.write(f"Venue 12: **{counts.get('12', 0)}** races; total **{len(races)}**.\\n\\n")
-                  out.write(f"Venue counts: \\x60{json.dumps(counts, sort_keys=True)}\\x60\\n")
+                  out.write(f"Venue counts: {json.dumps(counts, sort_keys=True)}\\n")
           PY
