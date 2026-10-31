@@ -99,7 +99,12 @@ const {chromium}=require('playwright');
      if(usedVenues.has(x.venue))return false;
      usedVenues.add(x.venue);return true;
     });
-    selections=[...distinct,...ordered.filter(x=>!distinct.includes(x))].slice(0,8);
+    // Within the actual 2–22-minute window, prioritize every nearby
+    // candidate before filling remaining slots with cross-venue samples.
+    // The old venue-first policy could spend all eight slots on races
+    // hours from closing while a published preview was minutes away.
+    const near=previewWindow.slice(0,8);
+    selections=[...near,...distinct.filter(x=>!near.includes(x)),...ordered.filter(x=>!near.includes(x)&&!distinct.includes(x))].slice(0,8);
     selected=selections[0]||null;
     console.log('LIVE_PROBE_SELECTED_RACES '+JSON.stringify(selections));
     console.log('LIVE_PREVIEW_WINDOW_CANDIDATES '+JSON.stringify({count:previewWindow.length}));
