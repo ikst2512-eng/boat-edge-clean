@@ -496,3 +496,8 @@
 - `classify` が日時全体（例 `2026-10-31 11:20:00` / `2026-10-31T11:20:00+09:00`）を有効な締切時刻として受け入れても、`save_preview` の `%H:%M` 固定再解析が例外になって保存できない不整合を解消。共通 `parse_jst` を優先して使用し、HH:MMの場合だけレース日付を補って再解析（main commit `c078972d2624343a063c697942f2dda7a5233044`）。
 - `test_late_preview_capture.py` に通常日時/ISOタイムゾーン付き締切での保存テストを追加（`7d7e9ef2e75345117fded558c0ce53ddc399fcba`）。既存 `late-preview-evidence-tests.yml` が当該ファイルを対象とし `test_late_preview_capture` を実行する設定。
 - 環境からGitHubへ直接cloneはDNSエラーのため、**現時点で修正後CI成功を確認していない**。実レースSTT+TKZ完全6艇のT-12受信成功も未確認。旧サイト停止・予想モデル更新なし。
+
+## 2026-11-01 公開Pages実ブラウザ成功ログの原本再確認
+- 既存Publish Pages workflow `41243190467` のjob `124661127242` は completed/success。実ジョブログより `CLEAN_ARCHIVED_FORECAST_PROVENANCE_BROWSER_PASS 202610310708`、`CLEAN_RESULT_PUBLISHED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/?date=2026-10-27&venue=23&race=1&view=result 1-2-5`、`DEPLOYED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/` の各実行行を確認。ログ内コマンド文字列だけでなく、実際の実行結果行を根拠とする。
+- このrunはPR #753統合前なので、#753の新規タブ排他・race key保持テストの**統合後公開合格とはしない**。別途PR head Actions `41243276155` の `check` / `publish-smoke` success、Render `dep-dbj5pplg1s2s73flbofg` のliveは確認済み。出走表/展示の実データ6艇表示とiPhone Safari実機は未証明。
+- 旧Pages/原本の独立保全と、実レースT-12前のSTT+TKZ完全6艇受信証拠は未達。旧repo/Pages撤去禁止は継続。
