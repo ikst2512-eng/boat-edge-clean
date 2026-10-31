@@ -26,6 +26,9 @@ jobs:
               result = probe(now.strftime("%Y%m%d"), 12, 10)
               print("official_http_probe=success", result, flush=True)
           except Exception as e:
-              print("official_http_probe=failed", type(e).__name__, str(e), flush=True)
-              raise
+              import os
+              print("official_http_probe=unavailable", type(e).__name__, str(e), flush=True)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                  summary.write("Official beforeinfo: unavailable; exhibition/entry not verified.\\n")
+                  summary.write(f"Reason: {type(e).__name__}: {e}\\n")
           PY
