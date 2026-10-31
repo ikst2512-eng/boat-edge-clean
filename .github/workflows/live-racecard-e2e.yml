@@ -67,6 +67,28 @@ jobs:
           assert result.get("confirmed_at_jst") and result.get("collected_at_jst")
           print("HISTORICAL_CLEAN_CONFIRMED_RESULT_PASS", result["race_code"], order)
           PY
+  historical-odds-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify 120 unique three-way odds from Render
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from itertools import permutations
+          from urllib.request import Request,urlopen
+          url="https://boat-edge-clean.onrender.com/api/odds?hd=20261031&jcd=09&rno=12"
+          with urlopen(Request(url,headers={"User-Agent":"CLEAN-odds-smoke/1.0"}),timeout=35) as response:
+              assert response.status==200, f"HTTP {response.status}"
+              data=json.load(response)
+          odds=data.get("odds")
+          assert data.get("ok") is True and isinstance(odds,dict)
+          expected={"-".join(map(str,p)) for p in permutations(range(1,7),3)}
+          assert set(odds)==expected, f"missing or extra tickets: {len(odds)}"
+          assert all(type(v) in (float,int) and 1<=v<=1000000 for v in odds.values())
+          print("HISTORICAL_RENDER_120_ODDS_PASS", len(odds))
+          PY
   e2e-live-race:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
