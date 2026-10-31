@@ -365,3 +365,10 @@
 ## 2026-11-01 日次収集監査のコード整備
 - 最新mainの実装を再点検し、`scripts/audit_preview_scheduled_runs.py` の `datetime` import重複（2行）を1行に整理。commit `460c614ce5a221fb7ede0803be9ebac3d1f76b79`、main再取得で確認。日次監査の既存ロジック・実行時刻・取得元は変更なし。
 - 先行main `c96b1720` / `8091efa7` で直近24時間の定期実行分類テストは追加済み。これを重複実装しない。実レースT-12ペアの検証成功は引き続き未確認、旧公開を停止しない。
+
+
+## 2026-11-01 定期監査の成功・失敗内訳
+- 直近24時間のscheduled runを成功/失敗に分ける `successful_scheduled_last_24h` / `failed_scheduled_last_24h` を既存監査に追加（main `6bc9605`）。手動実行を成功数に混ぜない回帰テストを `tests/test_audit_preview_scheduled_runs.py` に追加（`2d6a1f6`）。
+- 既存mainには夜間scheduled監査時に同日JSTのcapture scheduled runが0件なら失敗終了するゲートも実装済み。定期実行が0件の原因を「ソース404」と同一視しない。
+- 変更後のGitHub Actions合格はまだ確認できていない。07時台以前の手動/PR captureが成功してもT-12証拠と扱わない。08時以降の実scheduled runと `late_preview_audit_report.json` を取得し、race code・6艇完全性・受信時刻を精査する。
+- 予想モデル、UI、旧サイトは未変更。旧サイト停止ゲートは未達。
