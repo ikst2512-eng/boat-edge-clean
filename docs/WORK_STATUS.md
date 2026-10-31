@@ -133,3 +133,8 @@
 - `tests/test_collect_late_preview_once.py`: ペア集計フィールドとデータ未取得時のペア0件を追加検証。
 - CI: Actions run `41238539248` がcompleted/success、4種テストステップすべて成功。実ライブT-12成功を示すものではない。
 - 残課題: #654/#723はGit上まだ別PRのため、mergeable再確認・#654の独立プローブ変更を失わない統合計画が必要。main未統合。
+
+### 2026-11-01 収集PR #654・#723 の統合回帰検証
+- PR #654 の `paired_six_lane_coverage` を #723 の取得分類と共存させた変更（`8e647b28`、`33d1e013`、`eb89a9c4`）について、Actions run `41238539248` の4系統テスト成功を確認。
+- さらに `late-preview-evidence-tests.yml` の既存CIに `tests/test_late_preview_paired_coverage.py` を追加し、実際の完全/不完全STT/TKZペア、レース一致、T-12境界も同じCIで確認する（run `41238664430`）。新しいCIワークフローは増やしていない。
+- PR #723 は `mergeable=false` を再確認。#654 とのGit競合解消、後継PRの統合順序決定および作業ブランチ専用CI条件除去は引き続き必要。main未統合。
