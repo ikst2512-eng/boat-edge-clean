@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from selection_dual import report
+from stake_allocation import allocate
 ROOT=Path(__file__).resolve().parent
 class DualSelectionTests(unittest.TestCase):
  def test_full_history_and_read_only_selection(self):
@@ -30,6 +31,13 @@ class DualSelectionTests(unittest.TestCase):
    self.assertLessEqual(ledger["hits"],ledger["races"])
    self.assertEqual(ledger["investment_yen"],ledger["races"]*10000)
   self.assertEqual(data["minimum_confidence"],0.70)
+ def test_active_budget_allocation_does_not_depend_on_retired_module(self):
+  self.assertEqual(allocate(["1-2-3","2-1-3","3-1-2"],5000),{"1-2-3":1700,"2-1-3":1700,"3-1-2":1600})
+  self.assertEqual(sum(allocate(["1-2-3","2-1-3"],10000).values()),10000)
+  for invalid in (True,5000.0,4999,10001):
+   with self.assertRaises(ValueError): allocate(["1-2-3"],invalid)
+  for tickets in ([],["1-2-3","1-2-3"],["1-1-2"]):
+   with self.assertRaises(ValueError): allocate(tickets,5000)
  def test_navigation_preserves_full_forecast(self):
   html=(ROOT/"index.html").read_text(encoding="utf-8")
   page=(ROOT/"selection.html").read_text(encoding="utf-8")
