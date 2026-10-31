@@ -29,6 +29,32 @@ class LatePreviewCaptureTest(unittest.TestCase):
                 save_preview(csv_bytes(rows),"stt","20261031",when,root)
             self.assertEqual(path.read_bytes(),original)
 
+    def test_existing_later_race_rejects_whole_batch_without_partial_write(self):
+        # If race B already exists, race A must not be written before the failure.
+        first={"レースコード":"202610312310","締切時刻":"20:00",
+               "取得日時":"2026-10-31T19:54:00+09:00","艇1_コース":"1"}
+        second={"レースコード":"202610312311","締切時刻":"20:00",
+                "取得日時":"2026-10-31T19:54:00+09:00","艇1_コース":"2"}
+        receipt=datetime(2026,10,31,19,55,tzinfo=JST)
+        with tempfile.TemporaryDirectory() as root:
+            save_preview(csv_bytes([second]),"stt","20261031",receipt,root)
+            existing=Path(root)/"20261031"/"stt"/"202610312311.json"
+            unchanged=existing.read_bytes()
+            with self.assertRaises(FileExistsError):
+                save_preview(csv_bytes([first,second]),"stt","20261031",receipt,root)
+            self.assertFalse((Path(root)/"20261031"/"stt"/"202610312310.json").exists())
+            self.assertEqual(existing.read_bytes(),unchanged)
+
+    def test_noncolliding_batch_saves_every_eligible_race(self):
+        rows=[{"レースコード":f"2026103123{race:02d}","締切時刻":"20:00",
+               "取得日時":"2026-10-31T19:54:00+09:00","艇1_コース":"1"}
+              for race in (10,11)]
+        with tempfile.TemporaryDirectory() as root:
+            result=save_preview(csv_bytes(rows),"stt","20261031",
+                                datetime(2026,10,31,19,55,tzinfo=JST),root)
+            self.assertEqual(result,["202610312310","202610312311"])
+            self.assertEqual(len(list(Path(root).rglob("*.json"))),2)
+
     def test_source_one_minute_before_deadline_is_rejected(self):
         row={"レースコード":"202610312311","締切時刻":"20:00",
              "取得日時":"2026-10-31T19:59:00+09:00","艇1_コース":"1"}
