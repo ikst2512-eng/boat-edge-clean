@@ -86,7 +86,7 @@ const details=document.createElement('nav');details.className='race-detail-short
 details.setAttribute('aria-label','選択レースの情報');
 for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
  const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.raceView=view;
- b.addEventListener('click',()=>{if(typeof setView!=='function'||typeof render!=='function')return;setView(view);render();document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});});
+ b.addEventListener('click',()=>{if(typeof setView!=='function'||typeof render!=='function')return;if(view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');setView(view);render();document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});});
  details.append(b);
 }
 document.querySelector('.active-race-strip')?.insertAdjacentElement('afterend',details);
