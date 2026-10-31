@@ -7,6 +7,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 from datetime import timedelta
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.preview_timing_integrity import classify, parse_jst
 
 def audit(root="late_preview_evidence"):
