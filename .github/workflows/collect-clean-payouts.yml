@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths: [collect_clean_payouts.py, test_collect_clean_payouts.py, .github/workflows/collect-clean-payouts.yml]
   schedule:
-    - cron: '20 9-14 * * *' # 18:20-23:20 JST, catch up published payouts
+    - cron: '20 9-15 * * *' # 18:20-00:20 JST, catch up late-published payouts
   pull_request:
     paths: [collect_clean_payouts.py, test_collect_clean_payouts.py, .github/workflows/collect-clean-payouts.yml]
 permissions:
