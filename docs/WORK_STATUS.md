@@ -123,3 +123,9 @@
 - `historical-production-smoke` job `124646817195` success。実行スクリプトはRender本番 `https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261031&jcd=09&rno=12` をHTTP取得し、レースキー `20261031-09-12`、`historical_reference_only=true`、6艇の枠番1〜6・異なる4桁登録番号・race_card監査okをassert。workflowおよび該当jobの成功を確認したため、この対象の履歴出走表APIは**本番HTTP検証成功**とする。
 - 同じrunの`syntax`はsuccess、`e2e-live-race`はPR上の仕様でskipped。前者は締切前実レース可用性の証拠ではない。ブラウザの出走表画面、10/31の予想・展示・結果、GitHub Pages発行の正常動作は引き続き未検証。
 - 旧 `ikst2512-eng/boat-edge` は別repoかつAGENTS.mdが無断変更/削除を禁止。旧repoの公開停止・リダイレクトは実施せず、現行Renderに別名の旧webサービスは見つかっていない。安全な撤去のため旧Pages公開確認が残る。今回新規コード・PRは不要につき作成しない。
+
+## 2026-11-01 10/31過去レース確定結果のRender実HTTP検証
+- 既存PR #728（main merge `70b5231d4b2161be27a5fd7ed5e4dbb80ffc6f43`）の head `a47d83130c1c5b0fcdae9ca3290a8cb9f4c1c3e9` に対するActions run `41238603161` を確認。workflow完了 success。
+- `historical-result-smoke` job success、`historical-production-smoke` job success。両者は2026-10-31 09場12Rを対象にRender本番の確定結果・6艇出走表APIをHTTP検証する。race identity/着順・source provenance・6艇/監査等を検査。これにより**当該実レースの出走表・確定結果API**は本番HTTP成功確認済み。ブラウザDOM・研究予想・展示の表示証明ではない。
+- `e2e-live-race` はPR起動の仕様によりskip。締切前予想・展示の可用性の証明と混同しない。旧リポジトリの無断変更/削除もしていない。新規テスト/PRは既存#728と重複するため作らない。
+- 次は2026-10-31保存済み予想の原本存在と展示の証拠を照合、公開ブラウザの表示を実測。旧サイト公開元の停止は所有データ/参照の安全性を確認してから。
