@@ -19,9 +19,6 @@ def summary(days, evaluator=cohort):
         if result.get("schema") != "CLEAN_PROSPECTIVE_TOPN_COHORT_V1" or result.get("day_jst") != day or result.get("formal") is not False or result.get("simulated_only") is not True or result.get("first_add_audit_required") is not True:
             raise ValueError("untrusted cohort")
         daily = result["counts"]
-        for rejected in result.get("rejected", []):
-            reason = rejected.get("reason", "unclassified")
-            rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
         if any(type(daily.get(k)) is not int or daily[k] < 0 for k in counts):
             raise ValueError("invalid cohort counts")
         if daily["archives"] != daily["evaluated"] + daily["awaiting_result"] + daily["audit_rejected"]:
