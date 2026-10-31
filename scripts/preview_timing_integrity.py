@@ -26,6 +26,10 @@ def classify(row, received_at, margin_minutes=12):
         if isinstance(code,str) and len(code)==12 and code.isascii() and code.isdigit() and isinstance(hhmm,str):
             try: deadline=datetime.strptime(code[:8]+hhmm,"%Y%m%d%H:%M").replace(tzinfo=JST)
             except ValueError: pass
+    code=row.get("レースコード")
+    if (isinstance(code,str) and len(code)==12 and code.isascii() and code.isdigit()
+        and deadline is not None and code[:8]!=deadline.strftime("%Y%m%d")):
+        return "unknown_time"
     source_time=parse_jst(row.get("取得日時"))
     if deadline is None or source_time is None: return "unknown_time"
     if deadline.tzinfo is None or received_at.tzinfo is None: return "unknown_time"
