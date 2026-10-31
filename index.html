@@ -1061,7 +1061,8 @@ async function loadTicketOdds(key, token){
  // Odds are display-only and cannot change ticket ordering or saved predictions.
  const url='https://boat-edge-clean.onrender.com/api/odds?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
  try{
-  const response=await fetchTimed(url,{cache:'no-store'});
+  // Official odds may take longer than general race-card requests on cold Render starts.
+  const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(30000)});
   if(!response.ok)return;
   const data=await response.json();
   if(token!==window.predictionRequestId||sameRaceKey()!==key||activeView!=='forecast'||!data.ok)return;
