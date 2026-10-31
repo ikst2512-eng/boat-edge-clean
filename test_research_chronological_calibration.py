@@ -49,6 +49,10 @@ class CalibrationTests(unittest.TestCase):
             record["source_cards_received_jst"] = "2026-10-30T11:47:00+09:00"
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(len(load_pairs(root)), 1)
+            record["model_version"] = "another-model"
+            (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
+            self.assertEqual(load_pairs(root), [])
+            record["model_version"] = "national-beta0.4-exploratory-v1"
             record["predictions"] = list(reversed(record["predictions"]))
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(load_pairs(root), [])
