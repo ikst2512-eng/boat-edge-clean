@@ -9,6 +9,15 @@ from scripts.archive_late_research_candidates import archive
 
 
 class ProspectiveCandidateArchiveTest(unittest.TestCase):
+    def test_empty_upstream_candidates_distinct_from_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("scripts.archive_late_research_candidates.build_candidates",return_value={"predictions":[]}):
+                report=archive("20261031",Path(tmp),Path(tmp)/"out",datetime(2026,10,31,10,tzinfo=JST))
+            self.assertEqual(report["upstream_candidate_count"],0)
+            self.assertEqual(report["archive_state"],"no_valid_preview_pairs")
+            self.assertEqual(report["saved_count"],0)
+
+
     def test_only_before_deadline_and_immutable(self):
         day="20261031"
         code="202610312311"
@@ -25,6 +34,8 @@ class ProspectiveCandidateArchiveTest(unittest.TestCase):
                        return_value={"predictions":[record]}):
                 ontime=archive(day,preview,out,datetime(2026,10,31,19,56,tzinfo=JST))
                 self.assertEqual(ontime["saved_count"],1)
+                self.assertEqual(ontime["upstream_candidate_count"],1)
+                self.assertEqual(ontime["archive_state"],"saved")
                 path=out/day/(code+".json")
                 initial=path.read_bytes()
                 self.assertEqual(json.loads(initial)["generated_at_jst"],"2026-10-31T19:56:00+09:00")
