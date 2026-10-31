@@ -8,8 +8,8 @@ from evaluate_clean_prospective_cohort import verified_payout
 THRESHOLDS=(0.70,0.75,0.80)
 ROOT=Path(__file__).resolve().parent
 
-def report(days=("20261029","20261030"),root=ROOT,scorer=evaluate,signal=head_mass,payout=verified_payout):
-    if tuple(days)!=("20261029","20261030"):
+def report(days=("20261029","20261030","20261031"),root=ROOT,scorer=evaluate,signal=head_mass,payout=verified_payout):
+    if tuple(days) not in (("20261029","20261030"),("20261029","20261030","20261031")):
         raise ValueError("fixed discovery and holdout dates required")
     output=[]
     for day in days:
@@ -59,7 +59,7 @@ def report(days=("20261029","20261030"),root=ROOT,scorer=evaluate,signal=head_ma
             row["selection_evidence_status"]="insufficient_sample" if row["selected"]<30 else "research_only_not_validated"
             row["lift_pp"]={key:round(100*row["hits"][key]/row["selected"]-100*all_hits[key]/examined,2) if row["selected"] and examined else None for key in all_hits}
             row["roi_pct"]={k:round(100*v/(row["payout_verified"]*5000),2) if row["payout_verified"] else None for k,v in row["return_yen"].items()}
-        output.append({"day":day,"role":"discovery" if day=="20261029" else "later_holdout",
+        output.append({"day":day,"role":"discovery" if day=="20261029" else ("later_holdout" if day=="20261030" else "second_holdout"),
                        "evaluated":examined,"pending":pending,"rejected":rejected,"all_hit_rate_pct":{key:round(100*value/examined,2) if examined else None for key,value in all_hits.items()},"thresholds":rows})
     return {"schema":"CLEAN_FIXED_THRESHOLD_HOLDOUT_V1","formal":False,"signal_calibrated":False,
             "thresholds_fixed":[70,75,80],"days":output,"budget_yen_per_race":5000,
