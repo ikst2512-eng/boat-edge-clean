@@ -20,7 +20,11 @@ def summarize(runs, now=None):
         except (KeyError, AttributeError, TypeError, ValueError):
             return False
     recent=[r for r in scheduled if is_recent(r)]
+    recent_success=sum(r.get("status")=="completed" and r.get("conclusion")=="success" for r in recent)
+    recent_failed=sum(r.get("status")=="completed" and r.get("conclusion")=="failure" for r in recent)
     return {"scheduled_last_24h":len(recent),
+            "successful_scheduled_last_24h":recent_success,
+            "failed_scheduled_last_24h":recent_failed,
             "schedule_health":"recent_scheduled_run_observed" if recent else "no_scheduled_run_in_last_24h","scheduled_runs":len(scheduled),
             "success":sum(r.get("conclusion")=="success" for r in scheduled),
             "failed":sum(r.get("conclusion")=="failure" for r in scheduled),
