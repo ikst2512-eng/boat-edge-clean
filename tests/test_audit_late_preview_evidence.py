@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from scripts.audit_late_preview_evidence import audit
 
 def record(code,kind,valid="complete",received="2026-10-31T19:55:00+09:00"):
@@ -32,6 +33,25 @@ class AuditLatePreview(unittest.TestCase):
             self.assertEqual(result["records"],0)
             self.assertEqual(result["invalid"],0)
             self.assertEqual(result["races"],0)
+
+    def test_duplicate_kind_never_counts_as_complete_pair(self):
+        with tempfile.TemporaryDirectory() as folder:
+            code="202610310111"
+            paths=[]
+            for kind in ("stt","tkz"):
+                path=Path(folder)/"20261031"/kind/(code+".json")
+                path.parent.mkdir(parents=True)
+                obj=record(code,kind,received="2026-10-31T19:45:00+09:00")
+                obj["source_row"]["取得日時"]="2026-10-31T19:44:00+09:00"
+                obj["source_observed_jst"]=obj["source_row"]["取得日時"]
+                path.write_text(json.dumps(obj))
+                paths.append(path)
+            # Simulate duplicated discovery or merged artifact references.
+            with patch("scripts.audit_late_preview_evidence.Path.rglob",return_value=[paths[0],paths[1],paths[0]]):
+                result=audit(folder)
+            self.assertEqual(result["invalid"],1)
+            self.assertEqual(result["paired_complete_6boat_stt_tkz"],0)
+            self.assertEqual(result["paired_complete_12min_observable"],0)
 
     def test_complete_pair_and_too_late_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
