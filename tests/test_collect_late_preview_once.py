@@ -34,6 +34,19 @@ class Integration(unittest.TestCase):
             self.assertEqual(result["saved_total"],0)
             self.assertTrue(all(v["http_status"]==404 for v in result["kinds"].values()))
 
+    def test_before_publication_404_is_not_claimed_as_outage(self):
+        from urllib.error import HTTPError
+        def unavailable(url):
+            raise HTTPError(url, 404, "Not Found", {}, None)
+        with tempfile.TemporaryDirectory() as folder:
+            result=collect(day="20261101",root=folder,fetch=unavailable,
+                           clock=lambda:datetime(2026,11,1,4,32,tzinfo=JST))
+            self.assertEqual(result["status"],"not_yet_expected")
+            self.assertEqual(result["sources_available"],0)
+            self.assertTrue(all(v["availability_interpretation"] ==
+                                "before_expected_publication_window"
+                                for v in result["kinds"].values()))
+
     def test_partial_source_failure_is_not_all_sources_retrieved(self):
         from urllib.error import HTTPError
         def mixed(url):
