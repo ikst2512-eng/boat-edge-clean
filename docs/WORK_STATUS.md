@@ -159,3 +159,8 @@
 - `.github/workflows/site-regression.yml` のpush/pull_requestの両方に `navigation.js` を追加。以前は `navigation.js` 単独変更で既存サイト回帰CIが起動しなかった。main commit `10eef36cf267b9a29ae8da7587d9af27e8601f2a`。mainから再取得し両トリガーに存在することを確認。
 - 別に旧サイト撤去issue #708を確認。旧repoはアクティブなPages公開と多くのworkflowが存在、保存証拠の独立保全とCLEAN締切前E2E成功が停止条件。#731で早朝/夜間の検証枠が拡大したが、実行成功の証拠は今後のscheduled run確認が必要。**旧サイトの停止・削除は未実施**。
 - このCI修正は実行されたテスト結果ではなく起動条件の修正。CI結果、旧公開の停止、展示の6艇・締切前証明は未完了。
+
+## 2026-11-01 締切前実レースE2E応答時刻ゲート
+- PR #731のhead `7e0b3c933c5cc7f4258f62070283e1511bff36a4` のActions run `41239093712` では、履歴出走表・結果・120通りオッズがsuccess。`e2e-live-race` はPR仕様でskipped。**締切前展示が成功した証明ではない**。
+- 既存 `scripts/verify_live_racecard_e2e.py` が「候補選定時に締切前」という条件だけで応答の締切前性を判定していたため、本番HTTP応答後に `meta.deadline` を解析し再度JST現在時刻と比較、締切済みレスポンスを不合格にする修正をmain `0c119339f4bbe1d10862006b67d6508a297e0bac` に適用。main再読込で反映を確認。CI・実レースの定期job成功はまだ未確認。
+- 旧サイト停止にはCLEAN定期jobによる締切前カード・展示の実測と、旧サイト保存証拠の独立保全が必要。旧リポジトリは変更/削除していない。
