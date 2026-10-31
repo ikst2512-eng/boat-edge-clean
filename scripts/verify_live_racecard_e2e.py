@@ -65,6 +65,12 @@ for _,code in candidates[:3]:
             if res.status!=200:raise ValueError("unexpected HTTP status")
         if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
             raise ValueError("wrong race key")
+        # Eligibility at candidate selection is insufficient if an HTTP request
+        # completes after the race cutoff; never certify a post-cutoff response.
+        deadline_text=data.get("meta",{}).get("deadline")
+        if not isinstance(deadline_text,str):raise ValueError("race deadline missing")
+        response_deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        if datetime.now(JST)>=response_deadline:raise ValueError("race cutoff passed before response verification")
         if len(data.get("racers",[]))!=6:raise ValueError("missing racer rows")
         audit=data.get("source_audit",{})
         if audit.get("race_card",{}).get("status")!="ok":raise ValueError("unverified card source")
@@ -89,8 +95,18 @@ for _,code in candidates[:3]:
             from datetime import datetime as _datetime
             fetched=_datetime.fromisoformat(audit["beforeinfo"]["fetched_at"])
             deadline=_datetime.strptime(hd+data["meta"]["deadline"],"%Y%m%d%H:%M").replace(tzinfo=JST)
-            if fetched.tzinfo is None or fetched>=deadline:
+            if fetched.tzinfo is None or fetched>=deadline or fetched>datetime.now(JST):
                 raise ValueError("verified exhibition not predeadline")
+            # Both essential source snapshots must independently predate the cutoff.
+            # A valid max timestamp alone does not establish their provenance.
+            for kind in ("tkz","stt"):
+                receipt=audit["beforeinfo"].get("sources",{}).get(kind,{})
+                observed=_datetime.fromisoformat(receipt.get("observed_at",""))
+                sha=receipt.get("sha256","")
+                if observed.tzinfo is None or observed>datetime.now(JST) or observed>=deadline:
+                    raise ValueError("preview source is not independently predeadline: "+kind)
+                if not isinstance(sha,str) or len(sha)!=64 or any(c not in "0123456789abcdef" for c in sha.lower()):
+                    raise ValueError("preview source SHA256 missing: "+kind)
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
@@ -102,4 +118,7 @@ if errors:
 if not verified_cards:
     print(json.dumps({"outcome":"FAIL","tried":errors},ensure_ascii=False))
     raise SystemExit("NO_LIVE_PREDEADLINE_RACECARD_VERIFIED")
+if not verified_previews:
+    print(json.dumps({"outcome":"PREDEADLINE_EXHIBITION_NOT_VERIFIED","card_verified_count":len(verified_cards),"preview_verified_count":0,"failed":errors},ensure_ascii=False))
+    raise SystemExit("NO_SIX_BOAT_PREDEADLINE_EXHIBITION_VERIFIED")
 print(json.dumps({"outcome":"PASS","card_verified_count":len(verified_cards),"preview_verified_count":len(verified_previews),"preview_not_yet_verified":len(verified_cards)-len(verified_previews),"failed":errors},ensure_ascii=False))
