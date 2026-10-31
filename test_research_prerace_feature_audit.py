@@ -32,6 +32,14 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             self.assertFalse(good["cohorts"]["holdout"]["lane1_strongest"]["sample_sufficient_30"])
             self.assertIsNone(good["cohorts"]["holdout"]["lane1_not_strongest"]["lift_pp"])
             self.assertEqual(good["cohorts"]["holdout"]["lane1_lead_2plus"]["top10"], 1)
+            self.assertEqual(good["cohorts"]["holdout"]["lane1_unique_strongest"]["n"], 1)
+            self.assertEqual(good["cohorts"]["holdout"]["lane1_tied_strongest"]["n"], 0)
+            fp.write_text(json.dumps({**forecast, "national_win_rates": [8, 8, 6, 6, 6, 6]}))
+            tied = analyze(root)
+            self.assertEqual(tied["cohorts"]["holdout"]["lane1_strongest"]["n"], 1)
+            self.assertEqual(tied["cohorts"]["holdout"]["lane1_unique_strongest"]["n"], 0)
+            self.assertEqual(tied["cohorts"]["holdout"]["lane1_tied_strongest"]["n"], 1)
+            fp.write_text(json.dumps(forecast))
             self.assertEqual(good["cohorts"]["discovery"]["all"]["n"], 0)
             for change in (
                 {"national_win_rates": "bad"},
