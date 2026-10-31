@@ -33,6 +33,24 @@ def summarize(runs, now=None):
             "saved_six_lane_pairs":"not_computable_from_run_status",
             "note":"Successful workflow means job passed, not that any race was saved."}
 
+def daily_capture_health(runs, today, scheduled_audit):
+    """Return nightly fail-closed conditions, excluding manual and PR runs."""
+    jst=timezone(timedelta(hours=9))
+    today_runs=[]
+    for run in runs:
+        if run.get("event")!="schedule" or not run.get("created_at"):
+            continue
+        try:
+            received=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+            if received.tzinfo is not None and received.astimezone(jst).date()==today:
+                today_runs.append(run)
+        except (TypeError, AttributeError, ValueError):
+            continue
+    return {"today_scheduled_runs":len(today_runs),
+            "schedule_missing_today":bool(scheduled_audit and not today_runs),
+            "all_today_captures_failed":bool(scheduled_audit and today_runs and
+                all(run.get("status")=="completed" and run.get("conclusion")=="failure" for run in today_runs))}
+
 def main():
     token=os.environ.get("GITHUB_TOKEN")
     if not token:raise SystemExit("GITHUB_TOKEN required")
@@ -50,15 +68,8 @@ def main():
     report["total_scheduled_runs_reported"]=data.get("total_count")
     # Scheduled nightly audit must not succeed silently when no capture schedule
     # actually ran today. Manual/PR audits remain diagnostic-only.
-    jst=timezone(timedelta(hours=9))
-    today=datetime.now(jst).date()
-    today_runs=[run for run in data["workflow_runs"]
-                if run.get("event")=="schedule" and run.get("created_at")
-                and datetime.fromisoformat(run["created_at"].replace("Z","+00:00")).astimezone(jst).date()==today]
-    report["today_scheduled_runs"]=len(today_runs)
-    report["schedule_missing_today"]=(os.environ.get("GITHUB_EVENT_NAME")=="schedule" and not today_runs)
-    report["all_today_captures_failed"]=(os.environ.get("GITHUB_EVENT_NAME")=="schedule" and bool(today_runs)
-        and all(run.get("status")=="completed" and run.get("conclusion")=="failure" for run in today_runs))
+    report.update(daily_capture_health(data["workflow_runs"],datetime.now(timezone(timedelta(hours=9))).date(),
+                                      os.environ.get("GITHUB_EVENT_NAME")=="schedule"))
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
     if path:
