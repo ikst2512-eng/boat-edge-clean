@@ -20,6 +20,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_collect_clean_payouts
+      - name: Read-only live payout source probe (historical date)
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          import json
+          from collect_clean_payouts import collect
+          try:
+              print("HISTORICAL_PAYOUT_PROBE", json.dumps(collect("20261030"), sort_keys=True))
+          except Exception as error:
+              print("HISTORICAL_PAYOUT_PROBE_ERROR", type(error).__name__, str(error))
+              raise
+          PY
       - name: Collect today and yesterday from published payout CSV
         if: github.event_name != 'pull_request'
         run: |
