@@ -48,7 +48,9 @@ def retrieve(day, root, repository, token, fetch=None):
     scanned=0
     recovered=0
     dated_archives=0
-    for page in range(1,6):
+    page_limit=20
+    coverage_truncated=False
+    for page in range(1,page_limit+1):
         response=json.loads(fetch(f"https://api.github.com/repos/{repository}/actions/artifacts?per_page=100&page={page}"))
         artifacts=response.get("artifacts",[])
         for item in artifacts:
@@ -60,9 +62,13 @@ def retrieve(day, root, repository, token, fetch=None):
                 dated_archives+=int(recovered>before)
         if len(artifacts)<100:
             break
+        if page==page_limit:
+            coverage_truncated=True
     return {"day":day,"scanned_artifacts":scanned,"artifacts_with_imported_candidates":dated_archives,
             "imported_immutable_candidates":recovered,
-            "coverage_status":"candidate_found" if recovered else "no_prior_day_candidate_found"}
+            "coverage_status":"incomplete_artifact_scan" if coverage_truncated else (
+                "candidate_found" if recovered else "no_prior_day_candidate_found"),
+            "artifact_scan_complete":not coverage_truncated}
 
 if __name__=="__main__":
     from scripts.evaluate_late_research_topn import evaluate

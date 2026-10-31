@@ -33,6 +33,21 @@ class PriorArtifactTest(unittest.TestCase):
                 extract_candidates(altered,day,root)
             self.assertEqual(json.loads(path.read_text())["predictions"],["1-2-3"])
 
+    def test_scan_continues_past_five_pages(self):
+        day="20261031"
+        calls=[]
+        def fetch(url):
+            calls.append(url)
+            if "page=6" in url:
+                return json.dumps({"artifacts":[]}).encode()
+            return json.dumps({"artifacts":[{"name":"irrelevant-"+str(i),
+                "expired":False} for i in range(100)]}).encode()
+        with tempfile.TemporaryDirectory() as tmp:
+            report=retrieve(day,tmp,"example/repo","mock",fetch)
+            self.assertTrue(report["artifact_scan_complete"])
+            self.assertEqual(report["coverage_status"],"no_prior_day_candidate_found")
+            self.assertEqual(len(calls),6)
+
     def test_recovers_eligible_artifact_without_inventing_data(self):
         day="20261031"
         code="202610310708"
