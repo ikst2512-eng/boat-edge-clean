@@ -22,6 +22,17 @@ def record(code,kind,valid="complete",received="2026-10-31T19:55:00+09:00"):
         "status":"late_preview_unvalidated_not_research_forecast"}
 
 class AuditLatePreview(unittest.TestCase):
+    def test_summary_metadata_does_not_count_as_invalid_race(self):
+        with tempfile.TemporaryDirectory() as folder:
+            day=Path(folder)/"20261031"
+            day.mkdir()
+            (day/"collection_summary.json").write_text('{"day":"20261031"}')
+            (Path(folder)/"late_preview_audit_report.json").write_text('{"records":0}')
+            result=audit(folder)
+            self.assertEqual(result["records"],0)
+            self.assertEqual(result["invalid"],0)
+            self.assertEqual(result["races"],0)
+
     def test_complete_pair_and_too_late_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             code="202610310111"
