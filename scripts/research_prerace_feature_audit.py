@@ -4,7 +4,7 @@ No exhibition, entry-course, wall or odds fields exist in these saved records:
 do not invent or backfill them. Discovery / holdout are separated by race date.
 """
 import json, sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 ROOT=Path(__file__).resolve().parents[1]
@@ -25,8 +25,10 @@ def analyze(root=ROOT):
             generated=datetime.fromisoformat(p["generated_at"])
             cutoff=datetime.fromisoformat(p["cutoff_jst"])
             deadline=datetime.fromisoformat(p["source_deadline_jst"])
-            if (generated.utcoffset() is None or cutoff.utcoffset() is None or deadline.utcoffset() is None
-                    or not generated < cutoff < deadline):
+            received = [datetime.fromisoformat(p[k]) for k in ("source_title_received_jst", "source_cards_received_jst")]
+            if (any(x.utcoffset() != timedelta(hours=9) for x in (generated, cutoff, deadline, *received))
+                    or deadline-cutoff != timedelta(minutes=12)
+                    or max(generated, *received) >= cutoff):
                 raise ValueError("unverified predeadline forecast")
             finish=q["finish_order"]
             if (not isinstance(finish,list) or len(finish)<3
