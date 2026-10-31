@@ -143,3 +143,9 @@
 - Render deploy `dep-dbj4t9qqphnc73dpt340` は後続main `75aafbffda84320751896610d4a4615dfe02be31` で live。GitHub比較でこのcommitは修正commit `39c2172` の1 commit後（behind 0）と確認。本番ブラウザで同じ津12Rを「展示→上部の予想」と操作し、`predictionVisible=true`、`exhibitionHidden=true`、内部選択 `prediction`、保存済み研究予想10点の表示を確認。
 - 予想モデル昇格なし。正式的中率・回収率は未検証のまま。#722/#723/#654（研究・収集）と#725（UIドラフト）は未変更・未統合。
 - 旧 `boat-edge` は別リポジトリ/別Pagesで、CLEAN Renderに旧サービスはない。ただし旧側の証拠保全・Actions依存が未解消で安全削除条件を満たさないため、停止・削除なし。残る最大障害は旧サイトの長期復元証拠/外部依存の未証明と、#725の実データ連携未完了。
+
+## 2026-11-01 202610310912の研究予想と確定結果の照合
+- GitHub mainに保存された `confirmed_results/202610310912.json` を取得。`finish_order=[2,1,3]`、`status=confirmed`、出典は2026-10-31確定結果CSV。`confirmed_at_jst` は公式の確定判定時刻ではなく取得時刻。
+- 前回確認済みの `research_snapshots/202610310912.json` および `prospective_predictions/202610310912.json` の10点に `2-1-3` は含まれない。単なる保存データと確定結果の突合としてはTop3/5/10すべて圏外。ただし初回Git保存時刻の正式監査が未完了であり、**正式的中/不的中率には計上しない**。
+- `preview_snapshots/202610310912.json` と `racecard_snapshots/202610310912.json` は指定パスで404。保存展示が存在しないという全体結論ではなく、正規保存先は引き続きデータ収集担当の証拠場所と照合が必要。
+- 研究予想の初回Git保存を証明するコミットは今回のGitHubコミット検索（レースコード）で特定できず、未監査のまま。旧リポジトリ変更、予想研究改変、重複PRは行わない。
