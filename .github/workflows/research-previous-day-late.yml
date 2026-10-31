@@ -6,7 +6,8 @@ on:
       - 'tests/test_evaluate_previous_day_late_artifacts.py'
       - '.github/workflows/research-previous-day-late.yml'
   schedule:
-    - cron: '15 0 * * *' # 09:15 JST, after prior-day result archiving
+    - cron: '15 0 * * *' # 09:15 JST: previous day
+    - cron: '15 3 * * *' # 12:15 JST: recheck 2 days prior after delayed results
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +27,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_evaluate_previous_day_late_artifacts.py' -v
       - name: Fetch prior immutable predictions and evaluate paired results
         if: github.event_name != 'pull_request'
-        run: python -m scripts.evaluate_previous_day_late_artifacts
+        run: python -m scripts.evaluate_previous_day_late_artifacts --days-ago ${{ github.event.schedule == '15 3 * * *' && '2' || '1' }}
       - name: Summarize actual comparison coverage
         if: github.event_name != 'pull_request'
         run: |
