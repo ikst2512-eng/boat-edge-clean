@@ -23,8 +23,12 @@ def audit(day, preview_root, repository_root):
                 record=json.loads(early_file.read_text(encoding="utf-8"))
                 generated=datetime.fromisoformat(record["generated_at"])
                 received=datetime.fromisoformat(pair["both_sources_received_at_jst"])
+                cutoff=datetime.fromisoformat(record["cutoff_jst"])
+                deadline=datetime.fromisoformat(record["source_deadline_jst"])
                 if (record.get("race_code")==code and record.get("status")=="research"
-                        and generated.utcoffset() is not None and received.utcoffset() is not None):
+                        and generated.utcoffset() is not None and received.utcoffset() is not None
+                        and cutoff.utcoffset() is not None and deadline.utcoffset() is not None
+                        and generated < cutoff < deadline and received < deadline):
                     row["early_forecast"]="valid"
                     row["preview_relative_to_early_forecast"]=(
                         "after" if received>generated else "before_or_equal")
