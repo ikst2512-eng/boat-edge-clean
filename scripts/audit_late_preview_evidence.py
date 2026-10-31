@@ -17,6 +17,10 @@ def audit(root="late_preview_evidence"):
     invalid=0
     total=0
     for path in Path(root).rglob("*.json"):
+        # Metadata and collection summaries are not per-race source evidence.
+        if (path.parent.name not in ("stt","tkz","sui","original_exhibition","od3")
+            or not path.stem.isascii() or not path.stem.isdigit() or len(path.stem)!=12):
+            continue
         total+=1
         try:
             row=json.loads(path.read_text(encoding="utf-8"))
