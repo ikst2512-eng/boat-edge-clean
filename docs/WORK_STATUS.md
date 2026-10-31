@@ -271,3 +271,7 @@
 - `scripts/audit_late_preview_evidence.py` の `incomplete_pair_reasons_by_race` を追加。T-12以前の要否とは別に、レースごとにSTT/TKZの `missing` / `incomplete` / `complete` を出力し、ペア不足の根本原因を区別。
 - `tests/test_audit_late_preview_evidence.py` に受信時刻が無効なTKZを欠損扱いする回帰アサーションを追加（commit `eaf180902`）。今回変更を含むCIの成功はまだ未確認。過去CI成功を新修正の成功と混同しない。
 - 現時点でGitHub Actionsの11/1 JST 08:00以降の公開時間帯に実行された定期preview保存を確認できず、実ライブT-12完全6艇ペアは依然未証明。main未統合。
+
+### 2026-11-01 最新欠損診断のCI実証（PR #723）
+- 専用CIが最新修正に反応しない問題に対し、既存 `late-preview-evidence-tests.yml` のpush対象へ作業ブランチを一時的に追加。run `41239801304` / commit `5aa3dee0` において保存・取得分類・JST日跨ぎ・T-12監査・6艇ペアの5系統すべてテストステップ成功、jobもsuccess。
+- これは `incomplete_pair_reasons_by_race` を含む現行コードの回帰テスト成功であり、実競走のT-12データ取得成功ではない。統合前に作業ブランチ専用CI条件を除く必要がある。main未統合。
