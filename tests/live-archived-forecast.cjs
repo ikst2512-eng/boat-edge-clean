@@ -171,6 +171,22 @@ const {chromium}=require('playwright');
   const live31=await page.evaluate(()=>({key:displayedPredictionKey,tickets:predictionTickets.slice(),status:document.getElementById('predictionStatus').textContent}));
   if(live31.tickets.length!==10||!live31.status.includes('研究予想'))throw Error('OCT31_FORECAST_NOT_VISIBLE '+JSON.stringify(live31));
   console.log('PASS: 2026-10-31 actual stored ten-ticket research prediction appears in published forecast');
+  // Public UX contract: the forecast is first, only one venue selector is visible,
+  // and the home page has no back button.
+  await page.evaluate(()=>{setView('forecast');render()});
+  const forecastUi=await page.evaluate(()=>{
+    const root=document.getElementById('forecast');
+    const forecast=root.querySelector('.forecast-combined-race');
+    const list=root.querySelector('.forecast-race-list');
+    const preview=root.querySelector('.forecast-inline-preview');
+    const venue=document.getElementById('forecastVenue');
+    return {first:root.firstElementChild===forecast,forecastBeforeList:!!(forecast.compareDocumentPosition(list)&Node.DOCUMENT_POSITION_FOLLOWING),forecastBeforePreview:!!(forecast.compareDocumentPosition(preview)&Node.DOCUMENT_POSITION_FOLLOWING),selectorVisible:!!venue&&getComputedStyle(venue).display!=='none',duplicateVenueVisible:getComputedStyle(root.querySelector('.result-venue-picker')).display!=='none'}
+  });
+  if(!forecastUi.first||!forecastUi.forecastBeforeList||!forecastUi.forecastBeforePreview||!forecastUi.selectorVisible||forecastUi.duplicateVenueVisible)throw Error('FORECAST_NOT_FIRST_OR_DUPLICATE_VENUE '+JSON.stringify(forecastUi));
+  await page.evaluate(()=>{setView('home');render()});
+  const homeUi=await page.evaluate(()=>({back:!document.getElementById('raceBrowserToolbar').hidden,home:!document.querySelector('[data-home-only]').hidden}));
+  if(homeUi.back||!homeUi.home)throw Error('HOME_BACK_STILL_VISIBLE '+JSON.stringify(homeUi));
+  console.log('PASS: Public forecast first, one visible venue selector and home with no back button');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }finally{await browser.close()}
