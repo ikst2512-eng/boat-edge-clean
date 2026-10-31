@@ -350,3 +350,7 @@
 - main commit `2bf7a5361f9bbb8b2efcd066c88a07f1741d28a7` で既存workflowへ `cron: '17 14 * * *'`（JST 23:17、収集予定終了後）を追加。新しいworkflow・取得writer・モデル変更は作っていない。main再取得でcron反映を確認。
 - 注意: GitHub scheduled Actionsの起動は遅延・欠落し得る。設定反映のみ確認済みで、初回の定時実行成功・収集のT-12完全6艇ペアは未確認。監査はrun件数と状態のみ集計し、race evidence本体はcapture artifactで別途確認が必要。
 - 次: 08:03–21:58 JSTのcapture scheduled run、23:17 JST以降のaudit scheduled run、それぞれのartifactで同一レースSTT+TKZ 6艇の締切・受信時刻を実測する。取得できなければ欠損原因とジョブ動作を分離して修正する。
+
+## 2026-11-01 夜間監査で定期収集未実行を検知
+- 既存 `scripts/audit_preview_scheduled_runs.py` は定期収集run 0件でも成功終了していた。main `c45566a7e274704bf767bc5de1cabf6f7d24f4d7` で、**監査自体がschedule起動された場合のみ**同日JSTの `late-preview-capture` scheduled runが0件なら`NO_SCHEDULED_PREVIEW_CAPTURE_TODAY`でexit nonzero。PR/手動監査は診断のままで失敗判定しない。main再取得で修正反映確認。
+- これは収集データ成功の証明ではなく、ジョブが丸ごと未実行となる障害の検出強化。CIの最新実行成功と当日8時以降の完全6艇T-12証拠は未確認。旧サイト撤去の可否は変わらない。
