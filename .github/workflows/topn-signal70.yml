@@ -62,3 +62,23 @@ jobs:
           PY
       - name: October 31 independent follow-up (pending excluded)
         run: python compare_topn_signal70.py 20261031
+
+      - name: Probe live payout CSV with confirmed-result join
+        run: |
+          python - <<'PY'
+          import csv,io
+          from urllib.request import urlopen,Request
+          from urllib.error import HTTPError,URLError
+          from collect_clean_payouts import parse
+          url="https://boatracecsv.github.io/data/results/payouts/2026/10/30.csv"
+          try:
+              with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-PAYOUTS/1.0"}),timeout=20) as r:
+                  data=r.read(2000001)
+              print("PAYOUT_SOURCE_COLUMNS",csv.DictReader(io.StringIO(data.decode("utf-8-sig"))).fieldnames)
+              joined=parse("20261030",data)
+              print("PAYOUT_JOINED_RACES",len(joined))
+              if not joined:raise SystemExit("NO_PAYOUT_JOIN")
+          except (HTTPError,URLError) as err:
+              print("PAYOUT_SOURCE_ERROR",repr(err))
+              raise
+          PY
