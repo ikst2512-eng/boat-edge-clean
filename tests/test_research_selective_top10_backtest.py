@@ -13,7 +13,7 @@ class SelectiveStudyPredeadlineTest(unittest.TestCase):
             root = Path(tmp)
             (root / "research_snapshots").mkdir()
             (root / "confirmed_results").mkdir()
-            rates = [60, 50, 40, 30, 20, 10]
+            rates = [6, 5, 4, 3, 2, 1]
             tickets = ["-".join(map(str, t)) for t, _ in probabilities(rates)[:10]]
             items = [
                 ("202610300101", "2026-10-30T10:00:00+09:00", [1, 2, 3]),
