@@ -68,6 +68,32 @@ class TopNCohortTests(unittest.TestCase):
             self.assertEqual(data["counts"]["audit_rejected"],1)
             self.assertEqual(data["counts"]["evaluated"],0)
 
+    def test_new_independent_payout_evidence_requires_matching_confirmed_record(self):
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/"payout_evidence").mkdir()
+            (root/"confirmed_results").mkdir()
+            code="202610310101"
+            result={"race_code":code,"status":"confirmed","finish_order":[1,2,3],"source_sha256":"a"*64}
+            evidence={"schema":"CLEAN_TRIFECTA_PAYOUT_EVIDENCE_V1","race_code":code,
+                      "verified_against_confirmed_finish":True,
+                      "winning_ticket":"1-2-3","payout_yen_per_100":1250,
+                      "source_url":"https://boatracecsv.github.io/data/results/payouts/2026/10/31.csv",
+                      "source_sha256":"b"*64,"confirmed_result_source_sha256":"a"*64}
+            rp=root/"confirmed_results"/(code+".json")
+            ep=root/"payout_evidence"/(code+".json")
+            rp.write_text(json.dumps(result))
+            ep.write_text(json.dumps(evidence))
+            self.assertEqual(verified_payout(code,root),("1-2-3",1250))
+            evidence["winning_ticket"]="1-3-2"
+            ep.write_text(json.dumps(evidence))
+            self.assertIsNone(verified_payout(code,root))
+            evidence["winning_ticket"]="1-2-3"
+            evidence["confirmed_result_source_sha256"]="c"*64
+            ep.write_text(json.dumps(evidence))
+            self.assertIsNone(verified_payout(code,root))
+
     def test_unverified_payout_is_rejected(self):
         import json
         with tempfile.TemporaryDirectory() as tmp:
