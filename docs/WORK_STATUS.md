@@ -411,3 +411,12 @@
 - Render本番でレース切替中の `BrokenPipeError` が観測されていた。既存PR #742の `server.py` はレスポンス本文の `wfile.write` のみ `BrokenPipeError` / `ConnectionResetError` を捕捉し、無害なクライアント切断の例外ログを抑制する。HTTP状態・データ判定は変更しない。
 - PR head `ba2017442d1ffc3ce8ebaa84959545a612ea523c` に対するCLEAN regression run `41241878387` がsuccess、Navigation regressionもsuccessと確認。main統合 `80b1adbc504a4450414e319b11ce812de5004c47`。統合後デプロイと実ブラウザ検証は未確認。
 - #741の4タブ公開Pages smokeはPR CIで成功済み。公開後のiPhone Safari実機表示と実レースT-12完全6艇ペアは未証明。旧repo/Pages停止なし。
+
+
+## 2026-11-01 PR #725統合後の過去日程5xx回帰修正（PR #740）
+- 既存PR #725はmain `48b8e7f73ba543abfa8e9def115925f3e8837a6d` に統合済み。BOATERSを参考にした独自の1ページ予想UIを再実装せず、差分を監査した。
+- #725で後退した過去日程APIのHTTP 5xxフォールバックと削除されていた回帰アサーションをPR #740で復元。当日5xxはfail-closedのまま。main squash `675a0bd4667f19549db08e2b8361a4a92e8ffca0`。
+- ローカル: navigation contract 6件OK、site-regression全件PASS、diff-check PASS。PR head `09f31228995b7e36b9a573220330045f48a4f315` のNavigation `41241650214`、CLEAN regression `41241650136`、Cross-model `41241650186`、Daily findings `41241650193`、Official odds `41241650176`、Dual verification `41241650122`、daily schedule `41241650160` はsuccess。Mobile browserはpath filterでskip。
+- 統合commitのpush ActionsはDaily findings `41241737540`、Dual verification `41241737526`、Mobile browser `41241737469`、CLEAN regression `41241737677`、Navigation `41241737610`、Official odds `41241737605`、Odds parser `41241737589`、Pages publish `41241737457` がsuccess。
+- Render deploy `dep-dbj5f1e417fc73aj5fbg` は同一commitでlive到達。公開Render/Pagesの `2026-10-31 津12R` を実ブラウザ確認し、確定結果「2-1-3」/払戻6,230円が予想より上、Top10、展開、先頭艇別、6艇成績枠を表示。証拠不足値は「未取得」で捏造表示なし。
+- モデル昇格・正式採点・仮想購入・精度向上主張なし。旧repo/旧Pagesは停止していない。最大の残件は締切前時刻が証明された6艇の実コース別率と先頭艇条件付き率の期間・分母・出典。
