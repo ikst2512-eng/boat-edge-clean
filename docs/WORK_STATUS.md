@@ -51,3 +51,12 @@
 - #652 CI run `41210366375` は、現行4タブ仕様により非選択 `#forecast` が hidden なのに可視状態を待つテストがタイムアウト。PR #652 の `tests/forecast-odds-rendered.cjs` を `state:'attached'` へ修正（commit `5100581dfc32249156af57aef7bb882c829b7873`）。この変更のCI再検証は未完了、main未統合。
 - 旧サイトの削除と過去レース表示の公開実測は未完了。#654はデータ収集担当のPRとして変更対象外。
 - 次の優先作業: #652 CI修正の確認、旧サイト/現行サイトのデプロイ依存照合、2026-10-31の公開過去レース表示確認。
+
+## 2026-11-01 データ取得・保存担当（独立PR、main未統合）
+- 対象: `late_preview_capture.save_preview` のappend-only保存。既存の後続レースファイルとの衝突で、同一CSV内の先行レースだけ書き出してから `FileExistsError` となる非原子的バッチを発見。
+- 変更: バッチ全件の保存先を事前計算し、既存証拠との衝突を全件preflight。衝突時は一件も新規保存せず、既存ファイルは変更しない。回帰テスト2件追加。
+- 対象ファイル: `late_preview_capture.py`, `tests/test_late_preview_capture.py`。予想モデル・画面・main・既存PR #654の変更ファイルには手を加えない。
+- 実測: GitHub mainの収集ワークフロー `late-preview-capture.yml` と `research-live-preview-evidence.yml` は別々の5分間隔スケジュールを持つ。役割（isolated evidence / late research candidate）が異なり、無条件の停止・削除は行わない。
+- 取得品質: 2026-10-31蒲郡8Rの6艇保存実績は過去記録として存在するが、T-12時点の受信証拠は未確認。公式beforeinfo / BOATERS / 競艇日和 / 実オッズの6艇同期取得保証も未証明。T-12保証を宣言しない。
+- テスト/CI: PR側CI実行結果で別途確認。公開本番の変更なし。
+- 次: PRの回帰テストを確認し、予定実行artifactの受信時刻・HTTP失敗率・6艇ペア率を収集。#654のpaired coverage差分は重複実装せず取り込み判断をメイン担当に委譲。
