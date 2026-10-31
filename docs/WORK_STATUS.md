@@ -92,3 +92,10 @@
 - 最新commitに対する check-runs API返却は0件。**CI成功とは記録しない**。また今回の修正後に1号艇強度別の実測比較は行えていない。正式first-add証拠も未確認。
 - 研究用Top10の直近時系列ホールドアウト40.77%は修正前の集計であり、新しい1号艇群別の精度指標として流用しない。
 - 必要な次の検証：`python -m unittest -v test_research_prerace_feature_audit` および `python scripts/research_prerace_feature_audit.py` のCI実行結果を取得し、discovery/holdoutの群別分母・的中・差分を記録。効果が未確認ならモデルを変更しない。
+
+### 2026-11-01 1号艇全国勝率での時系列分割検証（CI実測）
+- Research forecast checks に既存の pre-race feature audit 単体テストと実データレポートを追加（`ba976b6`）、GitHub Actions job `124643649532` **success**。41件の既存研究テストと feature audit 1件を成功確認。
+- 実データ検証 `scripts/research_prerace_feature_audit.py`: 除外0。discovery（20261029以前）348R Top10 146/348=41.95%、1号艇が6艇で全国勝率最大79R 53/79=67.09%、非最大269R 93/269=34.57%。
+- holdout（20261030以後）239R Top10 103/239=43.10%、1号艇最高54R 31/54=57.41%、それ以外185R 72/185=38.92%。差18.49ポイント。選別された54Rは239Rの22.59%であり、全レースの予測精度向上ではない。
+- 1号艇勝率が他艇より2ポイント以上大きい群はholdout 0Rで判定不能。事前特徴量として実逃げ率、壁/展示/ST/進入/風の寄与は依然未計測。研究用の事前スナップショットで、Git remote first-add正式監査は未完了。
+- 係数・確率順位を変更せず、特徴量の選別仮説として維持。後続データの独立検証で再現するまで本番採用しない。
