@@ -262,11 +262,12 @@ jobs:
                 if(!visible)throw Error('Public tab broken: '+view);
               }
               // Prove the published results tab renders real archived data, not merely a visible empty panel.
-              await page.evaluate(async () => {
+              await page.evaluate(() => {
+                datePinned=true;venueTouched=true;venueSpecified=true;
                 s.date='2026-10-27';s.venue=0;s.race=1;
-                setView('result');render();await loadResult(true);
+                setView('result');render();
               });
-              await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000});
+              try{await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000})}catch(error){throw Error('PUBLIC_ARCHIVED_RESULT_NOT_VISIBLE '+JSON.stringify(await page.evaluate(()=>({key:sameRaceKey(),view:activeView,status:document.getElementById('resultStatus')?.textContent,detail:document.getElementById('resultDetail')?.textContent?.slice(0,240)})))+' '+error.message)}
               const actual=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
               if(actual.join('-')!=='3-4-1')throw Error('PUBLIC_ARCHIVED_RESULT_MISMATCH: '+actual.join('-'));
               await page.locator('#resultStatus').filter({hasText:'CLEAN保存済み結果'}).waitFor({state:'visible',timeout:30000});
