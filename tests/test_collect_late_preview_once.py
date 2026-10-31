@@ -16,6 +16,7 @@ class Integration(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             outcome=collect(day="20261031",root=folder,fetch=fetch,clock=now)
             self.assertEqual(outcome["kinds"]["stt"]["saved"],1)
+            self.assertIn("paired_complete",outcome["paired_six_lane_coverage"])
             self.assertEqual(outcome["kinds"]["stt"]["pre_deadline_2min"]["pre_cutoff_observed"],1)
             self.assertEqual(outcome["kinds"]["stt"]["pre_deadline_12min"]["pre_cutoff_observed"],0)
             self.assertTrue((Path(folder)/"20261031"/"stt"/"202610310111.json").is_file())
@@ -36,6 +37,7 @@ class Integration(unittest.TestCase):
             self.assertEqual(result["sources_available"],0)
             self.assertEqual(result["sources_unavailable"],5)
             self.assertEqual(result["saved_total"],0)
+            self.assertEqual(result["paired_six_lane_coverage"]["paired_complete"],0)
             self.assertTrue(all(v["http_status"]==404 for v in result["kinds"].values()))
 
     def test_before_publication_404_is_not_claimed_as_outage(self):
