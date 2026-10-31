@@ -67,4 +67,6 @@ if __name__=="__main__":
     root=Path("late_research_candidates")
     collected=retrieve(day,root,repository,token)
     result=evaluate(day,root,Path("."))
-    print(json.dumps({"artifact_recovery":collected,"paired_evaluation":result},ensure_ascii=False))
+    report={"artifact_recovery":collected,"paired_evaluation":result}
+    Path("late_research_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(json.dumps(report,ensure_ascii=False))
