@@ -1,0 +1,28 @@
+name: Research independent late preview evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/collect_live_preview_evidence.py'
+      - '.github/workflows/research-live-preview-evidence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture eligible predeadline preview rows
+        run: python scripts/collect_live_preview_evidence.py
+      - name: Archive separately from research predictions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-late-preview-${{ github.run_id }}
+          path: late_preview_evidence/
+          retention-days: 7
+          if-no-files-found: ignore
