@@ -116,3 +116,8 @@
 - `scripts/audit_late_preview_evidence.py` の既存 `rglob('*.json')` は `collection_summary.json` 等の非レースJSONを不正なレース証拠として数え得た。ディレクトリ種別と12桁ASCIIレースコードを先に検査し、監査集計対象からメタデータを除外。
 - `tests/test_audit_late_preview_evidence.py` にサマリーJSONでinvalid/recordsが増えない回帰テスト追加。既存Actions run `41237934711` の4系統テストステップ成功を確認、全体終了判定は追確認。
 - 新しい実ライブT-12完全6艇ペアを実証したものではない。PR #723のみ、main未統合。
+
+### 2026-11-01 T-12不合格理由のレース別出力（PR #723）
+- 6艇完全ペアであってもT-12時刻に間に合わないレースについて、STT/TKZそれぞれの時刻判定・受信時刻・レースコードを監査JSONの `paired_complete_but_not_t12` に出力するよう修正。完全性合格と予想時点の利用可能性を分離する。
+- `tests/test_audit_late_preview_evidence.py` に不合格理由の回帰アサーション追加。Actions run `41238036094` の4種ユニットテストステップ成功を確認。実レースT-12完全ペア取得は未証明。
+- main未統合、サイトとモデルは未変更。
