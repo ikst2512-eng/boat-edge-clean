@@ -31,6 +31,16 @@ class LatePreviewEvidenceTests(unittest.TestCase):
                 save_preview(raw, "tkz", "20261031", receipt, root)
             self.assertEqual(json.loads(path.read_text()), record)
 
+    def test_accepts_full_datetime_deadline_consistent_with_classifier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt=datetime(2026,10,31,11,2,tzinfo=JST)
+            for deadline in ("2026-10-31 11:20:00", "2026-10-31T11:20:00+09:00"):
+                with self.subTest(deadline=deadline):
+                    root=Path(directory)/str(len(list(Path(directory).iterdir())))
+                    saved=save_preview(csv_row(deadline=deadline),"tkz","20261031",receipt,root)
+                    self.assertEqual(saved,["202610310101"])
+                    self.assertTrue((root/"20261031/tkz/202610310101.json").exists())
+
     def test_rejects_late_receipt_and_future_source(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
