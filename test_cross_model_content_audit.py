@@ -28,7 +28,7 @@ class CrossModelAuditTests(unittest.TestCase):
                     self.assertNotIn(legacy, source)
                 # Inspect literal remote endpoints only; dynamic host
                 # construction needs separate runtime checks.
-                for value in re.findall(r'https?://[^\\s\\"\\x27<>]+', source):
+                for value in re.findall(r"""https?://[^\s"'<>]+""", source):
                     host = urlsplit(value).hostname
                     if host and "{" not in host:
                         self.assertIn(host, allowed_hosts, (name, value))
