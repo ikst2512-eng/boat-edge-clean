@@ -1,4 +1,6 @@
 (()=>{'use strict';
+if(document.documentElement.dataset.cleanNavigationInit==='1')return;
+document.documentElement.dataset.cleanNavigationInit='1';
 const nav=document.querySelector('.site-global-nav');
 if(!nav)return;
 const params=location.search;
@@ -17,22 +19,13 @@ nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
 }));
 const logo=document.querySelector('.site-head .logo');
 if(logo){const a=document.createElement('a');a.href='/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
-const strip=document.querySelector('.active-race-strip');
-if(strip){const a=document.createElement('a');a.href='/';a.className='back-to-venues';a.textContent='‹ 場を選び直す';strip.prepend(a);
-const update=()=>{const home=document.querySelector('[data-home-only]');a.hidden=!!home&&!home.hidden;};
-update();
-new MutationObserver(update).observe(document.querySelector('[data-home-only]'),{attributes:true,attributeFilter:['hidden']});}
 const css=document.createElement('style');
-css.textContent='.logo-link{color:inherit;text-decoration:none}.logo-link:focus-visible,.back-to-venues:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}.site-global-nav.compact-nav{display:flex;justify-content:flex-end;gap:10px;padding:8px 16px;overflow:visible}.site-global-nav.compact-nav a{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border:1px solid #cbd9e8;border-radius:9px;text-decoration:none;font-weight:800}.back-to-venues{display:inline-flex;align-items:center;color:#155eae;text-decoration:none;font-weight:800;border:1px solid #cbd9e8;border-radius:9px;padding:7px 10px;background:white}.back-to-venues[hidden]{display:none!important}@media(max-width:420px){.site-global-nav.compact-nav{justify-content:center}.site-global-nav.compact-nav a{flex:1;text-align:center}}';
+css.textContent='.logo-link{color:inherit;text-decoration:none}.logo-link:focus-visible, .logo-link:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}.site-global-nav.compact-nav{display:flex;justify-content:flex-end;gap:10px;padding:8px 16px;overflow:visible}.site-global-nav.compact-nav a{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border:1px solid #cbd9e8;border-radius:9px;text-decoration:none;font-weight:800}@media(max-width:420px){.site-global-nav.compact-nav{justify-content:center}.site-global-nav.compact-nav a{flex:1;text-align:center}}';
 document.head.append(css);
 
 // Navigation history for in-page race/detail changes. Browser back/forward restore both
 // selected race and active panel without resetting to the home screen.
-const toolbar=document.createElement('div');toolbar.className='race-browser-toolbar';
-const back=document.createElement('button');back.type='button';back.textContent='‹ 戻る';back.setAttribute('aria-label','ひとつ前の画面に戻る');
-const home=document.createElement('a');home.href='/';home.textContent='開催場を選ぶ';home.setAttribute('aria-label','開催場選択へ戻る');
-toolbar.append(back,home);
-const navHost=document.querySelector('.site-global-nav');navHost?.insertAdjacentElement('afterend',toolbar);
+const back=document.getElementById('raceViewBack');
 const originalSetView=typeof setView==='function'?setView:null;
 const originalRender=typeof render==='function'?render:null;
 let restoring=false;
@@ -62,7 +55,7 @@ const sync=()=>{
  history.pushState({boatEdgeNav:true,position,snapshot:next},'',u);
  refresh();
 };
-const refresh=()=>{back.disabled=false;back.setAttribute('aria-disabled','false');};
+const refresh=()=>{};
 if(originalSetView){
  setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
@@ -81,21 +74,7 @@ window.addEventListener('popstate',event=>{
  history.replaceState(state,'',location.href);
  restoring=false;refresh();
 });
-back.addEventListener('click',()=>{
- if(position>0){history.back();return;}
- if(document.referrer){try{if(new URL(document.referrer).origin===location.origin){history.back();return;}}catch(_){}}
- if(activeView!=='home'&&originalSetView&&originalRender){
-  restoring=true;originalSetView('home');originalRender();
-  current=snapshot();const homeUrl=new URL('/',location.origin);homeUrl.searchParams.set('date',current.date);homeUrl.searchParams.set('venue',String(current.venue+1));homeUrl.searchParams.set('race',String(current.race));history.replaceState({boatEdgeNav:true,position:0,snapshot:current},'',homeUrl);
-  restoring=false;refresh();return;
- }
- location.assign('/');
-});
-refresh();
-const browserStyle=document.createElement('style');
-browserStyle.textContent='.race-browser-toolbar{display:flex;justify-content:space-between;gap:8px;max-width:900px;margin:0 auto;padding:8px 14px}.race-browser-toolbar button,.race-browser-toolbar a{font-size:14px;font-weight:800;border:1px solid #cbd9e8;border-radius:9px;background:#fff;color:#174066;padding:9px 14px;text-decoration:none;min-height:40px}.race-browser-toolbar button:disabled{opacity:.5}.race-browser-toolbar a{text-align:center}@media(max-width:420px){.race-browser-toolbar button,.race-browser-toolbar a{flex:1}}';
-document.head.append(browserStyle);
-
+document.querySelectorAll('.race-detail-shortcuts').forEach(node=>node.remove());
 const details=document.createElement('nav');details.className='race-detail-shortcuts';
 details.setAttribute('aria-label','選択レースの情報');
 for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
@@ -103,7 +82,7 @@ for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示�
  b.addEventListener('click',()=>{if(typeof setView!=='function'||typeof render!=='function')return;setView(view);render();document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});});
  details.append(b);
 }
-toolbar.insertAdjacentElement('afterend',details);
+document.querySelector('.active-race-strip')?.insertAdjacentElement('afterend',details);
 const updateDetails=()=>{
  const isHome=!!document.querySelector('[data-home-only]:not([hidden])');
  details.hidden=isHome;details.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-current',String(b.dataset.raceView===activeView));});
