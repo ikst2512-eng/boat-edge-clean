@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/research_topn_batch_audit.py'
+      - 'tests/test_research_mass_cohort_audit.py'
       - 'research_model.py'
       - 'collect_research_daily.py'
       - 'tests/test_daily_research_mass_contract.py'
@@ -36,5 +37,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_scheduled_research_selector.py' -v
       - name: Parse embedded workflow Python scripts
         run: python -m unittest discover -s tests -p 'test_research_workflow_embedded_python.py' -v
+      - name: Verify research mass cohorts
+        run: python -m unittest discover -s tests -p 'test_research_mass_cohort_audit.py' -v
       - name: Count stored research forecasts against confirmed results
         run: python scripts/research_topn_batch_audit.py
