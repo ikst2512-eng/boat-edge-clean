@@ -18,6 +18,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python -m py_compile scripts/verify_live_racecard_e2e.py
+  historical-production-smoke:
+    # Unlike the time-dependent live-race job, this performs a real HTTP check
+    # on pull requests even when no upcoming race is available.
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify six distinct racers in historical Render racecard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+          url = "https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261031&jcd=09&rno=12"
+          with urlopen(Request(url, headers={"User-Agent": "CLEAN-history-smoke/1.0"}), timeout=35) as response:
+              assert response.status == 200, f"HTTP {response.status}"
+              data = json.load(response)
+          assert data.get("race_key") == "20261031-09-12", "wrong race returned"
+          assert data.get("meta", {}).get("historical_reference_only") is True, "not marked historical"
+          racers = data.get("racers") or []
+          assert len(racers) == 6, f"expected six racers, got {len(racers)}"
+          assert sorted(r["lane"] for r in racers) == [1, 2, 3, 4, 5, 6], "lane mismatch"
+          ids = [r["registration_no"] for r in racers]
+          assert len(set(ids)) == 6 and all(len(str(v)) == 4 for v in ids), "invalid registrations"
+          assert data.get("source_audit", {}).get("race_card", {}).get("status") == "ok", "source audit missing"
+          print("HISTORICAL_RENDER_SIX_RACER_SMOKE_PASS", data["race_key"], data["meta"]["source"])
+          PY
   e2e-live-race:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
