@@ -40,6 +40,16 @@ def cohort(day, root=ROOT, scorer=evaluate):
                 continue
             if outcome["status"]!="evaluated" or outcome.get("formal") is not False or outcome.get("audited") is not True:
                 raise ValueError("untrusted evaluation")
+            rank=outcome.get("rank")
+            if rank is not None:
+                if type(rank) is not int or not 1 <= rank <= 10:
+                    raise ValueError("invalid winning rank")
+                if any(outcome.get(key) is not (rank <= size) for key, size in (("top3",3),("top5",5),("top10",10))):
+                    raise ValueError("inconsistent top-n hit flags")
+            if any(type(outcome.get(key)) is not bool for key in hits):
+                raise ValueError("invalid top-n hit flags")
+            if not (outcome["top3"] <= outcome["top5"] <= outcome["top10"]):
+                raise ValueError("nonmonotonic top-n hit flags")
             counts["evaluated"]+=1
             for n in hits:
                 hits[n]+=int(outcome[n] is True)
