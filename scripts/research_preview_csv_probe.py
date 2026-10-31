@@ -15,6 +15,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from research_model import JST
+from preview_timing_integrity import classify
 
 BASE="https://boatracecsv.github.io/data/previews/"
 KINDS=("stt","tkz","sui","original_exhibition","od3")
@@ -38,9 +39,13 @@ def inspect(day, fetch=None):
             codes={r.get("レースコード") for r in rows if r.get("レースコード")}
             if any(len(c)!=12 or not c.isascii() or not c.isdigit() or not c.startswith(day) for c in codes):
                 raise ValueError("invalid race code")
-            records[kind]={"status":"retrieved","rows":len(rows),"race_codes":len(codes),
+            received=datetime.now(JST)
+            timing={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
+            for row in rows:
+                timing[classify(row, received)]+=1
+            records[kind]={"status":"retrieved","rows":len(rows),"race_codes":len(codes),"timing_12min":timing,"timestamp_samples":[{"締切時刻":r.get("締切時刻"),"取得日時":r.get("取得日時")} for r in rows[:2]],
                            "sha256":hashlib.sha256(raw).hexdigest(),"column_names":list(rows[0])[:18] if rows else [],
-                           "received_at_jst":datetime.now(JST).isoformat()}
+                           "received_at_jst":received.isoformat()}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
             records[kind]={"status":"unavailable","error_type":type(exc).__name__}
     return {"date":day,"forecast_12min_cutoff_compatible":False,
