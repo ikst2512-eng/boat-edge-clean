@@ -376,3 +376,10 @@
 ## 2026-11-01 夜間監査で全収集失敗を検出
 - 夜間監査が当日の定期収集run数を数えるだけだったため、1回以上実行されたがすべてfailureの場合にも正常終了する可能性があった。main `d27ba36e8064a8f850c711bc6e1445edb86221ea` で、夜間schedule監査時のみ当日定期収集の全ジョブがcompleted/failureなら `ALL_TODAY_SCHEDULED_PREVIEW_CAPTURES_FAILED` として不合格にする。手動・PR監査は診断のまま。main再取得で反映確認。
 - この変更のCI/実行結果およびT-12実レース完全6艇ペアは未確認。旧サイトは停止・変更していない。
+
+
+## 2026-11-01 監査ワークフローのmain push起動漏れ対処
+- `.github/workflows/audit-preview-scheduled-runs.yml` に `push: branches [main]` と監査スクリプト・テスト・workflowパスの絞り込みを追加。commit `6044c93f3790c119671a5ed832c8b4abf9dd4d9f`、main再取得でpushトリガーと回帰テスト登録を確認。
+- 先行の監査コードは `scheduled_last_24h` と成功/失敗数を報告し、nightly scheduleで同日JSTのcapture 0件なら失敗する。CIの成功と6艇保存証拠は別物。
+- コミット連動のPR run APIでは当該main pushの新規実行は表示されず、CI合否は未確認。main pushの実runをGitHub Actionsのworkflow履歴で別途確認する必要がある。
+- 実レースT-12完全STT+TKZ 6艇ペアの根拠は未取得。08時以降のscheduled capture artifact（race code、source SHA、受信JST、締切）確認まで旧サイト停止不可。
