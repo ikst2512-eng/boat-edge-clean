@@ -1,0 +1,51 @@
+import io, json, tempfile, unittest, zipfile
+from pathlib import Path
+from scripts.evaluate_previous_day_late_artifacts import extract_candidates, retrieve
+
+
+def archive(entries):
+    stream=io.BytesIO()
+    with zipfile.ZipFile(stream,"w") as zipfile_out:
+        for name,record in entries.items():
+            zipfile_out.writestr(name,json.dumps(record))
+    return stream.getvalue()
+
+
+class PriorArtifactTest(unittest.TestCase):
+    def test_only_valid_late_candidates_are_imported_and_immutable(self):
+        day="20261031"
+        code="202610310708"
+        record={"race_code":code,"status":"research_candidate_unvalidated",
+                "research_only":True,"predictions":["1-2-3"]}
+        blob=archive({"late_research_candidates/"+day+"/"+code+".json":record,
+                      "research_snapshots/"+day+"/"+code+".json":record,
+                      "late_research_candidates/20261030/202610300708.json":record,
+                      "../evil.json":record})
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            self.assertEqual(extract_candidates(blob,day,root),1)
+            self.assertEqual(extract_candidates(blob,day,root),0)
+            self.assertFalse((root/"evil.json").exists())
+            path=root/day/(code+".json")
+            self.assertEqual(json.loads(path.read_text())["race_code"],code)
+            altered=archive({"late_research_candidates/"+day+"/"+code+".json":dict(record,predictions=["2-1-3"])})
+            with self.assertRaisesRegex(ValueError,"conflicting"):
+                extract_candidates(altered,day,root)
+            self.assertEqual(json.loads(path.read_text())["predictions"],["1-2-3"])
+
+    def test_recovers_eligible_artifact_without_inventing_data(self):
+        day="20261031"
+        code="202610310708"
+        blob=archive({"late_research_candidates/"+day+"/"+code+".json":{
+            "race_code":code,"status":"research_candidate_unvalidated","research_only":True}})
+        def fetch(url):
+            if "page=1" in url:
+                return json.dumps({"artifacts":[{"name":"independent-late-preview-123",
+                     "expired":False,"archive_download_url":"https://example.test/artifact"}]}).encode()
+            return blob
+        with tempfile.TemporaryDirectory() as tmp:
+            result=retrieve(day,tmp,"example/repo","mock",fetch)
+            self.assertEqual(result["imported_immutable_candidates"],1)
+
+if __name__=="__main__":
+    unittest.main()
