@@ -9,6 +9,8 @@ on:
       - 'tests/test_late_preview_feature_pairs.py'
       - 'scripts/late_research_candidate.py'
       - 'tests/test_late_research_candidate.py'
+      - 'scripts/archive_late_research_candidates.py'
+      - 'tests/test_archive_late_research_candidates.py'
       - 'scripts/late_research_comparison_audit.py'
       - 'tests/test_late_research_comparison_audit.py'
   schedule:
@@ -34,6 +36,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_late_research_comparison_audit.py' -v
       - name: Test independent late research candidate
         run: python -m unittest discover -s tests -p 'test_late_research_candidate.py' -v
+      - name: Test prospective immutable late forecast archive
+        run: python -m unittest discover -s tests -p 'test_archive_late_research_candidates.py' -v
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Summarize fully validated late-preview features
@@ -42,11 +46,15 @@ jobs:
         run: python -m scripts.late_research_comparison_audit
       - name: Print unvalidated independent late research candidates
         run: python -m scripts.late_research_candidate
+      - name: Archive only genuinely prospective late candidate forecasts
+        run: python -m scripts.archive_late_research_candidates
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: independent-late-preview-${{ github.run_id }}
-          path: late_preview_evidence/
+          path: |
+            late_preview_evidence/
+            late_research_candidates/
           retention-days: 7
           if-no-files-found: ignore
