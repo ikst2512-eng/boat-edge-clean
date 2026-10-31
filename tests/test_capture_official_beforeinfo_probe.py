@@ -19,6 +19,7 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(result["complete_six_lanes"],"unverified")
             manifest_path=Path(d)/"20261101/202611010708/manifest.json"
             self.assertTrue(manifest_path.exists())
+            self.assertTrue((manifest_path.parent/"beforeinfo.html").exists())
             saved=json.loads(manifest_path.read_text())
             raw=(manifest_path.parent/"beforeinfo.html").read_bytes()
             self.assertEqual(saved["sha256"],hashlib.sha256(raw).hexdigest())
