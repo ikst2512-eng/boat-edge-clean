@@ -25,7 +25,7 @@ def analyze(root=ROOT):
             generated=datetime.fromisoformat(p["generated_at"])
             cutoff=datetime.fromisoformat(p["cutoff_jst"])
             deadline=datetime.fromisoformat(p["source_deadline_jst"])
-            if (generated.tzinfo is None or cutoff.tzinfo is None or deadline.tzinfo is None
+            if (generated.utcoffset() is None or cutoff.utcoffset() is None or deadline.utcoffset() is None
                     or not generated < cutoff < deadline):
                 raise ValueError("unverified predeadline forecast")
             finish=q["finish_order"]
@@ -34,7 +34,7 @@ def analyze(root=ROOT):
                     or len(set(finish[:3]))!=3):
                 raise ValueError("invalid finish")
             rates=p["national_win_rates"]
-            if len(rates)!=6 or any(not isinstance(x,(int,float)) or isinstance(x,bool) or not 0<x<20 for x in rates):raise ValueError("invalid rates")
+            if not isinstance(rates,list) or len(rates)!=6 or any(type(x) not in (int,float) or not 0<x<20 for x in rates):raise ValueError("invalid rates")
             tickets=p["predictions"]
             if (not isinstance(tickets,list) or len(tickets)!=10 or len(set(tickets))!=10
                     or any(not isinstance(t,str) or len(t.split("-"))!=3
