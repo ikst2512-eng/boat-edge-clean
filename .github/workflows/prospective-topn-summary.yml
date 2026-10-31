@@ -1,0 +1,17 @@
+name: Prospective Top-N multiday summary
+on:
+  pull_request:
+    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml]
+  push:
+    branches: [main]
+    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_aggregate_prospective_topn
