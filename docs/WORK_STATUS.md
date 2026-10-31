@@ -191,3 +191,9 @@
 - `test_research_prerace_feature_audit.py` にモデル名だけbaselineだが保存ランキング不一致の拒否ケースを追加（`d1119f8`）。
 - GitHub Actions Research forecast checks run `41240833430`、job `124654191975` **success**。既存研究41件と特徴監査1件成功。研究監査のrejected=0、時系列train457/holdout130、選択beta0.4。
 - モデルバージョン未明示の古い研究レコードは現行互換運用のためこの追加順位チェックを適用しない。Git初回保存証明にもならない。モデル重み・保存予想・mainは不変更。PR #722 Draft。
+
+### 2026-11-01 予想Top10改変検知の研究監査を強化
+- `scripts/research_prerace_feature_audit.py` で保存された研究記録が明示的に `national-beta0.4-exploratory-v1` とタグ付けされている場合、全国勝率からbeta0.4モデルで再計算したTop10と順序まで一致しないものを除外（`e50d74a`）。
+- 保存データのモデルタグと買い目内容が矛盾した模擬例の回帰テストを追加（`d1119f8`）。
+- GitHub Actions Research forecast checks run `41240833430` / job `124654191975` **success**。研究41テスト＋特徴量監査1テスト合格。時系列train457、holdout130、選択beta0.4を維持。これは精度改善を示すものではない。
+- 別件のcross-model workflowのPRブランチ改行修復（`10430fb`）後の再実行は依然成功証拠未取得。CI全体が成功したとは主張しない。main未統合、PR #722 Draft。
