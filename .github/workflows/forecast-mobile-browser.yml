@@ -5,6 +5,7 @@ on:
       - '.github/workflows/forecast-mobile-browser.yml'
       - 'tests/forecast-odds-rendered-dom.cjs'
       - 'tests/live-odds-to-dom.cjs'
+      - 'tests/saved-prediction-auto-odds.cjs'
   workflow_dispatch:
 jobs:
   check:
@@ -24,6 +25,8 @@ jobs:
         run: node tests/forecast-odds-rendered-dom.cjs
       - name: Verify real API odds match ten displayed tickets
         run: node tests/live-odds-to-dom.cjs
+      - name: Verify saved research loads and auto-fetches odds
+        run: node tests/saved-prediction-auto-odds.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
