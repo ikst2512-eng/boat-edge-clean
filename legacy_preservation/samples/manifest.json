@@ -1,0 +1,27 @@
+{
+  "description": "Legacy sample preservation: NOT complete; first-add Git commit/time not independently audited; NOT formal prediction evidence; do not feed these to CLEAN forecasting.",
+  "source_repository": "ikst2512-eng/boat-edge",
+  "records": [
+    {
+      "original_path": "data/site_prediction_snapshots/20261025-21-12.json",
+      "source_blob_sha": "669cd3a4d74a657cedf37677231c125734b560be",
+      "archive_path": "legacy_preservation/samples/20261025-21-12.json",
+      "race_key": "20261025-21-12",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261025-08-02.json",
+      "source_blob_sha": "887e3f5ec34867feb125a63dad33b1b22dbffbb9",
+      "archive_path": "legacy_preservation/samples/20261025-08-02.json",
+      "race_key": "20261025-08-02",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261011-01-10.json",
+      "source_blob_sha": "ce6cb5a88cefd4c6682055848f641bcadea1dc9f",
+      "archive_path": "legacy_preservation/samples/20261011-01-10.json",
+      "race_key": "20261011-01-10",
+      "archive_content_verified": true
+    }
+  ]
+}
