@@ -20,7 +20,8 @@ def evaluate(day, late_root, repo_root):
     counts={str(n):{"early_hits":0,"late_hits":0} for n in (3,5,10)}
     rows=[]
     rejected={"invalid_race_code":0,"missing_early_or_result":0,"invalid_or_missing_fields":0,"invalid_timestamps":0,"outside_cutoff":0,"invalid_provenance":0,"invalid_result":0}
-    for file in sorted((Path(late_root)/day).glob("*.json")):
+    candidates=sorted((Path(late_root)/day).glob("*.json"))
+    for file in candidates:
         code=file.stem
         if len(code)!=12 or not code.isascii() or not code.isdigit() or not code.startswith(day):
             rejected["invalid_race_code"]+=1
@@ -76,7 +77,9 @@ def evaluate(day, late_root, repo_root):
         entry["early_hit_rate_pct"]=round(100*entry["early_hits"]/paired,2) if paired else None
         entry["late_hit_rate_pct"]=round(100*entry["late_hits"]/paired,2) if paired else None
         entry["difference_points"]=round(100*(entry["late_hits"]-entry["early_hits"])/paired,2) if paired else None
-    return {"date":day,"paired_races":paired,"topn":counts,"rows":rows,"rejected":rejected,
+    return {"date":day,"candidate_files":len(candidates),
+            "cohort_status":"no_late_candidates" if not candidates else ("paired" if paired else "candidates_without_valid_pairs"),
+            "paired_races":paired,"topn":counts,"rows":rows,"rejected":rejected,
             "note":"unvalidated mechanical late baseline; comparison only, no proven lift"}
 
 
