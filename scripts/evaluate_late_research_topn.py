@@ -39,7 +39,7 @@ def evaluate(day, late_root, repo_root):
             if any(t.utcoffset() is None for t in (generated,received,deadline,early_generated,cutoff)):
                 continue
             if not (received<=generated<deadline-timedelta(minutes=2)
-                    and early_generated<cutoff<deadline):
+                    and early_generated<cutoff<=deadline-timedelta(minutes=12)):
                 continue
             if (late.get("race_code")!=code or early.get("race_code")!=code
                     or result.get("race_code")!=code
