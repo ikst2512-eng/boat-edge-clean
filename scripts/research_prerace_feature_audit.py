@@ -21,14 +21,15 @@ def analyze(root=ROOT):
             p=json.loads(path.read_text())
             q=json.loads(result_path.read_text())
             code=path.stem
-            if p.get("race_code")!=code or q.get("race_code")!=code or p.get("status")!="research" or q.get("status")!="confirmed":raise ValueError("invalid provenance")
+            if p.get("race_code")!=code or q.get("race_code")!=code or p.get("status")!="research" or p.get("validated") is not False or q.get("status")!="confirmed":raise ValueError("invalid provenance")
             generated=datetime.fromisoformat(p["generated_at"])
             cutoff=datetime.fromisoformat(p["cutoff_jst"])
             deadline=datetime.fromisoformat(p["source_deadline_jst"])
             received = [datetime.fromisoformat(p[k]) for k in ("source_title_received_jst", "source_cards_received_jst")]
-            if (any(x.utcoffset() != timedelta(hours=9) for x in (generated, cutoff, deadline, *received))
+            confirmed = datetime.fromisoformat(q["confirmed_at_jst"])
+            if (any(x.utcoffset() != timedelta(hours=9) for x in (generated, cutoff, deadline, *received, confirmed))
                     or deadline-cutoff != timedelta(minutes=12)
-                    or max(generated, *received) >= cutoff):
+                    or max(generated, *received) >= cutoff or confirmed <= deadline):
                 raise ValueError("unverified predeadline forecast")
             finish=q["finish_order"]
             if (not isinstance(finish,list) or len(finish)<3
