@@ -11,6 +11,7 @@ def summary(days, evaluator=cohort):
     hits = {f"top{n}": 0 for n in (3, 5, 10)}
     roi = {k: {"races": 0, "invested_yen": 0, "return_yen": 0} for k in hits}
     rows = []
+    rejection_reasons = {}
     for day in sorted(days):
         if not isinstance(day, str) or len(day) != 8 or not day.isascii() or not day.isdigit() or not day.startswith("20"):
             raise ValueError("invalid day")
@@ -18,6 +19,9 @@ def summary(days, evaluator=cohort):
         if result.get("schema") != "CLEAN_PROSPECTIVE_TOPN_COHORT_V1" or result.get("day_jst") != day or result.get("formal") is not False or result.get("simulated_only") is not True or result.get("first_add_audit_required") is not True:
             raise ValueError("untrusted cohort")
         daily = result["counts"]
+        for rejected in result.get("rejected", []):
+            reason = rejected.get("reason", "unclassified")
+            rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
         if any(type(daily.get(k)) is not int or daily[k] < 0 for k in counts):
             raise ValueError("invalid cohort counts")
         if daily["archives"] != daily["evaluated"] + daily["awaiting_result"] + daily["audit_rejected"]:
@@ -41,6 +45,8 @@ def summary(days, evaluator=cohort):
         "schema": "CLEAN_PROSPECTIVE_TOPN_MULTIDAY_V1",
         "formal": False, "simulated_only": True, "calibrated_confidence": False,
         "days": rows, "counts": counts, "hits": hits,
+        "audit_rejection_reasons": rejection_reasons,
+        "evidence_warning": "all_archives_rejected_no_measurable_hit_rate" if counts["archives"] and counts["audit_rejected"] == counts["archives"] else None,
         "hit_rate_pct": {k: round(100 * v / counts["evaluated"], 2) if counts["evaluated"] else None for k, v in hits.items()},
         "roi": {k: {**v, "roi_pct": round(100 * v["return_yen"] / v["invested_yen"], 2) if v["invested_yen"] else None} for k, v in roi.items()},
         "roi_denominator": "verified_payout_only_not_all_evaluated_races",
