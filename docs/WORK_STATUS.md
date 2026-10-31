@@ -361,3 +361,7 @@
 - 既存 `audit-preview-scheduled-runs.yml` に回帰テストを追加、新ワークフローは作成していない。テスト `tests/test_audit_preview_scheduled_runs.py` は収集0件、古い実行、直近実行、不正日時の4ケース。
 - main実装コミット: `f39c499`, `01419b1`, `8091efa`, `c96b172`。現時点では新規テストのGitHub Actions合格は未確認。実レースT-12完全6艇取得も未証明。
 - 次: 監査workflowのCI結果と定期runを確認し、capture artifactの `t12_evidence_by_race` をレースID・6艇・受信JST・締切時刻と照合する。旧サイト停止なし。
+
+## 2026-11-01 日次収集監査のコード整備
+- 最新mainの実装を再点検し、`scripts/audit_preview_scheduled_runs.py` の `datetime` import重複（2行）を1行に整理。commit `460c614ce5a221fb7ede0803be9ebac3d1f76b79`、main再取得で確認。日次監査の既存ロジック・実行時刻・取得元は変更なし。
+- 先行main `c96b1720` / `8091efa7` で直近24時間の定期実行分類テストは追加済み。これを重複実装しない。実レースT-12ペアの検証成功は引き続き未確認、旧公開を停止しない。
