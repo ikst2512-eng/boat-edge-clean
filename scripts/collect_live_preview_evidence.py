@@ -53,7 +53,10 @@ def paired_six_lane_coverage(day, root):
 
 def collect(day, root, fetch=None):
     datetime.strptime(day,"%Y%m%d")
-    summary={"day":day,"capture_policy":"before_deadline_minus_2min_buffer","kinds":{}}
+    summary={"day":day,"capture_policy":"before_deadline_minus_2min_buffer",
+             "source_expected_window_jst":"08:00-22:59",
+             "source_snapshot_policy":"nominal_cutoff_minus_5min_not_formal_T12",
+             "kinds":{}}
     for kind in KINDS:
         url=f"{BASE}{kind}/{day[:4]}/{day[4:6]}/{day[6:]}.csv"
         try:
@@ -73,7 +76,8 @@ def collect(day, root, fetch=None):
             if isinstance(error, HTTPError):
                 summary["kinds"][kind]["http_status"]=error.code
                 summary["kinds"][kind]["checked_at_jst"]=datetime.now(JST).isoformat()
-                summary["kinds"][kind]["availability_interpretation"]="not_published_or_missing" if error.code==404 else "http_failure"
+                checked=datetime.now(JST)
+                summary["kinds"][kind]["availability_interpretation"]=("before_upstream_schedule_or_missing" if checked.hour<8 and error.code==404 else "not_published_or_missing" if error.code==404 else "http_failure")
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
