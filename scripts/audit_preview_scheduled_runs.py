@@ -1,6 +1,7 @@
 """Read-only GitHub Actions schedule audit. No saved race evidence is inferred from a CI success."""
 import json
 import os
+from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -8,9 +9,19 @@ API="https://api.github.com"
 REPO="ikst2512-eng/boat-edge-clean"
 WORKFLOW="late-preview-capture.yml"
 
-def summarize(runs):
+def summarize(runs, now=None):
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24)
     scheduled=[r for r in runs if r.get("event")=="schedule"]
-    return {"scheduled_runs":len(scheduled),
+    def is_recent(run):
+        try:
+            instant=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+            return cutoff <= instant <= now
+        except (KeyError, AttributeError, TypeError, ValueError):
+            return False
+    recent=[r for r in scheduled if is_recent(r)]
+    return {"scheduled_last_24h":len(recent),
+            "schedule_health":"recent_scheduled_run_observed" if recent else "no_scheduled_run_in_last_24h","scheduled_runs":len(scheduled),
             "success":sum(r.get("conclusion")=="success" for r in scheduled),
             "failed":sum(r.get("conclusion")=="failure" for r in scheduled),
             "pending":sum(r.get("status")!="completed" for r in scheduled),
@@ -39,7 +50,8 @@ def main():
         with open(path,"a") as file:
             file.write("## Scheduled capture run audit\n")
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
-            file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
+            file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\\n")
+            file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\\n")
 
 if __name__=="__main__":
     main()
