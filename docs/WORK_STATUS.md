@@ -88,3 +88,9 @@
 - Render deploy履歴で過去開催日程404修正 `db62cf35be0af88ce3e768e522c1b35e4567cefb` のデプロイ成功と、回帰テスト追加 `ce037349b472dc65c313dc01bacef735d742d364` のデプロイ成功を確認。最新確認のlive deploy `dep-dbj4k6dh3lcs7386e51g` は `0fdac4fe62381b422b8e841b388eac8a7cb71578`（2026-10-31 20:06 UTC終了）で成功。デプロイ成功はブラウザ描画確認ではない。
 - 公開 `/api/clean-schedule?date=20261031` と公開ページをWeb取得で確認しようとしたが、この環境からアクセス不能。2026-10-31の出走表・予想・結果の表示は引き続き未検証。
 - 次: GitHub Pagesの公開URL・旧リポジトリ依存と表示環境を検証、既存ブラウザCIの実行結果を取得。破壊的削除は依存確認後。
+
+## 2026-11-01 GitHub Pagesナビゲーション公開欠落修正
+- `index.html` の末尾は `navigation.js` をロードするが、既存 `.github/workflows/deploy-pages.yml` は `index.html` のみを `public/` にコピーしていた。公開HTMLからの外部スクリプト欠落がブラウザ上のナビ/履歴復元不具合に繋がるため、両ファイルを公開するよう修正（main commit `ee0e456ba891a2851d8d0a79aae8691503daf683`）。
+- `navigation.js` の更新でPages公開が発火するようpath filterを追加し、デプロイ後に公開JSを取得してローカル配布物とバイト照合する検証を追加。既存 `tests/site-regression.cjs` に4つの必須条件を回帰確認するアサーションを追加（commit `e7de1db0b6fbdcecd8ccca10df282d658ffdee6f`）。main再取得で設定とテスト内容が存在することを確認。
+- GitHub Pages Actionsの実際の成功、公開JavaScriptのHTTP応答、Safari操作、10/31過去レースの全タブの表示は未確認。Renderの単一CLEANサービスは前回確認済み。旧リポジトリ自体は削除しない。
+- 次はPages Actionsの実行結果・公開URLの同一性チェック、10/31履歴表示のブラウザE2E。予想1ページ化の既存PR #725とは衝突しない公開設定・テストだけ変更した。
