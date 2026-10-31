@@ -28,6 +28,10 @@ def main():
     with urlopen(req,timeout=15) as resp:
         data=json.load(resp)
     report=summarize(data["workflow_runs"])
+    with urlopen(Request(f"{API}/repos/{REPO}/actions/workflows/{WORKFLOW}",headers={"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"User-Agent":"BOAT-EDGE-CLEAN-AUDIT"}),timeout=15) as response:
+        workflow=json.load(response)
+    report["workflow_state"]=workflow.get("state")
+    report["workflow_path"]=workflow.get("path")
     report["total_scheduled_runs_reported"]=data.get("total_count")
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
