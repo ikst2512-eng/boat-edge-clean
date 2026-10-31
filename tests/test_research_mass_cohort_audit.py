@@ -59,6 +59,32 @@ class MassCohortAudit(unittest.TestCase):
             self.assertEqual(day["sample_status"], "insufficient_sample")
             self.assertIsNone(day["top10_rate_pct"])
 
+    def test_result_only_day_and_rejected_pair_visible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "research_snapshots").mkdir()
+            (root / "confirmed_results").mkdir()
+            rejected = "202610300101"
+            result_only = "202610290101"
+            (root / "research_snapshots" / (rejected + ".json")).write_text(json.dumps({
+                "race_code": rejected, "status": "research", "validated": False,
+                "generated_at": "2026-10-30T10:00:00+09:00",
+                "cutoff_jst": "2026-10-30T10:30:00+09:00",
+                "source_deadline_jst": "2026-10-30T10:42:00+09:00",
+                "predictions": ["1-2-3"],
+            }))
+            for code in (rejected, result_only):
+                (root / "confirmed_results" / (code + ".json")).write_text(json.dumps({
+                    "race_code": code, "status": "confirmed", "finish_order": [1, 2, 3],
+                }))
+            with patch.object(audit, "ROOT", root):
+                result = audit.run()
+            self.assertEqual(result["by_day"]["20261030"]["rejected"], 1)
+            self.assertEqual(result["by_day"]["20261030"]["matched"], 0)
+            self.assertEqual(result["by_day"]["20261029"]["saved_forecasts"], 0)
+            self.assertEqual(result["by_day"]["20261029"]["results_without_forecast"], 1)
+            self.assertIsNone(result["by_day"]["20261029"]["result_coverage_pct"])
+
     def test_invalid_finishes_and_tickets_are_rejected(self):
         valid_tickets = ["1-2-3", "1-3-2", "2-1-3", "2-3-1", "3-1-2",
                          "3-2-1", "1-2-4", "1-4-2", "4-1-2", "4-2-1"]
