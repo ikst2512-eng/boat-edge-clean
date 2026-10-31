@@ -1,6 +1,7 @@
-const {chromium}=require('playwright');
+const {chromium,webkit}=require('playwright');
 (async()=>{
- const browser=await chromium.launch();
+ const engine=process.env.BROWSER_ENGINE==='webkit'?webkit:chromium;
+ const browser=await engine.launch();
  try{
   const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const archiveUrl='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/research_snapshots/202610310202.json';
@@ -18,6 +19,8 @@ const {chromium}=require('playwright');
   const rows=await page.locator('#predictionRows .prediction-row').evaluateAll(items=>items.map(e=>({ticket:e.querySelector('.prediction-ticket')?.textContent,value:e.querySelector('.prediction-odds')?.textContent})));
   if(apiCalls<1)throw Error('auto odds API not called');
   saved.predictions.forEach((ticket,i)=>{if(rows[i]?.ticket!==ticket)throw Error('saved order mismatch '+i);if(!rows[i].value.includes(odds[ticket].toLocaleString('ja-JP')+'倍'))throw Error('odds mismatch '+ticket)});
-  console.log('SAVED_RESEARCH_AUTO_ODDS_DOM_PASS 10 exact tickets', 'apiCalls',apiCalls);
+  const widths=await page.evaluate(()=>({page:document.documentElement.scrollWidth,viewport:innerWidth}));
+  if(widths.page>widths.viewport+2)throw Error('mobile overflow '+JSON.stringify(widths));
+  console.log('SAVED_RESEARCH_AUTO_ODDS_DOM_PASS',engine.name(),'10 exact tickets','apiCalls',apiCalls,'width',widths.page);
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
