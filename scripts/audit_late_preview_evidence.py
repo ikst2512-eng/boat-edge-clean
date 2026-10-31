@@ -50,6 +50,7 @@ def audit(root="late_preview_evidence"):
     complete=0
     complete_t12=0
     missing=[]
+    incomplete_reasons=[]
     paired_codes=[]
     t12_codes=[]
     t12_evidence=[]
@@ -75,10 +76,14 @@ def audit(root="late_preview_evidence"):
                     "tkz_received_at_jst":entries["tkz"]["received_at_jst"]})
         else:
             missing.append(code)
+            incomplete_reasons.append({"race_code":code,
+                "stt":("missing" if "stt" not in entries else entries["stt"]["six_lane_validation"]),
+                "tkz":("missing" if "tkz" not in entries else entries["tkz"]["six_lane_validation"])})
     return {"records":total,"invalid":invalid,"races":len(pairs),
             "paired_complete_6boat_stt_tkz":complete,
             "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),
+            "incomplete_pair_reasons_by_race":incomplete_reasons,
             "paired_complete_race_codes":paired_codes,
             "t12_observable_race_codes":t12_codes,
             "t12_evidence_by_race":t12_evidence,
