@@ -318,3 +318,10 @@
 - 既存PR #734はmain commit `d7ebf6711a8dd5aa4a33b4b5c50a7c5590396c74` へ統合。独立 `tkz` / `stt` ソースの時刻がいずれも締切12分前以前なら `T12_COMPLETE_PAIR_PASS`、未証明なら `NO_T12_SIX_BOAT_PAIR_VERIFIED` で不合格とする検査が追加された。
 - PR headのActions run `41240118410` では履歴出走表、結果、120オッズ、構文の4ジョブsuccess。一方 `e2e-live-race` はPR時の仕様でskipped。**T-12成功の証拠はまだない**。
 - 本日最初の定期サンプルは09:30 JSTの設定で、05:43 JST時点ではこの時間に達していない。今回の調査で過去の実レースE2E成功の新証拠は得られなかった。実測に基づく停止判定は保留し、旧サイトは変更しない。
+
+
+### 2026-11-01 PR #723 最新mainとの競合解消
+- `docs/WORK_STATUS.md` のmain側追記（旧サイト停止ゲート・Render・非開催日の404判定）を失わずにPR側へ保全し、main側の `scripts/verify_live_racecard_e2e.py` を変更なしで保持。
+- GitHub merge commit `2c7b6d2654bafff8753dff1d105239cd7594b637` をPR headへfast-forwardで適用。適用直後のcompareは mainからbehind=0、PR `mergeable=true`。**mainへは未統合**。
+- merge commitに紐付くPR Actionsの検索結果は0件（取得時点）。従前の `41239801304` のsuccessはこのmerge commitの専用CI成功を示さない。今後CIが走れば該当head SHAとjob conclusionを確認する。
+- 実レースT-12の完全6艇STT+TKZペアは未証明。対象レースキー・締切・双方の受信JST・source SHAと保存時刻の実測が必要。
