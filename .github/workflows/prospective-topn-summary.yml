@@ -17,3 +17,13 @@ jobs:
       - run: python -m unittest -v test_aggregate_prospective_topn
       - name: Report actual archived Top-N results for Oct 29 and Oct 30
         run: python aggregate_prospective_topn.py 20261029 20261030
+      - name: Diagnose first archive audit rejection
+        run: |
+          python - <<'PY'
+          from evaluate_clean_prospective import evaluate
+          for code in ("202610290101", "202610300101"):
+              try:
+                  print(code, evaluate(code))
+              except Exception as error:
+                  print(code, type(error).__name__, str(error)[:300])
+          PY
