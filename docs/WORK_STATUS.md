@@ -111,3 +111,8 @@
 - `tests/test_audit_late_preview_evidence.py` でレースコードと時刻を検証する回帰テスト追加。重複CIは作らず既存 `late-preview-evidence-tests.yml` に監査テストとファイルパスを追加。
 - run `41237820889` の対象テストステップ4件は成功を確認（job全体の完了判定は追確認が必要）。このテストは保存fixture検証であり、11/1の新たなT-12実データ成功を意味しない。
 - 予想研究・サイト表示コードに触れず、main未統合。
+
+### 2026-11-01 実データ監査の件数誤認防止（PR #723）
+- `scripts/audit_late_preview_evidence.py` の既存 `rglob('*.json')` は `collection_summary.json` 等の非レースJSONを不正なレース証拠として数え得た。ディレクトリ種別と12桁ASCIIレースコードを先に検査し、監査集計対象からメタデータを除外。
+- `tests/test_audit_late_preview_evidence.py` にサマリーJSONでinvalid/recordsが増えない回帰テスト追加。既存Actions run `41237934711` の4系統テストステップ成功を確認、全体終了判定は追確認。
+- 新しい実ライブT-12完全6艇ペアを実証したものではない。PR #723のみ、main未統合。
