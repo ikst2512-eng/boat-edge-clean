@@ -73,5 +73,14 @@ def evaluate(day, late_root, repo_root):
 
 
 if __name__=="__main__":
-    print(json.dumps(evaluate(datetime.now(JST).strftime("%Y%m%d"),
-                              Path("late_research_candidates"),Path(".")),ensure_ascii=False))
+    import argparse
+    parser=argparse.ArgumentParser(description="Read-only prospective paired TopN audit")
+    parser.add_argument("--day",default=datetime.now(JST).strftime("%Y%m%d"),
+                        help="Race date YYYYMMDD; archived evidence must already exist")
+    parser.add_argument("--late-root",default="late_research_candidates",
+                        help="Local directory containing archived prospective candidates")
+    args=parser.parse_args()
+    parsed=datetime.strptime(args.day,"%Y%m%d")
+    if parsed.strftime("%Y%m%d")!=args.day or parsed.date()>datetime.now(JST).date():
+        parser.error("invalid or future race day")
+    print(json.dumps(evaluate(args.day,Path(args.late_root),Path(".")),ensure_ascii=False))
