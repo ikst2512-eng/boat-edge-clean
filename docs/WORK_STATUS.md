@@ -532,3 +532,11 @@
 - `index.html` 展示の従来ラベル「直前データ：取得済み・締切前確認済み」は、`source_audit.beforeinfo.fetched_at` の時刻条件から初回Git登録まで証明したと誤解され得たため「直前データ：取得記録は締切前・Git初回登録未照合」へ修正。未検証表示・6艇カウントは維持。
 - 既存 `.github/workflows/deploy-pages.yml` の同ラベル判定を更新。PR #759 head `023d3715792b1d02556670086ba590bf48b593a8` のCI run `41246633156` は `check` と `publish-smoke` がsuccess。main squash `5a9030935f53ff7bbb7a807da7e24a54158425db`。
 - Render deploy `dep-dbj6cut659jc739hvpb0` は確認時点queued。Pages統合後の公開実データ表示は未確認であり、T-12実レース完全STT+TKZ 6艇原本、初回Git証拠、旧サイト独立保全は未達。旧repo/Pagesを変更・停止していない。
+
+
+## 2026-11-01 公式beforeinfo独立HTTP観測経路
+- BoatraceCSV直前CSVが締切約5分前のスナップショットであることを一次仕様で確認（https://boatracecsv.github.io/docs/data/previews.html）。公式サイトの `/owsp/sp/race/beforeinfo` の直前ページが別経路として存在することを確認。ただし公式側のT-12時点での6艇公開可用性は未実証。
+- 実験用 `scripts/capture_official_beforeinfo_probe.py`（commit `b00d9a6`）を新設。指定レースの公式HTMLバイト、HTTP受信時刻、URL、SHA-256をappend-onlyで独立保存。**HTTP成功だけでは艇数を認定せず、`t12_eligible=false` / `forecast_usable=false` を固定**。URLホスト、サイズ、形式を検査し、取得失敗も成功と扱わない。
+- `tests/test_capture_official_beforeinfo_probe.py` （`a986e9e`）に正常受信・取得失敗・不正レースコード・保存先衝突の回帰テストを追加。
+- 既存の収集workflowにテストを組み込み、workflow_dispatchの任意 `official_probe_race_code` 指定時だけ公式HTMLの検証取得を走らせ、別artifactに含める（`8a0917e`）。定期収集と本番予想モデルの挙動は変更しない。新しい定期ジョブは増やさない。
+- **新しいGitHub Actionsの実行成功、公式ページの実受信、T-12での展示・進入6艇の成立は未確認。** 次は公式取得原本の実時刻・6艇抽出を検証し、その後でT-12条件を別途判定する。旧サイト停止なし。
