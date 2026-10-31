@@ -11,7 +11,7 @@ from research_model import JST
 
 CODE=re.compile(r"^[0-9]{12}\.json$")
 
-def extract_candidates(blob, day, destination):
+def extract_candidates(blob, day, destination, present=None):
     count=0
     with zipfile.ZipFile(io.BytesIO(blob)) as archive:
         for member in archive.infolist():
@@ -28,6 +28,8 @@ def extract_candidates(blob, day, destination):
                     or candidate.get("research_only") is not True
                     or candidate.get("status")!="research_candidate_unvalidated"):
                 continue
+            if present is not None:
+                present.add(code)
             dest=Path(destination)/day/parts[2]
             dest.parent.mkdir(parents=True,exist_ok=True)
             try:
@@ -57,9 +59,9 @@ def retrieve(day, root, repository, token, fetch=None):
             if (not item.get("expired") and item.get("name","").startswith("independent-late-preview-")
                     and item.get("archive_download_url")):
                 scanned+=1
-                before=recovered
-                recovered+=extract_candidates(fetch(item["archive_download_url"]),day,root)
-                dated_archives+=int(recovered>before)
+                contained=set()
+                recovered+=extract_candidates(fetch(item["archive_download_url"]),day,root,contained)
+                dated_archives+=int(bool(contained))
         if len(artifacts)<100:
             break
         if page==page_limit:
