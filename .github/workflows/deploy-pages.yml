@@ -207,14 +207,14 @@ jobs:
               await page.locator('#venues button').first().waitFor();
               if(await page.locator('#venues button').count()!==24)throw Error('Public 24 venue buttons missing');
               if(await page.locator('#races button').count()!==12)throw Error('Public 12 race buttons missing');
-              for(const view of ['card','exhibit','forecast']){
+              for(const view of ['card','exhibit','forecast','result']){
                 await page.evaluate(view => setView(view), view);
-                const visible=view==='forecast'?await page.locator('#forecast').isVisible():await page.locator('#raceDataSection').isVisible();
+                const visible=view==='forecast'?await page.locator('#forecast').isVisible():view==='result'?await page.locator('#resultSection').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
-              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 3 tabs)\n');
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
