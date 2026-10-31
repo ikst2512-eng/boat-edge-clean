@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/forecast-mobile-browser.yml'
       - 'tests/forecast-odds-rendered-dom.cjs'
+      - 'tests/live-odds-to-dom.cjs'
   workflow_dispatch:
 jobs:
   check:
@@ -21,6 +22,8 @@ jobs:
           node -e "const{chromium}=require('playwright');(async()=>{const b=await chromium.launch();try{const p=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});let response;for(let attempt=1;attempt<=3;attempt++){response=await p.goto('https://boat-edge-clean.onrender.com/?date=2026-10-31&venue=2&race=1',{waitUntil:'domcontentloaded',timeout:60000});console.log('BROWSER_HTTP',response.status(),'attempt',attempt);if(response.status()===200)break;await p.waitForTimeout(3000)}if(response.status()!==200)throw Error('Published site returned HTTP '+response.status());await p.waitForSelector('#forecast',{timeout:30000}).catch(()=>{});console.log('PAGE_TITLE',await p.title(),'HTML_LENGTH', (await p.content()).length);const result=await p.evaluate(()=>({forecast:!!document.getElementById('forecast'),odds:typeof loadTicketOdds==='function',noHomeCards:!document.querySelector('.home-race-cards'),width:document.documentElement.scrollWidth,viewport:innerWidth}));console.log(JSON.stringify(result));if(!result.forecast||!result.odds||!result.noHomeCards)throw Error('rendered DOM missing');if(result.width>result.viewport+2)throw Error('mobile horizontal overflow '+JSON.stringify(result));await p.screenshot({path:'mobile-forecast.png',fullPage:true})}finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)})"
       - name: Verify ten rendered ticket odds pairs
         run: node tests/forecast-odds-rendered-dom.cjs
+      - name: Verify real API odds match ten displayed tickets
+        run: node tests/live-odds-to-dom.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
