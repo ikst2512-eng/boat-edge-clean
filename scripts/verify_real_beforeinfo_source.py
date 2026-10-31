@@ -37,6 +37,16 @@ def main(day=None):
             deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
             preview,audit=_fetch_preview(code,day,deadline)
             if audit.get("status")=="ok" and preview and len(preview.get("racers",[]))==6:
+                exhibition = preview["racers"]
+                starts = preview["start_exhibition"]
+                evidence["verified_six_boat_fields"] = {
+                    "exhibition_times": sum(r.get("exhibition_time") is not None for r in exhibition),
+                    "tilts": sum(r.get("tilt") is not None for r in exhibition),
+                    "actual_courses": sum(r.get("course") is not None for r in starts),
+                    "start_exhibition": sum(r.get("st") is not None for r in starts),
+                    "course_permutation_valid": sorted(r["course"] for r in starts) == [1., 2., 3., 4., 5., 6.],
+                    "source_status": audit.get("source_status"),
+                }
                 matched.append(code)
                 break
         except (ValueError,KeyError):
