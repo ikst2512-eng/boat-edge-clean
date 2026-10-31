@@ -1,0 +1,45 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.research_prerace_feature_audit import analyze
+
+
+class PreRaceFeatureAuditTests(unittest.TestCase):
+    def test_valid_holdout_and_invalid_evidence_are_separate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "research_snapshots").mkdir()
+            (root / "confirmed_results").mkdir()
+            forecast = {
+                "race_code": "202610300101", "status": "research",
+                "generated_at": "2026-10-30T09:00:00+09:00",
+                "cutoff_jst": "2026-10-30T09:10:00+09:00",
+                "source_deadline_jst": "2026-10-30T09:22:00+09:00",
+                "national_win_rates": [8, 6, 6, 6, 6, 6],
+                "predictions": ["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2","1-3-4","1-3-5","1-3-6","1-4-2","1-4-3"]
+            }
+            result = {"race_code": "202610300101", "status": "confirmed", "finish_order": [1, 2, 3]}
+            fp = root / "research_snapshots" / "202610300101.json"
+            rp = root / "confirmed_results" / "202610300101.json"
+            rp.write_text(json.dumps(result))
+            fp.write_text(json.dumps(forecast))
+            good = analyze(root)
+            self.assertEqual(good["cohorts"]["holdout"]["all"]["n"], 1)
+            self.assertEqual(good["cohorts"]["holdout"]["lane1_lead_2plus"]["top10"], 1)
+            self.assertEqual(good["cohorts"]["discovery"]["all"]["n"], 0)
+            for change in (
+                {"national_win_rates": "bad"},
+                {"national_win_rates": [True, 6, 6, 6, 6, 6]},
+                {"generated_at": "2026-10-30T09:00:00"},
+                {"generated_at": "2026-10-30T09:30:00+09:00"},
+            ):
+                fp.write_text(json.dumps({**forecast, **change}))
+                audited = analyze(root)
+                self.assertEqual(audited["cohorts"]["holdout"]["all"]["n"], 0)
+                self.assertEqual(audited["rejected"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
