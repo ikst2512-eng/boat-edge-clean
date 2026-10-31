@@ -85,8 +85,18 @@ for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示�
 }
 document.querySelector('.active-race-strip')?.insertAdjacentElement('afterend',details);
 const updateDetails=()=>{
- const isHome=!!document.querySelector('[data-home-only]:not([hidden])');
- details.hidden=isHome;details.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-current',String(b.dataset.raceView===activeView));});
+ const isHome=activeView==='home';
+ const isReview=activeView==='review';
+ const showRaceControls=!isHome&&!isReview;
+ // Keep home and verification focused: race-specific controls belong only to race pages.
+ const strip=document.querySelector('.active-race-strip');
+ if(strip)strip.hidden=!showRaceControls;
+ details.hidden=!showRaceControls;
+ details.querySelectorAll('button').forEach(b=>{
+  const selected=b.dataset.raceView===activeView;
+  b.setAttribute('aria-current',String(selected));
+  b.classList.toggle('on',selected);
+ });
 };
 updateDetails();
 const raceHome=document.querySelector('[data-home-only]');
