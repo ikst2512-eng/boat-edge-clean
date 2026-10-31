@@ -15,7 +15,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from research_model import JST
-from preview_timing_integrity import classify
+from scripts.preview_timing_integrity import classify
 
 BASE="https://boatracecsv.github.io/data/previews/"
 KINDS=("stt","tkz","sui","original_exhibition","od3")
