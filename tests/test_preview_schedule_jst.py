@@ -11,7 +11,7 @@ JST=ZoneInfo("Asia/Tokyo")
 class ScheduleJstTest(unittest.TestCase):
     def test_start_end_and_midnight_boundaries(self):
         workflow=(ROOT/".github/workflows/late-preview-capture.yml").read_text()
-        expressions=re.findall(r"cron:\\s*['\"]([^'\"]+)['\"]",workflow)
+        expressions=re.findall(r"cron:\s*['\"]([^'\"]+)['\"]",workflow)
         self.assertIn("3-58/5 22-23,0-12 * * *",expressions)
         hours={22,23,*range(0,13)}
         minutes=set(range(3,59,5))
