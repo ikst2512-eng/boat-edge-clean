@@ -5,6 +5,8 @@ on:
       - index.html
       - navigation.js
       - tests/site-regression.cjs
+      - tests/test_prospective_receipt_order.py
+      - server.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -14,6 +16,8 @@ on:
       - index.html
       - navigation.js
       - tests/site-regression.cjs
+      - tests/test_prospective_receipt_order.py
+      - server.py
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
       - .github/workflows/deploy-pages.yml
@@ -35,6 +39,8 @@ jobs:
           mkdir -p test-results
           printf 'Commit: %s\nWorkflow run: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" | tee test-results/provenance.txt
           node tests/site-regression.cjs 2>&1 | tee test-results/site-regression.log
+      - name: Verify archived research source receipt ordering
+        run: python3 -m unittest discover -s tests -p 'test_prospective_receipt_order.py' -v
       - name: Audit all CLEAN workflow path filters
         run: python3 tests/audit_workflow_paths.py
       - name: Upload regression evidence
