@@ -24,7 +24,7 @@ def verify(root=ROOT):
         source = row["original_path"]
         assert source == "data/site_prediction_snapshots/" + Path(rel).name
         raw = (root / rel).read_bytes()
-        actual = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw).hexdigest()
+        actual = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + bytes([0]) + raw).hexdigest()
         assert actual == row["source_blob_sha"], f"legacy source blob mismatch: {rel}"
         body = json.loads(raw)
         assert body["race_key"] == row["race_key"] == Path(rel).stem
