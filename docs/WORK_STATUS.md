@@ -330,3 +330,12 @@
 ## 2026-11-01 T-12証明の偽陽性防止
 - main `f36432cabf032e4849bad33f86f1f183eb6e6903` で既存 `scripts/verify_live_racecard_e2e.py` を修正。以前の #734 は両ソースの観測時刻がT-12以前なら、API応答がT-12後でも `T12_COMPLETE_PAIR_PASS` となる可能性があった。APIのHTTP応答を読み終えたJST時刻 `response_received_at` を記録し、**ソース双方のT-12以前 + HTTP応答のT-12以前**が揃う場合だけ合格とする。main再読込で実装確認。
 - 当該変更は実測成功の証明ではなく検証条件の修正。PR #734の履歴CIでは実レースE2Eがskip。次は開催中レースについてT-12以前のAPI応答ログで成功確認し、原本保全後に旧サイトを停止する。旧repoの変更なし。
+
+
+## 2026-11-01 PR #723 統合後のRender・Actions検証
+- GitHub PR #723 は squash merge `d3c6fbaa89c60011b4ecf747c4b7cf3f52231015`、merged=true。main の `collect_late_preview_once.py` に取得分類・6艇ペア監査が存在し、一時的なpush作業ブランチ指定は消えている。
+- Render deploy `dep-dbj58a6417fc73aivi2g` は同一SHAで `live`（2026-11-01 05:49 JST頃）。デプロイ一致は本番実レースでのT-12取得成功の証明ではない。
+- GitHubの `fetch_commit_workflow_runs` はPR-triggered runのみ検索するため、main squash SHAの空配列は「main CI未実行」の証拠にしない。PR head `87c6330` の4系統CI成功は既に検証済み。
+- 実行log: Preview capture run `41240537819` / capture job `124653322037` は `capture_source_status=not_yet_expected`, available=0, unavailable=5, rows=0。STT/TKZ等5ソースはHTTP 404、`paired_complete_12min_observable=0`、保存0。04–05 JST付近の公開期待時間外での取得であり恒常的障害を意味しない。
+- Audit scheduled preview capture runs `41240537814` / job `124653321344` はログ中 `scheduled_runs=0`、`latest_scheduled=null`。当該監査で観測した範囲の値でありGitHub全run不在の断定ではない。
+- 次: 08:00 JST以降の独立scheduled captureの実run id / artifact / HTTP応答と `t12_evidence_by_race` の同一レース6艇STT+TKZ受信時刻を検証。取得されるまではT-12実証未達、旧repo/Pages停止禁止。
