@@ -39,7 +39,7 @@ class Integration(unittest.TestCase):
         def mixed(url):
             if "/stt/" not in url:
                 raise HTTPError(url, 404, "Not Found", {}, None)
-            return b"\xef\xbb\xbf" + "レースコード\\n".encode()
+            return b"\xef\xbb\xbf" + "レースコード\n".encode()
         with tempfile.TemporaryDirectory() as folder:
             result=collect(day="20261031",root=folder,fetch=mixed,
                            clock=lambda:datetime(2026,10,31,18,55,tzinfo=JST))
