@@ -1,0 +1,23 @@
+name: Audit scheduled preview capture runs
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_preview_scheduled_runs.py'
+      - '.github/workflows/audit-preview-scheduled-runs.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read actual scheduled capture run history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/audit_preview_scheduled_runs.py
