@@ -1,0 +1,19 @@
+name: CLEAN published ten-ticket odds DOM
+on:
+  pull_request:
+    paths:
+      - 'tests/live-odds-display.cjs'
+      - '.github/workflows/published-odds-dom.yml'
+  workflow_dispatch:
+jobs:
+  odds-dom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/live-odds-display.cjs
