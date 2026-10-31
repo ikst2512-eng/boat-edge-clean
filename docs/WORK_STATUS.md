@@ -226,3 +226,8 @@
 - mainとの差分をGitHub compareで実測: #723作業ブランチはmainから `ahead=46`、`behind=27` のdiverged。`mergeable=false`。#654とも収集2ファイルが重複しており、単純にmainを親に置くGitコミット等で競合を隠すことは禁止。
 - #654のペア集計は#723内で取り込み、5群のテストがrun `41238664430` で成功済み。作業ブランチのCIに入れた一時的なpush指定は `.github/workflows/late-preview-evidence-tests.yml` から解除（commit `7508662`）、mainのみを残した。
 - 次の統合担当作業は#654の独立プローブ変更を保護したうえで競合を実際に解消し、最新mainとの差分と全CIを再検査すること。今回main未統合、実データT-12 6艇完全性未証明。
+
+### 2026-11-01 収集PR #654差分の最終照合
+- PR #654の変更3ファイルを差分照合。`scripts/research_preview_csv_probe.py` のimport修正は既にmainに存在し、#723ブランチとSHA一致。`collect_late_preview_once.py` の `paired_six_lane_coverage` と `late-preview-capture.yml` のpaired audit出力は#723に取り込み済み。#654の保持期間14日は#723の90日が包含する。
+- #723は `mergeable=true` をGitHubで確認。統合後CIは `41238926355` integrity success / `41238926467` capture success / `41238926369` source diagnostics success。収集runでは `not_yet_expected`、5 HTTPError、保存0件、T-12ペア0件。
+- #654自体は未統合で残す（別担当のPRを無断クローズしない）。二重統合は避け、メイン統合担当は#723の統合後に#654をclose/supersededで整理可能か確認する。mainは本担当から変更しない。
