@@ -42,6 +42,12 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             missed = analyze(root)["cohorts"]["holdout"]["lane1_strongest"]
             self.assertEqual(missed["head1_actual"], 1)
             self.assertEqual(missed["head1_top10_miss"], 1)
+            details = analyze(root)["strongest_lane1_head1_top10_misses"]["holdout"]
+            self.assertEqual(len(details), 1)
+            self.assertEqual(details[0]["race_code"], "202610300101")
+            self.assertEqual(details[0]["winning_ticket"], "1-2-3")
+            self.assertEqual((details[0]["second_boat"], details[0]["third_boat"]), (2, 3))
+            self.assertEqual(details[0]["top10_head1_tickets"], 9)
             self.assertEqual(missed["head1_top10_hit"], 0)
             fp.write_text(json.dumps(forecast))
             self.assertEqual(good["cohorts"]["holdout"]["lane1_unique_strongest"]["n"], 1)
