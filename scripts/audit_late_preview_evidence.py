@@ -15,6 +15,7 @@ from late_preview_capture import six_lane_status
 def audit(root="late_preview_evidence"):
     pairs=defaultdict(dict)
     duplicate_kinds=set()
+    seen_paths=set()
     invalid=0
     total=0
     for path in Path(root).rglob("*.json"):
@@ -23,6 +24,15 @@ def audit(root="late_preview_evidence"):
             or not path.stem.isascii() or not path.stem.isdigit() or len(path.stem)!=12):
             continue
         total+=1
+        # Detect duplicate race/kind paths before parsing: even malformed copies
+        # must invalidate a previously accepted record for the same race/kind.
+        path_key=(path.stem,path.parent.name)
+        if path_key in seen_paths:
+            duplicate_kinds.add(path_key)
+            pairs[path.stem].pop(path.parent.name,None)
+            invalid+=1
+            continue
+        seen_paths.add(path_key)
         try:
             row=json.loads(path.read_text(encoding="utf-8"))
             code=row["race_code"]
