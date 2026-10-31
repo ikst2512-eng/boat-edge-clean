@@ -6,6 +6,8 @@ on:
       - 'late_preview_capture.py'
       - 'collect_late_preview_once.py'
       - 'tests/test_collect_late_preview_once.py'
+      - 'scripts/audit_late_preview_evidence.py'
+      - 'tests/test_audit_late_preview_evidence.py'
       - 'scripts/collect_late_preview_evidence.py'
       - 'tests/test_live_late_preview_capture.py'
       - 'tests/test_late_preview_capture.py'
@@ -26,6 +28,8 @@ jobs:
           python-version: '3.12'
       - name: Test live preview CSV to isolated capture
         run: python -m unittest discover -s tests -p 'test_live_late_preview_capture.py' -v
+      - name: Test saved preview integrity and pairing
+        run: python -m unittest discover -s tests -p 'test_audit_late_preview_evidence.py' -v
       - name: Test fetched preview integration
         run: python -m unittest discover -s tests -p 'test_collect_late_preview_once.py' -v
       - name: Test isolated append-only later-cutoff capture
