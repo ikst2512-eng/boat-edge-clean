@@ -12,6 +12,7 @@ def summary(days, evaluator=cohort):
     roi = {k: {"races": 0, "invested_yen": 0, "return_yen": 0} for k in hits}
     rows = []
     rejection_reasons = {}
+    rejection_reasons = {}
     for day in sorted(days):
         if not isinstance(day, str) or len(day) != 8 or not day.isascii() or not day.isdigit() or not day.startswith("20"):
             raise ValueError("invalid day")
@@ -40,11 +41,22 @@ def summary(days, evaluator=cohort):
                 roi[k][field] += entry[field]
         if not hits["top3"] <= hits["top5"] <= hits["top10"]:
             raise ValueError("inconsistent top-n totals")
-        rows.append({"day_jst": day, "counts": daily, "hits": result["hits"]})
+        reasons = {}
+        for item in result.get("rejected", []):
+            label = item.get("reason") if isinstance(item, dict) else None
+            if not isinstance(label, str) or not label:
+                label = "unspecified"
+            label = label.split(":", 1)[0][:100]
+            reasons[label] = reasons.get(label, 0) + 1
+        if sum(reasons.values()) != daily["audit_rejected"]:
+            raise ValueError("inconsistent audit rejection accounting")
+        for label, quantity in reasons.items():
+            rejection_reasons[label] = rejection_reasons.get(label, 0) + quantity
+        rows.append({"day_jst": day, "counts": daily, "hits": result["hits"], "rejection_reasons": reasons})
     return {
         "schema": "CLEAN_PROSPECTIVE_TOPN_MULTIDAY_V1",
         "formal": False, "simulated_only": True, "calibrated_confidence": False,
-        "days": rows, "counts": counts, "hits": hits,
+        "days": rows, "counts": counts, "hits": hits, "rejection_reasons": rejection_reasons,
         "audit_rejection_reasons": rejection_reasons,
         "evidence_warning": "all_archives_rejected_no_measurable_hit_rate" if counts["archives"] and counts["audit_rejected"] == counts["archives"] else None,
         "hit_rate_pct": {k: round(100 * v / counts["evaluated"], 2) if counts["evaluated"] else None for k, v in hits.items()},
