@@ -23,7 +23,7 @@ def six_lane_status(kind, row):
     except (KeyError, ValueError, TypeError):
         return "incomplete"
     import re
-    valid_st=re.compile(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})")
+    valid_st=re.compile(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})")
     return "complete" if sorted(courses)==[1,2,3,4,5,6] and all(valid_st.fullmatch(st) for st in starts) else "incomplete"
 
 def save_preview(raw, kind, day, received_at, root):
