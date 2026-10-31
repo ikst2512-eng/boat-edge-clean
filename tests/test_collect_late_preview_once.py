@@ -16,6 +16,8 @@ class Integration(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             outcome=collect(day="20261031",root=folder,fetch=fetch,clock=now)
             self.assertEqual(outcome["kinds"]["stt"]["saved"],1)
+            self.assertEqual(outcome["kinds"]["stt"]["pre_deadline_2min"]["pre_cutoff_observed"],1)
+            self.assertEqual(outcome["kinds"]["stt"]["pre_deadline_12min"]["pre_cutoff_observed"],0)
             self.assertTrue((Path(folder)/"20261031"/"stt"/"202610310111.json").is_file())
             second=collect(day="20261031",root=folder,fetch=fetch,clock=now)
             self.assertEqual(second["kinds"]["stt"]["error"],"FileExistsError")
