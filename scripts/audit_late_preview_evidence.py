@@ -46,19 +46,31 @@ def audit(root="late_preview_evidence"):
     complete=0
     complete_t12=0
     missing=[]
+    paired_codes=[]
+    t12_codes=[]
+    t12_evidence=[]
     for code, entries in sorted(pairs.items()):
         if ("stt" in entries and "tkz" in entries
             and entries["stt"].get("six_lane_validation")=="complete"
             and entries["tkz"].get("six_lane_validation")=="complete"):
             complete+=1
+            paired_codes.append(code)
             if all(classify(entries[k]["source_row"], parse_jst(entries[k]["received_at_jst"]), margin_minutes=12)=="pre_cutoff_observed" for k in ("stt","tkz")):
                 complete_t12+=1
+                t12_codes.append(code)
+                t12_evidence.append({"race_code":code,"stt_received_at_jst":entries["stt"]["received_at_jst"],
+                                     "tkz_received_at_jst":entries["tkz"]["received_at_jst"],
+                                     "stt_source_observed_jst":entries["stt"]["source_observed_jst"],
+                                     "tkz_source_observed_jst":entries["tkz"]["source_observed_jst"]})
         else:
             missing.append(code)
     return {"records":total,"invalid":invalid,"races":len(pairs),
             "paired_complete_6boat_stt_tkz":complete,
             "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),
+            "paired_complete_race_codes":paired_codes,
+            "t12_observable_race_codes":t12_codes,
+            "t12_evidence_by_race":t12_evidence,
             "note":"No evidence of prediction accuracy or forecast at -12 minutes"}
 
 if __name__=="__main__":
