@@ -32,11 +32,16 @@ def probe(day, venue, race, fetch=None, now=None):
              "six_boats_verified":False}
     if not isinstance(preview,dict) or not outcome["predeadline"]: return outcome
     racers=preview.get("racers")
-    if not isinstance(racers,dict) or set(racers)!=set("123456"):return outcome
+    if not isinstance(racers,dict) or set(racers)!=set("123456"):
+        outcome["validation_reason"]="missing_six_racer_keys"
+        return outcome
+    outcome["racer_field_names"]=sorted(set().union(*(set(v) for v in racers.values() if isinstance(v,dict))))
     boats=[]
     for i in range(1,7):
         p=racers[str(i)]
-        if p.get("entry_number")!=i: return outcome
+        if p.get("entry_number")!=i:
+            outcome["validation_reason"]=f"entry_mismatch_lane_{i}"
+            return outcome
         course=p.get("course_number")
         timing=p.get("start_timing")
         exhibition=p.get("exhibition_time")
@@ -44,6 +49,7 @@ def probe(day, venue, race, fetch=None, now=None):
         if not (isinstance(course,int) and 1<=course<=6 and
                 all(type(v) in (float,int) and math.isfinite(v) for v in (timing,exhibition,tilt)) and
                 -1<=timing<=2 and 5<exhibition<10 and -2<=tilt<=3):
+            outcome["validation_reason"]=f"invalid_or_missing_preview_values_lane_{i}"
             return outcome
         boats.append({"lane":i,"course":course,"exhibition_st":timing,"exhibition_time":exhibition,"tilt":tilt})
     if len({b["course"] for b in boats})!=6:return outcome
