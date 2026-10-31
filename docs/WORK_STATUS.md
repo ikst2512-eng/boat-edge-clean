@@ -256,3 +256,8 @@
 - mainが進行中に前進したため、既存PR #723へ最新mainを保全して再取り込み。merge commit `c2076f3095c31fa630c87955f852c2d9662e7832`、GitHub `mergeable=true`、比較で `behind=0` を確認。main本体は変更していない。
 - 統合後Actionsの実ジョブで `Late preview evidence integrity` run `41239159375` success、`Research preview CSV source diagnostics` run `41239159337` success、`Preview capture (pull_request)` run `41239159305` success を確認。これは収集処理/テストの正常終了であり、ライブT-12 6艇取得成功ではない。
 - #654の処理は#723へ保持済み、#654の独立PRは無断終了しない。データ取得側main統合はメイン開発担当に引き継ぐ。
+
+### 2026-11-01 6艇ペア欠損原因のレース別監査（PR #723）
+- `scripts/audit_late_preview_evidence.py` の `incomplete_pair_reasons_by_race` を追加。T-12以前の要否とは別に、レースごとにSTT/TKZの `missing` / `incomplete` / `complete` を出力し、ペア不足の根本原因を区別。
+- `tests/test_audit_late_preview_evidence.py` に受信時刻が無効なTKZを欠損扱いする回帰アサーションを追加（commit `eaf180902`）。今回変更を含むCIの成功はまだ未確認。過去CI成功を新修正の成功と混同しない。
+- 現時点でGitHub Actionsの11/1 JST 08:00以降の公開時間帯に実行された定期preview保存を確認できず、実ライブT-12完全6艇ペアは依然未証明。main未統合。
