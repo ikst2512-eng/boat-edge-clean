@@ -111,3 +111,9 @@
 - GitHub Pages公開workflowの既存 `Browser interaction smoke test` に、`navigation.js` の実行完了 (`dataset.cleanNavigationInit`) とレース4タブDOMが存在することをChromiumで検証する条件を追加。新規workflow/PRは作らずmain `d65c51c752c34987d0a9b60568ab776ade48ccc2` に統合。
 - 既存workflowを再取得しアサーション存在を確認。GitHub連携のコミットworkflow一覧はPRイベントだけを扱うため、Pages push Actionsの成功判定には使えない。公開Pages/RenderへのWeb直接アクセスはこの環境で失敗。**CI成功・10/31の実画面表示は未確認**。
 - 次: GitHub PagesのActions runでナビDOM smokeと公開静的ファイル照合がPASSした証拠を確認し、10/31日付の出走表・予想・結果をブラウザ上で検証。旧リポジトリの削除なし。
+
+## 2026-11-01 旧サイト現物の特定・権限制約
+- GitHubで旧 `ikst2512-eng/boat-edge` はpublic・未アーカイブ（default main）の別リポジトリと確認。旧 `index.html` は `BOAT EDGE v30` を持つ実在する旧UI。Render `My Workspace` は現行 `boat-edge-clean` のWebサービス1件だけで、旧Renderサービスは存在しない。
+- `AGENTS.md` スコープは `boat-edge-clean` で、旧 `boat-edge` の無断変更/削除は禁止。この制約に沿って旧リポジトリへのリダイレクト変更・リポジトリ削除は行っていない。旧GitHub Pages公開状態も未確認で「旧サイト撤去済み」としない。
+- GitHub Pages公開URLとRender公開URLへのWeb直接アクセス、コンテナからのgithub.com名前解決は失敗。公開DOMの2026-10-31実レース検証は未達。Render最終確認のlive commit `65447516f10b02282795c7900c0a6f1bf585ba00`。
+- メインの次手は旧リポジトリ変更の許可範囲とPages公開サービス構成が確定次第、旧UIを新サイトへ安全移行すること。現行サイトは公開ブラウザ検証を別手段で行う。担当外#725/#722/#723/#654を勝手に統合しない。
