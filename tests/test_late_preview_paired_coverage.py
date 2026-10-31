@@ -16,6 +16,9 @@ class PairedPreviewCoverageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result=collect("20261101",Path(tmp),fetch=fetch)
         self.assertEqual(result["kinds"]["stt"]["http_status"],404)
+        self.assertEqual(result["kinds"]["stt"]["availability_interpretation"],"not_published_or_missing")
+        from datetime import datetime
+        self.assertIsNotNone(datetime.fromisoformat(result["kinds"]["stt"]["checked_at_jst"]).utcoffset())
         self.assertEqual(result["kinds"]["tkz"]["saved"] if "saved" in result["kinds"]["tkz"] else 0,0)
         self.assertEqual(result["paired_six_lane_coverage"]["paired_complete"],0)
 
