@@ -75,7 +75,7 @@ jobs:
           from scripts.archive_late_research_candidates import archive
           day=datetime.now(JST).strftime("%Y%m%d")
           report=archive(day,Path("late_preview_evidence"),Path("late_research_candidates"))
-          Path("late_research_archive_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          Path("late_research_archive_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
           print(json.dumps(report,ensure_ascii=False))
           PY
       - name: Evaluate paired prospective late and early TopN
@@ -88,8 +88,33 @@ jobs:
           from scripts.evaluate_late_research_topn import evaluate
           day=datetime.now(JST).strftime("%Y%m%d")
           report=evaluate(day,Path("late_research_candidates"),Path("."))
-          Path("late_research_topn_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          Path("late_research_topn_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
           print(json.dumps(report,ensure_ascii=False))
+          PY
+      - name: Summarize prospective comparison readiness
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          archive_path=Path("late_research_archive_report.json")
+          topn_path=Path("late_research_topn_report.json")
+          archive=json.loads(archive_path.read_text(encoding="utf-8")) if archive_path.is_file() else {}
+          topn=json.loads(topn_path.read_text(encoding="utf-8")) if topn_path.is_file() else {}
+          lines=[
+              "### Prospective late research evidence (not formal T-12 forecasts)",
+              f"- Upstream eligible candidates: {archive.get('upstream_candidate_count', 'unavailable')}",
+              f"- Prospectively saved this run: {archive.get('saved_count', 'unavailable')}",
+              f"- Archive status: {archive.get('archive_state', 'unavailable')}",
+              f"- Saved candidate files in this run: {topn.get('candidate_files', 'unavailable')}",
+              f"- Matched early/late/confirmed-result races: {topn.get('paired_races', 'unavailable')}",
+              f"- Comparison cohort: {topn.get('cohort_status', 'unavailable')}",
+              f"- Rejected comparison reasons: {json.dumps(topn.get('rejected', {}),ensure_ascii=False)}",
+              "No hit-rate or ROI improvement is claimed without verified matched races.",
+          ]
+          print("\\n".join(lines))
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("\\n".join(lines)+"\\n")
           PY
       - name: Archive separately from research predictions
         if: always()
