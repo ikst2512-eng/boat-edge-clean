@@ -50,7 +50,8 @@ def collect(day=None, root=None, fetch=None, clock=None):
             interpretation=("before_expected_publication_window" if isinstance(err,HTTPError) and err.code==404 and checked_at.hour<8 else
                             "not_published_or_missing" if isinstance(err,HTTPError) and err.code==404 else
                             "upstream_failure_or_invalid")
-            report["kinds"][kind]={"status":"unavailable","error":type(err).__name__,"reason":reason,
+            status="source_unavailable" if reason in ("upstream_http","upstream_transport") else "capture_invalid"
+            report["kinds"][kind]={"status":status,"error":type(err).__name__,"reason":reason,
                                    "availability_interpretation":interpretation,
                                    "http_status":err.code if isinstance(err,HTTPError) else None,
                                    "received_at_jst":checked_at.isoformat(),"saved":0,
@@ -58,14 +59,17 @@ def collect(day=None, root=None, fetch=None, clock=None):
                                    "six_lane_validation":None}
     available=sum(1 for entry in report["kinds"].values() if entry.get("status") == "retrieved")
     report["sources_available"]=available
-    report["sources_unavailable"]=len(KINDS)-available
+    report["sources_unavailable"]=sum(1 for entry in report["kinds"].values() if entry.get("status") == "source_unavailable")
+    report["capture_invalid"]=sum(1 for entry in report["kinds"].values() if entry.get("status") == "capture_invalid")
     report["saved_total"]=sum(entry["saved"] for entry in report["kinds"].values())
     report["race_rows_total"]=sum(entry.get("source_rows") or 0 for entry in report["kinds"].values())
     # A successful Actions job must not be mistaken for successful upstream acquisition.
-    before_window=(available == 0 and all(entry.get("availability_interpretation")=="before_expected_publication_window" for entry in report["kinds"].values()))
+    before_window=(available == 0 and report["capture_invalid"] == 0 and all(entry.get("availability_interpretation")=="before_expected_publication_window" for entry in report["kinds"].values()))
     report["status"]=("not_yet_expected" if before_window else
+                      "capture_invalid" if report["capture_invalid"] and available == 0 else
                       "source_unavailable" if available == 0 else
-                      "partial_source_failure" if available < len(KINDS) else
+                      "partial_source_failure" if available < len(KINDS) and report["capture_invalid"] == 0 else
+                      "partial_capture_failure" if available < len(KINDS) else
                       "sources_retrieved_no_rows" if report["race_rows_total"] == 0 else
                       "sources_retrieved")
     return report
