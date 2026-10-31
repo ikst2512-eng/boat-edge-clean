@@ -36,6 +36,8 @@ def analyze(root=ROOT):
             q=json.loads(result_path.read_text())
             code=path.stem
             if p.get("race_code")!=code or q.get("race_code")!=code or p.get("status")!="research" or p.get("validated") is not False or q.get("status")!="confirmed":raise ValueError("invalid provenance")
+            if p.get("model_version") not in (None, "national-beta0.4-exploratory-v1"):
+                raise ValueError("unmatched research model version")
             generated=datetime.fromisoformat(p["generated_at"])
             cutoff=datetime.fromisoformat(p["cutoff_jst"])
             deadline=datetime.fromisoformat(p["source_deadline_jst"])
