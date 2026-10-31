@@ -71,9 +71,31 @@ jobs:
       - name: Print unvalidated independent late research candidates
         run: python -m scripts.late_research_candidate
       - name: Archive only genuinely prospective late candidate forecasts
-        run: python -m scripts.archive_late_research_candidates
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from research_model import JST
+          from scripts.archive_late_research_candidates import archive
+          day=datetime.now(JST).strftime("%Y%m%d")
+          report=archive(day,Path("late_preview_evidence"),Path("late_research_candidates"))
+          Path("late_research_archive_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          print(json.dumps(report,ensure_ascii=False))
+          PY
       - name: Evaluate paired prospective late and early TopN
-        run: python -m scripts.evaluate_late_research_topn
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from research_model import JST
+          from scripts.evaluate_late_research_topn import evaluate
+          day=datetime.now(JST).strftime("%Y%m%d")
+          report=evaluate(day,Path("late_research_candidates"),Path("."))
+          Path("late_research_topn_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          print(json.dumps(report,ensure_ascii=False))
+          PY
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,5 +104,7 @@ jobs:
           path: |
             late_preview_evidence/
             late_research_candidates/
-          retention-days: 7
+            late_research_archive_report.json
+            late_research_topn_report.json
+          retention-days: 90
           if-no-files-found: ignore
