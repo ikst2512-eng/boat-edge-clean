@@ -8,6 +8,15 @@ from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 
 class PairedPreviewCoverageTests(unittest.TestCase):
+    def test_audit_summary_is_saved_with_evidence(self):
+        from scripts.collect_live_preview_evidence import write_summary
+        with tempfile.TemporaryDirectory() as tmp:
+            payload={"day":"20261031","paired_six_lane_coverage":{"paired_12min_observable":0}}
+            target=write_summary("20261031",Path(tmp),payload)
+            self.assertEqual(json.loads(target.read_text(encoding="utf-8")),payload)
+            with self.assertRaises(ValueError):
+                write_summary("20261030",Path(tmp),payload)
+
     def test_live_summary_reports_complete_vs_incomplete(self):
         import csv, io
         from datetime import datetime
