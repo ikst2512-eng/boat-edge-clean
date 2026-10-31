@@ -1,0 +1,34 @@
+name: Verify published payout CSV connectivity
+on:
+  pull_request:
+    paths: [.github/workflows/verify-payout-source.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_collect_clean_payouts
+      - name: Probe actual Oct 30 and Oct 31 CSV without mutating archives
+        run: |
+          python - <<'PY'
+          import csv,io,json
+          from urllib.request import urlopen,Request
+          from urllib.error import HTTPError,URLError
+          for day in ('20261030','20261031'):
+              url=f'https://boatracecsv.github.io/data/results/payouts/{day[:4]}/{day[4:6]}/{day[6:]}.csv'
+              try:
+                  with urlopen(Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN-PAYOUTS/1.0'}),timeout=15) as response:
+                      raw=response.read(2_000_001)
+                  reader=csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))
+                  print(json.dumps({'day':day,'status':'available','rows':sum(1 for x in reader),'trifecta_columns_present':{'3連単_組番','3連単_払戻金','レースコード'}.issubset(reader.fieldnames or [])}))
+              except HTTPError as e:
+                  print(json.dumps({'day':day,'status':'http_error','http_status':e.code}))
+              except URLError as e:
+                  print(json.dumps({'day':day,'status':'network_error','reason':str(e.reason)[:120]}))
+          PY
