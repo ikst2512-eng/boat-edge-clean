@@ -60,3 +60,9 @@
 - 取得品質: 2026-10-31蒲郡8Rの6艇保存実績は過去記録として存在するが、T-12時点の受信証拠は未確認。公式beforeinfo / BOATERS / 競艇日和 / 実オッズの6艇同期取得保証も未証明。T-12保証を宣言しない。
 - テスト/CI: PR側CI実行結果で別途確認。公開本番の変更なし。
 - 次: PRの回帰テストを確認し、予定実行artifactの受信時刻・HTTP失敗率・6艇ペア率を収集。#654のpaired coverage差分は重複実装せず取り込み判断をメイン担当に委譲。
+
+### 2026-11-01 継続: 上流取得障害の明示
+- GitHub Actions実測: run 41234665968（JST 2026-11-01 04:32頃）で STT/TKZ/SUI/original_exhibition/od3 がすべてHTTP 404。保存0、6艇ペア0、T-12証拠ペア0。Actions成功終了と取得成功は別。
+- 修正(PR #723に追加): `collect_late_preview_once.py` が全源失敗時 `source_unavailable`、一部失敗時 `partial_source_failure`、全取得時 `sources_retrieved` と集計し、5源のavailable/unavailable数と保存件数を報告。`late-preview-capture.yml` Actions summaryに上流状態を明示。
+- テスト: 404全件失敗・一部失敗の回帰テスト2件追加。今回の追記後CIは結果を確認するまで未検証扱い。
+- 未完了: 実データのT-12完全6艇ペア、公式beforeinfo/BOATERS/競艇日和の可用性と時刻証拠、収集ジョブ依存関係の安全な整理。main未統合。
