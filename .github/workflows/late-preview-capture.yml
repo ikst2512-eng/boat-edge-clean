@@ -23,6 +23,8 @@ jobs:
           python-version: '3.12'
       - name: Fetch and save only deadline-eligible live rows
         run: python collect_late_preview_once.py
+      - name: Verify complete predeadline exhibition and entry pairs
+        run: python scripts/audit_late_preview_evidence.py
       - name: Summarize locally captured evidence
         run: |
           python - <<'PY'
@@ -47,4 +49,4 @@ jobs:
             late_preview_evidence/**/*.json
             late_preview_capture_report.json
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 30
