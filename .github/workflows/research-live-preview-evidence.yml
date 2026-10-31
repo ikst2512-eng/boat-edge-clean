@@ -16,8 +16,9 @@ on:
       - 'scripts/late_research_comparison_audit.py'
       - 'tests/test_late_research_comparison_audit.py'
   schedule:
-    # 09:00-21:45 JST every 15 minutes; capture eligibility remains fail-closed.
-    - cron: '*/15 0-12 * * *'
+    # 09:00-21:55 JST every 5 minutes; T-5 source has a narrow pre-T-2 capture window.
+    # GitHub schedules can be delayed; timestamps and deadline gates remain authoritative.
+    - cron: '*/5 0-12 * * *'
   workflow_dispatch:
 permissions:
   contents: read
