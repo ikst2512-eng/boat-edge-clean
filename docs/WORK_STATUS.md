@@ -420,3 +420,9 @@
 - 統合commitのpush ActionsはDaily findings `41241737540`、Dual verification `41241737526`、Mobile browser `41241737469`、CLEAN regression `41241737677`、Navigation `41241737610`、Official odds `41241737605`、Odds parser `41241737589`、Pages publish `41241737457` がsuccess。
 - Render deploy `dep-dbj5f1e417fc73aj5fbg` は同一commitでlive到達。公開Render/Pagesの `2026-10-31 津12R` を実ブラウザ確認し、確定結果「2-1-3」/払戻6,230円が予想より上、Top10、展開、先頭艇別、6艇成績枠を表示。証拠不足値は「未取得」で捏造表示なし。
 - モデル昇格・正式採点・仮想購入・精度向上主張なし。旧repo/旧Pagesは停止していない。最大の残件は締切前時刻が証明された6艇の実コース別率と先頭艇条件付き率の期間・分母・出典。
+
+
+## 2026-11-01 T-12ソースの日付整合性を強化
+- 取得日が前日などの古い `取得日時` でも、締切より12分以前なら `classify` が通過し得る日付不整合を修正。ソース取得日時とHTTP受信日時がレース締切のJST暦日と一致しなければ `unknown_time` に分類する。実装 `cf319c6`。
+- 前日ソース・当日正常ソース・前日HTTP受信の境界を `tests/test_preview_timing_integrity.py` に追加（`a6b9b90`）。既存 `late-preview-evidence-tests.yml` のpush/PR対象へコード・テストを含め、テストを実行する設定を追加（`448c0c7`）。
+- main上の更新確認までで、新規CI成功は未確認。実レースT-12完全6艇受信の実証も未達。既存取得ソースや公開UIは変更せず、旧repo停止もしない。
