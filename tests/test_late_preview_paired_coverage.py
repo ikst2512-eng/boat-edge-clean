@@ -8,6 +8,17 @@ from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 
 class PairedPreviewCoverageTests(unittest.TestCase):
+    def test_http_status_recorded_without_claiming_capture(self):
+        from urllib.error import HTTPError
+        from scripts.collect_live_preview_evidence import collect
+        def fetch(url):
+            raise HTTPError(url, 404, "Not Found", None, None)
+        with tempfile.TemporaryDirectory() as tmp:
+            result=collect("20261101",Path(tmp),fetch=fetch)
+        self.assertEqual(result["kinds"]["stt"]["http_status"],404)
+        self.assertEqual(result["kinds"]["tkz"]["saved"] if "saved" in result["kinds"]["tkz"] else 0,0)
+        self.assertEqual(result["paired_six_lane_coverage"]["paired_complete"],0)
+
     def test_audit_summary_is_saved_with_evidence(self):
         from scripts.collect_live_preview_evidence import write_summary
         with tempfile.TemporaryDirectory() as tmp:
