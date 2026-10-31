@@ -118,10 +118,25 @@ const {chromium}=require('playwright');
     previewWindowCount=previewWindow.length;
     upcoming.sort((a,b)=>a.cutoff-b.cutoff);
     previewWindow.sort((a,b)=>a.cutoff-b.cutoff);
+    // Prioritize races independently present in both public pre-race preview CSVs.
+    // This is discovery only: the Render API and rendered DOM still must pass
+    // full six-boat, timestamp and value checks before reporting proof.
+    const published=new Set();
+    try{
+     const csvs=await Promise.all(['tkz','stt'].map(async kind=>{
+      const u='https://boatracecsv.github.io/data/previews/'+kind+'/'+today.slice(0,4)+'/'+today.slice(4,6)+'/'+today.slice(6,8)+'.csv';
+      const response=await fetch(u,{signal:AbortSignal.timeout(8000)});
+      if(!response.ok)throw Error(kind+' HTTP '+response.status);
+      return new Set((await response.text()).split(/\r?\n/).slice(1).map(line=>line.split(',')[0]).filter(code=>/^\d{12}$/.test(code)));
+     }));
+     for(const code of csvs[0])if(csvs[1].has(code))published.add(code);
+     console.log('LIVE_PUBLISHED_PREVIEW_CANDIDATES '+published.size);
+    }catch(error){console.log('LIVE_PUBLISHED_PREVIEW_DISCOVERY_UNAVAILABLE '+String(error).slice(0,160));}
+    const isPublished=x=>published.has(today+String(x.venue).padStart(2,'0')+String(x.race).padStart(2,'0'));
     // Sample several distinct races: one unpublished feed must not hide other live exhibitions.
     // Diversify venues: eight early races from three venues can miss an
     // independently published preview at another course entirely.
-    const ordered=[...previewWindow,...upcoming.filter(x=>!previewWindow.includes(x))];
+    const ordered=[...previewWindow.filter(isPublished),...upcoming.filter(x=>isPublished(x)&&!previewWindow.includes(x)),...previewWindow.filter(x=>!isPublished(x)),...upcoming.filter(x=>!isPublished(x)&&!previewWindow.includes(x))];
     const usedVenues=new Set();
     const distinct=ordered.filter(x=>{
      if(usedVenues.has(x.venue))return false;
