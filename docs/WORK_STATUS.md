@@ -282,3 +282,29 @@
 - 一時的なpushブランチ指定を `.github/workflows/late-preview-evidence-tests.yml` から除去し、`push: main` と `pull_request` の既存テスト経路を維持（commit `5066d1202d52fc1fde30e36ebc7baf20560d4742`）。
 - 今回の作業はT-12実データ収集の成功を示さない。STT・TKZの同一レース・同一締切の6艇データ、受信JST時刻、ソース時刻、締切前12分の照合は未完了。
 - 次: `docs/WORK_STATUS.md` のmain追加14行を保存したままPR側の記録と統合し、CIを再確認。実レースについて08:00以降の定期実行ログ・artifactを照合。モデル/UIは触らずメイン担当のmain統合判断に委譲。
+
+
+## 2026-11-01 旧サイト撤去ゲート強化PR #733統合
+- 既存PR #733を重複PR作成せずmainへsquash統合: `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c`。既存 live E2Eで `tkz` と `stt` 双方の `observed_at` を独立照合し、各取得時刻が未来や締切後なら不合格、各source SHA256がない・不正なら不合格。mainのコード再取得で実装を確認。
+- PR head `7da145c0c1d62b0cebf0d026c817732266fb27e6` のActions run `41239549160` は歴史出走表・結果・120オッズ・構文でsuccess、`e2e-live-race` はPR実行でskipped。締切前実測成功はなお未確認。
+- PR #732のRender deploy `dep-dbj50gjil8vc73a6dom0` がliveと確認済み。今回統合した#733のRenderデプロイ・定期E2E結果はまだ未確認。独立証拠保全とCLEAN実レース6艇展示成功を満たすまで旧repo/Pagesは停止しない。
+
+## 2026-11-01 #733本番反映とソース監査スキーマ確認
+- Render `list_deploys` で `dep-dbj520ivcj2c73eknlh0` / commit `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c` finished 2026-10-31 20:35:57 UTC、status `live` を確認。後続 `eb13773c` は確認時点で更新中であり、最新版のlive状態を同一視しない。
+- main `clean_racecard.py` の `beforeinfo` source audit構造 `sources.tkz/stt.observed_at` および `sha256` が既存 #733 E2Eの検査対象と一致するとコード照合。コード・スキーマ一致は実レースの検証成功ではない。
+- 旧repo/publicationは未停止。次はscheduleによる`e2e-live-race`の実行結果で `EXHIBITION_PASS` と独立時刻・SHA証拠を確認すること。旧データの独立保全も残る。
+
+## 2026-11-01 締切前E2Eの独立締切照合
+- main `6f06a63c051cd90ae678087af738ed109eea9567` にて既存の `scripts/verify_live_racecard_e2e.py` を修正。これまでAPI応答の `meta.deadline` が締切前かは確認していたが、独立した開催情報から得た締切と同じか検証していなかった。候補選定時の締切を保持し `response_deadline != source_deadline` は不合格にする。取得元不一致時の偽陽性を防止するためで、収集機構・モデルは変更なし。
+- mainからコード再取得し修正の存在を確認。実スケジュールCIの成功、6艇展示データ取得成功は未確認。Render本番は前回 `eb13773c` がlive、最新mainに対するデプロイは別途確認が必要。旧Pagesや旧repoの停止なし。
+
+## 2026-11-01 Render本番確認（01統合）
+- Render workspace `My Workspace` の web service `boat-edge-clean` (`srv-dbcthfrncjis73djj8qg`) は **別repo `ikst2512-eng/boat-edge-clean` の main** をauto-deployする。旧 `ikst2512-eng/boat-edge` のPR/CIをCLEANの本番反映と混同しない。
+- 2026-11-01 05:39 JST、Render deploy `dep-dbj5395h3lcs7386ofkg` が `live`。SHA `4659cbe66ff64b81a0d5874eafe8608f2d01d585` は確認時のCLEAN main最新commitと一致。Renderログでbuild successful、`python server.py` 起動、`HEAD /` と `GET /` が200を確認。
+- これは**トップHTTP疎通とデプロイ一致の証拠**であり、過去日(2026-10-31)の出走表/予想/展示/結果4タブ、API成功、実機Safariの証明ではない。外部ブラウザからの取得はこの確認環境で未成立。
+- 旧サイト停止は issue #708 にある証拠保全・移行後機能同等性・ロールバック条件の未達につき未実施。現在のRender一覧はCLEAN web service 1件で、旧公開は旧repoのPages側で管理。旧repoの証拠やpublishを無断破棄しない。
+- **次のP0**: CLEANの10/31実レースに対するAPI/画面E2Eを既存テストで証明→旧予想原本・初回Git時刻/SHA・結果原本の復元可能バックアップ照合→旧Pages/writerを段階停止。新規の監査ワークフローを重複作成しない。
+
+
+### 2026-11-01 main追記保全（PR #723）
+- main側の#733統合・Renderデプロイ・締切照合・旧サイト停止条件の記録を原文保持してPR文書へ追記した。競合解消のコードマージやmain統合の完了を意味しない。
