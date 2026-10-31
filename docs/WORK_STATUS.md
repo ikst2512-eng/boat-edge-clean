@@ -470,3 +470,9 @@
 - PR #751 (main squash `7fc2e81e7e56a14ac96bada53d01113763219db8`) は、既存の保存済み `confirmed_results/` をGitHub Pages成果物に同梱し、Raw側取得失敗時のみ同一originの結果JSONへフォールバック。4か所の既存結果読込を共通化し、race codeを検査。モデル予想入力への確定結果混入なし。
 - PR head の回帰CI（`check`,`publish-smoke`）成功、main Pages公開 run `41243190467` / deploy job `124661127242` はsuccess。実公開ブラウザログは `DEPLOYED_BROWSER_PASS` と `CLEAN_RESULT_PUBLISHED_BROWSER_PASS ...venue=23&race=1 ... 1-2-5` を確認。**202610270101の独立実ブラウザ合格を確認したわけではない。**
 - 残る: iPhone Safari実機、追加レースの出走表／展示／予想内容、T-12の同一6艇STT+TKZ受信時刻証明。旧サイト停止条件は未達。
+
+
+## 2026-11-01 重複証拠をT-12ペアから除外
+- 保存済み監査 `scripts/audit_late_preview_evidence.py` で同一レース・種別の重複レコードが現れた際、単にinvalidに加算するだけでは先に受理した記録がペアとして残る可能性を修正。重複種別を拒否リストへ追加し、既存ペアからも除外（`22e488adc201a919915b9c59bed9836c14bfa38f`）。
+- 監査時に重複参照を再現する既存テストを追加し、完全6艇ペア・T-12ペア共に不合格となることを確認する条件を記載（`77e4f3d35837b35eaa8339d79cf7acd1b06ec331`）。
+- mainに反映済み。**CI実行成功および実レースのT-12完全6艇取得は未確認**。旧サイト・予想モデルは変更なし。
