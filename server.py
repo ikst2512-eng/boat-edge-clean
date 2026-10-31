@@ -360,6 +360,10 @@ class Handler(BaseHTTPRequestHandler):
                     status = 404
                 else:
                     status = 503
+                if status == 404:
+                    logging.info("clean_racecard_not_found hd=%s jcd=%s rno=%s reason=%s",
+                                 params.get("hd", [""])[0], params.get("jcd", [""])[0],
+                                 params.get("rno", [""])[0], reason[:100])
                 data = {"ok": False, "status": "unavailable", "reason": reason[:100]}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
