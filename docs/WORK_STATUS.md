@@ -164,3 +164,8 @@
 - PR #731のhead `7e0b3c933c5cc7f4258f62070283e1511bff36a4` のActions run `41239093712` では、履歴出走表・結果・120通りオッズがsuccess。`e2e-live-race` はPR仕様でskipped。**締切前展示が成功した証明ではない**。
 - 既存 `scripts/verify_live_racecard_e2e.py` が「候補選定時に締切前」という条件だけで応答の締切前性を判定していたため、本番HTTP応答後に `meta.deadline` を解析し再度JST現在時刻と比較、締切済みレスポンスを不合格にする修正をmain `0c119339f4bbe1d10862006b67d6508a297e0bac` に適用。main再読込で反映を確認。CI・実レースの定期job成功はまだ未確認。
 - 旧サイト停止にはCLEAN定期jobによる締切前カード・展示の実測と、旧サイト保存証拠の独立保全が必要。旧リポジトリは変更/削除していない。
+
+## 2026-11-01 旧サイト撤去ゲート強化PR #733統合
+- 既存PR #733を重複PR作成せずmainへsquash統合: `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c`。既存 live E2Eで `tkz` と `stt` 双方の `observed_at` を独立照合し、各取得時刻が未来や締切後なら不合格、各source SHA256がない・不正なら不合格。mainのコード再取得で実装を確認。
+- PR head `7da145c0c1d62b0cebf0d026c817732266fb27e6` のActions run `41239549160` は歴史出走表・結果・120オッズ・構文でsuccess、`e2e-live-race` はPR実行でskipped。締切前実測成功はなお未確認。
+- PR #732のRender deploy `dep-dbj50gjil8vc73a6dom0` がliveと確認済み。今回統合した#733のRenderデプロイ・定期E2E結果はまだ未確認。独立証拠保全とCLEAN実レース6艇展示成功を満たすまで旧repo/Pagesは停止しない。
