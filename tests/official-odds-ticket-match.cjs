@@ -1,0 +1,23 @@
+// Verify the production odds-to-ticket mapping without changing forecast ranks.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('index.html','utf8');
+const body=html.match(/async function loadTicketOdds\(key, token\)\{[\s\S]*?\n\}\nasync function loadPredictions/);
+assert.ok(body,'production live-odds function missing');
+const source=body[0];
+const assignment=source.match(/current\.odds=Object\.fromEntries\(current\.tickets\.filter\(ticket=>Object\.hasOwn\(data\.odds,ticket\)\)\.map\(ticket=>\[ticket,data\.odds\[ticket\]\]\)\);/);
+assert.ok(assignment,'must use exact ticket keys from current prediction');
+const all=[];
+for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++)if(new Set([a,b,c]).size===3)all.push([a,b,c].join('-'));
+assert.equal(all.length,120);
+const data={odds:Object.fromEntries(all.map((key,i)=>[key,Number((1.1+i/10).toFixed(1))]))};
+const tickets=['6-5-4','1-3-2','2-1-6','4-3-1','1-2-3','3-5-6','2-3-1','5-4-6','6-1-2','3-1-4'];
+const original=tickets.slice();const current={tickets:tickets.slice(),odds:{}};
+vm.runInNewContext(assignment[0],{current,data,Object});
+assert.deepEqual(current.tickets,original,'odds update must preserve ticket rank order');
+assert.deepEqual(Object.keys(current.odds),original,'odds must use exact saved ticket order');
+for(const ticket of original)assert.equal(current.odds[ticket],data.odds[ticket],ticket);
+assert.ok(source.includes('Object.keys(data.odds).length!==120'),'reject incomplete official odds');
+assert.ok(source.includes('observed<Date.now()-1800000'),'reject stale odds');
+assert.ok(source.includes('sameRaceKey()!==key'),'reject wrong-race responses');
+assert.ok(source.includes('token!==window.predictionRequestId'),'reject superseded requests');
+console.log('Official odds: 120 keys, 10 exact ticket mappings, rank preservation, and stale-data guards PASS');
