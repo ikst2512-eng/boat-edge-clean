@@ -4,13 +4,14 @@ Output belongs exclusively to an Actions artifact, not research_snapshots or
 published predictions. Safe to run even when no eligible races exist.
 """
 import json, sys, tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError,URLError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from research_model import JST
 from late_preview_capture import save_preview, KINDS, six_lane_status
+from scripts.preview_timing_integrity import classify
 from scripts.research_preview_csv_probe import BASE
 
 def paired_six_lane_coverage(day, root):
@@ -25,7 +26,12 @@ def paired_six_lane_coverage(day, root):
                         and record.get("six_lane_validation") == "complete"
                         and isinstance(record.get("source_row"), dict)
                         and six_lane_status(kind, record["source_row"]) == "complete"
-                        and record.get("status") == "late_preview_unvalidated_not_research_forecast"):
+                        and record.get("status") == "late_preview_unvalidated_not_research_forecast"
+                        and record.get("source_observed_jst") == record["source_row"].get("取得日時")
+                        and datetime.fromisoformat(record["received_at_jst"]).utcoffset() is not None
+                        and classify(record["source_row"], datetime.fromisoformat(record["received_at_jst"]), margin_minutes=0) == "pre_cutoff_observed"
+                        and datetime.fromisoformat(record["received_at_jst"]) <
+                            datetime.strptime(file.stem[:8] + record["source_row"]["締切時刻"], "%Y%m%d%H:%M").replace(tzinfo=JST) - timedelta(minutes=2)):
                     good.add(file.stem)
             except (OSError, ValueError, TypeError, AttributeError):
                 continue
