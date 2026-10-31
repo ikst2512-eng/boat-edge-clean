@@ -383,3 +383,6 @@
 - 先行の監査コードは `scheduled_last_24h` と成功/失敗数を報告し、nightly scheduleで同日JSTのcapture 0件なら失敗する。CIの成功と6艇保存証拠は別物。
 - コミット連動のPR run APIでは当該main pushの新規実行は表示されず、CI合否は未確認。main pushの実runをGitHub Actionsのworkflow履歴で別途確認する必要がある。
 - 実レースT-12完全STT+TKZ 6艇ペアの根拠は未取得。08時以降のscheduled capture artifact（race code、source SHA、受信JST、締切）確認まで旧サイト停止不可。
+
+## PR #725 integration gate a5d559d9
+- 既存のBOATERS風ページ実装を最新mainを基点とした統合候補として準備。実測の個人長期率は未完成。統合後の本番動作は要検証。
