@@ -1,0 +1,17 @@
+name: Late preview evidence integrity
+on:
+  pull_request:
+    paths: [late_preview_capture.py, test_late_preview_capture.py, .github/workflows/late-preview-evidence-tests.yml]
+  push:
+    branches: [main]
+    paths: [late_preview_capture.py, test_late_preview_capture.py, .github/workflows/late-preview-evidence-tests.yml]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_late_preview_capture
