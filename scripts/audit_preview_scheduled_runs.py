@@ -66,6 +66,7 @@ def main():
             file.write("## Scheduled capture run audit\n")
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
+            file.write(f"Today JST scheduled: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
     if report["schedule_missing_today"]:
         raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")
