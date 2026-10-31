@@ -20,10 +20,11 @@ class NavigationContractTest(unittest.TestCase):
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
     def test_main_navigation_keeps_only_requested_pages(self):
-        match = re.search(r"nav\.innerHTML\s*=\s*'([^']+)'", self.nav)
+        match = re.search(r'<nav class="site-global-nav[^"]*"[^>]*>(.*?)</nav>', self.index)
         self.assertIsNotNone(match)
         self.assertEqual(re.findall(r'href="([^"]+)"', match.group(1)),
                          ["/review", "/selection"])
+        self.assertNotIn("nav.innerHTML=", self.nav)
 
     def test_detail_views_and_prediction_entry_still_exist(self):
         for view in ("forecast", "card", "exhibit", "result"):
