@@ -29,6 +29,10 @@ def classify(row, received_at, margin_minutes=12):
     source_time=parse_jst(row.get("取得日時"))
     if deadline is None or source_time is None: return "unknown_time"
     if deadline.tzinfo is None or received_at.tzinfo is None: return "unknown_time"
+    # Race previews must describe the same JST calendar day as their deadline.
+    # Reject stale previous-day source timestamps even when they precede T-12.
+    if source_time.astimezone(JST).date()!=deadline.date() or received_at.astimezone(JST).date()!=deadline.date():
+        return "unknown_time"
     cutoff=deadline-timedelta(minutes=margin_minutes)
     if source_time>received_at: return "unknown_time"
     if source_time>=cutoff or received_at>=cutoff: return "too_late"
