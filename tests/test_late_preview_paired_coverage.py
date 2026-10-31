@@ -61,7 +61,10 @@ class PairedPreviewCoverageTests(unittest.TestCase):
                         row={**{f"艇{i}_コース":str(i) for i in range(1,7)},
                              **{f"艇{i}_スタート展示":"0.12" for i in range(1,7)}}
                     (folder/(code+".json")).write_text(json.dumps({
-                        "race_code":code,"kind":kind,"six_lane_validation":status,"source_row":row,
+                        "race_code":code,"kind":kind,"six_lane_validation":status,
+                        "received_at_jst":"2026-10-31T19:55:00+09:00",
+                        "source_observed_jst":"2026-10-31T19:54:00+09:00",
+                        "source_row":dict(row, **{"レースコード":code,"締切時刻":"20:00","取得日時":"2026-10-31T19:54:00+09:00"}),
                         "status":"late_preview_unvalidated_not_research_forecast"}))
             result=paired_six_lane_coverage(day,root)
             self.assertEqual(result["tkz_complete"],2)
@@ -76,6 +79,10 @@ class PairedPreviewCoverageTests(unittest.TestCase):
             rejected=paired_six_lane_coverage(day,root)
             self.assertEqual(rejected["paired_complete"],0)
             self.assertEqual(rejected["tkz_complete"],1)
+            record["source_row"]["艇6_展示タイム"]="6.75"
+            record["received_at_jst"]="2026-10-31T20:01:00+09:00"
+            corrupt.write_text(json.dumps(record))
+            self.assertEqual(paired_six_lane_coverage(day,root)["paired_complete"],0)
 
 
 if __name__=="__main__":
