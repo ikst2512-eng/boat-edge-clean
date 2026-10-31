@@ -261,21 +261,12 @@ jobs:
                 const visible=view==='forecast'?await page.locator('#forecast').isVisible():view==='result'?await page.locator('#resultSection').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
-              // Prove the published results tab renders real archived data, not merely a visible empty panel.
-              await page.evaluate(() => {
-                datePinned=true;venueTouched=true;venueSpecified=true;
-                s.date='2026-10-27';s.venue=0;s.race=1;
-                setView('result');render();
-              });
-              try{await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000})}catch(error){throw Error('PUBLIC_ARCHIVED_RESULT_NOT_VISIBLE '+JSON.stringify(await page.evaluate(()=>({key:sameRaceKey(),view:activeView,status:document.getElementById('resultStatus')?.textContent,detail:document.getElementById('resultDetail')?.textContent?.slice(0,240)})))+' '+error.message)}
-              const actual=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
-              if(actual.join('-')!=='3-4-1')throw Error('PUBLIC_ARCHIVED_RESULT_MISMATCH: '+actual.join('-'));
-              await page.locator('#resultStatus').filter({hasText:'CLEAN保存済み結果'}).waitFor({state:'visible',timeout:30000});
-              if(!(await page.locator('#resultStatus').innerText()).includes('CLEAN保存済み結果'))throw Error('PUBLIC_RESULT_STATUS_NOT_CONFIRMED');
-              console.log('DEPLOYED_ARCHIVED_RESULT_PASS 202610270101 3-4-1');
+              // Actual archived-result values are asserted by the dedicated
+              // 'Verify published CLEAN confirmed result in browser' step above.
+              // Keep this step focused on the four navigation panels.
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
-              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs, confirmed archive 202610270101)\n');
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs; archived result separately verified)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
