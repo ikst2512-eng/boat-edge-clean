@@ -17,6 +17,8 @@ class HistoricalCliTest(unittest.TestCase):
             report=json.loads(run.stdout)
             self.assertEqual(report["date"],"20261031")
             self.assertEqual(report["paired_races"],0)
+            self.assertEqual(report["candidate_files"],0)
+            self.assertEqual(report["cohort_status"],"no_late_candidates")
             self.assertEqual(sum(report["rejected"].values()),0)
             self.assertIsNone(report["topn"]["10"]["late_hit_rate_pct"])
 
@@ -47,6 +49,8 @@ class PairedTopNTest(unittest.TestCase):
             (root/"confirmed_results"/(code+".json")).write_text(json.dumps(result))
             report=evaluate(day,root/"late",root)
             self.assertEqual(report["paired_races"],1)
+            self.assertEqual(report["candidate_files"],1)
+            self.assertEqual(report["cohort_status"],"paired")
             self.assertEqual(report["topn"]["3"]["late_hits"],1)
             self.assertEqual(report["topn"]["3"]["early_hits"],0)
             self.assertEqual(report["topn"]["10"]["early_hits"],1)
@@ -60,6 +64,7 @@ class PairedTopNTest(unittest.TestCase):
             (root/"late"/day/(code+".json")).write_text(json.dumps(late))
             rejected=evaluate(day,root/"late",root)
             self.assertEqual(rejected["paired_races"],0)
+            self.assertEqual(rejected["cohort_status"],"candidates_without_valid_pairs")
             self.assertEqual(rejected["rejected"]["outside_cutoff"],1)
 
 
