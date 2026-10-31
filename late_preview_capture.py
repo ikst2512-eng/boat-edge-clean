@@ -1,0 +1,43 @@
+"""Isolated, append-only preview evidence. Never part of 12-minute research forecasts."""
+import csv, hashlib, io, json, os
+from datetime import datetime, timedelta
+from pathlib import Path
+from research_model import JST
+from scripts.preview_timing_integrity import classify, parse_jst
+
+KINDS=("stt","tkz","sui","original_exhibition","od3")
+def save_preview(raw, kind, day, received_at, root):
+    if kind not in KINDS or len(day)!=8 or not day.isascii() or not day.isdigit():
+        raise ValueError("invalid dataset key")
+    if received_at.tzinfo is None: raise ValueError("naive receipt")
+    if len(raw)>3_000_000 or not raw:raise ValueError("invalid source size")
+    rows=list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+    selected=[]
+    seen=set()
+    for row in rows:
+        code=row.get("レースコード","")
+        if not isinstance(code,str) or len(code)!=12 or not code.isascii() or not code.isdigit() or not code.startswith(day):
+            continue
+        if code in seen:raise ValueError("duplicate race")
+        seen.add(code)
+        # Strictly before the deadline, but separate from research minus-12-minute cutoffs.
+        if classify(row,received_at,margin_minutes=0)!="pre_cutoff_observed":continue
+        deadline=parse_jst(day+"T"+str(row["締切時刻"])) if False else datetime.strptime(day+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+        # Receipt must leave a minimum two-minute operational buffer.
+        if received_at>=deadline-timedelta(minutes=2):continue
+        selected.append((code,row))
+    output=[]
+    for code,row in selected:
+        target=Path(root)/day/kind/(code+".json")
+        target.parent.mkdir(parents=True,exist_ok=True)
+        record={"race_code":code,"kind":kind,"received_at_jst":received_at.isoformat(),
+                "source_observed_jst":row["取得日時"],"cutoff_policy":"before_deadline_minus_2min_buffer",
+                "source_csv_sha256":hashlib.sha256(raw).hexdigest(),"source_row":row,
+                "status":"late_preview_unvalidated_not_research_forecast"}
+        data=json.dumps(record,ensure_ascii=False,sort_keys=True)
+        with target.open("x",encoding="utf-8") as file:
+            file.write(data)
+            file.flush()
+            os.fsync(file.fileno())
+        output.append(code)
+    return output
