@@ -28,18 +28,26 @@ def main(day=None):
     from clean_racecard import _fetch_preview
     from research_model import JST
     matched=[]
+    checked=0
+    seen=set()
+    status_counts={}
     tkz_rows,_=_preview_rows("tkz",day)
     for row in tkz_rows:
         code=row.get("レースコード","")
         clock=row.get("締切時刻","")
-        if len(code)!=12 or not clock:continue
+        if len(code)!=12 or not clock or code in seen:continue
+        seen.add(code)
+        if checked>=6:break
+        checked+=1
         try:
             deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
             preview,audit=_fetch_preview(code,day,deadline)
-            if audit.get("status")=="ok" and preview and len(preview.get("racers",[]))==6:
+            status=audit.get("status", "unknown")
+            status_counts[status]=status_counts.get(status,0)+1
+            if status=="ok" and preview and len(preview.get("racers",[]))==6:
                 exhibition = preview["racers"]
                 starts = preview["start_exhibition"]
-                evidence["verified_six_boat_fields"] = {
+                counts = {
                     "exhibition_times": sum(r.get("exhibition_time") is not None for r in exhibition),
                     "tilts": sum(r.get("tilt") is not None for r in exhibition),
                     "actual_courses": sum(r.get("course") is not None for r in starts),
@@ -47,18 +55,18 @@ def main(day=None):
                     "course_permutation_valid": sorted(r["course"] for r in starts) == [1., 2., 3., 4., 5., 6.],
                     "source_status": audit.get("source_status"),
                 }
-                counts=evidence["verified_six_boat_fields"]
+                evidence.setdefault("verified_six_boat_fields", counts)
                 if (any(counts[k] != 6 for k in ("exhibition_times", "tilts", "actual_courses", "start_exhibition"))
                     or counts["course_permutation_valid"] is not True
                     or any(counts["source_status"].get(k) != "ok" for k in ("tkz", "stt"))):
                     raise RuntimeError("REAL_BEFOREINFO_INCOMPLETE_SIX_BOAT_EVIDENCE")
                 matched.append(code)
-                break
         except (ValueError,KeyError):
             continue
     if not matched:
         raise RuntimeError("REAL_BEFOREINFO_NO_VERIFIED_RACE: source columns exist but no actual race passes full adapter checks")
     evidence["verified_race_code"]=matched[0]
+    evidence["coverage_sample"]={"checked":checked,"verified":len(matched),"statuses":status_counts,"verified_race_codes":matched}
     print(json.dumps({"source":"BoatraceCSV real HTTPS","day":day,"evidence":evidence},ensure_ascii=False))
 if __name__=="__main__":
     main(sys.argv[1] if len(sys.argv)>1 else None)
