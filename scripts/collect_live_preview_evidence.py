@@ -17,8 +17,10 @@ from scripts.research_preview_csv_probe import BASE
 def paired_six_lane_coverage(day, root):
     """Count only races with independently saved complete tkz and stt evidence."""
     sets = {}
+    early_sets = {}
     for kind in ("tkz", "stt"):
         good = set()
+        early = set()
         for file in (Path(root) / day / kind).glob("*.json"):
             try:
                 record = json.loads(file.read_text(encoding="utf-8"))
@@ -33,12 +35,19 @@ def paired_six_lane_coverage(day, root):
                         and datetime.fromisoformat(record["received_at_jst"]) <
                             datetime.strptime(file.stem[:8] + record["source_row"]["締切時刻"], "%Y%m%d%H:%M").replace(tzinfo=JST) - timedelta(minutes=2)):
                     good.add(file.stem)
+                    # Retrospective 12-minute timing audit only: never feed forecasts.
+                    if classify(record["source_row"], datetime.fromisoformat(record["received_at_jst"]), margin_minutes=12) == "pre_cutoff_observed":
+                        early.add(file.stem)
             except (OSError, ValueError, TypeError, AttributeError):
                 continue
         sets[kind] = good
+        early_sets[kind] = early
     return {"tkz_complete": len(sets["tkz"]), "stt_complete": len(sets["stt"]),
             "paired_complete": len(sets["tkz"] & sets["stt"]),
-            "paired_codes": sorted(sets["tkz"] & sets["stt"])}
+            "paired_codes": sorted(sets["tkz"] & sets["stt"]),
+            "paired_12min_observable": len(early_sets["tkz"] & early_sets["stt"]),
+            "paired_12min_codes": sorted(early_sets["tkz"] & early_sets["stt"]),
+            "timing_audit_scope": "retrospective_only_not_forecast_input"}
 
 
 def collect(day, root, fetch=None):

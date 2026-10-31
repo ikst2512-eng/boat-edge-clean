@@ -71,6 +71,22 @@ class PairedPreviewCoverageTests(unittest.TestCase):
             self.assertEqual(result["stt_complete"],2)
             self.assertEqual(result["paired_complete"],1)
             self.assertEqual(result["paired_codes"],["202610310101"])
+            self.assertEqual(result["paired_12min_observable"],0)
+            for kind in ("tkz","stt"):
+                path=root/day/kind/"202610310101.json"
+                item=json.loads(path.read_text())
+                item["received_at_jst"]="2026-10-31T19:45:00+09:00"
+                item["source_observed_jst"]="2026-10-31T19:44:00+09:00"
+                item["source_row"]["取得日時"]="2026-10-31T19:44:00+09:00"
+                path.write_text(json.dumps(item))
+            early=paired_six_lane_coverage(day,root)
+            self.assertEqual(early["paired_12min_observable"],1)
+            self.assertEqual(early["paired_12min_codes"],["202610310101"])
+            stt_path=root/day/"stt"/"202610310101.json"
+            stt_item=json.loads(stt_path.read_text())
+            stt_item["received_at_jst"]="2026-10-31T19:49:00+09:00"
+            stt_path.write_text(json.dumps(stt_item))
+            self.assertEqual(paired_six_lane_coverage(day,root)["paired_12min_observable"],0)
             # A stored "complete" label is not enough if the source row is corrupt.
             corrupt=root/day/"tkz"/"202610310101.json"
             record=json.loads(corrupt.read_text())
