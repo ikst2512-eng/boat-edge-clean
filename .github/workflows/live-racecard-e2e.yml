@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
   schedule:
     # Sample multiple Japan racing windows, including pre-evening races.
-    - cron: '30 3,5,7,9 * * *'
+    # 09:30, 12:30, 14:30, 16:30, 18:30, 21:30 JST.
+    # Scheduled live evidence must be evaluated separately from PR historical smoke.
+    - cron: '30 0,3,5,7,9,12 * * *'
 permissions:
   contents: read
 jobs:
