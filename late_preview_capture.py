@@ -6,6 +6,26 @@ from research_model import JST
 from scripts.preview_timing_integrity import classify
 
 KINDS=("stt","tkz","sui","original_exhibition","od3")
+def six_lane_status(kind, row):
+    """Classify source completeness without claiming a research prediction."""
+    if kind not in ("tkz", "stt"):
+        return "not_applicable"
+    if kind == "tkz":
+        try:
+            times=[float(row[f"艇{i}_展示タイム"]) for i in range(1,7)]
+            tilts=[float(row[f"艇{i}_チルト"]) for i in range(1,7)]
+        except (KeyError, ValueError, TypeError):
+            return "incomplete"
+        return "complete" if all(5 <= v <= 9 for v in times) and all(-1 <= v <= 3 for v in tilts) else "incomplete"
+    try:
+        courses=[int(row[f"艇{i}_コース"]) for i in range(1,7)]
+        starts=[str(row[f"艇{i}_スタート展示"]).strip() for i in range(1,7)]
+    except (KeyError, ValueError, TypeError):
+        return "incomplete"
+    import re
+    valid_st=re.compile(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})")
+    return "complete" if sorted(courses)==[1,2,3,4,5,6] and all(valid_st.fullmatch(st) for st in starts) else "incomplete"
+
 def save_preview(raw, kind, day, received_at, root):
     if kind not in KINDS or len(day)!=8 or not day.isascii() or not day.isdigit():
         raise ValueError("invalid dataset key")
@@ -33,6 +53,7 @@ def save_preview(raw, kind, day, received_at, root):
         record={"race_code":code,"kind":kind,"received_at_jst":received_at.isoformat(),
                 "source_observed_jst":row["取得日時"],"cutoff_policy":"before_deadline_minus_2min_buffer",
                 "source_csv_sha256":hashlib.sha256(raw).hexdigest(),"source_row":row,
+                "six_lane_validation":six_lane_status(kind,row),
                 "status":"late_preview_unvalidated_not_research_forecast"}
         data=json.dumps(record,ensure_ascii=False,sort_keys=True)
         with target.open("x",encoding="utf-8") as file:
