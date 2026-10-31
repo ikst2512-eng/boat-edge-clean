@@ -121,6 +121,8 @@ jobs:
               await page.route('https://api.github.com/**',r=>r.fulfill({status:404,headers:{'access-control-allow-origin':'*'},body:'{}'}));
               await page.goto('file://'+process.cwd()+'/index.html',{waitUntil:'domcontentloaded'});
               await page.locator('#venues button').first().waitFor({timeout:15000});
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1',null,{timeout:15000});
+              if(await page.locator('.race-detail-shortcuts button').count()!==4)throw Error('navigation.js four race tabs missing');
               if(await page.locator('#venues button').count()!==24)throw Error('home must offer 24 venues');
               if(await page.locator('#races button').count()!==12)throw Error('home must offer 12 race choices');
               await page.locator('#venues button').nth(11).click();
