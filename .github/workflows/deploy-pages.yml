@@ -244,9 +244,19 @@ jobs:
                 const visible=view==='forecast'?await page.locator('#forecast').isVisible():view==='result'?await page.locator('#resultSection').isVisible():await page.locator('#raceDataSection').isVisible();
                 if(!visible)throw Error('Public tab broken: '+view);
               }
+              // Prove the published results tab renders real archived data, not merely a visible empty panel.
+              await page.evaluate(() => {
+                s.date='2026-10-27';s.venue=0;s.race=1;
+                setView('result');render();
+              });
+              await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000});
+              const actual=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
+              if(actual.join('-')!=='3-4-1')throw Error('PUBLIC_ARCHIVED_RESULT_MISMATCH: '+actual.join('-'));
+              if(!(await page.locator('#resultStatus').innerText()).includes('確定'))throw Error('PUBLIC_RESULT_STATUS_NOT_CONFIRMED');
+              console.log('DEPLOYED_ARCHIVED_RESULT_PASS 202610270101 3-4-1');
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
-              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs)\n');
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs, confirmed archive 202610270101)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
