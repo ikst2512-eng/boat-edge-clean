@@ -74,6 +74,10 @@ window.addEventListener('popstate',event=>{
  history.replaceState(state,'',location.href);
  restoring=false;refresh();
 });
+// The only back control is in index.html; browser history takes precedence.
+back?.addEventListener('click',event=>{
+ if(position>0){event.stopImmediatePropagation();history.back();}
+},true);
 document.querySelectorAll('.race-detail-shortcuts').forEach(node=>node.remove());
 const details=document.createElement('nav');details.className='race-detail-shortcuts';
 details.setAttribute('aria-label','選択レースの情報');
