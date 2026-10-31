@@ -138,3 +138,8 @@
 - PR #654 の `paired_six_lane_coverage` を #723 の取得分類と共存させた変更（`8e647b28`、`33d1e013`、`eb89a9c4`）について、Actions run `41238539248` の4系統テスト成功を確認。
 - さらに `late-preview-evidence-tests.yml` の既存CIに `tests/test_late_preview_paired_coverage.py` を追加し、実際の完全/不完全STT/TKZペア、レース一致、T-12境界も同じCIで確認する（run `41238664430`）。新しいCIワークフローは増やしていない。
 - PR #723 は `mergeable=false` を再確認。#654 とのGit競合解消、後継PRの統合順序決定および作業ブランチ専用CI条件除去は引き続き必要。main未統合。
+
+### 2026-11-01 PR #723統合ゲートの再検証
+- mainとの差分をGitHub compareで実測: #723作業ブランチはmainから `ahead=46`、`behind=27` のdiverged。`mergeable=false`。#654とも収集2ファイルが重複しており、単純にmainを親に置くGitコミット等で競合を隠すことは禁止。
+- #654のペア集計は#723内で取り込み、5群のテストがrun `41238664430` で成功済み。作業ブランチのCIに入れた一時的なpush指定は `.github/workflows/late-preview-evidence-tests.yml` から解除（commit `7508662`）、mainのみを残した。
+- 次の統合担当作業は#654の独立プローブ変更を保護したうえで競合を実際に解消し、最新mainとの差分と全CIを再検査すること。今回main未統合、実データT-12 6艇完全性未証明。
