@@ -124,4 +124,9 @@ compactRaceCards(document.getElementById('resultList'));
 const detailStyles=document.createElement('style');
 detailStyles.textContent='.race-detail-shortcuts{display:flex;gap:5px;max-width:900px;margin:0 auto;padding:0 14px 9px}.race-detail-shortcuts[hidden]{display:none!important}.race-detail-shortcuts button{min-width:0;flex:1;font-size:12px;padding:10px 3px;border:1px solid #cbd9e8;background:white;border-radius:8px;color:#174066;font-weight:800}.race-detail-shortcuts button[aria-current="true"]{background:#155eae;border-color:#155eae;color:white}.clean-race-actions{display:flex}.clean-race-actions button{width:100%;max-width:320px;background:#e9f3ff;color:#14528d;font-weight:800}';
 document.head.append(detailStyles);
+// On narrow iPhones the four race tabs must fit within the viewport without
+// forcing horizontal scrolling or making the touch targets too short.
+const mobileStyles=document.createElement('style');
+mobileStyles.textContent='@media(max-width:480px){.race-detail-shortcuts{width:100%;max-width:100%;padding:0 8px 9px;gap:4px;box-sizing:border-box;min-width:0}.race-detail-shortcuts button{flex:1 1 0;min-width:0;min-height:44px;padding:8px 2px;font-size:clamp(10px,2.9vw,12px);line-height:1.25;white-space:normal;overflow-wrap:anywhere}.active-race-strip{min-width:0}.active-race-strip strong{overflow-wrap:anywhere}}';
+document.head.append(mobileStyles);
 })();
