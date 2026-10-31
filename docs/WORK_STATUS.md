@@ -184,3 +184,10 @@
 - PR #722の同コミットpush run `41240238138` はfailureだが、GitHub Actionsジョブ一覧は0件でありテスト実行の不合格ではない。
 - PRブランチの `.github/workflows/cross-model-content-audit-tests.yml` の `pull_request.paths` に文字列としての `\\n` が混入、4つのpathが1行に連結されていた。main版には同不具合なし。PRブランチを修復 `10430fb`。再取得で正しい改行に戻ったことを確認。
 - 現時点で修復コミットの対応workflow runはAPI取得できず、GitHub Actions成功とは未判定。main未統合、破壊的操作なし。次は新しいPRイベントのworkflow validation/CI結果を確認する。
+
+### 2026-11-01 特徴量監査で保存済み予想順位の真正性を検証
+- 先行のcross-model CI障害: run `41240238138` はジョブ0件で失敗。PRブランチのworkflow内の不正な文字列 `\\n` を修正したcommit `10430fb` の後も、当該修正コミットを対象とした新規cross-model workflow runは確認できていない。修復の成功は未証明であり、PR #722の別系統監査CIをGreen扱いしない。
+- `scripts/research_prerace_feature_audit.py` に、`model_version=national-beta0.4-exploratory-v1` が明示された保存レコードの `predictions` 10点が、現行baseline beta0.4の再計算順位と完全一致するゲートを追加（`e50d74a`）。順序の変更・他モデルにより作成されたランキングを特定モデルの研究集計から除外。
+- `test_research_prerace_feature_audit.py` にモデル名だけbaselineだが保存ランキング不一致の拒否ケースを追加（`d1119f8`）。
+- GitHub Actions Research forecast checks run `41240833430`、job `124654191975` **success**。既存研究41件と特徴監査1件成功。研究監査のrejected=0、時系列train457/holdout130、選択beta0.4。
+- モデルバージョン未明示の古い研究レコードは現行互換運用のためこの追加順位チェックを適用しない。Git初回保存証明にもならない。モデル重み・保存予想・mainは不変更。PR #722 Draft。
