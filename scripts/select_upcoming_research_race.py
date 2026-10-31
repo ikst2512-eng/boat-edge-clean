@@ -4,6 +4,7 @@ Selection never creates a forecast, never uses result data and never bypasses cu
 """
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from research_model import JST, BASE, read_rows
 
 
@@ -11,9 +12,25 @@ def choose(now=None, root=None, diagnostics=None):
     now = now or datetime.now(JST)
     root = root or Path(__file__).resolve().parents[1]
     day = now.strftime("%Y%m%d")
-    rows, received, _ = read_rows(BASE + f"title/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
-    cards, cards_received, _ = read_rows(BASE + f"race_cards/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
-    stats = {"title_rows": len(rows), "card_rows": len(cards), "valid_cards": 0, "too_close": 0, "already_saved": 0, "eligible": 0}
+    try:
+        rows, received, _ = read_rows(BASE + f"title/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+        cards, cards_received, _ = read_rows(BASE + f"race_cards/{day[:4]}/{day[4:6]}/{day[6:8]}.csv")
+        source = "primary_csv"
+        if not rows or not cards:
+            raise ValueError("source_unavailable")
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        from clean_openapi_sources import load
+        rows, cards, received, _, _ = load(day, now=now)
+        cards_received = received
+        source = "nonofficial_openapi_v1"
+    except ValueError as exc:
+        if str(exc) != "source_unavailable":
+            raise
+        from clean_openapi_sources import load
+        rows, cards, received, _, _ = load(day, now=now)
+        cards_received = received
+        source = "nonofficial_openapi_v1"
+    stats = {"source": source, "title_rows": len(rows), "card_rows": len(cards), "valid_cards": 0, "too_close": 0, "already_saved": 0, "eligible": 0}
     card_codes = set()
     for card in cards:
         code = card.get("レースコード", "")
