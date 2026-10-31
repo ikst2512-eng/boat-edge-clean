@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError,URLError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from research_model import JST
-from late_preview_capture import save_preview, KINDS
+from late_preview_capture import save_preview, KINDS, six_lane_status
 from scripts.research_preview_csv_probe import BASE
 
 def paired_six_lane_coverage(day, root):
@@ -23,6 +23,8 @@ def paired_six_lane_coverage(day, root):
                 record = json.loads(file.read_text(encoding="utf-8"))
                 if (record.get("race_code") == file.stem and record.get("kind") == kind
                         and record.get("six_lane_validation") == "complete"
+                        and isinstance(record.get("source_row"), dict)
+                        and six_lane_status(kind, record["source_row"]) == "complete"
                         and record.get("status") == "late_preview_unvalidated_not_research_forecast"):
                     good.add(file.stem)
             except (OSError, ValueError, TypeError, AttributeError):
