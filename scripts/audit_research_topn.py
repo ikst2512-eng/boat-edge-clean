@@ -3,6 +3,10 @@ import concurrent.futures
 import json
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from evaluate_clean_prospective import evaluate
 
 BASE = "https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/"
 DAY = "20261031"
@@ -33,6 +37,11 @@ def check(code):
     if pe or re:
         return code, ("missing_both" if pe and re else "missing_prediction" if pe else "missing_result"), None
     try:
+        # Must first prove immutable Git first-add was before the T-12 cutoff.
+        # A retrospective file pair alone is NOT valid prospective evidence.
+        audited=evaluate(code)
+        if audited.get("status")!="evaluated" or audited.get("audited") is not True:
+            raise ValueError("strict prospective audit failed")
         assert prediction["race_code"] == result["race_code"] == code
         assert prediction["formal"] is False and prediction["scoring"] is False
         assert prediction["status"] == "prospective_candidate" and result["status"] == "confirmed"
@@ -44,7 +53,10 @@ def check(code):
         assert len(finish) == len(set(finish)) == 3
         assert all(type(n) is int and 1 <= n <= 6 for n in finish)
         ticket = "-".join(map(str, finish))
-        return code, "matched", next((i+1 for i,t in enumerate(picks) if t == ticket), None)
+        rank=next((i+1 for i,t in enumerate(picks) if t == ticket), None)
+        if audited.get("winning_ticket")!=ticket or audited.get("rank")!=rank:
+            raise ValueError("strict auditor disagreement")
+        return code, "matched", rank
     except (AssertionError, KeyError, TypeError, ValueError):
         return code, "invalid_evidence", None
 
