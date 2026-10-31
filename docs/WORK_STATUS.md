@@ -131,3 +131,10 @@
 - discovery: 348件、holdout: 239件。両群の `motor`, `exhibition`, `entry`, `st`, `wind`, `course` の直接フィールドはいずれも0件。**研究スナップショットの直接フィールド検査であり、他の収集記録・別名フィールド・外部APIにデータが存在しないことは意味しない**。
 - この研究予想記録群では全国勝率以外の事前特徴量の寄与比較はまだ不可能。これらを結果確定後に埋め戻して擬似的に予測改善を主張してはいけない。必要な収集済み元データとcutoff前受信証拠を別担当の取得PRで整えてから独立holdout評価を行う。
 - 予測順位、保存済み予想、本番モデル、mainは不変更。PR #722 Draft。
+
+### 2026-11-01 予想研究×別系統の直前データ結合調査
+- mainのGitツリー4,746ファイルを調査。研究予想`research_snapshots`はGit追跡される一方、`late_preview_evidence/` と `late_research_candidates/` の保存レコードはこのGitツリーに存在しない。これだけで収集・保存自体がなかったとはいえない。
+- `late_preview_capture.py` はSTT（展示ST/進入）とTKZ（展示タイム）等を `late_preview_evidence/YYYYMMDD/kind/race_code.json` に収集。原則「締切2分前」までの別研究候補であり、12分前の正式予想入力ではない。6艇完成判定と受信時刻の基準が存在。
+- `.github/workflows/late-preview-capture.yml` は収集ファイルを90日保存のActions artifactへアップロード。研究用の `.github/workflows/research-live-preview-evidence.yml` に独立した早期予想×遅延候補のTop3/5/10比較、同一レース監査、artifact保存がすでに実装されている。重複する結合/取得PRは作らない。収集側のopen PR #654と#723は別担当であり変更しない。
+- `scripts/evaluate_late_research_topn.py` はearly snapshot、late candidate、confirmed resultの3点をrace_codeで結合し、取得時刻と締切2分前の検査を実施する。**late candidateの比較結果を、締切12分前に得られた情報の改善効果として流用しない**。
+- 本調査で、研究用587件の早期予想にSTT/TKZの真正T-12の事前6艇データがマッチするレース数はまだ確認不能。Actionsの収集artifact実体と受信時刻を取得して同一race_codeで監査後に初めて検証可能。正式予想のモデル重みは変更しない。
