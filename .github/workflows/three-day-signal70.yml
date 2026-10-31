@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths: [compare_three_day_signal70.py, .github/workflows/three-day-signal70.yml]
   workflow_dispatch:
+  schedule:
+    - cron: '30 16 * * *' # 01:30 JST; analyze preceding completed calendar day
 jobs:
   compare:
     runs-on: ubuntu-24.04
@@ -17,3 +19,24 @@ jobs:
         with:
           python-version: '3.12'
       - run: python compare_three_day_signal70.py
+      - name: Compare latest completed JST day without retrospective threshold tuning
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          from compare_topn_signal70 import compare
+          from evaluate_clean_prospective_cohort import cohort
+          day=(datetime.now(ZoneInfo("Asia/Tokyo")).date()-timedelta(days=1)).strftime("%Y%m%d")
+          if day<"20261101":
+              print("FORWARD_EVALUATION_NOT_STARTED",day)
+          else:
+              groups=compare(day)["groups"]
+              full=cohort(day)
+              assert sum(g["evaluated"] for g in groups.values())==full["counts"]["evaluated"],"cohort mismatch"
+              assert sum(g["awaiting_result"] for g in groups.values())==full["counts"]["awaiting_result"],"pending mismatch"
+              assert sum(g["rejected"] for g in groups.values())==full["counts"]["audit_rejected"],"audit mismatch"
+              print("FORWARD_DAY_RESEARCH",json.dumps({"day":day,"counts":full["counts"],"groups":groups},sort_keys=True))
+              if full["counts"]["archives"]==0:
+                  print("FORWARD_DATA_MISSING: not an observation or model miss")
+          PY
