@@ -6,7 +6,39 @@ from evaluate_clean_prospective import evaluate
 
 ROOT=Path(__file__).resolve().parent
 
+def independently_verified_payout(code, root):
+    """Only use payout evidence if its matching immutable confirmed finish exists."""
+    if not isinstance(code, str) or len(code) != 12 or not code.isascii() or not code.isdigit():
+        return None
+    evidence = Path(root) / "payout_evidence" / (code + ".json")
+    confirmed = Path(root) / "confirmed_results" / (code + ".json")
+    for path in (evidence, confirmed):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 20000:
+            return None
+    try:
+        record = json.loads(evidence.read_text(encoding="utf-8"))
+        actual = json.loads(confirmed.read_text(encoding="utf-8"))
+        finish = actual.get("finish_order")
+        combo = "-".join(map(str, finish)) if type(finish) is list and len(finish) == 3 and all(type(n) is int and 1 <= n <= 6 for n in finish) and len(set(finish)) == 3 else None
+        price = record.get("payout_yen_per_100")
+        expected_url = f"https://boatracecsv.github.io/data/results/payouts/{code[:4]}/{code[4:6]}/{code[6:8]}.csv"
+        if (record.get("schema") != "CLEAN_TRIFECTA_PAYOUT_EVIDENCE_V1"
+                or record.get("race_code") != code or record.get("verified_against_confirmed_finish") is not True
+                or record.get("source_url") != expected_url
+                or type(record.get("source_sha256")) is not str or len(record["source_sha256"]) != 64
+                or actual.get("race_code") != code or actual.get("status") != "confirmed"
+                or combo is None or record.get("winning_ticket") != combo
+                or record.get("confirmed_result_source_sha256") != actual.get("source_sha256")
+                or type(price) is not int or not 100 <= price <= 100000000):
+            return None
+        return combo, price
+    except (ValueError, KeyError, TypeError, OSError):
+        return None
+
 def verified_payout(code, root):
+    independent = independently_verified_payout(code, root)
+    if independent is not None:
+        return independent
     path=Path(root)/"four_mode_performance"/"verified_races"/(code+".json")
     if path.is_symlink() or not path.is_file() or path.stat().st_size>20000:
         return None
