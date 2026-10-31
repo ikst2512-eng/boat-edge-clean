@@ -19,3 +19,15 @@ jobs:
       - run: python -m unittest -v test_aggregate_prospective_topn
       - name: Report actual archived Top-N results for Oct 29 and Oct 30
         run: python aggregate_prospective_topn.py 20261029 20261030
+      - name: Report October 31 verified result and payout gap
+        run: |
+          python - <<'PY'
+          import json
+          from evaluate_clean_prospective_cohort import cohort
+          r=cohort("20261031")
+          print(json.dumps({"day":"20261031","counts":r["counts"],"payout_unavailable":r["payout_unavailable"],"verified_payout_races":r["roi"]["top10"]["races"],"topn_hit_rate_pct":r["hit_rate_pct"],"topn_roi_pct":{key:value["roi_pct"] for key,value in r["roi"].items()}},sort_keys=True))
+          if r["counts"]["archives"] != sum(r["counts"][key] for key in ("evaluated","awaiting_result","audit_rejected")):
+              raise SystemExit("COHORT_COUNT_MISMATCH")
+          if r["payout_unavailable"] + r["roi"]["top10"]["races"] != r["counts"]["evaluated"]:
+              raise SystemExit("PAYOUT_COVERAGE_MISMATCH")
+          PY
