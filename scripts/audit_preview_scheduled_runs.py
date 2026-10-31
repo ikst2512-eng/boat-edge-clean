@@ -2,6 +2,7 @@
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -44,6 +45,15 @@ def main():
     report["workflow_state"]=workflow.get("state")
     report["workflow_path"]=workflow.get("path")
     report["total_scheduled_runs_reported"]=data.get("total_count")
+    # Scheduled nightly audit must not succeed silently when no capture schedule
+    # actually ran today. Manual/PR audits remain diagnostic-only.
+    jst=timezone(timedelta(hours=9))
+    today=datetime.now(jst).date()
+    today_runs=[run for run in data["workflow_runs"]
+                if run.get("event")=="schedule" and run.get("created_at")
+                and datetime.fromisoformat(run["created_at"].replace("Z","+00:00")).astimezone(jst).date()==today]
+    report["today_scheduled_runs"]=len(today_runs)
+    report["schedule_missing_today"]=(os.environ.get("GITHUB_EVENT_NAME")=="schedule" and not today_runs)
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
     if path:
@@ -52,6 +62,8 @@ def main():
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
+    if report["schedule_missing_today"]:
+        raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")
 
 if __name__=="__main__":
     main()
