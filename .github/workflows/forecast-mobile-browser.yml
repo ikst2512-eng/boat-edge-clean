@@ -1,0 +1,23 @@
+name: Forecast public markup smoke
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/forecast-mobile-browser.yml'
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check public forecast markup
+        run: |
+          python - <<'PY'
+          import urllib.request
+          url='https://boat-edge-clean.onrender.com/'
+          with urllib.request.urlopen(url, timeout=45) as response:
+              html=response.read().decode('utf-8', 'replace')
+              print('HTTP',response.status,'bytes',len(html))
+          assert 'id="predictionRows"' in html
+          assert 'async function loadTicketOdds' in html
+          assert 'class="home-race-cards"' not in html
+          print('Published forecast markup verified')
+          PY
