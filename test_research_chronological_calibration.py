@@ -29,7 +29,7 @@ class CalibrationTests(unittest.TestCase):
             code = "202610300101"
             record = {
                 "race_code": code, "status": "research", "validated": False,
-                "generated_at": "2026-10-30T10:00:00+09:00",
+                "generated_at": "2026-10-30T11:47:30+09:00",
                 "cutoff_jst": "2026-10-30T11:48:00+09:00",
                 "source_deadline_jst": "2026-10-30T12:00:00+09:00",
                 "source_title_received_jst": "2026-10-30T10:00:00+09:00",
