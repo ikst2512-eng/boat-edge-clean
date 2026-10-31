@@ -39,7 +39,17 @@ const {chromium}=require('playwright');
   await page.evaluate(token=>loadTicketOdds(sameRaceKey(),token),token);
   try{await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-odds').length===10&&
      [...document.querySelectorAll('#predictionRows .prediction-odds')].every(x=>x.textContent.includes('取得済オッズ')),null,{timeout:42000});}
-  catch{throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key); }
+  catch{
+   const diagnostic=await page.evaluate(()=>({
+    view:activeView,race:sameRaceKey(),displayed:displayedPredictionKey,
+    requestId:window.predictionRequestId,
+    oddsKeys:Object.keys(predictionOdds||{}).length,
+    rows:document.querySelectorAll('#predictionRows .prediction-odds').length,
+    firstRow:document.querySelector('#predictionRows .prediction-odds')?.textContent?.slice(0,160),
+    sourceMeta:document.getElementById('sourceMeta')?.textContent?.slice(0,220)
+   }));
+   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic));
+  }
   const displayed=await page.evaluate(()=>({tickets:predictionTickets.slice(),odds:{...predictionOdds}}));
   if(JSON.stringify(displayed.tickets)!==JSON.stringify(tickets))throw Error('LIVE_ODDS_REORDERED_FORECAST');
   for(const ticket of tickets)if(displayed.odds[ticket]!==odds[ticket])throw Error('LIVE_ODDS_DOM_API_MISMATCH '+ticket);
