@@ -9,6 +9,9 @@ import json
 from datetime import datetime
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from research_model import JST
 
 BASE = "https://www.boatrace.jp/owpc/pc/race/beforeinfo"
