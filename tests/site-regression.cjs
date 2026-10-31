@@ -362,3 +362,9 @@ assert.ok(navigation.includes("location.hostname.endsWith('.github.io')"),'restr
 assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pages review must navigate via single-page screen query');
 assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
 console.log('PASS: Pages project-path review navigation regression');
+
+// Archived prospective candidates are loaded directly from GitHub, bypassing
+// the server API: their displayed timestamp provenance must be checked too.
+assert.ok(script.includes("const receiptOrderVerified=Number.isFinite(generatedAt)"),'archived forecast UI must verify timestamp ordering');
+assert.ok(script.includes("titleReceived<=generatedAt&&cardsReceived<=generatedAt"),'both source receipts must precede generation');
+assert.ok(script.includes("時刻証拠未検証：元データの受信時刻が生成時刻より後"),'uncertain archive evidence must be explained in the visible forecast');
