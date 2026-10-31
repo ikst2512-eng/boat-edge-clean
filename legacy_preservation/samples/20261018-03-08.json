@@ -1,0 +1,332 @@
+{
+  "schema_version": "boat-edge-server-site-final-v123",
+  "snapshot_window": "FINAL_15M",
+  "race_key": "20261018-03-08",
+  "prediction_kind": "SITE_REFERENCE_V122",
+  "selection_policy": "V122_SCENARIO_AWARE_PROBABILITY_FIRST",
+  "mode_policy": "PROVISIONAL_V254_THIRD_TAIL10_FIXED_TOP7",
+  "used_inputs": [
+    "当地3か月コース",
+    "展示ST",
+    "展示タイム"
+  ],
+  "first_saved_at": "2026-10-18T05:14:15.436095+00:00",
+  "saved_at": "2026-10-18T05:14:15.436106+00:00",
+  "minutes_to_deadline": 9.74,
+  "venue": "江戸川",
+  "venue_code": "03",
+  "race_no": 8,
+  "deadline": "14:24",
+  "grade": "A",
+  "race_sha256": "1c3b5a485671fd5238f487c1660ca7edc7be4a9dece4d809847ca4fa880efc73",
+  "odds_sha256": "4528f033f9a3cb4927bcdcb1e65fa744d6013fa90fae1cabab04c1bad41a89d4",
+  "guards": {
+    "results_seen": false,
+    "unlock": false,
+    "scoring": false
+  },
+  "modes": {
+    "hit": {
+      "confidence": 89,
+      "tickets": [
+        {
+          "combo": "1-2-6",
+          "p": 15.838916575609183,
+          "odds": 17.0,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-2-5",
+          "p": 15.738363916750853,
+          "odds": 12.4,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-6-2",
+          "p": 15.688796585062297,
+          "odds": 70.0,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-5-2",
+          "p": 15.581465287832103,
+          "odds": 28.4,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-2-4",
+          "p": 14.928969545255738,
+          "odds": 15.9,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "2-1-6",
+          "p": 4.654706388223462,
+          "odds": 14.9,
+          "stake_yen": 500
+        },
+        {
+          "combo": "2-1-5",
+          "p": 4.624859909049818,
+          "odds": 11.1,
+          "stake_yen": 500
+        },
+        {
+          "combo": "2-6-1",
+          "p": 4.402676557473102,
+          "odds": 26.2,
+          "stake_yen": 500
+        },
+        {
+          "combo": "6-1-2",
+          "p": 4.2967394113847535,
+          "odds": 75.8,
+          "stake_yen": 500
+        },
+        {
+          "combo": "5-1-2",
+          "p": 4.244505823358695,
+          "odds": 68.5,
+          "stake_yen": 500
+        }
+      ]
+    },
+    "balance": {
+      "confidence": 84,
+      "tickets": [
+        {
+          "combo": "1-2-6",
+          "p": 15.838916575609183,
+          "odds": 17.0,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-2-5",
+          "p": 15.738363916750853,
+          "odds": 12.4,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-6-2",
+          "p": 15.688796585062297,
+          "odds": 70.0,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-5-2",
+          "p": 15.581465287832103,
+          "odds": 28.4,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-2-4",
+          "p": 14.928969545255738,
+          "odds": 15.9,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "2-1-6",
+          "p": 4.654706388223462,
+          "odds": 14.9,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-1-5",
+          "p": 4.624859909049818,
+          "odds": 11.1,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-6-1",
+          "p": 2.269396181534188,
+          "odds": 26.2,
+          "stake_yen": 300
+        },
+        {
+          "combo": "2-1-4",
+          "p": 2.2602769649408847,
+          "odds": 20.0,
+          "stake_yen": 300
+        },
+        {
+          "combo": "2-5-1",
+          "p": 2.2531846712526793,
+          "odds": 21.2,
+          "stake_yen": 300
+        }
+      ]
+    },
+    "hole": {
+      "confidence": 79,
+      "tickets": [
+        {
+          "combo": "2-1-6",
+          "p": 2.399307050086804,
+          "odds": 14.9,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-1-5",
+          "p": 2.383922434618303,
+          "odds": 11.1,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-6-1",
+          "p": 2.269396181534188,
+          "odds": 26.2,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-1-4",
+          "p": 2.2602769649408847,
+          "odds": 20.0,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-5-1",
+          "p": 2.2531846712526793,
+          "odds": 21.2,
+          "stake_yen": 600
+        },
+        {
+          "combo": "6-1-2",
+          "p": 2.2147900001176923,
+          "odds": 75.8,
+          "stake_yen": 600
+        },
+        {
+          "combo": "5-1-2",
+          "p": 2.187865763538705,
+          "odds": 68.5,
+          "stake_yen": 600
+        },
+        {
+          "combo": "6-2-1",
+          "p": 2.124388035007376,
+          "odds": 67.5,
+          "stake_yen": 600
+        },
+        {
+          "combo": "2-4-1",
+          "p": 2.1129763779858814,
+          "odds": 30.4,
+          "stake_yen": 600
+        },
+        {
+          "combo": "5-2-1",
+          "p": 2.099237241648473,
+          "odds": 69.0,
+          "stake_yen": 600
+        },
+        {
+          "combo": "1-2-6",
+          "p": 8.245536821414328,
+          "odds": 17.0,
+          "stake_yen": 2000
+        },
+        {
+          "combo": "1-2-5",
+          "p": 8.193190396887776,
+          "odds": 12.4,
+          "stake_yen": 2000
+        }
+      ]
+    },
+    "narrow": {
+      "confidence": 77,
+      "tickets": [
+        {
+          "combo": "1-2-6",
+          "p": 15.838916575609183,
+          "odds": 17.0,
+          "stake_yen": 3400
+        },
+        {
+          "combo": "1-2-5",
+          "p": 15.738363916750853,
+          "odds": 12.4,
+          "stake_yen": 3300
+        },
+        {
+          "combo": "1-6-2",
+          "p": 15.688796585062297,
+          "odds": 70.0,
+          "stake_yen": 3300
+        }
+      ]
+    },
+    "tail": {
+      "confidence": 84,
+      "tickets": [
+        {
+          "combo": "1-2-6",
+          "p": 15.838916575609183,
+          "odds": 17.0,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-2-5",
+          "p": 15.738363916750853,
+          "odds": 12.4,
+          "stake_yen": 1600
+        },
+        {
+          "combo": "1-6-2",
+          "p": 15.688796585062297,
+          "odds": 70.0,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-5-2",
+          "p": 15.581465287832103,
+          "odds": 28.4,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "1-2-4",
+          "p": 14.928969545255738,
+          "odds": 15.9,
+          "stake_yen": 1500
+        },
+        {
+          "combo": "2-1-6",
+          "p": 4.654706388223462,
+          "odds": 14.9,
+          "stake_yen": 500
+        },
+        {
+          "combo": "2-1-5",
+          "p": 4.624859909049818,
+          "odds": 11.1,
+          "stake_yen": 500
+        },
+        {
+          "combo": "2-1-4",
+          "p": 2.2602769649408847,
+          "odds": 20.0,
+          "stake_yen": 300
+        },
+        {
+          "combo": "2-6-1",
+          "p": 4.402676557473102,
+          "odds": 26.2,
+          "stake_yen": 500
+        },
+        {
+          "combo": "6-1-2",
+          "p": 4.2967394113847535,
+          "odds": 75.8,
+          "stake_yen": 500
+        }
+      ]
+    }
+  },
+  "default_display_mode": "tail",
+  "adopted_ticket_policy": "PROVISIONAL_V254_THIRD_TAIL10_FROM_PREDECLARED_FROZEN_MODES",
+  "adoption_basis": "SITE_ONLY_FORWARD_89R_CONTROL_34_CANDIDATE_37_TEN_TICKETS",
+  "statistical_significance_claim": false,
+  "formal_current_model_changed": false,
+  "stake_plan_version": "V141-10000-PROSPECTIVE",
+  "stake_saved_at": "2026-10-18T05:14:15.436106+00:00"
+}
