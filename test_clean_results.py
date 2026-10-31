@@ -43,6 +43,35 @@ class CleanResultTests(unittest.TestCase):
             path.write_text(json.dumps(valid), encoding="utf-8")
             self.assertEqual(results.read_result("20261027", 1, 1)[0], 503)
 
+    def test_rejects_invalid_finish_and_missing_timezone_without_network(self):
+        valid = {"race_code": "202610270101", "status": "confirmed", "finish_order": [1, 2, 3],
+                 "source_url": "https://example.org/official/202610270101",
+                 "confirmed_at_jst": "2026-10-27T16:00:00+09:00",
+                 "collected_at_jst": "2026-10-27T16:01:00+09:00"}
+        with tempfile.TemporaryDirectory() as root, patch.object(results, "ROOT", Path(root)), patch.object(results, "urlopen") as fetch:
+            store = Path(root) / "confirmed_results"
+            store.mkdir()
+            path = store / "202610270101.json"
+            for changes in ({"finish_order": [1, 1, 2]}, {"finish_order": [True, 2, 3]},
+                            {"confirmed_at_jst": "2026-10-27T16:00:00"},
+                            {"race_code": "202610270102"}, {"source_url": "http://example.org"}):
+                record = {**valid, **changes}
+                path.write_text(json.dumps(record), encoding="utf-8")
+                status, data = results.read_result("20261027", 1, 1)
+                self.assertEqual((status, data["status"]), (503, "invalid_result_archive"))
+            fetch.assert_not_called()
+
+    def test_symlinked_archive_rejected_without_network(self):
+        with tempfile.TemporaryDirectory() as root, patch.object(results, "ROOT", Path(root)), patch.object(results, "urlopen") as fetch:
+            store = Path(root) / "confirmed_results"
+            store.mkdir()
+            external = Path(root) / "unexpected.json"
+            external.write_text("{}", encoding="utf-8")
+            (store / "202610270101.json").symlink_to(external)
+            status, data = results.read_result("20261027", 1, 1)
+            self.assertEqual((status, data["status"]), (503, "invalid_result_archive"))
+            fetch.assert_not_called()
+
     def test_invalid_race(self):
         self.assertEqual(results.read_result("20261027", 99, 1)[0], 400)
 
