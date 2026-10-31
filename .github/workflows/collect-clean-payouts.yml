@@ -32,14 +32,14 @@ jobs:
               print("HISTORICAL_PAYOUT_PROBE_ERROR", type(error).__name__, str(error))
               raise
           PY
-      - name: Collect today and yesterday from published payout CSV
+      - name: Collect today and previous two dates from published payout CSV
         if: github.event_name != 'pull_request'
         run: |
           python - <<'PY'
           from datetime import datetime,timedelta,timezone
           from collect_clean_payouts import collect
           now=datetime.now(timezone(timedelta(hours=9)))
-          for days_back in (1,0):
+          for days_back in (2,1,0):
               print(collect((now-timedelta(days=days_back)).strftime("%Y%m%d")))
           PY
       - name: Commit immutable, result-matched payout records
