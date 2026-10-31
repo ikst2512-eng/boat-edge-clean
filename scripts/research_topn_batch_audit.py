@@ -26,7 +26,8 @@ def run():
                 mass_coverage["invalid_topn_mass"] += 1
         except (OSError, ValueError, TypeError, AttributeError):
             mass_coverage["invalid_topn_mass"] += 1
-    by_mass_cohort = {"with_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}, "without_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}}\n    by_model = {}
+    by_mass_cohort = {"with_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}, "without_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}}
+    by_model = {}
     confidence_coverage = {"stored_numeric_confidence": 0, "missing_confidence": 0}
     for race_code in sorted(forecast_paths.keys() & result_paths.keys()):
         try:
@@ -46,7 +47,11 @@ def run():
             stats["matched"] += 1
             model = str(forecast.get("model_version") or "unknown")
             group = by_model.setdefault(model, {"matched": 0, "top3": 0, "top5": 0, "top10": 0})
-            group["matched"] += 1\n            mass = forecast.get("topn_model_mass_pct")\n            cohort_name = "with_topn_mass" if (isinstance(mass, dict) and forecast.get("confidence_calibrated") is False and all(isinstance(mass.get(str(n)), (int, float)) and not isinstance(mass[str(n)], bool) for n in (3, 5, 10)) and 0 < mass["3"] < mass["5"] < mass["10"] <= 100) else "without_topn_mass"\n            cohort = by_mass_cohort[cohort_name]\n            cohort["matched"] += 1
+            group["matched"] += 1
+            mass = forecast.get("topn_model_mass_pct")
+            cohort_name = "with_topn_mass" if (isinstance(mass, dict) and forecast.get("confidence_calibrated") is False and all(isinstance(mass.get(str(n)), (int, float)) and not isinstance(mass[str(n)], bool) for n in (3, 5, 10)) and 0 < mass["3"] < mass["5"] < mass["10"] <= 100) else "without_topn_mass"
+            cohort = by_mass_cohort[cohort_name]
+            cohort["matched"] += 1
             confidence = forecast.get("confidence_pct")
             if isinstance(confidence, (int, float)) and not isinstance(confidence, bool) and 0 <= confidence <= 100:
                 confidence_coverage["stored_numeric_confidence"] += 1
@@ -55,12 +60,16 @@ def run():
             for n in (3, 5, 10):
                 hit = int(0 < position <= n)
                 stats[f"top{n}"] += hit
-                group[f"top{n}"] += hit\n                cohort[f"top{n}"] += hit
+                group[f"top{n}"] += hit
+                cohort[f"top{n}"] += hit
         except (OSError, ValueError, KeyError, TypeError):
             stats["rejected"] += 1
     for n in (3, 5, 10):
         stats[f"top{n}_rate_pct"] = round(100 * stats[f"top{n}"] / stats["matched"], 2) if stats["matched"] else None
-    for cohort in by_mass_cohort.values():\n        for n in (3, 5, 10):\n            cohort[f"top{n}_rate_pct"] = round(100 * cohort[f"top{n}"] / cohort["matched"], 2) if cohort["matched"] else None\n    return {"by_mass_cohort": by_mass_cohort, "counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage, "mass_coverage": mass_coverage,
+    for cohort in by_mass_cohort.values():
+        for n in (3, 5, 10):
+            cohort[f"top{n}_rate_pct"] = round(100 * cohort[f"top{n}"] / cohort["matched"], 2) if cohort["matched"] else None
+    return {"by_mass_cohort": by_mass_cohort, "counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage, "mass_coverage": mass_coverage,
             "confidence_70_pct_selection": "not_computed_without_verified_pre_race_confidence"}
 
 
