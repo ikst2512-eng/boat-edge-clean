@@ -49,7 +49,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
             raise FileExistsError("append-only official observation already exists")
         dest.mkdir(parents=True,exist_ok=False)
         (dest/"beforeinfo.html").write_bytes(raw)
-        (dest/"manifest.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+        (dest/"manifest.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
         return result
     except Exception as exc:
         # A missing/invalid page cannot be treated as evidence of six boats.
