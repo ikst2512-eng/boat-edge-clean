@@ -52,8 +52,13 @@ def analyze(root=ROOT):
         except (ValueError,TypeError,KeyError,IndexError,OSError,AttributeError):
             rejected+=1
     for cohorts in output.values():
+        baseline=cohorts["all"]
+        baseline_pct=100*baseline["top10"]/baseline["n"] if baseline["n"] else None
         for row in cohorts.values():
             row["hit_rate_pct"]=round(row["top10"]*100/row["n"],2) if row["n"] else None
+            row["selection_pct"]=round(100*row["n"]/baseline["n"],2) if baseline["n"] else None
+            row["lift_pp"]=round(100*row["top10"]/row["n"]-baseline_pct,2) if row["n"] and baseline_pct is not None else None
+            row["sample_sufficient_30"]=row["n"]>=30
     return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output}
 
 if __name__=="__main__":
