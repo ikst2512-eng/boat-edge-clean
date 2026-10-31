@@ -179,3 +179,8 @@
 - `test_research_prerace_feature_audit.py` に `other-model-v2` の拒否回帰ケースを追加（`2473464`）。
 - Research forecast checks run `41240239046` **success**。別系統 `cross-model-content-audit-tests.yml` の同コミットrun `41240238138` は **failure** と確認されており「CIすべて成功」とは扱わない。
 - `model_version` 欠損は後方互換のため引き続き許容し、正式Git初回追加証明とは区別。予想モデル・本番・main不変更、PR #722 Draft。
+
+### 2026-11-01 cross-model監査ワークフローの壊れた改行をPR内修復
+- PR #722の同コミットpush run `41240238138` はfailureだが、GitHub Actionsジョブ一覧は0件でありテスト実行の不合格ではない。
+- PRブランチの `.github/workflows/cross-model-content-audit-tests.yml` の `pull_request.paths` に文字列としての `\\n` が混入、4つのpathが1行に連結されていた。main版には同不具合なし。PRブランチを修復 `10430fb`。再取得で正しい改行に戻ったことを確認。
+- 現時点で修復コミットの対応workflow runはAPI取得できず、GitHub Actions成功とは未判定。main未統合、破壊的操作なし。次は新しいPRイベントのworkflow validation/CI結果を確認する。
