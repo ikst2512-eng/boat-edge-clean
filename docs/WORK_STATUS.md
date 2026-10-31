@@ -511,3 +511,8 @@
 - PR #756 head `8aa9652dba0364a885ea06909a83815b98ea9b1f` のActions run `41243938240` は `check` と `publish-smoke` ともsuccess。既存Pages公開後ブラウザworkflowへ2026-10-31蒲郡8RのCLEAN racecard API取得、出走表6行・艇番1〜6・Git初回登録時刻未照合の表示確認を追加。
 - main squash `e1b4971dcca03df9e9f5a5e8bb0cfdd01e4b1141` 統合済み。追加のAPI実データ検証は**Pages公開後のみ実行**されるため、PR CI successでは実データ6艇PASSとしない。最新Renderのmain SHA反映とPages公開ジョブの実ログは現時点未確認。
 - 展示の6艇実値・T-12完全ペア時刻・旧サイトの独立証拠保全は引き続き未証明。旧repo/Pagesの撤去なし。
+
+## 2026-11-01 PR #757 展示タブ公開E2Eの取得状態監査
+- PR #757 head `016a1611ff19d539d90de4f00d889b813d759b93` の既存Actions `41246412767` は `check` / `publish-smoke` ともsuccess。PR #756の蒲郡8R出走表6艇公開テストに、展示タブ可視、取得済/未検証の状態表示、取得済時の6/6艇件数表示を追加。未検証を実測6艇T-12成立として扱わない。
+- main squash `df70cf2779b5fa9131fe0aca78635b0a2dabdbfe` へ統合。Renderログの `GET /api/clean-racecard?hd=20261031&jcd=7&rno=8` HTTP 200 は確認済みだが、返却JSONの6艇完全性まではサーバーログだけでは確定できない。Pages公開後の新しいE2E合否も未確認。
+- 原本・旧サイトは未変更。T-12ペア実証、実機Safari、独立原本保全は未達。
