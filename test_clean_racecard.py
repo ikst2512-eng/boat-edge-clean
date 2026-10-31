@@ -193,6 +193,33 @@ class CleanRacecardTests(unittest.TestCase):
         self.assertEqual(preview["racers"][2]["exhibition_time"],6.8)
         self.assertEqual(preview["start_exhibition"][3]["st"],"0.12")
 
+    def test_missing_title_race_uses_direct_source(self):
+        hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
+        code=hd+"0101"
+        title=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        card={"レースコード":code}
+        for i in range(1,7):
+            card.update({f"艇{i}_登録番号":str(4000+i),f"艇{i}_選手名":f"選手{i}"})
+        def read(url):
+            if "/title/" in url:
+                return ([{"レースコード":hd+"0102","電話投票締切予定":"23:59"}],datetime.now(JST),"a"*64)
+            return ([card],datetime.now(JST),"b"*64)
+        with patch.object(clean_racecard,"read_rows",side_effect=read), \
+             patch("clean_direct_sources.holding_rows",return_value=(title,datetime.now(JST),"c"*64)), \
+             patch.object(clean_racecard,"_fetch_preview",return_value=(None,{"status":"not_published_or_unavailable"})):
+            result=clean_racecard.racecard(hd,"1","1")
+        self.assertEqual(result["meta"]["source"],"CLEAN_DIRECT_PRE_RACE")
+        self.assertEqual([r["registration_no"] for r in result["racers"]],[str(4000+i) for i in range(1,7)])
+
+    def test_missing_title_never_uses_other_race(self):
+        hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
+        wrong=[{"レースコード":hd+"0102","電話投票締切予定":"23:59"}]
+        with patch.object(clean_racecard,"read_rows",return_value=(wrong,datetime.now(JST),"a"*64)), \
+             patch("clean_direct_sources.holding_rows",return_value=(wrong,datetime.now(JST),"b"*64)), \
+             patch("clean_openapi_sources.load",return_value=(wrong,[],datetime.now(JST),"c"*64,{})):
+            with self.assertRaisesRegex(ValueError,"race_card_not_available"):
+                clean_racecard.racecard(hd,"1","1")
+
     def test_bad_venue(self):
         with self.assertRaises(ValueError):
             clean_racecard.racecard("20261028","99","1")
