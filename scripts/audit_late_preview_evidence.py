@@ -14,6 +14,7 @@ from late_preview_capture import six_lane_status
 
 def audit(root="late_preview_evidence"):
     pairs=defaultdict(dict)
+    duplicate_kinds=set()
     invalid=0
     total=0
     for path in Path(root).rglob("*.json"):
@@ -40,7 +41,9 @@ def audit(root="late_preview_evidence"):
                 or len(row["source_csv_sha256"])!=64
                 or any(ch not in "0123456789abcdef" for ch in row["source_csv_sha256"])):
                 raise ValueError("missing or inconsistent saved source provenance")
-            if kind in pairs[code]:
+            if kind in pairs[code] or (code,kind) in duplicate_kinds:
+                duplicate_kinds.add((code,kind))
+                pairs[code].pop(kind,None)
                 raise ValueError("duplicate kind")
             # Never trust a stored completeness label without recomputing all six boats.
             row["six_lane_validation"]=six_lane_status(kind,source)
