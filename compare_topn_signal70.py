@@ -36,6 +36,13 @@ def compare(day,root=ROOT,scorer=evaluate,signal=head_mass):
                 g["awaiting_result"]+=1;continue
             if outcome["status"]!="evaluated" or outcome.get("audited") is not True or outcome.get("formal") is not False:
                 raise ValueError("untrusted scoring")
+            rank=outcome.get("rank")
+            if rank is not None and (type(rank) is not int or not 1 <= rank <= 10):
+                raise ValueError("invalid winning rank")
+            for n in (3,5,10):
+                key=f"top{n}"
+                if type(outcome.get(key)) is not bool or outcome[key] is not (rank is not None and rank<=n):
+                    raise ValueError("inconsistent top-n scorer outcome")
             g["evaluated"]+=1
             for n in (3,5,10):
                 g["hits"][f"top{n}"]+=int(outcome[f"top{n}"] is True)
