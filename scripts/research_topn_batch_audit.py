@@ -37,8 +37,8 @@ def run():
     for code in result_paths:
         day = code[:8]
         daily_result_count[day] = daily_result_count.get(day, 0) + 1
-    for day, saved in daily_forecast_count.items():
-        by_day[day] = {"matched": 0, "top3": 0, "top5": 0, "top10": 0}
+    for day in sorted(daily_forecast_count.keys() | daily_result_count.keys()):
+        by_day[day] = {"matched": 0, "rejected": 0, "top3": 0, "top5": 0, "top10": 0}
     by_model = {}
     confidence_coverage = {"stored_numeric_confidence": 0, "missing_confidence": 0}
     for race_code in sorted(forecast_paths.keys() & result_paths.keys()):
@@ -89,8 +89,9 @@ def run():
                 group[f"top{n}"] += hit
                 cohort[f"top{n}"] += hit
                 daily[f"top{n}"] += hit
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             stats["rejected"] += 1
+            by_day[race_code[:8]]["rejected"] += 1
     for n in (3, 5, 10):
         stats[f"top{n}_rate_pct"] = round(100 * stats[f"top{n}"] / stats["matched"], 2) if stats["matched"] else None
     for cohort in by_mass_cohort.values():
@@ -99,6 +100,7 @@ def run():
     for day, daily in by_day.items():
         daily["saved_forecasts"] = daily_forecast_count.get(day, 0)
         daily["saved_results"] = daily_result_count.get(day, 0)
+        daily["results_without_forecast"] = sum(code.startswith(day) for code in result_paths.keys() - forecast_paths.keys())
         daily["forecast_without_result"] = sum(code.startswith(day) for code in forecast_paths.keys() - result_paths.keys())
         daily["result_coverage_pct"] = round(100 * daily["matched"] / daily["saved_forecasts"], 2) if daily["saved_forecasts"] else None
         daily["sample_status"] = "insufficient_sample" if daily["matched"] < 30 else "descriptive_only"
