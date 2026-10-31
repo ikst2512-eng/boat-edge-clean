@@ -501,3 +501,8 @@
 - 既存Publish Pages workflow `41243190467` のjob `124661127242` は completed/success。実ジョブログより `CLEAN_ARCHIVED_FORECAST_PROVENANCE_BROWSER_PASS 202610310708`、`CLEAN_RESULT_PUBLISHED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/?date=2026-10-27&venue=23&race=1&view=result 1-2-5`、`DEPLOYED_BROWSER_PASS https://ikst2512-eng.github.io/boat-edge-clean/` の各実行行を確認。ログ内コマンド文字列だけでなく、実際の実行結果行を根拠とする。
 - このrunはPR #753統合前なので、#753の新規タブ排他・race key保持テストの**統合後公開合格とはしない**。別途PR head Actions `41243276155` の `check` / `publish-smoke` success、Render `dep-dbj5pplg1s2s73flbofg` のliveは確認済み。出走表/展示の実データ6艇表示とiPhone Safari実機は未証明。
 - 旧Pages/原本の独立保全と、実レースT-12前のSTT+TKZ完全6艇受信証拠は未達。旧repo/Pages撤去禁止は継続。
+
+
+## 2026-11-01 定期収集でCSV保存互換性テストを実行
+- `.github/workflows/late-preview-capture.yml` は、mainで修正済みの日時全体・ISOタイムゾーン付き締切保存とappend-onlyテスト `test_late_preview_capture.py` を実行していなかった。既存の収集ジョブのテストステップに `python -m unittest -v test_late_preview_capture` を追加（commit `b7a03d5d234de0617a6b4de83598836d39fdc0e6`）。これによりCSV取得ステップ開始前に保存処理の回帰を検出する設定。
+- 新規workflow・PR・ジョブの追加なし。**更新後のCI実行結果・8:03以降のSTT/TKZ完全6艇T-12受信は未検証**。旧サイト/モデル変更なし。
