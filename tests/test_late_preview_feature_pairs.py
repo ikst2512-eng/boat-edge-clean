@@ -33,6 +33,7 @@ class LateFeaturesTests(unittest.TestCase):
                 writer.writerow(row)
                 save_preview(stream.getvalue().encode(),kind,day,
                              datetime(2026,10,31,19,55,tzinfo=JST),folder)
+            self.assertEqual(build(day,folder,require_t12=True)["ready_count"],0)
             result=build(day,folder)
             self.assertEqual(result["ready_count"],1)
             self.assertEqual(result["records"][0]["boats"][0]["boat"],1)

@@ -10,8 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scripts.collect_live_preview_evidence import paired_six_lane_coverage
 
 
-def build(day, root):
-    verified=paired_six_lane_coverage(day,root)["paired_codes"]
+def build(day, root, require_t12=False):
+    coverage=paired_six_lane_coverage(day,root)
+    verified=coverage["paired_12min_codes"] if require_t12 else coverage["paired_codes"]
     output=[]
     for code in verified:
         tkz=json.loads((Path(root)/day/"tkz"/(code+".json")).read_text(encoding="utf-8"))
@@ -30,7 +31,9 @@ def build(day, root):
         output.append({"race_code":code,"boats":boats,
                        "both_sources_received_at_jst":observed_at.isoformat(),
                        "status":"verified_preview_features_not_prediction"})
-    return {"date":day,"records":output,"ready_count":len(output)}
+    return {"date":day,"records":output,"ready_count":len(output),
+            "timing_gate":"strict_t12_both_sources" if require_t12 else "late_t2_both_sources",
+            "retrospective_only":True}
 
 
 if __name__=="__main__":
