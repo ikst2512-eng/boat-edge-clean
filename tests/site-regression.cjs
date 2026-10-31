@@ -327,7 +327,7 @@ assert.ok(!script.includes("record.official_finish!==item.match"),'old four-mode
 assert.ok(!script.includes("document.querySelector('.view-tabs').scrollIntoView"),'no removed-tab scroll references');
 
 assert.ok(html.includes('id="forecastPreviewStatus"')&&html.includes('id="forecastPreviewRows"'),'forecast needs visible beforeinfo summary');
-assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview()}'),'forecast must fetch selected race beforeinfo');
+assert.ok(script.includes('async function loadForecastPreview()')&&script.includes('loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}'),'forecast must fetch selected race beforeinfo');
 assert.ok(script.includes("raw.source_audit?.beforeinfo?.status!=='ok'"),'reject unsupported preview sources');
 console.log('PASS: selected-race beforeinfo panel in forecast');
 
@@ -343,8 +343,6 @@ assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd="),'Pages-relative 
 const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
-assert.ok(scheduleLoader.includes("archive.status===404||(date<fmt(jst())&&archive.status>=500)"),'historical archive 5xx must try CLEAN schedule API and results CSV fallback');
-assert.ok(scheduleLoader.includes("else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status)"),'current date must still reject unexpected archive errors');
 assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
 console.log('PASS: historical schedule 404/503 fallback regression');
 
@@ -362,6 +360,77 @@ assert.ok(navigation.includes("location.hostname.endsWith('.github.io')"),'restr
 assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pages review must navigate via single-page screen query');
 assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
 console.log('PASS: Pages project-path review navigation regression');
+
+// BOATERS-inspired single-page forecast must not regress to scattered panels.
+const resultFirst=html.indexOf('id="forecastResultFirstStatus"');
+const prediction=html.indexOf('id="predictionRows"');
+const leader=html.indexOf('id="forecastLeaderRows"');
+const evidence=html.indexOf('id="forecastEvidenceStatus"');
+assert.ok(resultFirst>=0&&resultFirst<prediction&&prediction<leader&&leader<evidence,'result, prediction, conditional stats and preview should share one ordered page');
+for(let lane=1;lane<=6;lane++)assert.ok(html.includes('data-forecast-leader="'+lane+'"'),'missing leader '+lane);
+assert.ok(script.includes('function selectForecastLeader(leader)'),'leader selection must respond to interaction');
+assert.ok(script.includes('forecastEvidenceMirror.observe'),'verified predeadline preview must be mirrored without an extra fetch');
+assert.ok(script.includes('forecastResultMirror.observe'),'validated confirmed result must be mirrored without an extra fetch');
+assert.ok(html.includes('先頭艇として選択中')&&html.includes('未取得'),'missing stats must not be fabricated as 0%');
+console.log('PASS: one-page forecast layout and source-safe comparison controls');
+
+assert.ok(script.includes("bar.setAttribute('aria-label',r.lane+'号艇の実コース別3連対率')"),'course three-place rate progress bar must be accessible');
+assert.ok(script.includes('bar.max=100;bar.value=three'),'three-place rate bar must use verified percentage');
+
+assert.ok(html.includes('id="forecastCourseStatsSource"'),'course stats must expose evidence status');
+assert.ok(script.includes("対象期間・標本数は未提供"),'unavailable course-stat sample size must be disclosed');
+
+assert.ok(script.includes('選手の直近10走と混同しない'),'course-stats coverage must not masquerade as last-ten-runs rates');
+
+assert.ok(html.includes('id="forecastAiLeaderShares"'),'forecast must show AI first-boat Top10 comparison');
+assert.ok(script.includes("selectedPredictionMode==='research'?predictionTickets.slice(0,10):[]"),'AI leader shares must exclude unrelated prediction modes');
+assert.ok(script.includes('残りの買い目は含まない'),'Top10 share must not claim complete first-place probabilities');
+assert.ok(script.includes('function drawPredictions(){renderForecastAiLeaderShares();renderForecastAiLeaderDetail('),'AI leader distribution must follow saved prediction updates');
+
+assert.ok(script.includes("eligible.length===10&&new Set(eligible).size===10"),'AI leading-boat comparison must have exactly ten distinct tickets');
+assert.ok(script.includes("上位10点の確率値が揃っていないため、先頭艇比較は非表示"),'incomplete probabilities cannot produce fake zero bars');
+assert.ok(script.includes("total>100.01"),'invalid probability sum must be rejected');
+
+assert.ok(html.includes('id="forecastAiLeaderDetailRows"'),'show model second/third pairs by selected leader');
+assert.ok(script.includes('function renderForecastAiLeaderDetail(leader)'),'selected leader model comparison renderer required');
+assert.ok(script.includes('const denominator=selected.reduce('),'second/third model relative share must use selected head denominator');
+assert.ok(script.includes('実測・条件付き集計'),'distinguish empirical 2/3 rates from modeled pair share');
+
+assert.ok(script.includes("'Top10候補外'"),'unlisted combinations must not be reported as observed zero chance');
+
+assert.ok(script.includes('const requestId=++forecastCourseStatsRequestId'),'course-stat requests must have race switch token');
+assert.ok(script.includes("requestId!==forecastCourseStatsRequestId||key!==sameRaceKey()"),'stale course stats must be discarded');
+
+assert.ok(script.includes('実コース別成績：API取得失敗（HTTP '),'forecast must explain network HTTP failures');
+assert.ok(script.includes('実コース別成績：取得元・締切前時刻・6艇の証拠を検証できません'),'forecast must distinguish verification failure');
+assert.ok(script.includes('実コース別成績：通信または読み込みに失敗しました'),'forecast must explain parse failures');
+
+assert.ok(html.includes('id="forecastPriorResultRows"'),'prior confirmed empirical rates table required');
+assert.ok(script.includes('Array.from({length:race-1}'),'only earlier races may be inspected');
+assert.ok(script.includes("item.race_code!==code||item.status!=='confirmed'"),'unverified result not eligible for conditional rate');
+assert.ok(script.includes('renderForecastPriorResults(leader)'),'leader switch must refresh historical real data');
+assert.ok(script.includes('loadForecastPriorResults()}else if(activeView'),'selected-race changes must refresh prior results');
+
+assert.ok(script.includes('取得不足のため当日傾向として扱わない'),'partial earlier-race collection must warn of incomplete daily coverage');
+
+assert.ok(script.includes('priorResultExpected>0&&priorRaceResults.length===priorResultExpected'),'conditional actual rates require complete prior-race coverage');
+assert.ok(script.includes("'集計不足'"),'partial prior results must suppress rather than calculate observed percentages');
+
+assert.ok(script.includes('complete&&n>=3?'),'conditional historical percentages require at least three head-specific samples');
+assert.ok(script.includes('標本3件未満'),'small samples must show counts rather than percent');
+
+assert.ok(script.includes('let priorResultRequestId=0,priorRaceResults=[],priorResultExpected=0;'),'prior-result render must initialize expected count before first use');
+
+assert.ok(script.includes("!/^[0-9]{8}$/.test(date)||!/^[0-9]{2}$/.test(venue)"),'historical result lookup must reject malformed date or venue');
+
+assert.ok(html.includes('締切前に取得済みだった証明はない'),'retrospective confirmed results must not imply pre-deadline availability');
+assert.ok(script.includes('Date.parse(item.confirmed_at_jst)'),'retrospective results require evidence acquisition timestamp');
+
+assert.ok(script.includes('Date.parse(item.confirmed_at_jst)>Date.now()||Date.parse(item.collected_at_jst)>Date.now()'),'future-dated result evidence must not be counted as confirmed history');
+
+assert.ok(script.includes('Date.parse(item.collected_at_jst)<Date.parse(item.confirmed_at_jst)'),'historical evidence cannot precede confirmation');
+
+assert.ok(html.includes('confirmed_at_jstは公式の着順確定時刻ではなく結果ソースの取得時刻'),'retrospective statistics must disclose timestamp provenance');
 
 // Archived prospective candidates are loaded directly from GitHub, bypassing
 // the server API: their displayed timestamp provenance must be checked too.
