@@ -51,3 +51,10 @@
 - #652 CI run `41210366375` は、現行4タブ仕様により非選択 `#forecast` が hidden なのに可視状態を待つテストがタイムアウト。PR #652 の `tests/forecast-odds-rendered.cjs` を `state:'attached'` へ修正（commit `5100581dfc32249156af57aef7bb882c829b7873`）。この変更のCI再検証は未完了、main未統合。
 - 旧サイトの削除と過去レース表示の公開実測は未完了。#654はデータ収集担当のPRとして変更対象外。
 - 次の優先作業: #652 CI修正の確認、旧サイト/現行サイトのデプロイ依存照合、2026-10-31の公開過去レース表示確認。
+
+## 2026-11-01 メイン開発追加確認（既存テスト再利用）
+- 現行mainの `.github/workflows/forecast-mobile-browser.yml` に `tests/forecast-odds-rendered-dom.cjs`, `tests/live-odds-to-dom.cjs`, `tests/saved-prediction-auto-odds.cjs` が既に登録されていることを直接確認。`state:'attached'` で非選択DOMに対応する既存実装も確認。
+- #652 はmainの既存モバイルオッズ検証との実質的重複、かつ `mergeable=false` のためクローズ。前ターンの#646クローズと合わせ、重複PRを増やさず既存ワークフローに一本化。#652の変更はmainに未統合。
+- 旧サイト撤去: Render workspace未選択のためデプロイ依存を実証できず、破壊的削除は未実施。旧リポジトリを無断削除しない。
+- 過去レース: mainの履歴出走表既存修正はあるが、2026-10-31の公開UI実測は未完了。公開サイトの到達・DOM・保存結果・予想の対応を次に検証する。
+- #722（予想研究）、#723/#654（データ収集）は担当別PRのため未変更。新規PRの乱発なし。
