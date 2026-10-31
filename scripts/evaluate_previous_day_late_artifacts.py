@@ -82,6 +82,15 @@ if __name__=="__main__":
     root=Path("late_research_candidates")
     collected=retrieve(day,root,repository,token)
     result=evaluate(day,root,Path("."))
-    report={"artifact_recovery":collected,"paired_evaluation":result}
+    # Expose the exact bottleneck; never imply absent late picks are losses.
+    rejected=result.get("rejected",{})
+    diagnosis={
+        "missing_prospective_candidates":collected["imported_immutable_candidates"]==0,
+        "candidate_records_without_early_or_result":rejected.get("missing_early_or_result",0),
+        "candidate_records_outside_cutoff":rejected.get("outside_cutoff",0),
+        "candidate_records_invalid_provenance":rejected.get("invalid_provenance",0),
+        "ready_for_accuracy_comparison":result["paired_races"]>0,
+    }
+    report={"artifact_recovery":collected,"paired_evaluation":result,"diagnosis":diagnosis}
     Path("late_research_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(report,ensure_ascii=False))
