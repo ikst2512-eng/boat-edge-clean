@@ -41,3 +41,5 @@ jobs:
         run: python compare_topn_signal70.py 20261029
       - name: Compare observed signal groups Oct 30
         run: python compare_topn_signal70.py 20261030
+      - name: October 31 independent follow-up (pending excluded)
+        run: python compare_topn_signal70.py 20261031
