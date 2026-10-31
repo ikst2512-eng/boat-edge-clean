@@ -14,7 +14,7 @@ jobs:
         run: |
           python - <<'PY'
           import datetime, urllib.request, collections, re, json
-          from server import OddsTableReader
+          from server import OddsTableReader, parse_official_odds_table
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
           schedule_url='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+day+'.json'
           try:
@@ -41,6 +41,11 @@ jobs:
                   print('venue',venue,'title',title_text,'table-count',len(parser.tables))
                   print('venue',venue,'table-shapes',[(len(rows),dict(collections.Counter(map(len,rows)))) for rows in parser.tables[:5]])
                   print('venue',venue,'html-markers',{'odds': 'オッズ' in html,'race': 'レース' in html,'error': any(x in html for x in ('ページが見つかりません','該当するデータがありません','開催していません'))})
+                  try:
+                      odds=parse_official_odds_table(html)
+                      print('venue',venue,'TRIFECTA_120_VALID',len(odds))
+                  except Exception as parse_exc:
+                      print('venue',venue,'TRIFECTA_PARSE_FAIL',type(parse_exc).__name__,str(parse_exc)[:110])
               except Exception as exc:
                   print('venue',venue,'DIAGNOSIS_UNAVAILABLE',type(exc).__name__,str(exc)[:100])
           PY
