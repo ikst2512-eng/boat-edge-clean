@@ -14,7 +14,7 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             (root / "confirmed_results").mkdir()
             forecast = {
                 "race_code": "202610300101", "status": "research", "validated": False,
-                "generated_at": "2026-10-30T09:00:00+09:00",
+                "generated_at": "2026-10-30T09:03:00+09:00",
                 "cutoff_jst": "2026-10-30T09:10:00+09:00",
                 "source_deadline_jst": "2026-10-30T09:22:00+09:00",
                 "source_title_received_jst": "2026-10-30T09:01:00+09:00",
