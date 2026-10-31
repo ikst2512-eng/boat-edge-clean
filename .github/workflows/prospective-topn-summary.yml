@@ -31,3 +31,5 @@ jobs:
           if r["payout_unavailable"] + r["roi"]["top10"]["races"] != r["counts"]["evaluated"]:
               raise SystemExit("PAYOUT_COVERAGE_MISMATCH")
           PY
+      - name: October 31 payout-verified Top-N ROI
+        run: python aggregate_prospective_topn.py 20261031
