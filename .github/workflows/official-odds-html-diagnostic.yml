@@ -8,11 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
+      - uses: actions/checkout@v4
       - name: Diagnose official response structure without storing user data
         run: |
           python - <<'PY'
           from urllib.request import Request,urlopen
           from html.parser import HTMLParser
+          from server import parse_official_odds_table
           import datetime,re
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
           url=f'https://www.boatrace.jp/owpc/pc/race/odds3t?hd={day}&jcd=24&rno=12'
@@ -33,6 +35,10 @@ jobs:
               p=Inspect();p.feed(body)
               print('HTML title:',repr(p.title[:180]))
               print('Table tags:',p.tags.get('table',0),'rows:',p.tags.get('tr',0),'scripts:',p.tags.get('script',0))
+              if p.tags.get('table',0):
+                  odds=parse_official_odds_table(body)
+                  assert len(odds)==120
+                  print('Official odds parser: PASS 120 unique trifecta combinations')
               print('Leading HTML:',repr(re.sub(r'\\s+',' ',body[:450])))
               print('Known access-block indicators:',{k:(k.lower() in body.lower()) for k in ['access denied','captcha','maintenance','JavaScriptを有効','アクセスが集中']})
           except Exception as e:
