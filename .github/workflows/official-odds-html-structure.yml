@@ -1,0 +1,31 @@
+name: Official odds HTML structure diagnosis
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-odds-html-structure.yml'
+  workflow_dispatch:
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture structural summary without odds values
+        run: |
+          python - <<'PY'
+          import datetime, urllib.request, collections, html.parser
+          from server import OddsTableReader
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
+          url='https://www.boatrace.jp/owpc/pc/race/odds3t?hd='+day+'&jcd=01&rno=1'
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN/1.0'}),timeout=15) as r:
+                  body=r.read(1500001)
+                  print('HTTP',r.status,'content-type',r.headers.get('Content-Type'),'bytes',len(body))
+              parser=OddsTableReader()
+              parser.feed(body.decode('utf-8',errors='replace'))
+              print('table-count',len(parser.tables))
+              for index,rows in enumerate(parser.tables[:20]):
+                  print('table',index,'rows',len(rows),'widths',dict(collections.Counter(map(len,rows))))
+          except Exception as exc:
+              print('DIAGNOSIS_UNAVAILABLE',type(exc).__name__,str(exc)[:150])
+          PY
