@@ -63,6 +63,9 @@ def analyze(root=ROOT):
                            or any(v not in {"1","2","3","4","5","6"} for v in t.split("-"))
                            for t in tickets)):
                 raise ValueError("invalid tickets")
+            if p.get("model_version") == "national-beta0.4-exploratory-v1":
+                expected=["-".join(map(str,t)) for t,_ in probabilities(rates,0.4)[:10]]
+                if tickets != expected: raise ValueError("saved top10 differs from baseline model")
             winning="-".join(map(str,q["finish_order"][:3]))
             rank=tickets.index(winning)+1 if winning in tickets else None
             hit=int(rank is not None)
