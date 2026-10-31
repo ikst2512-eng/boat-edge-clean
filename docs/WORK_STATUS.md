@@ -464,3 +464,9 @@
 ## 2026-11-01 定期収集ジョブにT-12時刻判定テストを組み込み
 - 定期収集 `.github/workflows/late-preview-capture.yml` は従来、`test_preview_timing_integrity.py` を実行しておらず、時刻判定の境界や日付整合性の回帰を直接確認しないままCSV取得に進めた。既存のテストステップに同テストを追加（commit `5bdbed92c3e7aa2fad1ec3e874d6d2c4ee9e8afa`）。新規ジョブや独立PRは増やしていない。
 - **main更新・設定確認まで完了。新しいCI成功・8:03以降の実データ完全6艇T-12成立は未確認。** 収集結果とCI結果を混同しない。旧サイト変更・停止なし。
+
+## 2026-11-01 公開Pagesの確定結果配信補強（PR #751）
+- PR #744に加えた旧の重複結果スモークは `202610270101` のRaw取得が404扱いとなり、公開run `41242390056` が失敗。PR #748ではレース選択を固定し、run `41242784562` のログで `key=20261027-01-01`, `view=result`, `status=CLEAN確定結果は未取得` を実測。これは「競艇結果が不正」の証明ではなくRaw配信依存の不達。
+- PR #751 (main squash `7fc2e81e7e56a14ac96bada53d01113763219db8`) は、既存の保存済み `confirmed_results/` をGitHub Pages成果物に同梱し、Raw側取得失敗時のみ同一originの結果JSONへフォールバック。4か所の既存結果読込を共通化し、race codeを検査。モデル予想入力への確定結果混入なし。
+- PR head の回帰CI（`check`,`publish-smoke`）成功、main Pages公開 run `41243190467` / deploy job `124661127242` はsuccess。実公開ブラウザログは `DEPLOYED_BROWSER_PASS` と `CLEAN_RESULT_PUBLISHED_BROWSER_PASS ...venue=23&race=1 ... 1-2-5` を確認。**202610270101の独立実ブラウザ合格を確認したわけではない。**
+- 残る: iPhone Safari実機、追加レースの出走表／展示／予想内容、T-12の同一6艇STT+TKZ受信時刻証明。旧サイト停止条件は未達。
