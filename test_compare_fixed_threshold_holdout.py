@@ -28,7 +28,7 @@ class Tests(unittest.TestCase):
  def test_selection_coverage_and_lift_match_same_day_baseline(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp);folder=root/"prospective_predictions";folder.mkdir()
-   for day in ("20261029","20261030"):
+   for day in ("20261029","20261030","20261031"):
     for idx in (1,2):
      (folder/(day+f"01{idx:02d}.json")).write_text(json.dumps({"national_win_rates":[idx]*6}))
    def scored(code,root):
