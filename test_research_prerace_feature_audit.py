@@ -39,6 +39,11 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             self.assertEqual(tied["cohorts"]["holdout"]["lane1_strongest"]["n"], 1)
             self.assertEqual(tied["cohorts"]["holdout"]["lane1_unique_strongest"]["n"], 0)
             self.assertEqual(tied["cohorts"]["holdout"]["lane1_tied_strongest"]["n"], 1)
+            classes = ("lane1_unique_strongest", "lane1_tied_strongest", "lane1_not_strongest")
+            self.assertEqual(sum(tied["cohorts"]["holdout"][name]["n"] for name in classes),
+                             tied["cohorts"]["holdout"]["all"]["n"])
+            self.assertEqual(sum(tied["cohorts"]["holdout"][name]["top10"] for name in classes),
+                             tied["cohorts"]["holdout"]["all"]["top10"])
             fp.write_text(json.dumps(forecast))
             self.assertEqual(good["cohorts"]["discovery"]["all"]["n"], 0)
             for change in (
