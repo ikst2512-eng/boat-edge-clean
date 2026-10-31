@@ -1,4 +1,4 @@
-name: Forecast public markup smoke
+name: Forecast mobile rendered smoke
 on:
   pull_request:
     paths:
@@ -7,17 +7,20 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check public forecast markup
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install chromium
+      - name: Inspect rendered mobile forecast
         run: |
-          python - <<'PY'
-          import urllib.request
-          url='https://boat-edge-clean.onrender.com/'
-          with urllib.request.urlopen(url, timeout=45) as response:
-              html=response.read().decode('utf-8', 'replace')
-              print('HTTP',response.status,'bytes',len(html))
-          assert 'id="predictionRows"' in html
-          assert 'async function loadTicketOdds' in html
-          assert 'class="home-race-cards"' not in html
-          print('Published forecast markup verified')
-          PY
+          node -e "const{chromium}=require('playwright');(async()=>{const b=await chromium.launch();try{const p=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await p.goto('https://boat-edge-clean.onrender.com/?date=2026-10-31&venue=2&race=1',{waitUntil:'domcontentloaded',timeout:60000});const result=await p.evaluate(()=>({forecast:!!document.getElementById('forecast'),odds:typeof loadTicketOdds==='function',noHomeCards:!document.querySelector('.home-race-cards'),width:document.documentElement.scrollWidth,viewport:innerWidth}));console.log(JSON.stringify(result));if(!result.forecast||!result.odds||!result.noHomeCards)throw Error('rendered DOM missing');await p.screenshot({path:'mobile-forecast.png',fullPage:true})}finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)})"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-forecast-render
+          path: mobile-forecast.png
+          if-no-files-found: ignore
