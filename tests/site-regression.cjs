@@ -345,3 +345,11 @@ assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw 
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
 assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
 console.log('PASS: historical schedule 404/503 fallback regression');
+
+// GitHub Pages must ship the runtime navigation script referenced by index.html.
+const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
+assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages must publish both runtime assets');
+assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
+assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
+console.log('PASS: Pages navigation asset packaging and verification');
