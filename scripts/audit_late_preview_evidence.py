@@ -29,6 +29,13 @@ def audit(root="late_preview_evidence"):
                 or path.parent.parent.name!=code[:8] or received is None
                 or classify(source,received,margin_minutes=2)!="pre_cutoff_observed"):
                 raise ValueError("invalid source provenance or predeadline time")
+            if (row.get("status")!="late_preview_unvalidated_not_research_forecast"
+                or row.get("cutoff_policy")!="before_deadline_minus_2min_buffer"
+                or row.get("source_observed_jst")!=source.get("取得日時")
+                or not isinstance(row.get("source_csv_sha256"),str)
+                or len(row["source_csv_sha256"])!=64
+                or any(ch not in "0123456789abcdef" for ch in row["source_csv_sha256"])):
+                raise ValueError("missing or inconsistent saved source provenance")
             if kind in pairs[code]:
                 raise ValueError("duplicate kind")
             # Never trust a stored completeness label without recomputing all six boats.
