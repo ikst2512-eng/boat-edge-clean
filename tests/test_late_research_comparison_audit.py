@@ -17,7 +17,9 @@ class ComparisonReadinessTests(unittest.TestCase):
             (root/"confirmed_results").mkdir()
             (root/"research_snapshots"/(code+".json")).write_text(json.dumps({
                 "race_code":code,"status":"research",
-                "generated_at":"2026-10-31T16:30:00+09:00"}))
+                "generated_at":"2026-10-31T16:30:00+09:00",
+                "cutoff_jst":"2026-10-31T16:40:00+09:00",
+                "source_deadline_jst":"2026-10-31T17:10:00+09:00"}))
             (root/"confirmed_results"/(code+".json")).write_text(json.dumps({
                 "race_code":code,"status":"confirmed","finish_order":[1,3,2]}))
             with patch("scripts.late_research_comparison_audit.build",
@@ -32,6 +34,15 @@ class ComparisonReadinessTests(unittest.TestCase):
                 invalid=audit("20261031",root,root)
                 self.assertEqual(invalid["complete_comparison_cohort"],0)
                 self.assertEqual(invalid["confirmed_result_matches"],0)
+                # A post-cutoff early forecast is not an eligible baseline.
+                (root/"research_snapshots"/(code+".json")).write_text(json.dumps({
+                    "race_code":code,"status":"research",
+                    "generated_at":"2026-10-31T16:45:00+09:00",
+                    "cutoff_jst":"2026-10-31T16:40:00+09:00",
+                    "source_deadline_jst":"2026-10-31T17:10:00+09:00"}))
+                late=audit("20261031",root,root)
+                self.assertEqual(late["early_forecast_matches"],0)
+                self.assertEqual(late["complete_comparison_cohort"],0)
 
 
 if __name__=="__main__":
