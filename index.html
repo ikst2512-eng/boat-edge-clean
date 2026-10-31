@@ -1073,7 +1073,9 @@ async function loadTicketOdds(key, token){
   if(!all.every(([ticket,value])=>validTicket(ticket)&&typeof value==='number'&&Number.isFinite(value)&&value>=1&&value<=1000000))return;
   const current=predictionModes[selectedPredictionMode];
   if(!current||!Array.isArray(current.tickets)||!current.tickets.length)return;
-  current.odds=Object.fromEntries(current.tickets.filter(ticket=>Object.hasOwn(data.odds,ticket)).map(ticket=>[ticket,data.odds[ticket]]));
+  // A complete odds feed must contain each prediction ticket exactly once.
+  if(!current.tickets.every(ticket=>Object.hasOwn(data.odds,ticket)))return;
+  current.odds=Object.fromEntries(current.tickets.map(ticket=>[ticket,data.odds[ticket]]));
   predictionOdds=current.odds;
   const stamp=new Date(observed).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});
   const meta=document.getElementById('sourceMeta');
