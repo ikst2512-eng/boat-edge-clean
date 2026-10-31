@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - index.html
+      - navigation.js
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
@@ -59,8 +60,9 @@ jobs:
       - name: Stage only public files
         run: |
           mkdir -p public
-          cp index.html public/index.html
+          cp index.html navigation.js public/
           test -s public/index.html
+          test -s public/navigation.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload public site
@@ -88,7 +90,10 @@ jobs:
           for attempt in 1 2 3 4 5 6; do
             if curl --fail --silent --show-error --location --max-time 20 "$PAGE_URL" -o /tmp/clean-deployed.html; then
               if cmp -s public/index.html /tmp/clean-deployed.html; then
-                echo "Public page byte-identical PASS: $PAGE_URL"
+                NAV_URL="${PAGE_URL%/}/navigation.js"
+                curl --fail --silent --show-error --location --max-time 20 "$NAV_URL" -o /tmp/clean-deployed-navigation.js
+                cmp -s public/navigation.js /tmp/clean-deployed-navigation.js || { echo "Published navigation.js missing or mismatched" >&2; exit 1; }
+                echo "Public page and navigation.js byte-identical PASS: $PAGE_URL"
                 echo "Public HTML: **PASS** (byte-identical to deployed revision)" >> "$GITHUB_STEP_SUMMARY"
                 sha256sum public/index.html
                 exit 0
