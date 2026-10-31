@@ -10,6 +10,7 @@ from datetime import timedelta
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.preview_timing_integrity import classify, parse_jst
+from late_preview_capture import six_lane_status
 
 def audit(root="late_preview_evidence"):
     pairs=defaultdict(dict)
@@ -30,6 +31,8 @@ def audit(root="late_preview_evidence"):
                 raise ValueError("invalid source provenance or predeadline time")
             if kind in pairs[code]:
                 raise ValueError("duplicate kind")
+            # Never trust a stored completeness label without recomputing all six boats.
+            row["six_lane_validation"]=six_lane_status(kind,source)
             pairs[code][kind]=row
         except (ValueError,TypeError,KeyError,AttributeError,OSError):
             invalid+=1
