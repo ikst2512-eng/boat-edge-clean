@@ -90,5 +90,20 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 self.assertEqual(audited["rejected"], 1)
 
 
+    def test_reject_untrusted_snapshot_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            snapshots=root/"research_snapshots"
+            results=root/"confirmed_results"
+            snapshots.mkdir()
+            results.mkdir()
+            (snapshots/"not-a-race.json").write_text("{}")
+            (snapshots/"202610300101.json").write_text("x"*20001)
+            (snapshots/"202610300102.json").symlink_to(snapshots/"202610300101.json")
+            audited=analyze(root)
+            self.assertEqual(audited["rejected"],3)
+            self.assertEqual(audited["cohorts"]["holdout"]["all"]["n"],0)
+
+
 if __name__ == "__main__":
     unittest.main()
