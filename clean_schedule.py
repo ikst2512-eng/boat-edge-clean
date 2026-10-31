@@ -131,4 +131,7 @@ def clean_schedule(day):
         return 502, {"ok": False, "status": "source_invalid",
                      "reason": type(exc).__name__, "date": day, "retryable": False}
     result["source_sha256"] = digest
+    # A 200 schedule only certifies the races explicitly listed in this source.
+    # Expose venue coverage for diagnostics; do not fabricate missing racecards.
+    result["venue_race_counts"] = dict(sorted(Counter(r["venue_code"] for r in result["races"]).items()))
     return 200, result
