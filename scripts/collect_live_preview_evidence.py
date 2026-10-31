@@ -28,7 +28,6 @@ def paired_six_lane_coverage(day, root):
                         and isinstance(record.get("source_row"), dict)
                         and record["source_row"].get("レースコード") == file.stem
                         and record.get("six_lane_validation") == "complete"
-                        and isinstance(record.get("source_row"), dict)
                         and six_lane_status(kind, record["source_row"]) == "complete"
                         and record.get("status") == "late_preview_unvalidated_not_research_forecast"
                         and record.get("source_observed_jst") == record["source_row"].get("取得日時")
@@ -76,4 +75,9 @@ def collect(day, root, fetch=None):
 
 if __name__=="__main__":
     day=datetime.now(JST).strftime("%Y%m%d")
-    print(json.dumps(collect(day,Path("late_preview_evidence")),ensure_ascii=False))
+    root=Path("late_preview_evidence")
+    summary=collect(day,root)
+    summary_path=root/day/"collection_summary.json"
+    summary_path.parent.mkdir(parents=True,exist_ok=True)
+    summary_path.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print(json.dumps(summary,ensure_ascii=False))
