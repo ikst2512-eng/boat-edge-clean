@@ -1057,6 +1057,30 @@ async function loadRaceData(force=false){
 }
 let displayedPredictionKey='';
 const predictionRetryAt=new Map();
+async function loadTicketOdds(key, token){
+ // Odds are display-only and cannot change ticket ordering or saved predictions.
+ const url='https://boat-edge-clean.onrender.com/api/odds?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
+ try{
+  const response=await fetchTimed(url,{cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json();
+  if(token!==window.predictionRequestId||sameRaceKey()!==key||activeView!=='forecast'||!data.ok)return;
+  const observed=Date.parse(data.fetched_at);
+  if(!Number.isFinite(observed)||observed>Date.now()+300000||observed<Date.now()-1800000)return;
+  if(!data.odds||typeof data.odds!=='object'||Array.isArray(data.odds)||Object.keys(data.odds).length!==120)return;
+  const all=Object.entries(data.odds);
+  if(!all.every(([ticket,value])=>validTicket(ticket)&&typeof value==='number'&&Number.isFinite(value)&&value>=1&&value<=1000000))return;
+  const current=predictionModes[selectedPredictionMode];
+  if(!current||!Array.isArray(current.tickets)||!current.tickets.length)return;
+  current.odds=Object.fromEntries(current.tickets.filter(ticket=>Object.hasOwn(data.odds,ticket)).map(ticket=>[ticket,data.odds[ticket]]));
+  predictionOdds=current.odds;
+  const stamp=new Date(observed).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});
+  const meta=document.getElementById('sourceMeta');
+  const chip=document.createElement('span');chip.className='source-chip';chip.textContent='公式3連単オッズ取得 '+stamp+' JST（変動あり）';
+  meta.querySelectorAll('[data-live-odds]').forEach(n=>n.remove());chip.dataset.liveOdds='1';meta.append(chip);
+  drawPredictions();
+ }catch(_){/* The prediction remains available when official odds are unavailable. */}
+}
 async function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;verifiedForecastWinner=null;
  const raceKey=sameRaceKey();
@@ -1087,6 +1111,7 @@ async function loadPredictions(force=false){
     label.textContent='Git保存済み研究予想（未検証・正式採点対象外）';
     document.getElementById('snapshotMeta').textContent='研究原本を表示。初回Git保存時刻の正式監査は未完了。';
     document.getElementById('sourceMeta').replaceChildren();drawPredictions();
+    void loadTicketOdds(key,token);
     return;
    }
    if(research.status!==404)throw Error('SOURCE_HTTP_'+research.status);
@@ -1102,6 +1127,7 @@ async function loadPredictions(force=false){
    document.getElementById('snapshotMeta').textContent='研究予想APIから取得。Git原本の正式な保存・照合証明は未確認。';
    document.getElementById('sourceMeta').replaceChildren();
    drawPredictions();
+   void loadTicketOdds(key,token);
    return;
   }
   const archive=await response.json();
@@ -1114,6 +1140,7 @@ async function loadPredictions(force=false){
   document.getElementById('snapshotMeta').textContent='保存済み研究予想のみ表示。旧方式の買い目は表示しません。';
   document.getElementById('sourceMeta').replaceChildren();
   drawPredictions();
+  void loadTicketOdds(key,token);
 
  }catch(e){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
