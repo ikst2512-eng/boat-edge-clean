@@ -7,7 +7,7 @@ on:
     paths: [compare_three_day_signal70.py, .github/workflows/three-day-signal70.yml]
   workflow_dispatch:
   schedule:
-    - cron: '30 16 * * *' # 01:30 JST; analyze preceding completed calendar day
+    - cron: '30 16 * * *' # 01:30 JST; analyze three preceding completed calendar days
 jobs:
   compare:
     runs-on: ubuntu-24.04
@@ -27,10 +27,11 @@ jobs:
           from zoneinfo import ZoneInfo
           from compare_topn_signal70 import compare
           from evaluate_clean_prospective_cohort import cohort
-          day=(datetime.now(ZoneInfo("Asia/Tokyo")).date()-timedelta(days=1)).strftime("%Y%m%d")
-          if day<"20261101":
-              print("FORWARD_EVALUATION_NOT_STARTED",day)
-          else:
+          today=datetime.now(ZoneInfo("Asia/Tokyo")).date()
+          for offset in (3,2,1):
+              day=(today-timedelta(days=offset)).strftime("%Y%m%d")
+              if day<"20261101":
+                  continue
               groups=compare(day)["groups"]
               full=cohort(day)
               assert sum(g["evaluated"] for g in groups.values())==full["counts"]["evaluated"],"cohort mismatch"
