@@ -165,6 +165,125 @@
 - 既存 `scripts/verify_live_racecard_e2e.py` が「候補選定時に締切前」という条件だけで応答の締切前性を判定していたため、本番HTTP応答後に `meta.deadline` を解析し再度JST現在時刻と比較、締切済みレスポンスを不合格にする修正をmain `0c119339f4bbe1d10862006b67d6508a297e0bac` に適用。main再読込で反映を確認。CI・実レースの定期job成功はまだ未確認。
 - 旧サイト停止にはCLEAN定期jobによる締切前カード・展示の実測と、旧サイト保存証拠の独立保全が必要。旧リポジトリは変更/削除していない。
 
+## 2026-11-01 データ取得・保存担当（独立PR、main未統合）
+- 対象: `late_preview_capture.save_preview` のappend-only保存。既存の後続レースファイルとの衝突で、同一CSV内の先行レースだけ書き出してから `FileExistsError` となる非原子的バッチを発見。
+- 変更: バッチ全件の保存先を事前計算し、既存証拠との衝突を全件preflight。衝突時は一件も新規保存せず、既存ファイルは変更しない。回帰テスト2件追加。
+- 対象ファイル: `late_preview_capture.py`, `tests/test_late_preview_capture.py`。予想モデル・画面・main・既存PR #654の変更ファイルには手を加えない。
+- 実測: GitHub mainの収集ワークフロー `late-preview-capture.yml` と `research-live-preview-evidence.yml` は別々の5分間隔スケジュールを持つ。役割（isolated evidence / late research candidate）が異なり、無条件の停止・削除は行わない。
+- 取得品質: 2026-10-31蒲郡8Rの6艇保存実績は過去記録として存在するが、T-12時点の受信証拠は未確認。公式beforeinfo / BOATERS / 競艇日和 / 実オッズの6艇同期取得保証も未証明。T-12保証を宣言しない。
+- テスト/CI: PR側CI実行結果で別途確認。公開本番の変更なし。
+- 次: PRの回帰テストを確認し、予定実行artifactの受信時刻・HTTP失敗率・6艇ペア率を収集。#654のpaired coverage差分は重複実装せず取り込み判断をメイン担当に委譲。
+
+### 2026-11-01 継続: 上流取得障害の明示
+- GitHub Actions実測: run 41234665968（JST 2026-11-01 04:32頃）で STT/TKZ/SUI/original_exhibition/od3 がすべてHTTP 404。保存0、6艇ペア0、T-12証拠ペア0。Actions成功終了と取得成功は別。
+- 修正(PR #723に追加): `collect_late_preview_once.py` が全源失敗時 `source_unavailable`、一部失敗時 `partial_source_failure`、全取得時 `sources_retrieved` と集計し、5源のavailable/unavailable数と保存件数を報告。`late-preview-capture.yml` Actions summaryに上流状態を明示。
+- テスト: 404全件失敗・一部失敗の回帰テスト2件追加。今回の追記後CIは結果を確認するまで未検証扱い。
+- 未完了: 実データのT-12完全6艇ペア、公式beforeinfo/BOATERS/競艇日和の可用性と時刻証拠、収集ジョブ依存関係の安全な整理。main未統合。
+
+### 2026-11-01 続行: 404の公開時間帯判定
+- 既存 `scripts/collect_live_preview_evidence.py` に上流CSV想定時間帯 `08:00-22:59 JST` の記述を確認。以前の04:32 JSTに観測された5件の404を恒常的な取得元障害と断定しない。
+- PR #723で午前8時前の全HTTP 404を `not_yet_expected`、各ソースを `before_expected_publication_window` として明示する判定を追加。午前8時以降の404は未公開・欠落の可能性を別分類。既存のスケジュールは依存関係未確認のため停止しない。
+- 回帰テスト: 午前4:32の全404を期待公開前と判定するケースを追加。実データ取得保証とは区別し、今回の追記後のCIは結果確認まで未検証。
+- 次の実測: 08:00-22:59 JSTの実行でHTTP応答、CSV行、6艇STT+TKZ完全ペア、T-12受信・ソース時刻を照合する。結果がなければ成功扱いしない。
+
+### 2026-11-01 取得レポートの空CSV識別（PR #723）
+- 既存捕捉でHTTP成功かつCSVゼロ行を `sources_retrieved` と表現する曖昧さを確認。5源が取得できてもレース行が無ければ `sources_retrieved_no_rows` と表示し、`race_rows_total` を集計してActions summaryにも記録する修正とfixtureテストを追加。
+- これは取得ジョブの分類精度改善であり、公式/BOATERS/日和の実ライブ取得を実証したものではない。main未統合。最新変更のCI実行結果は確認まで未検証。
+
+### 2026-11-01 データ取得監査継続 — エラー原因分離
+- PR #723に、HTTP/transport失敗 (`source_unavailable`) とローカル書込衝突・形式不正 (`capture_invalid`) を別の状態として報告する変更を追加。`sources_unavailable` に保存時 `FileExistsError` を誤計上しない。部分的な保存処理失敗は `partial_capture_failure` と区別する。
+- 既存テストの同一バッチ再実行ケースに `capture_invalid=5`、`sources_unavailable=0` を検証する回帰アサーション追加。収集Actions summaryもエラー件数を区別。
+- 実際のT-12/6艇取得保証は未成立。追加修正のCIは未確認。main統合なし。
+
+### 2026-11-01 CIトリガー修正（PR #723）
+- 原因: `late-preview-evidence-tests.yml` のPR pathsには `collect_late_preview_once.py` と `tests/test_collect_late_preview_once.py` が含まれておらず、収集レポートの続行修正コミットで対象CIが再実行されていなかった。
+- 変更: 取得レポート・テストファイルをpathsへ追加し、同ワークフローで `test_collect_late_preview_once.py` を明示実行。既存CIを拡張し、重複CIは新設しない。
+- 検証: 変更後Actions実行を確認するまで成功扱いしない。main未統合。
+
+### 2026-11-01 CI実行証拠（データ収集PR #723）
+- Actions run `41237387015` / job `124643904867` / commit `df04f6c0071e62541e0d814b853e40bb162bd2f3`: `Late preview evidence integrity` 成功。`test_late_preview_capture` 3件および `test_collect_late_preview_once.py` 6件の計9件が成功。URL: https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/41237387015
+- 収集CIのpush対象に作業ブランチを追加し、対象コードの継続変更でも実行されるように修正した。PR作業完了・main統合時には一時的なブランチ指定を除去すること。
+- ここで証明できたのはfixtureを含む保存・取得状態判定のテスト成功のみ。ライブ上流データのT-12完全6艇ペア、公開時間帯の取得成功、BOATERS・競艇日和の6艇確保は未証明。
+- 別ワークフロー `cross-model-content-audit-tests.yml` の失敗は残存（担当範囲外）。main未統合。
+
+### 2026-11-01 定期収集の公開前実行削減（PR #723）
+- 実ログ: research independent late preview schedule run `41213415508` (2026-11-01 00:08 JST) は5源HTTPError、STT/TKZ完全ペア0、T-12ペア0、保存0。成功のCI結論は上流取得成功を示さない。
+- 既存独立収集 `late-preview-capture.yml` は07:03-07:58 JSTにも5分刻みで起動する設定だった。CSVの想定公開窓が08:00開始であるため、この12回/日の公開前実行を除去し08:03-21:58 JSTに変更。`test_preview_schedule_jst.py` のUTC日跨ぎ回帰条件を更新。
+- 新しいCIは作成せず `late-preview-evidence-tests.yml` の既存ジョブでスケジュール回帰テストを実行する。run `41237582288` の結果確認待ち。削減はスケジュール設定上の12回/日であり、GitHub実際の実行回数・コスト削減の実測値ではない。
+- 公式beforeinfo、BOATERS、競艇日和、実レースT-12同時6艇取得は未確認。PR #654と予想/画面コードは未変更、main未統合。
+
+### 2026-11-01 実データ時刻照合（Actions既存run確認、PR #723）
+- `41192395459`（2026-10-31 19:21 JST頃）: `probe_today_beforeinfo.py` 実通信ログで2026-10-31のtkz/stt/sui各148行、future eligible各1、`VERIFIED_SIX_LANE 202610311510` を確認。6艇取得の実例であり、T-12受信時刻保証ではない。
+- `41224135096`（2026-11-01 02:21 JST頃）: `verify_real_beforeinfo_source.py` のログで2026-10-31のtkz/stt/sui各156行、検査6レースすべて6艇項目検証済み。ただし予想保存がある6レースでpreviewが予想生成前に利用できた件数は **0/6**、予想生成後の観測が **6/6**。T-12正式予想への採用禁止を維持。
+- `41206846846`（2026-10-31 22:43 JST頃）: live official odds probeは `NO_UPCOMING_RACE_TO_PROBE`。Actions成功を実オッズ120通り取得成功とは解釈しない。
+- `41213415508`（2026-11-01 00:08 JST頃）: 5源HTTPError、完全6艇ペア0、T-12ペア0。時間帯とレース状況が異なるため日中の取得成功例と矛盾しない。
+- 以上は既存Actionsログの実測であり、新しいライブT-12成功・BOATERS/競艇日和取得を証明しない。PR #723のみで記録。main未統合。
+
+### 2026-11-01 T-12レース単位監査（PR #723）
+- `scripts/audit_late_preview_evidence.py`: 完全6艇STT/TKZペアのレースコード、T-12以前に両ソース時刻・受信時刻を満たしたレースコード、STT/TKZ別の実受信・ソース観測時刻を監査JSONに明示。件数のみで証拠なしに成功と報告しない。
+- `tests/test_audit_late_preview_evidence.py` でレースコードと時刻を検証する回帰テスト追加。重複CIは作らず既存 `late-preview-evidence-tests.yml` に監査テストとファイルパスを追加。
+- run `41237820889` の対象テストステップ4件は成功を確認（job全体の完了判定は追確認が必要）。このテストは保存fixture検証であり、11/1の新たなT-12実データ成功を意味しない。
+- 予想研究・サイト表示コードに触れず、main未統合。
+
+### 2026-11-01 実データ監査の件数誤認防止（PR #723）
+- `scripts/audit_late_preview_evidence.py` の既存 `rglob('*.json')` は `collection_summary.json` 等の非レースJSONを不正なレース証拠として数え得た。ディレクトリ種別と12桁ASCIIレースコードを先に検査し、監査集計対象からメタデータを除外。
+- `tests/test_audit_late_preview_evidence.py` にサマリーJSONでinvalid/recordsが増えない回帰テスト追加。既存Actions run `41237934711` の4系統テストステップ成功を確認、全体終了判定は追確認。
+- 新しい実ライブT-12完全6艇ペアを実証したものではない。PR #723のみ、main未統合。
+
+### 2026-11-01 T-12不合格理由のレース別出力（PR #723）
+- 6艇完全ペアであってもT-12時刻に間に合わないレースについて、STT/TKZそれぞれの時刻判定・受信時刻・レースコードを監査JSONの `paired_complete_but_not_t12` に出力するよう修正。完全性合格と予想時点の利用可能性を分離する。
+- `tests/test_audit_late_preview_evidence.py` に不合格理由の回帰アサーション追加。Actions run `41238036094` の4種ユニットテストステップ成功を確認。実レースT-12完全ペア取得は未証明。
+- main未統合、サイトとモデルは未変更。
+
+### 2026-11-01 PR #723統合前の競合確認
+- GitHub APIでPR #723は `mergeable=false`。未統合PR #654と `.github/workflows/late-preview-capture.yml` および `collect_late_preview_once.py` に変更範囲重複を確認。両PRのパッチ内容も照合済み。#654はペア保持・収集報告、#723は保存衝突対策・取得失敗分類・T-12監査なので、一方を無条件で削除/上書きできない。
+- PR #723の対象テスト最新成功run `41238036094`、別系統 `cross-model-content-audit-tests.yml` は失敗履歴あり。現状でmain統合しない。
+- 統合前に#654のペア保持ロジック、#723の状態分類・監査を両立させ、同一の収集ワークフローで回帰テストし、PRのmergeable/CIを再確認する。`late-preview-evidence-tests.yml` の一時的作業ブランチpush条件を統合前に削除する。
+
+### 2026-11-01 収集系PR #654の機能取り込み（PR #723）
+- `collect_late_preview_once.py`: #654が追加する `paired_six_lane_coverage(day,root)` をsource health分類と共存させ、既存のSTT/TKZ完全6艇ペア件数・T-12観測件数をレポートに残す。
+- `late-preview-capture.yml`: Actionsログとステップサマリーに同ペア監査を追加。既存90日証拠保持設定は#654の14日要件を包含している。重複workflow/PRは追加していない。
+- `tests/test_collect_late_preview_once.py`: ペア集計フィールドとデータ未取得時のペア0件を追加検証。
+- CI: Actions run `41238539248` がcompleted/success、4種テストステップすべて成功。実ライブT-12成功を示すものではない。
+- 残課題: #654/#723はGit上まだ別PRのため、mergeable再確認・#654の独立プローブ変更を失わない統合計画が必要。main未統合。
+
+### 2026-11-01 収集PR #654・#723 の統合回帰検証
+- PR #654 の `paired_six_lane_coverage` を #723 の取得分類と共存させた変更（`8e647b28`、`33d1e013`、`eb89a9c4`）について、Actions run `41238539248` の4系統テスト成功を確認。
+- さらに `late-preview-evidence-tests.yml` の既存CIに `tests/test_late_preview_paired_coverage.py` を追加し、実際の完全/不完全STT/TKZペア、レース一致、T-12境界も同じCIで確認する（run `41238664430`）。新しいCIワークフローは増やしていない。
+- PR #723 は `mergeable=false` を再確認。#654 とのGit競合解消、後継PRの統合順序決定および作業ブランチ専用CI条件除去は引き続き必要。main未統合。
+
+### 2026-11-01 PR #723統合ゲートの再検証
+- mainとの差分をGitHub compareで実測: #723作業ブランチはmainから `ahead=46`、`behind=27` のdiverged。`mergeable=false`。#654とも収集2ファイルが重複しており、単純にmainを親に置くGitコミット等で競合を隠すことは禁止。
+- #654のペア集計は#723内で取り込み、5群のテストがrun `41238664430` で成功済み。作業ブランチのCIに入れた一時的なpush指定は `.github/workflows/late-preview-evidence-tests.yml` から解除（commit `7508662`）、mainのみを残した。
+- 次の統合担当作業は#654の独立プローブ変更を保護したうえで競合を実際に解消し、最新mainとの差分と全CIを再検査すること。今回main未統合、実データT-12 6艇完全性未証明。
+
+### 2026-11-01 収集PR #654差分の最終照合
+- PR #654の変更3ファイルを差分照合。`scripts/research_preview_csv_probe.py` のimport修正は既にmainに存在し、#723ブランチとSHA一致。`collect_late_preview_once.py` の `paired_six_lane_coverage` と `late-preview-capture.yml` のpaired audit出力は#723に取り込み済み。#654の保持期間14日は#723の90日が包含する。
+- #723は `mergeable=true` をGitHubで確認。統合後CIは `41238926355` integrity success / `41238926467` capture success / `41238926369` source diagnostics success。収集runでは `not_yet_expected`、5 HTTPError、保存0件、T-12ペア0件。
+- #654自体は未統合で残す（別担当のPRを無断クローズしない）。二重統合は避け、メイン統合担当は#723の統合後に#654をclose/supersededで整理可能か確認する。mainは本担当から変更しない。
+
+### 2026-11-01 最新main再取り込み・収集PR検証
+- mainが進行中に前進したため、既存PR #723へ最新mainを保全して再取り込み。merge commit `c2076f3095c31fa630c87955f852c2d9662e7832`、GitHub `mergeable=true`、比較で `behind=0` を確認。main本体は変更していない。
+- 統合後Actionsの実ジョブで `Late preview evidence integrity` run `41239159375` success、`Research preview CSV source diagnostics` run `41239159337` success、`Preview capture (pull_request)` run `41239159305` success を確認。これは収集処理/テストの正常終了であり、ライブT-12 6艇取得成功ではない。
+- #654の処理は#723へ保持済み、#654の独立PRは無断終了しない。データ取得側main統合はメイン開発担当に引き継ぐ。
+
+### 2026-11-01 6艇ペア欠損原因のレース別監査（PR #723）
+- `scripts/audit_late_preview_evidence.py` の `incomplete_pair_reasons_by_race` を追加。T-12以前の要否とは別に、レースごとにSTT/TKZの `missing` / `incomplete` / `complete` を出力し、ペア不足の根本原因を区別。
+- `tests/test_audit_late_preview_evidence.py` に受信時刻が無効なTKZを欠損扱いする回帰アサーションを追加（commit `eaf180902`）。今回変更を含むCIの成功はまだ未確認。過去CI成功を新修正の成功と混同しない。
+- 現時点でGitHub Actionsの11/1 JST 08:00以降の公開時間帯に実行された定期preview保存を確認できず、実ライブT-12完全6艇ペアは依然未証明。main未統合。
+
+### 2026-11-01 最新欠損診断のCI実証（PR #723）
+- 専用CIが最新修正に反応しない問題に対し、既存 `late-preview-evidence-tests.yml` のpush対象へ作業ブランチを一時的に追加。run `41239801304` / commit `5aa3dee0` において保存・取得分類・JST日跨ぎ・T-12監査・6艇ペアの5系統すべてテストステップ成功、jobもsuccess。
+- これは `incomplete_pair_reasons_by_race` を含む現行コードの回帰テスト成功であり、実競走のT-12データ取得成功ではない。統合前に作業ブランチ専用CI条件を除く必要がある。main未統合。
+
+### 2026-11-01 PR #723 継続引き継ぎ（GitHub API再確認）
+- 対象リポジトリは `ikst2512-eng/boat-edge-clean`。PR head `996a2b9` 時点で main から57コミットahead / 4コミットbehind、mergeable=false。mainの差分は `docs/WORK_STATUS.md` と `scripts/verify_live_racecard_e2e.py`。履歴を失うforce pushやmain直接統合はしない。
+- 最新の専用CI通過は先行作業の報告に基づく。GitHub APIのcommit-PRワークフロー検索は `996a2b9` と今回の作業コミットで0件だったため、この検索だけで新たなCI成功を主張しない。
+- 一時的なpushブランチ指定を `.github/workflows/late-preview-evidence-tests.yml` から除去し、`push: main` と `pull_request` の既存テスト経路を維持（commit `5066d1202d52fc1fde30e36ebc7baf20560d4742`）。
+- 今回の作業はT-12実データ収集の成功を示さない。STT・TKZの同一レース・同一締切の6艇データ、受信JST時刻、ソース時刻、締切前12分の照合は未完了。
+- 次: `docs/WORK_STATUS.md` のmain追加14行を保存したままPR側の記録と統合し、CIを再確認。実レースについて08:00以降の定期実行ログ・artifactを照合。モデル/UIは触らずメイン担当のmain統合判断に委譲。
+
+
 ## 2026-11-01 旧サイト撤去ゲート強化PR #733統合
 - 既存PR #733を重複PR作成せずmainへsquash統合: `bd9b3e6ff11f79148096d2f367fb0a92f27fb49c`。既存 live E2Eで `tkz` と `stt` 双方の `observed_at` を独立照合し、各取得時刻が未来や締切後なら不合格、各source SHA256がない・不正なら不合格。mainのコード再取得で実装を確認。
 - PR head `7da145c0c1d62b0cebf0d026c817732266fb27e6` のActions run `41239549160` は歴史出走表・結果・120オッズ・構文でsuccess、`e2e-live-race` はPR実行でskipped。締切前実測成功はなお未確認。
@@ -186,6 +305,11 @@
 - 旧サイト停止は issue #708 にある証拠保全・移行後機能同等性・ロールバック条件の未達につき未実施。現在のRender一覧はCLEAN web service 1件で、旧公開は旧repoのPages側で管理。旧repoの証拠やpublishを無断破棄しない。
 - **次のP0**: CLEANの10/31実レースに対するAPI/画面E2Eを既存テストで証明→旧予想原本・初回Git時刻/SHA・結果原本の復元可能バックアップ照合→旧Pages/writerを段階停止。新規の監査ワークフローを重複作成しない。
 
+
+### 2026-11-01 main追記保全（PR #723）
+- main側の#733統合・Renderデプロイ・締切照合・旧サイト停止条件の記録を原文保持してPR文書へ追記した。競合解消のコードマージやmain統合の完了を意味しない。
+
+
 ## 2026-11-01 12場の404原因確定（非開催）
 - Renderログ `2026-10-31 20:30–20:36 UTC` で翌11/1の `jcd=12`、1R/5Rの404を観測。12場は住之江。BOAT RACE公式の開催予定は住之江11/5–11/10（高松宮記念特別競走）で、11/1は非開催。独立した11/1の開催場一覧も住之江を非開催としている。**この404は非開催日への問い合わせであり、開催中出走表の不具合ではない**。以前の疑義を訂正。根拠: https://www.boatrace.jp/ と https://boatrace-techo.com/?date=2026-11-01 。
 - これは旧サイト撤去ゲートの締切前6艇展示・進入・時刻証拠の成立を示さない。実際の開催場で定期E2E実測成功を得る必要がある。旧repo/Pages停止・削除なし。
@@ -194,6 +318,14 @@
 - 既存PR #734はmain commit `d7ebf6711a8dd5aa4a33b4b5c50a7c5590396c74` へ統合。独立 `tkz` / `stt` ソースの時刻がいずれも締切12分前以前なら `T12_COMPLETE_PAIR_PASS`、未証明なら `NO_T12_SIX_BOAT_PAIR_VERIFIED` で不合格とする検査が追加された。
 - PR headのActions run `41240118410` では履歴出走表、結果、120オッズ、構文の4ジョブsuccess。一方 `e2e-live-race` はPR時の仕様でskipped。**T-12成功の証拠はまだない**。
 - 本日最初の定期サンプルは09:30 JSTの設定で、05:43 JST時点ではこの時間に達していない。今回の調査で過去の実レースE2E成功の新証拠は得られなかった。実測に基づく停止判定は保留し、旧サイトは変更しない。
+
+
+### 2026-11-01 PR #723 最新mainとの競合解消
+- `docs/WORK_STATUS.md` のmain側追記（旧サイト停止ゲート・Render・非開催日の404判定）を失わずにPR側へ保全し、main側の `scripts/verify_live_racecard_e2e.py` を変更なしで保持。
+- GitHub merge commit `2c7b6d2654bafff8753dff1d105239cd7594b637` をPR headへfast-forwardで適用。適用直後のcompareは mainからbehind=0、PR `mergeable=true`。**mainへは未統合**。
+- merge commitに紐付くPR Actionsの検索結果は0件（取得時点）。従前の `41239801304` のsuccessはこのmerge commitの専用CI成功を示さない。今後CIが走れば該当head SHAとjob conclusionを確認する。
+- 実レースT-12の完全6艇STT+TKZペアは未証明。対象レースキー・締切・双方の受信JST・source SHAと保存時刻の実測が必要。
+
 
 ## 2026-11-01 T-12証明の偽陽性防止
 - main `f36432cabf032e4849bad33f86f1f183eb6e6903` で既存 `scripts/verify_live_racecard_e2e.py` を修正。以前の #734 は両ソースの観測時刻がT-12以前なら、API応答がT-12後でも `T12_COMPLETE_PAIR_PASS` となる可能性があった。APIのHTTP応答を読み終えたJST時刻 `response_received_at` を記録し、**ソース双方のT-12以前 + HTTP応答のT-12以前**が揃う場合だけ合格とする。main再読込で実装確認。

@@ -46,9 +46,14 @@ def save_preview(raw, kind, day, received_at, root):
         # Receipt must leave a minimum two-minute operational buffer.
         if received_at>=deadline-timedelta(minutes=2):continue
         selected.append((code,row))
+    # Preflight all destinations before writing any evidence. A collision must not
+    # leave an apparently successful subset of the same capture batch on disk.
+    destinations=[Path(root)/day/kind/(code+".json") for code,_ in selected]
+    for target in destinations:
+        if target.exists():
+            raise FileExistsError(f"append-only evidence already exists: {target}")
     output=[]
-    for code,row in selected:
-        target=Path(root)/day/kind/(code+".json")
+    for (code,row),target in zip(selected,destinations):
         target.parent.mkdir(parents=True,exist_ok=True)
         record={"race_code":code,"kind":kind,"received_at_jst":received_at.isoformat(),
                 "source_observed_jst":row["取得日時"],"cutoff_policy":"before_deadline_minus_2min_buffer",

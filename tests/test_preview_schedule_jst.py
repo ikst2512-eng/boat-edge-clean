@@ -12,19 +12,19 @@ class ScheduleJstTest(unittest.TestCase):
     def test_start_end_and_midnight_boundaries(self):
         workflow=(ROOT/".github/workflows/late-preview-capture.yml").read_text()
         expressions=re.findall(r"cron:\s*['\"]([^'\"]+)['\"]",workflow)
-        self.assertIn("3-58/5 22-23,0-12 * * *",expressions)
-        hours={22,23,*range(0,13)}
+        self.assertIn("3-58/5 23,0-12 * * *",expressions)
+        hours={23,*range(0,13)}
         minutes=set(range(3,59,5))
         jst_times={(datetime(2026,11,1,h,m,tzinfo=timezone.utc).astimezone(JST).hour,
                     datetime(2026,11,1,h,m,tzinfo=timezone.utc).astimezone(JST).minute)
                    for h in hours for m in minutes}
-        self.assertIn((7,3),jst_times)
+        self.assertNotIn((7,3),jst_times)
         self.assertIn((8,58),jst_times)
         self.assertIn((9,3),jst_times)
         self.assertIn((21,58),jst_times)
         self.assertNotIn((6,58),jst_times)
         self.assertNotIn((22,3),jst_times)
-        self.assertEqual(len(jst_times),15*12)
+        self.assertEqual(len(jst_times),14*12)
     def test_capture_day_is_jst_not_utc(self):
         from collect_late_preview_once import collect
         seen=[]

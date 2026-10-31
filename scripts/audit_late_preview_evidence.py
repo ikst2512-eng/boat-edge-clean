@@ -17,6 +17,10 @@ def audit(root="late_preview_evidence"):
     invalid=0
     total=0
     for path in Path(root).rglob("*.json"):
+        # Metadata and collection summaries are not per-race source evidence.
+        if (path.parent.name not in ("stt","tkz","sui","original_exhibition","od3")
+            or not path.stem.isascii() or not path.stem.isdigit() or len(path.stem)!=12):
+            continue
         total+=1
         try:
             row=json.loads(path.read_text(encoding="utf-8"))
@@ -46,19 +50,44 @@ def audit(root="late_preview_evidence"):
     complete=0
     complete_t12=0
     missing=[]
+    incomplete_reasons=[]
+    paired_codes=[]
+    t12_codes=[]
+    t12_evidence=[]
+    paired_not_t12=[]
     for code, entries in sorted(pairs.items()):
         if ("stt" in entries and "tkz" in entries
             and entries["stt"].get("six_lane_validation")=="complete"
             and entries["tkz"].get("six_lane_validation")=="complete"):
             complete+=1
+            paired_codes.append(code)
             if all(classify(entries[k]["source_row"], parse_jst(entries[k]["received_at_jst"]), margin_minutes=12)=="pre_cutoff_observed" for k in ("stt","tkz")):
                 complete_t12+=1
+                t12_codes.append(code)
+                t12_evidence.append({"race_code":code,"stt_received_at_jst":entries["stt"]["received_at_jst"],
+                                     "tkz_received_at_jst":entries["tkz"]["received_at_jst"],
+                                     "stt_source_observed_jst":entries["stt"]["source_observed_jst"],
+                                     "tkz_source_observed_jst":entries["tkz"]["source_observed_jst"]})
+            else:
+                paired_not_t12.append({"race_code":code,
+                    "stt_t12":classify(entries["stt"]["source_row"],parse_jst(entries["stt"]["received_at_jst"]),margin_minutes=12),
+                    "tkz_t12":classify(entries["tkz"]["source_row"],parse_jst(entries["tkz"]["received_at_jst"]),margin_minutes=12),
+                    "stt_received_at_jst":entries["stt"]["received_at_jst"],
+                    "tkz_received_at_jst":entries["tkz"]["received_at_jst"]})
         else:
             missing.append(code)
+            incomplete_reasons.append({"race_code":code,
+                "stt":("missing" if "stt" not in entries else entries["stt"]["six_lane_validation"]),
+                "tkz":("missing" if "tkz" not in entries else entries["tkz"]["six_lane_validation"])})
     return {"records":total,"invalid":invalid,"races":len(pairs),
             "paired_complete_6boat_stt_tkz":complete,
             "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),
+            "incomplete_pair_reasons_by_race":incomplete_reasons,
+            "paired_complete_race_codes":paired_codes,
+            "t12_observable_race_codes":t12_codes,
+            "t12_evidence_by_race":t12_evidence,
+            "paired_complete_but_not_t12":paired_not_t12,
             "note":"No evidence of prediction accuracy or forecast at -12 minutes"}
 
 if __name__=="__main__":
