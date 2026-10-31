@@ -53,6 +53,35 @@ class AuditLatePreview(unittest.TestCase):
             self.assertEqual(result["paired_complete_6boat_stt_tkz"],0)
             self.assertEqual(result["paired_complete_12min_observable"],0)
 
+    def test_duplicate_with_malformed_copy_invalidates_previous_record(self):
+        with tempfile.TemporaryDirectory() as folder:
+            code="202610310111"
+            paths=[]
+            for kind in ("stt","tkz"):
+                path=Path(folder)/"20261031"/kind/(code+".json")
+                path.parent.mkdir(parents=True)
+                obj=record(code,kind,received="2026-10-31T19:45:00+09:00")
+                obj["source_row"]["取得日時"]="2026-10-31T19:44:00+09:00"
+                obj["source_observed_jst"]=obj["source_row"]["取得日時"]
+                path.write_text(json.dumps(obj))
+                paths.append(path)
+            # A merged artifact may enumerate the same race/kind a second time,
+            # even if that second read is corrupted.
+            original_read=Path.read_text
+            calls=[0]
+            def read(path, *args, **kwargs):
+                if str(path)==str(paths[0]):
+                    calls[0]+=1
+                    if calls[0]>1:
+                        return "{broken json"
+                return original_read(path,*args,**kwargs)
+            with patch("scripts.audit_late_preview_evidence.Path.rglob",return_value=[paths[0],paths[1],paths[0]]):
+                with patch("scripts.audit_late_preview_evidence.Path.read_text",new=read):
+                    result=audit(folder)
+            self.assertEqual(result["invalid"],1)
+            self.assertEqual(result["paired_complete_6boat_stt_tkz"],0)
+            self.assertEqual(result["paired_complete_12min_observable"],0)
+
     def test_complete_pair_and_too_late_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             code="202610310111"
