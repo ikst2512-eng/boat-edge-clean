@@ -156,3 +156,9 @@
 - `scripts/research_prerace_feature_audit.py` に「元出走表の受信時刻が予想生成より後なら除外」「締切日付とrace_codeの日付が不一致なら除外」を追加（`a1e9d65`）。
 - 既存テストに逆転時刻と日付不一致の異常ケースを追加（`3f4e585`）。テストfixtureの生成09:00、元データ受信09:01/09:02という既存矛盾が露呈してCI `41239054965` と `41239063140` は失敗。受信より後の09:03生成に修正（`122ac54`）、Research forecast checks run `41239099051` が**success**。
 - この変更は保存済み研究予想の検証品質向上であり、追加特徴量の確保、締切T-12の6艇完成ペア、新しい予測精度の向上を証明したものではない。研究予想の順位とmainは不変更。#722はDraft。
+
+### 2026-11-01 時系列モデル再検証：監査条件統一
+- `research_chronological_calibration.py` の保存データ採用ゲートを、同PRの `research_prerace_feature_audit.py` と同等に統一（源データの受信≤予想生成、生成<cutoff、締切日付=race_code、JST+09:00、cutoffは締切12分前）。変更 `14374eb`、`8d411e9`。
+- `test_research_chronological_calibration.py` に受信より前の生成を拒否する回帰ケースを追加。テストfixtureの元々の矛盾により2回CI失敗したが、受信→生成の順序が成立するよう修正（`53c0322`）。最終GitHub Actions Research forecast checks run `41239343051`、job `124649750410` **success**。研究テスト41件と特徴監査1件の成功を実ログで確認。
+- 再計算も従来の587件を維持：calibration train457、holdout 20261031の130件、beta0.4選択。holdout Top3=21/130=16.15%、Top5=33/130=25.38%、Top10=53/130=40.77%。基準beta0.4と同じで改善証拠はない。
+- 本番モデル・保存済み予想を変更せず、締切T-12の6艇データ取得証明は引き続き未完了。PR #722 Draft、mainには統合しない。
