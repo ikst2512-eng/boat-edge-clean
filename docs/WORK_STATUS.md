@@ -490,3 +490,9 @@
 ## 2026-11-01 PR #753 4タブ排他表示とレース選択保持
 - PR head `df7f3c27505314bfcadb606297a6f1e55c83e4dc` のActions run `41243276155`: `check`、`publish-smoke` ともsuccess。選択タブのみ可視、タブ切替前後にrace keyが維持されるアサーションを既存Pagesブラウザ検証に追加。
 - main squash `55c27520df386bb8cd1e6dff84e58f35b697ba7a` へ統合。Render deploy `dep-dbj5pplg1s2s73flbofg` は確認時点でbuild_in_progress。統合後の公開Pagesブラウザ実行成否は未確認。旧サイト撤去に必要なT-12完全6艇展示・原本独立保全・4タブ実データ完全性は未達。旧repoには変更なし。
+
+
+## 2026-11-01 CSV締切日時形式の保存互換性
+- `classify` が日時全体（例 `2026-10-31 11:20:00` / `2026-10-31T11:20:00+09:00`）を有効な締切時刻として受け入れても、`save_preview` の `%H:%M` 固定再解析が例外になって保存できない不整合を解消。共通 `parse_jst` を優先して使用し、HH:MMの場合だけレース日付を補って再解析（main commit `c078972d2624343a063c697942f2dda7a5233044`）。
+- `test_late_preview_capture.py` に通常日時/ISOタイムゾーン付き締切での保存テストを追加（`7d7e9ef2e75345117fded558c0ce53ddc399fcba`）。既存 `late-preview-evidence-tests.yml` が当該ファイルを対象とし `test_late_preview_capture` を実行する設定。
+- 環境からGitHubへ直接cloneはDNSエラーのため、**現時点で修正後CI成功を確認していない**。実レースSTT+TKZ完全6艇のT-12受信成功も未確認。旧サイト停止・予想モデル更新なし。
