@@ -1,0 +1,44 @@
+name: Official odds API contract probe
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/official-odds-api-probe.yml"
+jobs:
+  odds-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check live Render API response contract
+        env:
+          BASE_URL: https://boat-edge-clean.onrender.com
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error, itertools, datetime
+          root=os.environ['BASE_URL']
+          def request(q):
+              u=root+'/api/odds?'+q
+              try:
+                  with urllib.request.urlopen(u, timeout=25) as r:
+                      return r.status,json.load(r)
+              except urllib.error.HTTPError as e:
+                  return e.code,json.load(e)
+          code,obj=request('hd=invalid&jcd=04&rno=1')
+          assert code==400 and obj.get('ok') is False, (code,obj)
+          print('Invalid-input validation: PASS (HTTP 400)')
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
+          code,obj=request('hd='+day+'&jcd=01&rno=1')
+          print('Live official odds probe:',code,'ok=',obj.get('ok'))
+          if code==200:
+              odds=obj.get('odds')
+              expected={'-'.join(map(str,p)) for p in itertools.permutations(range(1,7),3)}
+              assert obj.get('ok') is True and isinstance(odds,dict) and set(odds)==expected
+              assert all(type(v) in (int,float) and 1<=v<=1000000 for v in odds.values())
+              assert isinstance(obj.get('fetched_at'),str)
+              print('All 120 combinations: PASS; source timestamp present')
+          elif code in (202,503):
+              assert obj.get('ok') is False
+              print('Official odds temporarily unavailable; no fake values shown')
+          else:
+              raise AssertionError('Unexpected odds API response: '+str(code))
+          PY
