@@ -3,7 +3,7 @@ import csv, hashlib, io, json, os
 from datetime import datetime, timedelta
 from pathlib import Path
 from research_model import JST
-from scripts.preview_timing_integrity import classify
+from scripts.preview_timing_integrity import classify, parse_jst
 
 KINDS=("stt","tkz","sui","original_exhibition","od3")
 def six_lane_status(kind, row):
@@ -42,7 +42,9 @@ def save_preview(raw, kind, day, received_at, root):
         seen.add(code)
         # Strictly before the deadline, but separate from research minus-12-minute cutoffs.
         if classify(row,received_at,margin_minutes=2)!="pre_cutoff_observed":continue
-        deadline=datetime.strptime(day+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
+        deadline=parse_jst(row["締切時刻"])
+        if deadline is None:
+            deadline=datetime.strptime(day+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
         # Receipt must leave a minimum two-minute operational buffer.
         if received_at>=deadline-timedelta(minutes=2):continue
         selected.append((code,row))
