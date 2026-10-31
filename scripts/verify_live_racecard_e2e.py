@@ -65,6 +65,12 @@ for _,code in candidates[:3]:
             if res.status!=200:raise ValueError("unexpected HTTP status")
         if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
             raise ValueError("wrong race key")
+        # Eligibility at candidate selection is insufficient if an HTTP request
+        # completes after the race cutoff; never certify a post-cutoff response.
+        deadline_text=data.get("meta",{}).get("deadline")
+        if not isinstance(deadline_text,str):raise ValueError("race deadline missing")
+        response_deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        if datetime.now(JST)>=response_deadline:raise ValueError("race cutoff passed before response verification")
         if len(data.get("racers",[]))!=6:raise ValueError("missing racer rows")
         audit=data.get("source_audit",{})
         if audit.get("race_card",{}).get("status")!="ok":raise ValueError("unverified card source")
