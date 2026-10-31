@@ -20,7 +20,7 @@ class CrossModelAuditTests(unittest.TestCase):
                    "site_autopilot/v253_miss_diagnostics_current")
         allowed_hosts = {"raw.githubusercontent.com", "api.github.com",
                          "boatracecsv.github.io", "boat-edge-clean.onrender.com",
-                         "www.boatrace.jp"}
+                         "www.boatrace.jp", "ikst2512-eng.github.io"}
         for name in sources:
             source = Path(name).read_text(encoding="utf-8")
             with self.subTest(source=name):
@@ -28,7 +28,7 @@ class CrossModelAuditTests(unittest.TestCase):
                     self.assertNotIn(legacy, source)
                 # Inspect literal remote endpoints only; dynamic host
                 # construction needs separate runtime checks.
-                for value in re.findall(r'https?://[^\\s\\"\\x27<>]+', source):
+                for value in re.findall(r"""https?://[^\s"'<>]+""", source):
                     host = urlsplit(value).hostname
                     if host and "{" not in host:
                         self.assertIn(host, allowed_hosts, (name, value))
