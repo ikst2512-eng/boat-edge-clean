@@ -29,7 +29,7 @@ jobs:
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Summarize fully validated late-preview features
-        run: python scripts/late_preview_feature_pairs.py
+        run: python -m scripts.late_preview_feature_pairs
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4
