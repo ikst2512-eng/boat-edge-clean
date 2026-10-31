@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timezone
 from research_model import probabilities
-from four_mode_performance import allocate
+from stake_allocation import allocate
 
 ROOT=Path(__file__).resolve().parent
 MINIMUM_CONFIDENCE=0.70
