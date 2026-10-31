@@ -59,12 +59,16 @@ def collect(day):
             rates=[float(card[f"艇{i}_全国勝率"]) for i in range(1,7)]
             if any(not math.isfinite(rate) or not 0 <= rate <= 10 for rate in rates):
                 raise ValueError("invalid national win rate")
-            tickets=["-".join(map(str,t)) for t,_ in probabilities(rates)[:10]]
+            ranked=probabilities(rates)
+            tickets=["-".join(map(str,t)) for t,_ in ranked[:10]]
+            topn_model_mass_pct={str(n):round(100*sum(p for _,p in ranked[:n]),4) for n in (3,5,10)}
             if provenance is None:
                 provenance=model_provenance()
             record={"ok":True,"status":"research","validated":False,"race_code":code,"predictions":tickets,
                 "model_version":"national-beta0.4-exploratory-v1","generated_at":now.isoformat(),
                 "input_source_kind":source_kind,
+                "topn_model_mass_pct":topn_model_mass_pct,
+                "confidence_calibrated":False,
                 "message":"研究予想（未検証・回収率未確認）","cutoff_jst":cutoff.isoformat(),
                 "source_deadline_jst":deadline.isoformat(),
                 "source_title_received_jst":t1.isoformat(),"source_cards_received_jst":t2.isoformat(),

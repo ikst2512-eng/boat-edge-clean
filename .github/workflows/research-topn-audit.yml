@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/research_topn_batch_audit.py'
       - 'research_model.py'
+      - 'collect_research_daily.py'
+      - 'tests/test_daily_research_mass_contract.py'
       - 'scripts/select_upcoming_research_race.py'
       - 'tests/test_scheduled_research_selector.py'
       - 'tests/test_research_topn_mass_contract.py'
@@ -21,6 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Check daily capture TopN contract
+        run: python -m unittest discover -s tests -p 'test_daily_research_mass_contract.py' -v
       - name: Check TopN model probability mass contract
         run: python -m unittest discover -s tests -p 'test_research_topn_mass_contract.py' -v
       - name: Check snapshot persistence workflow ordering
