@@ -386,3 +386,7 @@
 
 ## PR #725 integration gate a5d559d9
 - 既存のBOATERS風ページ実装を最新mainを基点とした統合候補として準備。実測の個人長期率は未完成。統合後の本番動作は要検証。
+
+## 2026-11-01 夜間監査の失敗ゲートに回帰テスト追加
+- 日次判定を純関数 `daily_capture_health` に分離 (`4ddabd6da85c59372a459e86a7afd7be23885fa8`)。収集0件、scheduled全failure、成功混在、手動監査免除のテストを追加 (`d1dc847d0600400dd410ad8d2cf3f992516a8c38`)。push CIトリガーは既存mainに存在。
+- CI成功、当日scheduled収集、実レースT-12完全6艇ペアは未確認。旧repo/Pagesは未変更。
