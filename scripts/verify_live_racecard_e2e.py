@@ -57,7 +57,7 @@ if not candidates:
 errors=[]
 verified_cards=[]
 verified_previews=[]
-for _,code in candidates[:3]:
+for source_deadline,code in candidates[:3]:
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
@@ -70,6 +70,7 @@ for _,code in candidates[:3]:
         deadline_text=data.get("meta",{}).get("deadline")
         if not isinstance(deadline_text,str):raise ValueError("race deadline missing")
         response_deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        if response_deadline!=source_deadline:raise ValueError("API deadline differs from independent race schedule")
         if datetime.now(JST)>=response_deadline:raise ValueError("race cutoff passed before response verification")
         if len(data.get("racers",[]))!=6:raise ValueError("missing racer rows")
         audit=data.get("source_audit",{})
