@@ -43,7 +43,7 @@ def inspect(day, fetch=None):
             timing={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
             for row in rows:
                 timing[classify(row, received)]+=1
-            records[kind]={"status":"retrieved","rows":len(rows),"race_codes":len(codes),"timing_12min":timing,
+            records[kind]={"status":"retrieved","rows":len(rows),"race_codes":len(codes),"timing_12min":timing,"timestamp_samples":[{"締切時刻":r.get("締切時刻"),"取得日時":r.get("取得日時")} for r in rows[:2]],
                            "sha256":hashlib.sha256(raw).hexdigest(),"column_names":list(rows[0])[:18] if rows else [],
                            "received_at_jst":received.isoformat()}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
