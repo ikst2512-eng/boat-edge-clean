@@ -6,6 +6,10 @@ on:
       - '.github/workflows/audit-preview-scheduled-runs.yml'
       - '.github/workflows/late-preview-capture.yml'
   workflow_dispatch:
+  schedule:
+    # 14:17 UTC = 23:17 JST, after the 08:03–21:58 JST capture window.
+    # Audit run status only; successful jobs never imply T-12 race evidence.
+    - cron: '17 14 * * *'
 permissions:
   contents: read
   actions: read
