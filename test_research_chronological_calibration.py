@@ -47,6 +47,10 @@ class CalibrationTests(unittest.TestCase):
             record["source_cards_received_jst"] = "2026-10-30T11:47:00+09:00"
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(len(load_pairs(root)), 1)
+            record["generated_at"] = "2026-10-30T10:00:00+09:00"
+            (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
+            self.assertEqual(load_pairs(root), [])
+            record["generated_at"] = "2026-10-30T11:47:30+09:00"
             record["source_deadline_jst"] = "2026-10-30T12:01:00+09:00"
             (root / "research_snapshots" / (code + ".json")).write_text(json.dumps(record))
             self.assertEqual(load_pairs(root), [])
