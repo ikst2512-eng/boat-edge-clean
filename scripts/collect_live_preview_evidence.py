@@ -28,7 +28,6 @@ def paired_six_lane_coverage(day, root):
                         and isinstance(record.get("source_row"), dict)
                         and record["source_row"].get("レースコード") == file.stem
                         and record.get("six_lane_validation") == "complete"
-                        and isinstance(record.get("source_row"), dict)
                         and six_lane_status(kind, record["source_row"]) == "complete"
                         and record.get("status") == "late_preview_unvalidated_not_research_forecast"
                         and record.get("source_observed_jst") == record["source_row"].get("取得日時")
@@ -74,6 +73,18 @@ def collect(day, root, fetch=None):
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
+def write_summary(day, root, summary):
+    """Persist an inspectable audit result with the evidence; never publish forecasts."""
+    if summary.get("day") != day:
+        raise ValueError("summary day mismatch")
+    target=Path(root)/day/"collection_summary.json"
+    target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    return target
+
 if __name__=="__main__":
     day=datetime.now(JST).strftime("%Y%m%d")
-    print(json.dumps(collect(day,Path("late_preview_evidence")),ensure_ascii=False))
+    root=Path("late_preview_evidence")
+    summary=collect(day,root)
+    write_summary(day,root,summary)
+    print(json.dumps(summary,ensure_ascii=False))
