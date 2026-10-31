@@ -3,6 +3,9 @@ const {chromium}=require('playwright');
  const browser=await chromium.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
+  const browserErrors=[];
+  page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text().slice(0,350));});
+  page.on('pageerror',e=>browserErrors.push(e.message.slice(0,350)));
   const now=new Date();
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   const day=parts.year+parts.month+parts.day;
@@ -26,6 +29,8 @@ const {chromium}=require('playwright');
   try{response=await page.request.get(api,{timeout:25000});}
   catch(e){console.log('LIVE_ODDS_DOM_UNVERIFIED api_transport');return;}
   if(response.status()!==200){console.log('LIVE_ODDS_DOM_UNVERIFIED api_http='+response.status()+' race='+key);return;}
+  const apiHeaders=response.headers();
+  console.log('ODDS_API_CORS_HEADERS '+JSON.stringify({allowOrigin:apiHeaders['access-control-allow-origin']||null,contentType:apiHeaders['content-type']||null,redirected:response.url()!==api}));
   const official=await response.json();
   const odds=official.odds;
   if(!official.ok||!odds||Object.keys(odds).length!==120){console.log('LIVE_ODDS_DOM_UNVERIFIED incomplete_api race='+key);return;}
@@ -51,7 +56,7 @@ const {chromium}=require('playwright');
     firstRow:document.querySelector('#predictionRows .prediction-odds')?.textContent?.slice(0,160),
     sourceMeta:document.getElementById('sourceMeta')?.textContent?.slice(0,220)
    }));
-   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic)+' network='+JSON.stringify(oddsNetwork));
+   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic)+' network='+JSON.stringify(oddsNetwork)+' browserErrors='+JSON.stringify(browserErrors));
   }
   const displayed=await page.evaluate(()=>({tickets:predictionTickets.slice(),odds:{...predictionOdds}}));
   if(JSON.stringify(displayed.tickets)!==JSON.stringify(tickets))throw Error('LIVE_ODDS_REORDERED_FORECAST');
