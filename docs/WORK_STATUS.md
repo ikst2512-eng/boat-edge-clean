@@ -354,3 +354,10 @@
 ## 2026-11-01 夜間監査で定期収集未実行を検知
 - 既存 `scripts/audit_preview_scheduled_runs.py` は定期収集run 0件でも成功終了していた。main `c45566a7e274704bf767bc5de1cabf6f7d24f4d7` で、**監査自体がschedule起動された場合のみ**同日JSTの `late-preview-capture` scheduled runが0件なら`NO_SCHEDULED_PREVIEW_CAPTURE_TODAY`でexit nonzero。PR/手動監査は診断のままで失敗判定しない。main再取得で修正反映確認。
 - これは収集データ成功の証明ではなく、ジョブが丸ごと未実行となる障害の検出強化。CIの最新実行成功と当日8時以降の完全6艇T-12証拠は未確認。旧サイト撤去の可否は変わらない。
+
+
+## 2026-11-01 定期preview監査24時間鮮度チェック
+- 既存 `scripts/audit_preview_scheduled_runs.py` に `scheduled_last_24h` と `schedule_health` を追加。手動起動は件数へ混ぜず、タイムスタンプ不正・24時間以前のrunも鮮度ありとしない。成功runの存在とT-12保存証拠は分離したまま。
+- 既存 `audit-preview-scheduled-runs.yml` に回帰テストを追加、新ワークフローは作成していない。テスト `tests/test_audit_preview_scheduled_runs.py` は収集0件、古い実行、直近実行、不正日時の4ケース。
+- main実装コミット: `f39c499`, `01419b1`, `8091efa`, `c96b172`。現時点では新規テストのGitHub Actions合格は未確認。実レースT-12完全6艇取得も未証明。
+- 次: 監査workflowのCI結果と定期runを確認し、capture artifactの `t12_evidence_by_race` をレースID・6艇・受信JST・締切時刻と照合する。旧サイト停止なし。
