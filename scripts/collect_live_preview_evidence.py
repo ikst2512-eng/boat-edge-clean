@@ -70,6 +70,8 @@ def collect(day, root, fetch=None):
                                     "six_lane_incomplete":states.count("incomplete")}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as error:
             summary["kinds"][kind]={"status":"unavailable_or_invalid","error":type(error).__name__}
+            if isinstance(error, HTTPError):
+                summary["kinds"][kind]["http_status"]=error.code
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
