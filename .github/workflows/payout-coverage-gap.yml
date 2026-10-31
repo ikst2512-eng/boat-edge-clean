@@ -1,11 +1,13 @@
 name: CLEAN payout coverage gap audit
 on:
   pull_request:
-    paths: [audit_payout_coverage.py, test_audit_payout_coverage.py, .github/workflows/payout-coverage-gap.yml]
+    paths: [audit_payout_coverage.py, test_audit_payout_coverage.py, .github/workflows/payout-coverage-gap.yml, 'confirmed_results/**', 'four_mode_performance/verified_races/**']
   push:
     branches: [main]
     paths: [audit_payout_coverage.py, test_audit_payout_coverage.py, .github/workflows/payout-coverage-gap.yml]
   workflow_dispatch:
+  schedule:
+    - cron: '30 14 * * *' # 23:30 JST daily observational coverage check
 jobs:
   audit:
     runs-on: ubuntu-24.04
