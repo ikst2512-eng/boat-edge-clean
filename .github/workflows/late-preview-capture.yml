@@ -1,0 +1,36 @@
+name: Isolated live preview evidence capture
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/late-preview-capture.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch and save only deadline-eligible live rows
+        run: python collect_late_preview_once.py
+      - name: Summarize locally captured evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files=list(Path("late_preview_evidence").rglob("*.json"))
+          print(f"eligible_saved_rows={len(files)}")
+          with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as summary:
+              summary.write(f"Late preview evidence saved: {len(files)} race-kind records. No main forecast changes.\n")
+          PY
+      - name: Upload separate short-retention evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: late-preview-evidence-${{ github.run_id }}
+          path: late_preview_evidence/**/*.json
+          if-no-files-found: ignore
+          retention-days: 3
