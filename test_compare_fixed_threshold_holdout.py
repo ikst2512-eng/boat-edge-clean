@@ -8,7 +8,7 @@ class Tests(unittest.TestCase):
  def test_discovery_and_holdout_separate_and_pending_excluded(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp);folder=root/"prospective_predictions";folder.mkdir()
-   for day in ("20261029","20261030"):
+   for day in ("20261029","20261030","20261031"):
     (folder/(day+"0101.json")).write_text(json.dumps({"national_win_rates":[1]*6}))
     (folder/(day+"0102.json")).write_text(json.dumps({"national_win_rates":[0]*6}))
    def scored(code,root):
@@ -16,7 +16,7 @@ class Tests(unittest.TestCase):
     return {"status":"evaluated","audited":True,"formal":False,"rank":2,
             "top3":True,"top5":True,"top10":True,"winning_ticket":"1-2-3"}
    result=report(root=root,scorer=scored,signal=lambda x:.77,payout=lambda code,root:("1-2-3",200))
-   self.assertEqual([d["role"] for d in result["days"]],["discovery","later_holdout"])
+   self.assertEqual([d["role"] for d in result["days"]],["discovery","later_holdout","second_holdout"])
    for d in result["days"]:
     self.assertEqual(d["pending"],1)
     self.assertEqual(d["evaluated"],1)
@@ -28,7 +28,7 @@ class Tests(unittest.TestCase):
  def test_selection_coverage_and_lift_match_same_day_baseline(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp);folder=root/"prospective_predictions";folder.mkdir()
-   for day in ("20261029","20261030"):
+   for day in ("20261029","20261030","20261031"):
     for idx in (1,2):
      (folder/(day+f"01{idx:02d}.json")).write_text(json.dumps({"national_win_rates":[idx]*6}))
    def scored(code,root):
