@@ -77,6 +77,7 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 {"source_cards_received_jst": "2026-10-30T09:11:00+09:00"},
                 {"source_deadline_jst": "2026-10-30T09:23:00+09:00"},
                 {"validated": True},
+                {"model_version": "other-model-v2"},
                 {"generated_at": "2026-10-30T08:59:00+09:00"},
                 {"source_deadline_jst": "2026-10-31T09:22:00+09:00", "cutoff_jst": "2026-10-31T09:10:00+09:00"},
             ):
