@@ -27,6 +27,8 @@ class MassCohortAudit(unittest.TestCase):
             with patch.object(audit, "ROOT", root):
                 result = audit.run()
             self.assertEqual(result["counts"]["matched"], 2)
+            self.assertEqual(result["by_day"]["20261031"]["matched"], 2)
+            self.assertEqual(result["by_day"]["20261031"]["top3_rate_pct"], 100.0)
             self.assertEqual(result["by_mass_cohort"]["with_topn_mass"]["matched"], 1)
             self.assertEqual(result["by_mass_cohort"]["without_topn_mass"]["matched"], 1)
             self.assertEqual(result["by_mass_cohort"]["with_topn_mass"]["top3"], 1)
