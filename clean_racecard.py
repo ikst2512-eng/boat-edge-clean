@@ -155,7 +155,7 @@ def racecard(hd,jcd,rno):
         # A missing race must not be confused with a source fetch failure.
         # Keep the public error stable while preserving race-level diagnostics.
         import logging
-        logging.info("racecard_title_missing race=%s source=%s title_rows=%s", code, source, len(titles))
+        logging.info("racecard_title_missing race=%s source=%s title_rows=%s venue_races=%s", code, source, len(titles), sorted(row.get("レースコード") for row in titles if isinstance(row.get("レースコード"), str) and row["レースコード"].startswith(code[:10])))
         raise ValueError("race_card_not_available")
     meta=title[0]
     deadline_text=meta.get("電話投票締切予定","")
