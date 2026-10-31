@@ -1,0 +1,49 @@
+name: Forecast ten-ticket odds reconciliation
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/forecast-odds-ten-ticket.yml'
+  workflow_dispatch:
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare saved forecast tickets with real production odds
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.error,json,datetime,itertools
+          today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
+          base='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/'
+          def fetch(url):
+              with urllib.request.urlopen(url,timeout=30) as response: return json.load(response)
+          schedule=fetch(base+'schedule_snapshots/'+today+'.json')
+          checked=0
+          for venue in schedule.get('venues',[]):
+              if not venue.get('races'): continue
+              jcd=str(venue['jcd']).zfill(2)
+              code=today+jcd+'01'
+              try: prediction=fetch(base+'prospective_predictions/'+code+'.json')
+              except urllib.error.HTTPError as e:
+                  if e.code==404: continue
+                  raise
+              tickets=prediction.get('predictions',[])
+              if not (1<=len(tickets)<=10 and len(set(tickets))==len(tickets)): continue
+              url='https://boat-edge-clean.onrender.com/api/odds?hd='+today+'&jcd='+jcd+'&rno=1'
+              try: odds=fetch(url)
+              except urllib.error.HTTPError as e:
+                  print('Production odds unavailable for',code,'HTTP',e.code)
+                  continue
+              if odds.get('ok') is not True: continue
+              values=odds.get('odds',{})
+              expected={'-'.join(map(str,x)) for x in itertools.permutations(range(1,7),3)}
+              assert isinstance(values,dict) and set(values)==expected
+              assert all(isinstance(values[t],(int,float)) and values[t]>0 for t in tickets)
+              assert all(t in expected for t in tickets)
+              stamp=datetime.datetime.fromisoformat(odds['fetched_at'].replace('Z','+00:00'))
+              assert stamp.tzinfo is not None
+              print('RECONCILED',code,'prediction_tickets',len(tickets),'mapped_odds',len([values[t] for t in tickets]),'unique',len(set(tickets)),'timestamp_valid',True)
+              checked+=1
+              break
+          assert checked>=1,'No same-race production odds and saved forecast match was verified'
+          PY
