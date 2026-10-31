@@ -132,6 +132,23 @@ jobs:
             fi
             sleep "$attempt"
           done
+      - name: Flag zero daily captures after midday JST
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          now=datetime.now(ZoneInfo("Asia/Tokyo"))
+          if now.hour<12:
+              print("CAPTURE_MONITOR_PRE_NOON",now.isoformat())
+          else:
+              day=now.strftime("%Y%m%d")
+              count=sum(1 for _ in Path("prospective_predictions").glob(day+"????.json"))
+              print("CAPTURE_MONITOR_JST_DAY",day,"ARCHIVES",count)
+              if count==0:
+                  print("::warning::No CLEAN prospective archives in checkout after midday JST; inspect public source and capture logs (not counted as forecast losses).")
+          PY
       - name: Archive prospective capture diagnostics
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
