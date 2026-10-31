@@ -1,7 +1,7 @@
 name: Late preview evidence integrity
 on:
   pull_request:
-    paths: [late_preview_capture.py, collect_late_preview_once.py, test_late_preview_capture.py, tests/test_collect_late_preview_once.py, tests/test_preview_schedule_jst.py, scripts/audit_late_preview_evidence.py, tests/test_audit_late_preview_evidence.py, .github/workflows/late-preview-capture.yml, .github/workflows/late-preview-evidence-tests.yml]
+    paths: [late_preview_capture.py, collect_late_preview_once.py, test_late_preview_capture.py, tests/test_collect_late_preview_once.py, tests/test_preview_schedule_jst.py, tests/test_late_preview_paired_coverage.py, scripts/audit_late_preview_evidence.py, tests/test_audit_late_preview_evidence.py, .github/workflows/late-preview-capture.yml, .github/workflows/late-preview-evidence-tests.yml]
   push:
     branches: [main, 'fix/preview-capture-batch-preflight-20261101']
     paths: [late_preview_capture.py, collect_late_preview_once.py, test_late_preview_capture.py, tests/test_collect_late_preview_once.py, tests/test_preview_schedule_jst.py, scripts/audit_late_preview_evidence.py, tests/test_audit_late_preview_evidence.py, .github/workflows/late-preview-capture.yml, .github/workflows/late-preview-evidence-tests.yml]
@@ -18,3 +18,4 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_collect_late_preview_once.py' -v
       - run: python -m unittest discover -s tests -p 'test_preview_schedule_jst.py' -v
       - run: python -m unittest discover -s tests -p 'test_audit_late_preview_evidence.py' -v
+      - run: python -m unittest discover -s tests -p 'test_late_preview_paired_coverage.py' -v
