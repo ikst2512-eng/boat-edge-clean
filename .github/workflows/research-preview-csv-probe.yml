@@ -30,5 +30,13 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_preview_timing_integrity.py' -v
       - name: Actual CSV receipt through strict late-preview gate
         run: python scripts/collect_late_preview_evidence.py
+      - name: Archive eligible late-preview evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: late-preview-evidence-${{ github.run_id }}
+          path: late_preview_evidence/**/*.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Inspect pre-race preview CSV availability only
         run: python scripts/research_preview_csv_probe.py
