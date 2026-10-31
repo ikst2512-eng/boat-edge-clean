@@ -50,11 +50,17 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         dest.mkdir(parents=True,exist_ok=False)
         # Manifest is written last: its presence means the raw bytes were saved.
         html_path=dest/"beforeinfo.html"
-        with html_path.open("xb") as body:
-            body.write(raw)
-            body.flush()
-        with (dest/"manifest.json").open("x",encoding="utf-8") as manifest:
-            manifest.write(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
+        try:
+            with html_path.open("xb") as body:
+                body.write(raw)
+                body.flush()
+            with (dest/"manifest.json").open("x",encoding="utf-8") as manifest:
+                manifest.write(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
+        except Exception:
+            (dest/"manifest.json").unlink(missing_ok=True)
+            html_path.unlink(missing_ok=True)
+            dest.rmdir()
+            raise
         return result
     except Exception as exc:
         # A missing/invalid page cannot be treated as evidence of six boats.
