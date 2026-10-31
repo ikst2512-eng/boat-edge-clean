@@ -3,6 +3,9 @@ const {chromium}=require('playwright');
  const browser=await chromium.launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
+  const browserErrors=[];
+  page.on('console',m=>{if(m.type()==='error')browserErrors.push(m.text().slice(0,350));});
+  page.on('pageerror',e=>browserErrors.push(e.message.slice(0,350)));
   const now=new Date();
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   const day=parts.year+parts.month+parts.day;
@@ -26,6 +29,8 @@ const {chromium}=require('playwright');
   try{response=await page.request.get(api,{timeout:25000});}
   catch(e){console.log('LIVE_ODDS_DOM_UNVERIFIED api_transport');return;}
   if(response.status()!==200){console.log('LIVE_ODDS_DOM_UNVERIFIED api_http='+response.status()+' race='+key);return;}
+  const apiHeaders=response.headers();
+  console.log('ODDS_API_CORS_HEADERS '+JSON.stringify({allowOrigin:apiHeaders['access-control-allow-origin']||null,contentType:apiHeaders['content-type']||null,redirected:response.url()!==api}));
   const official=await response.json();
   const odds=official.odds;
   if(!official.ok||!odds||Object.keys(odds).length!==120){console.log('LIVE_ODDS_DOM_UNVERIFIED incomplete_api race='+key);return;}
@@ -35,11 +40,24 @@ const {chromium}=require('playwright');
   try{await page.waitForFunction(()=>predictionTickets.length===10&&displayedPredictionKey===sameRaceKey(),null,{timeout:18000});}
   catch{console.log('LIVE_ODDS_DOM_UNVERIFIED saved_prediction_unavailable race='+key);return;}
   const tickets=await page.evaluate(()=>predictionTickets.slice());
+  const oddsNetwork=[];
+  page.on('response',r=>{if(r.url().includes('/api/odds'))oddsNetwork.push({status:r.status(),url:r.url()});});
+  page.on('requestfailed',r=>{if(r.url().includes('/api/odds'))oddsNetwork.push({failed:r.failure()?.errorText});});
   const token=await page.evaluate(()=>window.predictionRequestId);
   await page.evaluate(token=>loadTicketOdds(sameRaceKey(),token),token);
   try{await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-odds').length===10&&
-     [...document.querySelectorAll('#predictionRows .prediction-odds')].every(x=>x.textContent.includes('取得済オッズ')),null,{timeout:10000});}
-  catch{console.log('LIVE_ODDS_DOM_UNVERIFIED odds_not_displayed race='+key);return;}
+     [...document.querySelectorAll('#predictionRows .prediction-odds')].every(x=>x.textContent.includes('取得済オッズ')),null,{timeout:42000});}
+  catch{
+   const diagnostic=await page.evaluate(()=>({
+    view:activeView,race:sameRaceKey(),displayed:displayedPredictionKey,
+    requestId:window.predictionRequestId,
+    oddsKeys:Object.keys(predictionOdds||{}).length,
+    rows:document.querySelectorAll('#predictionRows .prediction-odds').length,
+    firstRow:document.querySelector('#predictionRows .prediction-odds')?.textContent?.slice(0,160),
+    sourceMeta:document.getElementById('sourceMeta')?.textContent?.slice(0,220)
+   }));
+   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic)+' network='+JSON.stringify(oddsNetwork)+' browserErrors='+JSON.stringify(browserErrors));
+  }
   const displayed=await page.evaluate(()=>({tickets:predictionTickets.slice(),odds:{...predictionOdds}}));
   if(JSON.stringify(displayed.tickets)!==JSON.stringify(tickets))throw Error('LIVE_ODDS_REORDERED_FORECAST');
   for(const ticket of tickets)if(displayed.odds[ticket]!==odds[ticket])throw Error('LIVE_ODDS_DOM_API_MISMATCH '+ticket);
