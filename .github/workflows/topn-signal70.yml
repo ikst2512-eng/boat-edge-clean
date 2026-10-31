@@ -82,3 +82,14 @@ jobs:
               print("PAYOUT_SOURCE_ERROR",repr(err))
               raise
           PY
+      - name: October 31 payout-verified 70-signal comparison
+        run: |
+          python - <<'PY'
+          import json
+          from compare_topn_signal70 import compare
+          result=compare("20261031")
+          rows=result["groups"]
+          print("OCT31_SIGNAL_ROI",json.dumps({name:{"evaluated":g["evaluated"],"awaiting_result":g["awaiting_result"],"payout_verified":g["payout_verified"],"hits":g["hits"],"hit_rate_pct":g["hit_rate_pct"],"roi_pct":g["roi_pct"]} for name,g in rows.items()},sort_keys=True))
+          if any(g["payout_verified"]>g["evaluated"] for g in rows.values()):
+              raise SystemExit("INVALID_PAYOUT_COVERAGE")
+          PY
