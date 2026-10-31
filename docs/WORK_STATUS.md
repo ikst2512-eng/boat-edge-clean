@@ -58,3 +58,10 @@
 - 旧サイト撤去: Render workspace未選択のためデプロイ依存を実証できず、破壊的削除は未実施。旧リポジトリを無断削除しない。
 - 過去レース: mainの履歴出走表既存修正はあるが、2026-10-31の公開UI実測は未完了。公開サイトの到達・DOM・保存結果・予想の対応を次に検証する。
 - #722（予想研究）、#723/#654（データ収集）は担当別PRのため未変更。新規PRの乱発なし。
+
+## 2026-11-01 P0追加調査（サイト本体・デプロイ）
+- Render `list_workspaces` は `My Workspace` (`tea-db8svlcs728c73avi3h0`) の存在を返した。ただしユーザーの対象選択が未確認のためサービス一覧・旧サービス削除は未実施（別ワークスペース誤操作防止）。
+- 現行 `index.html` は過去日も `schedule_snapshots/YYYYMMDD.json` → CLEAN `/api/clean-schedule` → `historicalHeldVenues` の順に扱い、旧リポジトリの `today.json` を他日付に流用しない実装。出走表は `/api/clean-racecard` の `HISTORICAL_READ_ONLY` を受け入れる。研究予想は `prospective_predictions` → `research_snapshots` → CLEAN `/api/predictions` の順に照会する。これらはコード確認であり実データ正常表示の証明ではない。
+- 現行フロントの画面状態はURLパス `/forecast`, `/card`, `/exhibition`, `/results` に対応。`setView` は `view` クエリパラメータを消去する。READMEの `view` で復元可能という説明とは不一致。実際の旧サイト依存と本番表示不具合は引き続き公開ブラウザ検証待ち。
+- Web経由の `https://boat-edge-clean.onrender.com/` と `/api/clean-racecard` への取得は環境側でアクセス不可。HTTP 200/表示正常とは判定できない。
+- データ収集・精度研究のPRには触れていない。次: 対象Renderワークスペースの確認後に旧/現行サービスの依存を照合し、現行サイト公開URLで2026-10-31履歴を再現→必要な修正を既存コードに集約する。
