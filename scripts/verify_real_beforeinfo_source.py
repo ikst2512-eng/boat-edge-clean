@@ -33,7 +33,17 @@ def main(day=None):
     seen=set()
     status_counts={}
     tkz_rows,_=_preview_rows("tkz",day)
-    for row in tkz_rows:
+    snapshot_dir=Path(__file__).resolve().parents[1]/"research_snapshots"
+    archive_codes={p.stem for p in snapshot_dir.glob("*.json")}
+    candidates=sorted(tkz_rows,key=lambda row:(
+        row.get("レースコード","") not in archive_codes,
+        row.get("レースコード","")
+    ))
+    evidence["forecast_overlap_available"]=len({
+        row.get("レースコード") for row in tkz_rows
+        if row.get("レースコード") in archive_codes
+    })
+    for row in candidates:
         code=row.get("レースコード","")
         clock=row.get("締切時刻","")
         if len(code)!=12 or not clock or code in seen:continue
