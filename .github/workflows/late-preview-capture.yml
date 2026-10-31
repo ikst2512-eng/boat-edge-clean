@@ -40,6 +40,8 @@ jobs:
               for kind, data in report["kinds"].items():
                   summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
           PY
+      - name: Audit six-lane paired evidence
+        run: python scripts/audit_late_preview_evidence.py
       - name: Upload separate short-retention evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,4 +51,4 @@ jobs:
             late_preview_evidence/**/*.json
             late_preview_capture_report.json
           if-no-files-found: ignore
-          retention-days: 30
+          retention-days: 300
