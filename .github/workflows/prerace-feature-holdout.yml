@@ -1,0 +1,25 @@
+name: Pre-race feature holdout audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/research_prerace_feature_audit.py'
+      - 'test_research_prerace_feature_audit.py'
+      - '.github/workflows/prerace-feature-holdout.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/research_prerace_feature_audit.py'
+      - 'test_research_prerace_feature_audit.py'
+      - '.github/workflows/prerace-feature-holdout.yml'
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check strict pre-race evidence validation
+        run: python -m unittest -v test_research_prerace_feature_audit
+      - name: Report real date-separated lane-one feature evidence
+        run: python scripts/research_prerace_feature_audit.py
