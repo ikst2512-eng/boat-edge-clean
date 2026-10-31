@@ -550,46 +550,6 @@ function cleanRacerTags(line,row,lane){
  line.append(extra);
 }
 let homeRaceCardToken=0;
-async function loadHomeRaceCards(){
- // Home race-card list removed. Keep legacy helper inert for callers until cleanup.
- return;
- if(activeView!=='home')return;
- const token=++homeRaceCardToken,date=s.date,venue=s.venue+1;
- const root=document.getElementById('homeRaceCardList'),status=document.getElementById('homeRaceCardStatus');
- root.replaceChildren();status.textContent=names[venue-1]+'｜1〜12Rの出走情報を確認中…';
- const [cards,titles]=await Promise.all([cleanListRaceCards(date,venue),cleanListRaceTitles(date,venue)]);
- if(token!==homeRaceCardToken||activeView!=='home'||date!==s.date||venue!==s.venue+1)return;
- const schedule=todayVenueRaces?.date===date?todayVenueRaces.venues.find(v=>Number(v.jcd)===venue):null;
- for(let race=1;race<=12;race++){
-  const row=cards.get(race),raceSchedule=schedule?.races?.find(r=>Number(r.race_no)===race);
-  if(!row&&!raceSchedule)continue;
-  const card=document.createElement('article');card.className='clean-race-card';
-  const header=document.createElement('div');header.className='clean-race-head';
-  const title=document.createElement('strong');title.textContent=race+'R';
-  const deadline=document.createElement('span');deadline.className='clean-race-time';deadline.textContent='締切 '+(raceSchedule?.deadline||'未取得');
-  const state=document.createElement('span');state.className='clean-race-state';
-  const closed=!!raceSchedule?.deadline&&Date.parse(date+'T'+raceSchedule.deadline+':00+09:00')<=Date.now();
-  state.textContent=closed?'締切済':'出走情報';
-  header.append(title,deadline,state);cleanRaceTitleBadge(header,titles.get(race));card.append(header);
-  const field=document.createElement('div');field.className='clean-race-field';
-  for(let lane=1;lane<=6;lane++){
-   const line=document.createElement('div');line.className='clean-race-lane';
-   const number=document.createElement('span');number.className='clean-lane-num lane-'+lane;number.textContent=lane;
-   const name=document.createElement('span');name.className='clean-racer-name';name.textContent=row?.['艇'+lane+'_選手名']||'選手情報未取得';
-   const grade=document.createElement('span');grade.className='clean-racer-class';grade.textContent=row?.['艇'+lane+'_級別']||'—';
-   const rate=document.createElement('span');rate.className='clean-racer-rate';const value=row?.['艇'+lane+'_全国勝率'];rate.textContent=value&&Number.isFinite(Number(value))?Number(value).toFixed(2):'—';
-   line.append(number,name,grade,rate);cleanRacerTags(line,row,lane);field.append(line);
-  }
-  card.append(field);
-  const actions=document.createElement('div');actions.className='clean-race-actions';
-  for(const [label,view] of [['出走表','card'],['展示・直前','exhibit'],['AI予想','forecast'],['オッズ','forecast'],['結果','result'],['検証','review']]){
-   const button=document.createElement('button');button.type='button';button.textContent=label;
-   button.addEventListener('click',()=>openCleanListTab(view,race));actions.append(button);
-  }
-  card.append(actions);root.append(card);
- }
- status.textContent=root.children.length?names[venue-1]+'｜'+root.children.length+'Rを表示（未配信項目は未取得）':'この日の出走情報は公開待ちです';
-}
 function openCleanListTab(view,race){
  venueTouched=true;s.race=race;setView(view);render();
  document.getElementById(view==='forecast'?'forecast':view==='card'||view==='exhibit'?'raceDataSection':'resultSection')?.scrollIntoView({block:'start'});
