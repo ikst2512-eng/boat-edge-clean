@@ -6,10 +6,10 @@ on:
       - '.github/workflows/late-preview-capture.yml'
   workflow_dispatch:
   schedule:
-    # UTC previous day 22:03-23:58 = JST 07:03-08:58.
+    # UTC previous day 23:03-23:58 = JST 08:03-08:58.
     # UTC current day 00:03-12:58 = JST 09:03-21:58.
     # Avoid :00 peak; GitHub scheduled runs may still be delayed or dropped.
-    - cron: '3-58/5 22-23,0-12 * * *'
+    - cron: '3-58/5 23,0-12 * * *'
 permissions:
   contents: read
 concurrency:
