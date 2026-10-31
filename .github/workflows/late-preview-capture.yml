@@ -25,6 +25,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_collect_late_preview_once.py' -v
           python -m unittest discover -s tests -p 'test_late_preview_paired_coverage.py' -v
+          python -m unittest discover -s tests -p 'test_audit_late_preview_evidence.py' -v
       - name: Fetch and save only deadline-eligible live rows
         run: python collect_late_preview_once.py
       - name: Verify complete predeadline exhibition and entry pairs
@@ -39,12 +40,13 @@ jobs:
           from scripts.audit_late_preview_evidence import audit
           coverage=audit()
           print("verified_preview_pair_audit="+json.dumps(coverage,ensure_ascii=False))
+          print("verified_t12_pairs="+str(coverage['paired_complete_12min_observable']))
           for kind, data in report["kinds"].items():
               print(f"{kind}: source={data.get('source_rows', 'unavailable')} eligible={data.get('pre_deadline_2min', {})} six_lanes={data.get('six_lane_validation', {})}")
           print(f"eligible_saved_rows={len(files)}")
           with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as summary:
               summary.write(f"Late preview evidence saved: {len(files)} race-kind records. No main forecast changes.\n")
-              summary.write(f"**Verified complete six-boat STT+TKZ pairs: {coverage['paired_complete_6boat_stt_tkz']}**; invalid records: {coverage['invalid']}; observed race codes: {coverage['races']}.\n")
+              summary.write(f"**Verified complete six-boat STT+TKZ pairs: {coverage['paired_complete_6boat_stt_tkz']}**; T-12 observable: {coverage['paired_complete_12min_observable']}; invalid records: {coverage['invalid']}; observed race codes: {coverage['races']}.\n")
               for kind, data in report["kinds"].items():
                   summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
           PY

@@ -28,6 +28,16 @@ class AuditLatePreview(unittest.TestCase):
             result=audit(folder)
             self.assertEqual(result["paired_complete_6boat_stt_tkz"],1)
             self.assertEqual(result["invalid"],0)
+            self.assertEqual(result["paired_complete_12min_observable"],0)
+            for kind in ("stt","tkz"):
+                early_path=Path(folder)/"20261031"/kind/(code+".json")
+                early_record=record(code,kind,received="2026-10-31T19:45:00+09:00")
+                early_record["source_row"]["取得日時"]="2026-10-31T19:44:00+09:00"
+                early_path.write_text(json.dumps(early_record))
+            self.assertEqual(audit(folder)["paired_complete_12min_observable"],1)
+            for kind in ("stt","tkz"):
+                early_path=Path(folder)/"20261031"/kind/(code+".json")
+                early_path.write_text(json.dumps(record(code,kind)))
             obj=json.loads(path.read_text())
             obj["source_row"]["艇6_展示タイム"]=""
             path.write_text(json.dumps(obj))

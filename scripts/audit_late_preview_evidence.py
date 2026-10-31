@@ -37,16 +37,20 @@ def audit(root="late_preview_evidence"):
         except (ValueError,TypeError,KeyError,AttributeError,OSError):
             invalid+=1
     complete=0
+    complete_t12=0
     missing=[]
     for code, entries in sorted(pairs.items()):
         if ("stt" in entries and "tkz" in entries
             and entries["stt"].get("six_lane_validation")=="complete"
             and entries["tkz"].get("six_lane_validation")=="complete"):
             complete+=1
+            if all(classify(entries[k]["source_row"], parse_jst(entries[k]["received_at_jst"]), margin_minutes=12)=="pre_cutoff_observed" for k in ("stt","tkz")):
+                complete_t12+=1
         else:
             missing.append(code)
     return {"records":total,"invalid":invalid,"races":len(pairs),
             "paired_complete_6boat_stt_tkz":complete,
+            "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),
             "note":"No evidence of prediction accuracy or forecast at -12 minutes"}
 
