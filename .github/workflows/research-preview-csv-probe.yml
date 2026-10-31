@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/research_preview_csv_probe.py'
+      - 'scripts/preview_timing_integrity.py'
+      - 'tests/test_preview_timing_integrity.py'
       - '.github/workflows/research-preview-csv-probe.yml'
   workflow_dispatch:
 permissions:
@@ -16,5 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Test preview cutoff isolation
+        run: python -m unittest discover -s tests -p 'test_preview_timing_integrity.py' -v
       - name: Inspect pre-race preview CSV availability only
         run: python scripts/research_preview_csv_probe.py
