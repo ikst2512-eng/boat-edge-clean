@@ -4,8 +4,13 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch();
  try{
   const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-  await page.goto('https://boat-edge-clean.onrender.com/?date=2026-10-31&venue=2&race=1',{waitUntil:'domcontentloaded',timeout:60000});
-  await page.waitForSelector('#forecast',{timeout:30000});
+  let ready=false;
+  for(let attempt=1;attempt<=3;attempt++){
+   const response=await page.goto('https://boat-edge-clean.onrender.com/?date=2026-10-31&venue=2&race=1',{waitUntil:'domcontentloaded',timeout:60000});
+   console.log('Attempt',attempt,'HTTP',response.status(),'title',await page.title());
+   try{await page.waitForSelector('#forecast',{timeout:15000});ready=true;break}catch(e){console.log('Missing forecast on attempt',attempt,'HTML length',(await page.content()).length)}
+  }
+  assert.ok(ready,'public page did not render forecast after retries');
   const data=await page.evaluate(async()=>{
    const tickets=['6-5-4','1-3-2','2-1-6','4-3-1','1-2-3','3-5-6','2-3-1','5-4-6','6-1-2','3-1-4'];
    const odds={};
