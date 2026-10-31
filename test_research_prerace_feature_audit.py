@@ -68,6 +68,9 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             self.assertEqual(analyze(root)["rejected"], 1)
             rp.write_text(json.dumps(result))
             fp.write_text(json.dumps(forecast))
+            fp.write_text(json.dumps({**forecast, "model_version":"national-beta0.4-exploratory-v1"}))
+            self.assertEqual(analyze(root)["rejected"], 1)
+            fp.write_text(json.dumps(forecast))
             self.assertEqual(good["cohorts"]["discovery"]["all"]["n"], 0)
             for change in (
                 {"national_win_rates": "bad"},
