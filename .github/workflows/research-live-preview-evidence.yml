@@ -64,12 +64,8 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as summary:
               summary.write(f"\nStrict T-12 complete preview pairs: **{counts['paired_12min_observable']}**; later T-2 pairs: **{counts['paired_complete']}**. Research timing evidence only; no forecast accuracy proven.\n")
           PY
-      - name: Summarize fully validated late-preview features
-        run: python -m scripts.late_preview_feature_pairs
       - name: Report matching early research and confirmed results
         run: python -m scripts.late_research_comparison_audit
-      - name: Print unvalidated independent late research candidates
-        run: python -m scripts.late_research_candidate
       - name: Archive only genuinely prospective late candidate forecasts
         run: |
           python - <<'PY'
