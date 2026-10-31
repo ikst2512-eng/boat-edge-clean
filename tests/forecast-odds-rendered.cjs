@@ -2,7 +2,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
 (async()=>{const b=await chromium.launch();try{
 const p=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
 await p.goto('https://boat-edge-clean.onrender.com/?date=2026-10-31&venue=2&race=1',{waitUntil:'domcontentloaded',timeout:60000});
-await p.waitForSelector('#forecast',{timeout:30000});
+await p.waitForSelector('#forecast',{state:'attached',timeout:30000});
 const result=await p.evaluate(()=>{
 const tickets=['6-5-4','1-3-2','2-1-6','4-3-1','1-2-3','3-5-6','2-3-1','5-4-6','6-1-2','3-1-4'];
 const all={};for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++)if(new Set([a,b,c]).size===3)all[a+'-'+b+'-'+c]=a*100+b*10+c;
