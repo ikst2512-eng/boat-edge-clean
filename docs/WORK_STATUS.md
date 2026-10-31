@@ -438,3 +438,8 @@
 - main `9523560e0777b52f0c3fe7d6f82574e7e73d71ef` で、19:00締切のT-12に対しSTT/TKZのsourceとHTTP受信が18:47:59なら時刻条件合格、18:48:00ちょうどなら不合格となる既存 `classify` の保守的仕様を回帰テストに固定。
 - 変更対象は既存 `tests/test_preview_timing_integrity.py` のみ。既存 `late-preview-evidence-tests.yml` がmain pushでこのテストを実行する設定は確認済み。**新しいコミットのCI成功と実レースT-12完全6艇取得は未確認**。
 - 予想/UI・旧サイト変更なし。8:03 JST以降の定期収集実測が次の検証対象。
+
+## 2026-11-01 PR #744：公開Pagesで確定結果3連単の実値検査を追加
+- PR #744をsquashでmain `25501e5ae702750d04fde87cb3a970688025c58e` に統合。既存のPages Playwright検査を拡張し、2026-10-27・1場1Rの保存済みCLEAN確定結果（3連単3-4-1）について、結果タブの可視性だけでなく公開ページ上の1/2/3着数値と「CLEAN保存済み結果」状態まで確認。
+- PR head `70bfface681b7234d9adf69096372000d85eb68c` のCLEAN CI `check` / `publish-smoke` はsuccess。main同コミットのCLEAN regression/odds parser CIもsuccess。
+- mainの公開ワークフロー run `41242390056` は記録時点で実行中。公開ブラウザ `DEPLOYED_ARCHIVED_RESULT_PASS` の実行済みログは未確認、iPhone Safari実機・T-12六艇展示証明も未取得。予想・収集のパイプライン、旧サイトには変更なし。
