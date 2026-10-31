@@ -76,3 +76,8 @@
 ### 2026-11-01 取得レポートの空CSV識別（PR #723）
 - 既存捕捉でHTTP成功かつCSVゼロ行を `sources_retrieved` と表現する曖昧さを確認。5源が取得できてもレース行が無ければ `sources_retrieved_no_rows` と表示し、`race_rows_total` を集計してActions summaryにも記録する修正とfixtureテストを追加。
 - これは取得ジョブの分類精度改善であり、公式/BOATERS/日和の実ライブ取得を実証したものではない。main未統合。最新変更のCI実行結果は確認まで未検証。
+
+### 2026-11-01 データ取得監査継続 — エラー原因分離
+- PR #723に、HTTP/transport失敗 (`source_unavailable`) とローカル書込衝突・形式不正 (`capture_invalid`) を別の状態として報告する変更を追加。`sources_unavailable` に保存時 `FileExistsError` を誤計上しない。部分的な保存処理失敗は `partial_capture_failure` と区別する。
+- 既存テストの同一バッチ再実行ケースに `capture_invalid=5`、`sources_unavailable=0` を検証する回帰アサーション追加。収集Actions summaryもエラー件数を区別。
+- 実際のT-12/6艇取得保証は未成立。追加修正のCIは未確認。main統合なし。
