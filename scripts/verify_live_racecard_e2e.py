@@ -64,6 +64,7 @@ for source_deadline,code in candidates[:3]:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
             data=json.load(res)
             if res.status!=200:raise ValueError("unexpected HTTP status")
+        response_received_at=datetime.now(JST)
         if data.get("race_key")!=f"{hd}-{code[8:10]}-{code[10:12]}":
             raise ValueError("wrong race key")
         # Eligibility at candidate selection is insufficient if an HTTP request
@@ -110,9 +111,11 @@ for source_deadline,code in candidates[:3]:
                 if not isinstance(sha,str) or len(sha)!=64 or any(c not in "0123456789abcdef" for c in sha.lower()):
                     raise ValueError("preview source SHA256 missing: "+kind)
             t12_limit=deadline-timedelta(minutes=12)
-            if all(_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])<=t12_limit for kind in ("tkz","stt")):
+            # Source timestamps alone do not show the full pair was available
+            # to CLEAN by T-12; the live API must return it by that moment.
+            if response_received_at<=t12_limit and all(_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])<=t12_limit for kind in ("tkz","stt")):
                 verified_t12.append(code)
-                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,"observed_by":t12_limit.isoformat()},ensure_ascii=False))
+                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,"observed_by":t12_limit.isoformat(),"response_received_at":response_received_at.isoformat()},ensure_ascii=False))
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)

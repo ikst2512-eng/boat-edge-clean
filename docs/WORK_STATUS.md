@@ -325,3 +325,8 @@
 - GitHub merge commit `2c7b6d2654bafff8753dff1d105239cd7594b637` をPR headへfast-forwardで適用。適用直後のcompareは mainからbehind=0、PR `mergeable=true`。**mainへは未統合**。
 - merge commitに紐付くPR Actionsの検索結果は0件（取得時点）。従前の `41239801304` のsuccessはこのmerge commitの専用CI成功を示さない。今後CIが走れば該当head SHAとjob conclusionを確認する。
 - 実レースT-12の完全6艇STT+TKZペアは未証明。対象レースキー・締切・双方の受信JST・source SHAと保存時刻の実測が必要。
+
+
+## 2026-11-01 T-12証明の偽陽性防止
+- main `f36432cabf032e4849bad33f86f1f183eb6e6903` で既存 `scripts/verify_live_racecard_e2e.py` を修正。以前の #734 は両ソースの観測時刻がT-12以前なら、API応答がT-12後でも `T12_COMPLETE_PAIR_PASS` となる可能性があった。APIのHTTP応答を読み終えたJST時刻 `response_received_at` を記録し、**ソース双方のT-12以前 + HTTP応答のT-12以前**が揃う場合だけ合格とする。main再読込で実装確認。
+- 当該変更は実測成功の証明ではなく検証条件の修正。PR #734の履歴CIでは実レースE2Eがskip。次は開催中レースについてT-12以前のAPI応答ログで成功確認し、原本保全後に旧サイトを停止する。旧repoの変更なし。
