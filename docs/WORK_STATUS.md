@@ -173,3 +173,9 @@
 - `research_chronological_calibration.py` のベースラインbeta0.4評価で、保存された `model_version` が明示されている場合、`national-beta0.4-exploratory-v1` 以外を除外。保存予想Top10が再計算と一致する条件も継続。コードcommit `e44c8c4`、回帰テストcommit `8e695ef`。
 - GitHub Actions Research forecast checks run `41240098122` job `124652025696` **success**。研究41テストとfeature audit1テスト成功。時系列研究train457、holdout130、beta0.4、holdout Top10 53/130=40.77%。
 - `model_version` が欠損した古いデータは後方互換のため許容している。これは独立したGit初回保存監査の代替ではない。将来モデルの結果をベースラインと混在させない目的で、本番モデル・保存済み予想・mainを変更しない。PR #722 Draft。
+
+### 2026-11-01 特徴量監査のモデルバージョン整合性修正
+- `scripts/research_prerace_feature_audit.py` も時系列calibrationと同様に、明示的な保存モデルバージョンが `national-beta0.4-exploratory-v1` 以外の場合は不合格とする（`7bcf0ef`）。異モデルの事前予想を全国勝率モデルの群別研究成果へ混入させない。
+- `test_research_prerace_feature_audit.py` に `other-model-v2` の拒否回帰ケースを追加（`2473464`）。
+- Research forecast checks run `41240239046` **success**。別系統 `cross-model-content-audit-tests.yml` の同コミットrun `41240238138` は **failure** と確認されており「CIすべて成功」とは扱わない。
+- `model_version` 欠損は後方互換のため引き続き許容し、正式Git初回追加証明とは区別。予想モデル・本番・main不変更、PR #722 Draft。
