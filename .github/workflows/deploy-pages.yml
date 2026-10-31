@@ -222,7 +222,7 @@ jobs:
               if(count!==6)throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({count,status}));
               const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
               if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
-              if(!status.includes('参考閲覧用'))throw Error('PUBLIC_HISTORICAL_RACECARD_UNSAFE_STATUS '+status);
+              if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
               console.log('CLEAN_HISTORICAL_SIX_RACER_BROWSER_PASS 202610310708',status);
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
