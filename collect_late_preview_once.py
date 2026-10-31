@@ -1,11 +1,14 @@
 """One-shot read/capture of predeadline preview CSV; local only, no git push."""
 import json
+import csv
+import io
 from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from research_model import JST
-from late_preview_capture import save_preview, KINDS
+from late_preview_capture import save_preview, KINDS, six_lane_status
+from scripts.preview_timing_integrity import classify
 
 BASE="https://boatracecsv.github.io/data/previews/"
 def collect(day=None, root=None, fetch=None, clock=None):
@@ -25,12 +28,22 @@ def collect(day=None, root=None, fetch=None, clock=None):
                 with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESEARCH/1.0"}),timeout=8) as response:
                     raw=response.read(3_000_001)
             received=now()
+            rows=list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+            gate={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
+            six_lanes={"complete":0,"incomplete":0,"not_applicable":0}
+            for row in rows:
+                gate[classify(row,received,margin_minutes=2)]+=1
+                six_lanes[six_lane_status(kind,row)]+=1
             written=save_preview(raw,kind,day,received,root)
             report["kinds"][kind]={"received_at_jst":received.isoformat(),"saved":len(written),
-                                   "race_codes":written[:5]}
+                                   "race_codes":written[:5],"source_rows":len(rows),
+                                   "pre_deadline_2min":gate,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
             report["kinds"][kind]={"error":type(err).__name__,"saved":0}
     return report
 
 if __name__=="__main__":
-    print(json.dumps(collect(),ensure_ascii=False,indent=2))
+    report=collect()
+    output=Path("late_preview_capture_report.json")
+    output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(output.read_text(encoding="utf-8"))

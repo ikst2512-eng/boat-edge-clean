@@ -27,16 +27,24 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import json
           files=list(Path("late_preview_evidence").rglob("*.json"))
+          report=json.loads(Path("late_preview_capture_report.json").read_text())
+          for kind, data in report["kinds"].items():
+              print(f"{kind}: source={data.get('source_rows', 'unavailable')} eligible={data.get('pre_deadline_2min', {})} six_lanes={data.get('six_lane_validation', {})}")
           print(f"eligible_saved_rows={len(files)}")
           with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as summary:
               summary.write(f"Late preview evidence saved: {len(files)} race-kind records. No main forecast changes.\n")
+              for kind, data in report["kinds"].items():
+                  summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
           PY
       - name: Upload separate short-retention evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: late-preview-evidence-${{ github.run_id }}
-          path: late_preview_evidence/**/*.json
+          path: |
+            late_preview_evidence/**/*.json
+            late_preview_capture_report.json
           if-no-files-found: ignore
           retention-days: 3
