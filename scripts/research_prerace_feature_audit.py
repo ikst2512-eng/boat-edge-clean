@@ -14,6 +14,7 @@ def analyze(root=ROOT):
     for cohort in ("discovery", "holdout"):
         output[cohort]={k:{"n":0,"top3":0,"top5":0,"top10":0,"head1_actual":0,"head1_top10_hit":0,"head1_top10_miss":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
     rejected=0
+    strongest_head1_misses={"discovery":[],"holdout":[]}
     for path in sorted((root/"research_snapshots").glob("*.json")):
         result_path=root/"confirmed_results"/path.name
         if not result_path.is_file():continue
@@ -55,6 +56,13 @@ def analyze(root=ROOT):
                 keys += ("lane1_unique_strongest",)
             elif rates[0] == max(rates):
                 keys += ("lane1_tied_strongest",)
+            if actual_head1 and not hit and "lane1_strongest" in keys:
+                strongest_head1_misses[cohort].append({
+                    "race_code":code,"winning_ticket":winning,
+                    "second_boat":finish[1],"third_boat":finish[2],
+                    "top10_head1_tickets":sum(t.startswith("1-") for t in tickets),
+                    "national_win_rates":rates,
+                })
             for key in keys:
                 output[cohort][key]["n"]+=1
                 output[cohort][key]["top10"]+=hit
@@ -78,7 +86,8 @@ def analyze(root=ROOT):
             row["head1_top10_miss_given_head1"]=row["head1_top10_miss"]
             for top in ("top3","top5"):
                 row[top+"_rate_pct"]=round(100*row[top]/row["n"],2) if row["n"] else None
-    return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output}
+    return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output,
+            "strongest_lane1_head1_top10_misses":strongest_head1_misses}
 
 if __name__=="__main__":
     print(json.dumps(analyze(),ensure_ascii=False,indent=2))
