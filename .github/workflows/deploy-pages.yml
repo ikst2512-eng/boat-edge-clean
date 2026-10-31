@@ -139,6 +139,23 @@ jobs:
                 await page.evaluate(v=>setView(v),view);
                 if(await page.locator('[data-home-only]:visible').count()!==0)throw Error('home grid leaked into '+view);
               }
+              // PR smoke must exercise the real archived candidate data path, not
+              // merely prove that the tabs are visible.
+              const archive=JSON.parse(require('node:fs').readFileSync('prospective_predictions/202610310708.json','utf8'));
+              if(Date.parse(archive.source_cards_received_jst)<=Date.parse(archive.generated_at))throw Error('Archive provenance fixture unexpectedly changed');
+              const historic=await browser.newPage({viewport:{width:390,height:844}});
+              await historic.route('https://raw.githubusercontent.com/**',route=>{
+                if(route.request().url().endsWith('/prospective_predictions/202610310708.json'))
+                  return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(archive)});
+                return route.fulfill({status:404,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:'{}'});
+              });
+              await historic.route('https://api.github.com/**',route=>route.fulfill({status:404,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:'{}'}));
+              await historic.goto('file://'+process.cwd()+'/index.html?date=2026-10-31&venue=07&race=8&view=forecast',{waitUntil:'domcontentloaded'});
+              await historic.evaluate(()=>{setView('forecast');loadPredictions(true);});
+              await historic.waitForFunction(()=>document.querySelector('#snapshotMeta')?.textContent?.includes('時刻証拠未検証'),null,{timeout:20000});
+              if(!(await historic.locator('#snapshotMeta').textContent()).includes('正式採点対象外'))throw Error('Historical provenance warning not non-formal');
+              await historic.close();
+              console.log('CLEAN_OCT31_ARCHIVE_WARNING_PR_BROWSER_PASS');
               if(errors.length)throw Error('JavaScript errors: '+errors.join('; '));
               console.log('CLEAN_BROWSER_SMOKE_PASS: race view, home-only venues, mobile navigation');
             } finally {await browser.close();}
