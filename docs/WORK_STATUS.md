@@ -339,3 +339,7 @@
 - 実行log: Preview capture run `41240537819` / capture job `124653322037` は `capture_source_status=not_yet_expected`, available=0, unavailable=5, rows=0。STT/TKZ等5ソースはHTTP 404、`paired_complete_12min_observable=0`、保存0。04–05 JST付近の公開期待時間外での取得であり恒常的障害を意味しない。
 - Audit scheduled preview capture runs `41240537814` / job `124653321344` はログ中 `scheduled_runs=0`、`latest_scheduled=null`。当該監査で観測した範囲の値でありGitHub全run不在の断定ではない。
 - 次: 08:00 JST以降の独立scheduled captureの実run id / artifact / HTTP応答と `t12_evidence_by_race` の同一レース6艇STT+TKZ受信時刻を検証。取得されるまではT-12実証未達、旧repo/Pages停止禁止。
+
+## 2026-11-01 重複PR #654の安全整理
+- #654の変更対象3ファイルをmainと照合し、paired_six_lane_coverage、ステップ要約、import修正が#723統合済みであることを確認。証拠保持期間はPR案14日より強い現行90日。重複の#654へ根拠をコメントし、state=closed / reason=duplicate とした。#654の古いコードをmainに再適用していない。
+- 実レースT-12 COMPLETE_PAIR成功は未証明。旧repo/Pagesや保存原本は変更していない。
