@@ -446,3 +446,9 @@ assert.ok(script.includes('研究予想API：元データ受信順序・時刻�
 const archivedResultWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(archivedResultWorkflow.includes('CLEAN_RESULT_PUBLISHED_BROWSER_PASS'),'published browser test must verify a real archived race result');
 assert.ok(archivedResultWorkflow.includes("#resultDetail .result-combo .boat-num"),'published browser test must inspect actual three boat numbers');
+
+assert.ok(script.includes("async function fetchCleanResultArchive(code)"),'confirmed results require same-origin fallback');
+assert.ok(script.includes("fetchTimed('confirmed_results/'+code+'.json'"),'local result archive path required');
+assert.ok(script.includes("RESULT_RACE_CODE_INVALID"),'archive fallback must reject malformed race code');
+const archivePublish=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(archivePublish.includes('cp -R confirmed_results public/confirmed_results'),'Pages must publish confirmed archives used by fallback');

@@ -405,6 +405,16 @@ setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}if(activeView==='result')loadResult(true)}});
 async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
+// Confirmed result files are published with Pages as a same-origin fallback when GitHub Raw fails.
+async function fetchCleanResultArchive(code){
+ if(!/^20\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
+ const remote='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json';
+ let response;
+ try{response=await fetchTimed(remote,{cache:'no-store'});if(response.ok)return response}catch(_){/* try verified local archive */}
+ try{const local=await fetchTimed('confirmed_results/'+code+'.json',{cache:'no-store'});if(local.ok)return local}catch(_){/* preserve upstream failure */}
+ return response||new Response('',{status:503});
+}
+
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
 const verifiedCache=new Map();
 async function verifiedFourModeRace(key){
@@ -563,7 +573,7 @@ async function loadForecastPriorResults(){
  const candidates=await Promise.all(Array.from({length:race-1},async(_,i)=>{
   const number=String(i+1).padStart(2,'0'),code=date+venue+number;
   try{
-   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
+   const response=await fetchCleanResultArchive(code);
    if(!response.ok)return null;const item=await response.json();
    const order=item.finish_order;
    if(typeof item.confirmed_at_jst!=='string'||typeof item.collected_at_jst!=='string'||!Number.isFinite(Date.parse(item.confirmed_at_jst))||!Number.isFinite(Date.parse(item.collected_at_jst))||Date.parse(item.confirmed_at_jst)>Date.now()||Date.parse(item.collected_at_jst)>Date.now()||Date.parse(item.collected_at_jst)<Date.parse(item.confirmed_at_jst)||item.race_code!==code||item.status!=='confirmed'||!/^[a-f0-9]{64}$/.test(item.source_sha256||'')||!Array.isArray(order)||order.length!==3||new Set(order).size!==3||!order.every(n=>Number.isInteger(n)&&n>=1&&n<=6)||!/^https:\/\//.test(item.source_url||''))return null;
@@ -657,7 +667,7 @@ async function loadForecastResult(){
  status.textContent=retain?'確定結果を更新中（前回確認済みの結果を表示）…':'CLEAN確定結果を確認中…';
  try{
   const code=key.replaceAll('-','');
-  const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
+  const response=await fetchCleanResultArchive(code);
   if(token!==forecastResultRequestId||activeView!=='forecast'||key!==sameRaceKey())return;
   if(response.status===404){confirmedForecastResult=null;confirmedForecastResultKey='';detail.replaceChildren();drawPredictions();status.textContent='結果未取得（予想の的中・不的中には含めません）';return}
   if(!response.ok)throw Error('RESULT_HTTP');
@@ -751,7 +761,7 @@ async function loadResultList(){
  const entries=await Promise.all(Array.from({length:12},async(_,i)=>{
   const race=i+1,code=date.replaceAll('-','')+String(venue).padStart(2,'0')+String(race).padStart(2,'0');
   try{
-   const response=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
+   const response=await fetchCleanResultArchive(code);
    if(response.status===404)return {race,state:'未取得'};
    if(!response.ok)return {race,state:'取得エラー'};
    const raw=await response.json();
@@ -841,7 +851,7 @@ async function loadResult(quiet=false){
   // This result feed is entirely owned by CLEAN; no old boat-edge fallback.
   // Use committed immutable archives so Pages and Render show identical results.
   const code=key.replaceAll('-','');
-  const res=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json',{cache:'no-store'});
+  const res=await fetchCleanResultArchive(code);
   if(token!==resultRequestId||key!==sameRaceKey())return;
   if(res.status===404){if(!retainVerified){detail.replaceChildren();comparison.replaceChildren()}status.textContent='CLEAN確定結果は未取得です（60秒ごとに再確認）';return}
   if(!res.ok)throw Error('HTTP_'+res.status);
