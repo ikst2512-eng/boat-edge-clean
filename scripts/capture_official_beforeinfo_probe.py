@@ -48,8 +48,13 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         if dest.exists():
             raise FileExistsError("append-only official observation already exists")
         dest.mkdir(parents=True,exist_ok=False)
-        (dest/"beforeinfo.html").write_bytes(raw)
-        (dest/"manifest.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+        # Manifest is written last: its presence means the raw bytes were saved.
+        html_path=dest/"beforeinfo.html"
+        with html_path.open("xb") as body:
+            body.write(raw)
+            body.flush()
+        with (dest/"manifest.json").open("x",encoding="utf-8") as manifest:
+            manifest.write(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
         return result
     except Exception as exc:
         # A missing/invalid page cannot be treated as evidence of six boats.
