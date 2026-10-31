@@ -47,6 +47,7 @@ def retrieve(day, root, repository, token, fetch=None):
         "X-GitHub-Api-Version":"2022-11-28","User-Agent":"BOAT-EDGE-CLEAN-research"}),timeout=20).read())
     scanned=0
     recovered=0
+    dated_archives=0
     for page in range(1,6):
         response=json.loads(fetch(f"https://api.github.com/repos/{repository}/actions/artifacts?per_page=100&page={page}"))
         artifacts=response.get("artifacts",[])
@@ -54,10 +55,14 @@ def retrieve(day, root, repository, token, fetch=None):
             if (not item.get("expired") and item.get("name","").startswith("independent-late-preview-")
                     and item.get("archive_download_url")):
                 scanned+=1
+                before=recovered
                 recovered+=extract_candidates(fetch(item["archive_download_url"]),day,root)
+                dated_archives+=int(recovered>before)
         if len(artifacts)<100:
             break
-    return {"day":day,"scanned_artifacts":scanned,"imported_immutable_candidates":recovered}
+    return {"day":day,"scanned_artifacts":scanned,"artifacts_with_imported_candidates":dated_archives,
+            "imported_immutable_candidates":recovered,
+            "coverage_status":"candidate_found" if recovered else "no_prior_day_candidate_found"}
 
 if __name__=="__main__":
     from scripts.evaluate_late_research_topn import evaluate
