@@ -353,3 +353,10 @@ assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages m
 assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
 assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
 console.log('PASS: Pages navigation asset packaging and verification');
+
+// Project-scoped GitHub Pages review links must not navigate to a missing /review route.
+const navigation=fs.readFileSync('navigation.js','utf8');
+assert.ok(navigation.includes("location.hostname.endsWith('.github.io')"),'restrict Pages route handling to GitHub Pages');
+assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pages review must navigate via single-page screen query');
+assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
+console.log('PASS: Pages project-path review navigation regression');
