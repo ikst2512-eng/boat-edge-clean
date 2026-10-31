@@ -1,0 +1,34 @@
+name: Official beforeinfo live accessibility diagnostic
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-beforeinfo-live-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify official beforeinfo raw response only
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from scripts.probe_official_beforeinfo import probe
+          from research_model import JST
+          now = datetime.now(JST)
+          try:
+              result = probe(now.strftime("%Y%m%d"), 12, 10)
+              print("official_http_probe=success", result, flush=True)
+          except Exception as e:
+              import os
+              print("official_http_probe=unavailable", type(e).__name__, str(e), flush=True)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                  summary.write("Official beforeinfo: unavailable; exhibition/entry not verified.\\n")
+                  summary.write(f"Reason: {type(e).__name__}: {e}\\n")
+          PY
