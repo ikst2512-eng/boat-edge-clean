@@ -10,6 +10,8 @@ on:
   pull_request:
     paths:
       - 'scripts/research_topn_batch_audit.py'
+      - 'scripts/research_prerace_feature_audit.py'
+      - 'tests/test_research_prerace_feature_audit.py'
       - 'scripts/research_selective_top10_backtest.py'
       - 'tests/test_research_selective_top10_backtest.py'
       - 'scripts/research_selective_top10_backtest.py'
@@ -54,6 +56,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_mass_cohort_audit.py' -v
       - name: Test official beforeinfo metadata probe
         run: python -m unittest discover -s tests -p 'test_official_beforeinfo_probe.py' -v
+      - name: Check lane-strength predeadline evidence
+        run: python -m unittest discover -s tests -p 'test_research_prerace_feature_audit.py' -v
       - name: Out-of-time lane strength study
         run: python scripts/research_prerace_feature_audit.py
       - name: Verify selective Top10 deadline and finish validation
