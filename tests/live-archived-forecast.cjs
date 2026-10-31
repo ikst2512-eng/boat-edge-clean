@@ -54,6 +54,27 @@ const {chromium}=require('playwright');
    if(JSON.stringify(tickets)!==JSON.stringify(record.predictions))throw Error('SECONDARY_DISPLAY_MISMATCH '+item.race);
    console.log('PASS: race switch displays exact saved forecast '+item.race);
   }
+  // Confirm a newer October 31 research snapshot is not hidden by old-day UI.
+  const currentCode='202610310202';
+  const currentResponse=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/research_snapshots/'+currentCode+'.json',{timeout:20000});
+  if(!currentResponse.ok())throw Error('OCT31_RESEARCH_SNAPSHOT_MISSING '+currentResponse.status());
+  const current=await currentResponse.json();
+  if(current.race_code!==currentCode||current.status!=='research'||current.validated!==false||
+     current.predictions?.length!==10)throw Error('OCT31_RESEARCH_SNAPSHOT_INVALID');
+  await page.evaluate(()=>{
+   datePinned=true;venueTouched=true;s.date='2026-10-31';s.venue=1;s.race=2;
+   setView('forecast');render();
+  });
+  await page.waitForFunction(()=>displayedPredictionKey==='20261031-02-02'&&
+      predictionTickets.length===10,null,{timeout:35000});
+  const currentShown=await page.evaluate(()=>({
+   tickets:predictionTickets.slice(),
+   visible:!document.getElementById('forecast').hidden,
+   status:document.getElementById('predictionStatus').textContent
+  }));
+  if(!currentShown.visible||JSON.stringify(currentShown.tickets)!==JSON.stringify(current.predictions))
+   throw Error('OCT31_RESEARCH_FORECAST_DISPLAY_MISMATCH '+JSON.stringify(currentShown));
+  console.log('PASS: 2026-10-31 race 02-02 research Top10 matches publicly displayed forecast');
   // Today's finished races must show actual saved results beside saved forecasts.
   const settledCode='202610300301';
   const confirmedResp=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+settledCode+'.json',{timeout:20000});
