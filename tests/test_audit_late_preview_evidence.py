@@ -71,4 +71,6 @@ class AuditLatePreview(unittest.TestCase):
             result=audit(folder)
             self.assertEqual(result["paired_complete_6boat_stt_tkz"],0)
             self.assertEqual(result["invalid"],1)
+            self.assertEqual(result["incomplete_pair_reasons_by_race"][0]["race_code"],code)
+            self.assertEqual(result["incomplete_pair_reasons_by_race"][0]["tkz"],"missing")
 if __name__=="__main__":unittest.main()
