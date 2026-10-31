@@ -151,7 +151,12 @@ def racecard(hd,jcd,rno):
             title=alt_match
             title_fetched,title_sha=alt_fetched,alt_sha
             source="CLEAN_NONOFFICIAL_OPENAPI_PRE_RACE"
-    if len(title)!=1:raise ValueError("race_card_not_available")
+    if len(title)!=1:
+        # A missing race must not be confused with a source fetch failure.
+        # Keep the public error stable while preserving race-level diagnostics.
+        import logging
+        logging.info("racecard_title_missing race=%s source=%s title_rows=%s", code, source, len(titles))
+        raise ValueError("race_card_not_available")
     meta=title[0]
     deadline_text=meta.get("電話投票締切予定","")
     if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",deadline_text):
