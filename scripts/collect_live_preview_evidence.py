@@ -73,11 +73,18 @@ def collect(day, root, fetch=None):
     summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
+def write_summary(day, root, summary):
+    """Persist an inspectable audit result with the evidence; never publish forecasts."""
+    if summary.get("day") != day:
+        raise ValueError("summary day mismatch")
+    target=Path(root)/day/"collection_summary.json"
+    target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    return target
+
 if __name__=="__main__":
     day=datetime.now(JST).strftime("%Y%m%d")
     root=Path("late_preview_evidence")
     summary=collect(day,root)
-    summary_path=root/day/"collection_summary.json"
-    summary_path.parent.mkdir(parents=True,exist_ok=True)
-    summary_path.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    write_summary(day,root,summary)
     print(json.dumps(summary,ensure_ascii=False))
