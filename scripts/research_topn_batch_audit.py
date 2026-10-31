@@ -27,6 +27,7 @@ def run():
         except (OSError, ValueError, TypeError, AttributeError):
             mass_coverage["invalid_topn_mass"] += 1
     by_mass_cohort = {"with_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}, "without_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}}
+    by_day = {}
     by_model = {}
     confidence_coverage = {"stored_numeric_confidence": 0, "missing_confidence": 0}
     for race_code in sorted(forecast_paths.keys() & result_paths.keys()):
@@ -45,6 +46,9 @@ def run():
             winning = "-".join(str(n) for n in finish[:3])
             position = tickets.index(winning) + 1 if winning in tickets else 0
             stats["matched"] += 1
+            day = race_code[:8]
+            daily = by_day.setdefault(day, {"matched": 0, "top3": 0, "top5": 0, "top10": 0})
+            daily["matched"] += 1
             model = str(forecast.get("model_version") or "unknown")
             group = by_model.setdefault(model, {"matched": 0, "top3": 0, "top5": 0, "top10": 0})
             group["matched"] += 1
@@ -62,6 +66,7 @@ def run():
                 stats[f"top{n}"] += hit
                 group[f"top{n}"] += hit
                 cohort[f"top{n}"] += hit
+                daily[f"top{n}"] += hit
         except (OSError, ValueError, KeyError, TypeError):
             stats["rejected"] += 1
     for n in (3, 5, 10):
@@ -69,7 +74,10 @@ def run():
     for cohort in by_mass_cohort.values():
         for n in (3, 5, 10):
             cohort[f"top{n}_rate_pct"] = round(100 * cohort[f"top{n}"] / cohort["matched"], 2) if cohort["matched"] else None
-    return {"by_mass_cohort": by_mass_cohort, "counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage, "mass_coverage": mass_coverage,
+    for daily in by_day.values():
+        for n in (3, 5, 10):
+            daily[f"top{n}_rate_pct"] = round(100 * daily[f"top{n}"] / daily["matched"], 2) if daily["matched"] else None
+    return {"by_day": dict(sorted(by_day.items())), "by_mass_cohort": by_mass_cohort, "counts": stats, "by_model": by_model, "confidence_coverage": confidence_coverage, "mass_coverage": mass_coverage,
             "confidence_70_pct_selection": "not_computed_without_verified_pre_race_confidence"}
 
 
