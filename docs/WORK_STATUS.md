@@ -162,3 +162,9 @@
 - `test_research_chronological_calibration.py` に受信より前の生成を拒否する回帰ケースを追加。テストfixtureの元々の矛盾により2回CI失敗したが、受信→生成の順序が成立するよう修正（`53c0322`）。最終GitHub Actions Research forecast checks run `41239343051`、job `124649750410` **success**。研究テスト41件と特徴監査1件の成功を実ログで確認。
 - 再計算も従来の587件を維持：calibration train457、holdout 20261031の130件、beta0.4選択。holdout Top3=21/130=16.15%、Top5=33/130=25.38%、Top10=53/130=40.77%。基準beta0.4と同じで改善証拠はない。
 - 本番モデル・保存済み予想を変更せず、締切T-12の6艇データ取得証明は引き続き未完了。PR #722 Draft、mainには統合しない。
+
+### 2026-11-01 保存済み予想順位の整合性ゲートを追加
+- `research_chronological_calibration.py` の時系列学習/検証対象に、保存済み `predictions` の10点がbaseline beta0.4で再計算したTop10と**順序まで完全一致**することを必須化（`06ab93c`）。同じレースの結果を使って事後に並び替えた記録やモデル不一致予想を候補から除外する。別モデルバージョンの保存予想にもそのまま適用できる仕様ではないため、対象はbaseline研究モデルに限定する。
+- `test_research_chronological_calibration.py` に保存順位の逆順改変を拒否する回帰ケースを追加（`5ce9047`）。初回CI run `41239828961` は、実コード側のチェック追加が未反映だったため失敗。その後コードを再確認して修正。
+- GitHub Actions Research forecast checks run `41239883715` job `124651402230` は**success**。研究コホートは train457/holdout130、選択beta0.4。holdout Top10 53/130=40.77%で精度改善とはみなさない。
+- 出走表以外の展示・ST・進入・モーターの新規データ結合は未達、正式Git first-addの証拠確認も未達。モデル重み/公開予想/mainは不変更、PR #722 Draft。
