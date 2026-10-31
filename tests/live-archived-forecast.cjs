@@ -201,9 +201,18 @@ const {chromium}=require('playwright');
     const list=root.querySelector('.forecast-race-list');
     const preview=root.querySelector('.forecast-inline-preview');
     const venue=document.getElementById('forecastVenue');
-    return {first:root.firstElementChild===forecast,forecastBeforeList:!!(forecast.compareDocumentPosition(list)&Node.DOCUMENT_POSITION_FOLLOWING),forecastBeforePreview:!!(forecast.compareDocumentPosition(preview)&Node.DOCUMENT_POSITION_FOLLOWING),selectorVisible:!!venue&&getComputedStyle(venue).display!=='none',duplicateVenueVisible:getComputedStyle(root.querySelector('.result-venue-picker')).display!=='none'}
+    return {first:root.firstElementChild===forecast||root.children[1]===forecast,forecastBeforeList:!!(forecast.compareDocumentPosition(list)&Node.DOCUMENT_POSITION_FOLLOWING),forecastBeforePreview:!!(forecast.compareDocumentPosition(preview)&Node.DOCUMENT_POSITION_FOLLOWING),selectorVisible:!!venue&&getComputedStyle(venue).display!=='none',duplicateVenueVisible:getComputedStyle(root.querySelector('.result-venue-picker')).display!=='none'}
   });
   if(!forecastUi.first||!forecastUi.forecastBeforeList||!forecastUi.forecastBeforePreview||!forecastUi.selectorVisible||forecastUi.duplicateVenueVisible)throw Error('FORECAST_NOT_FIRST_OR_DUPLICATE_VENUE '+JSON.stringify(forecastUi));
+  const tabUi=await page.evaluate(()=>{
+    const root=document.getElementById('forecast');
+    const tab=p=>root.querySelector('[data-forecast-pane="'+p+'"]');
+    const state=()=>({prediction:!root.querySelector('.forecast-combined-race').hidden,result:!root.querySelector('.forecast-result-tab').hidden,exhibition:!root.querySelector('.forecast-inline-preview').hidden,races:!root.querySelector('.forecast-race-list').hidden});
+    if(!tab('result'))return {legacyPublishedPage:true};
+    const first=state();tab('result').click();const second=state();tab('exhibition').click();const third=state();tab('races').click();const fourth=state();tab('prediction').click();
+    return {first,second,third,fourth,homeDeadline:document.querySelector('[data-home-only] #deadlineSection')!==null}
+  });
+  if(!tabUi.legacyPublishedPage&&(!tabUi.homeDeadline||!tabUi.first.prediction||tabUi.first.result||!tabUi.second.result||tabUi.second.prediction||!tabUi.third.exhibition||tabUi.third.result||!tabUi.fourth.races||tabUi.fourth.prediction)throw Error('FORECAST_TABS_NOT_EXCLUSIVE '+JSON.stringify(tabUi));
   await page.evaluate(()=>{setView('home');render()});
   const homeUi=await page.evaluate(()=>({back:!document.getElementById('raceBrowserToolbar').hidden,home:!document.querySelector('[data-home-only]').hidden}));
   if(homeUi.back||!homeUi.home)throw Error('HOME_BACK_STILL_VISIBLE '+JSON.stringify(homeUi));
