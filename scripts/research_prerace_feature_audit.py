@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def analyze(root=ROOT):
     output={}
     for cohort in ("discovery", "holdout"):
-        output[cohort]={k:{"n":0,"top10":0} for k in ("all","lane1_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
+        output[cohort]={k:{"n":0,"top10":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
     rejected=0
     for path in sorted((root/"research_snapshots").glob("*.json")):
         result_path=root/"confirmed_results"/path.name
@@ -46,6 +46,10 @@ def analyze(root=ROOT):
             hit=int(winning in tickets)
             cohort="discovery" if code[:8]<="20261029" else "holdout"
             keys=("all","lane1_strongest" if rates[0]>=max(rates) else "lane1_not_strongest","lane1_lead_2plus" if rates[0]-max(rates[1:])>=2 else "lane1_lead_under2")
+            if rates[0] > max(rates[1:]):
+                keys += ("lane1_unique_strongest",)
+            elif rates[0] == max(rates):
+                keys += ("lane1_tied_strongest",)
             for key in keys:
                 output[cohort][key]["n"]+=1
                 output[cohort][key]["top10"]+=hit
