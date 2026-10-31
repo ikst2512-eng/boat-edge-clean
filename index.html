@@ -1156,7 +1156,9 @@ async function loadPredictions(force=false){
   predictionModes.research={tickets:archive.predictions,probabilities:{},odds:archivedOdds};
   applyPredictionMode();
   label.textContent='保存済み上位10点の研究予想｜正式な的中率・回収率は未検証';
-  document.getElementById('snapshotMeta').textContent='保存済み研究予想のみ表示。旧方式の買い目は表示しません。';
+  const generatedAt=Date.parse(archive.generated_at),titleReceived=Date.parse(archive.source_title_received_jst),cardsReceived=Date.parse(archive.source_cards_received_jst);
+  const receiptOrderVerified=Number.isFinite(generatedAt)&&Number.isFinite(titleReceived)&&Number.isFinite(cardsReceived)&&titleReceived<=generatedAt&&cardsReceived<=generatedAt;
+  document.getElementById('snapshotMeta').textContent=receiptOrderVerified?'保存済み研究予想のみ表示。旧方式の買い目は表示しません。':'保存済み研究予想（時刻証拠未検証：元データの受信時刻が生成時刻より後、または受信日時が欠落）。正式採点対象外。';
   document.getElementById('sourceMeta').replaceChildren();
   drawPredictions();
   void loadTicketOdds(key,token);
