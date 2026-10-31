@@ -7,6 +7,8 @@ on:
       - 'tests/test_late_preview_paired_coverage.py'
       - 'scripts/late_preview_feature_pairs.py'
       - 'tests/test_late_preview_feature_pairs.py'
+      - 'scripts/late_research_comparison_audit.py'
+      - 'tests/test_late_research_comparison_audit.py'
   schedule:
     # 09:00-21:45 JST every 15 minutes; capture eligibility remains fail-closed.
     - cron: '*/15 0-12 * * *'
@@ -26,10 +28,14 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_late_preview_paired_coverage.py' -v
       - name: Test validated preview feature extraction
         run: python -m unittest discover -s tests -p 'test_late_preview_feature_pairs.py' -v
+      - name: Test late research comparison audit
+        run: python -m unittest discover -s tests -p 'test_late_research_comparison_audit.py' -v
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Summarize fully validated late-preview features
         run: python -m scripts.late_preview_feature_pairs
+      - name: Report matching early research and confirmed results
+        run: python -m scripts.late_research_comparison_audit
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4
