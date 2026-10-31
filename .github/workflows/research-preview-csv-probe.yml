@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/research_preview_csv_probe.py'
       - 'late_preview_capture.py'
+      - 'scripts/collect_late_preview_evidence.py'
+      - 'tests/test_live_late_preview_capture.py'
       - 'tests/test_late_preview_capture.py'
       - 'scripts/preview_timing_integrity.py'
       - 'tests/test_preview_timing_integrity.py'
@@ -20,9 +22,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Test live preview CSV to isolated capture
+        run: python -m unittest discover -s tests -p 'test_live_late_preview_capture.py' -v
       - name: Test isolated append-only later-cutoff capture
         run: python -m unittest discover -s tests -p 'test_late_preview_capture.py' -v
       - name: Test preview cutoff isolation
         run: python -m unittest discover -s tests -p 'test_preview_timing_integrity.py' -v
+      - name: Actual CSV receipt through strict late-preview gate
+        run: python scripts/collect_late_preview_evidence.py
       - name: Inspect pre-race preview CSV availability only
         run: python scripts/research_preview_csv_probe.py
