@@ -13,7 +13,7 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
             (root / "research_snapshots").mkdir()
             (root / "confirmed_results").mkdir()
             forecast = {
-                "race_code": "202610300101", "status": "research",
+                "race_code": "202610300101", "status": "research", "validated": False,
                 "generated_at": "2026-10-30T09:00:00+09:00",
                 "cutoff_jst": "2026-10-30T09:10:00+09:00",
                 "source_deadline_jst": "2026-10-30T09:22:00+09:00",
@@ -22,7 +22,7 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 "national_win_rates": [8, 6, 6, 6, 6, 6],
                 "predictions": ["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2","1-3-4","1-3-5","1-3-6","1-4-2","1-4-3"]
             }
-            result = {"race_code": "202610300101", "status": "confirmed", "finish_order": [1, 2, 3]}
+            result = {"race_code": "202610300101", "status": "confirmed", "confirmed_at_jst": "2026-10-30T09:50:00+09:00", "finish_order": [1, 2, 3]}
             fp = root / "research_snapshots" / "202610300101.json"
             rp = root / "confirmed_results" / "202610300101.json"
             rp.write_text(json.dumps(result))
@@ -46,6 +46,9 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                              tied["cohorts"]["holdout"]["all"]["n"])
             self.assertEqual(sum(tied["cohorts"]["holdout"][name]["top10"] for name in classes),
                              tied["cohorts"]["holdout"]["all"]["top10"])
+            rp.write_text(json.dumps({**result, "confirmed_at_jst": "2026-10-30T09:21:00+09:00"}))
+            self.assertEqual(analyze(root)["rejected"], 1)
+            rp.write_text(json.dumps(result))
             fp.write_text(json.dumps(forecast))
             self.assertEqual(good["cohorts"]["discovery"]["all"]["n"], 0)
             for change in (
@@ -55,6 +58,7 @@ class PreRaceFeatureAuditTests(unittest.TestCase):
                 {"generated_at": "2026-10-30T09:30:00+09:00"},
                 {"source_cards_received_jst": "2026-10-30T09:11:00+09:00"},
                 {"source_deadline_jst": "2026-10-30T09:23:00+09:00"},
+                {"validated": True},
             ):
                 fp.write_text(json.dumps({**forecast, **change}))
                 audited = analyze(root)
