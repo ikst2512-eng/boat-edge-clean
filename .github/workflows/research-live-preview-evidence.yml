@@ -75,7 +75,7 @@ jobs:
           from scripts.archive_late_research_candidates import archive
           day=datetime.now(JST).strftime("%Y%m%d")
           report=archive(day,Path("late_preview_evidence"),Path("late_research_candidates"))
-          Path("late_research_archive_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          Path("late_research_archive_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
           print(json.dumps(report,ensure_ascii=False))
           PY
       - name: Evaluate paired prospective late and early TopN
@@ -88,7 +88,7 @@ jobs:
           from scripts.evaluate_late_research_topn import evaluate
           day=datetime.now(JST).strftime("%Y%m%d")
           report=evaluate(day,Path("late_research_candidates"),Path("."))
-          Path("late_research_topn_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          Path("late_research_topn_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
           print(json.dumps(report,ensure_ascii=False))
           PY
       - name: Summarize prospective comparison readiness
