@@ -1,10 +1,10 @@
 name: Prospective Top-N multiday summary
 on:
   pull_request:
-    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml]
+    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml, 'payout_evidence/**', 'confirmed_results/**', 'prospective_predictions/**']
   push:
     branches: [main]
-    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml]
+    paths: [aggregate_prospective_topn.py, test_aggregate_prospective_topn.py, .github/workflows/prospective-topn-summary.yml, 'payout_evidence/**', 'confirmed_results/**', 'prospective_predictions/**']
   workflow_dispatch:
 jobs:
   test:
@@ -30,4 +30,15 @@ jobs:
               raise SystemExit("COHORT_COUNT_MISMATCH")
           if r["payout_unavailable"] + r["roi"]["top10"]["races"] != r["counts"]["evaluated"]:
               raise SystemExit("PAYOUT_COVERAGE_MISMATCH")
+          from pathlib import Path
+          import os
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as summary:
+              summary.write("## Oct 31 prospective TopN — verified evidence only\\n")
+              summary.write(f"- Saved: {r['counts']['archives']}; evaluated: {r['counts']['evaluated']}; pending: {r['counts']['awaiting_result']}; rejected: {r['counts']['audit_rejected']}\\n")
+              summary.write(f"- Payout verified: {r['roi']['top10']['races']}; payout unavailable: {r['payout_unavailable']}\\n")
+              for n in (3,5,10):
+                  key=f"top{n}"
+                  summary.write(f"- {key}: hits {r['hits'][key]}/{r['counts']['evaluated']}; hit rate {r['hit_rate_pct'][key]}%; ROI {r['roi'][key]['roi_pct']}% on {r['roi'][key]['races']} payout-verified races\\n")
+              summary.write("Research simulations only; missing payout never counts as a loss or a zero return.\\n")
+
           PY
