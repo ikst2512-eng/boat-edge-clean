@@ -550,3 +550,8 @@
 - `scripts/capture_official_beforeinfo_probe.py` のmanifest末尾をリテラルのバックスラッシュnから実改行に修復。既存テストで `json.loads`、返却manifestとの一致、HTML保存バイト同一性を確認。
 - 既存preview証拠CIへテスト・pathトリガーを追加。PR head `ea48dfd1c68dd67b7a0c526a66816497cbd6bf9c`、run `41246854917` のvalidateはsuccess。main squash `d33e368ad0170ef477888a90ec1108b6a2dad760`。
 - 公式HTMLの保存可能性のみでT-12・6艇・初回Git記録・予想利用適格の証明ではない。実レースprobeの取得成功は未確認。旧サイト変更・停止なし。
+
+
+## 2026-11-01 公式直前情報の原本保存完了マーカー
+- 公式beforeinfo実験の原本保存で、HTML本文を排他的に保存した後にのみ `manifest.json` を作成するよう変更。完了manifestの存在を保存手順の最終マーカーとする（commit `6c27e34023165e6536c9c9309707f55ed580186c`）。保存テストにHTML本体存在確認を追加（`cbf68485a8dc9be53e717b2ca3a1b30343943451`）。ただしマシン停止時のfsync/完全なatomicityは未実装。
+- 公式ページ直接接続は実行環境のDNS名前解決失敗で断念。CI成功、公式6艇実受信、T-12時刻成立は**未確認**。既存の正式予想パイプライン・旧サイトは変更なし。
