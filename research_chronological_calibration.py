@@ -42,6 +42,8 @@ def load_pairs(root=ROOT):
                     or deadline.strftime("%Y%m%d") != code[:8]
                     or not cutoff < deadline < confirmed):
                 continue
+            if forecast.get("model_version") not in (None, "national-beta0.4-exploratory-v1"):
+                continue
             rates = forecast["national_win_rates"]
             order = result["finish_order"]
             if len(rates) != 6 or len(order) < 3 or len(set(order[:3])) != 3 or any(type(n) is not int or n not in range(1, 7) for n in order[:3]):
