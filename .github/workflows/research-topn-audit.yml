@@ -62,7 +62,7 @@ jobs:
                   for n in (3, 5, 10):
                       out.write(f"- Top{n}: {values['top'+str(n)]} / {values['matched']} ({values['top'+str(n)+'_rate_pct']}%)\n")
               for day, values in list(audit["by_day"].items())[-7:]:
-                  out.write(f"### {day}: {values['matched']} matched\\n")
+                  out.write(f"### {day}: {values['matched']} / {values['saved_forecasts']} confirmed ({values['result_coverage_pct']}% coverage; {values['sample_status']})\\n")
                   for n in (3, 5, 10):
                       out.write(f"- Top{n}: {values['top'+str(n)]} / {values['matched']} ({values['top'+str(n)+'_rate_pct']}%)\\n")
               out.write(f"\nStored snapshots with TopN mass: {audit['mass_coverage']['with_topn_mass']} / {audit['mass_coverage']['all_forecasts']}\n")

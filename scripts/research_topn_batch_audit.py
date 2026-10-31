@@ -29,6 +29,10 @@ def run():
             mass_coverage["invalid_topn_mass"] += 1
     by_mass_cohort = {"with_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}, "without_topn_mass": {"matched": 0, "top3": 0, "top5": 0, "top10": 0}}
     by_day = {}
+    daily_forecast_count = {}
+    for code in forecast_paths:
+        day = code[:8]
+        daily_forecast_count[day] = daily_forecast_count.get(day, 0) + 1
     by_model = {}
     confidence_coverage = {"stored_numeric_confidence": 0, "missing_confidence": 0}
     for race_code in sorted(forecast_paths.keys() & result_paths.keys()):
@@ -86,6 +90,10 @@ def run():
     for cohort in by_mass_cohort.values():
         for n in (3, 5, 10):
             cohort[f"top{n}_rate_pct"] = round(100 * cohort[f"top{n}"] / cohort["matched"], 2) if cohort["matched"] else None
+    for day, daily in by_day.items():
+        daily["saved_forecasts"] = daily_forecast_count.get(day, 0)
+        daily["result_coverage_pct"] = round(100 * daily["matched"] / daily["saved_forecasts"], 2) if daily["saved_forecasts"] else None
+        daily["sample_status"] = "insufficient_sample" if daily["matched"] < 30 else "descriptive_only"
     for daily in by_day.values():
         for n in (3, 5, 10):
             daily[f"top{n}_rate_pct"] = round(100 * daily[f"top{n}"] / daily["matched"], 2) if daily["matched"] else None
