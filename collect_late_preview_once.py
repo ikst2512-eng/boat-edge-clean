@@ -39,7 +39,16 @@ def collect(day=None, root=None, fetch=None, clock=None):
                                    "race_codes":written[:5],"source_rows":len(rows),
                                    "pre_deadline_2min":gate,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
-            report["kinds"][kind]={"error":type(err).__name__,"saved":0}
+            # A missing upstream daily CSV is different from invalid rows or a transport failure.
+            # Never log full response bodies, credentials, or make a failed read look successful.
+            reason=("upstream_http" if isinstance(err,HTTPError) else
+                    "upstream_transport" if isinstance(err,(URLError,TimeoutError)) else
+                    "local_or_invalid_source")
+            report["kinds"][kind]={"status":"unavailable","reason":reason,
+                                   "http_status":err.code if isinstance(err,HTTPError) else None,
+                                   "received_at_jst":now().isoformat(),"saved":0,
+                                   "source_rows":None,"pre_deadline_2min":None,
+                                   "six_lane_validation":None}
     return report
 
 if __name__=="__main__":
