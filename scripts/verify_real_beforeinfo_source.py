@@ -47,6 +47,11 @@ def main(day=None):
                     "course_permutation_valid": sorted(r["course"] for r in starts) == [1., 2., 3., 4., 5., 6.],
                     "source_status": audit.get("source_status"),
                 }
+                counts=evidence["verified_six_boat_fields"]
+                if (any(counts[k] != 6 for k in ("exhibition_times", "tilts", "actual_courses", "start_exhibition"))
+                    or counts["course_permutation_valid"] is not True
+                    or any(counts["source_status"].get(k) != "ok" for k in ("tkz", "stt"))):
+                    raise RuntimeError("REAL_BEFOREINFO_INCOMPLETE_SIX_BOAT_EVIDENCE")
                 matched.append(code)
                 break
         except (ValueError,KeyError):
