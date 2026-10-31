@@ -449,3 +449,8 @@
 - PR #747の修正では、公開ブラウザ確認で結果レースを選んだ後に `await loadResult(true)` を明示して選択レースの取得完了を待つ。PR head `0d7ae7dfaa7d872c912a1a6b7f6a74ccb48686e2` に対する既存CLEAN回帰 `check` と `publish-smoke` はともにsuccess。squash main `f8a955d69690d22b333511667f55bdb0f45e455c`。
 - Render `dep-dbj5kb2vcj2c73elciog` はこのmain SHAと一致して `live`。ただし **Pagesのmain pushデプロイ後テスト成功は本接続で未取得**。Render liveとPages公開ブラウザ成功を同一視しない。
 - 次は既存Pages publish runで `Browser-check deployed page` の再実行成否と `DEPLOYED_ARCHIVED_RESULT_PASS` ログを直接確認。続いて2026-10-31の出走表・展示・結果・予想4タブを実データごとに検証。旧repo/Pages・原本は未変更、旧サイト撤去ゲートは未達。
+
+## 2026-11-01 Top-N監査の二重計上修正（main独立統合）
+- 開いている研究PR #722の二重計上問題を確認。現在mainの `aggregate_prospective_topn.py` に、除外理由を正規化前・正規化後に重複加算する不具合が残存。前者を削除して後者1回のみとした (`6b6addb0`)。
+- 2日×2件の監査棄却を計4件として数える回帰テスト追加 (`88f543ec`)、既存 `research-forecast-tests.yml` に変更対象pathとテスト実行を登録 (`ea4a4792`)。既存PR #722に競合回避コメントを記録。
+- この変更のGitHub Actions成功は未確認。研究PR #722の他の変更は未審査・未統合。T-12完全6艇実測なし、旧サイト停止なし。
