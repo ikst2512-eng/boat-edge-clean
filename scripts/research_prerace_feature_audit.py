@@ -7,13 +7,24 @@ import json, sys
 from datetime import datetime, timedelta
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from research_model import probabilities
 ROOT=Path(__file__).resolve().parents[1]
+
+
+def outside_second_candidate(rates):
+    """Research-only fixed 10-ticket alternative; factor chosen a priori, not on holdout."""
+    ranked = probabilities(rates)
+    return ["-".join(map(str, t)) for t, _ in sorted(
+        ranked, key=lambda item: (-item[1] * (1.25 if item[0][0] == 1 and item[0][1] >= 4 else 1.0), -item[1])
+    )[:10]]
+
 
 def analyze(root=ROOT):
     output={}
     for cohort in ("discovery", "holdout"):
         output[cohort]={k:{"n":0,"top3":0,"top5":0,"top10":0,"head1_actual":0,"head1_top10_hit":0,"head1_top10_miss":0} for k in ("all","lane1_strongest","lane1_unique_strongest","lane1_tied_strongest","lane1_not_strongest","lane1_lead_2plus","lane1_lead_under2")}
     rejected=0
+    comparison={k:{"n":0,"baseline_hits":0,"candidate_hits":0,"gained":0,"lost":0,"unchanged_hits":0,"actual_second_counts":{str(i):0 for i in range(2,7)},"baseline_second_counts":{str(i):0 for i in range(2,7)},"candidate_second_counts":{str(i):0 for i in range(2,7)}} for k in ("discovery","holdout")}
     strongest_head1_misses={"discovery":[],"holdout":[]}
     for path in sorted((root/"research_snapshots").glob("*.json")):
         result_path=root/"confirmed_results"/path.name
@@ -56,6 +67,24 @@ def analyze(root=ROOT):
                 keys += ("lane1_unique_strongest",)
             elif rates[0] == max(rates):
                 keys += ("lane1_tied_strongest",)
+            if "lane1_strongest" in keys:
+                alternative=outside_second_candidate(rates)
+                c=comparison[cohort]
+                c["n"]+=1
+                c["baseline_hits"]+=hit
+                alternative_hit=int(winning in alternative)
+                c["candidate_hits"]+=alternative_hit
+                c["gained"]+=int(alternative_hit and not hit)
+                c["lost"]+=int(hit and not alternative_hit)
+                c["unchanged_hits"]+=int(hit and alternative_hit)
+                if actual_head1:
+                    c["actual_second_counts"][str(finish[1])]+=1
+                for ticket in tickets:
+                    if ticket.startswith("1-"):
+                        c["baseline_second_counts"][ticket.split("-")[1]]+=1
+                for ticket in alternative:
+                    if ticket.startswith("1-"):
+                        c["candidate_second_counts"][ticket.split("-")[1]]+=1
             if actual_head1 and not hit and "lane1_strongest" in keys:
                 strongest_head1_misses[cohort].append({
                     "race_code":code,"winning_ticket":winning,
@@ -87,7 +116,8 @@ def analyze(root=ROOT):
             for top in ("top3","top5"):
                 row[top+"_rate_pct"]=round(100*row[top]/row["n"],2) if row["n"] else None
     return {"scope":"national_win_rate_only_no_entry_or_exhibition_data","rejected":rejected,"cohorts":output,
-            "strongest_lane1_head1_top10_misses":strongest_head1_misses}
+            "strongest_lane1_head1_top10_misses":strongest_head1_misses,
+            "fixed_outside_second_comparison":comparison}
 
 if __name__=="__main__":
     print(json.dumps(analyze(),ensure_ascii=False,indent=2))
