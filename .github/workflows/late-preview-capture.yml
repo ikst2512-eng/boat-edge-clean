@@ -36,7 +36,7 @@ jobs:
           print(f"paired_coverage={report.get('paired_six_lane_coverage', {})}")
           with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as summary:
               summary.write(f"Late preview evidence saved: {len(files)} race-kind records. No main forecast changes.\n")
-              summary.write(f"- paired audit: {report.get('paired_six_lane_coverage', {})}\\n")
+              summary.write(f"- paired audit: {report.get('paired_six_lane_coverage', {})}\n")
               for kind, data in report["kinds"].items():
                   summary.write(f"- {kind}: fetched={data.get('source_rows', 'unavailable')}, saved={data.get('saved', 0)}, timing={data.get('pre_deadline_2min', {})}, lanes={data.get('six_lane_validation', {})}\n")
           PY
