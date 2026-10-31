@@ -46,9 +46,14 @@ def collect(day=None, root=None, fetch=None, clock=None):
             reason=("upstream_http" if isinstance(err,HTTPError) else
                     "upstream_transport" if isinstance(err,(URLError,TimeoutError)) else
                     "local_or_invalid_source")
+            checked_at=now()
+            interpretation=("before_expected_publication_window" if isinstance(err,HTTPError) and err.code==404 and checked_at.hour<8 else
+                            "not_published_or_missing" if isinstance(err,HTTPError) and err.code==404 else
+                            "upstream_failure_or_invalid")
             report["kinds"][kind]={"status":"unavailable","error":type(err).__name__,"reason":reason,
+                                   "availability_interpretation":interpretation,
                                    "http_status":err.code if isinstance(err,HTTPError) else None,
-                                   "received_at_jst":now().isoformat(),"saved":0,
+                                   "received_at_jst":checked_at.isoformat(),"saved":0,
                                    "source_rows":None,"pre_deadline_2min":None,"pre_deadline_12min":None,
                                    "six_lane_validation":None}
     available=sum(1 for entry in report["kinds"].values() if entry.get("status") != "unavailable")
@@ -56,7 +61,9 @@ def collect(day=None, root=None, fetch=None, clock=None):
     report["sources_unavailable"]=len(KINDS)-available
     report["saved_total"]=sum(entry["saved"] for entry in report["kinds"].values())
     # A successful Actions job must not be mistaken for successful upstream acquisition.
-    report["status"]=("source_unavailable" if available == 0 else
+    before_window=(available == 0 and all(entry.get("availability_interpretation")=="before_expected_publication_window" for entry in report["kinds"].values()))
+    report["status"]=("not_yet_expected" if before_window else
+                      "source_unavailable" if available == 0 else
                       "partial_source_failure" if available < len(KINDS) else
                       "sources_retrieved")
     return report
