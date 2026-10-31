@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - index.html
+      - navigation.js
       - tests/site-regression.cjs
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - index.html
+      - navigation.js
       - tests/site-regression.cjs
       - tests/audit_workflow_paths.py
       - .github/workflows/site-regression.yml
