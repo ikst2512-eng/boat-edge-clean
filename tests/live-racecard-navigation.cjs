@@ -99,7 +99,7 @@ const {chromium}=require('playwright');
       const u='https://boatracecsv.github.io/data/previews/'+kind+'/'+today.slice(0,4)+'/'+today.slice(4,6)+'/'+today.slice(6,8)+'.csv';
       const response=await fetch(u,{signal:AbortSignal.timeout(8000)});
       if(!response.ok)throw Error(kind+' HTTP '+response.status);
-      return new Set((await response.text()).split(/\\r?\\n/).slice(1).map(line=>line.split(',')[0]).filter(code=>/^\\d{12}$/.test(code)));
+      return new Set((await response.text()).split(/\r?\n/).slice(1).map(line=>line.split(',')[0]).filter(code=>/^\d{12}$/.test(code)));
      }));
      for(const code of csvs[0])if(csvs[1].has(code))published.add(code);
      console.log('LIVE_PUBLISHED_PREVIEW_CANDIDATES '+published.size);
