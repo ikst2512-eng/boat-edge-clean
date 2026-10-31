@@ -1,5 +1,7 @@
 """Read-only nonofficial pre-race preview inspection; no prediction use or backfill."""
-import hashlib, json, math, re
+import hashlib, json, math, re, sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from datetime import datetime, timedelta
 from urllib.request import Request, urlopen
 from research_model import JST
