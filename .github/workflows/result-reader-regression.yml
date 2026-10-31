@@ -1,0 +1,24 @@
+name: Confirmed result reader regression
+on:
+  pull_request:
+    paths:
+      - 'clean_results.py'
+      - 'test_clean_results.py'
+      - '.github/workflows/result-reader-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'clean_results.py'
+      - 'test_clean_results.py'
+      - '.github/workflows/result-reader-regression.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate confirmed result reader
+        run: python -m unittest -v test_clean_results
