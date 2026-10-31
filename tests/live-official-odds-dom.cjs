@@ -35,6 +35,9 @@ const {chromium}=require('playwright');
   try{await page.waitForFunction(()=>predictionTickets.length===10&&displayedPredictionKey===sameRaceKey(),null,{timeout:18000});}
   catch{console.log('LIVE_ODDS_DOM_UNVERIFIED saved_prediction_unavailable race='+key);return;}
   const tickets=await page.evaluate(()=>predictionTickets.slice());
+  const oddsNetwork=[];
+  page.on('response',r=>{if(r.url().includes('/api/odds'))oddsNetwork.push({status:r.status(),url:r.url()});});
+  page.on('requestfailed',r=>{if(r.url().includes('/api/odds'))oddsNetwork.push({failed:r.failure()?.errorText});});
   const token=await page.evaluate(()=>window.predictionRequestId);
   await page.evaluate(token=>loadTicketOdds(sameRaceKey(),token),token);
   try{await page.waitForFunction(()=>document.querySelectorAll('#predictionRows .prediction-odds').length===10&&
@@ -48,7 +51,7 @@ const {chromium}=require('playwright');
     firstRow:document.querySelector('#predictionRows .prediction-odds')?.textContent?.slice(0,160),
     sourceMeta:document.getElementById('sourceMeta')?.textContent?.slice(0,220)
    }));
-   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic));
+   throw Error('LIVE_ODDS_DOM_FAILED api_200_full120_but_odds_not_displayed race='+key+' details='+JSON.stringify(diagnostic)+' network='+JSON.stringify(oddsNetwork));
   }
   const displayed=await page.evaluate(()=>({tickets:predictionTickets.slice(),odds:{...predictionOdds}}));
   if(JSON.stringify(displayed.tickets)!==JSON.stringify(tickets))throw Error('LIVE_ODDS_REORDERED_FORECAST');
