@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ ! -d payout_evidence ]; then echo 'No payout evidence yet'; exit 0; fi
           git add -- payout_evidence/
           if git diff --cached --name-only --diff-filter=CDMRTUX -- payout_evidence/ | grep -q .; then
             echo 'Existing payout evidence modifications prohibited' >&2
