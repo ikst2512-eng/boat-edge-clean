@@ -31,11 +31,12 @@ assert len(codes) == len(set(codes)) and len(codes) >= 100
 
 def check(code):
     prediction, pe = read("prospective_predictions/" + code + ".json")
+    has_confidence = isinstance(prediction, dict) and isinstance(prediction.get("confidence_pct"), (int, float)) and not isinstance(prediction.get("confidence_pct"), bool)
     result, re = read("confirmed_results/" + code + ".json")
     if pe == "read_error" or re == "read_error" or pe == "http_error" or re == "http_error":
-        return code, "retrieval_error", None
+        return code, "retrieval_error", None, False
     if pe or re:
-        return code, ("missing_both" if pe and re else "missing_prediction" if pe else "missing_result"), None
+        return code, ("missing_both" if pe and re else "missing_prediction" if pe else "missing_result"), None, has_confidence
     try:
         # Must first prove immutable Git first-add was before the T-12 cutoff.
         # A retrospective file pair alone is NOT valid prospective evidence.
@@ -56,23 +57,27 @@ def check(code):
         rank=next((i+1 for i,t in enumerate(picks) if t == ticket), None)
         if audited.get("winning_ticket")!=ticket or audited.get("rank")!=rank:
             raise ValueError("strict auditor disagreement")
-        return code, "matched", rank
+        return code, "matched", rank, has_confidence
     except (AssertionError, KeyError, TypeError, ValueError):
-        return code, "invalid_evidence", None
+        return code, "invalid_evidence", None, has_confidence
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
     records = sorted(pool.map(check, codes))
 counts = {}
-for _, state, _ in records:
+for _, state, _, _ in records:
     counts[state] = counts.get(state, 0) + 1
 sample = counts.get("matched", 0)
 print("SCHEDULE_RACES", len(codes), "RESEARCH_ONLY formal_scoring=false")
 print("EVIDENCE_COUNTS", json.dumps(counts, sort_keys=True))
+confidence_count=sum(flag for _,state,_,flag in records if state=="matched")
+print("CONFIDENCE_AVAILABILITY",confidence_count,"/",sample,"audited paired races")
+if confidence_count == 0:
+    print("CONFIDENCE_70_COHORT: NOT_EVALUABLE (no calibrated confidence_pct in audited records)")
 if sample:
     for n in (3,5,10):
-        hits = sum(state=="matched" and rank is not None and rank<=n for _,state,rank in records)
+        hits = sum(state=="matched" and rank is not None and rank<=n for _,state,rank,_ in records)
         print(f"RESEARCH_ONLY_TOP{n}: {hits}/{sample} ({hits/sample:.1%}); formal_scoring=false")
-for code,state,rank in records:
+for code,state,rank,_ in records:
     if state == "matched":
         print("RACE",code,"rank",rank or "outside_top10")
 if counts.get("retrieval_error"):
