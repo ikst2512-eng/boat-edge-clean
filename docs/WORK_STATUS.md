@@ -65,3 +65,8 @@
 - 現行フロントの画面状態はURLパス `/forecast`, `/card`, `/exhibition`, `/results` に対応。`setView` は `view` クエリパラメータを消去する。READMEの `view` で復元可能という説明とは不一致。実際の旧サイト依存と本番表示不具合は引き続き公開ブラウザ検証待ち。
 - Web経由の `https://boat-edge-clean.onrender.com/` と `/api/clean-racecard` への取得は環境側でアクセス不可。HTTP 200/表示正常とは判定できない。
 - データ収集・精度研究のPRには触れていない。次: 対象Renderワークスペースの確認後に旧/現行サービスの依存を照合し、現行サイト公開URLで2026-10-31履歴を再現→必要な修正を既存コードに集約する。
+
+## 2026-11-01 過去開催日程404フォールバック修正
+- `index.html` の `loadHeldVenues` で、過去日のCLEAN日程API 404が `historicalHeldVenues` 実行前に `SCHEDULE_NOT_PUBLISHED` を投げていた分岐を修正。過去日の404時は公式確定結果のCSV由来の開催場復元へ進み、当日404は未公開のまま扱う。main commit `db62cf35be0af88ce3e768e522c1b35e4567cefb`。
+- 修正した条件分岐について、過去日404/503・当日404/503の4例の期待値を実行して通過。ただしブラウザ上のCSV取得、公開デプロイ、過去日の出走表・予想表示は未確認。フルCIの結果は別途確認が必要。
+- 旧サイト削除は依存未確認につき未実施。Render workspaceは1件見えるが、対象確定前の破壊的変更は避ける。
