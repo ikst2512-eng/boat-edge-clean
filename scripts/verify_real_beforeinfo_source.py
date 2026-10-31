@@ -28,6 +28,7 @@ def main(day=None):
     from clean_racecard import _fetch_preview
     from research_model import JST
     matched=[]
+    timing={"verified_races_with_saved_forecast":0,"preview_available_at_forecast_generation":0,"preview_observed_after_forecast_generation":0,"forecast_metadata_missing_or_invalid":0}
     checked=0
     seen=set()
     status_counts={}
@@ -60,6 +61,23 @@ def main(day=None):
                     or counts["course_permutation_valid"] is not True
                     or any(counts["source_status"].get(k) != "ok" for k in ("tkz", "stt"))):
                     raise RuntimeError("REAL_BEFOREINFO_INCOMPLETE_SIX_BOAT_EVIDENCE")
+                archive=Path(__file__).resolve().parents[1]/"research_snapshots"/(code+".json")
+                if archive.is_file():
+                    timing["verified_races_with_saved_forecast"]+=1
+                    try:
+                        saved=json.loads(archive.read_text(encoding="utf-8"))
+                        generated=datetime.fromisoformat(saved["generated_at"])
+                        observations=[datetime.fromisoformat(audit["sources"][kind]["observed_at"])
+                                      for kind in ("tkz","stt")]
+                        if (saved.get("race_code")!=code or generated.utcoffset() is None
+                                or any(t.utcoffset() is None for t in observations)):
+                            raise ValueError("unverified timestamp")
+                        if max(observations)<=generated:
+                            timing["preview_available_at_forecast_generation"]+=1
+                        else:
+                            timing["preview_observed_after_forecast_generation"]+=1
+                    except (KeyError, ValueError, TypeError, OSError):
+                        timing["forecast_metadata_missing_or_invalid"]+=1
                 matched.append(code)
         except (ValueError,KeyError):
             continue
@@ -67,6 +85,7 @@ def main(day=None):
         raise RuntimeError("REAL_BEFOREINFO_NO_VERIFIED_RACE: source columns exist but no actual race passes full adapter checks")
     evidence["verified_race_code"]=matched[0]
     evidence["coverage_sample"]={"checked":checked,"verified":len(matched),"statuses":status_counts,"verified_race_codes":matched}
+    evidence["forecast_timing_comparison"]=timing
     print(json.dumps({"source":"BoatraceCSV real HTTPS","day":day,"evidence":evidence},ensure_ascii=False))
 if __name__=="__main__":
     main(sys.argv[1] if len(sys.argv)>1 else None)
