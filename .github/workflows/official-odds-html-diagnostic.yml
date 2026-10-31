@@ -1,0 +1,41 @@
+name: Official odds upstream HTML diagnostic
+on:
+  pull_request:
+    paths: [".github/workflows/official-odds-html-diagnostic.yml"]
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Diagnose official response structure without storing user data
+        run: |
+          python - <<'PY'
+          from urllib.request import Request,urlopen
+          from html.parser import HTMLParser
+          import datetime,re
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
+          url=f'https://www.boatrace.jp/owpc/pc/race/odds3t?hd={day}&jcd=01&rno=1'
+          class Inspect(HTMLParser):
+              def __init__(self):super().__init__();self.tags={};self.title='';self.in_title=False
+              def handle_starttag(self,t,a):
+                  self.tags[t]=self.tags.get(t,0)+1
+                  if t=='title':self.in_title=True
+              def handle_endtag(self,t):
+                  if t=='title':self.in_title=False
+              def handle_data(self,d):
+                  if self.in_title:self.title+=d
+          try:
+              req=Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'text/html'})
+              with urlopen(req,timeout=20) as r:
+                  body=r.read(1500001).decode('utf-8','replace')
+                  print('HTTP:',r.status,'final_host:',r.url.split('/')[2],'content_type:',r.headers.get('Content-Type'),'bytes:',len(body))
+              p=Inspect();p.feed(body)
+              print('HTML title:',repr(p.title[:180]))
+              print('Table tags:',p.tags.get('table',0),'rows:',p.tags.get('tr',0),'scripts:',p.tags.get('script',0))
+              print('Leading HTML:',repr(re.sub(r'\\s+',' ',body[:450])))
+              print('Known access-block indicators:',{k:(k.lower() in body.lower()) for k in ['access denied','captcha','maintenance','JavaScriptを有効','アクセスが集中']})
+          except Exception as e:
+              print('Upstream request error:',type(e).__name__,str(e)[:200])
+              raise
+          PY
