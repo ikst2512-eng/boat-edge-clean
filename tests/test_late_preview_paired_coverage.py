@@ -54,14 +54,28 @@ class PairedPreviewCoverageTests(unittest.TestCase):
                 folder=root/day/kind
                 folder.mkdir(parents=True)
                 for code,status in entries:
+                    if kind=="tkz":
+                        row={**{f"艇{i}_展示タイム":"6.75" for i in range(1,7)},
+                             **{f"艇{i}_チルト":"0" for i in range(1,7)}}
+                    else:
+                        row={**{f"艇{i}_コース":str(i) for i in range(1,7)},
+                             **{f"艇{i}_スタート展示":"0.12" for i in range(1,7)}}
                     (folder/(code+".json")).write_text(json.dumps({
-                        "race_code":code,"kind":kind,"six_lane_validation":status,
+                        "race_code":code,"kind":kind,"six_lane_validation":status,"source_row":row,
                         "status":"late_preview_unvalidated_not_research_forecast"}))
             result=paired_six_lane_coverage(day,root)
             self.assertEqual(result["tkz_complete"],2)
             self.assertEqual(result["stt_complete"],2)
             self.assertEqual(result["paired_complete"],1)
             self.assertEqual(result["paired_codes"],["202610310101"])
+            # A stored "complete" label is not enough if the source row is corrupt.
+            corrupt=root/day/"tkz"/"202610310101.json"
+            record=json.loads(corrupt.read_text())
+            record["source_row"]["艇6_展示タイム"]=""
+            corrupt.write_text(json.dumps(record))
+            rejected=paired_six_lane_coverage(day,root)
+            self.assertEqual(rejected["paired_complete"],0)
+            self.assertEqual(rejected["tkz_complete"],1)
 
 
 if __name__=="__main__":
