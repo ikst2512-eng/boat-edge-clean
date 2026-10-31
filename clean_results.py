@@ -11,7 +11,6 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parent
-CODE_RE = re.compile(r"^[0-9]{8}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])$")
 
 
 def read_result(hd, jcd, rno):
