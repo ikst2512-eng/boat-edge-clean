@@ -51,6 +51,14 @@ def collect(day=None, root=None, fetch=None, clock=None):
                                    "received_at_jst":now().isoformat(),"saved":0,
                                    "source_rows":None,"pre_deadline_2min":None,"pre_deadline_12min":None,
                                    "six_lane_validation":None}
+    available=sum(1 for entry in report["kinds"].values() if entry.get("status") != "unavailable")
+    report["sources_available"]=available
+    report["sources_unavailable"]=len(KINDS)-available
+    report["saved_total"]=sum(entry["saved"] for entry in report["kinds"].values())
+    # A successful Actions job must not be mistaken for successful upstream acquisition.
+    report["status"]=("source_unavailable" if available == 0 else
+                      "partial_source_failure" if available < len(KINDS) else
+                      "sources_retrieved")
     return report
 
 if __name__=="__main__":
