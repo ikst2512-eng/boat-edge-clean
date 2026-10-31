@@ -50,8 +50,8 @@ def main():
         with open(path,"a") as file:
             file.write("## Scheduled capture run audit\n")
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
-            file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\\n")
-            file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\\n")
+            file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
+            file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
 
 if __name__=="__main__":
     main()
