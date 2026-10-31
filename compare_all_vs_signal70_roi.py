@@ -32,7 +32,26 @@ def run(days=DAYS):
             if selected["evaluated"] else None)
         selected.setdefault("roi_pct",{})[key]=(round(100*selected["returns_yen"][key]/
             (selected["payout_verified"]*5000),2) if selected["payout_verified"] else None)
+    baseline_verified=baseline["roi"]["top10"]["races"]
+    if selected["payout_verified"] > baseline_verified or selected["evaluated"] > baseline["counts"]["evaluated"]:
+        raise ValueError("selected cohort exceeds baseline")
+    lift={}
+    for n in (3,5,10):
+        key=f"top{n}"
+        all_rate=baseline["hit_rate_pct"][key]
+        chosen_rate=selected["hit_rate_pct"][key]
+        all_roi=baseline["roi"][key]["roi_pct"]
+        chosen_roi=selected["roi_pct"][key]
+        lift[key]={
+            "hit_rate_lift_pp":round(chosen_rate-all_rate,2) if chosen_rate is not None and all_rate is not None else None,
+            "roi_lift_pp":round(chosen_roi-all_roi,2) if chosen_roi is not None and all_roi is not None else None,
+            "baseline_net_yen":baseline["roi"][key]["return_yen"]-baseline["roi"][key]["invested_yen"],
+            "selected_net_yen":selected["returns_yen"][key]-selected["payout_verified"]*5000,
+        }
     return {"schema":"CLEAN_ALL_VS_SIGNAL70_VERIFIED_ROI_V1","days":per_day,
+            "comparison":{"selection_share_pct":round(100*selected["evaluated"]/baseline["counts"]["evaluated"],2) if baseline["counts"]["evaluated"] else None,
+                          "by_topn":lift},
+
             "baseline":{"evaluated":baseline["counts"]["evaluated"],
                 "payout_verified":baseline["roi"]["top10"]["races"],
                 "hits":baseline["hits"],"hit_rate_pct":baseline["hit_rate_pct"],
