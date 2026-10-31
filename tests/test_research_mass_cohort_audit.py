@@ -38,6 +38,27 @@ class MassCohortAudit(unittest.TestCase):
             self.assertEqual(result["by_mass_cohort"]["without_topn_mass"]["matched"], 1)
             self.assertEqual(result["by_mass_cohort"]["with_topn_mass"]["top3"], 1)
 
+    def test_unmatched_forecast_day_is_not_hidden(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "research_snapshots").mkdir()
+            (root / "confirmed_results").mkdir()
+            code = "202610310101"
+            (root / "research_snapshots" / (code + ".json")).write_text(json.dumps({
+                "race_code": code, "status": "research", "validated": False,
+                "predictions": ["1-2-3"],
+            }))
+            with patch.object(audit, "ROOT", root):
+                result = audit.run()
+            day = result["by_day"]["20261031"]
+            self.assertEqual(day["matched"], 0)
+            self.assertEqual(day["saved_forecasts"], 1)
+            self.assertEqual(day["saved_results"], 0)
+            self.assertEqual(day["forecast_without_result"], 1)
+            self.assertEqual(day["result_coverage_pct"], 0.0)
+            self.assertEqual(day["sample_status"], "insufficient_sample")
+            self.assertIsNone(day["top10_rate_pct"])
+
     def test_invalid_finishes_and_tickets_are_rejected(self):
         valid_tickets = ["1-2-3", "1-3-2", "2-1-3", "2-3-1", "3-1-2",
                          "3-2-1", "1-2-4", "1-4-2", "4-1-2", "4-2-1"]
