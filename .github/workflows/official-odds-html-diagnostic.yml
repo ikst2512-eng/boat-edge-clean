@@ -39,6 +39,11 @@ jobs:
                   odds=parse_official_odds_table(body)
                   assert len(odds)==120
                   print('Official odds parser: PASS 120 unique trifecta combinations')
+                  api=f'https://boat-edge-clean.onrender.com/api/odds?hd={day}&jcd=24&rno=12'
+                  with urlopen(api,timeout=25) as rr:
+                      payload=__import__('json').load(rr)
+                      assert rr.status==200 and payload.get('ok') is True and len(payload.get('odds',{}))==120
+                      print('Render odds API: PASS 120 official combinations')
               print('Leading HTML:',repr(re.sub(r'\\s+',' ',body[:450])))
               print('Known access-block indicators:',{k:(k.lower() in body.lower()) for k in ['access denied','captcha','maintenance','JavaScriptを有効','アクセスが集中']})
           except Exception as e:
