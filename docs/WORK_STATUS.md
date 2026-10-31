@@ -82,3 +82,9 @@
 - `.github/workflows/site-regression.yml` は `tests/site-regression.cjs` のpush変更を検知する構成。コミットに対するPRトリガーのworkflow run検索結果は0件だったが、これはpush CI成功/失敗の証拠にはならない。Node回帰テスト実行・CI成功・本番ページ動作はいずれも未確認。
 - 公開RenderのURLはWeb取得でアクセス不可のため、実ブラウザ上の10/31再現確認は未完了。Renderワークスペースは利用者の対象指定が未確定でサービス変更/旧サイト削除は実施していない。
 - #725 は予想画面の別作業PRとして変更せず、予想精度/データ取得の独立PRも未変更。
+
+## 2026-11-01 Render現況確認（管理API実測）
+- Render workspace `My Workspace` (`tea-db8svlcs728c73avi3h0`) のWebサービス一覧を取得。取得されたサービスは `boat-edge-clean`（`srv-dbcthfrncjis73djj8qg`、`https://boat-edge-clean.onrender.com`）1件のみで、GitHub `ikst2512-eng/boat-edge-clean` の `main` を自動デプロイ。少なくともこのワークスペースには別名の旧Webサービスは存在しない。旧リポジトリそのものや他の公開先は未削除。
+- Render deploy履歴で過去開催日程404修正 `db62cf35be0af88ce3e768e522c1b35e4567cefb` のデプロイ成功と、回帰テスト追加 `ce037349b472dc65c313dc01bacef735d742d364` のデプロイ成功を確認。最新確認のlive deploy `dep-dbj4k6dh3lcs7386e51g` は `0fdac4fe62381b422b8e841b388eac8a7cb71578`（2026-10-31 20:06 UTC終了）で成功。デプロイ成功はブラウザ描画確認ではない。
+- 公開 `/api/clean-schedule?date=20261031` と公開ページをWeb取得で確認しようとしたが、この環境からアクセス不能。2026-10-31の出走表・予想・結果の表示は引き続き未検証。
+- 次: GitHub Pagesの公開URL・旧リポジトリ依存と表示環境を検証、既存ブラウザCIの実行結果を取得。破壊的削除は依存確認後。
