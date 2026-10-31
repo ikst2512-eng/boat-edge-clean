@@ -1301,7 +1301,7 @@ async function loadPredictions(force=false){
    predictionModes.research={tickets:fresh.predictions,probabilities:{},odds:{}};
    applyPredictionMode();
    label.textContent='CLEAN研究予想（締切前の取得分）｜正式な精度検証は未完了';
-   document.getElementById('snapshotMeta').textContent='研究予想APIから取得。Git原本の正式な保存・照合証明は未確認。';
+   document.getElementById('snapshotMeta').textContent=fresh.provenance_warning==='SOURCE_RECEIPT_ORDER_UNVERIFIED'?'研究予想API：元データ受信順序・時刻証拠が未検証です。正式採点対象外。':'研究予想APIから取得。Git原本の正式な保存・照合証明は未確認。';
    document.getElementById('sourceMeta').replaceChildren();
    drawPredictions();
    void loadTicketOdds(key,token);
