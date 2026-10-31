@@ -195,6 +195,38 @@ jobs:
             }finally{await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Verify historical six-racer card in public browser
+        timeout-minutes: 3
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const page=await browser.newPage({viewport:{width:390,height:844}});
+              const url=new URL(process.env.PAGE_URL);
+              url.searchParams.set('date','2026-10-31');
+              url.searchParams.set('venue','07');
+              url.searchParams.set('race','8');
+              const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
+              if(response?.status()!==200)throw Error('PUBLIC_PAGES_HTTP '+response?.status());
+              await page.evaluate(async()=>{
+                datePinned=true;venueSpecified=true;
+                setView('card');
+                await loadRaceData(true);
+              });
+              const status=await page.locator('#raceDataStatus').innerText();
+              const count=await page.locator('#raceDataRows tr').count();
+              if(count!==6)throw Error('PUBLIC_HISTORICAL_RACECARD_NOT_SIX_LANES '+JSON.stringify({count,status}));
+              const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
+              if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
+              if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
+              console.log('CLEAN_HISTORICAL_SIX_RACER_BROWSER_PASS 202610310708',status);
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
       - name: Verify published CLEAN confirmed result in browser
         timeout-minutes: 3
         continue-on-error: false
