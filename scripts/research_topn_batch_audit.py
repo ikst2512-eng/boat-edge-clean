@@ -86,6 +86,10 @@ def run():
     for cohort in by_mass_cohort.values():
         for n in (3, 5, 10):
             cohort[f"top{n}_rate_pct"] = round(100 * cohort[f"top{n}"] / cohort["matched"], 2) if cohort["matched"] else None
+    for day, daily in by_day.items():
+        daily["saved_forecasts"] = daily_forecast_count.get(day, 0)
+        daily["result_coverage_pct"] = round(100 * daily["matched"] / daily["saved_forecasts"], 2) if daily["saved_forecasts"] else None
+        daily["sample_status"] = "insufficient_sample" if daily["matched"] < 30 else "descriptive_only"
     for daily in by_day.values():
         for n in (3, 5, 10):
             daily[f"top{n}_rate_pct"] = round(100 * daily[f"top{n}"] / daily["matched"], 2) if daily["matched"] else None
