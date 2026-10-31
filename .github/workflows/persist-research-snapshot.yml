@@ -126,7 +126,34 @@ jobs:
           if datetime.now(timezone.utc) >= datetime.fromisoformat(record["cutoff_jst"]):
               raise ValueError("Publication cutoff passed before Git push")
           PY
-          git push origin HEAD:main
+          # Other CLEAN data writers may move main between checkout and push.
+          # Retry non-force pushes only while this immutable forecast remains predeadline.
+          published=0
+          for attempt in 1 2 3 4 5; do
+            python - <<'PY'
+          import json, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+          paths = subprocess.check_output(
+              ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+              text=True).splitlines()
+          if len(paths) != 1 or not paths[0].startswith("research_snapshots/"):
+              raise ValueError("Expected one immutable snapshot commit")
+          record = json.loads(Path(paths[0]).read_text(encoding="utf-8"))
+          if datetime.now(timezone.utc) >= datetime.fromisoformat(record["cutoff_jst"]):
+              raise ValueError("Publication cutoff reached during retry")
+          PY
+            if git push origin HEAD:main; then
+              published=1
+              break
+            fi
+            git fetch origin main
+            git -c rebase.autoStash=true rebase origin/main
+          done
+          if [ "$published" -ne 1 ]; then
+            echo "::error::Could not publish predeadline snapshot after five non-force attempts"
+            exit 1
+          fi
           # Verify the remote branch actually contains this exact new snapshot commit.
           committed="$(git rev-parse HEAD)"
           remote="$(git ls-remote origin refs/heads/main | cut -f1)"
