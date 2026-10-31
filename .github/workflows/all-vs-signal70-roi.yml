@@ -1,0 +1,19 @@
+name: CLEAN all versus signal70 verified payout comparison
+on:
+  pull_request:
+    paths: ['compare_all_vs_signal70_roi.py', '.github/workflows/all-vs-signal70-roi.yml']
+  push:
+    branches: [main]
+    paths: ['payout_evidence/**', 'confirmed_results/**', 'prospective_predictions/**', 'compare_all_vs_signal70_roi.py']
+  workflow_dispatch:
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python compare_all_vs_signal70_roi.py
