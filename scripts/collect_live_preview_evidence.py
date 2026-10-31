@@ -13,6 +13,26 @@ from research_model import JST
 from late_preview_capture import save_preview, KINDS
 from scripts.research_preview_csv_probe import BASE
 
+def paired_six_lane_coverage(day, root):
+    """Count only races with independently saved complete tkz and stt evidence."""
+    sets = {}
+    for kind in ("tkz", "stt"):
+        good = set()
+        for file in (Path(root) / day / kind).glob("*.json"):
+            try:
+                record = json.loads(file.read_text(encoding="utf-8"))
+                if (record.get("race_code") == file.stem and record.get("kind") == kind
+                        and record.get("six_lane_validation") == "complete"
+                        and record.get("status") == "late_preview_unvalidated_not_research_forecast"):
+                    good.add(file.stem)
+            except (OSError, ValueError, TypeError, AttributeError):
+                continue
+        sets[kind] = good
+    return {"tkz_complete": len(sets["tkz"]), "stt_complete": len(sets["stt"]),
+            "paired_complete": len(sets["tkz"] & sets["stt"]),
+            "paired_codes": sorted(sets["tkz"] & sets["stt"])}
+
+
 def collect(day, root, fetch=None):
     datetime.strptime(day,"%Y%m%d")
     summary={"day":day,"capture_policy":"before_deadline_minus_2min_buffer","kinds":{}}
@@ -29,6 +49,7 @@ def collect(day, root, fetch=None):
             summary["kinds"][kind]={"status":"ok","saved":len(records)}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as error:
             summary["kinds"][kind]={"status":"unavailable_or_invalid","error":type(error).__name__}
+    summary["paired_six_lane_coverage"]=paired_six_lane_coverage(day,root)
     return summary
 
 if __name__=="__main__":
