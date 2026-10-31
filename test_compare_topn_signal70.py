@@ -22,4 +22,27 @@ class Signal70Tests(unittest.TestCase):
             self.assertFalse(result["signal_is_empirical_confidence"])
             self.assertEqual(result["groups"]["signal_70_plus"]["roi_denominator"],"payout_verified_only_not_all_evaluated_races")
             self.assertEqual(result["groups"]["signal_70_plus"]["payout_coverage_pct"],0.0)
+    def test_inconsistent_rank_never_inflates_hit_rate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            (d/"202610290101.json").write_text(json.dumps({"national_win_rates":[1]*6}))
+            def scorer(code,root):
+                return {"status":"evaluated","formal":False,"audited":True,"rank":2,
+                        "top3":False,"top5":True,"top10":True}
+            result=compare("20261029",root,scorer,lambda rates:.8)
+            group=result["groups"]["signal_70_plus"]
+            self.assertEqual(group["evaluated"],0)
+            self.assertEqual(group["rejected"],1)
+            self.assertIsNone(group["hit_rate_pct"]["top3"])
+
+    def test_missing_rank_with_hit_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            (d/"202610290101.json").write_text(json.dumps({"national_win_rates":[1]*6}))
+            def scorer(code,root):
+                return {"status":"evaluated","formal":False,"audited":True,"rank":None,
+                        "top3":False,"top5":False,"top10":True}
+            result=compare("20261029",root,scorer,lambda rates:.8)
+            self.assertEqual(result["groups"]["signal_70_plus"]["rejected"],1)
+            self.assertEqual(result["groups"]["signal_70_plus"]["evaluated"],0)
 if __name__=="__main__":unittest.main()
