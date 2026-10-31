@@ -16,7 +16,9 @@ class MassCohortAudit(unittest.TestCase):
             for i, mass in [(1, None), (2, {"3": 18, "5": 26, "10": 43})]:
                 code = f"2026103101{i:02d}"
                 forecast = {"race_code": code, "status": "research", "validated": False,
-                            "model_version": "test", "predictions": ["1-2-3", "1-3-2", "2-1-3",
+                            "model_version": "test", "generated_at": "2026-10-31T10:00:00+09:00",
+                            "cutoff_jst": "2026-10-31T10:30:00+09:00",
+                            "source_deadline_jst": "2026-10-31T10:42:00+09:00", "predictions": ["1-2-3", "1-3-2", "2-1-3",
                             "2-3-1", "3-1-2", "3-2-1", "1-2-4", "1-4-2", "4-1-2", "4-2-1"]}
                 if mass is not None:
                     forecast.update(topn_model_mass_pct=mass, confidence_calibrated=False)
