@@ -1,0 +1,30 @@
+import tempfile
+import unittest
+from datetime import datetime
+from pathlib import Path
+from research_model import JST
+from scripts.capture_official_beforeinfo_probe import capture
+
+class OfficialProbeTests(unittest.TestCase):
+    def test_http_receipt_is_not_t12_proof(self):
+        with tempfile.TemporaryDirectory() as d:
+            now=datetime(2026,11,1,12,0,tzinfo=JST)
+            result=capture("202611010708",d,fetch=lambda url:b"<html>beforeinfo</html>",clock=lambda:now)
+            self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+            self.assertFalse(result["t12_eligible"])
+            self.assertFalse(result["forecast_usable"])
+            self.assertEqual(result["complete_six_lanes"],"unverified")
+            self.assertTrue((Path(d)/"20261101/202611010708/manifest.json").exists())
+            self.assertEqual(capture("202611010708",d,fetch=lambda url:b"x",clock=lambda:now)["status"],"official_probe_failed")
+    def test_failure_fails_closed(self):
+        def missing(url): raise TimeoutError("offline")
+        with tempfile.TemporaryDirectory() as d:
+            r=capture("202611010708",d,fetch=missing)
+            self.assertEqual(r["status"],"official_probe_failed")
+            self.assertFalse(r["t12_eligible"])
+            self.assertEqual(list(Path(d).rglob("*.html")),[])
+    def test_rejects_bad_race_code(self):
+        for code in ("202611010799","202611010000","2026110107AA","202611010708/../"):
+            with self.assertRaises(ValueError):capture(code)
+
+if __name__=="__main__":unittest.main()
