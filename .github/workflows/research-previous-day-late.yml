@@ -37,9 +37,12 @@ jobs:
           data=json.loads(Path('late_research_report.json').read_text(encoding='utf-8'))
           paired=data['paired_evaluation']['paired_races']
           recovered=data['artifact_recovery']['imported_immutable_candidates']
+          diagnosis=data.get('diagnosis',{})
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
               out.write(f'Prospective late records imported: **{recovered}**; paired confirmed races: **{paired}**.\\n')
               if not paired: out.write('No eligible Top-N hit rate yet; do not interpret this as 0%.\\n')
+              if diagnosis.get('missing_prospective_candidates'): out.write('Upstream blocker: no prospective late predictions recovered.\\n')
+              elif not paired: out.write(f"Early/result missing: {diagnosis.get('candidate_records_without_early_or_result',0)}; outside cutoff: {diagnosis.get('candidate_records_outside_cutoff',0)}.\\n")
           PY
       - name: Archive evaluation evidence only
         if: always()
