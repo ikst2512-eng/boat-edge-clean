@@ -81,3 +81,8 @@
 - PR #723に、HTTP/transport失敗 (`source_unavailable`) とローカル書込衝突・形式不正 (`capture_invalid`) を別の状態として報告する変更を追加。`sources_unavailable` に保存時 `FileExistsError` を誤計上しない。部分的な保存処理失敗は `partial_capture_failure` と区別する。
 - 既存テストの同一バッチ再実行ケースに `capture_invalid=5`、`sources_unavailable=0` を検証する回帰アサーション追加。収集Actions summaryもエラー件数を区別。
 - 実際のT-12/6艇取得保証は未成立。追加修正のCIは未確認。main統合なし。
+
+### 2026-11-01 CIトリガー修正（PR #723）
+- 原因: `late-preview-evidence-tests.yml` のPR pathsには `collect_late_preview_once.py` と `tests/test_collect_late_preview_once.py` が含まれておらず、収集レポートの続行修正コミットで対象CIが再実行されていなかった。
+- 変更: 取得レポート・テストファイルをpathsへ追加し、同ワークフローで `test_collect_late_preview_once.py` を明示実行。既存CIを拡張し、重複CIは新設しない。
+- 検証: 変更後Actions実行を確認するまで成功扱いしない。main未統合。
