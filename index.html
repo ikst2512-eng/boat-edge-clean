@@ -779,7 +779,7 @@ async function loadHeldVenues(force=false){
     if(api.status!==503)break;
    }
    if(!api?.ok){
-    if(api?.status===404){throw Error('SCHEDULE_NOT_PUBLISHED');}
+    if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED');
     if(date<fmt(jst()))data=await historicalHeldVenues(date);
     else throw Error('INDEPENDENT_SCHEDULE_UNAVAILABLE');
    }
