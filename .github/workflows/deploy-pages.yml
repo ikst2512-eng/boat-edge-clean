@@ -252,6 +252,7 @@ jobs:
               await page.locator('#resultDetail .result-summary').waitFor({state:'visible',timeout:30000});
               const actual=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
               if(actual.join('-')!=='3-4-1')throw Error('PUBLIC_ARCHIVED_RESULT_MISMATCH: '+actual.join('-'));
+              await page.locator('#resultStatus').filter({hasText:'CLEAN保存済み結果'}).waitFor({state:'visible',timeout:30000});
               if(!(await page.locator('#resultStatus').innerText()).includes('CLEAN保存済み結果'))throw Error('PUBLIC_RESULT_STATUS_NOT_CONFIRMED');
               console.log('DEPLOYED_ARCHIVED_RESULT_PASS 202610270101 3-4-1');
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
