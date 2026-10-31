@@ -34,4 +34,14 @@ class Timing(unittest.TestCase):
         received=datetime(2026,11,1,18,40,tzinfo=JST)
         self.assertEqual(classify(row,received,margin_minutes=12),"pre_cutoff_observed")
 
+    def test_t12_cutoff_boundary_rejects_source_or_receipt_at_cutoff(self):
+        row={"レースコード":"202611010101","締切時刻":"2026-11-01 19:00:00",
+             "取得日時":"2026-11-01T18:47:59+09:00"}
+        received=datetime(2026,11,1,18,47,59,tzinfo=JST)
+        self.assertEqual(classify(row,received,margin_minutes=12),"pre_cutoff_observed")
+        received=datetime(2026,11,1,18,48,0,tzinfo=JST)
+        self.assertEqual(classify(row,received,margin_minutes=12),"too_late")
+        row["取得日時"]="2026-11-01T18:48:00+09:00"
+        self.assertEqual(classify(row,received,margin_minutes=12),"too_late")
+
 if __name__=="__main__":unittest.main()
