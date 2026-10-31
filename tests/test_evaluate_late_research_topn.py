@@ -17,6 +17,7 @@ class HistoricalCliTest(unittest.TestCase):
             report=json.loads(run.stdout)
             self.assertEqual(report["date"],"20261031")
             self.assertEqual(report["paired_races"],0)
+            self.assertEqual(sum(report["rejected"].values()),0)
             self.assertIsNone(report["topn"]["10"]["late_hit_rate_pct"])
 
 
@@ -57,7 +58,9 @@ class PairedTopNTest(unittest.TestCase):
             (root/"research_snapshots"/(code+".json")).write_text(json.dumps(early))
             late["generated_at_jst"]="2026-10-31T17:09:00+09:00"
             (root/"late"/day/(code+".json")).write_text(json.dumps(late))
-            self.assertEqual(evaluate(day,root/"late",root)["paired_races"],0)
+            rejected=evaluate(day,root/"late",root)
+            self.assertEqual(rejected["paired_races"],0)
+            self.assertEqual(rejected["rejected"]["outside_cutoff"],1)
 
 
 if __name__=="__main__":
