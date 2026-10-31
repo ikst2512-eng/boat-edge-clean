@@ -25,6 +25,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_compare_topn_signal70
+      - name: Require strict and selective audit cohorts to agree
+        run: |
+          python - <<'PY'
+          from aggregate_prospective_topn import summary
+          from compare_topn_signal70 import compare
+          days = ("20261029", "20261030")
+          strict = summary(days)
+          reported = sum(group["evaluated"] for day in days for group in compare(day)["groups"].values())
+          print("STRICT_EVALUATED", strict["counts"]["evaluated"], "SELECTIVE_EVALUATED", reported)
+          if strict["counts"]["evaluated"] != reported:
+              raise SystemExit("AUDIT_COHORT_MISMATCH: selective hit rates cannot be treated as verified")
+          PY
       - name: Compare observed signal groups Oct 29
         run: python compare_topn_signal70.py 20261029
       - name: Compare observed signal groups Oct 30
