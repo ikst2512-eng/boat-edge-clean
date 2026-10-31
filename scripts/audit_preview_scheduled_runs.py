@@ -2,7 +2,6 @@
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from datetime import datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
