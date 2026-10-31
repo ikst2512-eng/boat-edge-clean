@@ -6,6 +6,7 @@ on:
       - 'research_model.py'
       - 'collect_research_daily.py'
       - 'tests/test_daily_research_mass_contract.py'
+      - 'tests/test_daily_research_written_mass.py'
       - 'scripts/select_upcoming_research_race.py'
       - 'tests/test_scheduled_research_selector.py'
       - 'tests/test_research_topn_mass_contract.py'
@@ -23,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Check real daily snapshot write and immutable retry
+        run: python -m unittest discover -s tests -p 'test_daily_research_written_mass.py' -v
       - name: Check daily capture TopN contract
         run: python -m unittest discover -s tests -p 'test_daily_research_mass_contract.py' -v
       - name: Check TopN model probability mass contract
