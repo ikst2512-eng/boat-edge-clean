@@ -117,3 +117,9 @@
 - `AGENTS.md` スコープは `boat-edge-clean` で、旧 `boat-edge` の無断変更/削除は禁止。この制約に沿って旧リポジトリへのリダイレクト変更・リポジトリ削除は行っていない。旧GitHub Pages公開状態も未確認で「旧サイト撤去済み」としない。
 - GitHub Pages公開URLとRender公開URLへのWeb直接アクセス、コンテナからのgithub.com名前解決は失敗。公開DOMの2026-10-31実レース検証は未達。Render最終確認のlive commit `65447516f10b02282795c7900c0a6f1bf585ba00`。
 - メインの次手は旧リポジトリ変更の許可範囲とPages公開サービス構成が確定次第、旧UIを新サイトへ安全移行すること。現行サイトは公開ブラウザ検証を別手段で行う。担当外#725/#722/#723/#654を勝手に統合しない。
+
+## 2026-11-01 履歴出走表本番HTTP検証の実証結果
+- 既にmain統合済みPR #727 のGitHub Actions run `41238365549` を実確認。head `b8412fdbac4c83ecd56e1c8eb07c78983ae1bdfc`、workflow `Check real live predeadline racecard` 結果 success。
+- `historical-production-smoke` job `124646817195` success。実行スクリプトはRender本番 `https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261031&jcd=09&rno=12` をHTTP取得し、レースキー `20261031-09-12`、`historical_reference_only=true`、6艇の枠番1〜6・異なる4桁登録番号・race_card監査okをassert。workflowおよび該当jobの成功を確認したため、この対象の履歴出走表APIは**本番HTTP検証成功**とする。
+- 同じrunの`syntax`はsuccess、`e2e-live-race`はPR上の仕様でskipped。前者は締切前実レース可用性の証拠ではない。ブラウザの出走表画面、10/31の予想・展示・結果、GitHub Pages発行の正常動作は引き続き未検証。
+- 旧 `ikst2512-eng/boat-edge` は別repoかつAGENTS.mdが無断変更/削除を禁止。旧repoの公開停止・リダイレクトは実施せず、現行Renderに別名の旧webサービスは見つかっていない。安全な撤去のため旧Pages公開確認が残る。今回新規コード・PRは不要につき作成しない。
