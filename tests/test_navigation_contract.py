@@ -19,6 +19,11 @@ class NavigationContractTest(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
+    def test_nested_forecast_nav_is_hidden_not_deleted(self):
+        self.assertIn('#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}', self.index)
+        self.assertIn('function setForecastPane(pane)', self.index)
+        self.assertIn('class="forecast-combined-race"', self.index)
+
     def test_duplicate_forecast_picker_never_reappears(self):
         self.assertIn("document.getElementById('forecastQuick').hidden=true", self.index)
         self.assertNotIn("document.getElementById('forecastQuick').hidden=view!=='forecast'", self.index)
