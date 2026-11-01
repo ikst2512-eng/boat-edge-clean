@@ -49,6 +49,16 @@ class FirstAddAuditTests(unittest.TestCase):
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T10:01:00+09:00"))):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
+    def test_commit_preceding_generation_rejected(self):
+        obj={"race_code":"202610281201","status":"prospective_candidate","formal":False,"scoring":False,
+             "source_deadline_jst":"2026-10-28T14:00:00+09:00",
+             "cutoff_jst":"2026-10-28T13:48:00+09:00",
+             "generated_at":"2026-10-28T10:00:00+09:00",
+             "source_title_received_jst":"2026-10-28T09:59:00+09:00",
+             "source_cards_received_jst":"2026-10-28T09:59:01+09:00"}
+        with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T09:59:30+09:00"))):
+            with self.assertRaises(ValueError):
+                audit.inspect("prospective_predictions/202610281201.json")
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
