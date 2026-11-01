@@ -82,7 +82,7 @@ class OfficialProbeTests(unittest.TestCase):
                 self.assertFalse(result["forecast_usable"])
                 self.assertFalse(list(Path(root).rglob("manifest.json")))
         with tempfile.TemporaryDirectory() as root:
-            result=capture("202611010708",root,fetch=lambda url:b"\\xef\\xbb\\xbf  <!DOCTYPE html><html></html>")
+            result=capture("202611010708",root,fetch=lambda url:bytes.fromhex("efbbbf")+b"  <!DOCTYPE html><html></html>")
             self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
 
     def test_failure_fails_closed(self):
