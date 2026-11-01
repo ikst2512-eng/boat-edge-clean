@@ -10,17 +10,22 @@ import json
 import re
 
 LABELS=("展示タイム","チルト","スタート展示","進入","ST","風向","風速","波高")
+# Inert HTML must never be mistaken for six-lane evidence. The inventory is
+# diagnostic only and intentionally does not certify publication or completeness.
+INERT_TAGS=frozenset(("script","style","template","noscript","head","svg","iframe"))
 class VisibleText(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.fragments=[]
-        self.hidden=0
+        self.inert_stack=[]
     def handle_starttag(self,tag,attrs):
-        if tag in ("script","style"):self.hidden+=1
+        if tag in INERT_TAGS:
+            self.inert_stack.append(tag)
     def handle_endtag(self,tag):
-        if tag in ("script","style") and self.hidden:self.hidden-=1
+        if tag in INERT_TAGS and self.inert_stack and self.inert_stack[-1]==tag:
+            self.inert_stack.pop()
     def handle_data(self,data):
-        if not self.hidden:
+        if not self.inert_stack:
             t=" ".join(data.split())
             if t:self.fragments.append(t)
 
