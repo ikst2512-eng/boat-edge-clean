@@ -67,7 +67,8 @@ class CaptureStatusTests(unittest.TestCase):
             state=publish_status({"new_saved":["202610280101"],"source_status":"available",
                 "eligible_forecasts_today":1,"published_title_rows":100,"published_card_rows":100},
                 Path(tmp),datetime(2026,10,28,6,0,tzinfo=JST))
-            self.assertTrue(state["production_success_proven"])
+            self.assertTrue(state["research_archives_present"])
+            self.assertFalse(state["production_success_proven"])
 
 
 if __name__=="__main__":unittest.main()
