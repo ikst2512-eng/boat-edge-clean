@@ -680,3 +680,8 @@
 ## 2026-11-01 公式HTML診断ジョブの重複を統合
 - 既存 `.github/workflows/late-preview-capture.yml` には公式HTML原本保存後の診断が2ステップ重複していた。単なるラベル抽出・別JSON保存ステップを撤去し、SHA一致、T-12/予想使用禁止、6艇未検証のassertを含む既存 `official_preview_probe/label_inventory.json` 出力の単一診断ステップへ統合（main `f1c5a9858735966b4ccde2ac0245a72f139a139b`）。既存artifact uploadで診断JSONを引き続き保存。
 - 新しいworkflow/PR/定期ジョブなし。変更後CI実行・手動公式HTTP実受信・T-12実測は未確認。旧サイト/予想モデル変更なし。
+
+
+## 2026-11-01 公式probe失敗レポートをartifact保存
+- 手動 `official_probe_race_code` を指定して公式HTTP取得が失敗すると、従来は標準出力だけでartifactに失敗理由が残らなかった。既存 `late-preview-capture.yml` の公式probe実行を `set -o pipefail` と `tee official_preview_probe/attempt_report.json` に変更し、取得成功・失敗どちらの場合も受信時刻/エラー分類をartifactへ保全。元のCLIの終了コード1はpipefailで維持（main `e1960a48435a746eded7412edc9bfb557f04ef2d`）。artifactパスを明示（main `f94a07613f2e60345b0a1dbcf2d630690ee5692f`）。
+- この環境からの `www.boatrace.jp` 直接HTTPアクセスはDNS名前解決失敗。GitHub Actionsからの公式HTML実受信、今回のCI成功、T-12 6艇数値は未確認。旧repo/旧Pages/予想モデルには変更なし。
