@@ -783,3 +783,8 @@
 - 既存 `inspect_official_beforeinfo_html.py` は保存manifestの開始・受信時刻を検証しても診断出力から省略していたため、ラベル調査結果と観測時刻の照合が難しかった。`request_started_at_jst` / `received_at_jst` / `http_elapsed_seconds` を出力し、既存テストでJST・実経過秒数を確認。
 - PR head `0193e2398e38d13d01607bb25346f446c99236ab` の Late preview evidence integrity run `41330415655` はsuccess。main squash `53c5cfe54e4db1b86372645b79bc2db7dbcd6e41`。
 - **ライブ公式取得は未実行・実証なし。診断artifactに時刻が出ても6艇完全STT+TKZ/T-12成立の証明ではない。** 予想モデル・旧サイトの変更なし。
+
+## 2026-11-02 旧予想原本79件の保全（PR #787）
+- 既存71件へ旧repoの実在JSON原本を8件追加、保全manifest計79件。新規8件は保存先から再取得し元Git blob SHAと8/8一致。
+- 既存ハッシュ検証の保全下限を79件へ更新。PR head `cec3fc43b84950f297826755f2e0f92eb0f4add0` のResearch forecast checks `41330509281` はcompleted/success。main squash `3edbe38dc18e093dbeb03598bdc9c7859f94e260`。
+- 旧予想全件・初回Git追加時刻・オッズ/Fresh証拠・独立した期限なし保存の復元は未証明。旧サイトは停止しない。
