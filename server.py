@@ -291,6 +291,12 @@ class Handler(BaseHTTPRequestHandler):
                 status,response=503,{"ok":False,"error":"HOLDOUT_UNAVAILABLE"}
             body=json.dumps(response,ensure_ascii=False).encode("utf-8")
             kind="application/json; charset=utf-8"
+        elif path == "/api/four-mode-archive":
+            from four_mode_archive_api import archived_four_modes
+            params = parse_qs(parsed.query)
+            status, data = archived_four_modes(params.get("code", [""])[0])
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/prospective-topn":
             from evaluate_clean_prospective_cohort import cohort
             params = parse_qs(parsed.query)
