@@ -265,24 +265,28 @@ jobs:
             const browser=await chromium.launch({headless:true});
             try{
               const page=await browser.newPage({viewport:{width:390,height:844}});
-              const key='202610272301';
-              const archive='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+key+'.json';
-              const archived=await page.request.get(archive,{timeout:30000});
-              if(!archived.ok())throw Error('CLEAN committed result not available: HTTP '+archived.status());
-              const expected=await archived.json();
-              if(expected.race_code!==key||expected.status!=='confirmed'||expected.finish_order?.join('-')!=='1-2-5')throw Error('CLEAN archived race inconsistent with published result');
-              const url=new URL(process.env.PAGE_URL);
-              url.searchParams.set('date','2026-10-27');
-              url.searchParams.set('venue','23');
-              url.searchParams.set('race','1');
-              url.searchParams.set('view','result');
-              await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
-              await page.evaluate(() => {setView('result');loadResult();});
-              await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent?.startsWith('CLEAN保存済み結果'),null,{timeout:30000});
-              const shown=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
-              if(shown.join('-')!==expected.finish_order.join('-'))throw Error('Result UI differs from committed CLEAN archive: '+shown.join('-'));
-              if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())throw Error('Unverified formal forecast was scored');
-              console.log('CLEAN_RESULT_PUBLISHED_BROWSER_PASS',url.toString(),shown.join('-'));
+              for(const race of [
+                {key:'202610272301',date:'2026-10-27',venue:'23',race:'1',finish:'1-2-5'},
+                {key:'202610310708',date:'2026-10-31',venue:'07',race:'8',finish:'1-4-6'}
+              ]){
+                const archive='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+race.key+'.json';
+                const archived=await page.request.get(archive,{timeout:30000});
+                if(!archived.ok())throw Error('CLEAN committed result not available: '+race.key+' HTTP '+archived.status());
+                const expected=await archived.json();
+                if(expected.race_code!==race.key||expected.status!=='confirmed'||expected.finish_order?.join('-')!==race.finish)throw Error('CLEAN archived result mismatch: '+race.key);
+                const url=new URL(process.env.PAGE_URL);
+                url.searchParams.set('date',race.date);
+                url.searchParams.set('venue',race.venue);
+                url.searchParams.set('race',race.race);
+                url.searchParams.set('view','result');
+                await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
+                await page.evaluate(()=>{setView('result');loadResult();});
+                await page.waitForFunction(()=>document.querySelector('#resultStatus')?.textContent?.startsWith('CLEAN保存済み結果'),null,{timeout:30000});
+                const shown=await page.locator('#resultDetail .result-combo .boat-num').allTextContents();
+                if(shown.join('-')!==race.finish)throw Error('Published result differs: '+race.key+' '+shown.join('-'));
+                if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())throw Error('Unverified formal forecast was scored: '+race.key);
+                console.log('CLEAN_RESULT_PUBLISHED_BROWSER_PASS',url.toString(),shown.join('-'));
+              }
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
