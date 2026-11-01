@@ -54,6 +54,10 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
 
+    def test_pages_candidate_route_is_render_and_keeps_origin(self):
+        self.assertIn("selection.href='https://boat-edge-clean.onrender.com/selection'",self.nav)
+        self.assertIn("destination.origin===location.origin?destination.pathname+destination.search:destination.href",self.nav)
+
     def test_github_pages_logo_does_not_leave_clean_site(self):
         self.assertIn("location.hostname.endsWith('.github.io')", self.nav)
         self.assertIn("?'/boat-edge-clean/':'/'", self.nav)

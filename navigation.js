@@ -9,6 +9,9 @@ const params=location.search;
 if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')){
  const review=nav.querySelector('a[href="/review"]');
  if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
+ // The candidate list is a Render route, not a GitHub Pages file.
+ const selection=nav.querySelector('a[href="/selection"]');
+ if(selection)selection.href='https://boat-edge-clean.onrender.com/selection';
 }
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
@@ -18,7 +21,7 @@ nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
   destination.searchParams.set('venue',String(venue+1));
   destination.searchParams.set('race',String(race));
  }
- link.href=destination.pathname+destination.search;
+ link.href=destination.origin===location.origin?destination.pathname+destination.search:destination.href;
 }));
 const logo=document.querySelector('.site-head .logo');
 if(logo){const a=document.createElement('a');a.href=location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')?'/boat-edge-clean/':'/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
