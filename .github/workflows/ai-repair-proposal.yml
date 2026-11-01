@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -49,10 +49,7 @@ jobs:
           OPENAI_MODEL: gpt-4.1-mini
           AI_ISSUE: ${{ inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
-      - name: Validate patch and create review-only PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AI_ISSUE: ${{ inputs.issue }}
+      - name: Validate untrusted AI patch without write token
         shell: bash
         run: |
           set -euo pipefail
@@ -70,21 +67,30 @@ jobs:
           git diff --name-only > /tmp/ai_changed_files
           while IFS= read -r path; do
             case "$path" in
-              index.html|navigation.js|secondary_navigation.js|tests/site-regression.cjs|tests/test_navigation_contract.py) ;;
+              index.html|navigation.js|secondary_navigation.js) ;;
               *) echo "Unexpected changed file $path" >&2; exit 1 ;;
             esac
           done < /tmp/ai_changed_files
           python -m unittest -v tests.test_navigation_contract
           node tests/site-regression.cjs
           git diff --check
+      - name: Publish reviewed-by-CI patch as draft PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_ISSUE: ${{ inputs.issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then echo 'No repair to publish'; exit 0; fi
           branch="ai/repair-${GITHUB_RUN_ID}"
           git switch -c "$branch"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- index.html navigation.js secondary_navigation.js tests/site-regression.cjs tests/test_navigation_contract.py
+          git add -- index.html navigation.js secondary_navigation.js
           git commit -m "AI: propose narrow UI repair for review"
+          gh auth setup-git
           git push origin "HEAD:$branch"
-          gh pr create --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."
+          gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."
       - name: Archive proposal
         if: always()
         uses: actions/upload-artifact@v4
