@@ -16,8 +16,8 @@ class LatePreviewEvidenceTests(unittest.TestCase):
     def test_duplicate_csv_headers_fail_before_any_evidence_write(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt=datetime(2026,10,31,11,2,tzinfo=JST)
-            raw=("レースコード,締切時刻,取得日時,艇1_展示タイム,艇1_展示タイム\\n"
-                 "202610310101,11:20,2026-10-31 11:00:00,6.50,6.90\\n").encode()
+            raw=("レースコード,締切時刻,取得日時,艇1_展示タイム,艇1_展示タイム\n"
+                 "202610310101,11:20,2026-10-31 11:00:00,6.50,6.90\n").encode()
             with self.assertRaisesRegex(ValueError,"duplicate preview CSV headers"):
                 save_preview(raw,"tkz","20261031",receipt,directory)
             self.assertFalse(list(Path(directory).rglob("*.json")))
