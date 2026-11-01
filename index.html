@@ -409,10 +409,20 @@ async function fetchTimed(url,options={}){return fetch(url,{...options,signal:Ab
 async function fetchCleanResultArchive(code){
  if(!/^20\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
  const remote='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+code+'.json';
- let response;
- try{response=await fetchTimed(remote,{cache:'no-store'});if(response.ok)return response}catch(_){/* try verified local archive */}
- try{const local=await fetchTimed('confirmed_results/'+code+'.json',{cache:'no-store'});if(local.ok)return local}catch(_){/* preserve upstream failure */}
- return response||new Response('',{status:503});
+ const local='confirmed_results/'+code+'.json';
+ // Pages publishes the committed result files: prefer same-origin to avoid Raw delays.
+ // Render does not publish this folder, so keep GitHub Raw as the primary there.
+ const pages=location.hostname==='ikst2512-eng.github.io';
+ const sources=pages?[local,remote]:[remote,local];
+ let failure=null;
+ for(const url of sources){
+  try{
+   const response=await fetchTimed(url,{cache:'no-store'});
+   if(response.ok)return response;
+   if(!failure||failure.status===404)failure=response;
+  }catch(_){/* try the other CLEAN archive endpoint */}
+ }
+ return failure||new Response('',{status:503});
 }
 
 function sameRaceKey(){return s.date.replaceAll('-','')+'-'+p(s.venue+1)+'-'+p(s.race)}
