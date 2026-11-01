@@ -76,9 +76,16 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         # A missing/invalid page cannot be treated as evidence of six boats.
         if isinstance(exc,(KeyboardInterrupt,SystemExit)):
             raise
+        # Failed captures are diagnostic only. Explicitly flag invalid or reversed
+        # clocks instead of allowing an apparently valid observation window.
+        ended=received or now()
+        chronology_valid=(started.utcoffset()==timedelta(hours=9)
+                          and ended.utcoffset()==timedelta(hours=9)
+                          and ended>=started)
         return {"race_code":race_code,"source":"official_beforeinfo_html","url":url,
                 "request_started_at_jst":started.isoformat(),
-                "received_at_jst":(received or now()).isoformat(),
+                "received_at_jst":ended.isoformat(),
+                "observation_chronology_valid":chronology_valid,
                 "status":"official_probe_failed","error":type(exc).__name__,
                 "complete_six_lanes":"unverified","t12_eligible":False,"forecast_usable":False}
 
