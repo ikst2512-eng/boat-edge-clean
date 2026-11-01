@@ -6,6 +6,7 @@ on:
       - 'secondary_navigation.js'
       - 'index.html'
       - 'server.py'
+      - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
@@ -20,6 +21,7 @@ on:
       - 'secondary_navigation.js'
       - 'index.html'
       - 'server.py'
+      - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
@@ -43,3 +45,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_forecast_preview_origin.py' -v
           python -m unittest discover -s tests -p 'test_saved_prospective_api.py' -v
           python -m unittest discover -s tests -p 'test_preview_completeness.py' -v
+          python -m unittest -v test_holdout_status_async
