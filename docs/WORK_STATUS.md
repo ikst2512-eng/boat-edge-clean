@@ -665,3 +665,8 @@
 - 旧サイトの実ファイル4件を保全専用 `legacy_preservation/samples/` に追加し、マニフェスト51件へ拡張。追加4件は元Git blob SHAと保存先SHAが4/4一致。
 - 保全検証の最低件数を51へ更新。PR head `6f4c13470ebfcbbcd7fbeda47fd84515eaf44f38` の Research forecast checks run `41280687961` はcompleted/success。main squash `9e26d263df94c45dd07b9b30d8ba26ffa28b4b95`。
 - 初回Git保存時刻・締切前性、旧予想全件とオッズ/Freshの網羅、独立長期バックアップ復元は未証明。旧サイト停止・削除なし。
+
+
+## 2026-11-01 重複PR #765整理と公開検証制約
+- PR #765 は失敗時CLI終了コード1と通信失敗回帰テストを追加する差分だったが、mainの `scripts/capture_official_beforeinfo_probe.py` は既に失敗を非ゼロ終了とし、`tests/test_capture_official_beforeinfo_probe.py` にHTTP通信失敗の回帰テストが存在することを直接照合。PR #765を未統合のままclosedに整理（https://github.com/ikst2512-eng/boat-edge-clean/pull/765）。mainの実装は変更せず重複統合を回避。
+- Actions一覧ページ・GitHub Pages公開HTML/確定結果JSONへは今回のWeb取得でアクセス不可。現行push CI結果や実レース4タブの公開後表示を成功と判定しない。旧サイト撤去条件も未達のため削除なし。
