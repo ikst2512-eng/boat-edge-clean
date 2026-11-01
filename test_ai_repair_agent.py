@@ -77,6 +77,26 @@ class RepairAgentTests(unittest.TestCase):
                 propose("change workflows",directory,"fake-key","gpt-4.1-mini",
                         lambda req,timeout:FakeResponse())
 
+    def test_large_main_ui_includes_runtime_tail(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n):
+                return json.dumps({"output":[{"type":"message","content":[
+                    {"type":"output_text","text":json.dumps({"patches":[]})}
+                ]}]}).encode()
+        def fake(req, timeout):
+            sent=json.loads(req.data)["input"]
+            sources=json.loads(sent)["sources"]
+            self.assertIn("RUNTIME_MARKER", sources["index.html"])
+            self.assertIn("HEADER_MARKER", sources["index.html"])
+            return Response()
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/"index.html").write_text("HEADER_MARKER"+("x"*180000)+"RUNTIME_MARKER")
+            result=propose("repair UI rendering",root,"dummy","mock-model",fake)
+            self.assertEqual(result["status"],"no_safe_patch")
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
