@@ -1,7 +1,6 @@
 import tempfile
 import json
 import hashlib
-import json
 import subprocess
 import sys
 import unittest
@@ -80,6 +79,17 @@ class OfficialProbeTests(unittest.TestCase):
             proc=subprocess.run([sys.executable,"-m","scripts.capture_official_beforeinfo_probe",
                                  "202611010799","--root",d],capture_output=True,text=True)
             self.assertNotEqual(proc.returncode,0)
+            self.assertFalse(list(Path(d).rglob("manifest.json")))
+
+    def test_cli_network_failure_exits_nonzero(self):
+        import runpy
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as d:
+            with patch("scripts.capture_official_beforeinfo_probe.urlopen", side_effect=TimeoutError("offline")):
+                with patch.object(sys, "argv", ["probe", "202611010708", "--root", d]):
+                    with self.assertRaises(SystemExit) as exc:
+                        runpy.run_module("scripts.capture_official_beforeinfo_probe", run_name="__main__")
+            self.assertEqual(exc.exception.code, 1)
             self.assertFalse(list(Path(d).rglob("manifest.json")))
 
     def test_rejects_bad_race_code(self):
