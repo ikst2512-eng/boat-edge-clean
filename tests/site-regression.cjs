@@ -338,12 +338,16 @@ assert.ok(!html.includes("fetchTimed('/api/clean-result?hd="),'review must not r
 // Published Pages must fetch racecard/exhibition from the actual CLEAN API host.
 assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd="),'racecard must use CLEAN Render');
 assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd="),'Pages-relative racecard API would return 404');
+assert.ok(script.includes('await loadHeldVenues();'),'racecard loading must wait for the verified daily schedule');
+assert.ok(script.includes('todayVenueRaces.partial_coverage!==true'),'partial frozen schedules must not prove a race is absent');
+assert.ok(script.includes("scheduledVenue?'このレースは開催されていません':'この場は開催されていません'"),'confirmed non-held selections must stop before the racecard API');
 
 // Historical schedule fallback: an unavailable CLEAN API must not hide a past date.
 const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
 assert.ok(scheduleLoader.includes("archive.status===404||(date<fmt(jst())&&archive.status>=500)"),'historical archive 5xx must try CLEAN schedule API and results CSV fallback');
+assert.ok(scheduleLoader.includes('partial_coverage:feed.partial_coverage===true'),'partial fallback coverage must survive the API-to-UI transform');
 assert.ok(scheduleLoader.includes("else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status)"),'current date must still reject unexpected archive errors');
 assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
 console.log('PASS: historical schedule 404/503 fallback regression');
