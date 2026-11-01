@@ -31,15 +31,6 @@ def report(day, root=ROOT, scorer=evaluate):
                     or outcome.get("formal") is not False
                     or outcome.get("scoring_kind") != "prospective_research_only"):
                 raise ValueError("untrusted prospective evaluation")
-            if outcome.get("status") == "result_unavailable":
-                counts["awaiting_result"] += 1
-                continue
-            if (outcome.get("status") != "evaluated" or outcome.get("audited") is not True
-                    or outcome.get("formal") is not False
-                    or outcome.get("scoring_kind") != "prospective_research_only"
-                    or outcome.get("race_code") != path.stem
-                    or not isinstance(outcome.get("first_add_sha"), str)):
-                raise ValueError("untrusted evaluation")
             candidate = json.loads(path.read_text(encoding="utf-8"))
             times = {key: datetime.fromisoformat(candidate[key]) for key in (
                 "generated_at", "cutoff_jst", "source_deadline_jst",
@@ -50,6 +41,13 @@ def report(day, root=ROOT, scorer=evaluate):
                     or max(times["source_title_received_jst"], times["source_cards_received_jst"]) > times["generated_at"]
                     or times["generated_at"] >= times["cutoff_jst"]):
                 raise ValueError("source received after forecast generation or invalid cutoff")
+            if outcome.get("status") == "result_unavailable":
+                counts["awaiting_result"] += 1
+                continue
+            if (outcome.get("status") != "evaluated"
+                    or not isinstance(outcome.get("first_add_sha"), str)
+                    or not outcome["first_add_sha"]):
+                raise ValueError("untrusted evaluation")
             result_path = root / "confirmed_results" / path.name
             if result_path.is_symlink() or not result_path.is_file() or result_path.stat().st_size > 20000:
                 raise ValueError("missing immutable confirmed record")
