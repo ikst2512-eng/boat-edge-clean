@@ -34,7 +34,7 @@ jobs:
             if [[ "$path" == /selection ]]; then
               grep -q '購入候補・並行検証' "$out" || { echo "::error::Selection page missing"; return 1; }
             elif [[ "$path" == /forecast ]]; then
-              grep -q '3連単研究予想' "$out" || { echo "::error::Forecast page missing"; return 1; }
+              grep -q 'id="predictionRows"' "$out" || { echo "::error::Forecast page missing"; return 1; }
             else
               python -m json.tool "$out" >/dev/null
               python - "$out" <<'PY'
