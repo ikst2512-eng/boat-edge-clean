@@ -85,7 +85,7 @@ class OfficialProbeTests(unittest.TestCase):
         import runpy
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as d:
-            with patch("scripts.capture_official_beforeinfo_probe.urlopen", side_effect=TimeoutError("offline")):
+            with patch("urllib.request.urlopen", side_effect=TimeoutError("offline")):
                 with patch.object(sys, "argv", ["probe", "202611010708", "--root", d]):
                     with self.assertRaises(SystemExit) as exc:
                         runpy.run_module("scripts.capture_official_beforeinfo_probe", run_name="__main__")
