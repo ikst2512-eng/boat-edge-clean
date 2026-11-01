@@ -17,7 +17,7 @@ class HoldoutAsyncTests(unittest.TestCase):
         entered = threading.Event()
         def slow():
             entered.set()
-            gate.wait(timeout=2)
+            gate.wait(timeout=5)
             return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1", "later_holdout_days": 1,
                     "evaluated_holdout_races": 3, "discovery_day": "20261029",
                     "independently_validated": False}
@@ -45,6 +45,14 @@ class HoldoutAsyncTests(unittest.TestCase):
             status, data = server.holdout_status()
             self.assertEqual(status, 503)
             self.assertNotIn("evaluated_holdout_races", data)
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                with server._HOLDOUT_LOCK:
+                    if not server._HOLDOUT_STATE["running"]:
+                        break
+                time.sleep(0.01)
+            with server._HOLDOUT_LOCK:
+                self.assertFalse(server._HOLDOUT_STATE["running"])
 
 
 if __name__ == "__main__":
