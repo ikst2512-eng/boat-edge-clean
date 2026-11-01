@@ -8,6 +8,8 @@ on:
       - 'test_research_prerace_feature_audit.py'
       - 'scripts/research_topn_miss_diagnostic.py'
       - 'research_prospective_miss_report.py'
+      - 'audit_clean_first_add.py'
+      - 'test_audit_clean_first_add.py'
       - 'test_research_topn_miss_diagnostic.py'
       - 'test_research_prospective_miss_report.py'
       - 'test_research_chronological_calibration.py'
@@ -32,6 +34,8 @@ on:
     paths:
       - 'scripts/research_topn_miss_diagnostic.py'
       - 'research_prospective_miss_report.py'
+      - 'audit_clean_first_add.py'
+      - 'test_audit_clean_first_add.py'
       - 'research_model.py'
       - 'research_chronological_calibration.py'
       - 'test_research_chronological_calibration.py'
@@ -72,6 +76,6 @@ jobs:
           python -m unittest -v test_research_prerace_feature_audit
           python scripts/research_prerace_feature_audit.py
       - name: Verify audited prospective TopN miss diagnostics
-        run: python -m unittest -v test_research_topn_miss_diagnostic test_research_prospective_miss_report
+        run: python -m unittest -v test_audit_clean_first_add test_research_topn_miss_diagnostic test_research_prospective_miss_report
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
