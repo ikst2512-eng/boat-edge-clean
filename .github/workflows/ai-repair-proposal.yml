@@ -1,0 +1,76 @@
+name: AI repair proposal (manual and review-gated)
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: '具体的なUI/ナビゲーション不具合。予想ロジック変更は禁止'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test patch guardrails
+        run: python -m unittest -v test_ai_repair_agent
+      - name: Request a small AI UI repair (optional API)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4.1-mini
+          AI_ISSUE: ${{ inputs.issue }}
+        run: python ai_repair_agent.py --issue "$AI_ISSUE"
+      - name: Validate patch and create review-only PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_ISSUE: ${{ inputs.issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          report=json.load(open('ai_repair_proposal.json'))
+          if report['status'] == 'disabled':
+              print('API key absent: no repair attempted')
+          PY
+          if git diff --quiet; then
+            echo 'No safe patch proposed'
+            exit 0
+          fi
+          # AI has no permission to modify CI, workflow, model or data files.
+          git diff --name-only > /tmp/ai_changed_files
+          while IFS= read -r path; do
+            case "$path" in
+              index.html|navigation.js|secondary_navigation.js|tests/site-regression.cjs|tests/test_navigation_contract.py) ;;
+              *) echo "Unexpected changed file $path" >&2; exit 1 ;;
+            esac
+          done < /tmp/ai_changed_files
+          python -m unittest -v tests.test_navigation_contract
+          node tests/site-regression.cjs
+          git diff --check
+          branch="ai/repair-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- index.html navigation.js secondary_navigation.js tests/site-regression.cjs tests/test_navigation_contract.py
+          git commit -m "AI: propose narrow UI repair for review"
+          git push origin "HEAD:$branch"
+          gh pr create --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."
+      - name: Archive proposal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-repair-proposal-${{ github.run_id }}
+          path: ai_repair_proposal.json
+          if-no-files-found: warn
+          retention-days: 30
