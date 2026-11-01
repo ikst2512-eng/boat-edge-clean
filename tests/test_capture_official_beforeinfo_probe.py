@@ -51,11 +51,10 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertFalse((Path(d)/"20261101/202611010708").exists())
 
     def test_manual_cli_exits_nonzero_on_failed_capture(self):
-        import subprocess
         import sys
         import unittest.mock
         with tempfile.TemporaryDirectory() as d:
-            with unittest.mock.patch("scripts.capture_official_beforeinfo_probe.urlopen",side_effect=TimeoutError("offline")):
+            with unittest.mock.patch("urllib.request.urlopen",side_effect=TimeoutError("offline")):
                 # runpy executes CLI in-process so the mocked network failure is deterministic.
                 import runpy
                 with unittest.mock.patch.object(sys,"argv",["probe","202611010708","--root",d]):
