@@ -617,3 +617,9 @@
 ## 2026-11-01 Pages公開検証の伝播遅延対策
 - Pages検証がHTMLの一致後にnavigation.jsや2件の確定結果JSONの一時的な取得失敗/不一致で即時失敗していたため、6回の既存リトライ内で全ファイル一致を判定するよう変更（main `d90be09c40e7cac96caba4852c1a84520acc051b`）。不一致を成功扱いせず最後まで一致しなければ失敗。新規PR・workflow追加なし。
 - Pages push CIの実結果・iPhone Safariでの4タブ表示は未確認。旧サイトの独立保全が完了するまで削除禁止。
+
+
+## 2026-11-01 公式beforeinfoの掲載項目を実ページで確認
+- BOAT RACE公式の公開された過去レース直前情報ページを照合し、6艇の展示タイム・チルト・スタート展示の進入順・ST・気象データが表示される例を確認（https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261011&jcd=19&rno=12）。公式の展示タイム案内でも展示航走終了後の公表が説明されている（https://www.boatrace.jp/owsp/sp/extra/enjoy/guide/level2/l2_01_02_07.html）。
+- これは**過去ページの項目存在確認**であり、ライブHTTP受信時刻、原本hash、完全な機械抽出、T-12以前の公開可否は実証していない。予想投入は禁止継続。次は公式HTML実原本に対する6艇抽出器と時刻・ハッシュ一致監査を既存probeに統合し、日中の手動workflow実行のartifactsで証拠を得る。
+- 別担当のPR #765と同じCLI失敗判定を重複実装しない。旧repo/旧Pagesの撤去保留。
