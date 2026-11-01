@@ -660,3 +660,8 @@
 - 既存 `.github/workflows/late-preview-capture.yml` の手動 `official_probe_race_code` 指定時、公式HTTP原本保存後に `scripts/inspect_official_beforeinfo_html.py` を実行し、SHA-256再照合・展示/進入/ST等のラベル位置を `official_beforeinfo_diagnostic.json` に出力して既存artifactへ追加（main `72ec14f1439c8a2222c8103978e2b4bb2315f6ee`）。公式HTTP取得に失敗すると取得ステップが非0で終了し、診断ステップは実行されない（artifactアップロードは `always()` で維持）。
 - 追加した診断はHTMLラベルの位置のみを扱い、**6艇の数値完全性、取得レース整合、T-12適格性は未認定**。本番予想経路には接続しない。新しいworkflow・定期ジョブは作成していない。
 - GitHub Actionsの新規実行成功および実HTMLの診断artifactはまだ未確認。旧リポジトリ・旧Pagesの停止や削除なし。
+
+## 2026-11-01 旧予想原本51件まで保全（PR #773）
+- 旧サイトの実ファイル4件を保全専用 `legacy_preservation/samples/` に追加し、マニフェスト51件へ拡張。追加4件は元Git blob SHAと保存先SHAが4/4一致。
+- 保全検証の最低件数を51へ更新。PR head `6f4c13470ebfcbbcd7fbeda47fd84515eaf44f38` の Research forecast checks run `41280687961` はcompleted/success。main squash `9e26d263df94c45dd07b9b30d8ba26ffa28b4b95`。
+- 初回Git保存時刻・締切前性、旧予想全件とオッズ/Freshの網羅、独立長期バックアップ復元は未証明。旧サイト停止・削除なし。
