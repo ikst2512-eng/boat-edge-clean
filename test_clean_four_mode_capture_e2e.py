@@ -4,9 +4,16 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from research_model import JST
-from clean_four_mode_capture import collect
+from clean_four_mode_capture import collect, publish_status
 
 class CaptureEndToEndTests(unittest.TestCase):
+    def test_research_archives_never_prove_production_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result={"eligible_forecasts_today":156,"source_status":"available"}
+            status=publish_status(result,root=Path(tmp),now=datetime(2026,11,2,8,0,tzinfo=JST))
+            self.assertTrue(status["research_archives_present"])
+            self.assertFalse(status["production_success_proven"])
+
     def test_published_predeadline_data_freezes_four_modes_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
