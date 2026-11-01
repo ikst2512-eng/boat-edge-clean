@@ -1,5 +1,8 @@
 name: Validate AI repair draft PR
 on:
+  pull_request:
+    paths:
+      - .github/workflows/ai-repair-pr-review.yml
   workflow_dispatch:
     inputs:
       pr_number:
@@ -10,7 +13,18 @@ permissions:
   contents: read
   pull-requests: read
 jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ai-repair-pr-review.yml"); puts "workflow YAML parsed"'
   verify:
+    if: github.event_name == 'workflow_dispatch'
+    needs: syntax
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
