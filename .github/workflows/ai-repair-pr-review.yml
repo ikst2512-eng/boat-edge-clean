@@ -1,0 +1,83 @@
+name: Validate AI repair draft PR
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ai-repair-pr-review.yml
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'AI修正の下書きPR番号'
+        required: true
+        type: number
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ai-repair-pr-review.yml"); puts "workflow YAML parsed"'
+  verify:
+    if: github.event_name == 'workflow_dispatch'
+    needs: syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify candidate PR is draft and from local AI branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path('/tmp/pr.json').read_text())
+          if (p['state']!='open' or not p['draft'] or
+              p['head']['repo']['full_name']!=os.environ['GITHUB_REPOSITORY'] or
+              not p['head']['ref'].startswith('ai/repair-') or
+              p['base']['ref']!='main'):
+              raise SystemExit('Not an open local AI draft PR against main')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('sha='+p['head']['sha']+'\n')
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate changed-file allowlist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" > /tmp/changed.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=json.loads(Path('/tmp/changed.json').read_text())
+          allowed={'index.html','navigation.js','secondary_navigation.js'}
+          if not files or len(files)>3:
+              raise SystemExit('Invalid AI repair file count')
+          for file in files:
+              if file['filename'] not in allowed or file['status'] not in ('modified',):
+                  raise SystemExit('Unexpected AI repair file: '+file['filename'])
+          PY
+      - name: Re-run independent UI and navigation tests
+        run: |
+          python -m unittest -v tests.test_navigation_contract test_ai_repair_agent
+          node tests/site-regression.cjs
+      - name: Review note
+        run: echo 'Tests passed on the selected draft PR commit. Human review is still required; this does not authorize merge.'
