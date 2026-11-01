@@ -82,11 +82,32 @@ jobs:
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             sleep "$attempt"
           done
-      - name: Preserve capture log
+      - name: Publish source acquisition summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          path=Path("four_mode_forecasts/capture_status.json")
+          if not path.exists():
+              print("::warning::Capture status missing; see execution log.")
+          else:
+              data=json.loads(path.read_text(encoding="utf-8"))
+              with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
+                  output.write("### Four-mode research capture\\n")
+                  for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","research_archives_present","production_success_proven"):
+                      output.write(f"- {key}: {data.get(key, 'unavailable')}\\n")
+              if data.get("source_status") != "available":
+                  print("::warning::Race-card source incomplete; no forecast availability is implied.")
+          PY
+      - name: Preserve capture log and structured source status
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: four-mode-capture-${{ github.run_id }}
-          path: four-mode-evidence/capture.log
+          path: |
+            four-mode-evidence/capture.log
+            four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
