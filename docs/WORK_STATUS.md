@@ -565,3 +565,10 @@
 - 旧repoの実在する予想JSONを8件追加取得し、保全サンプルを11件から19件へ拡張。8件を旧repoから再取得し保全先のGit blob SHAと一致することを検証。
 - manifestを19件へ更新し、既存ハッシュ照合スクリプトの最低件数を19に変更。PR head `57f851ccffe7ff364b73efd7e506499ea3ff9768` の Research forecast checks run `41247126568` はsuccess。main squash `02453f445e7f1129c9bffac361ce235b531ab623` で統合。
 - 保全対象はサンプル19件のみ。初回Git追加時刻・全件原本・オッズ・Fresh・独立長期ストレージでの復元は未検証。旧repo/Pagesは停止・変更なし。
+
+
+## 2026-11-01 Pages確定結果の自動公開トリガー修正
+- 公開workflowは `confirmed_results/` を公開成果物へコピーしていた一方、push path filterは `index.html` / `navigation.js` / workflow自身のみで、確定結果JSONだけのmain更新ではPages公開を起動しなかった。
+- 既存 `.github/workflows/deploy-pages.yml` のmain push pathsへ `'confirmed_results/**'` を追加。main commit `c7b228f8cde99acedc6f87c8ed7fbb045d842634`。GitHubからの再取得で追加を確認。新規workflow・PRは作らず既存デプロイ経路を修正。
+- `fetch_commit_workflow_runs` はPR起動runのみを返すため今回0件でもpush Pages workflowの成功とは言えない。公開URLの最新JSONと実ブラウザ表示、iPhone Safariは未検証。
+- 次: Pages push runと公開後ブラウザE2Eで確定結果JSONの更新反映を確認。旧repo/Pagesの独立保全およびT-12完全6艇証拠が揃うまでは旧サイトを停止・削除しない。
