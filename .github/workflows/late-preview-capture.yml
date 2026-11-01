@@ -72,7 +72,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
         env:
           OFFICIAL_RACE_CODE: ${{ inputs.official_probe_race_code }}
-        run: python scripts/capture_official_beforeinfo_probe.py "$OFFICIAL_RACE_CODE"
+        run: |
+          set -o pipefail
+          mkdir -p official_preview_probe
+          python scripts/capture_official_beforeinfo_probe.py "$OFFICIAL_RACE_CODE" | tee official_preview_probe/attempt_report.json
       - name: Inspect saved official HTML as diagnostic-only evidence
         if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
         env:
