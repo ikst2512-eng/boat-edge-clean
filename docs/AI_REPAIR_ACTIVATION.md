@@ -10,3 +10,7 @@
 - 1回の手動実行で最大2箇所の完全一致置換。失敗した場合はPRを作らず停止。
 - GitHub標準の `GITHUB_TOKEN` によって作られたPRは、通常、push/pull_requestの別ワークフローを自動起動しない。したがって **AI生成PRはCIが自動で走ったとみなさない**。必要な検証を別途実施する。
 - APIの実リクエスト、API認証・残高、料金、修正PR作成成功は、実際の workflow_dispatch 成功ログで初めて確認できる。
+
+## AI生成PRを独立に再検証する
+Actions → **Validate AI repair draft PR** → Run workflow にAI生成PR番号を入力する。
+この検証は GitHub Secrets を受け取らず、PR番号からGitHub APIで取得した該当コミットをcheckoutする。下書きPR・同一リポジトリの `ai/repair-` ブランチ・変更ファイルの許可リストを確認し、ナビゲーション／サイト回帰テストを再実行する。成功してもmainへの自動マージはしない。
