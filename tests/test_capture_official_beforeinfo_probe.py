@@ -25,6 +25,7 @@ class OfficialProbeTests(unittest.TestCase):
             raw=(manifest_path.parent/"beforeinfo.html").read_bytes()
             self.assertEqual(saved["sha256"],hashlib.sha256(raw).hexdigest())
             self.assertEqual(saved["received_at_jst"],now.isoformat())
+            self.assertEqual(saved["request_started_at_jst"],now.isoformat())
             self.assertEqual(saved["response_url"],saved["url"])
             self.assertFalse(saved["forecast_usable"])
             manifest=(Path(d)/"20261101/202611010708/manifest.json").read_text(encoding="utf-8")
@@ -73,6 +74,15 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertNotEqual(result["response_url"],result["url"])
             self.assertEqual(json.loads((Path(d)/"20261101/202611010708/manifest.json").read_text())["response_url"],result["response_url"])
             self.assertFalse(result["t12_eligible"])
+
+    def test_backward_clock_cannot_be_saved_as_observation(self):
+        from datetime import timedelta
+        t=datetime(2026,11,1,12,0,tzinfo=JST)
+        ticks=iter((t,t-timedelta(seconds=2)))
+        with tempfile.TemporaryDirectory() as d:
+            result=capture("202611010708",d,fetch=lambda url:b"<html></html>",clock=lambda:next(ticks))
+            self.assertEqual(result["status"],"official_probe_failed")
+            self.assertFalse(list(Path(d).rglob("manifest.json")))
 
     def test_http_200_non_html_is_not_saved_as_evidence(self):
         for body in (b'{"error":"not ready"}',b"temporarily unavailable",b""):
