@@ -36,6 +36,17 @@ def inspect(saved_dir):
         raise ValueError("official probe byte length mismatch")
     if manifest.get("source")!="official_beforeinfo_html" or manifest.get("forecast_usable") is not False:
         raise ValueError("not isolated official probe evidence")
+    # Refuse incomplete or fabricated capture metadata even when raw bytes hash-match.
+    from datetime import datetime, timedelta
+    timestamp=manifest.get("received_at_jst")
+    try:
+        receipt=datetime.fromisoformat(timestamp)
+    except (TypeError, ValueError):
+        raise ValueError("official probe receipt timestamp missing or invalid") from None
+    if receipt.utcoffset()!=timedelta(hours=9) or manifest.get("http_status")!=200 or manifest.get("status")!="raw_http_observed_not_t12_certified":
+        raise ValueError("official probe receipt metadata unverified")
+    if manifest.get("t12_eligible") is not False or manifest.get("complete_six_lanes")!="unverified":
+        raise ValueError("official probe must remain non-certified")
     parser=VisibleText()
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments

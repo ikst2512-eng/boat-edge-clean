@@ -12,12 +12,20 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             d.mkdir(parents=True)
             raw="<html><body>展示タイム 6.89 <script>ST fake</script>スタート展示 ST チルト</body></html>".encode()
             (d/"beforeinfo.html").write_bytes(raw)
-            (d/"manifest.json").write_text(json.dumps({"source":"official_beforeinfo_html","race_code":"202611010708","forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest()}))
+            (d/"manifest.json").write_text(json.dumps({"source":"official_beforeinfo_html","race_code":"202611010708","forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),"received_at_jst":"2026-11-01T12:00:00+09:00","http_status":200,"status":"raw_http_observed_not_t12_certified","t12_eligible":False,"complete_six_lanes":"unverified"}))
             result=inspect(d)
             self.assertTrue(result["label_positions"]["展示タイム"])
             self.assertFalse(result["t12_eligible"])
             self.assertEqual(result["six_lane_values"],"unverified")
             manifest=json.loads((d/"manifest.json").read_text())
+            manifest["received_at_jst"]="2026-11-01T12:00:00+00:00"
+            (d/"manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError,"receipt metadata"):inspect(d)
+            manifest["received_at_jst"]="2026-11-01T12:00:00+09:00"
+            manifest["t12_eligible"]=True
+            (d/"manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError,"non-certified"):inspect(d)
+            manifest["t12_eligible"]=False
             manifest["race_code"]="202611010709"
             (d/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"race identity"):inspect(d)
