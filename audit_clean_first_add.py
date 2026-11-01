@@ -43,6 +43,8 @@ def inspect(path, root=ROOT):
             or deadline.strftime("%Y%m%d")!=code[:8]
             or max(times)>generated
             or max([generated,*times])>=cutoff
+            or first_committer_at.utcoffset() is None
+            or first_committer_at<generated
             or first_committer_at>=cutoff):
         raise ValueError("invalid source chronology or first Git commit after cutoff")
     return {"race_code":code,"first_add_sha":sha,
