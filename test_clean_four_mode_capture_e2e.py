@@ -25,6 +25,8 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(set(data["modes"]),{"hit","balance","hole","narrow"})
             self.assertLess(data["generated_at_jst"],data["deadline_jst"])
             self.assertFalse(data["validated"])
+            self.assertEqual(data["source_title_received_jst"],fetched.isoformat())
+            self.assertEqual(data["source_cards_received_jst"],fetched.isoformat())
             second=collect(root=root,now=now,read=read)
             self.assertEqual(second["new_saved"],[])
             self.assertEqual(path.read_bytes(),original)
