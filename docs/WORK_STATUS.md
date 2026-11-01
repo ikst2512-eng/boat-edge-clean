@@ -767,3 +767,8 @@
 - 既存63件へ旧repoの実在するJSON原本8件を追加。新規8件は元Git blob SHAと保存先を再取得して8/8一致。保全manifestは71件、保全CIの最低件数を71へ更新。
 - PR head `0beec3893797573289188073714cbb3734201f84` のResearch forecast checks実行 `41330148238` はcompleted/success。main squash `52c94fe8ab9b359bc393a380b2d0f21c71938d59`。
 - 初回Git保存時刻・予想全件網羅・オッズ/Fresh・非期限付き独立ストレージ復元は未証明。旧サイト停止なし。
+
+## 2026-11-02 PR #784 公式beforeinfoのHTTP開始・受信時刻の監査
+- 公式HTML独立取得原本に `request_started_at_jst` を追加し、従来の `received_at_jst` と別に記録。両時刻のJST +09:00および受信時刻が開始時刻以上であることを取得時に確認。保存済み原本をラベル解析する際にも開始時刻の存在と順序を再監査し、逆転・欠損を拒否。
+- 時刻逆転の取得失敗、保存manifestの改ざん検出の回帰テスト追加。PR #784 head `863abc53056aaec15b1cb02736ac4ed4927982fd` のLate preview evidence integrity run `41330162864` はsuccess。main squash `5e12bbd8454561e6b8015a6530acd4869c6b6c4d`。
+- これは取得時刻の原本証拠準備であり、**実際の公式HTTP受信・T-12時刻・6艇値の完全性は未検証**。予想モデルと旧repo/旧Pagesは未変更。
