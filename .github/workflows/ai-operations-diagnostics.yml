@@ -1,0 +1,39 @@
+name: AI operations optional diagnostics
+on:
+  pull_request:
+    paths:
+      - ai_diagnostics.py
+      - test_ai_diagnostics.py
+      - .github/workflows/ai-operations-diagnostics.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '47 18 * * *' # 03:47 JST, after existing audit
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit tests
+        run: python -m unittest -v test_ai_operations test_ai_diagnostics
+      - name: Produce immutable-data research audit
+        run: python ai_operations.py --output ai_operations_report.json
+      - name: Optional AI diagnosis (never edits production)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-6-luna
+        run: python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
+      - name: Archive both reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-operations-diagnostics-${{ github.run_id }}
+          path: |
+            ai_operations_report.json
+            ai_diagnostics_report.json
+          retention-days: 90
