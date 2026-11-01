@@ -71,6 +71,25 @@ def output_text(response):
     return "\n".join(parts)
 
 
+def select_source_context(source, issue, budget=35000):
+    """Include issue-relevant source even when the target is in the HTML middle."""
+    if len(source) <= budget:
+        return source
+    terms = [term.lower() for term in issue.split() if len(term) >= 3][:12]
+    scored = []
+    for i, line in enumerate(source.splitlines(keepends=True)):
+        score = sum(1 for term in terms if term in line.lower())
+        if score:
+            scored.append((score, i))
+    if not scored:
+        return source[:12000] + "\\n[... middle omitted ...]\\n" + source[-22000:]
+    lines = source.splitlines(keepends=True)
+    _, selected = max(scored)
+    middle = "".join(lines[max(0, selected-35):selected+50])
+    return (source[:6000] + "\\n[... contextual excerpt ...]\\n" +
+            middle[:18000] + "\\n[... end excerpt ...]\\n" + source[-8000:])[:budget]
+
+
 def propose(issue, root, api_key, model, transport=urlopen):
     if not api_key:
         return {"status": "disabled", "reason": "OPENAI_API_KEY_missing"}
@@ -82,10 +101,7 @@ def propose(issue, root, api_key, model, transport=urlopen):
         if target.is_file() and not target.is_symlink() and target.stat().st_size <= MAX_FILE:
             # Keep context/cost bounded, don't leak private data or repository secrets.
             source = target.read_text(encoding="utf-8")
-            if name == "index.html" and len(source) > 35000:
-                snippets[name] = source[:12000] + "\n[... middle omitted ...]\n" + source[-23000:]
-            else:
-                snippets[name] = source[:35000]
+            snippets[name] = select_source_context(source, issue)
     req_body = {"model": model, "instructions": PROMPT,
                 "input": json.dumps({"issue": issue, "sources": snippets}, ensure_ascii=False),
                 "max_output_tokens": 3500, "store": False,
