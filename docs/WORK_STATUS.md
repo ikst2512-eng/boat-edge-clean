@@ -778,3 +778,8 @@
 - `scripts/inspect_official_beforeinfo_html.py` に `label_context` を追加し、保全HTML原本にある展示・進入・ST等のラベル前後の短い実テキストを診断JSONへ含める。周辺断片の長さ/件数を制限し、script/styleは除外。main `0fc11e693d1949098bb0b863a23fe41e0805013c`、テスト `3e9ec1fb6ae526b9c680117604db23b579eaa70e`。
 - GitHubで同ファイルとテストの現存を再取得して確認。別担当PR #784 のLate preview evidence integrity run `41330162864` はcompleted/successだが、**今回追加した周辺テキストの実レース診断・公式HTTP取得・T-12完全6艇の実証とはしない**。
 - 正式予想と旧サイトは変更しない。次は手動probeの実行・artifactからHTML構造を検証する。
+
+## 2026-11-02 PR #785 公式HTML診断artifactにHTTP実観測時間を出力
+- 既存 `inspect_official_beforeinfo_html.py` は保存manifestの開始・受信時刻を検証しても診断出力から省略していたため、ラベル調査結果と観測時刻の照合が難しかった。`request_started_at_jst` / `received_at_jst` / `http_elapsed_seconds` を出力し、既存テストでJST・実経過秒数を確認。
+- PR head `0193e2398e38d13d01607bb25346f446c99236ab` の Late preview evidence integrity run `41330415655` はsuccess。main squash `53c5cfe54e4db1b86372645b79bc2db7dbcd6e41`。
+- **ライブ公式取得は未実行・実証なし。診断artifactに時刻が出ても6艇完全STT+TKZ/T-12成立の証明ではない。** 予想モデル・旧サイトの変更なし。
