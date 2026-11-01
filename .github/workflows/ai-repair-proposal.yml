@@ -43,6 +43,16 @@ jobs:
           python-version: '3.12'
       - name: Test patch guardrails
         run: python -m unittest -v test_ai_repair_agent
+      - name: Require configured AI credential
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY is not configured in GitHub Actions secrets. No AI request was made."
+            exit 1
+          fi
+          echo "OpenAI API credential is present (value is never printed)."
       - name: Request a small AI UI repair (optional API)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
