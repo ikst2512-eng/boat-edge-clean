@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from ai_repair_agent import apply, parse_patches, propose
+from ai_repair_agent import apply, parse_patches, propose, select_source_context
 import json
 
 
@@ -96,6 +96,14 @@ class RepairAgentTests(unittest.TestCase):
             (root/"index.html").write_text("HEADER_MARKER"+("x"*180000)+"RUNTIME_MARKER")
             result=propose("repair UI rendering",root,"dummy","mock-model",fake)
             self.assertEqual(result["status"],"no_safe_patch")
+
+    def test_issue_relevant_html_middle_is_available(self):
+        source = "HEADER_MARKER" + "x" * 40000 + "\\nfunction forecastPaneBug(){return true;}\\n" + "y" * 40000 + "TAIL_MARKER"
+        context = select_source_context(source, "forecastPaneBug")
+        self.assertIn("forecastPaneBug", context)
+        self.assertIn("HEADER_MARKER", context)
+        self.assertIn("TAIL_MARKER", context)
+        self.assertLessEqual(len(context), 35000)
 
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
