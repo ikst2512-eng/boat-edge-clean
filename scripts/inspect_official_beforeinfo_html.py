@@ -30,6 +30,10 @@ def inspect(saved_dir):
     raw=(base/"beforeinfo.html").read_bytes()
     if hashlib.sha256(raw).hexdigest()!=manifest.get("sha256"):
         raise ValueError("original HTML SHA mismatch")
+    if manifest.get("race_code")!=base.name or base.parent.name!=base.name[:8]:
+        raise ValueError("official probe race identity does not match evidence path")
+    if manifest.get("bytes") is not None and manifest["bytes"]!=len(raw):
+        raise ValueError("official probe byte length mismatch")
     if manifest.get("source")!="official_beforeinfo_html" or manifest.get("forecast_usable") is not False:
         raise ValueError("not isolated official probe evidence")
     parser=VisibleText()
