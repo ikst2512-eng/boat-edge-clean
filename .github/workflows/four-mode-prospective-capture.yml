@@ -1,0 +1,76 @@
+name: Four-mode prospective capture (research only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 22 * * *'
+    - cron: '7,22,37,52 23 * * *'
+    - cron: '7,22,37,52 0-11 * * *'
+  pull_request:
+    paths:
+      - clean_four_mode_capture.py
+      - clean_four_modes.py
+      - test_clean_four_mode_capture_e2e.py
+      - .github/workflows/four-mode-prospective-capture.yml
+permissions:
+  contents: read
+concurrency:
+  group: four-mode-prospective-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify four-mode capture
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes
+      - name: Capture predeadline records
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p four-mode-evidence
+          python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
+      - name: Stage only immutable new forecasts and check receipt window
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- 'four_mode_forecasts/*.json'
+          git reset -q -- four_mode_forecasts/capture_status.json || true
+          if git diff --cached --name-only --diff-filter=CDMRTUX -- four_mode_forecasts/ | grep -q .; then
+            echo 'Existing four-mode archive changed: refusing write' >&2; exit 1
+          fi
+          python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
+          if git diff --cached --quiet; then
+            echo 'No new cutoff-safe four-mode candidates'
+            exit 0
+          fi
+          git config user.name 'four-mode-capture-bot'
+          git config user.email 'four-mode-capture-bot@users.noreply.github.com'
+          git commit -m 'data: freeze four-mode predeadline research candidates'
+          for attempt in 1 2 3; do
+            python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
+            git fetch origin main
+            git -c rebase.autoStash=true rebase origin/main
+            if git push origin HEAD:main; then
+              echo 'Immutable four-mode candidates pushed'
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$attempt"
+          done
+      - name: Preserve capture log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-mode-capture-${{ github.run_id }}
+          path: four-mode-evidence/capture.log
+          if-no-files-found: warn
+          retention-days: 30
