@@ -58,9 +58,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --retry 2 --retry-delay 3 --max-time 45 -fLsS \
-            https://boat-edge-clean.onrender.com/api/signal70-holdout-status \
-            -o holdout-status.json
+          # Cold starts may return 503 while the evidence audit initializes.
+          # Retry boundedly; never accept a pending response as verified data.
+          for attempt in $(seq 1 12); do
+            if curl --max-time 15 -fLsS \
+              https://boat-edge-clean.onrender.com/api/signal70-holdout-status \
+              -o holdout-status.json; then
+              break
+            fi
+            if [[ "$attempt" == 12 ]]; then
+              echo "::error::holdout status did not become ready"
+              exit 1
+            fi
+            sleep 5
+          done
           python - <<'PY'
           import json
           from pathlib import Path
