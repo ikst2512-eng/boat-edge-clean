@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from research_model import JST
 
 MAX_BYTES=2_000_000
@@ -34,7 +34,8 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         received=now()
         parsed=urlparse(final_url)
         if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
-                or parsed.path!="/owsp/sp/race/beforeinfo"):
+                or parsed.path!="/owsp/sp/race/beforeinfo"
+                or parse_qs(parsed.query)!={"hd":[day],"jcd":[f"{venue:02d}"],"rno":[str(race)]}):
             raise ValueError("unexpected official response URL")
         if status!=200 or not isinstance(raw,bytes) or not raw or len(raw)>MAX_BYTES:
             raise ValueError("invalid official HTTP response")
