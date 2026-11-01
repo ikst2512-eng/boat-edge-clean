@@ -24,6 +24,12 @@ def report(day, root=ROOT, scorer=evaluate):
             if path.is_symlink() or not path.is_file() or path.stat().st_size > 20000:
                 raise ValueError("invalid archive")
             outcome = scorer(path.stem, root)
+            if (not isinstance(outcome, dict)
+                    or outcome.get("race_code") != path.stem
+                    or outcome.get("audited") is not True
+                    or outcome.get("formal") is not False
+                    or outcome.get("scoring_kind") != "prospective_research_only"):
+                raise ValueError("untrusted prospective evaluation")
             if outcome.get("status") == "result_unavailable":
                 counts["awaiting_result"] += 1
                 continue
