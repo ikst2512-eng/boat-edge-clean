@@ -654,3 +654,9 @@
 - 公式HTML独立probeが検証済みの公式リダイレクトを許す一方、manifestには要求URLだけを記録して実際の応答URLを失っていた。`response_url` を保存し、正常な同一レース公式別ホスト転送も原本manifestから追跡できるよう変更。
 - 回帰テストで転送後URLと要求URLの差、manifest同一性、およびT-12不適格の維持を検証。PR head `8bf32c60c833099b664e534c99dac2f21d7ade28` Actions run `41280534954` validate success。main squash `d5c83f50a223080d608fc350da776cfdfcc80d2a`。
 - 公式実レースのライブHTTP受信・受信時刻T-12・展示進入6艇の機械的確認は未証明。本変更は原本の追跡性改善のみで、予想採点利用なし。旧repo/Pagesの停止なし。
+
+
+## 2026-11-01 公式HTML手動取得後の診断artifact連携
+- 既存 `.github/workflows/late-preview-capture.yml` の手動 `official_probe_race_code` 指定時、公式HTTP原本保存後に `scripts/inspect_official_beforeinfo_html.py` を実行し、SHA-256再照合・展示/進入/ST等のラベル位置を `official_beforeinfo_diagnostic.json` に出力して既存artifactへ追加（main `72ec14f1439c8a2222c8103978e2b4bb2315f6ee`）。公式HTTP取得に失敗すると取得ステップが非0で終了し、診断ステップは実行されない（artifactアップロードは `always()` で維持）。
+- 追加した診断はHTMLラベルの位置のみを扱い、**6艇の数値完全性、取得レース整合、T-12適格性は未認定**。本番予想経路には接続しない。新しいworkflow・定期ジョブは作成していない。
+- GitHub Actionsの新規実行成功および実HTMLの診断artifactはまだ未確認。旧リポジトリ・旧Pagesの停止や削除なし。
