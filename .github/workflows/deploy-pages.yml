@@ -269,9 +269,11 @@ jobs:
                 {key:'202610272301',date:'2026-10-27',venue:'23',race:'1',finish:'1-2-5'},
                 {key:'202610310708',date:'2026-10-31',venue:'07',race:'8',finish:'1-4-6'}
               ]){
-                const archive='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/confirmed_results/'+race.key+'.json';
+                // Compare against the already published, byte-checked Pages archive.
+                // Requiring GitHub Raw here would fail despite a healthy same-origin result.
+                const archive=new URL('confirmed_results/'+race.key+'.json',process.env.PAGE_URL).toString();
                 const archived=await page.request.get(archive,{timeout:30000});
-                if(!archived.ok())throw Error('CLEAN committed result not available: '+race.key+' HTTP '+archived.status());
+                if(!archived.ok())throw Error('CLEAN published result unavailable: '+race.key+' HTTP '+archived.status());
                 const expected=await archived.json();
                 if(expected.race_code!==race.key||expected.status!=='confirmed'||expected.finish_order?.join('-')!==race.finish)throw Error('CLEAN archived result mismatch: '+race.key);
                 const url=new URL(process.env.PAGE_URL);
