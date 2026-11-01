@@ -2,6 +2,12 @@ name: Research forecast checks
 on:
   push:
     paths:
+      - 'audit_clean_first_add.py'
+      - 'test_audit_clean_first_add.py'
+      - 'research_prospective_miss_report.py'
+      - 'test_research_prospective_miss_report.py'
+      - 'scripts/research_topn_miss_diagnostic.py'
+      - 'test_research_topn_miss_diagnostic.py'
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
       - 'scripts/verify_legacy_preservation_samples.py'
@@ -28,6 +34,12 @@ on:
       - '.github/workflows/fresh-prospective-capture.yml'
   pull_request:
     paths:
+      - 'audit_clean_first_add.py'
+      - 'test_audit_clean_first_add.py'
+      - 'research_prospective_miss_report.py'
+      - 'test_research_prospective_miss_report.py'
+      - 'scripts/research_topn_miss_diagnostic.py'
+      - 'test_research_topn_miss_diagnostic.py'
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
       - 'scripts/verify_legacy_preservation_samples.py'
@@ -56,6 +68,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate first-add chronology and Top-N miss diagnostics
+        run: python -m unittest -v test_audit_clean_first_add test_research_topn_miss_diagnostic test_research_prospective_miss_report
       - name: Validate research forecast model and persisted records
         run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_advanced_card_preview_v392 test_research_chronological_calibration
       - name: Verify isolated Fresh candidate intake
