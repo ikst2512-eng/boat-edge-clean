@@ -643,3 +643,9 @@
 - 現行Pages workflowは配信後に2026-10-27と2026-10-31の2件を照合する一方、公開成果物作成時の存在確認は10/27分しかなかった。ステージング時に `public/confirmed_results/202610310708.json` の非空ファイル存在も検証する修正をmain `4633af41fadbeee704a703c2e9e06a671aa99029` へ反映。GitHub再取得で設定確認済み。
 - Renderで非開催住之江1Rの修正公開済みである旨の既存実測記録を確認。今回は公開Pages URLおよびActions web一覧の取得が失敗したため、Pages CI成功・過去レース4タブ完全表示は未確認。CIを新規成功扱いしない。
 - 旧サイト/旧Pages削除なし。次の優先は公開CIの実ログ取得と2026-10-31の4タブ実データ検証であり、単なるテスト追加を本番動作の代替にしない。
+
+
+## 2026-11-01 公式beforeinfo原本の診断用HTMLラベル監査
+- 公式HTTP原本について、manifestのSHA-256と実バイトを照合した後で可視HTMLテキストから展示タイム・チルト・スタート展示・進入・ST・気象ラベルの出現位置を抽出する**診断専用** `scripts/inspect_official_beforeinfo_html.py` を追加（`5826ded7`）。脚本・CSSは解析対象外。HTML掲載内容の文字列検査だけで6艇の値やT-12適格性を証明しない（出力は `six_lane_values=unverified,t12_eligible=false,forecast_usable=false` 固定）。
+- HTML改ざん時のSHA不一致拒否、ラベル抽出と非認定状態の回帰テスト `tests/test_inspect_official_beforeinfo_html.py` を追加（`566c1a31`）。既存 `late-preview-evidence-tests.yml`（`2a531f88`）と `late-preview-capture.yml`（`4dc60656`）へテストを組み込み、新規workflowは作成しない。
+- **mainへのファイル反映は確認済みだが、変更後のActions実行成功・公式実HTML保存・6艇値の構造解析・T-12実測は未確認。** 次に保存原本を取得できた時点でラベル・DOM形状を調査して抽出器を設計。旧repo/Pagesには変更なし。
