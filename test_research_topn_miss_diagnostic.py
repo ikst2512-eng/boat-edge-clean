@@ -16,7 +16,7 @@ class MissDiagnosticTest(unittest.TestCase):
     def test_topn_classification_and_accounting(self):
         rows = [(self.tickets, [1, 2, 3]), (self.tickets, [1, 2, 4]),
                 (self.tickets, [1, 6, 2]), (self.tickets, [4, 1, 2])]
-        summary = summarize_misses(rows)
+        summary = summarize_misses(iter(rows))
         self.assertEqual([summary["top" + str(n)]["hits"] for n in (3, 5, 10)], [1, 2, 2])
         for item in summary.values():
             self.assertEqual(item["evaluated"], item["hits"] + item["misses"])
