@@ -12,12 +12,16 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             d.mkdir(parents=True)
             raw="<html><body>展示タイム 6.89 <script>ST fake</script>スタート展示 ST チルト</body></html>".encode()
             (d/"beforeinfo.html").write_bytes(raw)
-            (d/"manifest.json").write_text(json.dumps({"source":"official_beforeinfo_html","race_code":"202611010708","forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),"received_at_jst":"2026-11-01T12:00:00+09:00","http_status":200,"status":"raw_http_observed_not_t12_certified","t12_eligible":False,"complete_six_lanes":"unverified","url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8","response_url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"}))
+            (d/"manifest.json").write_text(json.dumps({"source":"official_beforeinfo_html","race_code":"202611010708","forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),"request_started_at_jst":"2026-11-01T11:59:59+09:00","received_at_jst":"2026-11-01T12:00:00+09:00","http_status":200,"status":"raw_http_observed_not_t12_certified","t12_eligible":False,"complete_six_lanes":"unverified","url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8","response_url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"}))
             result=inspect(d)
             self.assertTrue(result["label_positions"]["展示タイム"])
             self.assertFalse(result["t12_eligible"])
             self.assertEqual(result["six_lane_values"],"unverified")
             manifest=json.loads((d/"manifest.json").read_text())
+            manifest["request_started_at_jst"]="2026-11-01T12:00:01+09:00"
+            (d/"manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError,"chronology"):inspect(d)
+            manifest["request_started_at_jst"]="2026-11-01T11:59:59+09:00"
             manifest["response_url"]="https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=9"
             (d/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"source URL race identity"):inspect(d)
