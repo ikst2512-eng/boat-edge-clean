@@ -731,3 +731,8 @@
 ## 2026-11-01 手動公式HTTP観測をCSV取得から分離
 - `late-preview-capture.yml` の手動 `workflow_dispatch` に `official_probe_race_code` を指定しても、これまでは先にBoatraceCSVの5種取得・監査・サマリーが実行され、4分タイムアウト内の公式HTTP観測に遅延と無関係な失敗リスクがあった。既存3ステップに `if: github.event_name != 'workflow_dispatch' || inputs.official_probe_race_code == ''` を追加し、**指定ありの手動probeだけCSV収集をスキップ**（main `c066fd5a6629beffc9e4a490b01dbf1e1a5dd975`）。スケジュール実行・通常の手動実行・PRテストでは従来通りCSV収集する。原本・失敗report・診断のartifactアップロードは維持。
 - YAML内容をGitHubから再取得して3箇所の条件が存在することを確認。**修正後CI成功、手動公式実HTTP取得、T-12完全6艇は未確認**。新workflow/PR/旧サイト変更なし。
+
+## 2026-11-01 PR #780 公式原本診断の受信時刻・認定状態の厳格化
+- `inspect_official_beforeinfo_html.py` はレースキー・SHA照合だけでは受信日時が無い原本や誤ったT-12認定状態も解析できていた。JST `+09:00` の解析可能な `received_at_jst`、HTTP 200、`raw_http_observed_not_t12_certified`、`t12_eligible=false`、`complete_six_lanes=unverified` を確認し、不一致なら診断拒否。
+- timezone不一致や偽のT-12合格を再現する回帰テスト追加。PR head `f44a1053d881de2fd430bea18ca2807de8910ee1` のLate preview evidence run `41304107698` validate success。main squash `171346d60c4361dd465092fa082ac8195c3e95e1`。
+- これは保存済み原本の診断用整合性チェックであり、**公式ライブHTTP受信・6艇完全性・締切T-12成立を実証したものではない**。旧サイト停止・削除なし。
