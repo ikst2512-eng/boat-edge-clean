@@ -64,6 +64,7 @@ jobs:
           cp index.html navigation.js public/
           cp -R confirmed_results public/confirmed_results
           test -s public/confirmed_results/202610270101.json
+          test -s public/confirmed_results/202610310708.json
           test -s public/index.html
           test -s public/navigation.js
       - name: Setup Pages
