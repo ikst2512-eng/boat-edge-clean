@@ -43,6 +43,12 @@ def inspect(saved_dir):
         receipt=datetime.fromisoformat(timestamp)
     except (TypeError, ValueError):
         raise ValueError("official probe receipt timestamp missing or invalid") from None
+    try:
+        started=datetime.fromisoformat(manifest["request_started_at_jst"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("official request start timestamp missing or invalid") from None
+    if started.utcoffset()!=timedelta(hours=9) or started>receipt:
+        raise ValueError("official HTTP observation chronology unverified")
     if receipt.utcoffset()!=timedelta(hours=9) or manifest.get("http_status")!=200 or manifest.get("status")!="raw_http_observed_not_t12_certified":
         raise ValueError("official probe receipt metadata unverified")
     if manifest.get("t12_eligible") is not False or manifest.get("complete_six_lanes")!="unverified":
