@@ -54,6 +54,10 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
 
+    def test_github_pages_logo_does_not_leave_clean_site(self):
+        self.assertIn("location.hostname.endsWith('.github.io')", self.nav)
+        self.assertIn("?'/boat-edge-clean/':'/'", self.nav)
+
     def test_race_context_passes_to_review_and_candidate_pages(self):
         for snippet in ("destination.searchParams.set('date'",
                         "destination.searchParams.set('venue'",
