@@ -23,7 +23,7 @@ def six_lane_status(kind, row):
     except (KeyError, ValueError, TypeError):
         return "incomplete"
     import re
-    valid_st=re.compile(r"(?:[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)|F\\.?\\d{1,2})")
+    valid_st=re.compile(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})")
     # Numeric syntax alone is not six-lane evidence: reject implausible ST.
     import math
     def plausible_st(st):
