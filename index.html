@@ -961,7 +961,7 @@ async function loadHeldVenues(force=false){
     if(!groups.has(jcd))groups.set(jcd,[]);
     groups.get(jcd).push({race_no:no,deadline:deadline.slice(11,16)});
    }
-   data={date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:feed.source_received_jst,venues:[...groups].map(([jcd,races])=>({jcd,races}))};
+   data={date,phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,updated_at:feed.source_received_jst,partial_coverage:feed.partial_coverage===true,venues:[...groups].map(([jcd,races])=>({jcd,races}))};
    }
   }else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status);
   if(!data||!Array.isArray(data.venues))throw Error('SCHEDULE_INVALID');
@@ -1091,6 +1091,13 @@ async function loadRaceData(force=false){
  const preserve=force&&displayedRaceKey===key&&body.children.length>0;
  if(!preserve){body.replaceChildren();document.getElementById('exhibitionGrid').replaceChildren();document.getElementById('mobileRaceCards').replaceChildren();document.getElementById('mobileRaceMatrix').replaceChildren();document.getElementById('mobileRacerDetails').open=false;document.getElementById('courseDataNotice').replaceChildren();source.textContent='';displayedRaceKey='';}status.textContent=preserve?'更新情報を確認中（表示中の出走表を保持）…':'保存済み出走表を確認中…';
  try{
+  await loadHeldVenues();
+  if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
+  if(todayVenueRaces?.date===s.date&&todayVenueRaces.partial_coverage!==true){
+   const scheduledVenue=todayVenueRaces.venues.find(v=>Number(v.jcd)===s.venue+1);
+   const scheduledRace=scheduledVenue?.races?.some(r=>Number(r.race_no)===s.race);
+   if(!scheduledRace){status.textContent=scheduledVenue?'このレースは開催されていません':'この場は開催されていません';source.textContent='確認済み開催日程';return;}
+  }
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
   const response=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
