@@ -32,8 +32,10 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
                 status=response.status
                 raw=response.read(MAX_BYTES+1)
         received=now()
-        if urlparse(final_url).hostname not in ("www.boatrace.jp","boatrace.jp"):
-            raise ValueError("unexpected redirect host")
+        parsed=urlparse(final_url)
+        if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
+                or parsed.path!="/owsp/sp/race/beforeinfo"):
+            raise ValueError("unexpected official response URL")
         if status!=200 or not isinstance(raw,bytes) or not raw or len(raw)>MAX_BYTES:
             raise ValueError("invalid official HTTP response")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.

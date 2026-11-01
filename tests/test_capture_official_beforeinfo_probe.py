@@ -32,6 +32,28 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(json.loads(manifest),result)
             self.assertEqual((Path(d)/"20261101/202611010708/beforeinfo.html").read_bytes(),b"<html>beforeinfo</html>")
             self.assertEqual(capture("202611010708",d,fetch=lambda url:b"x",clock=lambda:now)["status"],"official_probe_failed")
+    def test_redirect_must_remain_on_official_https_beforeinfo(self):
+        from unittest.mock import patch
+        class FakeResponse:
+            status=200
+            def __init__(self,url): self.url=url
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def geturl(self): return self.url
+            def read(self,size): return b"<html>raw</html>"
+        urls=(
+            "http://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101",
+            "https://www.boatrace.jp/owsp/sp/race/result?hd=20261101",
+            "https://other.example/owsp/sp/race/beforeinfo",
+        )
+        for target in urls:
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as d:
+                with patch("scripts.capture_official_beforeinfo_probe.urlopen",return_value=FakeResponse(target)):
+                    report=capture("202611010708",d)
+                self.assertEqual(report["status"],"official_probe_failed")
+                self.assertFalse(list(Path(d).rglob("manifest.json")))
+                self.assertFalse(report["forecast_usable"])
+
     def test_failure_fails_closed(self):
         def missing(url): raise TimeoutError("offline")
         with tempfile.TemporaryDirectory() as d:
