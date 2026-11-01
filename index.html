@@ -1500,8 +1500,11 @@ async function loadDailyReview(){
  try{
   const response=await fetchTimed(base+'schedule_snapshots/'+day+'.json',{cache:'no-store'});
   let data, historicalResultFallback=false;
-  if(response.ok)data=await response.json();
-  else if(day<fmt(jst()).replaceAll('-','')){
+  if(response.ok){
+   data=await response.json();
+   if(data.date&&String(data.date).replaceAll('-','')!==day)throw Error('SCHEDULE_DATE_MISMATCH');
+  }
+  else if(response.status===404&&day<fmt(jst()).replaceAll('-','')){
    // Show known past races when CLEAN's independent schedule archive is missing.
    // Result-derived race existence is NOT evidence of a pre-race schedule.
    data=await historicalHeldVenues(day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8));
