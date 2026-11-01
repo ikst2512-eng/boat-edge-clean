@@ -741,3 +741,9 @@
 ## 2026-11-01 手動公式probeで不要な事前単体テストをスキップ
 - 手動 `workflow_dispatch` に `official_probe_race_code` を指定しても従来は収集前に8種の単体テストが走り、短い実行枠で実HTTP観測の開始を遅らせていた。既存 `late-preview-capture.yml` の先行テストステップに条件を付け、**公式レース指定ありの手動実行のみ**テストを省略して公式HTTP取得を先に実施するよう変更（main `8b260a0203c1b82ee180295ec6928cc11bddc8dc`）。schedule・PR・通常手動でのテスト動作は維持。独立の `late-preview-evidence-tests.yml` ではpush/PR時に公式probe・HTML診断を継続テストする。
 - 本実行で公式ページの直接取得はweb経由でもアクセス不可。最新変更後CI成功、GitHub手動probe実HTTP受信、6艇完全性、T-12成立は未確認。旧repo・予想モデルは変更なし。
+
+
+## 2026-11-01 Pages公開ブラウザ結果テストのRaw依存解消
+- 既存Pages公開ブラウザ検証は、10/27・10/31の画面表示前にGitHub Rawへアクセスして期待値JSONを取得していた。ページ本体の結果読込は既に同一origin優先なのに、Raw障害で公開画面の合否を判定できない不整合を確認。
+- `deploy-pages.yml` の結果画面テストの参照JSONを、公開済みPagesの同一origin `confirmed_results/{race_code}.json` に変更（main `53d170613cca5ea03af232d04039df5a7d6baaa1`）。直前の公開バイト一致ゲートがGitHub保存原本との一致を検査するので、ブラウザ検証は公開JSON→DOM表示の一致を検査する。期待する3連単10/27=1-2-5、10/31蒲郡8R=1-4-6、および正式的中採点禁止は維持。
+- GitHub Pages Actions push run最新結果と公開サイトへの直接HTTPアクセスは取得制限により未確認。実装更新を本番合格としない。旧サイト停止・削除なし。
