@@ -1499,8 +1499,14 @@ async function loadDailyReview(){
  const base='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
  try{
   const response=await fetchTimed(base+'schedule_snapshots/'+day+'.json',{cache:'no-store'});
-  if(!response.ok)throw Error('SCHEDULE_'+response.status);
-  const data=await response.json();
+  let data, historicalResultFallback=false;
+  if(response.ok)data=await response.json();
+  else if(day<fmt(jst()).replaceAll('-','')){
+   // Show known past races when CLEAN's independent schedule archive is missing.
+   // Result-derived race existence is NOT evidence of a pre-race schedule.
+   data=await historicalHeldVenues(day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8));
+   historicalResultFallback=true;
+  }else throw Error('SCHEDULE_'+response.status);
   if(token!==dailyReviewToken)return;
   const races=(data.venues||[]).flatMap(v=>(v.races||[]).map(r=>({venue:Number(v.jcd),race:Number(r.race_no)})))
    .filter(r=>r.venue>=1&&r.venue<=24&&r.race>=1&&r.race<=12).sort((a,b)=>a.venue-b.venue||a.race-b.race);
@@ -1510,7 +1516,7 @@ async function loadDailyReview(){
   for(const r of races){
    if(venues.has(r.venue))continue;
    const group=document.createElement('details');group.className='daily-review-venue';group.open=r.venue===s.venue+1;
-   const header=document.createElement('summary');header.textContent=names[r.venue-1]+'｜12R・照合中';group.append(header);
+   const header=document.createElement('summary');header.textContent=names[r.venue-1]+'｜照合中';group.append(header);
    const body=document.createElement('div');body.className='daily-review-venue-races';group.append(body);root.append(group);
    group.addEventListener('toggle',()=>{if(group.open)for(const [code,item] of venues){if(code!==r.venue)item.group.open=false}});
    venues.set(r.venue,{group,header,body,hits:0,misses:0,pending:0,checked:0,total:races.filter(x=>x.venue===r.venue).length});
@@ -1523,7 +1529,7 @@ async function loadDailyReview(){
    venues.get(r.venue).body.append(row);return {code,row,venue:r.venue}
   });
   let finished=0,matched=0,missed=0,pending=0;
-  function update(){summary.textContent=day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8)+'｜対象 '+rows.length+'R｜確認 '+finished+'/'+rows.length+'R｜研究予想一致 '+matched+'R｜不一致 '+missed+'R｜未照合 '+pending+'R'}
+  function update(){summary.textContent=(historicalResultFallback?'結果記録由来の参考一覧（事前開催証拠ではありません）｜':'')+day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8)+'｜対象 '+rows.length+'R｜確認 '+finished+'/'+rows.length+'R｜研究予想一致 '+matched+'R｜不一致 '+missed+'R｜未照合 '+pending+'R'}
   update();
   let index=0;
   async function worker(){
