@@ -623,3 +623,8 @@
 - BOAT RACE公式の公開された過去レース直前情報ページを照合し、6艇の展示タイム・チルト・スタート展示の進入順・ST・気象データが表示される例を確認（https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261011&jcd=19&rno=12）。公式の展示タイム案内でも展示航走終了後の公表が説明されている（https://www.boatrace.jp/owsp/sp/extra/enjoy/guide/level2/l2_01_02_07.html）。
 - これは**過去ページの項目存在確認**であり、ライブHTTP受信時刻、原本hash、完全な機械抽出、T-12以前の公開可否は実証していない。予想投入は禁止継続。次は公式HTML実原本に対する6艇抽出器と時刻・ハッシュ一致監査を既存probeに統合し、日中の手動workflow実行のartifactsで証拠を得る。
 - 別担当のPR #765と同じCLI失敗判定を重複実装しない。旧repo/旧Pagesの撤去保留。
+
+## 2026-11-01 PR #770 公式beforeinfo転送先のレース同一性を検証
+- `scripts/capture_official_beforeinfo_probe.py` では転送先のHTTPS・ホスト・パスだけを検証しており、別日・別レースのHTMLを指定レースとして誤保全し得た。転送後URLの `hd/jcd/rno` が指定レースコードと一致し、余分なクエリもないことを保存前に要求。
+- 他日・他R・余分なクエリのモック回帰を既存テストに追加。PR #770 head `cdb4c31e036928d4d8b66f9f9b523e9e1d227437`、Late preview evidence integrity run `41261901521` はsuccess。main squash `0a7f3c863655857de9fe643be22a0397e987177d`。
+- 公式HTMLの実受信・T-12時刻・6艇完全性の実測は未達。旧repo/Pages停止なし。
