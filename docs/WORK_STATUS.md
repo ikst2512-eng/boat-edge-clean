@@ -685,3 +685,8 @@
 ## 2026-11-01 公式probe失敗レポートをartifact保存
 - 手動 `official_probe_race_code` を指定して公式HTTP取得が失敗すると、従来は標準出力だけでartifactに失敗理由が残らなかった。既存 `late-preview-capture.yml` の公式probe実行を `set -o pipefail` と `tee official_preview_probe/attempt_report.json` に変更し、取得成功・失敗どちらの場合も受信時刻/エラー分類をartifactへ保全。元のCLIの終了コード1はpipefailで維持（main `e1960a48435a746eded7412edc9bfb557f04ef2d`）。artifactパスを明示（main `f94a07613f2e60345b0a1dbcf2d630690ee5692f`）。
 - この環境からの `www.boatrace.jp` 直接HTTPアクセスはDNS名前解決失敗。GitHub Actionsからの公式HTML実受信、今回のCI成功、T-12 6艇数値は未確認。旧repo/旧Pages/予想モデルには変更なし。
+
+
+## 2026-11-01 Pages確定結果の同一origin優先読み込み
+- `index.html` の確定結果取得はPages上でもGitHub Rawを最初に最大15秒待ち、失敗後に同一サイトの保存JSONを読む順序だった。Pagesホスト `ikst2512-eng.github.io` では `confirmed_results/{race_code}.json` を先に試し、失敗した場合のみRawを照会する順序に変更。Render等では従来通りRaw優先。双方が失敗した場合はHTTPエラーとして維持し、結果を捏造しない（main `dc5f62a43776669d0a970889370e887afbea9d96`）。
+- 変更後のGitHub Actions CI、Pages公開実ブラウザでの10/31蒲郡8R表示、iPhone Safariは未確認。旧サイト/原本削除なし。次は既存Pages CIと現物公開表示の確認。
