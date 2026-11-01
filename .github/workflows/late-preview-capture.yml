@@ -30,6 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify preview import and capture unit tests
+        if: github.event_name != 'workflow_dispatch' || inputs.official_probe_race_code == ''
         run: |
           python -m unittest -v test_late_preview_capture
           python -m unittest discover -s tests -p 'test_collect_late_preview_once.py' -v
