@@ -1,5 +1,10 @@
 name: AI operations optional diagnostics
 on:
+  pull_request:
+    paths:
+      - ai_diagnostics.py
+      - test_ai_diagnostics.py
+      - .github/workflows/ai-operations-diagnostics.yml
   workflow_dispatch:
   schedule:
     - cron: '47 18 * * *' # 03:47 JST, after existing audit
