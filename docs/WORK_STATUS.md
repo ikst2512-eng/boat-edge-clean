@@ -583,3 +583,10 @@
 - 旧repoの実在する `data/site_prediction_snapshots/` JSON原本を16件追加取得して保全専用パスへコピー。manifest計35件。追加16件は保全branchから再取得し元Git blob SHAと16/16一致。既存チェックは35件を下回ると失敗するよう変更。
 - PR head `cbc9bae3aaa79130fb4304705424804ddcfac755` の Research forecast checks run `41260907739` はcompleted/success。main squash `bac5f069b4172122f514824b00257538c91beef6`。
 - 依然として全数保全・初回Git保存時刻・締切前時刻証明・期限なし独立保存/復元は未達。旧サイトと予想モデルは変更せず、撤去ゲート未達。
+
+
+## 2026-11-01 Pages確定結果JSONの公開後バイト照合
+- 公開workflowはHTMLとnavigation.jsの配信バイト一致のみ検査しており、同梱した確定結果JSONの欠落・配信不一致を独立して検出できなかった。
+- 既存 `.github/workflows/deploy-pages.yml` の `Verify deployed public page` に、実保存サンプル `confirmed_results/202610270101.json` の公開取得とローカル配布原本との `cmp -s` 一致ゲートを追加。main `aa425fff20e9a70b2ff1e0da7cc4bb4bb8809cd6`。GitHub上で実コード再取得済み。
+- GitHub Actions push runの実行結果・公開JSONのHTTP実測はツールから未確認。サンプル1件の検証であり全結果JSONの保証ではない。新しいワークフロー・PRなし。旧サイトは停止・削除しない。
+- 次はPages公開runの実ログでHTML/JS/結果JSONの照合を確認し、2026-10-31実レースの出走表・展示・予想・結果表示を確認する。
