@@ -91,17 +91,29 @@ jobs:
         run: |
           test -n "$PAGE_URL"
           for attempt in 1 2 3 4 5 6; do
+            echo "Checking published revision (attempt $attempt/6)"
             if curl --fail --silent --show-error --location --max-time 20 "$PAGE_URL" -o /tmp/clean-deployed.html; then
               if cmp -s public/index.html /tmp/clean-deployed.html; then
                 NAV_URL="${PAGE_URL%/}/navigation.js"
-                curl --fail --silent --show-error --location --max-time 20 "$NAV_URL" -o /tmp/clean-deployed-navigation.js
-                cmp -s public/navigation.js /tmp/clean-deployed-navigation.js || { echo "Published navigation.js missing or mismatched" >&2; exit 1; }
+                if ! curl --fail --silent --show-error --location --max-time 20 "$NAV_URL" -o /tmp/clean-deployed-navigation.js || ! cmp -s public/navigation.js /tmp/clean-deployed-navigation.js; then
+                  echo "Published navigation.js not yet identical (attempt $attempt)" >&2
+                  sleep 10
+                  continue
+                fi
+                result_ok=1
                 for RESULT_KEY in 202610270101 202610310708; do
                   RESULT_URL="${PAGE_URL%/}/confirmed_results/${RESULT_KEY}.json"
-                  curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o "/tmp/clean-deployed-${RESULT_KEY}.json"
-                  cmp -s "public/confirmed_results/${RESULT_KEY}.json" "/tmp/clean-deployed-${RESULT_KEY}.json" || { echo "Published confirmed result missing or mismatched: ${RESULT_KEY}" >&2; exit 1; }
+                  if ! curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o "/tmp/clean-deployed-${RESULT_KEY}.json" || ! cmp -s "public/confirmed_results/${RESULT_KEY}.json" "/tmp/clean-deployed-${RESULT_KEY}.json"; then
+                    echo "Published confirmed result not yet identical: ${RESULT_KEY} (attempt $attempt)" >&2
+                    result_ok=0
+                    break
+                  fi
                 done
-                echo "Public page and navigation.js byte-identical PASS: $PAGE_URL"
+                if [ "$result_ok" -ne 1 ]; then
+                  sleep 10
+                  continue
+                fi
+                echo "Public HTML, navigation.js, and 2 confirmed results byte-identical PASS: $PAGE_URL"
                 echo "Public HTML: **PASS** (byte-identical to deployed revision)" >> "$GITHUB_STEP_SUMMARY"
                 sha256sum public/index.html
                 exit 0
@@ -109,8 +121,8 @@ jobs:
             fi
             sleep 10
           done
-          echo "Public HTML: **FAIL / UNCONFIRMED** (unavailable or differs from deployed revision)" >> "$GITHUB_STEP_SUMMARY"
-          echo "Public page verification FAIL: deployed HTML differs from current index.html or is unavailable: $PAGE_URL" >&2
+          echo "Public HTML/JS/results: **FAIL / UNCONFIRMED** after retries" >> "$GITHUB_STEP_SUMMARY"
+          echo "Public page verification FAIL: HTML, navigation.js or confirmed result bytes unavailable/mismatched after retries: $PAGE_URL" >&2
           exit 1
       - name: Browser interaction smoke test
         timeout-minutes: 5
