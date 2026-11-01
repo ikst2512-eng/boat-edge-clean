@@ -52,4 +52,18 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
 
+    def test_inert_markup_cannot_forge_official_labels(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText, LABELS
+        html = """<html><head><title>展示タイム fake</title></head>
+        <body><template>進入 fake</template><noscript>ST fake</noscript>
+        <svg><text>風速 fake</text></svg><iframe>波高 fake</iframe>
+        <style>チルト fake</style><script>スタート展示 fake</script>
+        <p>展示タイム 6.89</p></body></html>"""
+        parser = VisibleText()
+        parser.feed(html)
+        text = " ".join(parser.fragments)
+        self.assertIn("展示タイム 6.89", text)
+        self.assertNotIn("fake", text)
+        self.assertEqual(sum("展示タイム" in item for item in parser.fragments), 1)
+
 if __name__=="__main__":unittest.main()
