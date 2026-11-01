@@ -762,3 +762,8 @@
 ## 2026-11-02 結果JSON取得順序の実行型回帰テスト
 - Pagesは同一origin→GitHub Raw、RenderはRaw→同一originの順序で `fetchCleanResultArchive` を使うが、既存回帰は文字列存在チェックのみ。`tests/site-regression.cjs` に本番関数をvmで実行する5ケース（Pages直接成功、Pages→Raw代替、Render直接成功、Render→ローカル代替、双方404）を追加（main `b0722f04cb4a564514090632a76bccac531d5110`）。新規PR/ジョブなし。
 - GitHub Actions push CIの実行結果とPages公開画面の実ブラウザ合格は未取得。実装・回帰追加のみを本番修正完了とはしない。旧サイト停止なし。
+
+## 2026-11-02 旧予想原本71件の保全（PR #783）
+- 既存63件へ旧repoの実在するJSON原本8件を追加。新規8件は元Git blob SHAと保存先を再取得して8/8一致。保全manifestは71件、保全CIの最低件数を71へ更新。
+- PR head `0beec3893797573289188073714cbb3734201f84` のResearch forecast checks実行 `41330148238` はcompleted/success。main squash `52c94fe8ab9b359bc393a380b2d0f21c71938d59`。
+- 初回Git保存時刻・予想全件網羅・オッズ/Fresh・非期限付き独立ストレージ復元は未証明。旧サイト停止なし。
