@@ -2,6 +2,8 @@ import tempfile
 import json
 import hashlib
 import json
+import subprocess
+import sys
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -49,6 +51,14 @@ class OfficialProbeTests(unittest.TestCase):
                 result=capture("202611010708",d,fetch=lambda url:b"<html>ok</html>")
             self.assertEqual(result["status"],"official_probe_failed")
             self.assertFalse((Path(d)/"20261101/202611010708").exists())
+
+    def test_cli_reports_failed_observation_as_failed_job(self):
+        with tempfile.TemporaryDirectory() as d:
+            # Bad day is rejected by the CLI, never reported as an observed page.
+            proc=subprocess.run([sys.executable,"-m","scripts.capture_official_beforeinfo_probe",
+                                 "202611010799","--root",d],capture_output=True,text=True)
+            self.assertNotEqual(proc.returncode,0)
+            self.assertFalse(list(Path(d).rglob("manifest.json")))
 
     def test_rejects_bad_race_code(self):
         for code in ("202611010799","202611010000","2026110107AA","202611010708/../"):
