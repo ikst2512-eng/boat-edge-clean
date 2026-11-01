@@ -670,3 +670,8 @@
 ## 2026-11-01 重複PR #765整理と公開検証制約
 - PR #765 は失敗時CLI終了コード1と通信失敗回帰テストを追加する差分だったが、mainの `scripts/capture_official_beforeinfo_probe.py` は既に失敗を非ゼロ終了とし、`tests/test_capture_official_beforeinfo_probe.py` にHTTP通信失敗の回帰テストが存在することを直接照合。PR #765を未統合のままclosedに整理（https://github.com/ikst2512-eng/boat-edge-clean/pull/765）。mainの実装は変更せず重複統合を回避。
 - Actions一覧ページ・GitHub Pages公開HTML/確定結果JSONへは今回のWeb取得でアクセス不可。現行push CI結果や実レース4タブの公開後表示を成功と判定しない。旧サイト撤去条件も未達のため削除なし。
+
+## 2026-11-01 PR #774 公式HTML手動取得後の診断自動化
+- `late-preview-capture.yml` の手動 `official_probe_race_code` 指定時、原本保存成功後に `inspect_official_beforeinfo_html.py` を自動実行し `official_preview_probe/label_inventory.json` に診断用ラベル分布を保存。SHA照合後の原本のみを検査し、`t12_eligible=false`、`forecast_usable=false`、`six_lane_values=unverified` を強制する。既存artifact upload (`always()`) に含める。
+- PR #774 head `27a5736313e01d1fb4a3969ea0e7829aedafee0a` で Preview capture run `41280725774`、Late preview evidence run `41280725753`、Audit run `41280725728` が全てsuccess。main squash `b76e5e927e1760f2a8f96f651f08db95fb0dfcfb`。
+- PR時のworkflowは手動公式取得を実行していない。**実公式HTML取得・実レース6艇とT-12受信時刻の証明は未完了。** 旧サイト停止・削除なし。
