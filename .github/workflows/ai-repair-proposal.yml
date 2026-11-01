@@ -1,5 +1,10 @@
 name: AI repair proposal (manual and review-gated)
 on:
+  pull_request:
+    paths:
+      - ai_repair_agent.py
+      - test_ai_repair_agent.py
+      - .github/workflows/ai-repair-proposal.yml
   workflow_dispatch:
     inputs:
       issue:
@@ -9,7 +14,21 @@ on:
 permissions:
   contents: read
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_ai_repair_agent
   propose:
+    needs: tests
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
