@@ -47,6 +47,18 @@ def inspect(saved_dir):
         raise ValueError("official probe receipt metadata unverified")
     if manifest.get("t12_eligible") is not False or manifest.get("complete_six_lanes")!="unverified":
         raise ValueError("official probe must remain non-certified")
+    from urllib.parse import urlparse, parse_qs
+    day, venue, race=base.name[:8],int(base.name[8:10]),int(base.name[10:])
+    expected={"hd":[day],"jcd":[f"{venue:02d}"],"rno":[str(race)]}
+    for field in ("url","response_url"):
+        value=manifest.get(field)
+        if not isinstance(value,str):
+            raise ValueError("official probe source URL missing")
+        parsed=urlparse(value)
+        if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
+                or parsed.path!="/owsp/sp/race/beforeinfo"
+                or parse_qs(parsed.query)!=expected):
+            raise ValueError("official probe source URL race identity mismatch")
     parser=VisibleText()
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments
