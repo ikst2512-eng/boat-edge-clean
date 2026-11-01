@@ -85,7 +85,8 @@ def propose(issue, root, api_key, model, transport=urlopen):
             snippets[name] = target.read_text(encoding="utf-8")[:25000]
     req_body = {"model": model, "instructions": PROMPT,
                 "input": json.dumps({"issue": issue, "sources": snippets}, ensure_ascii=False),
-                "max_output_tokens": 3500, "store": False}
+                "max_output_tokens": 3500, "store": False,
+                "text": {"format": {"type": "json_object"}}}
     request = Request(API, data=json.dumps(req_body).encode(), method="POST",
                       headers={"Content-Type": "application/json", "Authorization": "Bearer "+api_key})
     with transport(request, timeout=45) as handle:
