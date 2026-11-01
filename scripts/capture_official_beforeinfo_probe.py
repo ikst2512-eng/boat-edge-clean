@@ -78,3 +78,5 @@ if __name__=="__main__":
     args=parser.parse_args()
     report=capture(args.race_code,args.root)
     print(json.dumps(report,ensure_ascii=False,indent=2))
+    if report["status"]!="raw_http_observed_not_t12_certified":
+        raise SystemExit(1)
