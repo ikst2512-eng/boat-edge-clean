@@ -393,7 +393,8 @@ function setView(view,fromBack=false){
  document.getElementById('raceBrowserToolbar').hidden=view==='home';
  document.querySelectorAll('[data-home-only]').forEach(el=>{el.hidden=view!=='home';});
  document.body.classList.toggle('review-focused',view==='review');
- document.getElementById('forecastQuick').hidden=view!=='forecast';
+ // Race selection lives on the home page; keep legacy picker DOM for compatibility only.
+ document.getElementById('forecastQuick').hidden=true;
  document.getElementById('deadlineSection').hidden=view!=='home';
 
  document.getElementById('raceDataSection').hidden=view==='forecast'||view==='result'||view==='review'||view==='home';
