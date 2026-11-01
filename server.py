@@ -234,6 +234,45 @@ def get_predictions(params):
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
+# The historical holdout evaluator reads and validates many saved races.
+# Never perform that computation inside a public request handler.
+_HOLDOUT_LOCK = threading.Lock()
+_HOLDOUT_STATE = {"value": None, "expires": 0.0, "running": False}
+_HOLDOUT_TTL_SECONDS = 900
+
+def _compute_holdout_status():
+    from compare_topn_signal70_days import report
+    dates = sorted({p.stem[:8] for p in (ROOT / "prospective_predictions").glob("20??????????.json")})
+    data = report(dates) if dates else {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
+    return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
+            "later_holdout_days": data["later_holdout_days"],
+            "evaluated_holdout_races": data["later_holdout_evaluated_races"],
+            "discovery_day": "20261029", "independently_validated": False}
+
+def _refresh_holdout_status():
+    try:
+        result = _compute_holdout_status()
+    except Exception:
+        logging.exception("holdout_status_unavailable")
+        result = None
+    with _HOLDOUT_LOCK:
+        _HOLDOUT_STATE["value"] = result
+        _HOLDOUT_STATE["expires"] = time.monotonic() + _HOLDOUT_TTL_SECONDS
+        _HOLDOUT_STATE["running"] = False
+
+def holdout_status():
+    now = time.monotonic()
+    with _HOLDOUT_LOCK:
+        if now >= _HOLDOUT_STATE["expires"] and not _HOLDOUT_STATE["running"]:
+            _HOLDOUT_STATE["running"] = True
+            threading.Thread(target=_refresh_holdout_status, daemon=True, name="holdout-refresh").start()
+        value = _HOLDOUT_STATE["value"]
+        fresh = value is not None and now < _HOLDOUT_STATE["expires"]
+    if fresh:
+        return 200, value
+    # Unknown must never be reported as zero evaluated races.
+    return 503, {"ok": False, "error": "HOLDOUT_PENDING", "retryable": True}
+
 class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
@@ -276,19 +315,7 @@ class Handler(BaseHTTPRequestHandler):
             body = (ROOT / "selection.html").read_bytes().replace(b"</body>", b'<script src="/secondary_navigation.js" defer></script></body>')
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/api/signal70-holdout-status":
-            from compare_topn_signal70_days import report
-            try:
-                dates=sorted({p.stem[:8] for p in (ROOT/"prospective_predictions").glob("20??????????.json")})
-                data=report(dates) if dates else {"schema":"CLEAN_SIGNAL70_DAYWISE_V1","later_holdout_days":0,"days":[]}
-                response={"schema":"CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
-                          "later_holdout_days":data["later_holdout_days"],
-                          "evaluated_holdout_races":sum(sum(g["evaluated"] for g in d["groups"].values())
-                                                         for d in data["days"] if d["role"]=="later_holdout"),
-                          "discovery_day":"20261029","independently_validated":False}
-                status=200
-            except (ValueError,KeyError,OSError,TypeError):
-                logging.exception("holdout_status_unavailable")
-                status,response=503,{"ok":False,"error":"HOLDOUT_UNAVAILABLE"}
+            status, response = holdout_status()
             body=json.dumps(response,ensure_ascii=False).encode("utf-8")
             kind="application/json; charset=utf-8"
         elif path == "/api/four-mode-archive":
