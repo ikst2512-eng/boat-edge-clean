@@ -90,6 +90,19 @@ def clean_schedule(day):
 
     except HTTPError as exc:
         if exc.code in (404, 410):
+            # Prefer the same live holding list used by the racecard adapter.
+            # This keeps schedule selection aligned with the card source.
+            try:
+                from clean_direct_sources import holding_rows
+                titles, received, digest = holding_rows(day)
+                result = parse_schedule(day, titles, received)
+                result["source"] = "CLEAN_DIRECT_PRE_RACE"
+                result["source_sha256"] = digest
+                result["status"] = "direct_published_schedule"
+                result["venue_race_counts"] = dict(sorted(Counter(r["venue_code"] for r in result["races"]).items()))
+                return 200, result
+            except (ValueError, KeyError, TypeError, OSError, TimeoutError, URLError, HTTPError) as direct_error:
+                logging.info("direct_schedule_not_ready date=%s reason=%s", day, type(direct_error).__name__)
             # Daily CSV may lag published racecards. Preserve exact race identity.
             try:
                 from clean_openapi_sources import load
