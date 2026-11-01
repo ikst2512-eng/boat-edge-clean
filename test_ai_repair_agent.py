@@ -7,7 +7,7 @@ from ai_repair_agent import apply, parse_patches, propose
 
 class RepairAgentTests(unittest.TestCase):
     def test_disallow_model_or_workflow_edits(self):
-        for path in ("clean_four_modes.py", ".github/workflows/deploy-pages.yml", "../server.py"):
+        for path in ("clean_four_modes.py", ".github/workflows/deploy-pages.yml", "../server.py", "tests/site-regression.cjs"):
             with self.assertRaises(ValueError):
                 parse_patches([{"path":path,"old":"x","new":"y"}])
 
