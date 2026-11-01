@@ -757,3 +757,8 @@
 - 公式HTTP観測時に取得元URLの同一性を確認していても、別途保存原本の診断ではmanifest `url` と `response_url` に誤ったレースが書かれている場合の拒否がなかった。診断時に両URLのHTTPS、公式ホスト、beforeinfo path、`hd/jcd/rno` と保全パスの一致を再確認。
 - 保存manifestの別R `response_url` を検出する回帰テスト追加。PR head `f314c28ea998975987255f61b4b55e8f9612a0e3` のLate preview evidence run `41304441304` validate success。main squash `e7869d8730b8fc5c46b9f0e588b07d0c6015430f`。
 - **公式ライブHTML取得とT-12での6艇完全性の実証は未達。** 新規の予想入力・旧サイト停止なし。
+
+
+## 2026-11-02 結果JSON取得順序の実行型回帰テスト
+- Pagesは同一origin→GitHub Raw、RenderはRaw→同一originの順序で `fetchCleanResultArchive` を使うが、既存回帰は文字列存在チェックのみ。`tests/site-regression.cjs` に本番関数をvmで実行する5ケース（Pages直接成功、Pages→Raw代替、Render直接成功、Render→ローカル代替、双方404）を追加（main `b0722f04cb4a564514090632a76bccac531d5110`）。新規PR/ジョブなし。
+- GitHub Actions push CIの実行結果とPages公開画面の実ブラウザ合格は未取得。実装・回帰追加のみを本番修正完了とはしない。旧サイト停止なし。
