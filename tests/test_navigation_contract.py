@@ -51,10 +51,13 @@ class NavigationContractTest(unittest.TestCase):
 
     def test_navigation_files_are_served_and_injected(self):
         for snippet in ('"/navigation.js"', '"/secondary_navigation.js"',
-                        'script src="/navigation.js"',
                         'script src="/secondary_navigation.js"'):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, self.server)
+        # The HTML bootstrap owns the main navigation loader. Injecting it
+        # again server-side would double-load the same script on Render.
+        self.assertIn("navScript.src='navigation.js'", self.index)
+        self.assertNotIn('script src="/navigation.js"', self.server)
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
 

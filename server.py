@@ -252,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlsplit(self.path)
         path = parsed.path.rstrip("/") or "/"
         if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results", "/review"):
-            body = (ROOT / "index.html").read_bytes().replace(b"</body>", b'<script src="/navigation.js" defer></script></body>')
+            body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/navigation.js":
             body = (ROOT / "navigation.js").read_bytes()
