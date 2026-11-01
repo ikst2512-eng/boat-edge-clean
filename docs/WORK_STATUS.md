@@ -612,3 +612,8 @@
 - `data/site_prediction_snapshots/` の実在JSONを12件追加し、CLEANの保全専用フォルダに計47件。追加分12件を再取得し元Git blob SHAと12/12一致。
 - 既存の保全ハッシュ検証を最低47件へ引き上げ、PR head `59c360ab55d7ff1d22f111bdbbd0b4cef0f0ca8d` の Research forecast checks run `41261771107` はcompleted/success。main squash `f4220a4c2f3c2ce68a30ddae99d827bce6ec35aa`。
 - 初回Git追加時刻と締切前性の証明、全旧予想・オッズ・Fresh証拠の網羅、期限なし独立バックアップの復元は未達。旧サイト停止・削除なし。
+
+
+## 2026-11-01 Pages公開検証の伝播遅延対策
+- Pages検証がHTMLの一致後にnavigation.jsや2件の確定結果JSONの一時的な取得失敗/不一致で即時失敗していたため、6回の既存リトライ内で全ファイル一致を判定するよう変更（main `d90be09c40e7cac96caba4852c1a84520acc051b`）。不一致を成功扱いせず最後まで一致しなければ失敗。新規PR・workflow追加なし。
+- Pages push CIの実結果・iPhone Safariでの4タブ表示は未確認。旧サイトの独立保全が完了するまで削除禁止。
