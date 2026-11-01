@@ -772,3 +772,9 @@
 - 公式HTML独立取得原本に `request_started_at_jst` を追加し、従来の `received_at_jst` と別に記録。両時刻のJST +09:00および受信時刻が開始時刻以上であることを取得時に確認。保存済み原本をラベル解析する際にも開始時刻の存在と順序を再監査し、逆転・欠損を拒否。
 - 時刻逆転の取得失敗、保存manifestの改ざん検出の回帰テスト追加。PR #784 head `863abc53056aaec15b1cb02736ac4ed4927982fd` のLate preview evidence integrity run `41330162864` はsuccess。main squash `5e12bbd8454561e6b8015a6530acd4869c6b6c4d`。
 - これは取得時刻の原本証拠準備であり、**実際の公式HTTP受信・T-12時刻・6艇値の完全性は未検証**。予想モデルと旧repo/旧Pagesは未変更。
+
+
+## 2026-11-02 公式HTMLラベルの周辺テキスト診断
+- `scripts/inspect_official_beforeinfo_html.py` に `label_context` を追加し、保全HTML原本にある展示・進入・ST等のラベル前後の短い実テキストを診断JSONへ含める。周辺断片の長さ/件数を制限し、script/styleは除外。main `0fc11e693d1949098bb0b863a23fe41e0805013c`、テスト `3e9ec1fb6ae526b9c680117604db23b579eaa70e`。
+- GitHubで同ファイルとテストの現存を再取得して確認。別担当PR #784 のLate preview evidence integrity run `41330162864` はcompleted/successだが、**今回追加した周辺テキストの実レース診断・公式HTTP取得・T-12完全6艇の実証とはしない**。
+- 正式予想と旧サイトは変更しない。次は手動probeの実行・artifactからHTML構造を検証する。
