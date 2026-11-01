@@ -40,7 +40,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         if status!=200 or not isinstance(raw,bytes) or not raw or len(raw)>MAX_BYTES:
             raise ValueError("invalid official HTTP response")
         # A 200 response can still be a JSON/API error or plain text, not HTML evidence.
-        prefix=raw.lstrip(b"\\xef\\xbb\\xbf \\t\\r\\n").lower()
+        prefix=raw.removeprefix(bytes.fromhex("efbbbf")).lstrip(b" \t\r\n").lower()
         if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
             raise ValueError("official response is not an HTML document")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.
