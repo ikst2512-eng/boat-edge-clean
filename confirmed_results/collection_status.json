@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-01T06:28:01.934142+09:00",
+  "checked_at_jst": "2026-11-01T09:19:17.070803+09:00",
   "days": [
     {
       "day": "20261031",
@@ -11,11 +11,11 @@
     },
     {
       "day": "20261101",
-      "http_status": 404,
-      "newly_saved": 0,
-      "source_races": 0,
-      "source_url": "https://boatracecsv.github.io/data/results/realtime/2026/11/01.csv",
-      "status": "waiting_for_published_source"
+      "http_status": null,
+      "newly_saved": 3,
+      "source_races": 3,
+      "source_url": null,
+      "status": "available"
     }
   ],
   "overdue_race_codes": [
