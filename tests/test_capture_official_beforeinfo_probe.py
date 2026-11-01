@@ -50,6 +50,19 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(result["status"],"official_probe_failed")
             self.assertFalse((Path(d)/"20261101/202611010708").exists())
 
+    def test_manual_cli_exits_nonzero_on_failed_capture(self):
+        import subprocess
+        import sys
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as d:
+            with unittest.mock.patch("scripts.capture_official_beforeinfo_probe.urlopen",side_effect=TimeoutError("offline")):
+                # runpy executes CLI in-process so the mocked network failure is deterministic.
+                import runpy
+                with unittest.mock.patch.object(sys,"argv",["probe","202611010708","--root",d]):
+                    with self.assertRaises(SystemExit) as ex:
+                        runpy.run_module("scripts.capture_official_beforeinfo_probe",run_name="__main__")
+                self.assertEqual(ex.exception.code,1)
+
     def test_rejects_bad_race_code(self):
         for code in ("202611010799","202611010000","2026110107AA","202611010708/../"):
             with self.assertRaises(ValueError):capture(code)
