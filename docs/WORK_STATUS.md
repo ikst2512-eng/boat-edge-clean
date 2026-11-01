@@ -578,3 +578,8 @@
 - 既存公式probeのCLIは取得に失敗して `official_probe_failed` を出力しても終了コード0だったため、手動Actionsが「取得成功」と誤認され得た。main `3062096bc631c9cd73e07eccba5d7e636009802e` で、HTTP原本を実際に保存した `raw_http_observed_not_t12_certified` 以外は終了コード1に変更。既存の `if: always()` によるartifact保存は維持。
 - CLI不正キーの非0終了とmanifest非作成を回帰テストへ追加（`8b8a36960088f67e68cb75493085ae6b9b3387b3`）。
 - 既存PR #763 run 41247012805 の保存・時刻・重複監査など既存テストは成功を実ログで確認。ただし**今回の修正後CI・11月1日8:03以降のschedule実行履歴・公式直前情報の実取得・T-12完全6艇は未検証**。GitHub connectorにschedule workflow runsの一覧取得機能はなく、PR runを定期収集成功として扱わない。旧サイト・予想モデル変更なし。
+
+## 2026-11-01 旧予想原本35件の保全拡張（PR #766）
+- 旧repoの実在する `data/site_prediction_snapshots/` JSON原本を16件追加取得して保全専用パスへコピー。manifest計35件。追加16件は保全branchから再取得し元Git blob SHAと16/16一致。既存チェックは35件を下回ると失敗するよう変更。
+- PR head `cbc9bae3aaa79130fb4304705424804ddcfac755` の Research forecast checks run `41260907739` はcompleted/success。main squash `bac5f069b4172122f514824b00257538c91beef6`。
+- 依然として全数保全・初回Git保存時刻・締切前時刻証明・期限なし独立保存/復元は未達。旧サイトと予想モデルは変更せず、撤去ゲート未達。
