@@ -63,8 +63,15 @@ def inspect(saved_dir):
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments
     matched={label:[i for i,t in enumerate(tokens) if label in t][:15] for label in LABELS}
+    # Preserve bounded, source-backed neighboring text to design a lane parser
+    # from actual official pages; do not classify boat counts from labels.
+    context={label:[{"index":i,"nearby":tokens[max(0,i-2):min(len(tokens),i+5)]}
+                    for i in positions] for label,positions in matched.items()}
+    context={label:[{"index":row["index"],"nearby":[item[:120] for item in row["nearby"]]}
+                    for row in rows] for label,rows in context.items()}
     return {"race_code":manifest.get("race_code"),"sha256_verified":True,
             "visible_text_fragments":len(tokens),"label_positions":matched,
+            "label_context":context,
             "six_lane_values":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":
