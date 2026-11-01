@@ -52,6 +52,16 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
 
+    def test_hidden_html_does_not_create_display_evidence(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText
+        parser=VisibleText()
+        parser.feed('<table><tr hidden><td>展示タイム fake</td></tr>'
+                    '<tr><td aria-hidden="true">ST fake</td><td>展示タイム 6.89</td></tr>'
+                    '<tr style="display:none"><td>チルト fake</td></tr>'
+                    '<tr><td style="visibility: hidden">進入 fake</td><td>ST 0.11</td></tr></table>')
+        self.assertNotIn("fake", " ".join(parser.fragments))
+        self.assertEqual(parser.table_rows,[["展示タイム 6.89"],["ST 0.11"]])
+
     def test_labeled_table_rows_are_diagnostic_not_six_lane_proof(self):
         from scripts.inspect_official_beforeinfo_html import VisibleText, matches_label
         parser=VisibleText()
