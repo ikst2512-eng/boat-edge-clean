@@ -25,6 +25,7 @@ class OfficialProbeTests(unittest.TestCase):
             raw=(manifest_path.parent/"beforeinfo.html").read_bytes()
             self.assertEqual(saved["sha256"],hashlib.sha256(raw).hexdigest())
             self.assertEqual(saved["received_at_jst"],now.isoformat())
+            self.assertEqual(saved["response_url"],saved["url"])
             self.assertFalse(saved["forecast_usable"])
             manifest=(Path(d)/"20261101/202611010708/manifest.json").read_text(encoding="utf-8")
             self.assertTrue(manifest.endswith("\n"))
@@ -55,6 +56,23 @@ class OfficialProbeTests(unittest.TestCase):
                 self.assertEqual(report["status"],"official_probe_failed")
                 self.assertFalse(list(Path(d).rglob("manifest.json")))
                 self.assertFalse(report["forecast_usable"])
+
+    def test_valid_redirect_host_is_recorded_as_actual_response(self):
+        from unittest.mock import patch
+        class Response:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def geturl(self): return "https://boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"
+            def read(self,size): return b"<html>valid response</html>"
+        with tempfile.TemporaryDirectory() as d:
+            with patch("scripts.capture_official_beforeinfo_probe.urlopen",return_value=Response()):
+                result=capture("202611010708",d)
+            self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+            self.assertEqual(result["response_url"],"https://boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8")
+            self.assertNotEqual(result["response_url"],result["url"])
+            self.assertEqual(json.loads((Path(d)/"20261101/202611010708/manifest.json").read_text())["response_url"],result["response_url"])
+            self.assertFalse(result["t12_eligible"])
 
     def test_failure_fails_closed(self):
         def missing(url): raise TimeoutError("offline")
