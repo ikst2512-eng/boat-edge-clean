@@ -601,3 +601,9 @@
 - 既存Pages公開後のバイト照合を2026-10-27の `202610270101` に加え2026-10-31蒲郡8R `202610310708` に拡張。両方の `confirmed_results/*.json` はmain上に存在することを確認し、公開HTTP取得後にそれぞれ `cmp -s` で原本一致させる（main `54c336c8e12f77a2177bd5fa0a188fe5ef3ef426`）。既存ワークフローのみ変更、新規PRなし。
 - Render管理APIでは `0b82ce7d` のlive deploy履歴を確認。ただしGitHub Pages公開CIのpush runはGitHub接続の取得機能外であり、Webアクセスも不可。今回の変更後のPages成功・iPhone Safari・過去日の4タブ実表示は未確認。変更内容はGitHubから再取得して確認済み。
 - 旧リポジトリ撤去は依然として全件保全と独立保管の未達で保留。次はPages publish runログの成功確認と実ブラウザでの2026-10-31過去レース4タブ実データ照合。
+
+
+## 2026-11-01 公式probe通信失敗のCLI終了コード回帰
+- 既存mainの公式beforeinfo CLIはHTTP取得失敗時 `official_probe_failed` と終了コード1を返すが、従来のCLI回帰テストは不正レースコードのみだった。実際の `urlopen` タイムアウトを模擬してCLIの `SystemExit(1)` とmanifest未生成を検証するテストを追加（commit `1f046027`）。
+- `runpy.run_module(...,run_name='__main__')` では別名前空間でモジュールを再実行するため、モック対象を `urllib.request.urlopen` へ修正（commit `3954436c`）。既存 `late-preview-evidence-tests.yml` に対象テストが含まれることを確認。
+- PR #765 は同趣旨で既にmainへ取り込まれた部分があり、競合・重複回避のコメントを記録済み。PRを無条件にマージしない。**修正後のGitHub Actions成功・公式T-12六艇の実測は未確認**。旧サイト変更なし。
