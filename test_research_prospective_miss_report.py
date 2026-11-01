@@ -54,6 +54,11 @@ class ProspectiveMissReportTest(unittest.TestCase):
             pending_report = report("20261030", root, scorer=pending)
             self.assertEqual(pending_report["counts"]["awaiting_result"], 1)
             self.assertEqual(pending_report["counts"]["evaluated"], 0)
+            archive.write_text(json.dumps({**original, "generated_at": "2026-10-30T09:00:00+09:00"}))
+            invalid_pending = report("20261030", root, scorer=pending)
+            self.assertEqual(invalid_pending["counts"]["audit_rejected"], 1)
+            self.assertEqual(invalid_pending["counts"]["awaiting_result"], 0)
+            archive.write_text(json.dumps(original))
             def fake_pending(c, r):
                 return {"race_code": c, "status": "result_unavailable", "audited": False,
                         "formal": False, "scoring_kind": "prospective_research_only"}
