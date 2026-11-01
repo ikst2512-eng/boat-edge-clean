@@ -92,7 +92,35 @@ def audit(root="late_preview_evidence"):
             incomplete_reasons.append({"race_code":code,
                 "stt":("missing" if "stt" not in entries else entries["stt"]["six_lane_validation"]),
                 "tkz":("missing" if "tkz" not in entries else entries["tkz"]["six_lane_validation"])})
+    # Aggregate mutually exclusive obstacles to verified T-12 paired coverage.
+    # These counts are derived only from independently revalidated source rows.
+    from collections import Counter
+    pair_gap_counts=Counter()
+    for item in incomplete_reasons:
+        stt=item["stt"]
+        tkz=item["tkz"]
+        if stt=="missing" and tkz=="missing":
+            pair_gap_counts["both_missing"]+=1
+        elif stt=="missing":
+            pair_gap_counts["stt_missing"]+=1
+        elif tkz=="missing":
+            pair_gap_counts["tkz_missing"]+=1
+        else:
+            pair_gap_counts["six_lane_incomplete"]+=1
+    t12_gap_counts=Counter()
+    for item in paired_not_t12:
+        status=(item["stt_t12"],item["tkz_t12"])
+        if status==("too_late","too_late"):
+            t12_gap_counts["both_too_late"]+=1
+        elif status[0]=="too_late":
+            t12_gap_counts["stt_too_late"]+=1
+        elif status[1]=="too_late":
+            t12_gap_counts["tkz_too_late"]+=1
+        else:
+            t12_gap_counts["time_unverified"]+=1
     return {"records":total,"invalid":invalid,"races":len(pairs),
+            "pair_gap_counts":dict(sorted(pair_gap_counts.items())),
+            "t12_gap_counts":dict(sorted(t12_gap_counts.items())),
             "paired_complete_6boat_stt_tkz":complete,
             "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),

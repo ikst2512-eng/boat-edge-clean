@@ -96,6 +96,8 @@ class AuditLatePreview(unittest.TestCase):
             self.assertEqual(len(result["paired_complete_but_not_t12"]),1)
             self.assertEqual(result["paired_complete_but_not_t12"][0]["race_code"],code)
             self.assertEqual(result["paired_complete_but_not_t12"][0]["stt_t12"],"too_late")
+            self.assertEqual(result["t12_gap_counts"],{"both_too_late":1})
+            self.assertEqual(result["pair_gap_counts"],{})
             for kind in ("stt","tkz"):
                 early_path=Path(folder)/"20261031"/kind/(code+".json")
                 early_record=record(code,kind,received="2026-10-31T19:45:00+09:00")
@@ -122,4 +124,5 @@ class AuditLatePreview(unittest.TestCase):
             self.assertEqual(result["invalid"],1)
             self.assertEqual(result["incomplete_pair_reasons_by_race"][0]["race_code"],code)
             self.assertEqual(result["incomplete_pair_reasons_by_race"][0]["tkz"],"missing")
+            self.assertEqual(result["pair_gap_counts"],{"tkz_missing":1})
 if __name__=="__main__":unittest.main()
