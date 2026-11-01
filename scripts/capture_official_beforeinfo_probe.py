@@ -77,6 +77,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         if isinstance(exc,(KeyboardInterrupt,SystemExit)):
             raise
         return {"race_code":race_code,"source":"official_beforeinfo_html","url":url,
+                "request_started_at_jst":started.isoformat(),
                 "received_at_jst":(received or now()).isoformat(),
                 "status":"official_probe_failed","error":type(exc).__name__,
                 "complete_six_lanes":"unverified","t12_eligible":False,"forecast_usable":False}
