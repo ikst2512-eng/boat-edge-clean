@@ -1,0 +1,34 @@
+name: AI operations read-only audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 18 * * *' # 03:23 JST
+  pull_request:
+    paths:
+      - ai_operations.py
+      - test_ai_operations.py
+      - research_chronological_calibration.py
+      - .github/workflows/ai-operations-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Guardrail unit tests
+        run: python -m unittest -v test_ai_operations
+      - name: Create read-only audit report
+        run: python ai_operations.py --output ai_operations_report.json
+      - name: Preserve audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-operations-audit-${{ github.run_id }}
+          path: ai_operations_report.json
+          if-no-files-found: warn
+          retention-days: 90
