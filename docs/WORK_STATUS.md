@@ -607,3 +607,8 @@
 - 既存mainの公式beforeinfo CLIはHTTP取得失敗時 `official_probe_failed` と終了コード1を返すが、従来のCLI回帰テストは不正レースコードのみだった。実際の `urlopen` タイムアウトを模擬してCLIの `SystemExit(1)` とmanifest未生成を検証するテストを追加（commit `1f046027`）。
 - `runpy.run_module(...,run_name='__main__')` では別名前空間でモジュールを再実行するため、モック対象を `urllib.request.urlopen` へ修正（commit `3954436c`）。既存 `late-preview-evidence-tests.yml` に対象テストが含まれることを確認。
 - PR #765 は同趣旨で既にmainへ取り込まれた部分があり、競合・重複回避のコメントを記録済み。PRを無条件にマージしない。**修正後のGitHub Actions成功・公式T-12六艇の実測は未確認**。旧サイト変更なし。
+
+## 2026-11-01 旧予想原本47件へ追加保全（PR #768）
+- `data/site_prediction_snapshots/` の実在JSONを12件追加し、CLEANの保全専用フォルダに計47件。追加分12件を再取得し元Git blob SHAと12/12一致。
+- 既存の保全ハッシュ検証を最低47件へ引き上げ、PR head `59c360ab55d7ff1d22f111bdbbd0b4cef0f0ca8d` の Research forecast checks run `41261771107` はcompleted/success。main squash `f4220a4c2f3c2ce68a30ddae99d827bce6ec35aa`。
+- 初回Git追加時刻と締切前性の証明、全旧予想・オッズ・Fresh証拠の網羅、期限なし独立バックアップの復元は未達。旧サイト停止・削除なし。
