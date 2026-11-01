@@ -5,6 +5,7 @@ Local git first-add is NOT proof of remote receipt; never report formal hit rate
 import argparse
 import json
 from pathlib import Path
+from datetime import datetime, timedelta
 from evaluate_clean_prospective import evaluate
 from scripts.research_topn_miss_diagnostic import summarize_misses
 
@@ -40,6 +41,15 @@ def report(day, root=ROOT, scorer=evaluate):
                     or not isinstance(outcome.get("first_add_sha"), str)):
                 raise ValueError("untrusted evaluation")
             candidate = json.loads(path.read_text(encoding="utf-8"))
+            times = {key: datetime.fromisoformat(candidate[key]) for key in (
+                "generated_at", "cutoff_jst", "source_deadline_jst",
+                "source_title_received_jst", "source_cards_received_jst")}
+            if (any(t.utcoffset() != timedelta(hours=9) for t in times.values())
+                    or times["source_deadline_jst"] - times["cutoff_jst"] != timedelta(minutes=12)
+                    or times["source_deadline_jst"].strftime("%Y%m%d") != path.stem[:8]
+                    or max(times["source_title_received_jst"], times["source_cards_received_jst"]) > times["generated_at"]
+                    or times["generated_at"] >= times["cutoff_jst"]):
+                raise ValueError("source received after forecast generation or invalid cutoff")
             result_path = root / "confirmed_results" / path.name
             if result_path.is_symlink() or not result_path.is_file() or result_path.stat().st_size > 20000:
                 raise ValueError("missing immutable confirmed record")
