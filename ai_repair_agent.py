@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 ALLOWED = {"navigation.js", "secondary_navigation.js", "index.html"}
-MAX_FILE = 175000
+MAX_FILE = 350000
 MAX_PATCHES = 2
 API = "https://api.openai.com/v1/responses"
 PROMPT = """You are a conservative software repair assistant for BOAT EDGE CLEAN.
@@ -81,7 +81,11 @@ def propose(issue, root, api_key, model, transport=urlopen):
         target = Path(root) / name
         if target.is_file() and not target.is_symlink() and target.stat().st_size <= MAX_FILE:
             # Keep context/cost bounded, don't leak private data or repository secrets.
-            snippets[name] = target.read_text(encoding="utf-8")[:25000]
+            source = target.read_text(encoding="utf-8")
+            if name == "index.html" and len(source) > 35000:
+                snippets[name] = source[:12000] + "\n[... middle omitted ...]\n" + source[-23000:]
+            else:
+                snippets[name] = source[:35000]
     req_body = {"model": model, "instructions": PROMPT,
                 "input": json.dumps({"issue": issue, "sources": snippets}, ensure_ascii=False),
                 "max_output_tokens": 3500, "store": False,
