@@ -20,6 +20,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         raise ValueError("invalid venue or race")
     now=clock or (lambda: datetime.now(JST))
     url=f"{BASE}?hd={day}&jcd={venue:02d}&rno={race}"
+    started=now()
     received=None
     try:
         if fetch is not None:
@@ -32,6 +33,8 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
                 status=response.status
                 raw=response.read(MAX_BYTES+1)
         received=now()
+        if started.utcoffset()!=timedelta(hours=9) or received.utcoffset()!=timedelta(hours=9) or received<started:
+            raise ValueError("invalid HTTP observation chronology")
         parsed=urlparse(final_url)
         if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
                 or parsed.path!="/owsp/sp/race/beforeinfo"
@@ -45,7 +48,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
             raise ValueError("official response is not an HTML document")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.
         result={"race_code":race_code,"source":"official_beforeinfo_html",
-                "url":url,"response_url":final_url,"received_at_jst":received.isoformat(),
+                "url":url,"response_url":final_url,"request_started_at_jst":started.isoformat(),"received_at_jst":received.isoformat(),
                 "http_status":status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),
                 "status":"raw_http_observed_not_t12_certified",
                 "complete_six_lanes":"unverified","deadline_jst":None,
