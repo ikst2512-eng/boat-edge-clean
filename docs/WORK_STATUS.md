@@ -716,3 +716,8 @@
 ## 2026-11-01 公式HTMLの実BOM判定を修正
 - 公式beforeinfo取得のHTML先頭判定で `b"\\\\xef\\\\xbb\\\\xbf"`（文字列としてのバックスラッシュ）を `lstrip` に渡しており、実際のUTF-8 BOMバイト `EF BB BF` を除去できない不具合を修正。実BOMを `bytes.fromhex("efbbbf")` で明示して除去後、空白を除いてDOCTYPE/htmlを検査する（main `8c04f5db536ddf4abf0be9b9a0932e6ba42d41fb`）。
 - 従来のBOMテストもバックスラッシュ文字列だったため、実バイトを含むケースに差し替え（`e1c476f95254168eb17fd4452746325ded623922`）。変更前のPR #777 CI run `41289864856` は11テストステップ全てsuccessと再確認したが、**修正後のpush CI成功は未確認**。公式実HTTP受信/T-12完全6艇も未証明。旧サイト・モデル変更なし。
+
+
+## 2026-11-01 蒲郡8RのPages公開後結果タブ実表示ゲート追加
+- 既存 `deploy-pages.yml` の「Verify published CLEAN confirmed result in browser」は2026-10-27の1レースだけだった。2026-10-31蒲郡8R（`202610310708`）を同じPlaywright実ブラウザ検査に追加。GitHub保存結果の3連単1-4-6と公開結果タブの艇番3つの一致、および未検証事前予想を正式的中採点しない条件を検査する（main `a0d6ad2460d30e88858fec293701f995a903cd07`）。旧10/27検査は維持、新規PR/ワークフローなし。
+- GitHub Actions push実行の最新ログと公開ブラウザ合否は現時点未取得。公開後検証を追加したことと、合格したことは区別する。旧repo/Pagesは削除しない。次は公開runの実ログで両件の `CLEAN_RESULT_PUBLISHED_BROWSER_PASS` を確認する。
