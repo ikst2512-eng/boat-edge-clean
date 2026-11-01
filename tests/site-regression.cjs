@@ -452,7 +452,9 @@ assert.ok(archivedResultWorkflow.includes('CLEAN_RESULT_PUBLISHED_BROWSER_PASS')
 assert.ok(archivedResultWorkflow.includes("#resultDetail .result-combo .boat-num"),'published browser test must inspect actual three boat numbers');
 
 assert.ok(script.includes("async function fetchCleanResultArchive(code)"),'confirmed results require same-origin fallback');
-assert.ok(script.includes("fetchTimed('confirmed_results/'+code+'.json'"),'local result archive path required');
+assert.ok(script.includes("const local='confirmed_results/'+code+'.json'"),'local result archive path required');
+assert.ok(script.includes("const sources=pages?[local,remote]:[remote,local]"),'Pages must prefer same-origin results while Render keeps Raw first');
+assert.ok(script.includes("if(response.ok)return response"),'verified archive loader must fall back after unsuccessful responses');
 assert.ok(script.includes("RESULT_RACE_CODE_INVALID"),'archive fallback must reject malformed race code');
 const archivePublish=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(archivePublish.includes('cp -R confirmed_results public/confirmed_results'),'Pages must publish confirmed archives used by fallback');
