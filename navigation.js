@@ -21,7 +21,7 @@ nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  link.href=destination.pathname+destination.search;
 }));
 const logo=document.querySelector('.site-head .logo');
-if(logo){const a=document.createElement('a');a.href='/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
+if(logo){const a=document.createElement('a');a.href=location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')?'/boat-edge-clean/':'/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
 const css=document.createElement('style');
 css.textContent='.logo-link{color:inherit;text-decoration:none}.logo-link:focus-visible, .logo-link:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}.site-global-nav.compact-nav{display:flex;justify-content:flex-end;gap:10px;padding:8px 16px;overflow:visible}.site-global-nav.compact-nav a{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border:1px solid #cbd9e8;border-radius:9px;text-decoration:none;font-weight:800}@media(max-width:420px){.site-global-nav.compact-nav{justify-content:center}.site-global-nav.compact-nav a{flex:1;text-align:center}}';
 document.head.append(css);
