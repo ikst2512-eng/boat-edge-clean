@@ -23,16 +23,25 @@ class VisibleText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.fragments=[]
         self.inert_stack=[]
+        self.table_rows=[]
+        self.current_row=None
     def handle_starttag(self,tag,attrs):
+        if tag=="tr" and not self.inert_stack:
+            self.current_row=[]
         if tag in INERT_TAGS:
             self.inert_stack.append(tag)
     def handle_endtag(self,tag):
+        if tag=="tr" and not self.inert_stack and self.current_row is not None:
+            if self.current_row:self.table_rows.append(self.current_row)
+            self.current_row=None
         if tag in INERT_TAGS and self.inert_stack and self.inert_stack[-1]==tag:
             self.inert_stack.pop()
     def handle_data(self,data):
         if not self.inert_stack:
             t=" ".join(data.split())
-            if t:self.fragments.append(t)
+            if t:
+                self.fragments.append(t)
+                if self.current_row is not None:self.current_row.append(t)
 
 def inspect(saved_dir):
     base=Path(saved_dir)
@@ -78,6 +87,12 @@ def inspect(saved_dir):
     parser=VisibleText()
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments
+    # Source-backed row context assists manual lane mapping. Row count alone
+    # never certifies six lanes: official pages contain unrelated tables.
+    labeled_rows=[{"row_index":i,"tokens":[s[:120] for s in row[:32]],
+                   "labels":[label for label in LABELS if any(matches_label(label,s) for s in row)]}
+                  for i,row in enumerate(parser.table_rows)
+                  if any(matches_label(label,s) for label in LABELS for s in row)][:24]
     matched={label:[i for i,t in enumerate(tokens) if matches_label(label,t)][:15] for label in LABELS}
     # Preserve bounded, source-backed neighboring text to design a lane parser
     # from actual official pages; do not classify boat counts from labels.
@@ -90,6 +105,7 @@ def inspect(saved_dir):
             "received_at_jst":receipt.isoformat(),
             "http_elapsed_seconds":(receipt-started).total_seconds(),
             "visible_text_fragments":len(tokens),"label_positions":matched,
+            "diagnostic_labeled_table_rows":labeled_rows,
             "label_context":context,
             "six_lane_values":"unverified","t12_eligible":False,"forecast_usable":False}
 
