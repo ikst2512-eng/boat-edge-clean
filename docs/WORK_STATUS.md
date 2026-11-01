@@ -628,3 +628,12 @@
 - `scripts/capture_official_beforeinfo_probe.py` では転送先のHTTPS・ホスト・パスだけを検証しており、別日・別レースのHTMLを指定レースとして誤保全し得た。転送後URLの `hd/jcd/rno` が指定レースコードと一致し、余分なクエリもないことを保存前に要求。
 - 他日・他R・余分なクエリのモック回帰を既存テストに追加。PR #770 head `cdb4c31e036928d4d8b66f9f9b523e9e1d227437`、Late preview evidence integrity run `41261901521` はsuccess。main squash `0a7f3c863655857de9fe643be22a0397e987177d`。
 - 公式HTMLの実受信・T-12時刻・6艇完全性の実測は未達。旧repo/Pages停止なし。
+
+
+## 2026-11-01 場コード12の出走表404を非開催として解消（PR #769 / #771）
+- 本番 `/api/clean-schedule?date=20261101` を実取得。確認済み開催場は02/03/04/06/07/09/13/14/17/18/19/21/22/24の14場、各12Rで、場コード12（住之江）は日程に存在しない。従来の住之江1R/5Rの404は出走表欠損ではなく、非開催レースへの不要なAPI要求だった。
+- PR #769でfrozen candidate日程にも既存レース由来の `venue_race_counts` を追加。schedule classification run `41261809524`、daily schedule run `41261809567` がsuccess。main squash `71d87b87d6235e92d48b4f3f9608fa921a27ee95`。
+- PR #771で、UIが完全な確認済み日程を待ってから、日程にない場/レースでは出走表APIを呼ばず「この場/レースは開催されていません」と表示するよう修正。partial frozen scheduleは欠落を非開催証拠に使わず従来照会を維持。
+- PR #771 head `f7ba593c125d07535a238cef65bd120a52ac8371`: CLEAN regression `41263333456`、Navigation `41263333468`、Cross-model `41263333467`、Daily findings `41263333494`、daily schedule `41263333457`、Dual verification `41263333476`、Official odds `41263333466` がsuccess。Mobile browserはpath filterでskip。main squash `ef7aa5b10f90f713e16c4f5e587a98e75cdd5cb4`。
+- Render deploy `dep-dbj9qgbncjis73dd4e70` は同一commit `ef7aa5b` でlive。Render本番とGitHub Pagesの `2026-11-01 / 住之江 / 1R / 出走表` を実ブラウザ確認し、「この場は開催されていません」「確認済み開催日程」を表示。確認後のRenderログに `202611011201` / `racecard_title_missing` / `clean_racecard_not_found` は0件。
+- モデル・予想研究・データ収集・正式採点は変更なし。旧repo/旧Pagesは全件独立保全が未達のため停止・削除なし。
