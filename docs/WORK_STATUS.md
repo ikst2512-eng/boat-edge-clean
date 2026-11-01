@@ -637,3 +637,9 @@
 - PR #771 head `f7ba593c125d07535a238cef65bd120a52ac8371`: CLEAN regression `41263333456`、Navigation `41263333468`、Cross-model `41263333467`、Daily findings `41263333494`、daily schedule `41263333457`、Dual verification `41263333476`、Official odds `41263333466` がsuccess。Mobile browserはpath filterでskip。main squash `ef7aa5b10f90f713e16c4f5e587a98e75cdd5cb4`。
 - Render deploy `dep-dbj9qgbncjis73dd4e70` は同一commit `ef7aa5b` でlive。Render本番とGitHub Pagesの `2026-11-01 / 住之江 / 1R / 出走表` を実ブラウザ確認し、「この場は開催されていません」「確認済み開催日程」を表示。確認後のRenderログに `202611011201` / `racecard_title_missing` / `clean_racecard_not_found` は0件。
 - モデル・予想研究・データ収集・正式採点は変更なし。旧repo/旧Pagesは全件独立保全が未達のため停止・削除なし。
+
+
+## 2026-11-01 Pages公開前の2日付結果ファイル欠落ゲート
+- 現行Pages workflowは配信後に2026-10-27と2026-10-31の2件を照合する一方、公開成果物作成時の存在確認は10/27分しかなかった。ステージング時に `public/confirmed_results/202610310708.json` の非空ファイル存在も検証する修正をmain `4633af41fadbeee704a703c2e9e06a671aa99029` へ反映。GitHub再取得で設定確認済み。
+- Renderで非開催住之江1Rの修正公開済みである旨の既存実測記録を確認。今回は公開Pages URLおよびActions web一覧の取得が失敗したため、Pages CI成功・過去レース4タブ完全表示は未確認。CIを新規成功扱いしない。
+- 旧サイト/旧Pages削除なし。次の優先は公開CIの実ログ取得と2026-10-31の4タブ実データ検証であり、単なるテスト追加を本番動作の代替にしない。
