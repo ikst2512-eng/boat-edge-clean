@@ -26,15 +26,19 @@ class VisibleText(HTMLParser):
         self.table_rows=[]
         self.current_row=None
     def handle_starttag(self,tag,attrs):
-        if tag=="tr" and not self.inert_stack:
+        attrs=dict(attrs)
+        style=(attrs.get("style") or "").lower().replace(" ","")
+        hidden=("hidden" in attrs or attrs.get("aria-hidden","").lower()=="true"
+                or "display:none" in style or "visibility:hidden" in style)
+        if tag=="tr" and not self.inert_stack and not hidden:
             self.current_row=[]
-        if tag in INERT_TAGS:
+        if tag in INERT_TAGS or hidden:
             self.inert_stack.append(tag)
     def handle_endtag(self,tag):
         if tag=="tr" and not self.inert_stack and self.current_row is not None:
             if self.current_row:self.table_rows.append(self.current_row)
             self.current_row=None
-        if tag in INERT_TAGS and self.inert_stack and self.inert_stack[-1]==tag:
+        if self.inert_stack and self.inert_stack[-1]==tag:
             self.inert_stack.pop()
     def handle_data(self,data):
         if not self.inert_stack:
