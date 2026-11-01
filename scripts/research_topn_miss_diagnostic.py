@@ -39,6 +39,7 @@ def classify_miss(tickets, finish_order, top_n=10):
 
 def summarize_misses(rows):
     """rows: iterable of (frozen_top10_tickets, confirmed_finish_order)."""
+    rows = list(rows)  # Materialize once: Top3/5/10 must share the same denominator.
     by_n = {}
     for n in (3, 5, 10):
         counts = Counter()
