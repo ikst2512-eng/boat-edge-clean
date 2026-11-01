@@ -25,8 +25,8 @@ jobs:
         run: python ai_operations.py --output ai_operations_report.json
       - name: Optional AI diagnosis (never edits production)
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-6-luna
+          OPENAI_API_KEY: ${{ github.event_name != 'pull_request' && secrets.OPENAI_API_KEY || '' }}
+          OPENAI_MODEL: gpt-4.1-mini
         run: python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
       - name: Archive both reports
         if: always()
