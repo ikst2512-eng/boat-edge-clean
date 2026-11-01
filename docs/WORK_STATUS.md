@@ -726,3 +726,8 @@
 - 旧サイトの予想スナップショット4件を保全専用フォルダへ追加しmanifest59件。元repoと保存先のGit blob SHAは追加分4/4一致。
 - 既存の保全CI件数下限を59に更新。PR #779 head `dddf3732e83fe4a8ae7d802e550e4bedb7e023b9` の Research forecast checks run `41304039718` 成功、main `9ca5586736d8ba54692d994337f9c446af5c36e6` に統合。
 - 初回Git追加日時、完全保全、独立長期保存は未証明。旧サイト停止なし。
+
+
+## 2026-11-01 手動公式HTTP観測をCSV取得から分離
+- `late-preview-capture.yml` の手動 `workflow_dispatch` に `official_probe_race_code` を指定しても、これまでは先にBoatraceCSVの5種取得・監査・サマリーが実行され、4分タイムアウト内の公式HTTP観測に遅延と無関係な失敗リスクがあった。既存3ステップに `if: github.event_name != 'workflow_dispatch' || inputs.official_probe_race_code == ''` を追加し、**指定ありの手動probeだけCSV収集をスキップ**（main `c066fd5a6629beffc9e4a490b01dbf1e1a5dd975`）。スケジュール実行・通常の手動実行・PRテストでは従来通りCSV収集する。原本・失敗report・診断のartifactアップロードは維持。
+- YAML内容をGitHubから再取得して3箇所の条件が存在することを確認。**修正後CI成功、手動公式実HTTP取得、T-12完全6艇は未確認**。新workflow/PR/旧サイト変更なし。
