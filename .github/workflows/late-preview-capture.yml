@@ -73,13 +73,6 @@ jobs:
         env:
           OFFICIAL_RACE_CODE: ${{ inputs.official_probe_race_code }}
         run: python scripts/capture_official_beforeinfo_probe.py "$OFFICIAL_RACE_CODE"
-      - name: Inspect preserved official HTML (diagnostic only)
-        if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
-        env:
-          OFFICIAL_RACE_CODE: ${{ inputs.official_probe_race_code }}
-        run: |
-          PROBE_DIR="official_preview_probe/${OFFICIAL_RACE_CODE:0:8}/$OFFICIAL_RACE_CODE"
-          python scripts/inspect_official_beforeinfo_html.py "$PROBE_DIR" > official_beforeinfo_diagnostic.json
       - name: Inspect saved official HTML as diagnostic-only evidence
         if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
         env:
@@ -106,6 +99,5 @@ jobs:
             late_preview_audit_report.json
             official_preview_probe/**/*.html
             official_preview_probe/**/*.json
-            official_beforeinfo_diagnostic.json
           if-no-files-found: ignore
           retention-days: 90
