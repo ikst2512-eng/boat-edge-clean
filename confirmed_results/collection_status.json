@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-01T15:25:22.001115+09:00",
+  "checked_at_jst": "2026-11-01T22:40:23.934419+09:00",
   "days": [
     {
       "day": "20261031",
@@ -12,8 +12,8 @@
     {
       "day": "20261101",
       "http_status": null,
-      "newly_saved": 110,
-      "source_races": 113,
+      "newly_saved": 53,
+      "source_races": 166,
       "source_url": null,
       "status": "available"
     }
