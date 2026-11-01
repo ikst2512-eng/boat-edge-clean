@@ -44,6 +44,9 @@ class OfficialProbeTests(unittest.TestCase):
             "http://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101",
             "https://www.boatrace.jp/owsp/sp/race/result?hd=20261101",
             "https://other.example/owsp/sp/race/beforeinfo",
+            "https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=9",
+            "https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261102&jcd=07&rno=8",
+            "https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8&extra=1",
         )
         for target in urls:
             with self.subTest(target=target), tempfile.TemporaryDirectory() as d:
