@@ -700,3 +700,9 @@
 - 公式beforeinfo観測でHTTP 200でもJSONエラー・通常テキストをHTML原本として保全してしまう問題を修正。UTF-8 BOM・前後空白を許容しつつDOCTYPE/html始まりの文書のみ保存。非HTMLなら `official_probe_failed`、保存manifestなし、予想利用不可。
 - 既存テストへJSON・プレーンテキスト・空応答拒否とBOM付きHTML許容を追加。PR head `17ed518a13f832f9e86a63c974f5b8861084cc60` のLate preview evidence integrity run `41289864856` validate success。main squash `92133fc7713c8d6607d8c98610fb30b78dd0598d`。
 - HTML形式の取得記録だけでは正しいレース内容・6艇・T-12を証明しない。公式実レースの時間証拠は未確認。旧サイト/予想モデル未変更。
+
+
+## 2026-11-01 Pages同一origin優先変更に対応した回帰テスト修正
+- 直前にmainへ反映した `fetchCleanResultArchive` のPages同一origin優先化 (`dc5f62a4`) に対し、既存 `tests/site-regression.cjs` が撤去済みの直書き `fetchTimed('confirmed_results/'+code+'.json'` を必須とする古い文字列アサーションを残していた。このため新しい実装が正常でもCLEAN回帰が失敗する構造的不一致を特定。
+- 旧アサーションを、ローカル保存パスの存在・Pagesではlocal→Raw、RenderではRaw→localという新しい優先順序の照合へ変更。main `f5aa6fb22b0f5c0e3ba3ea52af890ec0c12f993b`。重複PRを作らず既存テストだけ修正。
+- 実GitHub Actions CIの成功、公開Pages/Renderの実ブラウザ表示は未確認。旧サイトは削除しない。次はCLEAN regression runとPages公開後の実測を優先。
