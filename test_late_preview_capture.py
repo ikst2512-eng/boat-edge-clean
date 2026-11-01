@@ -13,6 +13,15 @@ def csv_row(received="2026-10-31 11:00:00", deadline="11:20"):
 
 
 class LatePreviewEvidenceTests(unittest.TestCase):
+    def test_duplicate_csv_headers_fail_before_any_evidence_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt=datetime(2026,10,31,11,2,tzinfo=JST)
+            raw=("レースコード,締切時刻,取得日時,艇1_展示タイム,艇1_展示タイム\\n"
+                 "202610310101,11:20,2026-10-31 11:00:00,6.50,6.90\\n").encode()
+            with self.assertRaisesRegex(ValueError,"duplicate preview CSV headers"):
+                save_preview(raw,"tkz","20261031",receipt,directory)
+            self.assertFalse(list(Path(directory).rglob("*.json")))
+
     def test_six_lane_st_requires_plausible_start_values(self):
         from late_preview_capture import six_lane_status
         row={f"艇{i}_コース":str(i) for i in range(1,7)}
