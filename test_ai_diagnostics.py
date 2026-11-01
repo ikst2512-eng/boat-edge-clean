@@ -32,6 +32,10 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(result["status"], "analysis_proposed")
         self.assertFalse(result["production_change_allowed"])
 
+    def test_model_default_is_supported_name(self):
+        with patch.dict('os.environ', {'OPENAI_MODEL': '', 'OPENAI_API_KEY': ''}):
+            self.assertEqual(ai_diagnostics.analyze({})['status'], 'disabled')
+
     def test_no_empty_llm_output(self):
         with self.assertRaises(ValueError):
             ai_diagnostics.extract_text({"output": []})

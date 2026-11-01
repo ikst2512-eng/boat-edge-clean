@@ -40,7 +40,7 @@ def extract_text(response):
 
 def analyze(report, api_key=None, model=None, transport=urlopen):
     api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
-    model = model or os.environ.get("OPENAI_MODEL", "gpt-6-luna")
+    model = model or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
     if not api_key:
         return {"status": "disabled", "reason": "OPENAI_API_KEY_not_configured"}
     if not isinstance(report, dict):
