@@ -74,6 +74,17 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(json.loads((Path(d)/"20261101/202611010708/manifest.json").read_text())["response_url"],result["response_url"])
             self.assertFalse(result["t12_eligible"])
 
+    def test_http_200_non_html_is_not_saved_as_evidence(self):
+        for body in (b'{"error":"not ready"}',b"temporarily unavailable",b""):
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:body)
+                self.assertEqual(result["status"],"official_probe_failed")
+                self.assertFalse(result["forecast_usable"])
+                self.assertFalse(list(Path(root).rglob("manifest.json")))
+        with tempfile.TemporaryDirectory() as root:
+            result=capture("202611010708",root,fetch=lambda url:b"\\xef\\xbb\\xbf  <!DOCTYPE html><html></html>")
+            self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+
     def test_failure_fails_closed(self):
         def missing(url): raise TimeoutError("offline")
         with tempfile.TemporaryDirectory() as d:
