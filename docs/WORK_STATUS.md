@@ -711,3 +711,8 @@
 - 公式HTML保存原本の診断で、manifest SHA-256照合に加え、`race_code` と保存先 `YYYYMMDD/YYYYMMDDjjrr/` の同一性、およびmanifestに記録されたバイト長と実HTMLサイズの一致を要求。不一致は診断拒否して、別レースの原本を誤って調査対象とすることを防止。
 - 既存 `test_inspect_official_beforeinfo_html.py` にレースキー改ざん・バイト数不整合の回帰追加。PR head `18a47853667fcec0cb88966588b6ca37f22fcdca` のLate preview evidence integrity run `41303921018` validate success。main squash `095414528dc1a0c3b5b46126cc6c4af70f31802a`。
 - **公式実受信・時刻T-12・完全6艇の機械抽出は未証明**。予想モデルと旧サイトには変更なし。
+
+
+## 2026-11-01 公式HTMLの実BOM判定を修正
+- 公式beforeinfo取得のHTML先頭判定で `b"\\\\xef\\\\xbb\\\\xbf"`（文字列としてのバックスラッシュ）を `lstrip` に渡しており、実際のUTF-8 BOMバイト `EF BB BF` を除去できない不具合を修正。実BOMを `bytes.fromhex("efbbbf")` で明示して除去後、空白を除いてDOCTYPE/htmlを検査する（main `8c04f5db536ddf4abf0be9b9a0932e6ba42d41fb`）。
+- 従来のBOMテストもバックスラッシュ文字列だったため、実バイトを含むケースに差し替え（`e1c476f95254168eb17fd4452746325ded623922`）。変更前のPR #777 CI run `41289864856` は11テストステップ全てsuccessと再確認したが、**修正後のpush CI成功は未確認**。公式実HTTP受信/T-12完全6艇も未証明。旧サイト・モデル変更なし。
