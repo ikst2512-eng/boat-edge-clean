@@ -336,6 +336,18 @@ jobs:
                 if(['card','exhibit','forecast','result'].filter(key=>panels[key]).join(',')!==view)
                   throw Error('Tab visibility not exclusive: '+view+' '+JSON.stringify(panels));
               }
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              const shortcuts=page.locator('.race-detail-shortcuts button');
+              if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
+              if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
+              if(await page.locator('#forecastQuick:visible').count()!==0)throw Error('Duplicate race picker visible');
+              for(const view of ['forecast','card','exhibit','result']){
+                await shortcuts.locator('[data-race-view="'+view+'"]').click();
+                const active=await page.evaluate(()=>activeView);
+                if(active!==view)throw Error('Race shortcut did not activate '+view+': '+active);
+              }
+              const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+              if(overflow>1)throw Error('Mobile horizontal overflow: '+overflow+'px');
               // Actual archived-result values are asserted by the dedicated
               // 'Verify published CLEAN confirmed result in browser' step above.
               // Keep this step focused on the four navigation panels.
