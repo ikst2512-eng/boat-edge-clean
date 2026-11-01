@@ -8,6 +8,8 @@ class FourModePanelTests(unittest.TestCase):
     def test_four_modes_and_provenance_are_present(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="fourModeForecastPanel"', html)
+        self.assertLess(html.index('id="fourModeForecastPanel"'), html.index('id="predictionRows"'))
+        self.assertIn('確率上位Top3・Top5・Top10（補助研究・未検証）', html)
         self.assertIn("loadFourModeArchives(raceKey,token)", html)
         self.assertIn("FOUR_MODE_ARCHIVE_INVALID", html)
         self.assertIn("data.production_forecast!==false", html)
