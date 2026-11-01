@@ -706,3 +706,8 @@
 - 直前にmainへ反映した `fetchCleanResultArchive` のPages同一origin優先化 (`dc5f62a4`) に対し、既存 `tests/site-regression.cjs` が撤去済みの直書き `fetchTimed('confirmed_results/'+code+'.json'` を必須とする古い文字列アサーションを残していた。このため新しい実装が正常でもCLEAN回帰が失敗する構造的不一致を特定。
 - 旧アサーションを、ローカル保存パスの存在・Pagesではlocal→Raw、RenderではRaw→localという新しい優先順序の照合へ変更。main `f5aa6fb22b0f5c0e3ba3ea52af890ec0c12f993b`。重複PRを作らず既存テストだけ修正。
 - 実GitHub Actions CIの成功、公開Pages/Renderの実ブラウザ表示は未確認。旧サイトは削除しない。次はCLEAN regression runとPages公開後の実測を優先。
+
+## 2026-11-01 PR #778 公式HTML診断の保存先レース同一性検証
+- 公式HTML保存原本の診断で、manifest SHA-256照合に加え、`race_code` と保存先 `YYYYMMDD/YYYYMMDDjjrr/` の同一性、およびmanifestに記録されたバイト長と実HTMLサイズの一致を要求。不一致は診断拒否して、別レースの原本を誤って調査対象とすることを防止。
+- 既存 `test_inspect_official_beforeinfo_html.py` にレースキー改ざん・バイト数不整合の回帰追加。PR head `18a47853667fcec0cb88966588b6ca37f22fcdca` のLate preview evidence integrity run `41303921018` validate success。main squash `095414528dc1a0c3b5b46126cc6c4af70f31802a`。
+- **公式実受信・時刻T-12・完全6艇の機械抽出は未証明**。予想モデルと旧サイトには変更なし。
