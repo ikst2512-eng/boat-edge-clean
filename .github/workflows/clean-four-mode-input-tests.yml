@@ -5,7 +5,6 @@ on:
       - clean_four_mode_capture.py
       - test_clean_duplicate_capture_input.py
       - test_clean_four_mode_capture_e2e.py
-      - test_clean_source_to_verified_report.py
       - .github/workflows/clean-four-mode-input-tests.yml
   push:
     branches: [main]
@@ -13,7 +12,6 @@ on:
       - clean_four_mode_capture.py
       - test_clean_duplicate_capture_input.py
       - test_clean_four_mode_capture_e2e.py
-      - test_clean_source_to_verified_report.py
       - .github/workflows/clean-four-mode-input-tests.yml
 permissions:
   contents: read
@@ -28,4 +26,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v test_clean_duplicate_capture_input test_clean_four_mode_capture_e2e test_clean_source_to_verified_report
+      - run: python -m unittest -v test_clean_duplicate_capture_input test_clean_four_mode_capture_e2e

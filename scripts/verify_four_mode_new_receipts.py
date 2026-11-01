@@ -33,6 +33,21 @@ def verify(paths, *, now=None, buffer_seconds=90):
             generated >= deadline - timedelta(minutes=20) or
             now >= deadline - timedelta(seconds=buffer_seconds)):
             raise ValueError("deadline_or_receipt_expired")
+        # A producer timestamp alone cannot prove the source was available at prediction time.
+        try:
+            received = [datetime.fromisoformat(data[key]) for key in (
+                "source_title_received_jst", "source_cards_received_jst")]
+        except (KeyError, ValueError, TypeError) as exc:
+            raise ValueError("source_receipt_missing") from exc
+        if any(t.utcoffset() is None or t > generated or t >= deadline - timedelta(minutes=20) for t in received):
+            raise ValueError("source_receipt_out_of_order")
+        hashes = data.get("source_sha256")
+        if not isinstance(hashes, dict) or any(
+            not isinstance(hashes.get(k), str) or
+            not re.fullmatch(r"[a-fA-F0-9]{64}", hashes[k])
+            for k in ("title", "race_cards")
+        ):
+            raise ValueError("source_digest_missing")
         if data.get("validated") is not False or data.get("target_rates_not_proven") is not True:
             raise ValueError("invalid_research_classification")
         modes = data.get("modes")

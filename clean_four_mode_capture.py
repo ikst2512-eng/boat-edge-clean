@@ -118,6 +118,8 @@ def collect(root=ROOT, now=None, read=read_rows):
                     "status":"provisional","validated":False,
                     "model_version":"CLEAN_FOUR_MODES_V1_UNCALIBRATED",
                     "deadline_jst":cutoff.isoformat(),"generated_at_jst":now.isoformat(),
+                    "source_title_received_jst":title_received.isoformat(),
+                    "source_cards_received_jst":card_received.isoformat(),
                     "beforeinfo":"optional_not_in_snapshot",
                     "source_sha256":{"title":title_sha,"race_cards":direct_meta.get(code,card_sha)},
                     "input_national_win_rates":rates,
