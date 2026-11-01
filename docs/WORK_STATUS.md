@@ -675,3 +675,8 @@
 - `late-preview-capture.yml` の手動 `official_probe_race_code` 指定時、原本保存成功後に `inspect_official_beforeinfo_html.py` を自動実行し `official_preview_probe/label_inventory.json` に診断用ラベル分布を保存。SHA照合後の原本のみを検査し、`t12_eligible=false`、`forecast_usable=false`、`six_lane_values=unverified` を強制する。既存artifact upload (`always()`) に含める。
 - PR #774 head `27a5736313e01d1fb4a3969ea0e7829aedafee0a` で Preview capture run `41280725774`、Late preview evidence run `41280725753`、Audit run `41280725728` が全てsuccess。main squash `b76e5e927e1760f2a8f96f651f08db95fb0dfcfb`。
 - PR時のworkflowは手動公式取得を実行していない。**実公式HTML取得・実レース6艇とT-12受信時刻の証明は未完了。** 旧サイト停止・削除なし。
+
+
+## 2026-11-01 公式HTML診断ジョブの重複を統合
+- 既存 `.github/workflows/late-preview-capture.yml` には公式HTML原本保存後の診断が2ステップ重複していた。単なるラベル抽出・別JSON保存ステップを撤去し、SHA一致、T-12/予想使用禁止、6艇未検証のassertを含む既存 `official_preview_probe/label_inventory.json` 出力の単一診断ステップへ統合（main `f1c5a9858735966b4ccde2ac0245a72f139a139b`）。既存artifact uploadで診断JSONを引き続き保存。
+- 新しいworkflow/PR/定期ジョブなし。変更後CI実行・手動公式HTTP実受信・T-12実測は未確認。旧サイト/予想モデル変更なし。
