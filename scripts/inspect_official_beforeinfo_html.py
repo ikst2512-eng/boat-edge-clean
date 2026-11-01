@@ -76,6 +76,9 @@ def inspect(saved_dir):
     context={label:[{"index":row["index"],"nearby":[item[:120] for item in row["nearby"]]}
                     for row in rows] for label,rows in context.items()}
     return {"race_code":manifest.get("race_code"),"sha256_verified":True,
+            "request_started_at_jst":started.isoformat(),
+            "received_at_jst":receipt.isoformat(),
+            "http_elapsed_seconds":(receipt-started).total_seconds(),
             "visible_text_fragments":len(tokens),"label_positions":matched,
             "label_context":context,
             "six_lane_values":"unverified","t12_eligible":False,"forecast_usable":False}
