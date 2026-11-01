@@ -76,18 +76,14 @@ def select_source_context(source, issue, budget=35000):
     if len(source) <= budget:
         return source
     terms = [term.lower() for term in issue.split() if len(term) >= 3][:12]
-    scored = []
-    for i, line in enumerate(source.splitlines(keepends=True)):
-        score = sum(1 for term in terms if term in line.lower())
-        if score:
-            scored.append((score, i))
-    if not scored:
+    lowered = source.lower()
+    hits = [(lowered.find(term), len(term)) for term in terms if term in lowered]
+    if not hits:
         return source[:12000] + "\\n[... middle omitted ...]\\n" + source[-22000:]
-    lines = source.splitlines(keepends=True)
-    _, selected = max(scored)
-    middle = "".join(lines[max(0, selected-35):selected+50])
+    position, length = max(hits, key=lambda pair: pair[1])
+    middle = source[max(0, position-8500):min(len(source), position+length+8500)]
     return (source[:6000] + "\\n[... contextual excerpt ...]\\n" +
-            middle[:18000] + "\\n[... end excerpt ...]\\n" + source[-8000:])[:budget]
+            middle + "\\n[... end excerpt ...]\\n" + source[-8000:])[:budget]
 
 
 def propose(issue, root, api_key, model, transport=urlopen):
