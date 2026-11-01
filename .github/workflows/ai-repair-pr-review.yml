@@ -79,5 +79,18 @@ jobs:
         run: |
           python -m unittest -v tests.test_navigation_contract test_ai_repair_agent
           node tests/site-regression.cjs
+      - name: Check PR head did not change during validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHECKED_SHA: ${{ steps.pr.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          if [ "$current" != "$CHECKED_SHA" ]; then
+            echo "::error::AI draft PR changed during validation; rerun against the new head."
+            exit 1
+          fi
       - name: Review note
         run: echo 'Tests passed on the selected draft PR commit. Human review is still required; this does not authorize merge.'
