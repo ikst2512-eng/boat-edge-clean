@@ -22,7 +22,7 @@ class LatePreviewEvidenceTests(unittest.TestCase):
                 "202610310101,11:20,2026-10-31 11:00:00,6.65,6.99",
             ):
                 with self.subTest(values=values):
-                    raw=(header+"\\n"+values+"\\n").encode()
+                    raw=(header+"\n"+values+"\n").encode()
                     with self.assertRaisesRegex(ValueError,"ragged preview CSV row"):
                         save_preview(raw,"tkz","20261031",receipt,directory)
             self.assertFalse(list(Path(directory).rglob("*.json")))
