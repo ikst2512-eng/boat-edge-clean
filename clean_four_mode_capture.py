@@ -154,7 +154,8 @@ def publish_status(result,root=ROOT,now=None):
            "eligible_forecasts_today":result.get("eligible_forecasts_today",0),
            "excluded":result.get("excluded",{}),
            "last_run_new_count":len(result.get("new_saved",[])),
-           "production_success_proven":result.get("eligible_forecasts_today",0)>0}
+           "research_archives_present":result.get("eligible_forecasts_today",0)>0,
+           "production_success_proven":False}
     target=root/"four_mode_forecasts"/"capture_status.json"
     target.parent.mkdir(parents=True,exist_ok=True)
     content=json.dumps(state,ensure_ascii=False,sort_keys=True,indent=2)+chr(10)
