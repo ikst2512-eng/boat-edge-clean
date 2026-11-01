@@ -24,7 +24,16 @@ def six_lane_status(kind, row):
         return "incomplete"
     import re
     valid_st=re.compile(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})")
-    return "complete" if sorted(courses)==[1,2,3,4,5,6] and all(valid_st.fullmatch(st) for st in starts) else "incomplete"
+    # Numeric syntax alone is not six-lane evidence: reject implausible ST.
+    import math
+    def plausible_st(st):
+        if not valid_st.fullmatch(st):
+            return False
+        if st.startswith("F"):
+            return 0 <= float(st[1:]) <= 0.99
+        value=float(st)
+        return math.isfinite(value) and -1 <= value <= 1
+    return "complete" if sorted(courses)==[1,2,3,4,5,6] and all(plausible_st(st) for st in starts) else "incomplete"
 
 def save_preview(raw, kind, day, received_at, root):
     if kind not in KINDS or len(day)!=8 or not day.isascii() or not day.isdigit():
