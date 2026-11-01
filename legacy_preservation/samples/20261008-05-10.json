@@ -1,0 +1,224 @@
+{
+  "schema_version": "boat-edge-server-site-final-v123",
+  "snapshot_window": "FINAL_15M",
+  "race_key": "20261008-05-10",
+  "prediction_kind": "SITE_REFERENCE_V122",
+  "selection_policy": "V122_SCENARIO_AWARE_PROBABILITY_FIRST",
+  "mode_policy": "BALANCE10_WAVE12_15_18_V133_FIXED",
+  "used_inputs": [
+    "当地3か月コース",
+    "展示タイム"
+  ],
+  "first_saved_at": "2026-10-08T06:09:02.440983+00:00",
+  "saved_at": "2026-10-08T06:09:02.440988+00:00",
+  "minutes_to_deadline": 5.96,
+  "venue": "多摩川",
+  "venue_code": "05",
+  "race_no": 10,
+  "deadline": "15:15",
+  "grade": "A",
+  "race_sha256": "10f55bff26863ea474ea1d47a8574d849fdd30a0fde68e613422eec7e0d69b3c",
+  "odds_sha256": null,
+  "guards": {
+    "results_seen": false,
+    "unlock": false,
+    "scoring": false
+  },
+  "modes": {
+    "hit": {
+      "confidence": 89,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 16.35485635333426,
+          "odds": null
+        },
+        {
+          "combo": "1-3-2",
+          "p": 16.34988466888558,
+          "odds": null
+        },
+        {
+          "combo": "1-2-4",
+          "p": 15.945733535122153,
+          "odds": null
+        },
+        {
+          "combo": "1-4-2",
+          "p": 15.903179343753177,
+          "odds": null
+        },
+        {
+          "combo": "1-3-4",
+          "p": 15.740097748073259,
+          "odds": null
+        },
+        {
+          "combo": "3-1-2",
+          "p": 4.07354546525835,
+          "odds": null
+        },
+        {
+          "combo": "2-1-3",
+          "p": 4.035395044009707,
+          "odds": null
+        },
+        {
+          "combo": "2-1-4",
+          "p": 3.9323773047615016,
+          "odds": null
+        },
+        {
+          "combo": "4-1-2",
+          "p": 3.870303365111616,
+          "odds": null
+        },
+        {
+          "combo": "2-3-1",
+          "p": 3.794627171690401,
+          "odds": null
+        }
+      ]
+    },
+    "balance": {
+      "confidence": 84,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 16.35485635333426,
+          "odds": null
+        },
+        {
+          "combo": "1-3-2",
+          "p": 16.34988466888558,
+          "odds": null
+        },
+        {
+          "combo": "1-2-4",
+          "p": 15.945733535122153,
+          "odds": null
+        },
+        {
+          "combo": "1-4-2",
+          "p": 15.903179343753177,
+          "odds": null
+        },
+        {
+          "combo": "1-3-4",
+          "p": 15.740097748073259,
+          "odds": null
+        },
+        {
+          "combo": "3-1-2",
+          "p": 4.07354546525835,
+          "odds": null
+        },
+        {
+          "combo": "2-1-3",
+          "p": 4.035395044009707,
+          "odds": null
+        },
+        {
+          "combo": "2-1-4",
+          "p": 1.9973896804033386,
+          "odds": null
+        },
+        {
+          "combo": "3-1-4",
+          "p": 1.9846470286438302,
+          "odds": null
+        },
+        {
+          "combo": "4-1-2",
+          "p": 1.9658601915293867,
+          "odds": null
+        }
+      ]
+    },
+    "hole": {
+      "confidence": 79,
+      "tickets": [
+        {
+          "combo": "3-1-2",
+          "p": 2.0690938443543683,
+          "odds": null
+        },
+        {
+          "combo": "2-1-3",
+          "p": 2.049715933284438,
+          "odds": null
+        },
+        {
+          "combo": "2-1-4",
+          "p": 1.9973896804033386,
+          "odds": null
+        },
+        {
+          "combo": "3-1-4",
+          "p": 1.9846470286438302,
+          "odds": null
+        },
+        {
+          "combo": "4-1-2",
+          "p": 1.9658601915293867,
+          "odds": null
+        },
+        {
+          "combo": "3-2-1",
+          "p": 1.9446280911566285,
+          "odds": null
+        },
+        {
+          "combo": "2-1-5",
+          "p": 1.9440193452344827,
+          "odds": null
+        },
+        {
+          "combo": "4-1-3",
+          "p": 1.93500896065361,
+          "odds": null
+        },
+        {
+          "combo": "2-3-1",
+          "p": 1.9274216501389874,
+          "odds": null
+        },
+        {
+          "combo": "2-4-1",
+          "p": 1.8720296305239994,
+          "odds": null
+        },
+        {
+          "combo": "1-2-3",
+          "p": 8.335838405118581,
+          "odds": null
+        },
+        {
+          "combo": "1-3-2",
+          "p": 8.333304408043333,
+          "odds": null
+        }
+      ]
+    },
+    "narrow": {
+      "confidence": 77,
+      "tickets": [
+        {
+          "combo": "1-2-3",
+          "p": 16.35485635333426,
+          "odds": null
+        },
+        {
+          "combo": "1-3-2",
+          "p": 16.34988466888558,
+          "odds": null
+        },
+        {
+          "combo": "1-2-4",
+          "p": 15.945733535122153,
+          "odds": null
+        }
+      ]
+    }
+  }
+}
