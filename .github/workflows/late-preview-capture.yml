@@ -80,6 +80,21 @@ jobs:
         run: |
           PROBE_DIR="official_preview_probe/${OFFICIAL_RACE_CODE:0:8}/$OFFICIAL_RACE_CODE"
           python scripts/inspect_official_beforeinfo_html.py "$PROBE_DIR" > official_beforeinfo_diagnostic.json
+      - name: Inspect saved official HTML as diagnostic-only evidence
+        if: github.event_name == 'workflow_dispatch' && inputs.official_probe_race_code != ''
+        env:
+          OFFICIAL_RACE_CODE: ${{ inputs.official_probe_race_code }}
+        run: |
+          python scripts/inspect_official_beforeinfo_html.py "official_preview_probe/${OFFICIAL_RACE_CODE:0:8}/${OFFICIAL_RACE_CODE}" > official_preview_probe/label_inventory.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("official_preview_probe/label_inventory.json").read_text())
+          assert r["sha256_verified"] is True
+          assert r["t12_eligible"] is False and r["forecast_usable"] is False
+          assert r["six_lane_values"] == "unverified"
+          print("OFFICIAL_DIAGNOSTIC_ONLY_LABEL_INVENTORY",r["race_code"],r["label_positions"])
+          PY
       - name: Upload separate short-retention evidence
         if: always()
         uses: actions/upload-artifact@v4
