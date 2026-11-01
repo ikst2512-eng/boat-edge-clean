@@ -47,6 +47,10 @@ def save_preview(raw, kind, day, received_at, root):
     if not headers or any(not name for name in headers) or len(headers)!=len(set(headers)):
         raise ValueError("missing or duplicate preview CSV headers")
     rows=list(reader)
+    # DictReader otherwise inserts None keys for surplus columns and None
+    # values for missing columns. Either case makes the source ambiguous.
+    if any(None in row or any(value is None for value in row.values()) for row in rows):
+        raise ValueError("ragged preview CSV row")
     selected=[]
     seen=set()
     for row in rows:

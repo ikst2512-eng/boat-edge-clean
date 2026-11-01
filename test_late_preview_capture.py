@@ -13,6 +13,20 @@ def csv_row(received="2026-10-31 11:00:00", deadline="11:20"):
 
 
 class LatePreviewEvidenceTests(unittest.TestCase):
+    def test_ragged_csv_rows_fail_without_archiving(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt=datetime(2026,10,31,11,2,tzinfo=JST)
+            header="レースコード,締切時刻,取得日時,艇1_展示タイム"
+            for values in (
+                "202610310101,11:20,2026-10-31 11:00:00",
+                "202610310101,11:20,2026-10-31 11:00:00,6.65,6.99",
+            ):
+                with self.subTest(values=values):
+                    raw=(header+"\n"+values+"\n").encode()
+                    with self.assertRaisesRegex(ValueError,"ragged preview CSV row"):
+                        save_preview(raw,"tkz","20261031",receipt,directory)
+            self.assertFalse(list(Path(directory).rglob("*.json")))
+
     def test_duplicate_csv_headers_fail_before_any_evidence_write(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt=datetime(2026,10,31,11,2,tzinfo=JST)
