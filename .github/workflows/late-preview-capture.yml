@@ -102,5 +102,6 @@ jobs:
             late_preview_audit_report.json
             official_preview_probe/**/*.html
             official_preview_probe/**/*.json
+            official_preview_probe/attempt_report.json
           if-no-files-found: ignore
           retention-days: 90
