@@ -5,6 +5,7 @@ on:
     paths:
       - index.html
       - navigation.js
+      - 'confirmed_results/**'
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
