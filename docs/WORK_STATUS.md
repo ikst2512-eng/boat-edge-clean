@@ -595,3 +595,9 @@
 - 公式beforeinfo実験用HTTP証拠保存で、転送後URLがboatrace.jpホストならHTTPダウングレードや別pathでも保存を許していた。HTTPS・公式ホスト・`/owsp/sp/race/beforeinfo` の3条件を全て要求し、不一致は `official_probe_failed` としてappend-only保存しないよう修正。
 - HTTP /別path /他ホストへの転送をモックした回帰テスト追加。PR head `09c4f46d54f6266a55befda5e7e11ac77c6bb167` の Late preview evidence integrity run `41261621415` validate success。main squash `816d39d985bf43133bd592ae8774b81bd3266a3f`。
 - **公式ライブページ受信・実レース6艇完全性・T-12受信前証明は依然未確認。** 公式probeの正式予想利用は禁止、旧repo/Pagesは未変更。
+
+
+## 2026-11-01 Pages公開済み過去結果の2日付照合
+- 既存Pages公開後のバイト照合を2026-10-27の `202610270101` に加え2026-10-31蒲郡8R `202610310708` に拡張。両方の `confirmed_results/*.json` はmain上に存在することを確認し、公開HTTP取得後にそれぞれ `cmp -s` で原本一致させる（main `54c336c8e12f77a2177bd5fa0a188fe5ef3ef426`）。既存ワークフローのみ変更、新規PRなし。
+- Render管理APIでは `0b82ce7d` のlive deploy履歴を確認。ただしGitHub Pages公開CIのpush runはGitHub接続の取得機能外であり、Webアクセスも不可。今回の変更後のPages成功・iPhone Safari・過去日の4タブ実表示は未確認。変更内容はGitHubから再取得して確認済み。
+- 旧リポジトリ撤去は依然として全件保全と独立保管の未達で保留。次はPages publish runログの成功確認と実ブラウザでの2026-10-31過去レース4タブ実データ照合。
