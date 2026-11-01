@@ -41,7 +41,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
             raise ValueError("invalid official HTTP response")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.
         result={"race_code":race_code,"source":"official_beforeinfo_html",
-                "url":url,"received_at_jst":received.isoformat(),
+                "url":url,"response_url":final_url,"received_at_jst":received.isoformat(),
                 "http_status":status,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),
                 "status":"raw_http_observed_not_t12_certified",
                 "complete_six_lanes":"unverified","deadline_jst":None,
