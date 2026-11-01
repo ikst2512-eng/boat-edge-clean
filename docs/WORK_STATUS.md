@@ -572,3 +572,9 @@
 - 既存 `.github/workflows/deploy-pages.yml` のmain push pathsへ `'confirmed_results/**'` を追加。main commit `c7b228f8cde99acedc6f87c8ed7fbb045d842634`。GitHubからの再取得で追加を確認。新規workflow・PRは作らず既存デプロイ経路を修正。
 - `fetch_commit_workflow_runs` はPR起動runのみを返すため今回0件でもpush Pages workflowの成功とは言えない。公開URLの最新JSONと実ブラウザ表示、iPhone Safariは未検証。
 - 次: Pages push runと公開後ブラウザE2Eで確定結果JSONの更新反映を確認。旧repo/Pagesの独立保全およびT-12完全6艇証拠が揃うまでは旧サイトを停止・削除しない。
+
+
+## 2026-11-01 公式beforeinfo手動probeの失敗終了判定
+- 既存公式probeのCLIは取得に失敗して `official_probe_failed` を出力しても終了コード0だったため、手動Actionsが「取得成功」と誤認され得た。main `3062096bc631c9cd73e07eccba5d7e636009802e` で、HTTP原本を実際に保存した `raw_http_observed_not_t12_certified` 以外は終了コード1に変更。既存の `if: always()` によるartifact保存は維持。
+- CLI不正キーの非0終了とmanifest非作成を回帰テストへ追加（`8b8a36960088f67e68cb75493085ae6b9b3387b3`）。
+- 既存PR #763 run 41247012805 の保存・時刻・重複監査など既存テストは成功を実ログで確認。ただし**今回の修正後CI・11月1日8:03以降のschedule実行履歴・公式直前情報の実取得・T-12完全6艇は未検証**。GitHub connectorにschedule workflow runsの一覧取得機能はなく、PR runを定期収集成功として扱わない。旧サイト・予想モデル変更なし。
