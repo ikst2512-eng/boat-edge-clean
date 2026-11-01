@@ -40,7 +40,13 @@ def save_preview(raw, kind, day, received_at, root):
         raise ValueError("invalid dataset key")
     if received_at.tzinfo is None: raise ValueError("naive receipt")
     if len(raw)>3_000_000 or not raw:raise ValueError("invalid source size")
-    rows=list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+    reader=csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
+    # Duplicate source headers are ambiguous: DictReader silently overwrites
+    # columns, so never treat them as trustworthy six-boat evidence.
+    headers=reader.fieldnames
+    if not headers or any(not name for name in headers) or len(headers)!=len(set(headers)):
+        raise ValueError("missing or duplicate preview CSV headers")
+    rows=list(reader)
     selected=[]
     seen=set()
     for row in rows:
