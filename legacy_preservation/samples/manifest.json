@@ -246,6 +246,90 @@
       "archive_path": "legacy_preservation/samples/20261016-13-08.json",
       "race_key": "20261016-13-08",
       "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261024-04-01.json",
+      "source_blob_sha": "d90a678f815b06843e7ddb92e2d336bb53faba4e",
+      "archive_path": "legacy_preservation/samples/20261024-04-01.json",
+      "race_key": "20261024-04-01",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261017-08-12.json",
+      "source_blob_sha": "bb9ea8295774ab9f0e8d3826bb5ff50a44f9f1af",
+      "archive_path": "legacy_preservation/samples/20261017-08-12.json",
+      "race_key": "20261017-08-12",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261008-10-10.json",
+      "source_blob_sha": "9dc2810c13af1ac3c3e7b22cdd48805bac6d155c",
+      "archive_path": "legacy_preservation/samples/20261008-10-10.json",
+      "race_key": "20261008-10-10",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261013-15-05.json",
+      "source_blob_sha": "9701f820be7e8e9f029e8730246a29d0fbb8fd23",
+      "archive_path": "legacy_preservation/samples/20261013-15-05.json",
+      "race_key": "20261013-15-05",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261014-06-12.json",
+      "source_blob_sha": "4b7be574d587bed87b496762aaac22ef544ba08a",
+      "archive_path": "legacy_preservation/samples/20261014-06-12.json",
+      "race_key": "20261014-06-12",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261008-20-05.json",
+      "source_blob_sha": "43131ed42d1ffc6fbaec0c80f204ce4cc92b5f48",
+      "archive_path": "legacy_preservation/samples/20261008-20-05.json",
+      "race_key": "20261008-20-05",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261009-07-02.json",
+      "source_blob_sha": "5fa26536ac2b72ecead382e0e3a03928f510200d",
+      "archive_path": "legacy_preservation/samples/20261009-07-02.json",
+      "race_key": "20261009-07-02",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261015-06-04.json",
+      "source_blob_sha": "b66ee6b1f267d988e463a7df62a975146068c7b0",
+      "archive_path": "legacy_preservation/samples/20261015-06-04.json",
+      "race_key": "20261015-06-04",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261009-08-01.json",
+      "source_blob_sha": "0bc47b420a44e2d1e2f811e1a0ce7de14658805f",
+      "archive_path": "legacy_preservation/samples/20261009-08-01.json",
+      "race_key": "20261009-08-01",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261018-18-03.json",
+      "source_blob_sha": "e7670636f118aada788b6054043031de15610d3a",
+      "archive_path": "legacy_preservation/samples/20261018-18-03.json",
+      "race_key": "20261018-18-03",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261014-22-04.json",
+      "source_blob_sha": "0430d1e6eb93277b651fb243dff35b9fe70b1670",
+      "archive_path": "legacy_preservation/samples/20261014-22-04.json",
+      "race_key": "20261014-22-04",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261014-24-04.json",
+      "source_blob_sha": "4a508ed5bbd352d254d0d5afb215251438b90b23",
+      "archive_path": "legacy_preservation/samples/20261014-24-04.json",
+      "race_key": "20261014-24-04",
+      "archive_content_verified": true
     }
   ]
 }
