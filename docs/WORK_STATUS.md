@@ -736,3 +736,8 @@
 - `inspect_official_beforeinfo_html.py` はレースキー・SHA照合だけでは受信日時が無い原本や誤ったT-12認定状態も解析できていた。JST `+09:00` の解析可能な `received_at_jst`、HTTP 200、`raw_http_observed_not_t12_certified`、`t12_eligible=false`、`complete_six_lanes=unverified` を確認し、不一致なら診断拒否。
 - timezone不一致や偽のT-12合格を再現する回帰テスト追加。PR head `f44a1053d881de2fd430bea18ca2807de8910ee1` のLate preview evidence run `41304107698` validate success。main squash `171346d60c4361dd465092fa082ac8195c3e95e1`。
 - これは保存済み原本の診断用整合性チェックであり、**公式ライブHTTP受信・6艇完全性・締切T-12成立を実証したものではない**。旧サイト停止・削除なし。
+
+
+## 2026-11-01 手動公式probeで不要な事前単体テストをスキップ
+- 手動 `workflow_dispatch` に `official_probe_race_code` を指定しても従来は収集前に8種の単体テストが走り、短い実行枠で実HTTP観測の開始を遅らせていた。既存 `late-preview-capture.yml` の先行テストステップに条件を付け、**公式レース指定ありの手動実行のみ**テストを省略して公式HTTP取得を先に実施するよう変更（main `8b260a0203c1b82ee180295ec6928cc11bddc8dc`）。schedule・PR・通常手動でのテスト動作は維持。独立の `late-preview-evidence-tests.yml` ではpush/PR時に公式probe・HTML診断を継続テストする。
+- 本実行で公式ページの直接取得はweb経由でもアクセス不可。最新変更後CI成功、GitHub手動probe実HTTP受信、6艇完全性、T-12成立は未確認。旧repo・予想モデルは変更なし。
