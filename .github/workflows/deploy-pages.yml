@@ -96,9 +96,11 @@ jobs:
                 NAV_URL="${PAGE_URL%/}/navigation.js"
                 curl --fail --silent --show-error --location --max-time 20 "$NAV_URL" -o /tmp/clean-deployed-navigation.js
                 cmp -s public/navigation.js /tmp/clean-deployed-navigation.js || { echo "Published navigation.js missing or mismatched" >&2; exit 1; }
-                RESULT_URL="${PAGE_URL%/}/confirmed_results/202610270101.json"
-                curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o /tmp/clean-deployed-confirmed-result.json
-                cmp -s public/confirmed_results/202610270101.json /tmp/clean-deployed-confirmed-result.json || { echo "Published confirmed result missing or mismatched" >&2; exit 1; }
+                for RESULT_KEY in 202610270101 202610310708; do
+                  RESULT_URL="${PAGE_URL%/}/confirmed_results/${RESULT_KEY}.json"
+                  curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o "/tmp/clean-deployed-${RESULT_KEY}.json"
+                  cmp -s "public/confirmed_results/${RESULT_KEY}.json" "/tmp/clean-deployed-${RESULT_KEY}.json" || { echo "Published confirmed result missing or mismatched: ${RESULT_KEY}" >&2; exit 1; }
+                done
                 echo "Public page and navigation.js byte-identical PASS: $PAGE_URL"
                 echo "Public HTML: **PASS** (byte-identical to deployed revision)" >> "$GITHUB_STEP_SUMMARY"
                 sha256sum public/index.html
