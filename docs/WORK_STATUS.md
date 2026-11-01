@@ -649,3 +649,8 @@
 - 公式HTTP原本について、manifestのSHA-256と実バイトを照合した後で可視HTMLテキストから展示タイム・チルト・スタート展示・進入・ST・気象ラベルの出現位置を抽出する**診断専用** `scripts/inspect_official_beforeinfo_html.py` を追加（`5826ded7`）。脚本・CSSは解析対象外。HTML掲載内容の文字列検査だけで6艇の値やT-12適格性を証明しない（出力は `six_lane_values=unverified,t12_eligible=false,forecast_usable=false` 固定）。
 - HTML改ざん時のSHA不一致拒否、ラベル抽出と非認定状態の回帰テスト `tests/test_inspect_official_beforeinfo_html.py` を追加（`566c1a31`）。既存 `late-preview-evidence-tests.yml`（`2a531f88`）と `late-preview-capture.yml`（`4dc60656`）へテストを組み込み、新規workflowは作成しない。
 - **mainへのファイル反映は確認済みだが、変更後のActions実行成功・公式実HTML保存・6艇値の構造解析・T-12実測は未確認。** 次に保存原本を取得できた時点でラベル・DOM形状を調査して抽出器を設計。旧repo/Pagesには変更なし。
+
+## 2026-11-01 PR #772 公式beforeinfo転送後URL原本記録
+- 公式HTML独立probeが検証済みの公式リダイレクトを許す一方、manifestには要求URLだけを記録して実際の応答URLを失っていた。`response_url` を保存し、正常な同一レース公式別ホスト転送も原本manifestから追跡できるよう変更。
+- 回帰テストで転送後URLと要求URLの差、manifest同一性、およびT-12不適格の維持を検証。PR head `8bf32c60c833099b664e534c99dac2f21d7ade28` Actions run `41280534954` validate success。main squash `d5c83f50a223080d608fc350da776cfdfcc80d2a`。
+- 公式実レースのライブHTTP受信・受信時刻T-12・展示進入6艇の機械的確認は未証明。本変更は原本の追跡性改善のみで、予想採点利用なし。旧repo/Pagesの停止なし。
