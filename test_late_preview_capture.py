@@ -13,6 +13,18 @@ def csv_row(received="2026-10-31 11:00:00", deadline="11:20"):
 
 
 class LatePreviewEvidenceTests(unittest.TestCase):
+    def test_six_lane_st_requires_plausible_start_values(self):
+        from late_preview_capture import six_lane_status
+        row={f"艇{i}_コース":str(i) for i in range(1,7)}
+        row.update({f"艇{i}_スタート展示":"0.12" for i in range(1,7)})
+        self.assertEqual(six_lane_status("stt",row),"complete")
+        for invalid in ("999","-2.0","1.50","NaN","inf","F1.00","ST"):
+            with self.subTest(invalid=invalid):
+                row["艇6_スタート展示"]=invalid
+                self.assertEqual(six_lane_status("stt",row),"incomplete")
+        row["艇6_スタート展示"]="F.02"
+        self.assertEqual(six_lane_status("stt",row),"complete")
+
     def test_predeadline_append_only_receipt_and_hash(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
