@@ -52,6 +52,16 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
 
+    def test_st_label_excludes_english_substrings(self):
+        from scripts.inspect_official_beforeinfo_html import matches_label
+        for value in ("TEST", "LAST", "STATS", "FASTEST", "START"):
+            with self.subTest(value=value):
+                self.assertFalse(matches_label("ST", value))
+        for value in ("ST", "展示ST 0.12", "ST: 0.08", "ST 0.09"):
+            with self.subTest(value=value):
+                self.assertTrue(matches_label("ST", value))
+        self.assertTrue(matches_label("展示タイム", "展示タイム 6.89"))
+
     def test_inert_markup_cannot_forge_official_labels(self):
         from scripts.inspect_official_beforeinfo_html import VisibleText, LABELS
         html = """<html><head><title>展示タイム fake</title></head>
