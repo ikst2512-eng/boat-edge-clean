@@ -10,6 +10,11 @@ import json
 import re
 
 LABELS=("展示タイム","チルト","スタート展示","進入","ST","風向","風速","波高")
+# ST is a short abbreviation. A substring match also mistakes TEST, LAST,
+# STATS and HTML diagnostic prose for actual start-timing label evidence.
+ST_LABEL=re.compile(r"(?<![A-Za-z])ST(?![A-Za-z])")
+def matches_label(label, text):
+    return bool(ST_LABEL.search(text)) if label=="ST" else label in text
 # Inert HTML must never be mistaken for six-lane evidence. The inventory is
 # diagnostic only and intentionally does not certify publication or completeness.
 INERT_TAGS=frozenset(("script","style","template","noscript","head","svg","iframe"))
@@ -73,7 +78,7 @@ def inspect(saved_dir):
     parser=VisibleText()
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments
-    matched={label:[i for i,t in enumerate(tokens) if label in t][:15] for label in LABELS}
+    matched={label:[i for i,t in enumerate(tokens) if matches_label(label,t)][:15] for label in LABELS}
     # Preserve bounded, source-backed neighboring text to design a lane parser
     # from actual official pages; do not classify boat counts from labels.
     context={label:[{"index":i,"nearby":tokens[max(0,i-2):min(len(tokens),i+5)]}
