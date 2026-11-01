@@ -590,3 +590,8 @@
 - 既存 `.github/workflows/deploy-pages.yml` の `Verify deployed public page` に、実保存サンプル `confirmed_results/202610270101.json` の公開取得とローカル配布原本との `cmp -s` 一致ゲートを追加。main `aa425fff20e9a70b2ff1e0da7cc4bb4bb8809cd6`。GitHub上で実コード再取得済み。
 - GitHub Actions push runの実行結果・公開JSONのHTTP実測はツールから未確認。サンプル1件の検証であり全結果JSONの保証ではない。新しいワークフロー・PRなし。旧サイトは停止・削除しない。
 - 次はPages公開runの実ログでHTML/JS/結果JSONの照合を確認し、2026-10-31実レースの出走表・展示・予想・結果表示を確認する。
+
+## 2026-11-01 PR #767 公式beforeinfoのリダイレクト元検証
+- 公式beforeinfo実験用HTTP証拠保存で、転送後URLがboatrace.jpホストならHTTPダウングレードや別pathでも保存を許していた。HTTPS・公式ホスト・`/owsp/sp/race/beforeinfo` の3条件を全て要求し、不一致は `official_probe_failed` としてappend-only保存しないよう修正。
+- HTTP /別path /他ホストへの転送をモックした回帰テスト追加。PR head `09c4f46d54f6266a55befda5e7e11ac77c6bb167` の Late preview evidence integrity run `41261621415` validate success。main squash `816d39d985bf43133bd592ae8774b81bd3266a3f`。
+- **公式ライブページ受信・実レース6艇完全性・T-12受信前証明は依然未確認。** 公式probeの正式予想利用は禁止、旧repo/Pagesは未変更。
