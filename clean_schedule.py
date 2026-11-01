@@ -69,7 +69,8 @@ def schedule_from_frozen_candidates(day, root=None):
             continue
     if not races:
         return None
-    return {"ok": True, "date": day, "status": "frozen_candidate_schedule",
+    venue_counts = dict(sorted(Counter(r["venue_code"] for r in races).items()))
+    return {"ok": True, "date": day, "venue_race_counts": venue_counts, "status": "frozen_candidate_schedule",
             "formal": False, "results_confirmed": False,
             "source": "CLEAN frozen pre-cutoff candidates (partial coverage)",
             "partial_coverage": True,
