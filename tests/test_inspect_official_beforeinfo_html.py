@@ -52,6 +52,17 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
 
+    def test_labeled_table_rows_are_diagnostic_not_six_lane_proof(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText, matches_label
+        parser=VisibleText()
+        parser.feed('<table><tr><th>展示タイム</th><td>6.89</td></tr>'
+                    '<tr><td><script>ST fake</script>ST</td><td>0.11</td></tr>'
+                    '<tr><td>TEST</td><td>note</td></tr></table>')
+        self.assertEqual(parser.table_rows,[["展示タイム","6.89"],["ST","0.11"],["TEST","note"]])
+        self.assertEqual([row for row in parser.table_rows if any(
+            matches_label(label,cell) for label in ("展示タイム","ST") for cell in row)],
+            [["展示タイム","6.89"],["ST","0.11"]])
+
     def test_st_label_excludes_english_substrings(self):
         from scripts.inspect_official_beforeinfo_html import matches_label
         for value in ("TEST", "LAST", "STATS", "FASTEST", "START"):
