@@ -721,3 +721,8 @@
 ## 2026-11-01 蒲郡8RのPages公開後結果タブ実表示ゲート追加
 - 既存 `deploy-pages.yml` の「Verify published CLEAN confirmed result in browser」は2026-10-27の1レースだけだった。2026-10-31蒲郡8R（`202610310708`）を同じPlaywright実ブラウザ検査に追加。GitHub保存結果の3連単1-4-6と公開結果タブの艇番3つの一致、および未検証事前予想を正式的中採点しない条件を検査する（main `a0d6ad2460d30e88858fec293701f995a903cd07`）。旧10/27検査は維持、新規PR/ワークフローなし。
 - GitHub Actions push実行の最新ログと公開ブラウザ合否は現時点未取得。公開後検証を追加したことと、合格したことは区別する。旧repo/Pagesは削除しない。次は公開runの実ログで両件の `CLEAN_RESULT_PUBLISHED_BROWSER_PASS` を確認する。
+
+## 2026-11-01 旧予想原本59件の保全追加（PR #779）
+- 旧サイトの予想スナップショット4件を保全専用フォルダへ追加しmanifest59件。元repoと保存先のGit blob SHAは追加分4/4一致。
+- 既存の保全CI件数下限を59に更新。PR #779 head `dddf3732e83fe4a8ae7d802e550e4bedb7e023b9` の Research forecast checks run `41304039718` 成功、main `9ca5586736d8ba54692d994337f9c446af5c36e6` に統合。
+- 初回Git追加日時、完全保全、独立長期保存は未証明。旧サイト停止なし。
