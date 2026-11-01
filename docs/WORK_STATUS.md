@@ -690,3 +690,8 @@
 ## 2026-11-01 Pages確定結果の同一origin優先読み込み
 - `index.html` の確定結果取得はPages上でもGitHub Rawを最初に最大15秒待ち、失敗後に同一サイトの保存JSONを読む順序だった。Pagesホスト `ikst2512-eng.github.io` では `confirmed_results/{race_code}.json` を先に試し、失敗した場合のみRawを照会する順序に変更。Render等では従来通りRaw優先。双方が失敗した場合はHTTPエラーとして維持し、結果を捏造しない（main `dc5f62a43776669d0a970889370e887afbea9d96`）。
 - 変更後のGitHub Actions CI、Pages公開実ブラウザでの10/31蒲郡8R表示、iPhone Safariは未確認。旧サイト/原本削除なし。次は既存Pages CIと現物公開表示の確認。
+
+## 2026-11-01 旧予想原本55件に保全拡張（PR #776）
+- 旧repoの実在JSON原本4件をCLEANの隔離保全先へ追加。manifest計55件、既存のGit blob SHA検証CIの最低件数も55件へ変更。
+- PR head `0a19d074009ca5910d56ed518278b371a1846686` の Research forecast checks run `41289827721` はcompleted/success。main squash `6364f3dff39474ac1ead7fd796a0050d97b22790`。
+- **初回Git追加SHA/日時、全件、オッズ/Fresh、独立長期保管復元は未確認。** 旧サイト停止・削除なし。
