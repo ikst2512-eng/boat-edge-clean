@@ -33,6 +33,19 @@ class ProspectiveMissReportTest(unittest.TestCase):
             self.assertEqual(rejected["topn"]["top10"]["evaluated"], 0)
             self.assertFalse(rejected["formal"])
             self.assertFalse(rejected["remote_first_seen_verified"])
+            def pending(c, r):
+                return {"race_code": c, "status": "result_unavailable",
+                        "audited": True, "formal": False,
+                        "scoring_kind": "prospective_research_only"}
+            pending_report = report("20261030", root, scorer=pending)
+            self.assertEqual(pending_report["counts"]["awaiting_result"], 1)
+            self.assertEqual(pending_report["counts"]["evaluated"], 0)
+            def fake_pending(c, r):
+                return {"race_code": c, "status": "result_unavailable", "audited": False,
+                        "formal": False, "scoring_kind": "prospective_research_only"}
+            fake_report = report("20261030", root, scorer=fake_pending)
+            self.assertEqual(fake_report["counts"]["audit_rejected"], 1)
+            self.assertEqual(fake_report["counts"]["awaiting_result"], 0)
 
 
 if __name__ == "__main__":
