@@ -752,3 +752,8 @@
 - 旧サイトの予想スナップショット4件を保全専用ディレクトリへ追加し、manifest計63件。今回追加分は元repoと保存先のGit blob SHAが4/4一致。
 - 既存保全CIの件数下限を63に変更。PR head `0870bf76033e5964389f75329d2c18a4fbad3b60`、Research forecast checks run `41304426947` completed/success。main squash `08e390cbc1d0116e377b8bf586aba9bbeaf3a365`。
 - 初回Git保存時刻・締切前性、全旧予想/オッズ/Freshの網羅、独立長期バックアップは未証明。旧サイト停止なし。
+
+## 2026-11-01 PR #782 公式HTML原本の要求URL・応答URLを診断時にも照合
+- 公式HTTP観測時に取得元URLの同一性を確認していても、別途保存原本の診断ではmanifest `url` と `response_url` に誤ったレースが書かれている場合の拒否がなかった。診断時に両URLのHTTPS、公式ホスト、beforeinfo path、`hd/jcd/rno` と保全パスの一致を再確認。
+- 保存manifestの別R `response_url` を検出する回帰テスト追加。PR head `f314c28ea998975987255f61b4b55e8f9612a0e3` のLate preview evidence run `41304441304` validate success。main squash `e7869d8730b8fc5c46b9f0e588b07d0c6015430f`。
+- **公式ライブHTML取得とT-12での6艇完全性の実証は未達。** 新規の予想入力・旧サイト停止なし。
