@@ -82,6 +82,7 @@ class OfficialProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             result=capture("202611010708",d,fetch=lambda url:b"<html></html>",clock=lambda:next(ticks))
             self.assertEqual(result["status"],"official_probe_failed")
+            self.assertFalse(result["observation_chronology_valid"])
             self.assertFalse(list(Path(d).rglob("manifest.json")))
 
     def test_http_200_non_html_is_not_saved_as_evidence(self):
@@ -102,6 +103,7 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(r["status"],"official_probe_failed")
             self.assertIn("request_started_at_jst",r)
             self.assertIn("received_at_jst",r)
+            self.assertTrue(r["observation_chronology_valid"])
             self.assertFalse(r["t12_eligible"])
             self.assertEqual(list(Path(d).rglob("*.html")),[])
     def test_partial_manifest_write_cleans_evidence_directory(self):
