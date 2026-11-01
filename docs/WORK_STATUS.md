@@ -747,3 +747,8 @@
 - 既存Pages公開ブラウザ検証は、10/27・10/31の画面表示前にGitHub Rawへアクセスして期待値JSONを取得していた。ページ本体の結果読込は既に同一origin優先なのに、Raw障害で公開画面の合否を判定できない不整合を確認。
 - `deploy-pages.yml` の結果画面テストの参照JSONを、公開済みPagesの同一origin `confirmed_results/{race_code}.json` に変更（main `53d170613cca5ea03af232d04039df5a7d6baaa1`）。直前の公開バイト一致ゲートがGitHub保存原本との一致を検査するので、ブラウザ検証は公開JSON→DOM表示の一致を検査する。期待する3連単10/27=1-2-5、10/31蒲郡8R=1-4-6、および正式的中採点禁止は維持。
 - GitHub Pages Actions push run最新結果と公開サイトへの直接HTTPアクセスは取得制限により未確認。実装更新を本番合格としない。旧サイト停止・削除なし。
+
+## 2026-11-01 旧予想原本63件の保全追加（PR #781）
+- 旧サイトの予想スナップショット4件を保全専用ディレクトリへ追加し、manifest計63件。今回追加分は元repoと保存先のGit blob SHAが4/4一致。
+- 既存保全CIの件数下限を63に変更。PR head `0870bf76033e5964389f75329d2c18a4fbad3b60`、Research forecast checks run `41304426947` completed/success。main squash `08e390cbc1d0116e377b8bf586aba9bbeaf3a365`。
+- 初回Git保存時刻・締切前性、全旧予想/オッズ/Freshの網羅、独立長期バックアップは未証明。旧サイト停止なし。
