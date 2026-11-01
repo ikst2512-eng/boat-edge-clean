@@ -10,6 +10,8 @@ on:
       - clean_four_mode_capture.py
       - clean_four_modes.py
       - test_clean_four_mode_capture_e2e.py
+      - test_four_mode_receipts.py
+      - scripts/verify_four_mode_new_receipts.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
   contents: read
@@ -31,7 +33,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
       - name: Capture predeadline records
         if: github.event_name != 'pull_request'
         run: |
