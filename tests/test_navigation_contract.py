@@ -19,6 +19,10 @@ class NavigationContractTest(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
+    def test_duplicate_forecast_picker_never_reappears(self):
+        self.assertIn("document.getElementById('forecastQuick').hidden=true", self.index)
+        self.assertNotIn("document.getElementById('forecastQuick').hidden=view!=='forecast'", self.index)
+
     def test_main_navigation_keeps_only_requested_pages(self):
         match = re.search(r'<nav class="site-global-nav[^"]*"[^>]*>(.*?)</nav>', self.index)
         self.assertIsNotNone(match)
