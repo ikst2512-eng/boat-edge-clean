@@ -458,3 +458,25 @@ assert.ok(script.includes("if(response.ok)return response"),'verified archive lo
 assert.ok(script.includes("RESULT_RACE_CODE_INVALID"),'archive fallback must reject malformed race code');
 const archivePublish=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(archivePublish.includes('cp -R confirmed_results public/confirmed_results'),'Pages must publish confirmed archives used by fallback');
+
+async function assertArchiveFetchOrder(host, statuses, expectedCalls, expectedStatus){
+ const fn=script.match(/async function fetchCleanResultArchive\(code\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(fn,'production confirmed archive loader exists');
+ const calls=[];
+ const fakeFetch=async url=>{
+  calls.push(url);
+  return {status:statuses[calls.length-1],ok:statuses[calls.length-1]===200};
+ };
+ const ctx={location:{hostname:host},fetchTimed:fakeFetch,Response:class{constructor(body,{status}){this.status=status;this.ok=false}}};
+ const fetchArchive=vm.runInNewContext(fn+';fetchCleanResultArchive',ctx);
+ const response=await fetchArchive('202610310708');
+ assert.equal(response.status,expectedStatus);
+ assert.deepEqual(calls.map(url=>url.startsWith('confirmed_results/')?'local':'raw'),expectedCalls);
+}
+(async()=>{
+ await assertArchiveFetchOrder('ikst2512-eng.github.io',[200],['local'],200);
+ await assertArchiveFetchOrder('ikst2512-eng.github.io',[404,200],['local','raw'],200);
+ await assertArchiveFetchOrder('boat-edge-clean.onrender.com',[200],['raw'],200);
+ await assertArchiveFetchOrder('boat-edge-clean.onrender.com',[404,200],['raw','local'],200);
+ await assertArchiveFetchOrder('ikst2512-eng.github.io',[404,404],['local','raw'],404);
+})().catch(error=>{console.error(error);process.exitCode=1});
