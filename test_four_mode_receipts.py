@@ -24,6 +24,9 @@ class FourModeReceiptTests(unittest.TestCase):
             "race_code":self.path.stem,
             "generated_at_jst":self.now.isoformat(),
             "deadline_jst":self.deadline.isoformat(),
+            "source_title_received_jst":(self.now-timedelta(minutes=1)).isoformat(),
+            "source_cards_received_jst":(self.now-timedelta(minutes=1)).isoformat(),
+            "source_sha256":{"title":"a"*64,"race_cards":"b"*64},
             "validated":False,"target_rates_not_proven":True,
             "modes":{key:{"tickets":[{"combo":"1-2-3","p":2.0}]} for key in ("hit","balance","hole","narrow")}
         }
@@ -50,6 +53,24 @@ class FourModeReceiptTests(unittest.TestCase):
         self.write()
         with self.assertRaisesRegex(ValueError,"missing_four_modes"):
             verify([str(self.path)],now=self.now)
+    def test_refuses_source_observed_after_generation(self):
+        self.record["source_cards_received_jst"]=(self.now+timedelta(minutes=1)).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_receipt_out_of_order"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_missing_source_receipt(self):
+        self.record.pop("source_title_received_jst")
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_receipt_missing"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_missing_source_digest(self):
+        self.record["source_sha256"].pop("race_cards")
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_digest_missing"):
+            verify([str(self.path)],now=self.now)
+
     def test_refuses_invalid_ticket(self):
         self.record["modes"]["hit"]["tickets"]=[{"combo":"1-1-2","p":2.0}]
         self.write()
