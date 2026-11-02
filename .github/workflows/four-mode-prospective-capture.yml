@@ -34,7 +34,6 @@ jobs:
       - name: Verify four-mode capture and receipts
         run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
   capture:
-    needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -55,6 +54,8 @@ jobs:
           set -o pipefail
           mkdir -p four-mode-evidence
           python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
+      - name: Verify four-mode capture and receipts before publishing
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
       - name: Stage only immutable new forecasts and check receipt window
         id: receipt_staging
         if: github.event_name != 'pull_request'
