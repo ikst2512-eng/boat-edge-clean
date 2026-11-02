@@ -1,6 +1,11 @@
 name: Archived late preview evidence report
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/export_late_preview_audit.py'
+      - 'tests/test_export_late_preview_audit.py'
+      - '.github/workflows/archived-late-preview-audit.yml'
   push:
     branches: [main]
     paths:
