@@ -1,0 +1,27 @@
+name: Public four-mode mobile browser smoke
+on:
+  pull_request:
+    paths:
+      - 'scripts/smoke_four_mode_mobile.cjs'
+      - '.github/workflows/public-four-mode-mobile.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'scripts/smoke_four_mode_mobile.cjs'
+      - '.github/workflows/public-four-mode-mobile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/smoke_four_mode_mobile.cjs
