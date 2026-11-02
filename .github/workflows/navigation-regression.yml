@@ -117,7 +117,12 @@ jobs:
 
               const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
               if(overflow>1)throw Error('Horizontal overflow '+overflow);
-              if(faults.length)throw Error('JS errors: '+faults.join('; '));
+              // WebKit denies local file:// access to result fixtures; this is
+              // unrelated to browser layout and not a production HTTP failure.
+              const realFaults=faults.filter(message=>!(
+                message.includes('confirmed_results/')&&message.includes('due to access control checks')
+              ));
+              if(realFaults.length)throw Error('JS errors: '+realFaults.join('; '));
               console.log('CLEAN_PR_MOBILE_'+engine.toUpperCase()+'_PASS');
             } finally {await browser.close();}
             }
