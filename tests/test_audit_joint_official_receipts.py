@@ -29,6 +29,10 @@ class JointReceiptTests(unittest.TestCase):
             manifest = {"race_code": RACE, "request_started_at_jst": START,
                         "received_at_jst": "2026-11-02T21:40:00+09:00" if late else RECEIVED,
                         "status": status, "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw), **extra}
+            if filename == "beforeinfo.json":
+                manifest["url"] = "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261102&jcd=19&rno=10"
+            else:
+                manifest["official_url"] = "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=20261102&jcd=19&rno=10"
             if late: manifest["request_started_at_jst"] = "2026-11-02T21:39:50+09:00"
             (folder / "manifest.json").write_text(json.dumps(manifest))
         return first, second
@@ -37,6 +41,15 @@ class JointReceiptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             a, b = self.make(root, complete=False)
             with self.assertRaises(ValueError):
+                audit_pair(a, b)
+
+    def test_forged_official_source_url_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            a, b = self.make(root)
+            m = json.loads((b / "manifest.json").read_text())
+            m["official_url"] = "https://example.invalid/owpc/pc/race/odds3t?hd=20261102&jcd=19&rno=10"
+            (b / "manifest.json").write_text(json.dumps(m))
+            with self.assertRaisesRegex(ValueError, "official source URL mismatch"):
                 audit_pair(a, b)
 
     def test_tampered_odds_original_rejected(self):
