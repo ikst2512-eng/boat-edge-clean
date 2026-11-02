@@ -26,7 +26,7 @@ class PairedAuditTests(unittest.TestCase):
                 result = paired_audit(root)
             first = result["groups"][versions[0]]["20261028"]["paired"]["hit_vs_balance"]["top3"]
             self.assertEqual((first["left_only"], first["right_only"], first["both"]), (1,1,0))
-            self.assertEqual(result["groups"][versions[1]]["20261102"]["evaluated"],1)
+            self.assertEqual(result["groups"][versions[2]]["20261102"]["evaluated"],1)
             self.assertFalse(result["formal"])
 
 if __name__ == "__main__":
