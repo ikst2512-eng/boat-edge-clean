@@ -16,8 +16,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: four-mode-prospective-capture
+  # PR checks must never displace a pending scheduled capture.
+  group: ${{ github.event_name == 'pull_request' && format('four-mode-pr-{0}', github.event.pull_request.number) || 'four-mode-publication' }}
   cancel-in-progress: false
+  queue: max
 jobs:
   test:
     runs-on: ubuntu-latest
