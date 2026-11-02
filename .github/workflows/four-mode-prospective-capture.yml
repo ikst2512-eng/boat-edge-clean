@@ -191,7 +191,10 @@ jobs:
               echo 'Immutable four-mode candidates pushed'
               exit 0
             fi
-            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            if [ "$attempt" -eq 3 ]; then
+              # Trigger ERR trap so publication.json records the final push failure.
+              false
+            fi
             sleep "$attempt"
           done
       - name: Record per-stage capture verdict
