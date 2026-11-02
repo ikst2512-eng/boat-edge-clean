@@ -39,7 +39,7 @@ def verify(paths, *, now=None, buffer_seconds=90):
             raise ValueError("race_identity_mismatch")
         generated = datetime.fromisoformat(data["generated_at_jst"])
         deadline = datetime.fromisoformat(data["deadline_jst"])
-        if (generated.utcoffset() is None or deadline.utcoffset() is None or
+        if (generated.utcoffset() != timedelta(hours=9) or deadline.utcoffset() != timedelta(hours=9) or
             generated > now or
             generated >= deadline - timedelta(minutes=20) or
             now >= deadline - timedelta(seconds=buffer_seconds)):
@@ -50,7 +50,7 @@ def verify(paths, *, now=None, buffer_seconds=90):
                 "source_title_received_jst", "source_cards_received_jst")]
         except (KeyError, ValueError, TypeError) as exc:
             raise ValueError("source_receipt_missing") from exc
-        if any(t.utcoffset() is None or t > generated or t >= deadline - timedelta(minutes=20) for t in received):
+        if any(t.utcoffset() != timedelta(hours=9) or t > generated or t >= deadline - timedelta(minutes=20) for t in received):
             raise ValueError("source_receipt_out_of_order")
         hashes = data.get("source_sha256")
         if not isinstance(hashes, dict) or any(
