@@ -25,7 +25,7 @@ def audit_racelist(directory, race_code, cutoff_jst):
         raise ValueError("source bytes mismatch")
     if not 0 < len(raw) <= 1_500_000:
         raise ValueError("source size invalid")
-    if not raw.lstrip()[:256].lower().startswith((b"<!doctype html", b"<html")):
+    if not raw.lstrip()[:256].lower().startswith((b"<!doctype html", b"<html", b"<?xml")):
         raise ValueError("non-HTML original")
     started = datetime.fromisoformat(manifest["request_started_at_jst"])
     received = datetime.fromisoformat(manifest["received_at_jst"])
