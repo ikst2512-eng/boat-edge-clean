@@ -51,6 +51,23 @@ const {chromium, webkit} = require('playwright');
     if(oddsCalls<2||retryState.key!=='20261102-02-11')throw Error('Pending odds retry failed '+JSON.stringify({oddsCalls,retryState}));
     console.log(JSON.stringify({pendingOddsTransition:'passed',engine:engineName,oddsCalls,oddsCount:retryState.oddsCount,status:retryState.status}));
     await page.unroute('**/api/odds?**');
+    // Bounded read-only public odds API sampling on three real archived races.
+    const samples=await page.evaluate(async()=>{
+      const rows=[];
+      for(const race of [10,11,12]){
+        const start=performance.now();
+        try{
+          const res=await fetch('/api/odds?hd=20261102&jcd=02&rno='+race,{cache:'no-store',signal:AbortSignal.timeout(12000)});
+          const latencyMs=Math.round(performance.now()-start);
+          let valid=false;
+          if(res.status===200){const feed=await res.json();valid=feed.ok===true&&Number(feed.rno)===race&&feed.hd==='20261102'&&Object.keys(feed.odds||{}).length===120}
+          rows.push({race,status:res.status,latencyMs,valid});
+        }catch(e){rows.push({race,status:'network-error',latencyMs:Math.round(performance.now()-start),error:String(e)})}
+      }
+      return rows;
+    });
+    if(samples.length!==3||samples.some(s=>s.status===200&&!s.valid))throw Error('Invalid actual odds sample '+JSON.stringify(samples));
+    console.log(JSON.stringify({publicOddsMultiRace:engineName,samples}));
     // Check selected race label and available result/odds UI without fabricating unavailable values.
     const evidence=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',resultStatus:document.querySelector('#resultStatus')?.textContent||'',result:document.querySelector('#resultDetail')?.textContent||'',oddsNotice:document.querySelector('#fourModeForecastRows')?.textContent||''}));
     if(!evidence.selected.includes('11R'))throw Error('Selected race label mismatch: '+JSON.stringify(evidence));
