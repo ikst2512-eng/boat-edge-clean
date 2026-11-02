@@ -1,0 +1,38 @@
+name: Hole chronological exploratory replay
+on:
+  pull_request:
+    paths:
+      - hole_chronological_exploratory.py
+      - test_hole_chronological_exploratory.py
+      - .github/workflows/hole-chronological-exploratory.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_chronological_exploratory.py
+      - run: python hole_chronological_exploratory.py > hole_chronological_exploratory.json
+      - name: Assert no promotion claim
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_chronological_exploratory.json'))
+          assert r['formal'] is False
+          assert r['independent_holdout'] is False
+          assert r['prospective_validation'] is False
+          assert r['production_forecast_changed'] is False
+          assert r['prior_research_reused'] is True
+          print('status',r['status'],'dates',r['dates'])
+          for section in ('earlier','later'):
+              print(section,r[section])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-chronological-exploratory
+          path: hole_chronological_exploratory.json
