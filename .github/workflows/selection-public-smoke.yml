@@ -61,11 +61,22 @@ jobs:
           # Cold starts may return 503 while the evidence audit initializes.
           # Retry boundedly; never accept a pending response as verified data.
           for attempt in $(seq 1 12); do
-            if curl --max-time 15 -fLsS \
-              https://boat-edge-clean.onrender.com/api/signal70-holdout-status \
-              -o holdout-status.json; then
+            code="$(curl --max-time 15 -sSL -o holdout-status.json -w '%{http_code}' \
+              https://boat-edge-clean.onrender.com/api/signal70-holdout-status)" || code="000"
+            if [[ "$code" == 200 ]]; then
               break
             fi
+            echo "holdout status attempt=$attempt http=$code"
+            python - <<'PYLOG'
+          import json
+          from pathlib import Path
+          try:
+              d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
+              print("holdout operational diagnostic:", {k:d.get(k) for k in
+                  ("error","running","elapsed_seconds","last_duration_seconds","last_error_type")})
+          except (OSError,ValueError,TypeError):
+              print("holdout response not valid diagnostic JSON")
+          PYLOG
             if [[ "$attempt" == 12 ]]; then
               echo "::error::holdout status did not become ready"
               exit 1
