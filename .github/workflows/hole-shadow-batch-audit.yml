@@ -1,0 +1,31 @@
+name: Hole shadow batch audit research
+on:
+  pull_request:
+    paths:
+      - hole_shadow_batch_audit.py
+      - test_hole_shadow_batch_audit.py
+      - .github/workflows/hole-shadow-batch-audit.yml
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_shadow_batch_audit.py
+      - run: |
+          mkdir -p /tmp/hole-shadow-empty
+          python hole_shadow_batch_audit.py --artifacts /tmp/hole-shadow-empty > hole_shadow_batch_audit.json
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_shadow_batch_audit.json'))
+          assert r['status']=='no_capture_artifacts' and r['formal'] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-shadow-batch-audit-smoke
+          path: hole_shadow_batch_audit.json
