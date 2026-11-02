@@ -12,6 +12,7 @@ from pathlib import Path
 
 from four_mode_archive_api import archived_four_modes
 from hole_upper_rank_pair_protection import propose
+from hole_pair_third_bundle_research import bundle
 
 JST = timezone(timedelta(hours=9))
 TOPS = (3, 5, 10)
@@ -34,6 +35,10 @@ def freeze(code, root, now=None):
              for name in ("hole", "hit", "balance")}
     baseline = modes["hole"][:10]
     shadow = propose(baseline, modes["hit"], 3)
+    donor = list(dict.fromkeys(modes["hit"] + modes["balance"]))
+    shadow_bundle2 = bundle(baseline, donor, 3, 2)
+    if len(shadow_bundle2) != len(baseline) or len(set(shadow_bundle2)) != len(shadow_bundle2):
+        raise ValueError("bundle_budget_changed")
     if len(shadow) != len(baseline):
         raise ValueError("budget_changed")
     source_path = root / "four_mode_forecasts" / (code + ".json")
@@ -50,6 +55,8 @@ def freeze(code, root, now=None):
         "model_version": archived["model_version"],
         "candidate_algorithm": "hole_upper_rank_pair_protection.propose:hit_rank3:v1",
         "baseline": baseline, "shadow": shadow,
+        "shadow_bundle2": shadow_bundle2,
+        "bundle2_algorithm": "hole_pair_third_bundle_research.bundle:hit_balance_rank3_width2:v1",
         "prospective_verified": False,
         "independent_first_receipt_verified": False,
         "production_forecast": False,
