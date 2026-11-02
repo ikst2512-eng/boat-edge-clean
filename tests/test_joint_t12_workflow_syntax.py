@@ -8,7 +8,7 @@ from pathlib import Path
 class InlinePythonSyntaxTests(unittest.TestCase):
     def test_retry_rechecks_cutoff_before_any_second_fetch(self):
         workflow = Path(".github/workflows/official-joint-t12-dispatch.yml").read_text()
-        body = workflow.split("          python - <<'PY'\\n", 1)[1].split("\\n          PY", 1)[0]
+        body = workflow.split("          python - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         code = textwrap.dedent(body)
         tree = ast.parse(code)
         loop = next(n for n in ast.walk(tree) if isinstance(n, ast.For) and isinstance(n.target, ast.Name) and n.target.id == "i")
