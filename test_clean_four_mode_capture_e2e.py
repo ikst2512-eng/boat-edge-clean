@@ -10,6 +10,24 @@ from research_model import JST
 from clean_four_mode_capture import collect, publish_status
 
 class CaptureEndToEndTests(unittest.TestCase):
+    def test_capture_outcome_never_implies_remote_publication(self):
+        from clean_four_mode_capture import classify_capture
+        cases = (
+            ({"source_status": "source_incomplete"}, "source_unavailable"),
+            ({"source_status": "available", "new_saved": ["202611030101"]}, "generated_locally_unpublished"),
+            ({"source_status": "available", "already_saved": 2}, "no_new_already_saved"),
+            ({"source_status": "available", "cutoff_skipped": 2}, "no_new_cutoff_skipped"),
+            ({"source_status": "available", "excluded": {"missing_race_card": 1}}, "no_new_invalid_candidates"),
+            ({"source_status": "available"}, "no_new_candidates"),
+        )
+        for value, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(classify_capture(value), expected)
+                with tempfile.TemporaryDirectory() as tmp:
+                    status = publish_status(value, root=Path(tmp), now=datetime(2026,11,3,8,0,tzinfo=JST))
+                    self.assertEqual(status["capture_outcome"], expected)
+                    self.assertFalse(status["production_success_proven"])
+
     def test_research_archives_never_prove_production_success(self):
         with tempfile.TemporaryDirectory() as tmp:
             result={"eligible_forecasts_today":156,"source_status":"available"}
