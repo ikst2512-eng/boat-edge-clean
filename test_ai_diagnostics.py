@@ -143,6 +143,34 @@ class DiagnosticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "output_too_large"):
             ai_diagnostics.extract_text({"candidates": [{"content": {"parts": [{"text": "X"*17000}]}}]})
 
+    def test_manual_frozen_race_success_requires_review_not_auto_promotion(self):
+        import hashlib
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report, output, case_file = (base / n for n in ("in.json", "out.json", "case.json"))
+            report.write_text('{"gate":{"data_quality":"research"}}', encoding="utf-8")
+            fake_analysis = {"status": "analysis_proposed", "analysis": "根拠を再検証する",
+                             "model": "test-only", "production_change_allowed": False}
+            with patch("ai_diagnostics.analyze", return_value=fake_analysis):
+                with patch("sys.argv", ["ai_diagnostics.py", "--report", str(report),
+                                        "--output", str(output), "--case-output", str(case_file),
+                                        "--race-code", "202610280101", "--require-analysis"]):
+                    ai_diagnostics.main()
+            recorded = json.loads(output.read_text(encoding="utf-8"))
+            case = json.loads(case_file.read_text(encoding="utf-8"))
+            self.assertEqual(recorded["status"], "analysis_proposed")
+            self.assertEqual(recorded["evidence_review"]["review_status"],
+                             "manual_evidence_review_required")
+            self.assertFalse(recorded["evidence_review"]["formal_hit_rate_allowed"])
+            self.assertFalse(recorded["evidence_review"]["improvement_proven"])
+            self.assertFalse(recorded["evidence_review"]["production_change_allowed"])
+            self.assertEqual(case["winning_ticket"], "4-1-3")
+            self.assertEqual(recorded["research_input_digest_scope"],
+                             "local_audit_payload_before_api_call")
+            self.assertEqual(len(recorded["research_input_sha256"]), 64)
+
     def test_large_report_rejected(self):
         with self.assertRaisesRegex(ValueError, "report_too_large"):
             ai_diagnostics.analyze({"x": "z" * 25000}, api_key="example")
