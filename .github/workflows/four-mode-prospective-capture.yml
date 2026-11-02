@@ -14,6 +14,8 @@ on:
       - test_four_mode_receipts.py
       - four_mode_raw_receipt.py
       - test_four_mode_raw_receipt.py
+      - audit_four_mode_raw_receipts.py
+      - test_audit_four_mode_raw_receipts.py
       - scripts/verify_four_mode_new_receipts.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
@@ -37,7 +39,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -269,6 +271,10 @@ jobs:
               if data.get("source_status") != "available":
                   print("::warning::Race-card source incomplete; no forecast availability is implied.")
           PY
+      - name: Verify preserved raw HTTP artifact integrity
+        if: always()
+        run: |
+          python audit_four_mode_raw_receipts.py four-mode-evidence/raw-sources
       - name: Preserve capture log and structured source status
         if: always()
         uses: actions/upload-artifact@v4
