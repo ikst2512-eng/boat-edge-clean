@@ -1,0 +1,45 @@
+name: Experimental official HTML 18-second live capture
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-html-18sec-experiment.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fetch official Marugame race from real network
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p live_evidence
+          python -m scripts.capture_official_beforeinfo_probe 202611021508 --root live_evidence --observation-id "run${GITHUB_RUN_ID}" > live_evidence/result.json || true
+          cat live_evidence/result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.inspect_official_beforeinfo_html import inspect
+          r=json.loads(Path("live_evidence/result.json").read_text())
+          print("REAL_HTTP_CAPTURE",r["status"])
+          print("OBSERVATION_AT",r["received_at_jst"])
+          if r["status"]=="raw_http_observed_not_t12_certified":
+              d=Path("live_evidence/observations")/"run${{ github.run_id }}"/"20261102"/"202611021508"
+              i=inspect(d)
+              Path("live_evidence/inspection.json").write_text(json.dumps(i,ensure_ascii=False,indent=2))
+              print("SHA_VERIFIED",i["sha256_verified"])
+              print("SOURCE_LABELS",{k:len(v) for k,v in i["label_positions"].items()})
+          print("T12_CERTIFIED",False)
+          PY
+      - name: Preserve evidence or explicit failure
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-html-18sec-live-evidence
+          path: live_evidence/
+          retention-days: 7
