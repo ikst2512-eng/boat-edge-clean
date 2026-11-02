@@ -10,6 +10,26 @@ from research_model import JST
 from scripts.capture_official_beforeinfo_probe import capture
 
 class OfficialProbeTests(unittest.TestCase):
+    def test_multiple_attempts_preserve_immutable_official_html(self):
+        from scripts.inspect_official_beforeinfo_html import inspect
+        with tempfile.TemporaryDirectory() as root:
+            code="202611010708"
+            now=datetime(2026,11,1,12,0,tzinfo=JST)
+            for attempt,body in (("first",b"<html>first</html>"),("second",b"<html>second</html>")):
+                result=capture(code,root,fetch=lambda url,content=body:content,
+                               clock=lambda:now,observation_id=attempt)
+                self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+                saved=Path(root)/"observations"/attempt/"20261101"/code
+                self.assertEqual((saved/"beforeinfo.html").read_bytes(),body)
+                self.assertFalse(inspect(saved)["t12_eligible"])
+            first=Path(root)/"observations"/"first"/"20261101"/code
+            self.assertEqual((first/"beforeinfo.html").read_bytes(),b"<html>first</html>")
+            self.assertEqual(capture(code,root,fetch=lambda url:b"<html>overwrite</html>",
+                                     clock=lambda:now,observation_id="first")["status"],"official_probe_failed")
+            for unsafe in ("../escape","bad/id","", " "):
+                with self.assertRaises(ValueError):
+                    capture(code,root,observation_id=unsafe)
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
