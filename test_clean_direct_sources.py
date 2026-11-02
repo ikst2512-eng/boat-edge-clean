@@ -38,6 +38,18 @@ class DirectSourceTests(unittest.TestCase):
         self.assertEqual(rows[0]["艇6_登録番号"],"4106")
         self.assertIn(DAY+"0101",hashes)
         self.assertEqual(failures,{})
+    def test_live_direct_receipt_is_after_actual_fetch(self):
+        holding=[{"レースコード":DAY+"0101","電話投票締切予定":"15:50"}]
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            status=200
+            def read(self, n): return card_bytes()
+        with patch("clean_direct_sources.urlopen", return_value=Response()):
+            rows,received,_,_,_=direct_cards(DAY,holding,now=NOW)
+        self.assertEqual(len(rows),1)
+        self.assertGreater(received,NOW)
+
     def test_no_result_backfill_after_cutoff(self):
         titles=[{"レースコード":DAY+"0101","電話投票締切予定":"08:05"}]
         called=[]
