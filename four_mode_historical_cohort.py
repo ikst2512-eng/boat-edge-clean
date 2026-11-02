@@ -19,12 +19,26 @@ def summarize_group(codes, root):
 def run(root=ROOT, limit=120):
     root = Path(root)
     forecast_dir, results_dir = root / "four_mode_forecasts", root / "confirmed_results"
-    codes = sorted(p.stem for p in forecast_dir.glob("20??????????.json")
-                   if re.fullmatch(r"20[0-9]{10}", p.stem)
-                   and (results_dir / p.name).is_file())[:limit]
+    available = sorted(p.stem for p in forecast_dir.glob("20??????????.json")
+                       if re.fullmatch(r"20[0-9]{10}", p.stem)
+                       and (results_dir / p.name).is_file())
+    # Round-robin across days; the earliest N files otherwise all belong to one day.
+    by_date = {}
+    for code in available:
+        by_date.setdefault(code[:8], []).append(code)
+    codes = []
+    day_keys = sorted(by_date)
+    offset = 0
+    while len(codes) < limit:
+        batch = [by_date[day][offset] for day in day_keys if offset < len(by_date[day])]
+        if not batch:
+            break
+        codes.extend(batch[:limit - len(codes)])
+        offset += 1
     if not codes:
         return {"status": "no_paired_archives", "formal": False, "requested": 0}
     overall = summarize_group(codes, root)
+    codes.sort()
     days = sorted(set(code[:8] for code in codes))
     venues = sorted(set(code[8:10] for code in codes))
     return {"status": "historical_research_only", "cohort_codes": codes,
