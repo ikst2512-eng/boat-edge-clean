@@ -15,7 +15,8 @@ if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat
 }
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
- const date=s?.date,venue=s?.venue,race=s?.race;
+ const state=typeof s==='undefined'?null:s;
+ const date=state?.date,venue=state?.venue,race=state?.race;
  if(/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&Number.isInteger(venue)&&venue>=0&&venue<24&&Number.isInteger(race)&&race>=1&&race<=12){
   destination.searchParams.set('date',date);
   destination.searchParams.set('venue',String(venue+1));

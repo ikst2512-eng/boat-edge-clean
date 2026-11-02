@@ -81,6 +81,11 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn("location.hostname.endsWith('.github.io')", self.nav)
         self.assertIn("?'/boat-edge-clean/':'/'", self.nav)
 
+    def test_navigation_link_click_handles_missing_race_state(self):
+        self.assertIn("typeof s==='undefined'?null:s", self.nav)
+        self.assertIn("const date=state?.date,venue=state?.venue,race=state?.race;", self.nav)
+        self.assertNotIn("const date=s?.date,venue=s?.venue,race=s?.race;", self.nav)
+
     def test_race_context_passes_to_review_and_candidate_pages(self):
         for snippet in ("destination.searchParams.set('date'",
                         "destination.searchParams.set('venue'",
