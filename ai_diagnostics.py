@@ -29,6 +29,8 @@ def extract_text(response):
     """Require bounded, well-formed model output before accepting a proposal."""
     if not isinstance(response, dict) or not isinstance(response.get("candidates"), list):
         raise ValueError("invalid_response")
+    if len(response["candidates"]) != 1:
+        raise ValueError("ambiguous_candidate_count")
     parts = []
     for candidate in response["candidates"]:
         if not isinstance(candidate, dict):

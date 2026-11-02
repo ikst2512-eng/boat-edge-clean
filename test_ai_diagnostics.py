@@ -139,6 +139,11 @@ class DiagnosticsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     ai_diagnostics.extract_text(payload)
 
+    def test_multiple_candidates_rejected_as_ambiguous(self):
+        candidate = {"finishReason":"STOP", "content":{"parts":[{"text":"分析案"}]}}
+        with self.assertRaisesRegex(ValueError, "ambiguous_candidate_count"):
+            ai_diagnostics.extract_text({"candidates":[candidate,candidate]})
+
     def test_partial_or_blocked_gemini_output_is_not_success(self):
         for reason in ("MAX_TOKENS", "SAFETY", None):
             with self.subTest(reason=reason):
