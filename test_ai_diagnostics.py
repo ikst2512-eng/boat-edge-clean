@@ -57,6 +57,21 @@ class DiagnosticsTests(unittest.TestCase):
             {"status": "analysis_proposed", "analysis": "test"})["review_status"],
             "research_case_not_verified")
 
+    def test_explicit_manual_requirement_rejects_disabled_analysis(self):
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "report.json"
+            output = Path(directory) / "out.json"
+            report.write_text('{"gate":{}}', encoding="utf-8")
+            with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+                with patch("sys.argv", ["ai_diagnostics.py", "--report", str(report),
+                                        "--output", str(output), "--require-analysis"]):
+                    with self.assertRaises(SystemExit) as exc:
+                        ai_diagnostics.main()
+            self.assertEqual(exc.exception.code, 2)
+            self.assertEqual(json.loads(output.read_text())["status"], "disabled")
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
