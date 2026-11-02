@@ -1,0 +1,47 @@
+name: Temporary official shared JS route trace
+on:
+  pull_request:
+    paths: ['.github/workflows/official-common-route-experiment.yml']
+permissions:
+  contents: read
+jobs:
+  trace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Fetch and inspect official com.js route assembly
+        shell: bash
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import urllib.request,json,hashlib
+          from pathlib import Path
+          url='https://www.boatrace.jp/owsp/js/com.js'
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'BOAT-EDGE-CLEAN-EVIDENCE/1.0'}),timeout=18) as r:
+                  data=r.read(1000001)
+              if len(data)>1000000:raise ValueError('oversized')
+              Path('evidence/com.js').write_bytes(data)
+              s=data.decode('utf-8',errors='replace')
+              terms=('getRequest:', 'getRequest =', 'getRequest(', 'beforeinfo', '/owsp/', 'ajax')
+              matches=[]
+              for term in terms:
+                  pos=0
+                  while True:
+                      i=s.find(term,pos)
+                      if i<0:break
+                      matches.append({'term':term,'offset':i,'context':s[max(0,i-200):i+850]})
+                      pos=i+len(term)
+                      if len(matches)>25:break
+              out={'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'matches':matches}
+          except Exception as e:
+              out={'error':type(e).__name__}
+          Path('evidence/report.json').write_text(json.dumps(out,ensure_ascii=False,indent=2))
+          print(json.dumps(out,ensure_ascii=False)[:10000])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-common-js-route
+          path: evidence/
+          retention-days: 7
