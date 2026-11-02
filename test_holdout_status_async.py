@@ -10,7 +10,8 @@ import server
 class HoldoutAsyncTests(unittest.TestCase):
     def setUp(self):
         with server._HOLDOUT_LOCK:
-            server._HOLDOUT_STATE.update(value=None, expires=0.0, running=False,\n                                         started=None, last_duration=None, last_error=None)
+            server._HOLDOUT_STATE.update(value=None, expires=0.0, running=False,
+                                         started=None, last_duration=None, last_error=None)
 
     def test_first_request_is_nonblocking_and_fail_closed(self):
         gate = threading.Event()
