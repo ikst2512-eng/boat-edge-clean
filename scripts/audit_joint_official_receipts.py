@@ -59,8 +59,20 @@ def audit_pair(before_dir, odds_dir):
     }
     missing_components = [name for name, passed in component_checks.items() if not passed]
     joint = exhibition_complete and a_received <= cutoff and odds_check["complete_odds_observed_before_t12"]
+    # The paired beforeinfo/odds audit is not independent proof of a
+    # six-racer official racecard or the final entry declaration.
+    # Keep that distinction machine-readable for downstream summaries.
+    independent_source_coverage = {
+        "official_racecard_original": False,
+        "official_entry_original": False,
+        "official_beforeinfo_original": True,
+        "official_odds_original": True,
+    }
     return {"race_code": race, "cutoff_jst": cutoff.isoformat(), "before_received_jst": a_received.isoformat(),
             "odds_received_jst": b_received.isoformat(), "originals_hash_verified": True,
             "exhibition_complete": exhibition_complete, "odds_120_complete": odds_check["valid_120_combinations"],
             "both_complete_before_t12": bool(joint), "component_checks": component_checks,
-            "missing_components": missing_components, "forecast_usable": False, "t12_eligible": False}
+            "missing_components": missing_components,
+            "independent_source_coverage": independent_source_coverage,
+            "full_t12_source_certified": False,
+            "forecast_usable": False, "t12_eligible": False}
