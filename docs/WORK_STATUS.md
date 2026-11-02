@@ -866,3 +866,10 @@
 - 同一監視ワークフローのPR run `41436662291` は `Four-mode capture schedule watchdog`、`watchdog` ジョブ success。少なくともPRイベント上の監視チェック経路は動作した。
 - 直近100実行の調査範囲では同監視の schedule 成功runを確認できず、**定期実行とfallback dispatchが実際に運用できている証明は未完了**。
 - 不具合原因を確証できない状態で監視ジョブを重複新設・削除・再設計する変更は実施しない。次はschedule実行IDとActions実行時刻・fallback dispatch実行ログを照合して稼働証拠を取得する。正式予想、Gemini API、4モードのロジックは不変更。
+
+
+## 2026-11-02 schedule実行の保存証拠・artifact実点検
+- Actions `event=schedule` を用いた専用検索で、4モードprospective capture run `41396587415`（2026-11-02T05:53:05Z）completed/successを確認。test・captureの両ジョブ成功。PR実行と異なり実scheduleイベント。
+- artifact `four-mode-capture-41396587415` を取得して解凍。`capture.log` は `new_saved` 48件、`eligible_forecasts_today` 48、`excluded={invalid six national win rates: 2}`、title/race_cards各156行 `available`。`capture_status.json` は `last_run_new_count=48` だが `production_success_proven=false`。
+- 48件のうち `four_mode_forecasts/202611020211.json` は後続GitHub main取得で存在を確認。48件全件の独立Git初回追加・受信時刻監査や正式予想成立の証明ではない。capture artifactにはstaging/publish結果の記録がなく、48件全部の公開成否は未確定。
+- 以前のwatchdog `push` failure/ゼロjobsと区別。定期captureが少なくとも1回起動し収集候補が生成された事実は実証済み。次は該当48件の初回Git追加タイムスタンプ・締切・公開証拠を一括照合し、正式合格件数を別計上する。
