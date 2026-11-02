@@ -35,6 +35,22 @@ class CleanFourModeTests(unittest.TestCase):
         audit=model.ticket_order_audit(result)
         self.assertEqual(audit["status"],"mismatch")
 
+    def test_midrange_hole_research_does_not_change_live_modes(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        before=model.rank_modes(p)
+        candidate=model.research_hole_candidates(p)
+        after=model.rank_modes(p)
+        self.assertEqual(before,after)
+        self.assertTrue(candidate["research_only"])
+        self.assertFalse(candidate["official_odds_verified"])
+        self.assertEqual(len(candidate["tickets"]),12)
+        self.assertEqual(len(set(row["combo"] for row in candidate["tickets"])),12)
+        ranked=sorted(p,key=lambda row:-row[1])
+        self.assertEqual(candidate["tickets"][0]["combo"],"-".join(map(str,ranked[10][0])))
+        old={row["combo"]:row["p"] for row in before["hole"]["tickets"]}
+        new=[row["p"] for row in candidate["tickets"]]
+        self.assertGreater(sum(new)/len(new),sum(old.values())/len(old))
+
     def test_frontend_four_mode_display_contract(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
