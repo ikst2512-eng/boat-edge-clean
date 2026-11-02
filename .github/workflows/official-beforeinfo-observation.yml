@@ -58,9 +58,37 @@ jobs:
             id="${id%%/*}"
             python -m scripts.inspect_official_beforeinfo_html "$folder" > "official_probe_inspections/$id.json"
           done < <(find official_probe_output -name manifest.json -type f -print0 2>/dev/null || true)
+      - name: Check actual observations and write job summary
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          reports=sorted(Path("official_probe_reports").glob("*.json"))
+          statuses=[]
+          for item in reports:
+              try:
+                  status=json.loads(item.read_text(encoding="utf-8")).get("status","invalid_report")
+              except (OSError, ValueError):
+                  status="invalid_report"
+              statuses.append(status)
+          success=sum(s=="raw_http_observed_not_t12_certified" for s in statuses)
+          lines=["### Official beforeinfo: observed outcomes",
+                 f"- Attempts with diagnostic files: {len(reports)}",
+                 f"- Saved raw HTML observations: {success}",
+                 f"- Failed or invalid observations: {len(reports)-success}",
+                 "- Six-lane verified: no",
+                 "- T-12 forecast eligible: no"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as fh:
+              fh.write("\\n".join(lines)+"\\n")
+          if not reports or success==0:
+              raise SystemExit("No usable official HTML was captured; never report collection success")
+          PY
       - name: Archive original HTML and manifests
         uses: actions/upload-artifact@v4
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         with:
           name: official-beforeinfo-probe-${{ github.run_id }}
           path: |
