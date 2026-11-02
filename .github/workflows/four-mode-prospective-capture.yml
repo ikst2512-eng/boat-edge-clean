@@ -178,6 +178,11 @@ jobs:
             PY
             publication_stage="push_main"
             if git push origin HEAD:main; then
+              # A successful push response alone is not evidence that this
+              # first-add commit remains reachable from remote main.
+              publication_stage="confirm_remote_main"
+              git fetch origin main
+              git merge-base --is-ancestor HEAD FETCH_HEAD
               # Record the exact pushed commit, not just a success label.
               # This allows the immutable first-add audit to inspect its blob.
               python - <<'PY'
