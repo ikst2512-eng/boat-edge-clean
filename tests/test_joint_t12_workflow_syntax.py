@@ -18,7 +18,7 @@ class InlinePythonSyntaxTests(unittest.TestCase):
         self.assertIn("last_deadline", ast.unparse(first.test))
         self.assertIn("retry_preflight_cutoff", ast.unparse(first))
         self.assertIn("break", ast.unparse(first))
-        self.assertIn("last_deadline = deadline", code)
+        self.assertIn("last_deadline=deadline", code)
 
     def test_joint_t12_dispatch_python_is_valid(self):
         workflow = Path(".github/workflows/official-joint-t12-dispatch.yml").read_text()
