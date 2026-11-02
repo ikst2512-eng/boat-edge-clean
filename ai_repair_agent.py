@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 ALLOWED = {"navigation.js", "secondary_navigation.js", "index.html"}
 MAX_FILE = 350000
@@ -104,8 +105,16 @@ def propose(issue, root, api_key, model, transport=urlopen):
                 "text": {"format": {"type": "json_object"}}}
     request = Request(API, data=json.dumps(req_body).encode(), method="POST",
                       headers={"Content-Type": "application/json", "Authorization": "Bearer "+api_key})
-    with transport(request, timeout=45) as handle:
-        result = json.loads(handle.read(300000))
+    try:
+        with transport(request, timeout=45) as handle:
+            result = json.loads(handle.read(300000))
+    except HTTPError as exc:
+        # Never print API keys, headers, or untrusted response bodies.
+        if exc.code == 429:
+            raise RuntimeError("OpenAI API returned HTTP 429: check project API credits, billing and rate limits. No code was changed.") from None
+        if exc.code in (401, 403):
+            raise RuntimeError("OpenAI API authorization failed: verify the secret and project permissions. No code was changed.") from None
+        raise RuntimeError(f"OpenAI API HTTP {exc.code}: no code was changed.") from None
     proposal = json.loads(output_text(result))
     patches = parse_patches(proposal)
     changed = apply(root, patches) if patches else []

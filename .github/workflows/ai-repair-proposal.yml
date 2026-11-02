@@ -55,7 +55,7 @@ jobs:
           PY
   propose:
     needs: tests
-    if: false # Paid OpenAI API calls intentionally disabled by user preference
+    if: github.event_name == 'workflow_dispatch' # Manual only; no scheduled paid calls
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
