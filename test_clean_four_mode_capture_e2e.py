@@ -102,6 +102,22 @@ class CaptureEndToEndTests(unittest.TestCase):
             status=publish_status(result,root=Path(tmp),now=now)
             self.assertEqual(status["source_status"],"empty_titles")
 
+    def test_invalid_national_win_rates_are_excluded_without_archive(self):
+        for bad in ("nan", "inf", "-inf", "-1"):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as tmp:
+                code="202611030101"
+                now=datetime(2026,11,3,8,0,tzinfo=JST)
+                receipt=datetime(2026,11,3,7,30,tzinfo=JST)
+                title={"レースコード":code,"電話投票締切予定":"12:00"}
+                card={"レースコード":code,**{f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+                card["艇1_全国勝率"]=bad
+                def read(url):
+                    return ([title] if "/title/" in url else [card],receipt,"a"*64)
+                result=collect(root=Path(tmp),now=now,read=read)
+                self.assertEqual(result["new_saved"],[])
+                self.assertEqual(result["excluded"].get("invalid_national_win_rate"),1)
+                self.assertFalse((Path(tmp)/"four_mode_forecasts"/(code+".json")).exists())
+
     def test_source_receipt_after_generation_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
