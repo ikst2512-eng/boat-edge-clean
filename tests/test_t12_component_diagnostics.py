@@ -18,6 +18,9 @@ class ComponentDiagnosticsTests(unittest.TestCase):
                 result = audit_pair(a, b)
             self.assertFalse(result["both_complete_before_t12"])
             self.assertFalse(result["forecast_usable"])
+            self.assertFalse(result["full_t12_source_certified"])
+            self.assertFalse(result["independent_source_coverage"]["official_racecard_original"])
+            self.assertFalse(result["independent_source_coverage"]["official_entry_original"])
             self.assertEqual(result["missing_components"], ["exhibition_time_six"])
             self.assertTrue(result["component_checks"]["official_odds_120"])
 
@@ -31,6 +34,13 @@ class ComponentDiagnosticsTests(unittest.TestCase):
             ):
                 result = audit_pair(a, b)
             self.assertTrue(result["both_complete_before_t12"])
+            self.assertFalse(result["full_t12_source_certified"])
+            self.assertEqual(result["independent_source_coverage"], {
+                "official_racecard_original": False,
+                "official_entry_original": False,
+                "official_beforeinfo_original": True,
+                "official_odds_original": True,
+            })
             self.assertEqual(result["missing_components"], [])
             self.assertFalse(result["forecast_usable"])
             self.assertFalse(result["t12_eligible"])
