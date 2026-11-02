@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '17,47 22-23,0-11 * * *'
   workflow_dispatch:
+  # Exercise the watchdog when its own configuration reaches main;
+  # the 27-minute run check still prevents duplicate capture dispatch.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/four-mode-capture-watchdog.yml'
   pull_request:
     paths:
       - '.github/workflows/four-mode-capture-watchdog.yml'
