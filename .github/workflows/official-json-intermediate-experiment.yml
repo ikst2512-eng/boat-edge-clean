@@ -1,0 +1,34 @@
+name: Temporary official JSON intermediate observation
+on:
+  pull_request:
+    paths: ['.github/workflows/official-json-intermediate-experiment.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture actual Marugame 11R
+        shell: bash
+        run: |
+          mkdir -p evidence reports
+          python -m scripts.capture_official_beforeinfo_json 202611021511 --root evidence --observation-id "run${GITHUB_RUN_ID}" > reports/observation.json || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('reports/observation.json').read_text())
+          print(json.dumps({k:r.get(k) for k in ('race_code','status','received_at_jst','deadline_display','six_unique_boats','exhibition_time_nonempty_six','start_exhibition_rows','t12_eligible','forecast_usable')},ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-json-intermediate-observation
+          path: |
+            evidence/
+            reports/
+          retention-days: 7
