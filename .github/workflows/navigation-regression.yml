@@ -46,3 +46,49 @@ jobs:
           python -m unittest discover -s tests -p 'test_saved_prospective_api.py' -v
           python -m unittest discover -s tests -p 'test_preview_completeness.py' -v
           python -m unittest -v test_holdout_status_async
+
+  browser-pr-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium for local UI smoke
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Exercise four race tabs on mobile viewport
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try {
+              const page=await browser.newPage({viewport:{width:390,height:844}});
+              const faults=[];
+              page.on('pageerror',error=>faults.push(error.message));
+              await page.route('https://raw.githubusercontent.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.route('https://api.github.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.goto('file://'+process.cwd()+'/index.html',{waitUntil:'domcontentloaded'});
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
+              if(await page.locator('#races button').count()!==12)throw Error('12 races missing');
+              const tabs=page.locator('.race-detail-shortcuts button');
+              if(await tabs.count()!==4)throw Error('Four race shortcuts missing');
+              await page.locator('#venues button').first().click();
+              for(const view of ['forecast','card','exhibit','result']){
+                await tabs.locator('[data-race-view="'+view+'"]').click();
+                if(await page.evaluate(()=>activeView)!==view)throw Error('Shortcut failed: '+view);
+                if(await page.locator('[data-home-only]:visible').count())throw Error('Home controls leak into '+view);
+              }
+              if(await page.locator('#forecast>.forecast-detail-tabs:visible').count())throw Error('Duplicate forecast tabs');
+              if(await page.locator('#forecastQuick:visible').count())throw Error('Duplicate race picker');
+              const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+              if(overflow>1)throw Error('Horizontal overflow '+overflow);
+              if(faults.length)throw Error('JS errors: '+faults.join('; '));
+              console.log('CLEAN_PR_MOBILE_CHROMIUM_PASS');
+            } finally {await browser.close();}
+          })().catch(error=>{console.error(error);process.exit(1)});
+          JS
