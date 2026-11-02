@@ -209,7 +209,7 @@ jobs:
               staging=json.loads(staging_path.read_text(encoding="utf-8")) if staging_path.exists() else None
               with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
                   output.write("### Four-mode research capture\n")
-                  for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","research_archives_present","production_success_proven"):
+                  for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","cutoff_skipped","research_archives_present","production_success_proven"):
                       output.write(f"- {key}: {data.get(key, 'unavailable')}\n")
                   output.write(f"- staging: {staging if staging is not None else 'not reached'}\n")
                   output.write(f"- publication: {publication['outcome']}\n")
