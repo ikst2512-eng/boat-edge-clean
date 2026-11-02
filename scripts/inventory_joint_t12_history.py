@@ -37,6 +37,15 @@ def inventory(repo, token, fetch=None, max_pages=5):
         if not isinstance(data, dict) or not isinstance(data.get("workflow_runs"), list):
             raise ValueError("invalid workflow runs response")
         batch = data["workflow_runs"]
+        total_count = data.get("total_count")
+        if total_count is not None and (
+                not isinstance(total_count, int) or isinstance(total_count, bool)
+                or total_count < 0):
+            raise ValueError("invalid workflow run total count")
+        if len(batch) > 100:
+            raise ValueError("invalid workflow run page size")
+        if len(batch) < 100 and total_count is not None and (page - 1) * 100 + len(batch) < total_count:
+            raise ValueError("incomplete workflow run pagination")
         for run in batch:
             if run.get("event") != "workflow_dispatch" or not isinstance(run.get("id"), int):
                 raise ValueError("unverified run identity")
