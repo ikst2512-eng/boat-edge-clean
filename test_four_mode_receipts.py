@@ -71,6 +71,15 @@ class FourModeReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"source_digest_missing"):
             verify([str(self.path)],now=self.now)
 
+    def test_refuses_nonfinite_or_out_of_range_probability(self):
+        for bad in (float("nan"), float("inf"), -0.1, 100.1, True, "5"):
+            with self.subTest(probability=repr(bad)):
+                self.record["modes"]["hit"]["tickets"][0]["p"] = bad
+                self.write()
+                with self.assertRaisesRegex(ValueError, "invalid_probability"):
+                    verify([str(self.path)], now=self.now)
+        self.record["modes"]["hit"]["tickets"][0]["p"] = 2.0
+
     def test_refuses_invalid_ticket(self):
         self.record["modes"]["hit"]["tickets"]=[{"combo":"1-1-2","p":2.0}]
         self.write()
