@@ -1,0 +1,28 @@
+name: Temporary official T12 actual receipt
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-t12-1950.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Save official JSON receipt
+        run: |
+          mkdir -p reports
+          python -m scripts.capture_official_beforeinfo_json 202611021511 --root source --observation-id "run${GITHUB_RUN_ID}" > reports/receipt.json || true
+          cat reports/receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-beforeinfo-cutoff-receipt
+          path: |
+            reports/
+            source/
+          retention-days: 7
