@@ -1030,3 +1030,10 @@
 ## 2026-11-02 4モードTopN入力検証強化（PR #1075）
 - `four_mode_research_batch.summarize` に事前整合性検証を追加。研究用Top3/Top5/Top10の欠損・非boolean、Top3⇒Top5⇒Top10の包含関係違反、カバレッジとTop10矛盾、未検証の展開原因を拒否。不完全フラグを不的中として計上しない。
 - 回帰テストを追加しPR #1075 AI operations optional diagnostics CI #41460287758 completed/success、main squash `4e780150536d2748d1286194efc4018c68edd0cf`。研究比較の検証強化であり、実的中率/AI精度の改善実証ではない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 保存済み実レース30件の4モードTopN研究（PR #1078）
+- `four_mode_historical_cohort.py` で保存予想と確定結果が存在する先頭30件を実集計、JSON artifactを出力。
+- 初回CIは買い目全体の的中がTop10外にある場合の誤制約 `covered_without_top10` で失敗。修正して再CI #41461094176 success。
+- 30件の歴史研究比較：絞りTop3/5/10=5/5/5、本命5/5/9、バランス4/6/9、穴1/1/3。Top10純増は絞り→本命+4、本命→バランス0、バランス→穴-6。正式的中率やAI改善の証拠ではない。
+- PR #1078 main squash `2498d7fec67b146bb8f1b3d97df8c966a1e76f0d`。4モードと予想ロジック不変更。
