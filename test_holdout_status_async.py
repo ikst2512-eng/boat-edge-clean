@@ -10,7 +10,7 @@ import server
 class HoldoutAsyncTests(unittest.TestCase):
     def setUp(self):
         with server._HOLDOUT_LOCK:
-            server._HOLDOUT_STATE.update(value=None, expires=0.0, running=False)
+            server._HOLDOUT_STATE.update(value=None, expires=0.0, running=False,\n                                         started=None, last_duration=None, last_error=None)
 
     def test_first_request_is_nonblocking_and_fail_closed(self):
         gate = threading.Event()
@@ -27,7 +27,7 @@ class HoldoutAsyncTests(unittest.TestCase):
                 status, data = server.holdout_status()
                 self.assertLess(time.monotonic() - before, 0.5)
                 self.assertEqual(status, 503)
-                self.assertEqual(data["error"], "HOLDOUT_PENDING")
+                self.assertEqual(data["error"], "HOLDOUT_PENDING")\n                self.assertTrue(data["running"])\n                self.assertGreaterEqual(data["elapsed_seconds"], 0)
                 self.assertTrue(entered.wait(timeout=1))
                 self.assertEqual(server.holdout_status()[0], 503)
                 gate.set()
@@ -62,7 +62,7 @@ class HoldoutAsyncTests(unittest.TestCase):
         with patch.object(server, "_compute_holdout_status", side_effect=ValueError("bad evidence")):
             status, data = server.holdout_status()
             self.assertEqual(status, 503)
-            self.assertNotIn("evaluated_holdout_races", data)
+            self.assertNotIn("evaluated_holdout_races", data)\n            self.assertIn(data["error"], ("HOLDOUT_PENDING", "HOLDOUT_UNAVAILABLE"))
             deadline = time.monotonic() + 2
             while time.monotonic() < deadline:
                 with server._HOLDOUT_LOCK:
