@@ -1,0 +1,41 @@
+name: Hole out-of-cohort retrospective validation
+on:
+  pull_request:
+    paths:
+      - hole_out_of_cohort_validation.py
+      - test_hole_out_of_cohort_validation.py
+      - .github/workflows/hole-out-of-cohort.yml
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test cohort isolation
+        run: python -m unittest -v test_hole_out_of_cohort_validation.py
+      - name: Run holdout comparison
+        run: python hole_out_of_cohort_validation.py > hole_out_of_cohort_report.json
+      - name: Validate boundaries and print results
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("hole_out_of_cohort_report.json"))
+          assert d["formal"] is False
+          assert d["production_forecast_changed"] is False
+          assert d["prospective_validation"] is False
+          assert not (set(d["training_codes"]) & set(d["heldout_codes"]))
+          assert d["heldout_comparable"] == len(d["heldout_codes"])
+          print("status:",d["status"],"training:",d["training_codes_count"],
+                "holdout:",d["heldout_comparable"],"unavailable:",len(d["unavailable"]))
+          for name, s in d["scenarios"].items():
+              print(name, s["topn"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-out-of-cohort-report
+          path: hole_out_of_cohort_report.json
