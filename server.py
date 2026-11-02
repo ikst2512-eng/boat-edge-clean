@@ -249,9 +249,23 @@ def _compute_holdout_status():
     # This endpoint reports *later* holdouts only; auditing discovery and
     # earlier exploratory races cannot affect its response.
     holdout_dates = [day for day in dates if day > "20261029"]
+    first_add_probes = {}
     if holdout_dates:
-        from audit_clean_first_add import bulk_first_add
+        from audit_clean_first_add import bulk_first_add, inspect
         with bulk_first_add(ROOT):
+            # Compare the exact production Git audit against frozen examples
+            # independently verified using full Git history on CI.
+            for code in ("202610301306", "202610312412",
+                         "202611011306", "202611022412"):
+                try:
+                    proof = inspect("prospective_predictions/" + code + ".json", ROOT)
+                    first_add_probes[code] = {"ok": True,
+                        "sha": proof["first_add_sha"],
+                        "first_committer_at": proof["first_committer_at"]}
+                except (ValueError, KeyError, TypeError, OSError) as exc:
+                    first_add_probes[code] = {"ok": False,
+                        "reason": type(exc).__name__,
+                        "cutoff_rejected": str(exc) == "first Git commit not before prospective cutoff"}
             data = report(holdout_dates)
     else:
         data = {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
@@ -273,6 +287,7 @@ def _compute_holdout_status():
             "audit_rejected_races": rejected,
             "audit_rejection_reasons": rejection_reasons,
             "archived_candidates": archived,
+            "first_add_probes": first_add_probes,
             "discovery_day": "20261029", "independently_validated": False}
 
 def _refresh_holdout_status():
