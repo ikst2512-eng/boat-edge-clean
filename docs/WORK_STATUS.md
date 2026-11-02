@@ -1025,3 +1025,8 @@
 - 同一レースでの隣接モード（絞り→本命→バランス→穴）ペア比較をTop10だけからTop3/Top5/Top10に拡張。双方的中、左だけ、右だけ、両方不的中、右の純増的中件数と増減率（パーセントポイント）を算出。既存の `paired_top10` キーも互換保持。
 - 確定結果のないレースは分母に含めず、比較対象0件の場合の増減率はnull。研究用で `formal=false`。実AI分析、Gemini API実行、正式的中率改善とは別。
 - PR #1073 AI operations optional diagnostics #41459680799 completed/success、main squash `59cdce83a7836eebb6597d9cfd95dd0c3aff8d04`。予想原本、4モード構成、買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 4モードTopN入力検証強化（PR #1075）
+- `four_mode_research_batch.summarize` に事前整合性検証を追加。研究用Top3/Top5/Top10の欠損・非boolean、Top3⇒Top5⇒Top10の包含関係違反、カバレッジとTop10矛盾、未検証の展開原因を拒否。不完全フラグを不的中として計上しない。
+- 回帰テストを追加しPR #1075 AI operations optional diagnostics CI #41460287758 completed/success、main squash `4e780150536d2748d1286194efc4018c68edd0cf`。研究比較の検証強化であり、実的中率/AI精度の改善実証ではない。4モード・買い目・予想ロジック変更なし。
