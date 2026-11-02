@@ -1,0 +1,34 @@
+name: Four-mode live acquisition probe (no publication)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/four-mode-live-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe live source acquisition, no publication
+        run: |
+          python - <<'PY'
+          import json
+          import tempfile
+          from pathlib import Path
+          from clean_four_mode_capture import collect
+          with tempfile.TemporaryDirectory() as temporary:
+              result=collect(root=Path(temporary))
+              report={key:result.get(key) for key in (
+                  "date_jst", "source_status", "source_probes",
+                  "published_title_rows", "published_card_rows",
+                  "cutoff_skipped", "excluded", "new_saved")}
+              report["new_saved_count"]=len(result.get("new_saved", []))
+              report.pop("new_saved", None)
+              print("LIVE_FOUR_MODE_PROBE="+json.dumps(report,ensure_ascii=False,sort_keys=True))
+          PY
