@@ -237,7 +237,8 @@ def get_predictions(params):
 # The historical holdout evaluator reads and validates many saved races.
 # Never perform that computation inside a public request handler.
 _HOLDOUT_LOCK = threading.Lock()
-_HOLDOUT_STATE = {"value": None, "expires": 0.0, "running": False}
+_HOLDOUT_STATE = {"value": None, "expires": 0.0, "running": False,
+                  "started": None, "last_duration": None, "last_error": None}
 _HOLDOUT_TTL_SECONDS = 900
 
 def _compute_holdout_status():
@@ -253,28 +254,49 @@ def _compute_holdout_status():
             "discovery_day": "20261029", "independently_validated": False}
 
 def _refresh_holdout_status():
+    with _HOLDOUT_LOCK:
+        started = _HOLDOUT_STATE["started"] or time.monotonic()
+    error = None
     try:
         result = _compute_holdout_status()
-    except Exception:
+    except Exception as exc:
         logging.exception("holdout_status_unavailable")
+        error = type(exc).__name__
         result = None
+    elapsed = time.monotonic() - started
     with _HOLDOUT_LOCK:
         _HOLDOUT_STATE["value"] = result
         _HOLDOUT_STATE["expires"] = time.monotonic() + _HOLDOUT_TTL_SECONDS
         _HOLDOUT_STATE["running"] = False
+        _HOLDOUT_STATE["last_duration"] = round(elapsed, 2)
+        _HOLDOUT_STATE["last_error"] = error
+    logging.info("holdout_refresh_finished duration_seconds=%.2f outcome=%s",
+                 elapsed, "ready" if result is not None else error)
 
 def holdout_status():
     now = time.monotonic()
     with _HOLDOUT_LOCK:
         if now >= _HOLDOUT_STATE["expires"] and not _HOLDOUT_STATE["running"]:
             _HOLDOUT_STATE["running"] = True
+            _HOLDOUT_STATE["started"] = now
+            _HOLDOUT_STATE["last_error"] = None
             threading.Thread(target=_refresh_holdout_status, daemon=True, name="holdout-refresh").start()
         value = _HOLDOUT_STATE["value"]
         fresh = value is not None and now < _HOLDOUT_STATE["expires"]
+        running = _HOLDOUT_STATE["running"]
+        started = _HOLDOUT_STATE["started"]
+        last_duration = _HOLDOUT_STATE["last_duration"]
+        last_error = _HOLDOUT_STATE["last_error"]
     if fresh:
         return 200, value
-    # Unknown must never be reported as zero evaluated races.
-    return 503, {"ok": False, "error": "HOLDOUT_PENDING", "retryable": True}
+    # Report operational status only. Never fabricate research evidence.
+    return 503, {"ok": False,
+                 "error": "HOLDOUT_PENDING" if running else "HOLDOUT_UNAVAILABLE",
+                 "retryable": True,
+                 "running": running,
+                 "elapsed_seconds": round(max(0, now - started), 1) if running and started is not None else None,
+                 "last_duration_seconds": last_duration,
+                 "last_error_type": last_error}
 
 class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
