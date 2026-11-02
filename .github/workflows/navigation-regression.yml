@@ -59,19 +59,21 @@ jobs:
       - name: Install Chromium for local UI smoke
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Exercise four race tabs on mobile viewport
         run: |
           node - <<'JS'
-          const {chromium}=require('playwright');
+          const {chromium,webkit}=require('playwright');
           (async()=>{
-            const browser=await chromium.launch({headless:true});
+            for(const [engine,launcher] of [['Chromium',chromium],['WebKit',webkit]]){
+            const browser=await launcher.launch({headless:true});
             try {
               const page=await browser.newPage({viewport:{width:390,height:844}});
               const faults=[];
               page.on('pageerror',error=>faults.push(error.message));
               await page.route('https://raw.githubusercontent.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
               await page.route('https://api.github.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.route('https://boat-edge-clean.onrender.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
               await page.goto('file://'+process.cwd()+'/index.html',{waitUntil:'domcontentloaded'});
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
@@ -116,8 +118,14 @@ jobs:
 
               const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
               if(overflow>1)throw Error('Horizontal overflow '+overflow);
-              if(faults.length)throw Error('JS errors: '+faults.join('; '));
-              console.log('CLEAN_PR_MOBILE_CHROMIUM_PASS');
+              // WebKit denies local file:// access to result fixtures; this is
+              // unrelated to browser layout and not a production HTTP failure.
+              const realFaults=faults.filter(message=>!(
+                message.includes('confirmed_results/')&&message.includes('due to access control checks')
+              ));
+              if(realFaults.length)throw Error('JS errors: '+realFaults.join('; '));
+              console.log('CLEAN_PR_MOBILE_'+engine.toUpperCase()+'_PASS');
             } finally {await browser.close();}
+            }
           })().catch(error=>{console.error(error);process.exit(1)});
           JS
