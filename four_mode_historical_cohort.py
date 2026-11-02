@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from four_mode_research_batch import summarize, MODES
 from four_mode_frozen_diagnostic import compare_race
+from four_mode_archive_api import archived_four_modes
 
 ROOT = Path(__file__).resolve().parent
 
@@ -57,10 +58,41 @@ def run(root=ROOT, limit=120):
                         "head_absent": 0, "second_pair_absent": 0,
                         "third_absent": 0, "ticket_count_sum": 0}
                  for mode in MODES}
+    hole_pair_review = {"cases": 0, "hit_mode_has_winning_pair": 0,
+                        "balance_mode_has_winning_pair": 0,
+                        "hole_distinct_second_counts": {},
+                        "winning_second_counts": {},
+                        "missing_pair_examples": []}
     for code in codes:
         record = compare_race(code, root)
         if record.get("status") != "historical_comparison_only":
             continue
+        if record["modes"]["hole"]["coverage_diagnostic"] == "winner_second_pair_absent":
+            status, archive = archived_four_modes(code, root)
+            if status != 200:
+                raise ValueError("archived_race_changed_after_comparison")
+            first, second, _ = record["winning_ticket"].split("-")
+            target_pair = first + "-" + second + "-"
+            hole_tickets = [entry["combo"] for entry in archive["modes"]["hole"]["tickets"]]
+            actual_seconds = sorted({ticket.split("-")[1] for ticket in hole_tickets
+                                     if ticket.startswith(first + "-")})
+            if not actual_seconds or any(ticket.startswith(target_pair) for ticket in hole_tickets):
+                raise ValueError("hole_pair_diagnostic_disagrees_with_source")
+            hole_pair_review["cases"] += 1
+            for mode, field in (("hit", "hit_mode_has_winning_pair"),
+                                ("balance", "balance_mode_has_winning_pair")):
+                if any(entry["combo"].startswith(target_pair)
+                       for entry in archive["modes"][mode]["tickets"]):
+                    hole_pair_review[field] += 1
+            key = str(len(actual_seconds))
+            hole_pair_review["hole_distinct_second_counts"][key] = (
+                hole_pair_review["hole_distinct_second_counts"].get(key, 0) + 1)
+            hole_pair_review["winning_second_counts"][second] = (
+                hole_pair_review["winning_second_counts"].get(second, 0) + 1)
+            if len(hole_pair_review["missing_pair_examples"]) < 10:
+                hole_pair_review["missing_pair_examples"].append({
+                    "race_code": code, "winning_pair": first + "-" + second,
+                    "hole_selected_seconds_after_correct_head": actual_seconds})
         for mode in MODES:
             m = record["modes"][mode]
             rank = m["winning_rank"]
@@ -78,7 +110,8 @@ def run(root=ROOT, limit=120):
     days = sorted(set(code[:8] for code in codes))
     venues = sorted(set(code[8:10] for code in codes))
     return {"status": "historical_research_only", "cohort_codes": codes,
-            **overall, "rank_and_miss_breakdown": breakdown, "by_day": {day: summarize_group([c for c in codes if c[:8] == day], root) for day in days},
+            **overall, "rank_and_miss_breakdown": breakdown,
+            "hole_second_pair_review": hole_pair_review, "by_day": {day: summarize_group([c for c in codes if c[:8] == day], root) for day in days},
             "by_venue_code": {venue: summarize_group([c for c in codes if c[8:10] == venue], root) for venue in venues},
             "warning": "Selected earliest matching archives only. Historical coverage; not prospective proof."}
 
@@ -92,5 +125,6 @@ if __name__ == "__main__":
         "comparable": report.get("historical_comparable"),
         "topn": report.get("topn_hits", {}),
         "rank_and_miss_breakdown": report.get("rank_and_miss_breakdown", {}),
+        "hole_second_pair_review": report.get("hole_second_pair_review", {}),
         "by_day": report.get("by_day", {}),
         "by_venue_code": report.get("by_venue_code", {})}, ensure_ascii=False, sort_keys=True))
