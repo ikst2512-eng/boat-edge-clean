@@ -41,7 +41,9 @@ def inspect(path, root=ROOT):
         raise ValueError("invalid_four_mode_archive")
     generated = datetime.fromisoformat(obj["generated_at_jst"])
     deadline = datetime.fromisoformat(obj["deadline_jst"])
-    if any(t.utcoffset() != timedelta(hours=9) for t in (generated, deadline, committed)):
+    if (generated.utcoffset() != timedelta(hours=9)
+            or deadline.utcoffset() != timedelta(hours=9)
+            or committed.utcoffset() is None):
         raise ValueError("invalid_timezone")
     if deadline.strftime("%Y%m%d") != match.group(1)[:8]:
         raise ValueError("race_date_mismatch")
