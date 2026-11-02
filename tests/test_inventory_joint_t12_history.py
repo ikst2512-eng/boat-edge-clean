@@ -21,6 +21,26 @@ class HistoryInventoryTests(unittest.TestCase):
         self.assertIsNone(report["t12_complete_pairs_verified"])
         self.assertIn("event=workflow_dispatch", urls[0])
 
+    def test_matching_artifact_on_second_page_is_not_missed(self):
+        def fetch(url):
+            if "/artifacts?" in url:
+                if "page=1" in url:
+                    return {"total_count": 101, "artifacts": [
+                        {"id": i, "name": "other", "expired": False} for i in range(100)]}
+                return {"total_count": 101, "artifacts": [
+                    {"id": 777, "name": "official-joint-123", "expired": False}]}
+            return {"workflow_runs": [{"id": 123, "event": "workflow_dispatch"}]}
+        report = inventory("test/repo", "token", fetch)
+        self.assertEqual(report["runs"][0]["matching_unexpired_artifact_ids"], [777])
+
+    def test_incomplete_artifact_pagination_fails_closed(self):
+        def fetch(url):
+            if "/artifacts?" in url:
+                return {"total_count": 101, "artifacts": []}
+            return {"workflow_runs": [{"id": 123, "event": "workflow_dispatch"}]}
+        with self.assertRaises(ValueError):
+            inventory("test/repo", "token", fetch)
+
     def test_pr_runs_are_never_inventoried(self):
         def fetch(url):
             return {"workflow_runs": [{"id": 55, "event": "pull_request"}]}
