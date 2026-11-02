@@ -36,15 +36,26 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
                                                  if eligible else None for k, v in hits.items()}}
     paired = {}
     for left, right in (("narrow", "hit"), ("hit", "balance"), ("balance", "hole")):
-        counts = {"both_top10": 0, "left_only_top10": 0, "right_only_top10": 0, "neither_top10": 0}
-        for row in eligible:
-            l = row["modes"][left]["top10"] is True
-            rr = row["modes"][right]["top10"] is True
-            key = ("both_top10" if l and rr else
-                   "left_only_top10" if l else
-                   "right_only_top10" if rr else "neither_top10")
-            counts[key] += 1
-        paired[left + "_vs_" + right] = {"evaluated": len(eligible), **counts, "formal": False}
+        topn = {}
+        for n in (3, 5, 10):
+            key = f"top{n}"
+            counts = {"both": 0, "left_only": 0, "right_only": 0, "neither": 0}
+            for row in eligible:
+                l = row["modes"][left][key] is True
+                rr = row["modes"][right][key] is True
+                group = "both" if l and rr else "left_only" if l else "right_only" if rr else "neither"
+                counts[group] += 1
+            counts["net_additional_hits"] = counts["right_only"] - counts["left_only"]
+            counts["net_percentage_points"] = (round(100 * counts["net_additional_hits"] / len(eligible), 2)
+                                                if eligible else None)
+            counts["evaluated"] = len(eligible)
+            topn[key] = counts
+        # Preserve the old top10 contract for existing research consumers.
+        ten = topn["top10"]
+        paired[left + "_vs_" + right] = {
+            "evaluated": len(eligible), "both_top10": ten["both"],
+            "left_only_top10": ten["left_only"], "right_only_top10": ten["right_only"],
+            "neither_top10": ten["neither"], "topn": topn, "formal": False}
     return {"schema": "FOUR_MODE_HISTORICAL_AI_BATCH_V1",
             "formal": False, "simulated_only": True, "model_improvement_proven": False,
             "remote_first_seen_verified": False,
