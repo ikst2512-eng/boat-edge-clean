@@ -156,6 +156,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_joint_t12_workflow_exception.py' -v
           python -m unittest discover -s tests -p 'test_joint_t12_workflow_concurrency.py' -v
           python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
+          python -m unittest discover -s tests -p 'test_t12_component_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
           python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
           python -m unittest discover -s tests -p 'test_publish_official_receipt.py' -v
