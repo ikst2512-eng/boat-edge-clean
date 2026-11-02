@@ -3,6 +3,7 @@ import io
 import json
 import os
 import urllib.request
+import urllib.error
 import zipfile
 
 def inspect_capture(data):
@@ -52,11 +53,14 @@ def run(repo,token,limit=20):
         found=[a for a in assets.get("artifacts",[]) if a.get("name","").startswith("four-mode-capture-") and not a.get("expired")]
         if found:
             artifact=found[0]
+            info["artifact_id"]=artifact.get("id")
             try:
                 blob=api(artifact["archive_download_url"],token,"application/octet-stream")
                 info["shadow"]=zip_shadow(blob)
             except (OSError,ValueError,KeyError,zipfile.BadZipFile) as e:
                 info["shadow"]={"status":"artifact_unreadable","error_type":type(e).__name__}
+                if isinstance(e,urllib.error.HTTPError):
+                    info["shadow"]["http_status"]=e.code
         rows.append(info)
     return {"schema":"HOLE_CAPTURE_ARTIFACT_INVENTORY_V1","status":"inventory_only",
             "formal":False,"production_forecast_changed":False,
