@@ -18,6 +18,7 @@ class FourModeFirstAddTests(unittest.TestCase):
             "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
             "race_code": "202610280101", "status": "provisional",
             "validated": False,
+            "source_sha256": {"title": "a"*64, "race_cards": "b"*64},
             "generated_at_jst": "2026-10-28T10:00:00+09:00",
             "deadline_jst": "2026-10-28T11:00:00+09:00",
             "source_title_received_jst": "2026-10-28T09:59:00+09:00",
@@ -62,6 +63,16 @@ class FourModeFirstAddTests(unittest.TestCase):
     def test_wrong_mode_set_rejected(self):
         del self.record["modes"]["narrow"]
         with self.assertRaisesRegex(ValueError, "invalid_four_mode_archive"):
+            self.check()
+
+    def test_missing_source_digest_rejected(self):
+        self.record["source_sha256"].pop("race_cards")
+        with self.assertRaisesRegex(ValueError, "invalid_source_digests"):
+            self.check()
+
+    def test_bad_source_digest_rejected(self):
+        self.record["source_sha256"]["title"] = "not-a-sha"
+        with self.assertRaisesRegex(ValueError, "invalid_source_digests"):
             self.check()
 
     def test_source_receipt_after_generation_rejected(self):
