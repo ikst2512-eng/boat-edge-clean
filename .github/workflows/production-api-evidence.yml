@@ -74,5 +74,24 @@ jobs:
                       if not valid:raise AssertionError('Result HTTP 200 but confirmed identity/source/finish/time invalid')
                       report('Confirmed result identity/source/timestamps and finish: PASS '+ '-'.join(map(str,finish)))
                       report('Official payout independently checked: NO (not included in this result API)')
+                      archive_status,archive_raw=fetch('/api/four-mode-archive?code='+race_code)
+                      report('Same-race four-mode archive: HTTP '+str(archive_status))
+                      if archive_status==200:
+                          archived=json.loads(archive_raw)
+                          assert archived.get('race_code')==race_code and archived.get('status')=='historical_research_only' and archived.get('production_forecast') is False
+                          modes=archived.get('modes')
+                          assert isinstance(modes,dict), 'missing archived modes'
+                          winner='-'.join(map(str,finish))
+                          for mode in ('narrow','hit','balance','hole'):
+                              tickets=modes.get(mode,{}).get('tickets')
+                              assert isinstance(tickets,list) and tickets, 'missing archived tickets: '+mode
+                              combos=[x.get('combo') for x in tickets]
+                              assert len(combos)==len(set(combos)), 'duplicate archived ticket: '+mode
+                              positions=[i+1 for i,combo in enumerate(combos) if combo==winner]
+                              report('Archived '+mode+': '+('HIT ticket #'+str(positions[0]) if positions else 'MISS')+' / '+str(len(combos))+' tickets')
+                          report('Archive hit comparison: research only; first Git add not authenticated')
+                      else:
+                          report('Archived forecast not available; hit status not inferred')
+
                   else:report('Confirmed result unavailable; not marked verified.')
           PY
