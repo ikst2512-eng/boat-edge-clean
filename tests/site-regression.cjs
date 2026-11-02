@@ -499,3 +499,9 @@ assert.match(cleanResultSource,/catch\(e\)\{if\(token===resultRequestId&&key===s
 assert.ok(script.includes('function syncActiveRaceDeadline()'),'selected cutoff sync helper exists');
 assert.ok(script.includes('todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();'),'schedule resolution updates active race cutoff');
 assert.ok(script.includes('syncActiveRaceDeadline();document.getElementById(\'previousRace\')'),'race selection updates active cutoff');
+
+// HTTP 202 odds must retry only for the currently selected race and stop after a finite budget.
+assert.match(script,/for\(let attempt=0;attempt<3;attempt\+\+\)/,'odds pending retries must be bounded');
+assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*res=await fetch\(oddsUrl/,'pending odds must abort for another race');
+assert.match(script,/if\(res.status!==202\)break;/,'retry only pending HTTP 202');
+assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*if\(!res.ok\)/,'recheck race before applying completed odds');
