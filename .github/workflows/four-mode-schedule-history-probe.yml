@@ -1,0 +1,37 @@
+name: Diagnose four-mode scheduled run history
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/four-mode-schedule-history-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read recent scheduled capture runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          repo=os.environ["GH_REPOSITORY"]
+          url=f"https://api.github.com/repos/{repo}/actions/workflows/four-mode-prospective-capture.yml/runs?per_page=30"
+          request=urllib.request.Request(url,headers={
+              "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+              "Accept":"application/vnd.github+json",
+              "X-GitHub-Api-Version":"2022-11-28"})
+          with urllib.request.urlopen(request,timeout=20) as response:
+              data=json.load(response)
+          scheduled=[{"id":run["id"],"created_at":run["created_at"],
+                      "status":run["status"],"conclusion":run["conclusion"],
+                      "url":run["html_url"]}
+                     for run in data["workflow_runs"] if run["event"]=="schedule"]
+          print("FOUR_MODE_SCHEDULED_RUNS="+json.dumps(scheduled[:12],sort_keys=True))
+          if not scheduled:
+              print("::warning::No scheduled workflow runs in the most recent 30; cannot infer why without more history")
+          PY
