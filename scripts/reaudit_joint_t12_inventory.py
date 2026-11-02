@@ -25,6 +25,8 @@ def reaudit_inventory(inventory, repo, token, loader=load_archive, auditor=reaud
         ids = run.get("matching_unexpired_artifact_ids")
         if type(run_id) is not int or run_id <= 0 or run_id in seen or not isinstance(ids, list):
             raise ValueError("invalid or duplicate run")
+        if len(ids) > 1:
+            raise ValueError("ambiguous multiple evidence artifacts for one run")
         seen.add(run_id)
         for artifact_id in ids:
             if type(artifact_id) is not int or artifact_id <= 0 or artifact_id in seen_artifacts:
