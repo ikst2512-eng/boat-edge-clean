@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/capture_official_racelist_receipt.py'
       - 'tests/test_capture_official_racelist_receipt.py'
+      - 'scripts/audit_official_racelist_receipt.py'
+      - 'tests/test_audit_official_racelist_receipt.py'
       - '.github/workflows/official-racelist-raw-tests.yml'
   push:
     branches: [main]
@@ -21,3 +23,4 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -p 'test_capture_official_racelist_receipt.py' -v
+      - run: python -m unittest discover -s tests -p 'test_audit_official_racelist_receipt.py' -v
