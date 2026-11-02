@@ -54,6 +54,12 @@ def inspect(path, root=ROOT):
                 ("source_title_received_jst", "source_cards_received_jst")]
     if any(t.utcoffset() != timedelta(hours=9) for t in receipts):
         raise ValueError("invalid_source_timezone")
+    digests = obj.get("source_sha256")
+    if (not isinstance(digests, dict)
+            or any(not isinstance(digests.get(key), str)
+                   or not re.fullmatch(r"[0-9a-fA-F]{64}", digests[key])
+                   for key in ("title", "race_cards"))):
+        raise ValueError("invalid_source_digests")
     if max(receipts) > generated:
         raise ValueError("source_receipt_after_generation")
     if committed >= deadline:
