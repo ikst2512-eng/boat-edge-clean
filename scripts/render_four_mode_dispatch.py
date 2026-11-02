@@ -16,6 +16,10 @@ def run(*, token, now=None, request=urllib.request.urlopen):
     if not token:
         raise ValueError("GITHUB_DISPATCH_TOKEN_missing")
     now = now or datetime.now(timezone.utc)
+    # Never call GitHub or require API access outside scheduled JST hours.
+    from scripts.four_mode_watchdog_policy import JST
+    if not 7 <= now.astimezone(JST).hour <= 20:
+        return {"action": "no_dispatch", "reason": "outside_capture_hours", "checked_runs": 0}
     base = f"https://api.github.com/repos/{REPOSITORY}/actions/workflows/{WORKFLOW}"
     headers = {"Authorization": f"Bearer {token}",
                "Accept": "application/vnd.github+json",
