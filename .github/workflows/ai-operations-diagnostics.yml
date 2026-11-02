@@ -47,4 +47,5 @@ jobs:
           path: |
             ai_operations_report.json
             ai_diagnostics_report.json
+            ai_frozen_race_case.json
           retention-days: 90
