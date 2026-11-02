@@ -36,6 +36,21 @@ const {chromium, webkit} = require('playwright');
     });
     if(oddsEvidence.error?.startsWith('Error: ODDS_RENDER_MISMATCH'))throw Error(oddsEvidence.error);
     console.log(JSON.stringify({publicOddsEvidence:oddsEvidence,engine:engineName}));
+    // Deterministically simulate the first HTTP 202 followed by real HTTP 200/202,
+    // then measure whether UI retries and correctly resolves or remains pending.
+    await page.evaluate(()=>{s.race=11;render()});
+    let oddsCalls=0;
+    await page.route('**/api/odds?**',async route=>{
+      oddsCalls++;
+      if(oddsCalls===1){await route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({ok:false,status:'pending'})});return}
+      await route.continue();
+    });
+    await page.evaluate(()=>{s.race=11;render()});
+    await page.waitForTimeout(5500);
+    const retryState=await page.evaluate(()=>({key:document.querySelector('#fourModeForecastRows')?.dataset.raceKey||'',oddsCount:document.querySelectorAll('#fourModeForecastRows .four-mode-odds').length,status:document.querySelector('#fourModeForecastRows')?.innerText?.slice(0,160)||''}));
+    if(oddsCalls<2||retryState.key!=='20261102-02-11')throw Error('Pending odds retry failed '+JSON.stringify({oddsCalls,retryState}));
+    console.log(JSON.stringify({pendingOddsTransition:'passed',engine:engineName,oddsCalls,oddsCount:retryState.oddsCount,status:retryState.status}));
+    await page.unroute('**/api/odds?**');
     // Check selected race label and available result/odds UI without fabricating unavailable values.
     const evidence=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',resultStatus:document.querySelector('#resultStatus')?.textContent||'',result:document.querySelector('#resultDetail')?.textContent||'',oddsNotice:document.querySelector('#fourModeForecastRows')?.textContent||''}));
     if(!evidence.selected.includes('11R'))throw Error('Selected race label mismatch: '+JSON.stringify(evidence));
