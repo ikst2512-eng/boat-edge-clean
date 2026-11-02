@@ -1,0 +1,49 @@
+name: One-shot official beforeinfo live acquisition experiment
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-beforeinfo-live-experiment.yml'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture actual Marugame 12R official HTML
+        shell: bash
+        run: |
+          mkdir -p evidence
+          python -m scripts.capture_official_beforeinfo_probe 202611021512 --root evidence --observation-id "run${GITHUB_RUN_ID}" > evidence/observation_report.json || true
+          cat evidence/observation_report.json
+      - name: Verify observed HTML and inspect six-lane label candidates
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("evidence/observation_report.json")
+          r=json.loads(p.read_text())
+          print("LIVE_OBSERVATION_STATUS",r["status"],r["received_at_jst"])
+          if r["status"]=="raw_http_observed_not_t12_certified":
+              from scripts.inspect_official_beforeinfo_html import inspect
+              saved=Path("evidence/observations")/f"run${{ github.run_id }}"/"20261102"/"202611021512"
+              result=inspect(saved)
+              (Path("evidence")/"inspection.json").write_text(json.dumps(result,ensure_ascii=False,indent=2))
+              print("HTML_SHA_VERIFIED",result["sha256_verified"])
+              print("LABEL_COUNTS",{k:len(v) for k,v in result["label_positions"].items()})
+          else:
+              print("OFFICIAL_HTTP_NOT_CAPTURED")
+          PY
+      - name: Archive observed evidence, including failed attempts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-beforeinfo-real-world-check
+          path: evidence/
+          retention-days: 7
+          if-no-files-found: warn
