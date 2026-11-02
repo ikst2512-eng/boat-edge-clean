@@ -10,6 +10,8 @@ from urllib.parse import urlparse, parse_qs
 from research_model import JST
 
 MAX_BYTES=2_000_000
+# Live Actions probe saw a valid HTTP 200 at 8.2s; the old 8s read budget could time out first.
+HTTP_TIMEOUT_SECONDS=18
 BASE="https://www.boatrace.jp/owsp/sp/race/beforeinfo"
 
 def capture(race_code, root="official_preview_probe", fetch=None, clock=None, observation_id=None):
@@ -31,7 +33,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
             final_url=url
             status=200
         else:
-            with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-EVIDENCE/1.0"}),timeout=8) as response:
+            with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-EVIDENCE/1.0"}),timeout=HTTP_TIMEOUT_SECONDS) as response:
                 final_url=response.geturl()
                 status=response.status
                 raw=response.read(MAX_BYTES+1)
