@@ -1316,7 +1316,7 @@ async function loadFourModeArchives(key,token){
   if(!response.ok)throw Error('FOUR_MODE_ARCHIVE_HTTP_'+response.status);
   const data=await response.json();
   if(data.status!=='historical_research_only'||data.race_code!==code||data.production_forecast!==false||data.verified_first_git_add!==false)throw Error('FOUR_MODE_ARCHIVE_INVALID');
-  const modes=[['hit','本命'],['balance','バランス'],['hole','穴'],['narrow','絞り']];
+  const modes=[['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']];
   if(!data.modes||!modes.every(([id])=>Array.isArray(data.modes[id]?.tickets)))throw Error('FOUR_MODE_ARCHIVE_INVALID');
   for(const [id,label] of modes){
    const tickets=data.modes[id].tickets;
@@ -1326,7 +1326,12 @@ async function loadFourModeArchives(key,token){
    tickets.forEach((x,i)=>{const row=document.createElement('div');row.className='four-mode-forecast-ticket';row.dataset.fourModeCombo=x.combo;row.textContent=x.combo+'  '+x.p.toFixed(2)+'%';card.append(row)});
    const note=document.createElement('small');note.textContent='過去の研究保存記録・正式な的中率ではありません';card.append(note);root.append(card);
   }
-  status.textContent='4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。';status.dataset.loaded='true';
+  const counts=modes.map(([id])=>data.modes[id].tickets.length);
+  const orderValid=counts.every((count,i)=>i===0||counts[i-1]<count);
+  status.textContent=orderValid
+    ?'4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。'
+    :'点数順が合意仕様（絞り＜本命＜バランス＜穴）と異なる保存データです。過去の記録は変更せず表示しています。正式予想として使用しないでください。';
+  status.dataset.loaded='true';
   // Display-only enrichment. Never reorder, regenerate, or modify archived tickets.
   // Latest odds are NOT proof of the historical pre-race odds.
   const enrichCurrent=()=>token===window.predictionRequestId&&sameRaceKey()===key&&activeView==='forecast';
