@@ -1,8 +1,8 @@
 (()=>{'use strict';
 if(document.documentElement.dataset.cleanNavigationInit==='1')return;
-document.documentElement.dataset.cleanNavigationInit='1';
 const nav=document.querySelector('.site-global-nav');
 if(!nav)return;
+document.documentElement.dataset.cleanNavigationInit='1';
 const params=location.search;
 // GitHub Pages project sites cannot serve Render's /review route directly.
 // Use the existing single-page screen query without changing Render routes.
