@@ -1344,7 +1344,7 @@ async function loadFourModeArchives(key,token){
     const res=await fetch(oddsUrl,{cache:'no-store',signal:AbortSignal.timeout(30000)});
     if(!res.ok){if(enrichCurrent())oddsState.textContent='オッズ未取得（通信先から有効な応答なし）';return;}
     const feed=await res.json(),received=Date.parse(feed.fetched_at);
-    if(!enrichCurrent()||feed.ok!==true||!Number.isFinite(received)||received>Date.now()+300000||received<Date.now()-1800000||
+    if(!enrichCurrent()||feed.ok!==true||feed.hd!==key.slice(0,8)||String(feed.jcd).padStart(2,'0')!==key.slice(9,11)||Number(feed.rno)!==Number(key.slice(12,14))||!Number.isFinite(received)||received>Date.now()+300000||received<Date.now()-1800000||
       !feed.odds||typeof feed.odds!=='object'||Array.isArray(feed.odds)||Object.keys(feed.odds).length!==120){if(enrichCurrent())oddsState.textContent='オッズ未取得（検証可能なデータなし）';return;}
     if(!Object.entries(feed.odds).every(([combo,value])=>validTicket(combo)&&typeof value==='number'&&Number.isFinite(value)&&value>=1&&value<=1000000)){oddsState.textContent='オッズ未取得（不正な値を除外）';return;}
     root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
