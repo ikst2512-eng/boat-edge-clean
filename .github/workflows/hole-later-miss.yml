@@ -1,0 +1,36 @@
+name: Hole later block miss diagnosis
+on:
+  pull_request:
+    paths:
+      - hole_later_miss_diagnostic.py
+      - test_hole_later_miss_diagnostic.py
+      - .github/workflows/hole-later-miss.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_later_miss_diagnostic.py
+      - run: python hole_later_miss_diagnostic.py > hole_later_miss.json
+      - name: Show diagnosis
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_later_miss.json'))
+          assert r['formal'] is False and r['independent_holdout'] is False
+          assert r['production_forecast_changed'] is False
+          print('later dates',r['later_dates'])
+          print('counts',r['later']['comparable'])
+          print('misses',r['later']['misses'])
+          print('donor coverage',r['later']['donor_winning_coverage'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-later-miss-diagnostic
+          path: hole_later_miss.json
