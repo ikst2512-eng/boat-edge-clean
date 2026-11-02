@@ -63,6 +63,29 @@ class HoldoutAsyncTests(unittest.TestCase):
         self.assertEqual(status["evaluated_holdout_races"], 4)
         self.assertFalse(status["independently_validated"])
 
+    def test_holdout_outcomes_are_separate_from_validated_evaluation(self):
+        from pathlib import Path
+        import tempfile
+        from contextlib import nullcontext
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / "prospective_predictions"
+            folder.mkdir()
+            (folder / "202610300101.json").write_text("{}", encoding="utf-8")
+            payload = {"later_holdout_days": 1, "later_holdout_evaluated_races": 2,
+                       "days": [{"archived": 5, "groups": {
+                           "signal_70_plus": {"evaluated": 1, "awaiting_result": 1, "rejected": 1},
+                           "below_70": {"evaluated": 1, "awaiting_result": 1, "rejected": 0}}}]}
+            with patch.object(server, "ROOT", root), patch(
+                "audit_clean_first_add.bulk_first_add", return_value=nullcontext()), patch(
+                "compare_topn_signal70_days.report", return_value=payload):
+                result = server._compute_holdout_status()
+        self.assertEqual(result["evaluated_holdout_races"], 2)
+        self.assertEqual(result["awaiting_result_races"], 2)
+        self.assertEqual(result["audit_rejected_races"], 1)
+        self.assertEqual(result["archived_candidates"], 5)
+        self.assertFalse(result["independently_validated"])
+
     def test_failure_does_not_invent_zero(self):
         with patch.object(server, "_compute_holdout_status", side_effect=ValueError("bad evidence")):
             status, data = server.holdout_status()
