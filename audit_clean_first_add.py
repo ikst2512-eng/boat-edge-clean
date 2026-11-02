@@ -18,8 +18,9 @@ def first_add(path, root=ROOT):
         raise ValueError("invalid record path")
     # Read commit SHA and timestamp in one Git traversal; retain the
     # unique-first-add requirement and verify the original blob below.
+    # Two matching additions are enough to reject ambiguous evidence.
     history=subprocess.check_output(
-        ["git","log","--format=%H %cI","--diff-filter=A","--",rel],
+        ["git","log","--max-count=2","--format=%H %cI","--diff-filter=A","--",rel],
         cwd=root,text=True).splitlines()
     if len(history)!=1:
         raise ValueError("unambiguous first addition not found")
