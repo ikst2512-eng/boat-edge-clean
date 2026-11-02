@@ -828,3 +828,11 @@
 - 実保存レース `202610280101` の研究比較を用いた回帰テストで、「的中率が改善する」というAI出力文字列でも自動昇格されないことを検証。PR #969 CI run `41434612141` completed/success。
 - PR #969 main squash merge `10c28accc8719a8826e73816b868c27ef9ff3c7e`。予想券・4モード・予想ロジック・自動API実行を変更せず。
 - Gemini実APIから返った実分析は今回実行していない。CI成功と分析内容の信頼性・精度改善・Render本番を混同しない。次: 手動Gemini実行のAPI可否と分析artifactを取得して人手証拠審査、独立締切前初回保存時刻と時系列holdoutの接続。
+
+
+## 2026-11-02 手動Gemini分析の誤成功判定を防止（PR #972）
+- 手動 `workflow_dispatch` でAPIキーがなく `status=disabled` となっても成功終了し得た問題を修正。`--require-analysis` により、結果JSON保存後に失敗として終了させる。通常PR検証は従来のオフライン模擬実行を維持。
+- `test_ai_diagnostics.py` にAPIキー欠落時、手動必須分析が失敗しても `disabled` レポートを保存する回帰テストを追加。
+- PR #972 AI operations optional diagnostics run `41434975368` completed/success、main squash `603b148676e1f3828617b83024937d4cbe02089b`。
+- GitHubの手動Gemini実API run一覧は本ターンの接続では取得できず、API呼出実績・AI回答・分析効果・Render本番はいずれも未検証。モデル・4モード・原本は不変更。
+- 次: 実手動runのアーティファクトを取得して、Gemini `status=analysis_proposed` と証拠審査の内容を照合する。
