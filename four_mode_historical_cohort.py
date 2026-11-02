@@ -22,10 +22,23 @@ def run(root=ROOT, limit=120):
     available = sorted(p.stem for p in forecast_dir.glob("20??????????.json")
                        if re.fullmatch(r"20[0-9]{10}", p.stem)
                        and (results_dir / p.name).is_file())
-    # Round-robin across days; the earliest N files otherwise all belong to one day.
-    by_date = {}
+    # Rotate through both dates and venues, avoiding early venue/race-order bias.
+    # All choices are deterministic and based only on immutable filenames.
+    by_day_venue = {}
     for code in available:
-        by_date.setdefault(code[:8], []).append(code)
+        by_day_venue.setdefault(code[:8], {}).setdefault(code[8:10], []).append(code)
+    by_date = {}
+    for day, venues in by_day_venue.items():
+        selected = []
+        offset = 0
+        while True:
+            batch = [venues[venue][offset] for venue in sorted(venues)
+                     if offset < len(venues[venue])]
+            if not batch:
+                break
+            selected.extend(batch)
+            offset += 1
+        by_date[day] = selected
     codes = []
     day_keys = sorted(by_date)
     offset = 0
