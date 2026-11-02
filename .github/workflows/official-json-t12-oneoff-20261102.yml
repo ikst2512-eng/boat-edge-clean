@@ -62,16 +62,18 @@ jobs:
                 'source_deadline_matches_plan':deadline_matches,
                 'six_unique_boats':x.get('six_unique_boats'),
                 'six_exhibition_values':x.get('exhibition_time_nonempty_six'),
+                'exhibition_time_observed_boats':x.get('exhibition_time_observed_boats'),
+                'tilt_observed_boats':x.get('tilt_observed_boats'),
                 'start_exhibition_rows':x.get('start_exhibition_rows'),
                 't12_certified':False,'forecast_usable':False
               })
           Path('reports/chronology.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2))
           summary=['### Official beforeinfo near-deadline snapshots',
                    'Research only: not T-12 certified and not forecast usable.',
-                   '|Attempt|Receipt JST|Before planned 19:54 cutoff|6 exhibition values|ST rows|',
-                   '|---|---|---|---|---|']
+                   '|Attempt|Receipt JST|Before planned 19:54 cutoff|Exhibition values / 6|Tilt values / 6|ST rows|',
+                   '|---|---|---|---|---|---|']
           for r in rows:
-              summary.append(f"|{r['attempt']}|{r['received_at_jst']}|{r['before_planned_cutoff']}|{r['six_exhibition_values']}|{r['start_exhibition_rows']}|")
+              summary.append(f"|{r['attempt']}|{r['received_at_jst']}|{r['before_planned_cutoff']}|{r['exhibition_time_observed_boats']}|{r['tilt_observed_boats']}|{r['start_exhibition_rows']}|")
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write(chr(10).join(summary)+chr(10))
           print(json.dumps(rows,ensure_ascii=False))
           if not any(r['status']=='official_json_observed_not_t12_certified' for r in rows):
