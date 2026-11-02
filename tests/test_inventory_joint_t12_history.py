@@ -24,7 +24,7 @@ class HistoryInventoryTests(unittest.TestCase):
     def test_matching_artifact_on_second_page_is_not_missed(self):
         def fetch(url):
             if "/artifacts?" in url:
-                if "page=1" in url:
+                if "&page=1" in url:
                     return {"total_count": 101, "artifacts": [
                         {"id": i, "name": "other", "expired": False} for i in range(100)]}
                 return {"total_count": 101, "artifacts": [
