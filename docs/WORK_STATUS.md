@@ -1013,3 +1013,9 @@
 - `AI operations optional diagnostics` の手動workflow_dispatch実行履歴は確認時点で0件。実Gemini分析成功・予想精度向上は未実証。
 - 従来workflow内に埋め込まれていた保存済みレース/確定結果の事前検査を `ai_frozen_race_preflight.py` に分離し、CIで実際に同じ判定関数をテスト。既存桐生1R `202610280101` に対する比較可能判定、正式扱い・独立証拠欠如ケースのfail-closed、入力不正拒否を検証。
 - PR #1065 AI operations optional diagnostics #41457311378 completed/success、main squash `b73bc29d87d4745d2847f31e1d59f73697438f2f`。手動Gemini API呼出しは行っていない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 4モード同一レース比較 Top10 研究（PR #1068）
+- `AI operations optional diagnostics` の新規 workflow_dispatch 実API実行は確認できず、Gemini実分析・改善実証は引き続き未達成。
+- `four_mode_research_batch.py` に「絞り vs 本命、本命 vs バランス、バランス vs 穴」の同一研究レース Top10 被覆比較（両方・左のみ・右のみ・両方なし）を追加。確定結果なしを分母に混入しない。研究専用 `formal=false`、予想ロジックと買い目は不変更。
+- PR #1068 AI operations optional diagnostics CI #41458557108 completed/success、main squash `69e0903d8e370d4095b8204fde822911bb46232a`。この比較は過去アーカイブ研究であり、独立締切前証明やAIによる的中率改善ではない。
