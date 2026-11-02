@@ -66,6 +66,28 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(new_path.read_bytes(),new_bytes)
             self.assertEqual(json.loads(new_bytes)["race_code"],new_code)
 
+    def test_already_frozen_after_cutoff_not_miscounted_as_missed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            code="202611030101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            receipt=datetime(2026,11,3,7,30,tzinfo=JST)
+            def read(url):
+                return ([title] if "/title/" in url else [card],receipt,"a"*64)
+            first=collect(root=root,now=datetime(2026,11,3,8,0,tzinfo=JST),read=read)
+            self.assertEqual(first["new_saved"],[code])
+            saved=root/"four_mode_forecasts"/(code+".json")
+            original=saved.read_bytes()
+            later=collect(root=root,now=datetime(2026,11,3,13,0,tzinfo=JST),read=read)
+            self.assertEqual(later["new_saved"],[])
+            self.assertEqual(later["already_saved"],1)
+            self.assertEqual(later["cutoff_skipped"],0)
+            self.assertEqual(saved.read_bytes(),original)
+            status=publish_status(later,root=root,now=datetime(2026,11,3,13,0,tzinfo=JST))
+            self.assertEqual(status["already_saved"],1)
+            self.assertEqual(status["cutoff_skipped"],0)
+
     def test_source_receipt_after_generation_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
