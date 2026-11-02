@@ -930,3 +930,11 @@
 - PR #1016: 各収集runの当日4モード予想について保全されたHTTP原本のハッシュ照合結果を `four-mode-evidence/source-links.json` に記録してartifactに追加。欠損・不一致を合格としない。CI #41442522181 success、main `c12b41bc0194dc6e2db7bf5813f062cb18f9c907`。
 - PR #1019: source-links.jsonの末尾改行にリテラルバックスラッシュが混入する問題を修正。CI #41442668543 success、main `0876cc37bb4580826789afe7e2de19e708e7428e`。
 - この時点で実運用の照合成功件数・独立締切前remote-first-seen証明・正式的中率・Gemini実API・Render本番は未検証。予想ロジックと4モード、買い目は不変更。
+
+
+## 2026-11-02 実原本連動の収集時刻ゲート（PR #1021）
+- PR #1016は本ターン開始時点で既にmain統合済み（squash `c12b41bc0194dc6e2db7bf5813f062cb18f9c907`）。同PRのCIは成功済み。
+- 取得できた定期schedule履歴ではPR #1006以後のraw-sources実運用artifactは未確認。手動収集 run `41440004104` は成功したがPR #1006より前のコードだったため実証に利用しない。
+- `link_four_mode_raw_forecast.py` が、予想生成後に取得した元データでも同ハッシュなら一致扱いにし得る点を修正。JST受信時刻 <= JST予想生成時刻を必須にし、遅い証拠を照合対象から除外。テスト追加。
+- PR #1021 Four-mode prospective capture run `41443079562` completed/success、main squash `02b7387d95c76bf6152fce6e53604b96f5d5c3f0`。一度main更新競合したが再確認の上正常統合。
+- 実生データの保全・ハッシュ照合、独立remote-first-seen、Gemini実API、的中率改善は未確認。予想原本・モデル・4モード不変更。
