@@ -172,18 +172,18 @@ jobs:
             # Verify the exact first-add blob and Git chronology before pushing.
             # This is local provenance only, never remote first-seen validation.
             python - <<'PY'
-            import subprocess
-            from audit_four_mode_first_add import inspect
-            names = subprocess.check_output(
-                ["git", "diff-tree", "--no-commit-id", "--name-only",
-                 "--diff-filter=A", "-r", "HEAD", "--",
-                 "four_mode_forecasts/"], text=True).splitlines()
-            if not names:
-                raise SystemExit("No immutable forecasts in capture commit")
-            for name in names:
-                inspect(name)
-            print("First-add local chronology preflight passed:", len(names))
-            PY
+          import subprocess
+          from audit_four_mode_first_add import inspect
+          names = subprocess.check_output(
+              ["git", "diff-tree", "--no-commit-id", "--name-only",
+               "--diff-filter=A", "-r", "HEAD", "--",
+               "four_mode_forecasts/"], text=True).splitlines()
+          if not names:
+              raise SystemExit("No immutable forecasts in capture commit")
+          for name in names:
+              inspect(name)
+          print("First-add local chronology preflight passed:", len(names))
+          PY
             publication_stage="push_main"
             if git push origin HEAD:main; then
               # A successful push response alone is not evidence that this
@@ -194,22 +194,22 @@ jobs:
               # Record the exact pushed commit, not just a success label.
               # This allows the immutable first-add audit to inspect its blob.
               python - <<'PY'
-              import json, subprocess
-              from pathlib import Path
-              sha = subprocess.check_output(
-                  ["git", "rev-parse", "HEAD"], text=True).strip()
-              count = len(subprocess.check_output(
-                  ["git", "diff-tree", "--no-commit-id", "--name-only",
-                   "--diff-filter=A", "-r", "HEAD", "--",
-                   "four_mode_forecasts/"], text=True).splitlines())
-              target = Path("four-mode-evidence/publication.json")
-              target.write_text(json.dumps({
-                  "outcome": "pushed_to_main",
-                  "commit_sha": sha,
-                  "added_forecasts": count
-              }, sort_keys=True) + chr(10), encoding="utf-8")
-              print("Published four-mode commit:", sha, "new archives:", count)
-              PY
+            import json, subprocess
+            from pathlib import Path
+            sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], text=True).strip()
+            count = len(subprocess.check_output(
+                ["git", "diff-tree", "--no-commit-id", "--name-only",
+                 "--diff-filter=A", "-r", "HEAD", "--",
+                 "four_mode_forecasts/"], text=True).splitlines())
+            target = Path("four-mode-evidence/publication.json")
+            target.write_text(json.dumps({
+                "outcome": "pushed_to_main",
+                "commit_sha": sha,
+                "added_forecasts": count
+            }, sort_keys=True) + chr(10), encoding="utf-8")
+            print("Published four-mode commit:", sha, "new archives:", count)
+            PY
               echo 'Immutable four-mode candidates pushed'
               exit 0
             fi
