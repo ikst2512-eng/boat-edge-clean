@@ -68,7 +68,7 @@ jobs:
                            'beforeinfo_status':a.get('status'),'error':a.get('error'),
                            'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
                   failure['failure_category']=classify(failure['status'],a.get('error') or a.get('error_type'))
-              Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
                   print('BEFORE_FAILED',json.dumps(failure,ensure_ascii=False))
                   # No independently verified cutoff: stop; never guess a race deadline.
                   break
