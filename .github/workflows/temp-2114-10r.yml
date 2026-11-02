@@ -1,0 +1,25 @@
+name: Temporary 21-14 Shimonoseki 10R receipt
+on:
+  pull_request:
+    paths: ['.github/workflows/temp-2114-10r.yml']
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          mkdir -p reports
+          python -m scripts.capture_official_beforeinfo_json 202611021910 --root evidence --observation-id "run${GITHUB_RUN_ID}" > reports/official.json
+          cat reports/official.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-2114-10r
+          path: |
+            reports/
+            evidence/
