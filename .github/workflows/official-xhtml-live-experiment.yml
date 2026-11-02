@@ -1,0 +1,43 @@
+name: Experimental official XHTML capture after fix
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-xhtml-live-experiment.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Actual official beforeinfo capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python -m scripts.capture_official_beforeinfo_probe 202611021511 --root evidence --observation-id "run${GITHUB_RUN_ID}" > evidence/status.json || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.inspect_official_beforeinfo_html import inspect
+          r=json.loads(Path("evidence/status.json").read_text())
+          print("OBSERVED_STATUS",r["status"],"FAILURE_STAGE",r.get("failure_stage"),"FORMAT",r.get("response_format_category"))
+          print("RECEIVED_AT",r["received_at_jst"])
+          if r["status"]=="raw_http_observed_not_t12_certified":
+              saved=Path("evidence/observations")/"run${{ github.run_id }}"/"20261102"/"202611021511"
+              result=inspect(saved)
+              Path("evidence/inspection.json").write_text(json.dumps(result,ensure_ascii=False,indent=2))
+              print("SHA_VERIFIED",result["sha256_verified"])
+              print("LABEL_COUNTS",{k:len(v) for k,v in result["label_positions"].items()})
+          print("T12_CERTIFIED",False)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-xhtml-real-observation
+          path: evidence/
+          retention-days: 7
