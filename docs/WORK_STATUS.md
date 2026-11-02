@@ -873,3 +873,10 @@
 - artifact `four-mode-capture-41396587415` を取得して解凍。`capture.log` は `new_saved` 48件、`eligible_forecasts_today` 48、`excluded={invalid six national win rates: 2}`、title/race_cards各156行 `available`。`capture_status.json` は `last_run_new_count=48` だが `production_success_proven=false`。
 - 48件のうち `four_mode_forecasts/202611020211.json` は後続GitHub main取得で存在を確認。48件全件の独立Git初回追加・受信時刻監査や正式予想成立の証明ではない。capture artifactにはstaging/publish結果の記録がなく、48件全部の公開成否は未確定。
 - 以前のwatchdog `push` failure/ゼロjobsと区別。定期captureが少なくとも1回起動し収集候補が生成された事実は実証済み。次は該当48件の初回Git追加タイムスタンプ・締切・公開証拠を一括照合し、正式合格件数を別計上する。
+
+
+## 2026-11-02 4モード収集のschedule実行証拠を実ジョブログで確認
+- Actions `event=schedule` に絞り調査。run `41396587415`（2026-11-02T05:53:05Z）は test/capture 両ジョブ success。capture logに `Immutable four-mode candidates pushed` と新規 `four_mode_forecasts/202611021505.json` 等の作成記録あり。main上でも原本の現存を取得確認。
+- 失敗run `41377556221`（2026-11-02T02:24:27Z）では test success / capture failure。失敗ステップ `Stage only immutable new forecasts and check receipt window`、ログの具体エラーは `ValueError: source_receipt_out_of_order`。原因不明のままデータ採用基準を緩和しない。
+- watchdogの別系列push失敗runはジョブ0件で、その原因をcapture失敗と混同しない。watchdogのschedule動作・Gemini手動実API実行の成功は依然未検証。
+- 注意: 新規Git追加・pushのログは正式な締切前remote-first-seen監査および的中率改善の証明ではない。既存4モード・予想ロジックは不変更。
