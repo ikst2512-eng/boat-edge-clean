@@ -38,8 +38,20 @@ def audit_pair(before_dir, odds_dir):
     odds = parse_official_odds_table(original_odds.decode("utf-8", "replace"))
     odds_check = inspect_odds_receipt(odds, race_code=race, received_at_jst=b_received.isoformat(), deadline_jst=deadline.isoformat())
     exhibition_complete = bool(check["six_unique_boats"] and check["exhibition_time_nonempty_six"] and check["tilt_observed_boats"] == 6 and check["start_exhibition_six_valid_rows"])
+    # Diagnostics come from original-source reinspection; gate stays unchanged.
+    component_checks = {
+        "six_unique_boats": bool(check["six_unique_boats"]),
+        "exhibition_time_six": bool(check["exhibition_time_nonempty_six"]),
+        "tilt_six": check["tilt_observed_boats"] == 6,
+        "start_exhibition_six": bool(check["start_exhibition_six_valid_rows"]),
+        "beforeinfo_received_by_t12": a_received <= cutoff,
+        "official_odds_120": bool(odds_check["valid_120_combinations"]),
+        "odds_received_by_t12": bool(odds_check["complete_odds_observed_before_t12"]),
+    }
+    missing_components = [name for name, passed in component_checks.items() if not passed]
     joint = exhibition_complete and a_received <= cutoff and odds_check["complete_odds_observed_before_t12"]
     return {"race_code": race, "cutoff_jst": cutoff.isoformat(), "before_received_jst": a_received.isoformat(),
             "odds_received_jst": b_received.isoformat(), "originals_hash_verified": True,
             "exhibition_complete": exhibition_complete, "odds_120_complete": odds_check["valid_120_combinations"],
-            "both_complete_before_t12": bool(joint), "forecast_usable": False, "t12_eligible": False}
+            "both_complete_before_t12": bool(joint), "component_checks": component_checks,
+            "missing_components": missing_components, "forecast_usable": False, "t12_eligible": False}
