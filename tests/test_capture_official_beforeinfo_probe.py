@@ -54,6 +54,20 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(failed["failure_stage"],"transport")
             self.assertFalse(failed["forecast_usable"])
 
+    def test_rejected_response_classification_contains_no_payload(self):
+        samples=((b'{"token":"hidden"}',"json_like"),
+                 (b"<?xml version='1.0'?>","xml_like"),
+                 (bytes.fromhex("1f8b0800"),"gzip_encoded"),
+                 (b"unexpected private body","other"))
+        for raw,expected in samples:
+            with self.subTest(expected=expected),tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:raw)
+                self.assertEqual(result["failure_stage"],"html_signature")
+                self.assertEqual(result["response_format_category"],expected)
+                self.assertFalse(result["forecast_usable"])
+                self.assertFalse(list(Path(root).rglob("beforeinfo.html")))
+                self.assertNotIn("hidden",str(result))
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
