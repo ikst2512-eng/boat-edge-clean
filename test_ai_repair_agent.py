@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 from ai_repair_agent import apply, parse_patches, propose, select_source_context
 import json
+from urllib.error import HTTPError
 
 
 class RepairAgentTests(unittest.TestCase):
@@ -104,6 +105,15 @@ class RepairAgentTests(unittest.TestCase):
         self.assertIn("HEADER_MARKER", context)
         self.assertIn("TAIL_MARKER", context)
         self.assertLessEqual(len(context), 35000)
+
+    def test_api_429_reports_billing_or_rate_limit_without_leaking(self):
+        def rate_limited(request, timeout):
+            raise HTTPError(request.full_url, 429, "Too Many Requests", {}, None)
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory)/"navigation.js").write_text("unchanged")
+            with self.assertRaisesRegex(RuntimeError, "credits, billing and rate limits"):
+                propose("navigation fails", directory, "fake-key", "mock", rate_limited)
+            self.assertEqual((Path(directory)/"navigation.js").read_text(), "unchanged")
 
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
