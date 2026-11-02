@@ -12,6 +12,8 @@ on:
       - test_clean_four_mode_capture_e2e.py
       - test_clean_four_modes.py
       - test_four_mode_receipts.py
+      - four_mode_raw_receipt.py
+      - test_four_mode_raw_receipt.py
       - scripts/verify_four_mode_new_receipts.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
@@ -35,7 +37,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
