@@ -243,7 +243,10 @@ _HOLDOUT_TTL_SECONDS = 900
 def _compute_holdout_status():
     from compare_topn_signal70_days import report
     dates = sorted({p.stem[:8] for p in (ROOT / "prospective_predictions").glob("20??????????.json")})
-    data = report(dates) if dates else {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
+    # This endpoint reports *later* holdouts only; auditing discovery and
+    # earlier exploratory races cannot affect its response.
+    holdout_dates = [day for day in dates if day > "20261029"]
+    data = report(holdout_dates) if holdout_dates else {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
     return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
             "later_holdout_days": data["later_holdout_days"],
             "evaluated_holdout_races": data["later_holdout_evaluated_races"],
