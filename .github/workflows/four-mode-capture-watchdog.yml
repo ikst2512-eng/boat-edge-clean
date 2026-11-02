@@ -49,10 +49,15 @@ jobs:
           now=datetime.now(timezone.utc)
           recent=[r for r in publication
                   if (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds()<27*60]
+          # A recent failed capture must not suppress recovery for 27 minutes.
+          # Any successful, running or queued capture suppresses dispatch.
+          healthy=[r for r in recent if r["status"]!="completed" or r["conclusion"]=="success"]
           report={"recent_publication_runs":len(recent),
+                  "recent_failed_runs":len(recent)-len(healthy),
+                  "recent_healthy_or_active_runs":len(healthy),
                   "newest":publication[0]["created_at"] if publication else None,
                   "dry_run":os.environ["EVENT_NAME"]=="pull_request"}
-          if not recent and os.environ["EVENT_NAME"]!="pull_request":
+          if not healthy and os.environ["EVENT_NAME"]!="pull_request":
               # Best-effort repair, never assume dispatch implies successful publication.
               body=json.dumps({"ref":"main"}).encode()
               req=urllib.request.Request(root+"/dispatches",data=body,headers={
