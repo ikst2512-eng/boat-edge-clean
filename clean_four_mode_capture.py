@@ -190,3 +190,7 @@ if __name__=="__main__":
         result={"new_saved":[],"source_pending":type(exc).__name__,"retryable":True}
     publish_status(result)
     print(json.dumps(result,ensure_ascii=False))
+    # Preserve the status artifact and diagnostics, but do not report a
+    # failed source acquisition to Actions as a successful collection.
+    if result.get("source_status", result.get("source_pending")) not in ("available",):
+        raise SystemExit(2)
