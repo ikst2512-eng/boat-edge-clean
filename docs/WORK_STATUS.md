@@ -970,3 +970,9 @@
 - GitHub Actions `event=workflow_dispatch` の取得可能履歴に `AI operations optional diagnostics` の実行は0件。実API分析成功は依然未検証。利用可能なGitHub連携には新規workflow_dispatch起動操作がなく、この作業ではAPI実行していない。
 - `.github/workflows/ai-operations-diagnostics.yml` の実行サマリーでstatus/reviewを表示するMarkdownバッククォートがバックスラッシュ付きで表示され得る点を修正。PR #1038 CI `41452441009` completed/success、main `872e6aec6fdb25e1a6a5f9465aada7e67c88216f`。
 - 実APIを確認するにはGitHub Actions `AI operations optional diagnostics` のRun workflowから `race_code=202610280101` を指定して手動起動し、`ai_diagnostics_report.json` のstatus/evidence_reviewを確認する必要がある。4モードや予想ロジックは不変更、正式的中率改善の証拠にはしない。
+
+
+## 2026-11-02 Gemini生成終了状態の監査強化（PR #1041）
+- GitHub Actions `workflow_dispatch` 履歴では `AI operations optional diagnostics` の実API分析runは引き続き0件。既存モデル名 `gemini-3.5-flash-lite` はGoogle公式モデル資料で有効なモデル名と確認したが、当該キーでのAPIアクセス成功は未確認。
+- `ai_diagnostics.extract_text` で Gemini `finishReason=STOP` を必須化。テキストがあっても MAX_TOKENS、SAFETY、finishReason欠損は分析成功扱いしない。模擬レスポンスと回帰テスト更新。
+- PR #1041 AI operations optional diagnostics CI `41453095723` completed/success、main squash `04e10368827bae073a0681e4c5065ff8cabf02de`。実Gemini APIはこのCIで呼んでいない。4モード・買い目・正式的中率を不変更。
