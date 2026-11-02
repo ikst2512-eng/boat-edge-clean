@@ -56,6 +56,16 @@ class ArchiveApiTests(unittest.TestCase):
         self.save(data)
         self.assertEqual(archived_four_modes(self.code, self.root)[0], 422)
 
+    def test_rejects_invalid_probability_without_changing_four_modes(self):
+        for bad in (float("nan"), float("inf"), -1, 101, True):
+            with self.subTest(probability=repr(bad)):
+                data = sample(self.code)
+                data["modes"]["hit"]["tickets"][0]["p"] = bad
+                self.save(data)
+                status, body = archived_four_modes(self.code, self.root)
+                self.assertEqual(status, 422)
+                self.assertEqual(body["status"], "invalid_archive")
+
     def test_invalid_race_key(self):
         self.assertEqual(archived_four_modes("../etc/passwd", self.root)[0], 422)
 

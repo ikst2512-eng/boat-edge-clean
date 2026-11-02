@@ -39,16 +39,43 @@ def inspect(path, root=ROOT):
     times=[datetime.fromisoformat(obj[k]) for k in ("source_title_received_jst","source_cards_received_jst")]
     if any(v.utcoffset()!=timedelta(hours=9) for v in [deadline,cutoff,generated,*times]):
         raise ValueError("non-JST timestamp")
-    if deadline-cutoff!=timedelta(minutes=12) or max([generated,*times])>=cutoff or first_committer_at>=cutoff:
-        raise ValueError("first Git commit not before prospective cutoff")
+    if deadline-cutoff!=timedelta(minutes=12):
+        raise ValueError("cutoff_interval_not_12_minutes")
+    if deadline.strftime("%Y%m%d")!=code[:8]:
+        raise ValueError("race_date_deadline_mismatch")
+    if max(times)>generated:
+        raise ValueError("source_receipt_after_generation")
+    if max([generated,*times])>=cutoff:
+        raise ValueError("generation_or_receipt_after_cutoff")
+    if first_committer_at.utcoffset() is None:
+        raise ValueError("first_commit_missing_timezone")
+    if first_committer_at<generated:
+        raise ValueError("first_commit_before_generation")
+    if first_committer_at>=cutoff:
+        raise ValueError("first_commit_after_cutoff")
     return {"race_code":code,"first_add_sha":sha,
             "first_committer_at":first_committer_at.isoformat(),
             "candidate_unchanged":True,"git_commit_before_cutoff":True,
             "remote_first_seen_verified":False,"formal":False,"scoring":False}
+
+def batch_audit(paths, inspector=inspect):
+    passed, rejected = [], []
+    for path in paths:
+        try:
+            passed.append(inspector(path))
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            rejected.append({"path":path, "reason":str(exc)[:200]})
+    return {"schema":"CLEAN_FIRST_ADD_BATCH_AUDIT_V1", "passed":passed,
+            "rejected":rejected, "counts":{"passed":len(passed),"rejected":len(rejected)},
+            "formal":False}
+
 
 if __name__=="__main__":
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("paths",nargs="+")
     args=p.parse_args()
-    print(json.dumps([inspect(f) for f in args.paths],ensure_ascii=False))
+    result=batch_audit(args.paths)
+    print(json.dumps(result,ensure_ascii=False))
+    if result["rejected"]:
+        raise SystemExit(1)  # Preserve fail-closed CI until rejections are reconciled.

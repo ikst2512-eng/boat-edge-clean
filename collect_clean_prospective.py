@@ -31,7 +31,8 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
         try:
             deadline = datetime.strptime(day + row["電話投票締切予定"], "%Y%m%d%H:%M").replace(tzinfo=JST)
             cutoff = deadline - timedelta(minutes=12)
-            if max(now, title_received, cards_received) >= cutoff:
+            if (max(title_received, cards_received) > now
+                    or max(now, title_received, cards_received) >= cutoff):
                 continue
             rates = [float(by_card[code][f"艇{i}_全国勝率"]) for i in range(1,7)]
             outcomes = probabilities(rates)
@@ -60,7 +61,9 @@ def collect(day=None):
     titles,t1,h1=read_rows(BASE+"title/"+path)
     cards,t2,h2=read_rows(BASE+"race_cards/"+path)
     provenance=model_provenance()
-    output=build(day,titles,cards,t1,t2,h1,h2,now,provenance)
+    # Generated timestamp must follow receipt of both sources, never the initial fetch clock.
+    generated_at = datetime.now(JST)
+    output=build(day,titles,cards,t1,t2,h1,h2,generated_at,provenance)
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)

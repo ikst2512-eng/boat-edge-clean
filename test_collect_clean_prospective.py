@@ -15,6 +15,15 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(len(r["predictions"]),10)
         late=build("20261028",title,card,now,now,"a"*64,"b"*64,datetime(2026,10,28,13,49,tzinfo=JST),{})
         self.assertEqual(late,{})
+    def test_receipt_after_generation_never_becomes_prospective(self):
+        now=datetime(2026,10,28,10,0,tzinfo=JST)
+        later=now+timedelta(milliseconds=300)
+        title=[{"レースコード":"202610281201","電話投票締切予定":"14:00"}]
+        card=[{"レースコード":"202610281201",**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        self.assertEqual(build("20261028",title,card,later,later,"a"*64,"b"*64,now,{}),{})
+        valid=build("20261028",title,card,now,now,"a"*64,"b"*64,later,{})
+        self.assertEqual(valid["202610281201"]["generated_at"],later.isoformat())
+
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
         row={"レースコード":"202610281201","電話投票締切予定":"14:00"}
