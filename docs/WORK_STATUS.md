@@ -812,3 +812,12 @@
 - Geminiへの指示で、券種の構造的取りこぼし分類と実際の逃げ/差し/ST/展示要因を区別。未検証のまま正式的中率や予想ロジックを変更しない。
 - PR #962 の AI operations optional diagnostics Actions run `41433384008` completed/success、main squash `475e6d51eaac8b28e247b76b36adac472c705026`。
 - Gemini実APIへの手動送信、実レース1件の分析結果とRender動作、予想精度向上は未検証。次は実保存例の監査・公開前原本時刻証拠と照合し、手動解析結果の妥当性を評価。
+
+
+## 2026-11-02 実保存レースを用いたGemini研究入力の検証（PR #964）
+- 既存原本 `four_mode_forecasts/202610280101.json` と `confirmed_results/202610280101.json` を確認。確定結果は `4-1-3`。保存原本の `generated_at_jst` はファイル内の自己申告日時であり、独立したリモート初回保存証拠とは扱わない。
+- `test_ai_diagnostics.py` に実保存レース固定テストを追加。本命/バランス/穴/絞り4モード、予想の取りこぼし分類、`formal_hit_rate_allowed=false`、`remote_first_seen_verified=false` を検査。
+- 手動 `--race-code` 指定時にGeminiへ渡す研究比較部分を `ai_frozen_race_case.json` として出力。既存手動GitHub Actionsの90日間artifactにこのファイルを追加。自動API実行や予想ロジック書き換えは行わない。
+- PR #964 の AI operations optional diagnostics CI run `41434090900` は completed/success。main squash `55c34045e53036e10026b3eb3aa4b1ca3128560d`。
+- 本CIは模擬Gemini応答と実保存原本のオフライン検証。Gemini実APIによる分析成功・出力内容の妥当性・精度改善・Render本番挙動の証明ではない。
+- 次: 手動Gemini runの実証と保存artifactの再監査、予想時点の独立初回保存証拠との結合、外れ原因仮説の時系列holdout検証。
