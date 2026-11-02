@@ -1,0 +1,89 @@
+name: Reusable official joint T12 evidence (research only)
+on:
+  pull_request:
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml']
+  workflow_dispatch:
+    inputs:
+      race_code:
+        description: 'YYYYMMDDJJRR (official race identity)'
+        required: true
+        type: string
+      attempts:
+        description: '1-3 independent source pairs'
+        required: true
+        default: '2'
+        type: choice
+        options: ['1','2','3']
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Observe and audit immutable source pairs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          RACE_CODE: ${{ inputs.race_code }}
+          ATTEMPTS: ${{ inputs.attempts }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,re,time
+          from pathlib import Path
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          from scripts.audit_joint_official_receipts import audit_pair
+          race=os.environ['RACE_CODE']
+          jst=datetime.timezone(datetime.timedelta(hours=9))
+          if not re.fullmatch(r'20\d{10}',race) or race[:8]!=datetime.datetime.now(jst).strftime('%Y%m%d'):
+              raise SystemExit('Only an actual race on the current JST date is permitted')
+          attempts=int(os.environ['ATTEMPTS'])
+          if attempts not in (1,2,3):
+              raise SystemExit('Invalid attempt count')
+          Path('reports').mkdir()
+          for i in range(1,attempts+1):
+              identifier=os.environ['GITHUB_RUN_ID']+'_'+str(i)
+              a=before(race,'evidence','before'+identifier)
+              Path(f'reports/before_{i}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
+              if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
+                  raise SystemExit('Verified official race deadline unavailable')
+              deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
+              cutoff=deadline-datetime.timedelta(minutes=12)
+              if datetime.datetime.fromisoformat(a['received_at_jst'])>cutoff:
+                  print('PAST_T12',a['received_at_jst'],cutoff.isoformat())
+                  break
+              b=odds(race,deadline.isoformat(),'evidence','odds'+identifier)
+              Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
+              if b.get('status')!='official_odds_observed_research_only':
+                  print('ODDS_FAILED',b.get('error'))
+                  break
+              pa=Path('evidence/observations')/('before'+identifier)/race[:8]/race
+              pb=Path('evidence/observations')/('odds'+identifier)/race[:8]/race
+              result=audit_pair(pa,pb)
+              result['attempt']=i
+              Path(f'reports/joint_{i}.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+              print('JOINT',json.dumps(result,ensure_ascii=False))
+              if result['both_complete_before_t12']:
+                  break
+              if i<attempts and datetime.datetime.now(jst)+datetime.timedelta(seconds=85)<cutoff:
+                  time.sleep(60)
+              else:
+                  break
+          PY
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        with:
+          name: official-joint-${{ github.run_id }}
+          path: |
+            evidence/
+            reports/
+          retention-days: 14
+      - name: Regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
+          python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
+          python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
