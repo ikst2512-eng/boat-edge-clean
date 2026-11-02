@@ -880,3 +880,10 @@
 - 失敗run `41377556221`（2026-11-02T02:24:27Z）では test success / capture failure。失敗ステップ `Stage only immutable new forecasts and check receipt window`、ログの具体エラーは `ValueError: source_receipt_out_of_order`。原因不明のままデータ採用基準を緩和しない。
 - watchdogの別系列push失敗runはジョブ0件で、その原因をcapture失敗と混同しない。watchdogのschedule動作・Gemini手動実API実行の成功は依然未検証。
 - 注意: 新規Git追加・pushのログは正式な締切前remote-first-seen監査および的中率改善の証明ではない。既存4モード・予想ロジックは不変更。
+
+
+## 2026-11-02 4モード収集受信時刻JST厳格化（PR #995）
+- 過去schedule run `41377556221` の `source_receipt_out_of_order` と成功run `41396587415` を調査。現行収集器は生成時刻が取得時刻より古い候補を明示的に拒否済みで、基準の緩和は不要。
+- 検証器 `scripts/verify_four_mode_new_receipts.py` の元データ受信・生成・締切時刻について、時差ありであれば可としていた点をJST +09:00必須に厳格化。UTC表記の等価時刻を拒否する回帰テスト追加。
+- PR #995 Four-mode prospective capture CI `41439460878` completed/success、main squash `8559c075799365f5a40544cd4697918f6a283c58`。
+- これは入力時刻の検証強化。締切前の遠隔初回保存証明、監視scheduleの継続稼働、予想精度向上、Gemini実API稼働を意味しない。4モードと買い目は不変更。
