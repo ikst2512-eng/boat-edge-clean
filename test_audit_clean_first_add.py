@@ -59,6 +59,18 @@ class FirstAddAuditTests(unittest.TestCase):
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T09:59:30+09:00"))):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
+    def test_batch_reports_all_rejections_without_hiding_valid_records(self):
+        def inspector(path):
+            if path.endswith("01.json"):
+                raise ValueError("invalid source chronology")
+            return {"race_code":"202610281202","formal":False}
+        result=audit.batch_audit(
+            ["prospective_predictions/202610281201.json",
+             "prospective_predictions/202610281202.json"],inspector=inspector)
+        self.assertEqual(result["counts"],{"passed":1,"rejected":1})
+        self.assertEqual(result["rejected"][0]["reason"],"invalid source chronology")
+        self.assertEqual(result["passed"][0]["race_code"],"202610281202")
+        self.assertFalse(result["formal"])
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
