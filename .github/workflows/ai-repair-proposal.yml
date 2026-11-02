@@ -150,7 +150,8 @@ jobs:
           # Some repositories disable PR creation by GitHub Actions even with
           # pull-requests:write. Keep the reviewed patch branch available.
           if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."; then
-            echo "AI draft PR created"\n            echo "### Review-ready draft PR created" >> "$GITHUB_STEP_SUMMARY"
+            echo "AI draft PR created"
+            echo "### Review-ready draft PR created" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::AI branch pushed but draft PR creation is restricted. Open a draft PR manually or grant Actions PR creation permission."
             echo "### AI patch created; PR creation blocked by repository permission" >> "$GITHUB_STEP_SUMMARY"
