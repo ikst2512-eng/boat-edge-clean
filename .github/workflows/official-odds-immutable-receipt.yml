@@ -1,0 +1,18 @@
+name: Official odds immutable receipt regression
+on:
+  pull_request:
+    paths:
+      - scripts/capture_official_odds_receipt.py
+      - tests/test_capture_official_odds_receipt.py
+      - .github/workflows/official-odds-immutable-receipt.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
