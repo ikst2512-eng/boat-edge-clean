@@ -1,5 +1,5 @@
 name: Official racelist raw source observation (research only)
-# PR diagnosis: retain source failure classification; never certify forecast use.
+# PR diagnosis: fingerprint rejected bytes without logging response body.
 on:
   # One-off evidence observation: this workflow file's first merge on 2026-11-03.
   # The in-job JST date gate rejects all other calendar dates.
