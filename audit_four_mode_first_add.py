@@ -56,8 +56,14 @@ def inspect(path, root=ROOT):
         raise ValueError("invalid_source_timezone")
     if max(receipts) > generated:
         raise ValueError("source_receipt_after_generation")
-    if not (generated <= committed < deadline):
-        raise ValueError("git_first_add_not_before_deadline")
+    if committed >= deadline:
+        raise ValueError("git_first_add_after_deadline")
+    if committed < generated:
+        # Git commit timestamps only have whole-second precision. An archive
+        # generated within the same second cannot establish ordering here.
+        if committed.replace(microsecond=0) == generated.replace(microsecond=0):
+            raise ValueError("git_commit_generation_same_second_ambiguous")
+        raise ValueError("git_commit_before_generation")
     return {"race_code": match.group(1), "modes": list(MODES),
             "git_first_add_sha": sha, "git_committer_before_deadline": True,
             "archive_unchanged": True, "remote_first_seen_verified": False,
