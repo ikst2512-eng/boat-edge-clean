@@ -68,6 +68,39 @@ def research_hole_candidates(prob_rows, count=12):
             "estimated_coverage_pct":round(sum(p for _,p in selected)*100,2)}
 
 
+
+def compare_hole_candidates(prob_rows, official_odds=None, confirmed_finish=None):
+    """Research-only single-race comparison; no fabricated odds or results.
+
+    An externally verified source must supply odds/finish; this function
+    never collects data or alters saved forecasts.
+    """
+    legacy=rank_modes(prob_rows)["hole"]["tickets"]
+    moderate=research_hole_candidates(prob_rows)["tickets"]
+    if official_odds is not None:
+        if (not isinstance(official_odds,dict) or len(official_odds)!=120 or
+                any(type(v) not in (int,float) or not __import__("math").isfinite(v)
+                    or v<1 or v>1000000 for v in official_odds.values())):
+            raise ValueError("unverified_odds_board")
+        expected={"-".join(map(str,t)) for t,_ in prob_rows}
+        if set(official_odds)!=expected:
+            raise ValueError("unverified_odds_board")
+    if confirmed_finish is not None and confirmed_finish not in {"-".join(map(str,t)) for t,_ in prob_rows}:
+        raise ValueError("invalid_confirmed_finish")
+    def summarize(tickets):
+        combos={t["combo"] for t in tickets}
+        odds=[official_odds[t] for t in combos] if official_odds is not None else None
+        return {"ticket_count":len(combos),
+                "estimated_coverage_pct":round(sum(t["p"] for t in tickets),5),
+                "official_odds_range":([min(odds),max(odds)] if odds is not None else None),
+                "hit":(confirmed_finish in combos if confirmed_finish is not None else None)}
+    return {"research_only":True,"historical_formal_evidence":False,
+            "odds_verified":official_odds is not None,
+            "result_verified":confirmed_finish is not None,
+            "legacy_extreme":summarize(legacy),
+            "moderate_candidate":summarize(moderate)}
+
+
 def ticket_order_audit(modes):
     """Audit the agreed count contract without altering archived predictions."""
     names=("narrow","hit","balance","hole")
