@@ -1,5 +1,6 @@
 """Immutable historical four-mode forecast reader; never generates post-race picks."""
 import json
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -43,7 +44,8 @@ def archived_four_modes(code, root=ROOT):
             picks = []
             for row in rows:
                 ticket = row["combo"]
-                if not valid_ticket(ticket) or not isinstance(row.get("p"), (int, float)):
+                if (not valid_ticket(ticket) or type(row.get("p")) not in (int, float)
+                        or not math.isfinite(row["p"]) or not 0 <= row["p"] <= 100):
                     raise ValueError("invalid_ticket")
                 picks.append({"combo": ticket, "p": row["p"]})
             if len(set(x["combo"] for x in picks)) != len(picks):
