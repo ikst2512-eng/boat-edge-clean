@@ -80,8 +80,24 @@ def analyze(report, api_key=None, model=None, transport=urlopen):
         if exc.code == 429:
             raise RuntimeError("Gemini quota exhausted; no changes made") from None
         raise RuntimeError(f"Gemini API HTTP {exc.code}; no changes made") from None
+    analysis = extract_text(payload)
+    reported_model = payload.get("modelVersion")
+    if reported_model is not None and (not isinstance(reported_model, str)
+                                       or len(reported_model) > 120):
+        raise ValueError("invalid_response_model_version")
+    usage = payload.get("usageMetadata", {})
+    if not isinstance(usage, dict):
+        raise ValueError("invalid_response_usage")
+    tokens = {}
+    for name in ("promptTokenCount", "candidatesTokenCount", "totalTokenCount"):
+        value = usage.get(name)
+        if value is not None:
+            if type(value) is not int or not 0 <= value <= 10000000:
+                raise ValueError("invalid_response_token_count")
+            tokens[name] = value
     return {"status": "analysis_proposed", "model": model,
-            "analysis": extract_text(payload),
+            "response_model_version": reported_model,
+            "token_usage": tokens, "analysis": analysis,
             "production_change_allowed": False}
 
 
