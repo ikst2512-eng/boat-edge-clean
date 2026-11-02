@@ -958,3 +958,9 @@
 - AI operations optional diagnostics run のPRテスト成功は Gemini実API分析を意味しない。取得可能な最新実行履歴では当該workflowの手動API成功は確認できず、AIによるTop3/5/10的中率改善は未実証。
 - `.github/workflows/ai-operations-diagnostics.yml` のGITHUB_STEP_SUMMARY出力が改行ではなく文字列 `\\n` を表示していた点を修正。API分析statusとevidence_reviewを別行で表示する。PR #1033 AI operations optional diagnostics run `41450364220` completed/success、main squash `e5215a585f9ae3ec491b110d8b1f93afd0c68fc7`。
 - PR上のCIはオフライン検証。Gemini実APIは手動workflow_dispatchが必要で、この回は未実行。4モード、買い目、研究モデル、正式実績の区別を維持。
+
+
+## 2026-11-02 Gemini保存済み実レースのCLI統合回帰（PR #1035）
+- 取得できるworkflow_dispatch履歴には `AI operations optional diagnostics` の実API成功runがなく、Gemini実サービスによる予想分析の成功は未確認。CI上のモック成功と明確に区別。
+- 保存済み桐生1R `202610280101` を対象に `ai_diagnostics.main` のCLI全経路をモックGeminiレスポンスで通し、比較ケース保存・入力SHA256・AI診断レポート生成・手動監査必須・正式的中率および本番自動変更禁止を回帰テストに追加。
+- PR #1035 AI operations optional diagnostics run `41450912465` completed/success、main squash `28c00f5021312af578047ebc03414ab09fad8ebf`。予想ロジック・4モード変更なし。次は実API手動runと出力証拠の検査が必要。
