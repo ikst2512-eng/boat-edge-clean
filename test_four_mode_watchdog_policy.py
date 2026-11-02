@@ -28,6 +28,12 @@ class WatchdogPolicyTests(unittest.TestCase):
         from datetime import timedelta
         self.assertFalse(should_dispatch([],self.now-timedelta(hours=3),"schedule"))
         self.assertFalse(should_dispatch([],self.now+timedelta(hours=12),"schedule"))
+    def test_default_watchdog_policy_still_uses_original_windows(self):
+        self.assertFalse(should_dispatch([run(15,conclusion="success")],self.now,"schedule"))
+        self.assertFalse(should_dispatch([run(15,event="workflow_dispatch")],self.now,"schedule"))
+        self.assertTrue(should_dispatch([run(15,conclusion="success")],self.now,"render_cron",
+                                        recent_minutes=14,cooldown_minutes=14))
+
     def test_timezone_required(self):
         with self.assertRaises(ValueError):
             should_dispatch([],self.now.replace(tzinfo=None),"schedule")
