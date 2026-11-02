@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-03T04:03:47.461873+09:00",
+  "checked_at_jst": "2026-11-03T04:20:04.759973+09:00",
   "days": [
     {
       "day": "20261102",
@@ -18,6 +18,10 @@
       "status": "waiting_for_published_source"
     }
   ],
+  "historical_retries": {
+    "days": [],
+    "status": "not_hourly_window"
+  },
   "overdue_race_codes": [
     "202610280112",
     "202610280306",
