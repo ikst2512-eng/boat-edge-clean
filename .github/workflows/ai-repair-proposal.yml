@@ -143,8 +143,9 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- index.html navigation.js secondary_navigation.js
           git commit -m "AI: propose narrow UI repair for review"
+          # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
-          git push origin "HEAD:$branch"
+          git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
           gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."
       - name: Archive proposal
         if: always()
