@@ -282,6 +282,33 @@ jobs:
         if: always()
         run: |
           python audit_four_mode_raw_receipts.py four-mode-evidence/raw-sources
+      - name: Report race-level forecast and preserved-source hashes
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from link_four_mode_raw_forecast import link_forecast
+          root = Path(".")
+          receipts = Path("four-mode-evidence/raw-sources")
+          forecasts = sorted((root / "four_mode_forecasts").glob("20??????????.json"))
+          # Only today's capture cohort, not earlier archives from checkout.
+          from datetime import datetime, timedelta, timezone
+          today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
+          rows = [link_forecast(path.stem, root, receipts) for path in forecasts
+                  if path.stem.startswith(today)]
+          matched = sum(row["status"] == "both_hashes_present" for row in rows)
+          output = {"schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V1",
+                    "day_jst": today, "checked": len(rows), "hashes_present": matched,
+                    "formal": False, "remote_first_seen_verified": False,
+                    "rows": rows}
+          destination = Path("four-mode-evidence/source-links.json")
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          destination.write_text(json.dumps(output, ensure_ascii=False, sort_keys=True)
+                                 + "\\n", encoding="utf-8")
+          print("FOUR_MODE_SOURCE_LINKS=" + json.dumps(
+              {"checked": len(rows), "hashes_present": matched, "formal": False}))
+          PY
       - name: Preserve capture log and structured source status
         if: always()
         uses: actions/upload-artifact@v4
@@ -293,6 +320,7 @@ jobs:
             four-mode-evidence/staging.json
             four-mode-evidence/publication.json
             four-mode-evidence/stages.json
+            four-mode-evidence/source-links.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
