@@ -109,6 +109,37 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(run(token="test-only",now=NOW,request=request)["action"],"no_dispatch")
         self.assertEqual(len(calls),2)
 
+    def test_github_run_history_http_failure_cannot_dispatch(self):
+        from urllib.error import HTTPError
+        calls=[]
+        def request(req, timeout):
+            calls.append(req.get_method())
+            raise HTTPError(req.full_url, 503, "temporary unavailable", {}, None)
+        with self.assertRaises(HTTPError):
+            run(token="test-only",now=NOW,request=request)
+        self.assertEqual(calls,["GET"])
+
+    def test_missing_workflow_runs_cannot_dispatch(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req.get_method())
+            return Response(b'{"total_count":0}')
+        with self.assertRaises(KeyError):
+            run(token="test-only",now=NOW,request=request)
+        self.assertEqual(calls,["GET"])
+
+    def test_running_capture_older_than_cooldown_does_not_duplicate(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req.get_method())
+            record={"created_at":(NOW-timedelta(minutes=25)).isoformat(),
+                    "status":"in_progress","conclusion":None,"event":"schedule"}
+            return Response(json.dumps({"workflow_runs":[record]}).encode()
+                            if "event=schedule" in req.full_url else b'{"workflow_runs":[]}')
+        result=run(token="test-only",now=NOW,request=request)
+        self.assertEqual(result["action"],"no_dispatch")
+        self.assertEqual(calls,["GET","GET"])
+
     def test_outside_hours_does_not_dispatch(self):
         def request(req, timeout):
             self.fail("Off-hours job must not call GitHub API")
