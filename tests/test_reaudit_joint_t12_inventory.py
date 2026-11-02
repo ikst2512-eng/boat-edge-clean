@@ -52,8 +52,9 @@ class InventoryReauditTests(unittest.TestCase):
 
     def test_corrupt_zip_does_not_abort_other_artifacts(self):
         data = {"repo":"test/repo","pagination_may_be_truncated":False,
-                "real_dispatch_runs_seen":1,
-                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77,78]}]}
+                "real_dispatch_runs_seen":2,
+                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77]},
+                        {"run_id":124,"matching_unexpired_artifact_ids":[78]}]}
         def auditor(raw, run):
             if raw == b"corrupt":
                 raise BadZipFile("broken archive")
