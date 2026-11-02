@@ -89,7 +89,7 @@ def select_source_context(source, issue, budget=35000):
 
 def propose(issue, root, api_key, model, transport=urlopen):
     if not api_key:
-        return {"status": "disabled", "reason": "OPENAI_API_KEY_missing"}
+        return {"status": "disabled", "reason": "GEMINI_API_KEY_missing"}
     if not issue or len(issue) > 1200:
         raise ValueError("invalid_issue")
     snippets = {}
@@ -99,23 +99,31 @@ def propose(issue, root, api_key, model, transport=urlopen):
             # Keep context/cost bounded, don't leak private data or repository secrets.
             source = target.read_text(encoding="utf-8")
             snippets[name] = select_source_context(source, issue)
-    req_body = {"model": model, "instructions": PROMPT,
-                "input": json.dumps({"issue": issue, "sources": snippets}, ensure_ascii=False),
-                "max_output_tokens": 3500, "store": False,
-                "text": {"format": {"type": "json_object"}}}
-    request = Request(API, data=json.dumps(req_body).encode(), method="POST",
-                      headers={"Content-Type": "application/json", "Authorization": "Bearer "+api_key})
+    # Gemini free-tier endpoint: no OpenAI billing or OpenAI key involved.
+    # Keep credentials in request headers, never URL/query/logs.
+    req_body = {"system_instruction":{"parts":[{"text":PROMPT}]},
+                "contents":[{"role":"user","parts":[{"text":json.dumps(
+                    {"issue":issue,"sources":snippets},ensure_ascii=False)}]}],
+                "generationConfig":{"responseMimeType":"application/json",
+                                    "maxOutputTokens":3500,"temperature":0.1}}
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"
+    request = Request(endpoint, data=json.dumps(req_body).encode(), method="POST",
+                      headers={"Content-Type":"application/json","x-goog-api-key":api_key})
     try:
         with transport(request, timeout=45) as handle:
             result = json.loads(handle.read(300000))
     except HTTPError as exc:
-        # Never print API keys, headers, or untrusted response bodies.
         if exc.code == 429:
-            raise RuntimeError("OpenAI API returned HTTP 429: check project API credits, billing and rate limits. No code was changed.") from None
-        if exc.code in (401, 403):
-            raise RuntimeError("OpenAI API authorization failed: verify the secret and project permissions. No code was changed.") from None
-        raise RuntimeError(f"OpenAI API HTTP {exc.code}: no code was changed.") from None
-    proposal = json.loads(output_text(result))
+            raise RuntimeError("Gemini free-tier quota or rate limit reached (HTTP 429). No code changed.") from None
+        if exc.code in (401,403):
+            raise RuntimeError("Gemini API key or project authorization failed. No code changed.") from None
+        raise RuntimeError(f"Gemini API HTTP {exc.code}: no code changed.") from None
+    try:
+        candidate = result["candidates"][0]
+        parts = candidate["content"]["parts"]
+        proposal = json.loads("".join(part["text"] for part in parts if "text" in part))
+    except (KeyError,IndexError,TypeError,ValueError) as exc:
+        raise ValueError("invalid_gemini_response") from exc
     patches = parse_patches(proposal)
     changed = apply(root, patches) if patches else []
     return {"status": "proposed" if changed else "no_safe_patch",
@@ -129,8 +137,8 @@ def main():
     parser.add_argument("--issue", required=True)
     parser.add_argument("--output", default="ai_repair_proposal.json")
     args = parser.parse_args()
-    result = propose(args.issue, Path("."), os.getenv("OPENAI_API_KEY"),
-                     os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+    result = propose(args.issue, Path("."), os.getenv("GEMINI_API_KEY"),
+                     os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"))
     Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2)+"\n")
     print(result["status"], result.get("changed_files", []))
 

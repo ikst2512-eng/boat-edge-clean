@@ -73,26 +73,26 @@ jobs:
       - name: Skip scheduled AI request when key is absent
         if: github.event_name == 'schedule'
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "::warning::Regression detected, but OPENAI_API_KEY is missing; cannot create AI repair proposal."
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::Regression detected, but GEMINI_API_KEY is missing; cannot create AI repair proposal."
             exit 1
           fi
       - name: Require configured AI credential
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         shell: bash
         run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "::error::OPENAI_API_KEY is not configured in GitHub Actions secrets. No AI request was made."
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY is not configured in GitHub Actions secrets. No AI request was made."
             exit 1
           fi
-          echo "OpenAI API credential is present (value is never printed)."
+          echo "Gemini API credential is present (value is never printed)."
       - name: Request a small AI UI repair (optional API)
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-4.1-mini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-flash-lite
           AI_ISSUE: ${{ github.event_name == 'schedule' && needs.tests.outputs.regression_issue || inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
       - name: Validate untrusted AI patch without write token
