@@ -23,9 +23,8 @@ class OfficialJSONCaptureTests(unittest.TestCase):
             self.assertFalse(out["t12_eligible"])
             saved=Path(root)/"observations/attempt1/20261102/202611021511"
             self.assertEqual((saved/"beforeinfo.json").read_bytes(),payload())
-            again=capture("202611021511",root,"attempt1",fetch=lambda url:payload())
-            self.assertEqual(again["status"],"official_json_probe_failed")
-            self.assertEqual(again["error"],"FileExistsError")
+            with self.assertRaises(FileExistsError):
+                capture("202611021511",root,"attempt1",fetch=lambda url:payload())
             self.assertEqual((saved/"beforeinfo.json").read_bytes(),payload())
 
     def test_invalid_source_identity_not_archived(self):
