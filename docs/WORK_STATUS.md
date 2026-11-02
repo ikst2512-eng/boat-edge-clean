@@ -843,3 +843,11 @@
 - 手動診断失敗時も既存JSONを基に Actions summary で `API analysis status` と `Evidence review status` を明示するステップを追加。CI成功とGemini実API実行を混同しない。
 - PR #976 Actions run `41435415754` completed/success、main squash `0f1dfa4b5660113a792c15980725175b015b9464`。自動API実行なし、予想原本・モデル・4モード変更なし。
 - Gemini手動実APIの分析と結果内容、的中率向上、本番Render表示は未検証。次は手動dispatchの実行とartifactの取得・検査。
+
+
+## 2026-11-02 Gemini手動実API検証の接続制約と失敗証拠保全（PR #978）
+- GitHub接続はActionsの読み取り・一部再実行は可能だがworkflow_dispatch新規起動アクションを提供していない。実APIの新規手動実行を本ターンで開始したとは主張しない。
+- 取得した直近100件のActionsにはGemini診断のPR検証はあったが手動 `workflow_dispatch` は見つからなかった。過去全件を網羅する不在証明ではない。
+- `ai_diagnostics.py` でGemini HTTP失敗・レスポンス不正等の例外時、機密情報や生のエラー文字列を保存せず `status=api_error` と例外種類、証拠審査禁止状態を診断JSONへ保存してから手動実行を失敗扱いする。
+- PR #978 CI run `41435673089` completed/success、main squash `ecf11c81ad455e33a8f348c1cd5bfbb457f3e4e6`。4モード・予想原本・モデル・API自動実行設定は不変更。
+- Gemini実API分析成功・分析の正確性・正式的中率向上は未検証。次: GitHub Actionsから `AI operations optional diagnostics` を手動で `race_code=202610280101` で起動し、artifact の `ai_diagnostics_report.json` と実行summaryを確認（APIキー設定済みであることが前提）。
