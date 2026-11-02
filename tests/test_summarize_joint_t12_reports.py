@@ -20,7 +20,7 @@ class T12SummaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             forged = {"race_code":"202611031501","attempt":1,"both_complete_before_t12":True}
-            late = {**valid_proof(), "race_code":"202611031502","attempt":1,
+            late = {**valid_proof(), "race_code":"202611031502","attempt":2,
                     "odds_received_jst":"2026-11-03T13:48:00.000001+09:00"}
             for i, record in enumerate((forged, late), 1):
                 (root / f"joint_{i}.json").write_text(json.dumps(record))
@@ -34,7 +34,7 @@ class T12SummaryTests(unittest.TestCase):
             samples = [
                 ("joint_1.json", {"race_code":"202611031501","attempt":1,"both_complete_before_t12":False,"failure_category":"transport"}),
                 ("joint_2.json", {"race_code":"202611031501","attempt":2,**valid_proof()}),
-                ("joint_3.json", {"race_code":"202611031502","attempt":1,"both_complete_before_t12":False,"status":"beforeinfo_after_t12"}),
+                ("joint_3.json", {"race_code":"202611031502","attempt":3,"both_complete_before_t12":False,"status":"beforeinfo_after_t12"}),
             ]
             for name, doc in samples:
                 (root/name).write_text(json.dumps(doc))
@@ -56,6 +56,24 @@ class T12SummaryTests(unittest.TestCase):
             self.assertEqual(result["valid_attempt_reports"], 1)
             self.assertEqual(result["invalid_or_duplicate_reports"], 2)
             self.assertEqual(result["complete_pair_attempts"], 1)
+
+    def test_mismatched_attempt_name_cannot_inflate_success(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root/"joint_1.json").write_text(json.dumps({
+                "race_code":"202611031501","attempt":2,**valid_proof()}))
+            result = summarize(root)
+            self.assertEqual(result["complete_pair_attempts"], 0)
+            self.assertEqual(result["invalid_or_duplicate_reports"], 1)
+
+    def test_attempt_above_six_not_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root/"joint_7.json").write_text(json.dumps({
+                "race_code":"202611031501","attempt":7,**valid_proof()}))
+            result = summarize(root)
+            self.assertEqual(result["valid_attempt_reports"], 0)
+            self.assertEqual(result["invalid_or_duplicate_reports"], 1)
 
     def test_no_reports_is_not_zero_historical_success_rate(self):
         with tempfile.TemporaryDirectory() as d:
