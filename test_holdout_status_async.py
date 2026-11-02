@@ -40,6 +40,24 @@ class HoldoutAsyncTests(unittest.TestCase):
         finally:
             gate.set()
 
+    def test_status_only_audits_later_holdout_days(self):
+        from unittest.mock import patch
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "prospective_predictions"
+            folder.mkdir()
+            for day in ("20261028", "20261029", "20261030", "20261101"):
+                (folder / (day + "010101.json")).write_text("{}", encoding="utf-8")
+            with patch.object(server, "ROOT", Path(tmp)):
+                with patch("compare_topn_signal70_days.report", return_value={
+                        "later_holdout_days": 2, "later_holdout_evaluated_races": 4}) as report:
+                    status = server._compute_holdout_status()
+        report.assert_called_once_with(["20261030", "20261101"])
+        self.assertEqual(status["later_holdout_days"], 2)
+        self.assertEqual(status["evaluated_holdout_races"], 4)
+        self.assertFalse(status["independently_validated"])
+
     def test_failure_does_not_invent_zero(self):
         with patch.object(server, "_compute_holdout_status", side_effect=ValueError("bad evidence")):
             status, data = server.holdout_status()
