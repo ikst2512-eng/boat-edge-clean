@@ -68,6 +68,29 @@ class OfficialProbeTests(unittest.TestCase):
                 self.assertFalse(list(Path(root).rglob("beforeinfo.html")))
                 self.assertNotIn("hidden",str(result))
 
+    def test_xhtml_with_xml_prolog_is_preserved_but_not_t12_certified(self):
+        bodies=(b'<?xml version="1.0" encoding="utf-8"?>\\n<html xmlns="http://www.w3.org/1999/xhtml"><body>ok</body></html>',
+                b'<?xml version="1.0"?>\\n<!DOCTYPE html><html><body>ok</body></html>')
+        for body in bodies:
+            with self.subTest(body=body[:40]), tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:body)
+                self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+                self.assertEqual((Path(root)/"20261101/202611010708/beforeinfo.html").read_bytes(),body)
+                self.assertFalse(result["t12_eligible"])
+                self.assertFalse(result["forecast_usable"])
+
+    def test_xml_error_and_large_prolog_still_rejected(self):
+        bodies=(b'<?xml version="1.0"?><error>not ready</error>',
+                b'<?xml version="1.0"?><root><html>not official</html></root>',
+                b'<?xml '+b'a'*300+b'?><html>bad</html>')
+        for body in bodies:
+            with self.subTest(body=body[:35]), tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:body)
+                self.assertEqual(result["status"],"official_probe_failed")
+                self.assertEqual(result["failure_stage"],"html_signature")
+                self.assertFalse(list(Path(root).rglob("beforeinfo.html")))
+                self.assertFalse(result["forecast_usable"])
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
