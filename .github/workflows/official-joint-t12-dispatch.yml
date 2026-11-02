@@ -51,7 +51,13 @@ jobs:
               a=before(race,'evidence','before'+identifier)
               Path(f'reports/before_{i}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
               if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
-                  raise SystemExit('Verified official race deadline unavailable')
+                  failure={'attempt':i,'race_code':race,'status':'beforeinfo_failed_or_deadline_missing',
+                           'beforeinfo_status':a.get('status'),'error':a.get('error'),
+                           'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                  print('BEFORE_FAILED',json.dumps(failure,ensure_ascii=False))
+                  # No independently verified cutoff: stop; never guess a race deadline.
+                  break
               deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
               cutoff=deadline-datetime.timedelta(minutes=12)
               gate=decision(a['received_at_jst'],deadline.isoformat(),datetime.datetime.now(jst).isoformat())
