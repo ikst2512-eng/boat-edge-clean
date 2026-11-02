@@ -84,11 +84,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, default=Path("ai_operations_report.json"))
     parser.add_argument("--output", type=Path, default=Path("ai_diagnostics_report.json"))
+    parser.add_argument("--case-output", type=Path, default=Path("ai_frozen_race_case.json"))
     parser.add_argument("--race-code", default=None, help="Optional frozen four-mode race code (historical research only)")
     args = parser.parse_args()
     report = json.loads(args.report.read_text(encoding="utf-8"))
     if args.race_code:
         report = attach_frozen_race(report, args.race_code)
+        args.case_output.write_text(json.dumps(report["frozen_four_mode_research_case"], ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
     result = analyze(report)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("AI diagnostics:", result["status"])
