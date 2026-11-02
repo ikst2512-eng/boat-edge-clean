@@ -40,9 +40,10 @@ jobs:
           set -euo pipefail
           [[ "$RACE_CODE" =~ ^20[0-9]{10}$ ]] || { echo "Invalid race code"; exit 1; }
           [[ "$ATTEMPTS" =~ ^[123]$ ]] || exit 1
+          mkdir -p official_probe_reports
           for ((i=1; i<=ATTEMPTS; i++)); do
             id="run${GITHUB_RUN_ID}_attempt${i}"
-            python -m scripts.capture_official_beforeinfo_probe "$RACE_CODE" --root official_probe_output --observation-id "$id" || echo "Attempt $i unavailable or invalid (not certified)"
+            python -m scripts.capture_official_beforeinfo_probe "$RACE_CODE" --root official_probe_output --observation-id "$id" > "official_probe_reports/$id.json" || echo "Attempt $i failed; non-certified diagnostic saved"
             if [[ "$i" -lt "$ATTEMPTS" ]]; then sleep 60; fi
           done
       - name: Archive original HTML and manifests
@@ -50,6 +51,8 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           name: official-beforeinfo-probe-${{ github.run_id }}
-          path: official_probe_output/
+          path: |
+            official_probe_output/
+            official_probe_reports/
           if-no-files-found: warn
           retention-days: 14
