@@ -93,6 +93,29 @@ jobs:
           fi
           git config user.name 'four-mode-capture-bot'
           git config user.email 'four-mode-capture-bot@users.noreply.github.com'
+          # Git timestamps have only one-second precision. A commit in the
+          # same second as forecast generation cannot prove chronology.
+          python - <<'PY'
+          import json, subprocess, time
+          from datetime import datetime, timezone
+          from pathlib import Path
+          names = subprocess.check_output(
+              ["git", "diff", "--cached", "--name-only", "--diff-filter=A",
+               "--", "four_mode_forecasts/"], text=True).splitlines()
+          generated = [
+              datetime.fromisoformat(
+                  json.loads(Path(name).read_text(encoding="utf-8"))["generated_at_jst"]
+              ).timestamp()
+              for name in names
+          ]
+          if generated:
+              min_commit_epoch = int(max(generated)) + 1
+              delay = min_commit_epoch - time.time()
+              if delay > 0:
+                  time.sleep(delay + 0.05)
+          PY
+          # The delay must not allow any archive to expire.
+          python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
           git commit -m 'data: freeze four-mode predeadline research candidates'
           for attempt in 1 2 3; do
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
