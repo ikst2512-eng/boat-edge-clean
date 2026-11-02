@@ -149,14 +149,21 @@ jobs:
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
           # Some repositories disable PR creation by GitHub Actions even with
           # pull-requests:write. Keep the reviewed patch branch available.
-          if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."; then
+          # A repository policy rejection has a manual-review fallback.
+          # Do not hide API failures or network errors as successful publication.
+          pr_error="$(mktemp)"
+          if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval." 2>"$pr_error"; then
             echo "AI draft PR created"
             echo "### Review-ready draft PR created" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::warning::AI branch pushed but draft PR creation is restricted. Open a draft PR manually or grant Actions PR creation permission."
-            echo "### AI patch created; PR creation blocked by repository permission" >> "$GITHUB_STEP_SUMMARY"
-            echo "AI patch branch: \`$branch\`" >> "$GITHUB_STEP_SUMMARY"
+          elif grep -Fq 'GitHub Actions is not permitted to create or approve pull requests' "$pr_error"; then
+            echo "::warning::Repository policy prohibits Actions from creating PRs; reviewed patch branch is preserved."
+            echo "### AI patch created; manual draft PR needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "AI patch branch: $branch" >> "$GITHUB_STEP_SUMMARY"
             echo "Open a draft PR: https://github.com/${GITHUB_REPOSITORY}/pull/new/$branch" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Draft PR publication failed for a reason other than repository Actions policy."
+            echo "Patch branch remains available: $branch"
+            exit 1
           fi
       - name: Archive proposal
         if: always()
