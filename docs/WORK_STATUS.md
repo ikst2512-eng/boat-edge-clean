@@ -859,3 +859,10 @@
 - `ai_diagnostics.py` に研究入力のJSONをキーソート・固定区切りで正規化してSHA-256記録（`research_input_sha256`）する処理を追加。これにより診断レポートと研究入力の一致を再照合しやすくする。入力ハッシュは独立した締切前Git保存証明ではない。
 - PR #983 Gemini関連 Actions run `41436489755` completed/success、main squash `258eeef95e5c9ee92211f91308f5ab52153b4e61`。同じheadで別用途のfour-mode-capture-watchdog run `41436481351` はfailure（別件、未調査）。
 - Gemini実APIの成功、実分析内容の妥当性、正式的中率改善、Render本番反映は未検証。4モード・予想原本・モデルは未変更。
+
+
+## 2026-11-02 four-mode watchdogゼロジョブ失敗の追加切り分け
+- GitHub Actions run `41436481351` は `push` イベント、workflow表示はパス名 `.github/workflows/four-mode-capture-watchdog.yml`、結論 failure。`/jobs` APIは `total_count=0`。監視スクリプト内の例外が原因と断定不可。
+- 同一監視ワークフローのPR run `41436662291` は `Four-mode capture schedule watchdog`、`watchdog` ジョブ success。少なくともPRイベント上の監視チェック経路は動作した。
+- 直近100実行の調査範囲では同監視の schedule 成功runを確認できず、**定期実行とfallback dispatchが実際に運用できている証明は未完了**。
+- 不具合原因を確証できない状態で監視ジョブを重複新設・削除・再設計する変更は実施しない。次はschedule実行IDとActions実行時刻・fallback dispatch実行ログを照合して稼働証拠を取得する。正式予想、Gemini API、4モードのロジックは不変更。
