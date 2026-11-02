@@ -92,7 +92,7 @@ jobs:
       - name: Request a small AI UI repair (optional API)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: gemini-2.5-flash-lite
+          GEMINI_MODEL: gemini-3.5-flash-lite
           AI_ISSUE: ${{ github.event_name == 'schedule' && needs.tests.outputs.regression_issue || inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
       - name: Validate untrusted AI patch without write token
