@@ -80,6 +80,35 @@ class DispatchTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             run(token="test-only",now=NOW,request=request)
 
+    def test_fifteen_minute_cycle_not_blocked_by_previous_success(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req)
+            if req.get_method()=="POST":
+                response=Response(b"")
+                response.status=204
+                return response
+            record={"created_at":(NOW-timedelta(minutes=15)).isoformat(),
+                    "status":"completed","conclusion":"success",
+                    "event":"workflow_dispatch"}
+            return Response(json.dumps({"workflow_runs":[record]}).encode()
+                            if "event=workflow_dispatch" in req.full_url else b'{"workflow_runs":[]}')
+        result=run(token="test-only",now=NOW,request=request)
+        self.assertEqual(result["action"],"dispatch_accepted_not_publication_proof")
+        self.assertEqual([c.get_method() for c in calls],["GET","GET","POST"])
+
+    def test_recent_dispatch_still_prevents_duplicates(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req)
+            record={"created_at":(NOW-timedelta(minutes=13)).isoformat(),
+                    "status":"completed","conclusion":"failure",
+                    "event":"workflow_dispatch"}
+            return Response(json.dumps({"workflow_runs":[record]}).encode()
+                            if "event=workflow_dispatch" in req.full_url else b'{"workflow_runs":[]}')
+        self.assertEqual(run(token="test-only",now=NOW,request=request)["action"],"no_dispatch")
+        self.assertEqual(len(calls),2)
+
     def test_outside_hours_does_not_dispatch(self):
         def request(req, timeout):
             self.fail("Off-hours job must not call GitHub API")
