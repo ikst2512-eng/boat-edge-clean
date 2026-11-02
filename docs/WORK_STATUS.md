@@ -909,3 +909,10 @@
 - 他CIの夜間失敗を調査した結果、`tests/test_daily_research_written_mass.py` が現在時刻＋5時間を同じ日として扱う日時越えテスト不具合を修正。予想ロジックは変更しない。
 - PR #1006 head `5b84c7640f24d1f92088decc7f1502c0b08ead8a` の6系統CI（Four-mode prospective capture、Research TopN batch audit、Research forecast checks、Cross-model content audit、CLEAN alternate feed、CLEAN six-boat parser）がすべてsuccess。main squash `d7860353702c81fcedfd8b9f421f4506baf44b66`。
 - 生バイト保全の実運用artifact・元データとの実ハッシュ一致・取得時刻の独立証明、Gemini実API分析、予想精度改善、Render本番は未検証。次は次回実収集artifactのraw-sourcesと予想原本のSHA256比較、取得方式ごとの対応確認。
+
+
+## 2026-11-02 原本取得artifactのローカル整合性監査（PR #1010）
+- PR #1006後の実定期schedule runは今回調査可能なschedule履歴にまだないため、元HTTP原本の実運用保全と予想JSONとの実照合は未実証。
+- `audit_four_mode_raw_receipts.py` に保存artifact内の各 `.json` / `.bin` ペアを監査する機能を追加。URL許可リスト・受信JST・byte_count・SHA256・原本IDとファイル名の一致、欠損・余分なバイトファイルを検査。検証成功でも正式的中率や独立remote-first-seen証明は許可しない。
+- テスト `test_audit_four_mode_raw_receipts.py` を収集ワークフローに接続。最初のPRテストはID区切りバイトの取り違えで失敗したため修正し、再実行の Four-mode prospective capture run `41441590188` は completed/success。PR #1010 main squash `74fae3a033027f3f3bf5600d28c872321b60034c`。
+- 次はPR #1006/#1010以後の実schedule runの raw-sources artifactを取得して整合性監査し、予想原本のtitle/cardsハッシュと対応確認する。Gemini実APIとRender、精度向上も未検証。
