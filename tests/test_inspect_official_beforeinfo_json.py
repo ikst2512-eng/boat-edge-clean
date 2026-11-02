@@ -75,6 +75,21 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertFalse(result["t12_eligible"])
         self.assertFalse(result["forecast_usable"])
 
+    def test_real_shape_start_exhibition_is_valid_but_not_forecast_usable(self):
+        p = self.sample(["6.77", "6.75", "6.80", "6.75", "6.84", "6.80"])
+        p["maindata"]["sttenjiinfolist"] = [
+            {"teino": str(i), "cs": i, "st": "F.01"} for i in range(1, 7)
+        ]
+        report = inspect(p)
+        self.assertTrue(report["start_exhibition_six_valid_rows"])
+        self.assertFalse(report["forecast_usable"])
+        self.assertFalse(report["t12_eligible"])
+        p["maindata"]["sttenjiinfolist"][2]["cs"] = 2
+        self.assertFalse(inspect(p)["start_exhibition_six_valid_rows"])
+        p["maindata"]["sttenjiinfolist"][2]["cs"] = 3
+        p["maindata"]["sttenjiinfolist"][2]["st"] = "pending"
+        self.assertFalse(inspect(p)["start_exhibition_six_valid_rows"])
+
     def test_missing_schema_rejected(self):
         with self.assertRaises(ValueError):
             inspect({"maindata": {"teiinfolist": None}})
