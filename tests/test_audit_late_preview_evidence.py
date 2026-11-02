@@ -23,6 +23,22 @@ def record(code,kind,valid="complete",received="2026-10-31T19:55:00+09:00"):
         "status":"late_preview_unvalidated_not_research_forecast"}
 
 class AuditLatePreview(unittest.TestCase):
+    def test_two_valid_sources_with_different_deadlines_cannot_form_pair(self):
+        with tempfile.TemporaryDirectory() as folder:
+            code="202610310111"
+            for kind,deadline in (("stt","20:00"),("tkz","20:05")):
+                path=Path(folder)/"20261031"/kind/(code+".json")
+                path.parent.mkdir(parents=True)
+                item=record(code,kind,received="2026-10-31T19:40:00+09:00")
+                item["source_row"]["取得日時"]="2026-10-31T19:39:00+09:00"
+                item["source_observed_jst"]=item["source_row"]["取得日時"]
+                item["source_row"]["締切時刻"]=deadline
+                path.write_text(json.dumps(item))
+            result=audit(folder)
+            self.assertEqual(result["paired_complete_6boat_stt_tkz"],0)
+            self.assertEqual(result["paired_complete_12min_observable"],0)
+            self.assertEqual(result["pair_gap_counts"],{"deadline_mismatch":1})
+
     def test_summary_metadata_does_not_count_as_invalid_race(self):
         with tempfile.TemporaryDirectory() as folder:
             day=Path(folder)/"20261031"
