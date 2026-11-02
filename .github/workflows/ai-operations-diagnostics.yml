@@ -6,6 +6,8 @@ on:
       - four_mode_frozen_diagnostic.py
       - test_four_mode_frozen_diagnostic.py
       - test_ai_diagnostics.py
+      - four_mode_research_batch.py
+      - test_four_mode_research_batch.py
       - .github/workflows/ai-operations-diagnostics.yml
   workflow_dispatch:
     inputs:
@@ -25,7 +27,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v test_ai_operations test_ai_diagnostics
+        run: python -m unittest -v test_ai_operations test_ai_diagnostics test_four_mode_research_batch
       - name: Produce immutable-data research audit
         run: python ai_operations.py --output ai_operations_report.json
       - name: Optional AI diagnosis (never edits production)
