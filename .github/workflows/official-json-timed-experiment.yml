@@ -1,0 +1,46 @@
+name: Official JSON timed race observation experiment
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-json-timed-experiment.yml'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Take three separate official observations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          for i in 1 2 3; do
+            python -m scripts.capture_official_beforeinfo_json 202611021511 --root evidence --observation-id "run${GITHUB_RUN_ID}_attempt${i}" > "reports/attempt${i}.json" || true
+            if [ "$i" -lt 3 ]; then sleep 60; fi
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for p in sorted(Path("reports").glob("*.json")):
+              x=json.loads(p.read_text())
+              print(json.dumps({"attempt":p.name,"status":x.get("status"),
+                "received_at_jst":x.get("received_at_jst"),
+                "six_unique_boats":x.get("six_unique_boats"),
+                "exhibition_time_nonempty_six":x.get("exhibition_time_nonempty_six"),
+                "start_exhibition_rows":x.get("start_exhibition_rows"),
+                "deadline_display":x.get("deadline_display"),
+                "t12_eligible":x.get("t12_eligible")},ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-json-three-timed-observations
+          path: |
+            evidence/
+            reports/
+          retention-days: 7
