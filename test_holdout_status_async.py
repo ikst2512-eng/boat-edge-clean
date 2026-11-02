@@ -48,7 +48,7 @@ class HoldoutAsyncTests(unittest.TestCase):
             folder = Path(tmp) / "prospective_predictions"
             folder.mkdir()
             for day in ("20261028", "20261029", "20261030", "20261101"):
-                (folder / (day + "010101.json")).write_text("{}", encoding="utf-8")
+                (folder / (day + "0101.json")).write_text("{}", encoding="utf-8")
             with patch.object(server, "ROOT", Path(tmp)):
                 with patch("compare_topn_signal70_days.report", return_value={
                         "later_holdout_days": 2, "later_holdout_evaluated_races": 4}) as report:
