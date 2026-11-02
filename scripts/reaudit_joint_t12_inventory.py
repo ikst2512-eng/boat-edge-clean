@@ -4,6 +4,7 @@ import json
 import os
 from collections import Counter
 from pathlib import Path
+from zipfile import BadZipFile, LargeZipFile
 from scripts.inspect_joint_t12_archive import load_archive
 from scripts.reaudit_joint_t12_archive import reaudit_archive
 
@@ -40,7 +41,8 @@ def reaudit_inventory(inventory, repo, token, loader=load_archive, auditor=reaud
                                 "verified_complete_pairs": verified,
                                 "attempt_reports": result["attempt_reports"],
                                 "status": "source_reaudit_complete"})
-            except (ValueError, OSError, KeyError, TypeError, UnicodeError, EOFError):
+            except (ValueError, OSError, KeyError, TypeError, UnicodeError, EOFError,
+                    BadZipFile, LargeZipFile, json.JSONDecodeError):
                 results.append({"run_id": run_id, "artifact_id": artifact_id,
                                 "verified_complete_pairs": 0,
                                 "attempt_reports": None, "status": "source_reaudit_unresolved"})
