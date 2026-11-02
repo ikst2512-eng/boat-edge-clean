@@ -84,7 +84,7 @@ jobs:
           diagnostic = {"new_untracked_json": len([n for n in names if n.endswith(".json") and Path(n).name != "capture_status.json"]),
                         "staged_valid": staged, "excluded": skipped}
           Path("four-mode-evidence/staging.json").write_text(
-              json.dumps(diagnostic, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
+              json.dumps(diagnostic, ensure_ascii=False, sort_keys=True) + chr(10), encoding="utf-8")
           print("Four-mode staging diagnostic:", json.dumps(diagnostic, sort_keys=True))
           PY
           git reset -q -- four_mode_forecasts/capture_status.json || true
