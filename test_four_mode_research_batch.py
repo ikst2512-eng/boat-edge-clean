@@ -18,6 +18,9 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(paired["left_only_top10"], 0)
         self.assertEqual(paired["evaluated"], 2)
         self.assertFalse(paired["formal"])
+        self.assertEqual(paired["topn"]["top3"]["net_additional_hits"], 2)
+        self.assertEqual(paired["topn"]["top5"]["net_percentage_points"], 100.0)
+        self.assertEqual(paired["topn"]["top10"]["both"], 0)
         self.assertFalse(result["formal"])
         self.assertFalse(result["model_improvement_proven"])
     def test_pending_not_counted_as_miss(self):
@@ -27,6 +30,7 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(x["historical_comparable"], 0)
         self.assertIsNone(x["modes"]["hit"]["historical_topn_pct"]["top3"])
         self.assertEqual(x["paired_top10"]["hit_vs_balance"]["evaluated"], 0)
+        self.assertIsNone(x["paired_top10"]["hit_vs_balance"]["topn"]["top5"]["net_percentage_points"])
     def test_duplicates_rejected(self):
         with self.assertRaises(ValueError):
             summarize(["202610280101"]*2)
