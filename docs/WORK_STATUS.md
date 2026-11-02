@@ -851,3 +851,11 @@
 - `ai_diagnostics.py` でGemini HTTP失敗・レスポンス不正等の例外時、機密情報や生のエラー文字列を保存せず `status=api_error` と例外種類、証拠審査禁止状態を診断JSONへ保存してから手動実行を失敗扱いする。
 - PR #978 CI run `41435673089` completed/success、main squash `ecf11c81ad455e33a8f348c1cd5bfbb457f3e4e6`。4モード・予想原本・モデル・API自動実行設定は不変更。
 - Gemini実API分析成功・分析の正確性・正式的中率向上は未検証。次: GitHub Actionsから `AI operations optional diagnostics` を手動で `race_code=202610280101` で起動し、artifact の `ai_diagnostics_report.json` と実行summaryを確認（APIキー設定済みであることが前提）。
+
+
+## 2026-11-02 Gemini研究入力ダイジェスト（PR #983）
+- GitHub直近100件のGemini診断ワークフローを再確認。含まれていた実行はPRテストのみで、手動Gemini実API実行の成功証拠は未取得。利用可能GitHub連携に新規workflow_dispatch操作はない。
+- Google公式ドキュメントに `gemini-3.5-flash-lite` モデルIDの存在を確認。モデル名は変更しない。
+- `ai_diagnostics.py` に研究入力のJSONをキーソート・固定区切りで正規化してSHA-256記録（`research_input_sha256`）する処理を追加。これにより診断レポートと研究入力の一致を再照合しやすくする。入力ハッシュは独立した締切前Git保存証明ではない。
+- PR #983 Gemini関連 Actions run `41436489755` completed/success、main squash `258eeef95e5c9ee92211f91308f5ab52153b4e61`。同じheadで別用途のfour-mode-capture-watchdog run `41436481351` はfailure（別件、未調査）。
+- Gemini実APIの成功、実分析内容の妥当性、正式的中率改善、Render本番反映は未検証。4モード・予想原本・モデルは未変更。
