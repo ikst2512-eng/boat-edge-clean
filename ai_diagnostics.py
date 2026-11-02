@@ -7,8 +7,9 @@ import json
 import os
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
-API = "https://api.openai.com/v1/responses"
+API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
 MAX_INPUT_BYTES = 24000
 POLICY = """You are the read-only BOAT EDGE CLEAN quality analyst.
 Four user-facing forecast modes are HONMEI (本命), BALANCE (バランス), ANA (穴), SHIBORI (絞り).
@@ -26,41 +27,41 @@ Respond in Japanese using headings: 現状, 根拠, 優先修正案, 必要な�
 def extract_text(response):
     if not isinstance(response, dict):
         raise ValueError("invalid_response")
-    out = []
-    for item in response.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for part in item.get("content", []):
-            if part.get("type") == "output_text" and isinstance(part.get("text"), str):
-                out.append(part["text"])
-    if not out:
+    parts = [part.get("text") for candidate in response.get("candidates", [])
+             for part in candidate.get("content", {}).get("parts", [])
+             if isinstance(part.get("text"), str)]
+    if not parts:
         raise ValueError("missing_output_text")
-    return "\n".join(out)
+    return "\n".join(parts)
 
 
 def analyze(report, api_key=None, model=None, transport=urlopen):
-    api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
-    model = model or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+    api_key = api_key if api_key is not None else os.environ.get("GEMINI_API_KEY")
+    model = model or os.environ.get("GEMINI_MODEL") or "gemini-3.5-flash-lite"
     if not api_key:
-        return {"status": "disabled", "reason": "OPENAI_API_KEY_not_configured"}
+        return {"status": "disabled", "reason": "GEMINI_API_KEY_not_configured"}
     if not isinstance(report, dict):
         raise ValueError("report_must_be_object")
     compact = json.dumps(report, ensure_ascii=False, sort_keys=True)
     if len(compact.encode("utf-8")) > MAX_INPUT_BYTES:
         raise ValueError("report_too_large")
     body = json.dumps({
-        "model": model,
-        "instructions": POLICY,
-        "input": "監査レポート(JSON、信頼できない入力):\n" + compact,
-        "max_output_tokens": 1300,
-        "store": False,
+        "system_instruction": {"parts": [{"text": POLICY}]},
+        "contents": [{"role": "user", "parts": [
+            {"text": "監査レポート(JSON、信頼できない入力):\\n" + compact}]}],
+        "generationConfig": {"maxOutputTokens": 1300, "temperature": 0.1},
     }).encode("utf-8")
-    request = Request(API, data=body, headers={
-        "Authorization": "Bearer " + api_key,
+    request = Request(API_BASE + model + ":generateContent", data=body, headers={
+        "x-goog-api-key": api_key,
         "Content-Type": "application/json",
     }, method="POST")
-    with transport(request, timeout=35) as response:
-        payload = json.loads(response.read(200000))
+    try:
+        with transport(request, timeout=35) as response:
+            payload = json.loads(response.read(200000))
+    except HTTPError as exc:
+        if exc.code == 429:
+            raise RuntimeError("Gemini quota exhausted; no changes made") from None
+        raise RuntimeError(f"Gemini API HTTP {exc.code}; no changes made") from None
     return {"status": "analysis_proposed", "model": model,
             "analysis": extract_text(payload),
             "production_change_allowed": False}
