@@ -48,7 +48,7 @@ jobs:
           python -m unittest -v test_holdout_status_async
 
   browser-pr-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
