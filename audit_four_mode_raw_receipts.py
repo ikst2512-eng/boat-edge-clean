@@ -36,7 +36,7 @@ def audit(directory):
             url = m["url"]
             parsed = urlsplit(url)
             stamp = datetime.fromisoformat(m["received_at_jst"])
-            expected_id = hashlib.sha256(url.encode("utf-8") + b"\\0" + raw).hexdigest()
+            expected_id = hashlib.sha256(url.encode("utf-8") + bytes([0]) + raw).hexdigest()
             if (m.get("schema") != "FOUR_MODE_LOCAL_RAW_HTTP_RECEIPT_V1"
                     or m.get("independent_remote_receipt_verified") is not False
                     or parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS
