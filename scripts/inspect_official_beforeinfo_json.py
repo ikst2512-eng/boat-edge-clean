@@ -5,6 +5,7 @@ T-12 eligibility is inferred from an undated archived JSON response.
 """
 import argparse
 import json
+import math
 from pathlib import Path
 
 
@@ -20,9 +21,17 @@ def inspect(payload):
     ids = [v.get("teino") if isinstance(v, dict) else None for v in racers]
     unique_six = len(ids) == 6 and set(ids) == set("123456")
     def present(v, field):
-        return (isinstance(v, dict)
-                and isinstance(v.get(field), (str, int, float))
-                and str(v[field]).strip() not in ("", "-", "None", "null"))
+        if not isinstance(v, dict):
+            return False
+        value = v.get(field)
+        # JSON booleans, NaN/Infinity, and arbitrary strings are not readings.
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            return False
+        try:
+            number = float(value)
+        except (ValueError, OverflowError):
+            return False
+        return math.isfinite(number) and (field != "extime" or number > 0)
     exhibition_time_count = sum(present(v, "extime") for v in racers)
     tilt_count = sum(present(v, "tilt") for v in racers)
     exhibition = unique_six and exhibition_time_count == 6
