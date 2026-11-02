@@ -114,6 +114,35 @@ class RepairAgentTests(unittest.TestCase):
                 propose("navigation fails", directory, "fake-key", "mock", rate_limited)
             self.assertEqual((Path(directory)/"navigation.js").read_text(), "unchanged")
 
+    def test_gemini_patch_real_navigation_source_in_isolation(self):
+        # Exercise the actual shipped navigation source through Gemini's response
+        # parsing, exact-match guardrails, and atomic file update, without API costs.
+        class FakeResponse:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n):
+                patch = {"patches": [{"path": "navigation.js",
+                         "old": "const params=location.search;",
+                         "new": "const params=String(location.search);"}],
+                         "reason": "mocked navigation improvement", "tests": "contract"}
+                return json.dumps({"candidates":[{"content":{"parts":[
+                    {"text":json.dumps(patch)}]}}]}).encode()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = Path("navigation.js").read_text(encoding="utf-8")
+            (root/"navigation.js").write_text(original, encoding="utf-8")
+            result = propose("navigation parameter type safety", root,
+                             "fake-key", "mock-model",
+                             lambda req, timeout: FakeResponse())
+            updated = (root/"navigation.js").read_text(encoding="utf-8")
+            self.assertEqual(result["status"], "proposed")
+            self.assertEqual(result["changed_files"], ["navigation.js"])
+            self.assertFalse(result["production_change_allowed"])
+            self.assertIn("const params=String(location.search);", updated)
+            self.assertEqual(original.count("const params=location.search;"), 1)
+            self.assertEqual(updated.count("const params=location.search;"), 0)
+            self.assertEqual(Path("navigation.js").read_text(encoding="utf-8"), original)
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
