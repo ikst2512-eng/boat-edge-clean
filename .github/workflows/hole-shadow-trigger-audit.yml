@@ -1,0 +1,20 @@
+name: Hole shadow trigger observability audit
+on:
+  pull_request:
+    paths:
+      - 'hole_shadow_trigger_audit.py'
+      - 'test_hole_shadow_trigger_audit.py'
+      - '.github/workflows/hole-shadow-trigger-audit.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test trigger observability
+        run: python -m unittest -v test_hole_shadow_trigger_audit.py
