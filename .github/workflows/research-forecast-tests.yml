@@ -4,7 +4,6 @@ on:
     paths:
       - 'audit_four_mode_first_add.py'
       - 'test_audit_four_mode_first_add.py'
-      - 'audit_four_mode_cohort.py'
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
       - 'scripts/verify_legacy_preservation_samples.py'
@@ -63,8 +62,6 @@ jobs:
           python-version: '3.12'
       - name: Verify four-mode first-add provenance audit
         run: python -m unittest -v test_audit_four_mode_first_add
-      - name: Report four-mode local archive cohort (non-formal)
-        run: python audit_four_mode_cohort.py
       - name: Validate research forecast model and persisted records
         run: python -m unittest -v test_research_model test_research_persistence test_collect_research_daily test_collect_research_input_integrity test_research_source_digests test_research_model_provenance test_research_capture_workflow test_advanced_card_preview_v392 test_research_chronological_calibration
       - name: Verify isolated Fresh candidate intake
