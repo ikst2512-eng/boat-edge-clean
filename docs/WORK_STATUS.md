@@ -1019,3 +1019,9 @@
 - `AI operations optional diagnostics` の新規 workflow_dispatch 実API実行は確認できず、Gemini実分析・改善実証は引き続き未達成。
 - `four_mode_research_batch.py` に「絞り vs 本命、本命 vs バランス、バランス vs 穴」の同一研究レース Top10 被覆比較（両方・左のみ・右のみ・両方なし）を追加。確定結果なしを分母に混入しない。研究専用 `formal=false`、予想ロジックと買い目は不変更。
 - PR #1068 AI operations optional diagnostics CI #41458557108 completed/success、main squash `69e0903d8e370d4095b8204fde822911bb46232a`。この比較は過去アーカイブ研究であり、独立締切前証明やAIによる的中率改善ではない。
+
+
+## 2026-11-02 4モード追加買い目のTop3/5/10増分研究（PR #1073）
+- 同一レースでの隣接モード（絞り→本命→バランス→穴）ペア比較をTop10だけからTop3/Top5/Top10に拡張。双方的中、左だけ、右だけ、両方不的中、右の純増的中件数と増減率（パーセントポイント）を算出。既存の `paired_top10` キーも互換保持。
+- 確定結果のないレースは分母に含めず、比較対象0件の場合の増減率はnull。研究用で `formal=false`。実AI分析、Gemini API実行、正式的中率改善とは別。
+- PR #1073 AI operations optional diagnostics #41459680799 completed/success、main squash `59cdce83a7836eebb6597d9cfd95dd0c3aff8d04`。予想原本、4モード構成、買い目・予想ロジック変更なし。
