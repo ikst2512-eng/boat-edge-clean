@@ -104,6 +104,10 @@ def inspect(saved_dir):
                     for i in positions] for label,positions in matched.items()}
     context={label:[{"index":row["index"],"nearby":[item[:120] for item in row["nearby"]]}
                     for row in rows] for label,rows in context.items()}
+    # The official smartphone beforeinfo endpoint may serve a dynamic page shell;
+    # an empty target div contains no actual boat observations.
+    shell_target=re.search(r'<div\\s+id=["\\\']content_beforeInfo["\\\']\\s*>\\s*</div>',raw.decode("utf-8",errors="replace"),re.I)
+    evidence_kind="client_rendered_shell_no_boat_values" if shell_target and not any(matched.values()) else "unclassified_html"
     return {"race_code":manifest.get("race_code"),"sha256_verified":True,
             "request_started_at_jst":started.isoformat(),
             "received_at_jst":receipt.isoformat(),
@@ -111,6 +115,7 @@ def inspect(saved_dir):
             "visible_text_fragments":len(tokens),"label_positions":matched,
             "diagnostic_labeled_table_rows":labeled_rows,
             "label_context":context,
+            "body_evidence_class":evidence_kind,
             "six_lane_values":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":
