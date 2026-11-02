@@ -2,6 +2,8 @@ name: Research forecast checks
 on:
   push:
     paths:
+      - 'four_mode_frozen_diagnostic.py'
+      - 'test_four_mode_frozen_diagnostic.py'
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
       - 'scripts/verify_legacy_preservation_samples.py'
@@ -28,6 +30,8 @@ on:
       - '.github/workflows/fresh-prospective-capture.yml'
   pull_request:
     paths:
+      - 'four_mode_frozen_diagnostic.py'
+      - 'test_four_mode_frozen_diagnostic.py'
       - 'research_model.py'
       - 'aggregate_prospective_topn.py'
       - 'scripts/verify_legacy_preservation_samples.py'
@@ -67,6 +71,8 @@ jobs:
           python test_fresh_candidate_receipt.py
           python test_fresh_candidate_verify.py
           python test_fresh_prospective_sender.py
+      - name: Verify four-mode archival research isolation
+        run: python -m unittest -v test_four_mode_archive_api test_four_mode_frozen_diagnostic
       - name: Verify Top-N audit rejection accounting
         run: python -m unittest -v test_aggregate_prospective_topn
       - name: Verify archived legacy sample Git blob hashes
