@@ -1001,3 +1001,9 @@
 - 当時のGitHub Actionsのworkflow_dispatch履歴で `AI operations optional diagnostics` は0件。Geminiの実APIレース分析・予想的中率改善は未実証。
 - 手動Run workflow入力が空の場合、既存ワークフローはレース比較を省略して一般監査だけをGeminiに送っていたため、`race_code` を必須・保存済み `202610280101` を初期値に変更。手動実行では形式を検査して `--race-code` の実レース研究経路を必ず使う。
 - PR #1057 AI operations optional diagnostics CI `41456093913` completed/success。main squash `b92cd29428f5117384309cab12e3222e306045d6`。このPRのCIはモック・オフラインであり、手動Gemini実API実行ではない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 Gemini手動分析の課金前レース証拠チェック（PR #1061）
+- GitHub Actionsのworkflow_dispatch履歴に Gemini AI operations optional diagnostics の実API実行は0件であり、実Gemini研究分析・的中率改善は未検証。
+- 手動Gemini分析の前に `four_mode_frozen_diagnostic.compare_race` で保存予想と確定結果を検証し、不足ならAPI要求前に停止するようワークフローを修正。`ai_frozen_race_preflight.json` を収集artifactに加え、比較可能かをread-onlyで記録。先行PR #1057の初期レースコードを維持。
+- PR #1061 CI `41456856034` completed/success、main競合を再確認し統合 `b6fa9fe87d7ab08ea391d223e27e64c6af71d50d`。CIはPRオフラインテストのため、手動Gemini実API成功は意味しない。買い目・4モード・予想ロジック不変更。
