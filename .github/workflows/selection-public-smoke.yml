@@ -104,5 +104,6 @@ jobs:
                 "independently validated:",d["independently_validated"],
                 "archived:",d.get("archived_candidates"),
                 "awaiting result:",d.get("awaiting_result_races"),
-                "audit rejected:",d.get("audit_rejected_races"))
+                "audit rejected:",d.get("audit_rejected_races"),
+                "rejection reasons:",d.get("audit_rejection_reasons"))
           PY
