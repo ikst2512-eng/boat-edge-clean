@@ -27,6 +27,8 @@ def load(day,fetch=None,now=None):
     # collector start. Injected fetches retain the deterministic fixture clock.
     received_at=datetime.now(JST) if live_fetch else now
     if len(raw)>MAX_BYTES:raise ValueError("source_too_large")
+    from four_mode_raw_receipt import preserve
+    preserve(url, raw, received_at)
     digest=hashlib.sha256(raw).hexdigest()
     stadiums=json.loads(raw)["programs"]["stadiums"]
     if not isinstance(stadiums,dict):raise ValueError("stadiums_invalid")
