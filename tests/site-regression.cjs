@@ -480,3 +480,11 @@ async function assertArchiveFetchOrder(host, statuses, expectedCalls, expectedSt
  await assertArchiveFetchOrder('boat-edge-clean.onrender.com',[404,200],['raw','local'],200);
  await assertArchiveFetchOrder('ikst2512-eng.github.io',[404,404],['local','raw'],404);
 })().catch(error=>{console.error(error);process.exitCode=1});
+
+// Narrow iPhone four-mode ticket hierarchy regression.
+const narrowTicketCss=html.match(/\/\* Narrow iPhone: readable picks outrank secondary odds without changing forecast data \*\/([\s\S]*?)<\/style>/)?.[1];
+assert.ok(narrowTicketCss,'narrow iPhone ticket hierarchy must exist');
+assert.match(narrowTicketCss,/@media\(max-width:420px\)/,'narrow mobile breakpoint');
+assert.match(narrowTicketCss,/\.four-mode-forecast-grid\{grid-template-columns:minmax\(0,1fr\)/,'one forecast mode per row on narrow iPhones');
+assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-combo\{font-size:24px/,'ticket combination must be prominent');
+assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-odds\{font-size:11px/,'odds must remain secondary');
