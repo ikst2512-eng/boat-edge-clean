@@ -16,6 +16,20 @@ class FakeResponse:
 
 
 class DiagnosticsTests(unittest.TestCase):
+    def test_attach_research_case_is_never_formal(self):
+        with patch("four_mode_frozen_diagnostic.compare_race", return_value={
+            "status": "historical_comparison_only", "formal": False,
+            "modes": {"hit": {"coverage_diagnostic": "winner_third_absent"}}}):
+            payload = ai_diagnostics.attach_frozen_race({"gate": {}}, "202610310912")
+        self.assertFalse(payload["formal_hit_rate_allowed"])
+        self.assertEqual(payload["race_dynamics_evidence"], "not_provided")
+        self.assertEqual(payload["frozen_four_mode_research_case"]["modes"]["hit"]["coverage_diagnostic"], "winner_third_absent")
+
+    def test_untrusted_race_rejected_before_api_call(self):
+        with patch("four_mode_frozen_diagnostic.compare_race", return_value={"status": "result_unavailable"}):
+            with self.assertRaisesRegex(ValueError, "historical_race_unavailable"):
+                ai_diagnostics.attach_frozen_race({}, "202610310912")
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
