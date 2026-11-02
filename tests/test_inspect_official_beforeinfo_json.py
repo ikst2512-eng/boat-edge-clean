@@ -16,6 +16,7 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertEqual(result["racers_listed"], 6)
         self.assertTrue(result["six_unique_boats"])
         self.assertFalse(result["exhibition_time_nonempty_six"])
+        self.assertFalse(result["start_exhibition_six_rows_observed"])
         self.assertEqual(result["exhibition_time_observed_boats"], 0)
         self.assertEqual(result["tilt_observed_boats"], 0)
         self.assertFalse(result["forecast_usable"])
@@ -64,6 +65,15 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertEqual(report["tilt_observed_boats"], 4)
         self.assertTrue(report["exhibition_time_nonempty_six"])
         self.assertFalse(report["t12_eligible"])
+
+    def test_six_start_exhibition_rows_are_not_t12_or_data_validity_proof(self):
+        p = self.sample(["6.8"]*6)
+        p["maindata"]["sttenjiinfolist"] = [{} for _ in range(6)]
+        result = inspect(p)
+        self.assertEqual(result["start_exhibition_rows"],6)
+        self.assertTrue(result["start_exhibition_six_rows_observed"])
+        self.assertFalse(result["t12_eligible"])
+        self.assertFalse(result["forecast_usable"])
 
     def test_missing_schema_rejected(self):
         with self.assertRaises(ValueError):
