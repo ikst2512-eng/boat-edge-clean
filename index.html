@@ -1322,13 +1322,15 @@ function updateFourModeHitPreview(key){
  const row=document.createElement('div');row.className='four-mode-match-grid';
  root.querySelectorAll('.four-mode-forecast-item').forEach(card=>{
   const label=card.querySelector('strong')?.textContent?.split('（')[0]||'予想';
-  const matching=Array.from(card.querySelectorAll('.four-mode-forecast-ticket')).filter(ticket=>ticket.dataset.fourModeCombo===displayedResultCombo);
+  const tickets=Array.from(card.querySelectorAll('.four-mode-forecast-ticket'));
+  const matching=tickets.filter(ticket=>ticket.dataset.fourModeCombo===displayedResultCombo);
+  const matchRank=matching.length?tickets.indexOf(matching[0])+1:null;
   matching.forEach(ticket=>ticket.classList.add('four-mode-match-ticket'));
   const badge=document.createElement('div');badge.className='four-mode-match-badge '+(matching.length?'four-mode-match-yes':'four-mode-match-no');
   const head=document.createElement('strong');head.textContent=label;
   const answer=document.createElement('span');answer.textContent=matching.length?'✓ 買い目一致':'— 一致なし';
   badge.append(head,answer);
-  if(matching.length){const ticket=document.createElement('strong');ticket.className='four-mode-winning-combo';ticket.textContent='一致した買い目 '+displayedResultCombo;badge.append(ticket)}
+  if(matching.length){const ticket=document.createElement('strong');ticket.className='four-mode-winning-combo';ticket.textContent='一致した買い目 '+displayedResultCombo+'（'+matchRank+'点目）';badge.append(ticket)}
   row.append(badge);
  });
  summary.append(title,row,note);root.prepend(summary);
