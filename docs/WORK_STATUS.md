@@ -901,3 +901,11 @@
 - ハッシュ一致でも `formal=false`、`remote_first_seen_verified=false`、取得時刻独立検証falseを維持。テスト `test_four_mode_raw_source_match.py` を既存研究CIに追加。
 - PR #1002 Research forecast checks run `41440230086` / `41440221185` とも completed/success、main squash `34a47e7bbe3c1b69192dddd42ff1b03f59c0bc1e`。
 - このPRは実際の元バイトが既に保全・照合されたという証明ではない。次は各取得方式（CSV全体hash、直接レース別HTTP hash、OpenAPI共通JSON hash）に対応した取得時の原本保存・時刻署名/受信証拠を安全に整備し、独立照合する。Gemini実API・予想精度向上・Render本番未検証。
+
+
+## 2026-11-02 4モード取得元のHTTP生バイト保全（PR #1006）
+- スケジュール収集時のみ `FOUR_MODE_RAW_RECEIPT_DIR=four-mode-evidence/raw-sources` を設定。公開前CSV / Boatcast直接HTTP / 代替OpenAPIの取得応答バイトを、出典URL・ローカルJST受信時刻・SHA256とともにwrite-onceのアーティファクトへ保全する処理を追加。30日保持、既存予想モデルと順位は不変更。
+- `four_mode_raw_receipt.py` とテストを追加。許可HTTPSホスト、改変・衝突、保存省略時の無副作用を検査。実際の過去原本は後付け保全できず、この追加は「今後の収集」用。ローカル受信時刻は独立remote first-seen証明ではない。
+- 他CIの夜間失敗を調査した結果、`tests/test_daily_research_written_mass.py` が現在時刻＋5時間を同じ日として扱う日時越えテスト不具合を修正。予想ロジックは変更しない。
+- PR #1006 head `5b84c7640f24d1f92088decc7f1502c0b08ead8a` の6系統CI（Four-mode prospective capture、Research TopN batch audit、Research forecast checks、Cross-model content audit、CLEAN alternate feed、CLEAN six-boat parser）がすべてsuccess。main squash `d7860353702c81fcedfd8b9f421f4506baf44b66`。
+- 生バイト保全の実運用artifact・元データとの実ハッシュ一致・取得時刻の独立証明、Gemini実API分析、予想精度改善、Render本番は未検証。次は次回実収集artifactのraw-sourcesと予想原本のSHA256比較、取得方式ごとの対応確認。
