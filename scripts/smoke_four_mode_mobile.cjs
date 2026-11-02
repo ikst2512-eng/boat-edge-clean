@@ -68,6 +68,18 @@ const {chromium, webkit} = require('playwright');
       const expected='20261102-02-'+String(race).padStart(2,'0');
       if(!state.selected.includes(race+'R')||state.archive&&state.archive!==expected||state.resultKey&&state.resultKey!==expected)throw Error('Multi-race navigation leakage '+JSON.stringify({race,state}));
     }
+    // Read-only live odds observations for separate race numbers; no synthetic HTTP results.
+    const liveOdds=[];
+    for(const race of [10,11,12]){
+      const started=Date.now();
+      try{
+        const response=await page.request.get('https://boat-edge-clean.onrender.com/api/odds?hd=20261102&jcd=02&rno='+race,{timeout:30000});
+        const elapsedMs=Date.now()-started;
+        const body=await response.json().catch(()=>null);
+        liveOdds.push({race,http:response.status(),elapsedMs,valid:body?.ok===true&&body?.hd==='20261102'&&Number(body?.rno)===race&&body?.odds&&Object.keys(body.odds).length===120});
+      }catch(e){liveOdds.push({race,error:String(e),elapsedMs:Date.now()-started})}
+    }
+    console.log(JSON.stringify({publicOddsMultiRaceObservation:liveOdds,engine:engineName}));
     console.log(JSON.stringify({multiRaceNavigation:'passed',engine:engineName,sequence:[10,11,12,11]}));
     console.log(JSON.stringify({publicRaceSwitch:'passed',engine:engineName,initialResultStatus:evidence.resultStatus,switched}));
     console.log(JSON.stringify({publicMobileBrowser:'passed',engine:engineName,raceCode:'202611020211',...info,...hierarchy}));
