@@ -1,4 +1,5 @@
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -96,7 +97,7 @@ class RepairAgentTests(unittest.TestCase):
             self.assertEqual(result["status"],"no_safe_patch")
 
     def test_issue_relevant_html_middle_is_available(self):
-        source = "HEADER_MARKER" + "x" * 40000 + "\\nfunction forecastPaneBug(){return true;}\\n" + "y" * 40000 + "TAIL_MARKER"
+        source = "HEADER_MARKER" + "x" * 40000 + "\nfunction forecastPaneBug(){return true;}\n" + "y" * 40000 + "TAIL_MARKER"
         context = select_source_context(source, "forecastPaneBug")
         self.assertIn("forecastPaneBug", context)
         self.assertIn("HEADER_MARKER", context)
@@ -147,7 +148,7 @@ class RepairAgentTests(unittest.TestCase):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         # No scheduled calls; AI patches can only be requested manually.
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("\\n  schedule:", workflow)
+        self.assertNotIn("\n  schedule:", workflow)
         self.assertIn("if: github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("persist-credentials: false", workflow)
         # A successful push must survive restricted Actions PR creation.
@@ -157,6 +158,18 @@ class RepairAgentTests(unittest.TestCase):
         self.assertIn('manual draft PR needed', workflow)
         self.assertIn('exit 1', workflow)
         self.assertNotIn('gh pr merge', workflow)
+
+    def test_ai_publish_step_shell_syntax(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        block = block.split("      - name: Archive proposal\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        check = subprocess.run(["bash", "-n"], input=script,
+                               text=True, capture_output=True, check=False)
+        self.assertEqual(check.returncode, 0, check.stderr)
+        self.assertIn("gh pr create --draft", script)
 
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
