@@ -33,6 +33,8 @@ jobs:
                       "url":run["html_url"]}
                      for run in data["workflow_runs"] if run["event"]=="schedule"]
           print("FOUR_MODE_SCHEDULED_RUNS="+json.dumps(scheduled[:12],sort_keys=True))
+          dispatched=[{"id":r["id"],"created_at":r["created_at"],"conclusion":r["conclusion"]} for r in data["workflow_runs"] if r["event"]=="workflow_dispatch"]
+          print("FOUR_MODE_DISPATCHED_RUNS="+json.dumps(dispatched[:5],sort_keys=True))
           watchdog_url=f"https://api.github.com/repos/{repo}/actions/workflows/four-mode-capture-watchdog.yml/runs?per_page=30"
           with urllib.request.urlopen(urllib.request.Request(watchdog_url,headers=request.headers),timeout=20) as response:
               watchdog_data=json.load(response)
@@ -41,6 +43,7 @@ jobs:
                     for r in watchdog_data["workflow_runs"]]
           print("FOUR_MODE_WATCHDOG_RUNS="+json.dumps(watchdog[:10],sort_keys=True))
           print("FOUR_MODE_WATCHDOG_SCHEDULE_COUNT="+str(sum(r["event"]=="schedule" for r in watchdog)))
+          print("FOUR_MODE_WATCHDOG_LATEST="+json.dumps(watchdog[:3],sort_keys=True))
           if not scheduled:
               print("::warning::No scheduled workflow runs in the most recent 100; execution is unconfirmed")
           else:
