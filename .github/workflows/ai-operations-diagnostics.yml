@@ -32,9 +32,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.GEMINI_API_KEY || '' }}
           GEMINI_MODEL: gemini-3.5-flash-lite
+          RESEARCH_RACE_CODE: ${{ inputs.race_code || '' }}
         run: |
-          if [[ -n "${{ inputs.race_code }}" ]]; then
-            python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json --race-code "${{ inputs.race_code }}"
+          if [[ -n "$RESEARCH_RACE_CODE" ]]; then
+            python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json --race-code "$RESEARCH_RACE_CODE"
           else
             python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
           fi
