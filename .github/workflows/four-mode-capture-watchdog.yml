@@ -31,7 +31,7 @@ jobs:
         run: |
           python - <<'PY'
           import json, os, urllib.request
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
           repo=os.environ["GH_REPOSITORY"]
           name="four-mode-prospective-capture.yml"
           root=f"https://api.github.com/repos/{repo}/actions/workflows/{name}"
@@ -58,13 +58,16 @@ jobs:
           recent_fallback=[r for r in publication
                            if r["event"]=="workflow_dispatch" and
                            0 <= (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds() < 20*60]
-          report={"recent_publication_runs":len(recent),
+          jst_now=now.astimezone(timezone(timedelta(hours=9)))
+          in_capture_hours=7 <= jst_now.hour <= 20
+          report={"capture_hours_jst":in_capture_hours,
+                  "recent_publication_runs":len(recent),
                   "fallback_retry_cooldown":bool(recent_fallback),
                   "recent_failed_runs":len(recent)-len(healthy),
                   "recent_healthy_or_active_runs":len(healthy),
                   "newest":publication[0]["created_at"] if publication else None,
                   "dry_run":os.environ["EVENT_NAME"]=="pull_request"}
-          if not healthy and not recent_fallback and os.environ["EVENT_NAME"]!="pull_request":
+          if in_capture_hours and not healthy and not recent_fallback and os.environ["EVENT_NAME"]!="pull_request":
               # Best-effort repair, never assume dispatch implies successful publication.
               body=json.dumps({"ref":"main"}).encode()
               req=urllib.request.Request(root+"/dispatches",data=body,headers={
