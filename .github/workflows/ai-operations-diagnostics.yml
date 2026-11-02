@@ -9,6 +9,7 @@ on:
       - test_four_mode_frozen_diagnostic.py
       - test_ai_diagnostics.py
       - four_mode_research_batch.py
+      - four_mode_historical_cohort.py
       - test_four_mode_research_batch.py
       - .github/workflows/ai-operations-diagnostics.yml
   workflow_dispatch:
@@ -31,6 +32,8 @@ jobs:
           python-version: '3.12'
       - name: Unit tests
         run: python -m unittest -v test_ai_operations test_ai_diagnostics test_four_mode_research_batch test_ai_frozen_race_preflight
+      - name: Calculate real archived historical four-mode cohort
+        run: python four_mode_historical_cohort.py
       - name: Produce immutable-data research audit
         run: python ai_operations.py --output ai_operations_report.json
       - name: Verify archived race evidence before paid Gemini request
@@ -86,4 +89,5 @@ jobs:
             ai_diagnostics_report.json
             ai_frozen_race_case.json
             ai_frozen_race_preflight.json
+            four_mode_historical_cohort_report.json
           retention-days: 90

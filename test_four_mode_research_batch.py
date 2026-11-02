@@ -55,6 +55,19 @@ class BatchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nonmonotonic_topn"):
             summarize(["202610280101"], comparator=faulty)
 
+    def test_covered_beyond_top10_is_valid(self):
+        def case(code, root):
+            return {"race_code": code, "status": "historical_comparison_only",
+                    "formal": False, "remote_first_seen_verified": False,
+                    "modes": {m: {"coverage_diagnostic": "covered",
+                                  "race_dynamics_cause": "not_determined",
+                                  "top3": False, "top5": False, "top10": False}
+                              for m in ("narrow", "hit", "balance", "hole")}}
+        result = summarize(["202610280101"], comparator=case)
+        self.assertEqual(result["historical_comparable"], 1)
+        self.assertEqual(result["modes"]["hit"]["coverage"]["covered"], 1)
+        self.assertEqual(result["modes"]["hit"]["topn_hits"]["top10"], 0)
+
     def test_duplicates_rejected(self):
         with self.assertRaises(ValueError):
             summarize(["202610280101"]*2)
