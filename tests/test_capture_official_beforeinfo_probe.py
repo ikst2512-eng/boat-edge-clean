@@ -43,6 +43,17 @@ class OfficialProbeTests(unittest.TestCase):
             self.assertEqual(outcome["status"],"official_probe_failed")
             self.assertFalse(outcome["forecast_usable"])
 
+    def test_failure_stage_distinguishes_invalid_html_from_transport(self):
+        with tempfile.TemporaryDirectory() as root:
+            invalid=capture("202611010708",root,fetch=lambda url:b'{"error":"not yet"}')
+            self.assertEqual(invalid["status"],"official_probe_failed")
+            self.assertEqual(invalid["failure_stage"],"html_signature")
+            self.assertNotIn("not yet",str(invalid))
+            def unavailable(url): raise TimeoutError("offline")
+            failed=capture("202611010708",root,fetch=unavailable)
+            self.assertEqual(failed["failure_stage"],"transport")
+            self.assertFalse(failed["forecast_usable"])
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
