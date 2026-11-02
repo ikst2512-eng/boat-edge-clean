@@ -187,7 +187,7 @@ jobs:
               if (evidence/"publication.json").exists() else "not_confirmed"
           )
           (evidence/"stages.json").write_text(
-              json.dumps(states, sort_keys=True) + "\\n", encoding="utf-8")
+              json.dumps(states, sort_keys=True) + chr(10), encoding="utf-8")
           print("Four-mode execution stages:", json.dumps(states, sort_keys=True))
           PY
       - name: Publish source acquisition summary
