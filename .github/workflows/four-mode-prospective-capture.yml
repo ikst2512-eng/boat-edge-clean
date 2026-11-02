@@ -97,22 +97,18 @@ jobs:
           # same second as forecast generation cannot prove chronology.
           python - <<'PY'
           import json, subprocess, time
-          from datetime import datetime, timezone
           from pathlib import Path
+          from scripts.verify_four_mode_new_receipts import seconds_until_unambiguous_commit
           names = subprocess.check_output(
               ["git", "diff", "--cached", "--name-only", "--diff-filter=A",
                "--", "four_mode_forecasts/"], text=True).splitlines()
           generated = [
-              datetime.fromisoformat(
-                  json.loads(Path(name).read_text(encoding="utf-8"))["generated_at_jst"]
-              ).timestamp()
+              json.loads(Path(name).read_text(encoding="utf-8"))["generated_at_jst"]
               for name in names
           ]
-          if generated:
-              min_commit_epoch = int(max(generated)) + 1
-              delay = min_commit_epoch - time.time()
-              if delay > 0:
-                  time.sleep(delay + 0.05)
+          delay = seconds_until_unambiguous_commit(generated, time.time())
+          if delay > 0:
+              time.sleep(delay)
           PY
           # The delay must not allow any archive to expire.
           python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
