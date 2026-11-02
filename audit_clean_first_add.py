@@ -52,21 +52,24 @@ def inspect(path, root=ROOT):
             "candidate_unchanged":True,"git_commit_before_cutoff":True,
             "remote_first_seen_verified":False,"formal":False,"scoring":False}
 
+def batch_audit(paths, inspector=inspect):
+    passed, rejected = [], []
+    for path in paths:
+        try:
+            passed.append(inspector(path))
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            rejected.append({"path":path, "reason":str(exc)[:200]})
+    return {"schema":"CLEAN_FIRST_ADD_BATCH_AUDIT_V1", "passed":passed,
+            "rejected":rejected, "counts":{"passed":len(passed),"rejected":len(rejected)},
+            "formal":False}
+
+
 if __name__=="__main__":
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("paths",nargs="+")
     args=p.parse_args()
-    passed = []
-    rejected = []
-    for path in args.paths:
-        try:
-            passed.append(inspect(path))
-        except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
-            rejected.append({"path": path, "reason": str(exc)[:200]})
-    print(json.dumps({"schema":"CLEAN_FIRST_ADD_BATCH_AUDIT_V1",
-                      "passed":passed,"rejected":rejected,
-                      "counts":{"passed":len(passed),"rejected":len(rejected)},
-                      "formal":False},ensure_ascii=False))
-    if rejected:
+    result=batch_audit(args.paths)
+    print(json.dumps(result,ensure_ascii=False))
+    if result["rejected"]:
         raise SystemExit(1)  # Preserve fail-closed CI until rejections are reconciled.
