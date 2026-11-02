@@ -19,8 +19,9 @@ jobs:
         run: |
           python - <<'PY'
           import json, os, urllib.request
+          from datetime import datetime, timezone
           repo=os.environ["GH_REPOSITORY"]
-          url=f"https://api.github.com/repos/{repo}/actions/workflows/four-mode-prospective-capture.yml/runs?per_page=30"
+          url=f"https://api.github.com/repos/{repo}/actions/workflows/four-mode-prospective-capture.yml/runs?per_page=100"
           request=urllib.request.Request(url,headers={
               "Authorization":"Bearer "+os.environ["GH_TOKEN"],
               "Accept":"application/vnd.github+json",
@@ -33,5 +34,13 @@ jobs:
                      for run in data["workflow_runs"] if run["event"]=="schedule"]
           print("FOUR_MODE_SCHEDULED_RUNS="+json.dumps(scheduled[:12],sort_keys=True))
           if not scheduled:
-              print("::warning::No scheduled workflow runs in the most recent 30; cannot infer why without more history")
+              print("::warning::No scheduled workflow runs in the most recent 100; execution is unconfirmed")
+          else:
+              # Compare latest schedule against current time; do not infer
+              # deployment, push or eligibility from a completed workflow.
+              latest=datetime.fromisoformat(scheduled[0]["created_at"].replace("Z","+00:00"))
+              age_minutes=int((datetime.now(timezone.utc)-latest).total_seconds()/60)
+              print("FOUR_MODE_LATEST_SCHEDULE_AGE_MINUTES="+str(age_minutes))
+              if age_minutes > 35:
+                  print("::warning::Last scheduled capture started "+str(age_minutes)+" minutes ago; inspect schedule health")
           PY
