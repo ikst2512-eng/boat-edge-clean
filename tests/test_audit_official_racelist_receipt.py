@@ -41,6 +41,7 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             beforeinfo = self.make_beforeinfo(root)
             result = audit_racelist_with_official_deadline(racecard, beforeinfo, RACE)
             self.assertTrue(result["received_by_t12"])
+            self.assertTrue(result["cutoff_source_verified"])
             self.assertEqual(result["official_deadline_jst"], "2026-11-03T10:14:00+09:00")
             self.assertFalse(result["full_t12_source_certified"])
 
@@ -71,7 +72,9 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             self.assertEqual(report["html_diagnostics"]["html_body_count"], 1)
             self.assertEqual(report["html_diagnostics"]["html_table_count"], 0)
             self.assertFalse(report["html_diagnostics"]["six_racer_rows_verified"])
-            self.assertTrue(report["received_by_t12"])
+            self.assertTrue(report["received_before_supplied_cutoff"])
+            self.assertNotIn("received_by_t12", report)
+            self.assertFalse(report["cutoff_source_verified"])
             self.assertFalse(report["six_racers_verified"])
             self.assertFalse(report["entry_verified"])
             self.assertFalse(report["full_t12_source_certified"])
@@ -80,7 +83,8 @@ class AuditRacelistReceiptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             directory = self.make(root)
             report = audit_racelist(directory, RACE, "2026-11-03T09:59:00+09:00")
-            self.assertFalse(report["received_by_t12"])
+            self.assertFalse(report["received_before_supplied_cutoff"])
+            self.assertNotIn("received_by_t12", report)
 
     def test_tampered_original_rejected(self):
         with tempfile.TemporaryDirectory() as root:
