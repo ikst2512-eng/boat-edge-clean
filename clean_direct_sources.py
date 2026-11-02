@@ -22,6 +22,8 @@ def fetch_bytes(url,limit=2_000_000):
         if res.status!=200:raise ValueError("upstream_http_status")
         raw=res.read(limit+1)
         if len(raw)>limit:raise ValueError("upstream_too_large")
+        from four_mode_raw_receipt import preserve
+        preserve(url, raw, datetime.now(JST))
         return raw
 
 
