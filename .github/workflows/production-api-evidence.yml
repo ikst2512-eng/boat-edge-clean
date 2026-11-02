@@ -37,11 +37,9 @@ jobs:
           else:
               data=json.loads(raw)
               assert data.get('ok') is True or (isinstance(data.get('venues'),list) and data.get('date')==day), 'invalid schedule response'
-              races=[]
-              for venue in data.get('venues',[]):
-                  for race in venue.get('races',[]):races.append((venue.get('jcd'),race.get('race_no'),race.get('deadline')))
+              races=[(r.get('venue_code'),r.get('race_no'),r.get('deadline_jst')) for r in data.get('races',[]) if isinstance(r,dict)]
               report('Schedule dated entries: '+str(len(races)))
-              candidate=next(((v,n,t) for v,n,t in races if isinstance(t,str) and len(t)==5 and isinstance(n,int)),None)
+              candidate=next(((v,n,t) for v,n,t in races if isinstance(t,str) and len(t)>=16 and t.startswith(day[:4]+'-'+day[4:6]+'-'+day[6:8]) and isinstance(n,int)),None)
               if candidate:
                   v,n,t=candidate
                   report('Sample sourced cutoff: venue '+str(v)+' '+str(n)+'R '+t)
