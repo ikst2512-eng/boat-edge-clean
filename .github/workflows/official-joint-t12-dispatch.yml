@@ -1,5 +1,7 @@
 name: Reusable official joint T12 evidence (research only)
 on:
+  pull_request:
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml']
   workflow_dispatch:
     inputs:
       race_code:
@@ -24,6 +26,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Observe and audit immutable source pairs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           RACE_CODE: ${{ inputs.race_code }}
           ATTEMPTS: ${{ inputs.attempts }}
@@ -72,7 +75,7 @@ jobs:
                   break
           PY
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         with:
           name: official-joint-${{ github.run_id }}
           path: |
