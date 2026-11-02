@@ -952,3 +952,9 @@
 - 実コード `ai_diagnostics.py` と既存回帰テストを確認。手動AIサイト修正 run `41387313853` は処理successだが実際の応答は `no_safe_patch` で変更提案なし。予想研究Gemini実API成功、正式的中率向上は引き続き未確認。
 - Gemini予想研究のレスポンスが候補/partの不正型、空白テキスト、16KB超のテキストを含む際に黙認や未処理例外にならず `ValueError` で拒否する検証を追加。API権限、モデルや買い目、4モードは不変更。
 - PR #1031 AI operations optional diagnostics run `41449745427` completed/success。main squash `a1cc4586e71a30afd7499de733aacc87a6770639`。モックによるCIであり、Gemini研究分析APIの実サービス成功は意味しない。
+
+
+## 2026-11-02 Gemini予想研究実行可視化（PR #1033）
+- AI operations optional diagnostics run のPRテスト成功は Gemini実API分析を意味しない。取得可能な最新実行履歴では当該workflowの手動API成功は確認できず、AIによるTop3/5/10的中率改善は未実証。
+- `.github/workflows/ai-operations-diagnostics.yml` のGITHUB_STEP_SUMMARY出力が改行ではなく文字列 `\\n` を表示していた点を修正。API分析statusとevidence_reviewを別行で表示する。PR #1033 AI operations optional diagnostics run `41450364220` completed/success、main squash `e5215a585f9ae3ec491b110d8b1f93afd0c68fc7`。
+- PR上のCIはオフライン検証。Gemini実APIは手動workflow_dispatchが必要で、この回は未実行。4モード、買い目、研究モデル、正式実績の区別を維持。
