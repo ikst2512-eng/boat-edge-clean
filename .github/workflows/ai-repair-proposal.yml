@@ -10,6 +10,7 @@ on:
       issue:
         description: '具体的なUI/ナビゲーション不具合。予想ロジック変更は禁止'
         required: true
+        default: 'navigation.js has an unused line const params=location.search; near its beginning. Remove only this unused declaration, preserving all navigation behavior. No forecast or data changes.'
         type: string
 permissions:
   contents: read
