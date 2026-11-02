@@ -95,8 +95,11 @@ def compare_hole_candidates(prob_rows, official_odds=None, confirmed_finish=None
                 "official_odds_range":([min(odds),max(odds)] if odds is not None else None),
                 "hit":(confirmed_finish in combos if confirmed_finish is not None else None)}
     return {"research_only":True,"historical_formal_evidence":False,
-            "odds_verified":official_odds is not None,
-            "result_verified":confirmed_finish is not None,
+            # A passed-in value is not independently authenticated or timestamped.
+            "odds_supplied":official_odds is not None,
+            "result_supplied":confirmed_finish is not None,
+            "odds_verified":False,
+            "result_verified":False,
             "legacy_extreme":summarize(legacy),
             "moderate_candidate":summarize(moderate)}
 
