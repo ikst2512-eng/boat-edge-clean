@@ -93,6 +93,7 @@ jobs:
           fi
           python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
           if git diff --cached --quiet; then
+            printf '{"outcome":"no_eligible_candidates"}\n' > four-mode-evidence/publication.json
             echo 'No new cutoff-safe four-mode candidates'
             exit 0
           fi
@@ -126,6 +127,7 @@ jobs:
             # immediately before publication; never push an expired receipt.
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
             if git push origin HEAD:main; then
+              printf '{"outcome":"pushed_to_main"}\n' > four-mode-evidence/publication.json
               echo 'Immutable four-mode candidates pushed'
               exit 0
             fi
@@ -144,6 +146,8 @@ jobs:
               print("::warning::Capture status missing; see execution log.")
           else:
               data=json.loads(path.read_text(encoding="utf-8"))
+              publication_path=Path("four-mode-evidence/publication.json")
+              publication=json.loads(publication_path.read_text(encoding="utf-8")) if publication_path.exists() else {"outcome":"not_confirmed"}
               staging_path=Path("four-mode-evidence/staging.json")
               staging=json.loads(staging_path.read_text(encoding="utf-8")) if staging_path.exists() else None
               with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
@@ -151,6 +155,7 @@ jobs:
                   for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","research_archives_present","production_success_proven"):
                       output.write(f"- {key}: {data.get(key, 'unavailable')}\n")
                   output.write(f"- staging: {staging if staging is not None else 'not reached'}\n")
+                  output.write(f"- publication: {publication['outcome']}\n")
               if data.get("source_status") != "available":
                   print("::warning::Race-card source incomplete; no forecast availability is implied.")
           PY
@@ -162,6 +167,7 @@ jobs:
           path: |
             four-mode-evidence/capture.log
             four-mode-evidence/staging.json
+            four-mode-evidence/publication.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
