@@ -1,0 +1,29 @@
+name: Temporary pre-T12 official receipt check
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temporary-pre-t12-receipt.yml'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture immutable official JSON and report
+        run: |
+          mkdir -p reports
+          python -m scripts.capture_official_beforeinfo_json 202611021511 --root evidence --observation-id "run${GITHUB_RUN_ID}" > reports/receipt.json || true
+          cat reports/receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pre-t12-source-receipt
+          path: |
+            reports/
+            evidence/
+          retention-days: 7
