@@ -85,7 +85,9 @@ def compare_hole_candidates(prob_rows, official_odds=None, confirmed_finish=None
             abs(sum(p for _,p in normalized)-1)>1e-6):
         raise ValueError("probability_board_invalid")
     normalized.sort(key=lambda item:(-item[1],item[0]))
-    legacy=rank_modes(normalized)["hole"]["tickets"]
+    # Retain the previous extreme-tail algorithm solely for historical comparison.
+    extreme=sorted(normalized,key=lambda item:(abs(item[1]-0.004),-item[1],item[0]))[:12]
+    legacy=[{"combo":combo,"p":round(p*100,5)} for combo,p in extreme]
     moderate=research_hole_candidates(normalized)["tickets"]
     if official_odds is not None:
         if (not isinstance(official_odds,dict) or len(official_odds)!=120 or
