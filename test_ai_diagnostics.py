@@ -184,6 +184,30 @@ class DiagnosticsTests(unittest.TestCase):
                              "local_audit_payload_before_api_call")
             self.assertEqual(len(recorded["research_input_sha256"]), 64)
 
+    def test_real_response_model_and_usage_are_recorded(self):
+        class ActualResponse(FakeResponse):
+            def read(self, max_bytes):
+                return json.dumps({"modelVersion": "gemini-3.5-flash-lite",
+                    "usageMetadata": {"promptTokenCount": 42, "candidatesTokenCount": 15,
+                                      "totalTokenCount": 57},
+                    "candidates": [{"finishReason": "STOP",
+                                    "content": {"parts": [{"text": "レビュー対象"}]}}]}).encode()
+        result = ai_diagnostics.analyze({"gate": {}}, api_key="example",
+                                         transport=lambda request, timeout: ActualResponse())
+        self.assertEqual(result["response_model_version"], "gemini-3.5-flash-lite")
+        self.assertEqual(result["token_usage"]["totalTokenCount"], 57)
+        self.assertFalse(result["production_change_allowed"])
+
+    def test_invalid_response_usage_is_rejected(self):
+        class BrokenResponse(FakeResponse):
+            def read(self, max_bytes):
+                return json.dumps({"usageMetadata": {"totalTokenCount": -1},
+                    "candidates": [{"finishReason":"STOP",
+                                    "content":{"parts":[{"text":"レビュー対象"}]}}]}).encode()
+        with self.assertRaisesRegex(ValueError, "invalid_response_token_count"):
+            ai_diagnostics.analyze({"gate": {}}, api_key="example",
+                                   transport=lambda request, timeout: BrokenResponse())
+
     def test_large_report_rejected(self):
         with self.assertRaisesRegex(ValueError, "report_too_large"):
             ai_diagnostics.analyze({"x": "z" * 25000}, api_key="example")
