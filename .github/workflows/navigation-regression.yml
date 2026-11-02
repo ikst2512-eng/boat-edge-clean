@@ -86,6 +86,34 @@ jobs:
               }
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count())throw Error('Duplicate forecast tabs');
               if(await page.locator('#forecastQuick:visible').count())throw Error('Duplicate race picker');
+              // Verify ticket typography and odds layout at iPhone-sized viewport.
+              const fourModeLayout=await page.evaluate(()=>{
+                const root=document.getElementById('fourModeForecastRows');
+                const card=document.createElement('article');card.className='four-mode-forecast-item';
+                const row=document.createElement('div');row.className='four-mode-forecast-ticket';
+                const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent='1-2-4';
+                const prob=document.createElement('span');prob.className='four-mode-prob';prob.textContent='6.60%';
+                const odds=document.createElement('span');odds.className='four-mode-odds';odds.textContent='オッズ 16倍';
+                row.append(combo,prob,odds);card.append(row);root.append(card);
+                const out={combo:parseFloat(getComputedStyle(combo).fontSize),
+                  prob:parseFloat(getComputedStyle(prob).fontSize),
+                  odds:parseFloat(getComputedStyle(odds).fontSize),
+                  wrap:odds.getBoundingClientRect().top>=combo.getBoundingClientRect().bottom-2,
+                  clipped:row.scrollWidth>row.clientWidth+1};
+                card.remove();return out;
+              });
+              if(!(fourModeLayout.combo>fourModeLayout.prob&&fourModeLayout.prob>fourModeLayout.odds&&fourModeLayout.wrap&&!fourModeLayout.clipped))
+                throw Error('Four-mode mobile layout broken '+JSON.stringify(fourModeLayout));
+              const cutoffLabel=await page.evaluate(()=>{
+                const original=todayVenueRaces;
+                try{
+                  todayVenueRaces={date:s.date,venues:[{jcd:String(s.venue+1).padStart(2,'0'),races:[{race_no:8,deadline:'21:14'}]}]};
+                  updateRacePickerLabels();
+                  return [...document.querySelectorAll('#races button')].find(b=>b.textContent.startsWith('8R'))?.textContent;
+                }finally{todayVenueRaces=original;updateRacePickerLabels();}
+              });
+              if(cutoffLabel!=='8R 締切 21:14')throw Error('Race cutoff missing: '+cutoffLabel);
+
               const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
               if(overflow>1)throw Error('Horizontal overflow '+overflow);
               if(faults.length)throw Error('JS errors: '+faults.join('; '));
