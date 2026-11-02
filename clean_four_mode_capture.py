@@ -157,6 +157,22 @@ def collect(root=ROOT, now=None, read=read_rows):
             "eligible_forecasts_today":len(list(out.glob(hd+"*.json"))) if out.exists() else 0}
 
 
+def classify_capture(result):
+    """Diagnostic only; never equate local generation with remote publication."""
+    source = result.get("source_status", result.get("source_pending", "unknown"))
+    if source != "available":
+        return "source_unavailable"
+    if result.get("new_saved"):
+        return "generated_locally_unpublished"
+    if result.get("already_saved", 0):
+        return "no_new_already_saved"
+    if result.get("cutoff_skipped", 0):
+        return "no_new_cutoff_skipped"
+    if result.get("excluded"):
+        return "no_new_invalid_candidates"
+    return "no_new_candidates"
+
+
 def publish_status(result,root=ROOT,now=None):
     """Small stable diagnostic; do not overwrite any forecast evidence."""
     now=now or datetime.now(JST)
@@ -173,6 +189,7 @@ def publish_status(result,root=ROOT,now=None):
            "cutoff_skipped":result.get("cutoff_skipped",0),
            "already_saved":result.get("already_saved",0),
            "last_run_new_count":len(result.get("new_saved",[])),
+           "capture_outcome":classify_capture(result),
            "research_archives_present":result.get("eligible_forecasts_today",0)>0,
            "production_success_proven":False}
     target=root/"four_mode_forecasts"/"capture_status.json"
