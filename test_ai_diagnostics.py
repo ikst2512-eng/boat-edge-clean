@@ -40,6 +40,23 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertFalse(actual["remote_first_seen_verified"])
         self.assertEqual(case["race_dynamics_evidence"], "not_provided")
 
+    def test_real_analysis_is_never_auto_promoted(self):
+        report = ai_diagnostics.attach_frozen_race({}, "202610280101")
+        result = ai_diagnostics.review_analysis_output(
+            {"status": "analysis_proposed", "analysis": "的中率が改善する"}, 
+            report["frozen_four_mode_research_case"])
+        self.assertEqual(result["review_status"], "manual_evidence_review_required")
+        self.assertFalse(result["improvement_proven"])
+        self.assertFalse(result["production_change_allowed"])
+        self.assertFalse(result["formal_hit_rate_allowed"])
+
+    def test_empty_or_unverified_output_is_blocked(self):
+        self.assertEqual(ai_diagnostics.review_analysis_output(
+            {"status": "disabled"})["review_status"], "no_analysis")
+        self.assertEqual(ai_diagnostics.review_analysis_output(
+            {"status": "analysis_proposed", "analysis": "test"})["review_status"],
+            "research_case_not_verified")
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
