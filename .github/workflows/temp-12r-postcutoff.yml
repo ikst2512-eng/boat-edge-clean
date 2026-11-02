@@ -1,0 +1,26 @@
+name: Temporary after-cutoff exhibition publication snapshot
+on:
+  pull_request:
+    paths: ['.github/workflows/temp-12r-postcutoff.yml']
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          mkdir -p report
+          python -m scripts.capture_official_beforeinfo_json 202611021912 --root originals --observation-id "run${GITHUB_RUN_ID}" > report/receipt.json
+          cat report/receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: postcutoff-12r-original
+          path: |
+            originals/
+            report/
