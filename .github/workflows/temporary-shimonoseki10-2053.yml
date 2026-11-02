@@ -1,0 +1,54 @@
+name: Temporary additional Shimonoseki 10R official joint receipt
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-shimonoseki10-2053.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture same-race sources
+        run: |
+          mkdir -p reports
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          from datetime import datetime,timedelta
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          race='202611021910'
+          first=before(race,'evidence','before'+os.environ['GITHUB_RUN_ID'])
+          Path('reports/before.json').write_text(json.dumps(first,ensure_ascii=False,indent=2))
+          print('BEFORE',json.dumps(first,ensure_ascii=False))
+          deadline=first.get('deadline_display')
+          if first.get('status')!='official_json_observed_not_t12_certified' or not isinstance(deadline,str) or not re.fullmatch(r'\d{2}:\d{2}',deadline):
+              raise SystemExit('NO_VERIFIED_DEADLINE')
+          second=odds(race,'2026-11-02T'+deadline+':00+09:00','evidence','odds'+os.environ['GITHUB_RUN_ID'])
+          Path('reports/odds.json').write_text(json.dumps(second,ensure_ascii=False,indent=2))
+          cutoff=datetime.fromisoformat('2026-11-02T'+deadline+':00+09:00')-timedelta(minutes=12)
+          complete=bool(first.get('six_unique_boats') and first.get('exhibition_time_nonempty_six')
+                 and first.get('tilt_observed_boats')==6 and first.get('start_exhibition_six_valid_rows')
+                 and datetime.fromisoformat(first['received_at_jst'])<=cutoff
+                 and second.get('complete_odds_observed_before_t12'))
+          result={'race_code':race,'cutoff':cutoff.isoformat(),'beforeinfo_received_at_jst':first.get('received_at_jst'),
+                  'exhibition_count':first.get('exhibition_time_observed_boats'),'tilt_count':first.get('tilt_observed_boats'),
+                  'start_valid':first.get('start_exhibition_six_valid_rows'),
+                  'odds_received_at_jst':second.get('received_at_jst'),'odds_count':second.get('odds_entries'),
+                  'both_complete_before_t12':complete,'forecast_usable':False}
+          Path('reports/joint.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+          print('JOINT',json.dumps(result,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shimonoseki10-2053-original-receipts
+          path: |
+            reports/
+            evidence/
+          retention-days: 7
