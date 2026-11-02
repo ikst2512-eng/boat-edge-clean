@@ -26,6 +26,10 @@ def audit(paths):
             if not isinstance(tickets,list) or len(tickets)!=count:
                 raise ValueError("new_capture_v2_counts_invalid")
             combos=[x.get("combo") for x in tickets if isinstance(x,dict)]
+            for combo in combos:
+                if (not isinstance(combo,str) or len(combo)!=5 or combo[1]!='-' or combo[3]!='-' or
+                    any(d not in "123456" for d in combo[::2]) or len(set(combo[::2]))!=3):
+                    raise ValueError("new_capture_v2_combo_invalid")
             if len(combos)!=count or len(set(combos))!=count:
                 raise ValueError("new_capture_v2_tickets_invalid")
     return len(paths)
