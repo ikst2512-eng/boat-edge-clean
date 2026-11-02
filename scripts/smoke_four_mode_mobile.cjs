@@ -32,6 +32,15 @@ const {chromium, webkit} = require('playwright');
     await page.waitForTimeout(1200);
     const switched=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',archiveKey:document.querySelector('#fourModeForecastRows')?.dataset.raceKey||'',result:document.querySelector('#resultDetail')?.textContent||'',resultKey:displayedResultKey}));
     if(!switched.selected.includes('12R')||switched.archiveKey&&switched.archiveKey!=='20261102-02-12'||switched.resultKey&&switched.resultKey!=='20261102-02-12')throw Error('Cross-race stale display after switch: '+JSON.stringify(switched));
+    // Exercise repeated forward/back navigation and ensure the race identity remains coherent.
+    for(const race of [10,11,12,11]){
+      await page.evaluate(race=>{s.race=race;render()},race);
+      await page.waitForTimeout(400);
+      const state=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',archive:document.querySelector('#fourModeForecastRows')?.dataset.raceKey||'',resultKey:displayedResultKey||''}));
+      const expected='20261102-02-'+String(race).padStart(2,'0');
+      if(!state.selected.includes(race+'R')||state.archive&&state.archive!==expected||state.resultKey&&state.resultKey!==expected)throw Error('Multi-race navigation leakage '+JSON.stringify({race,state}));
+    }
+    console.log(JSON.stringify({multiRaceNavigation:'passed',engine:engineName,sequence:[10,11,12,11]}));
     console.log(JSON.stringify({publicRaceSwitch:'passed',engine:engineName,initialResultStatus:evidence.resultStatus,switched}));
     console.log(JSON.stringify({publicMobileBrowser:'passed',engine:engineName,raceCode:'202611020211',...info,...hierarchy}));
   } finally {await browser.close()}
