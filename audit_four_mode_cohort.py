@@ -17,19 +17,28 @@ def run(root=ROOT):
     reasons = Counter()
     samples = {}
     passed = 0
+    by_day = {}
     for path in paths:
+        day = Path(path).stem[:8]
+        group = by_day.setdefault(day, {"checked": 0, "local_chronology_passed": 0,
+                                        "rejected": 0, "reasons": {}})
+        group["checked"] += 1
         try:
             inspect(path, root=root)
             passed += 1
+            group["local_chronology_passed"] += 1
         except (ValueError, KeyError, TypeError, OSError, subprocess.CalledProcessError,
                 json.JSONDecodeError) as exc:
             reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
             reasons[reason] += 1
+            group["rejected"] += 1
+            group["reasons"][reason] = group["reasons"].get(reason, 0) + 1
             samples.setdefault(reason, path)
     return {"schema": "CLEAN_FOUR_MODE_LOCAL_AUDIT_COHORT_V1",
             "files_checked": len(paths), "local_chronology_passed": passed,
             "rejected": len(paths)-passed, "rejection_reasons": dict(sorted(reasons.items())),
-            "rejection_samples": samples, "remote_first_seen_verified": 0,
+            "rejection_samples": samples, "by_race_day": dict(sorted(by_day.items())),
+            "remote_first_seen_verified": 0,
             "formal_performance_eligible": 0}
 
 if __name__ == "__main__":
