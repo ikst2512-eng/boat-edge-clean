@@ -1,6 +1,9 @@
 import json
 import tempfile
 import unittest
+
+# New captures must be distinguishable from immutable V1 archives.
+
 from datetime import datetime
 from pathlib import Path
 from research_model import JST
