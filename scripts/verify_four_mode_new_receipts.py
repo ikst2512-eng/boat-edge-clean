@@ -9,6 +9,15 @@ from pathlib import Path
 
 PATTERN = re.compile(r"^four_mode_forecasts/20[0-9]{10}\.json$")
 
+def seconds_until_unambiguous_commit(generated, now_epoch):
+    """Delay until Git's whole-second commit stamp is after every generation."""
+    if not generated:
+        return 0.0
+    from math import floor
+    latest = max(datetime.fromisoformat(value).timestamp() for value in generated)
+    return max(0.0, floor(latest) + 1 - now_epoch + 0.05)
+
+
 def files_from_git(flag, ref=None):
     cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=A", "--", "four_mode_forecasts/"] if flag == "staged" else [
         "git", "diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A", "-r", ref, "--", "four_mode_forecasts/"
