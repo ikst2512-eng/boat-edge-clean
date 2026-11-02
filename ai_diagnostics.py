@@ -90,7 +90,7 @@ def main():
     report = json.loads(args.report.read_text(encoding="utf-8"))
     if args.race_code:
         report = attach_frozen_race(report, args.race_code)
-        args.case_output.write_text(json.dumps(report["frozen_four_mode_research_case"], ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        args.case_output.write_text(json.dumps(report["frozen_four_mode_research_case"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     result = analyze(report)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("AI diagnostics:", result["status"])
