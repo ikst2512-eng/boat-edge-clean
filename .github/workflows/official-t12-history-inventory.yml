@@ -17,6 +17,8 @@ on:
       - '.github/workflows/official-t12-history-inventory.yml'
       - 'scripts/inventory_joint_t12_history.py'
       - 'tests/test_inventory_joint_t12_history.py'
+      - 'scripts/reaudit_joint_t12_inventory.py'
+      - 'tests/test_reaudit_joint_t12_inventory.py'
   workflow_dispatch:
 permissions:
   contents: read

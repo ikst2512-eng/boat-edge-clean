@@ -17,6 +17,7 @@ def reaudit_inventory(inventory, repo, token, loader=load_archive, auditor=reaud
     if not token:
         raise ValueError("missing token")
     seen = set()
+    seen_artifacts = set()
     results = []
     for run in runs:
         run_id = run.get("run_id")
@@ -25,12 +26,18 @@ def reaudit_inventory(inventory, repo, token, loader=load_archive, auditor=reaud
             raise ValueError("invalid or duplicate run")
         seen.add(run_id)
         for artifact_id in ids:
-            if type(artifact_id) is not int or artifact_id <= 0:
-                raise ValueError("invalid artifact")
+            if type(artifact_id) is not int or artifact_id <= 0 or artifact_id in seen_artifacts:
+                raise ValueError("invalid or duplicate artifact")
+            seen_artifacts.add(artifact_id)
             try:
                 result = auditor(loader(repo, token, artifact_id), run_id)
+                verified = result["independently_verified_complete_pairs"]
+                reports = result["attempt_reports"]
+                if (type(verified) is not int or type(reports) is not int
+                        or not 0 <= verified <= reports <= 6):
+                    raise ValueError("invalid audit totals")
                 results.append({"run_id": run_id, "artifact_id": artifact_id,
-                                "verified_complete_pairs": result["independently_verified_complete_pairs"],
+                                "verified_complete_pairs": verified,
                                 "attempt_reports": result["attempt_reports"],
                                 "status": "source_reaudit_complete"})
             except (ValueError, OSError, KeyError, TypeError, UnicodeError, EOFError):
