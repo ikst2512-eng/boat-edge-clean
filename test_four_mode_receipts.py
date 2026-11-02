@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.verify_four_mode_new_receipts import verify
+from scripts.verify_four_mode_new_receipts import verify, seconds_until_unambiguous_commit
 
 JST = timezone(timedelta(hours=9))
 
@@ -36,6 +36,15 @@ class FourModeReceiptTests(unittest.TestCase):
         self.temp.cleanup()
     def write(self):
         self.path.write_text(json.dumps(self.record), encoding="utf-8")
+    def test_commit_second_delay_is_unambiguous(self):
+        generated = ["2026-11-02T14:53:20.144877+09:00",
+                     "2026-11-02T14:53:20.900000+09:00"]
+        epoch = datetime.fromisoformat(generated[0]).timestamp()
+        delay = seconds_until_unambiguous_commit(generated, epoch)
+        self.assertGreater(delay, 0.85)
+        self.assertLess(delay, 1.0)
+        self.assertEqual(seconds_until_unambiguous_commit(generated, epoch + 2), 0)
+
     def test_valid_immutable_candidate(self):
         self.write()
         self.assertEqual(verify([str(self.path)], now=self.now+timedelta(minutes=1)),1)
