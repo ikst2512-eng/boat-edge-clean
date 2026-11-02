@@ -21,6 +21,8 @@ on:
       - scripts/verify_four_mode_new_receipts.py
       - scripts/audit_new_v2_staged.py
       - test_audit_new_v2_staged.py
+      - hole_shadow_same_job_capture.py
+      - test_hole_shadow_same_job_capture.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
   contents: read
@@ -217,6 +219,10 @@ jobs:
             fi
             sleep "$attempt"
           done
+      - name: Freeze shadow after confirmed publication (research only)
+        if: github.event_name != 'pull_request'
+        run: |
+          python hole_shadow_same_job_capture.py
       - name: Record per-stage capture verdict
         if: always()
         env:
@@ -329,6 +335,7 @@ jobs:
             four-mode-evidence/publication.json
             four-mode-evidence/stages.json
             four-mode-evidence/source-links.json
+            four-mode-evidence/hole-shadow.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
