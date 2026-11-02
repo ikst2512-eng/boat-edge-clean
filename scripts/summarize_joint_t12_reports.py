@@ -41,8 +41,10 @@ def summarize(report_dir):
                 raise ValueError("not an object")
             attempt = item.get("attempt")
             race = item.get("race_code")
-            if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
-                raise ValueError("missing attempt")
+            if not isinstance(attempt, int) or isinstance(attempt, bool) or not 1 <= attempt <= 6:
+                raise ValueError("invalid attempt")
+            if path.name != f"joint_{attempt}.json":
+                raise ValueError("report filename and attempt mismatch")
             if not isinstance(race, str) or len(race) != 12 or not race.isdigit():
                 raise ValueError("missing race")
             is_success = has_verified_complete_pair(item)
