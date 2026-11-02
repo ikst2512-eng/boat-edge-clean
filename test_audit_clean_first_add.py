@@ -28,6 +28,21 @@ class FirstAddAuditTests(unittest.TestCase):
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T13:50:00+09:00"))):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
+    def test_first_add_bounds_git_history_without_skipping_ambiguity(self):
+        from unittest.mock import call
+        root = Path("/tmp/first-add-check")
+        rel = "prospective_predictions/202610281201.json"
+        stamp = "2026-10-28T09:00:00+09:00"
+        with patch.object(audit.subprocess, "check_output",
+                          side_effect=["a"*40+" "+stamp+"\n", b"original"]) as run, \\
+                patch.object(Path, "read_bytes", return_value=b"original"):
+            original, sha, when = audit.first_add(rel, root)
+        self.assertEqual(sha, "a"*40)
+        self.assertEqual(original, b"original")
+        self.assertEqual(when.isoformat(), stamp)
+        self.assertEqual(run.call_args_list[0].args[0][:3],
+                         ["git", "log", "--max-count=2"])
+
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
