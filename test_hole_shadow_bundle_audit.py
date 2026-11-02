@@ -24,7 +24,7 @@ class ShadowAuditTests(unittest.TestCase):
   self.archive={"deadline_jst":self.record["deadline_jst"],
                 "modes":{"hole":{"tickets":[{"combo":x} for x in self.record["baseline"]]},
                          "hit":{"tickets":[{"combo":"1-5-2"},{"combo":"1-5-3"}]},
-                         "balance":{"tickets":[{"combo":"1-5-2"},{"combo":"1-5-3"}]}}
+                         "balance":{"tickets":[{"combo":"1-5-2"},{"combo":"1-5-3"}]}}}
  def write(self):
   self.p.write_text(json.dumps({"status":"research_only_after_confirmed_push","records":[self.record]}))
  def test_comparison_separates_gained_and_lost(self):
