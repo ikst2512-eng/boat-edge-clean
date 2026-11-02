@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/official-t12-history-inventory.yml'
       - 'scripts/inventory_joint_t12_history.py'
+      - 'scripts/render_joint_t12_inventory_summary.py'
   pull_request:
     paths:
       - '.github/workflows/official-t12-history-inventory.yml'
@@ -30,6 +31,9 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           python -m scripts.inventory_joint_t12_history --repo "$REPOSITORY" --output reports/t12_history_inventory.json
+      - name: Show verified inventory scope in Actions summary
+        if: ${{ github.event_name != 'pull_request' }}
+        run: python -m scripts.render_joint_t12_inventory_summary reports/t12_history_inventory.json "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: ${{ always() && github.event_name != 'pull_request' }}
         with:
@@ -37,4 +41,6 @@ jobs:
           path: reports/t12_history_inventory.json
           retention-days: 14
       - name: Regression tests
-        run: python -m unittest discover -s tests -p 'test_inventory_joint_t12_history.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_inventory_joint_t12_history.py' -v
+          python -m unittest discover -s tests -p 'test_render_joint_t12_inventory_summary.py' -v
