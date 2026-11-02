@@ -26,8 +26,11 @@ def read_rows(url):
         if response.status!=200:raise ValueError("source unavailable")
         raw=response.read(2_000_001)
         if len(raw)>2_000_000:raise ValueError("source too large")
-    return (list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),
-            datetime.now(JST), hashlib.sha256(raw).hexdigest())
+    received = datetime.now(JST)
+    rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+    from four_mode_raw_receipt import preserve
+    preserve(url, raw, received)
+    return rows, received, hashlib.sha256(raw).hexdigest()
 STORE=Path(__file__).resolve().parent/"research_snapshots"
 def model_provenance():
     root=Path(__file__).resolve().parent
