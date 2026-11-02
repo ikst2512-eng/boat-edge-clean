@@ -989,3 +989,9 @@
 - Google公式ドキュメントで `gemini-3.5-flash-lite` が有効なモデルコードと確認。
 - `ai_diagnostics.py` にレスポンス由来の `modelVersion` と `usageMetadata`（prompt/candidates/total tokens）を任意項目として保存。異常な型・負数などを拒否。使用量は診断監査でありAI精度の実測ではない。
 - PR #1047 AI operations optional diagnostics run `41454646320` completed/success、main squash `84735936f5ab551571e4e338311afd50be3597bd`。API模擬テストであり実課金APIは未実行。4モード、買い目、予想ロジックは維持。
+
+
+## 2026-11-02 Gemini分析入出力の実改行修正（PR #1051）
+- 最新 `workflow_dispatch` 履歴に AI operations optional diagnostics の実API成功はまだ見当たらない。今回のCIもAPIモック検証であり、Gemini実レース分析・的中率改善を意味しない。
+- `ai_diagnostics.py` の分析プロンプト区切りと複数part出力の結合にリテラル `\\n` が混入していたため、実改行（LF）へ変更。実改行の回帰テスト追加。
+- PR #1051 AI operations optional diagnostics CI `41455070801` completed/success、main squash `81ddc90acbd7f1724e541e76106effb4877b3de2`。4モード・買い目・予想ロジック不変更。
