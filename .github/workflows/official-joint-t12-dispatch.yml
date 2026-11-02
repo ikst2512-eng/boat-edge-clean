@@ -59,7 +59,10 @@ jobs:
               b=odds(race,deadline.isoformat(),'evidence','odds'+identifier)
               Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
               if b.get('status')!='official_odds_observed_research_only':
-                  print('ODDS_FAILED',b.get('error'))
+                  print('ODDS_FAILED',json.dumps({'attempt':i,'status':b.get('status'),'error':b.get('error'),'forecast_usable':False},ensure_ascii=False))
+                  if i<attempts and datetime.datetime.now(jst)+datetime.timedelta(seconds=55)<cutoff:
+                      time.sleep(30)
+                      continue
                   break
               pa=Path('evidence/observations')/('before'+identifier)/race[:8]/race
               pb=Path('evidence/observations')/('odds'+identifier)/race[:8]/race
