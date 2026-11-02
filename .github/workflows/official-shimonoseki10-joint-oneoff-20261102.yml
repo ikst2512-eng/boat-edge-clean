@@ -31,28 +31,36 @@ jobs:
               raise SystemExit('Outside one-date experiment')
           race='202611021910'
           Path('reports').mkdir()
-          a=before(race,'evidence','before'+os.environ['GITHUB_RUN_ID'])
-          Path('reports/before.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
-          if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
-              raise SystemExit('Official beforeinfo failed')
-          deadline=datetime.datetime.fromisoformat('2026-11-02T'+a['deadline_display']+':00+09:00')
-          b=odds(race,deadline.isoformat(),'evidence','odds'+os.environ['GITHUB_RUN_ID'])
-          Path('reports/odds.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
-          cutoff=deadline-datetime.timedelta(minutes=12)
-          complete=bool(a.get('six_unique_boats') and a.get('exhibition_time_nonempty_six')
-                        and a.get('tilt_observed_boats')==6 and a.get('start_exhibition_six_valid_rows')
-                        and datetime.datetime.fromisoformat(a['received_at_jst'])<=cutoff
-                        and b.get('complete_odds_observed_before_t12'))
-          summary={'race_code':race,'deadline_jst':deadline.isoformat(),'cutoff_jst':cutoff.isoformat(),
-                   'beforeinfo_received_at_jst':a.get('received_at_jst'),
-                   'odds_received_at_jst':b.get('received_at_jst'),
-                   'exhibition_boats':a.get('exhibition_time_observed_boats'),
-                   'start_valid':a.get('start_exhibition_six_valid_rows'),
-                   'valid_odds_120_before_t12':b.get('complete_odds_observed_before_t12'),
-                   'both_sources_complete_before_t12':complete,
-                   't12_eligible':False,'forecast_usable':False}
-          Path('reports/joint.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
-          print('JOINT_SUMMARY',json.dumps(summary,ensure_ascii=False))
+          import time
+          for attempt in range(1, 4):
+              a=before(race,'evidence','before'+os.environ['GITHUB_RUN_ID']+'_'+str(attempt))
+              Path(f'reports/before_{attempt}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
+              if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
+                  raise SystemExit('Official beforeinfo failed')
+              deadline=datetime.datetime.fromisoformat('2026-11-02T'+a['deadline_display']+':00+09:00')
+              b=odds(race,deadline.isoformat(),'evidence','odds'+os.environ['GITHUB_RUN_ID']+'_'+str(attempt))
+              Path(f'reports/odds_{attempt}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
+              cutoff=deadline-datetime.timedelta(minutes=12)
+              complete=bool(a.get('six_unique_boats') and a.get('exhibition_time_nonempty_six')
+                            and a.get('tilt_observed_boats')==6 and a.get('start_exhibition_six_valid_rows')
+                            and datetime.datetime.fromisoformat(a['received_at_jst'])<=cutoff
+                            and b.get('complete_odds_observed_before_t12'))
+              summary={'race_code':race,'deadline_jst':deadline.isoformat(),'cutoff_jst':cutoff.isoformat(),
+                       'beforeinfo_received_at_jst':a.get('received_at_jst'),
+                       'odds_received_at_jst':b.get('received_at_jst'),
+                       'exhibition_boats':a.get('exhibition_time_observed_boats'),
+                       'start_valid':a.get('start_exhibition_six_valid_rows'),
+                       'valid_odds_120_before_t12':b.get('complete_odds_observed_before_t12'),
+                       'both_sources_complete_before_t12':complete,
+                       't12_eligible':False,'forecast_usable':False}
+              Path(f'reports/joint_{attempt}.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
+              print('JOINT_SUMMARY',json.dumps(summary,ensure_ascii=False))
+              if complete:
+                  break
+              if attempt < 3 and datetime.datetime.now(jst) + datetime.timedelta(seconds=65) < cutoff:
+                  time.sleep(60)
+              else:
+                  break
           PY
       - name: Regress independent collectors
         run: |
