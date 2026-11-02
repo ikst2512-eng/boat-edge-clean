@@ -1,0 +1,41 @@
+name: Hole second-pair per-race audit
+on:
+  pull_request:
+    paths:
+      - 'hole_second_pair_case_audit.py'
+      - 'test_hole_second_pair_case_audit.py'
+      - '.github/workflows/hole-second-pair-case-audit.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python -m unittest -v test_hole_second_pair_counterfactual.py test_hole_second_pair_case_audit.py
+      - name: Generate per-race audit
+        run: python hole_second_pair_case_audit.py > hole_second_pair_case_audit.json
+      - name: Verify expected cohort and gains/losses accounting
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("hole_second_pair_case_audit.json"))
+          assert d["status"]=="historical_research_only"
+          assert d["comparable"]==120
+          assert d["production_forecast_changed"] is False
+          assert d["remote_first_seen_verified"] is False
+          assert len(d["summary"])==9
+          for key, s in d["summary"].items():
+              print(key, {k: {"gained":len(s["gains"][k]),"lost":len(s["losses"][k]),
+                              "net":len(s["gains"][k])-len(s["losses"][k])}
+                          for k in ("top3","top5","top10")})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-second-pair-case-audit
+          path: hole_second_pair_case_audit.json
