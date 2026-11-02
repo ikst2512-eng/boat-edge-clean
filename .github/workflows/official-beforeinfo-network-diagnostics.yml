@@ -1,0 +1,35 @@
+name: Official beforeinfo network diagnostics (research only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-beforeinfo-network-diagnostics.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check DNS, TLS, HTTP for two official hosts without claiming evidence
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p network_report
+          for host in www.boatrace.jp boatrace.jp; do
+            echo "## ${host}" | tee -a network_report/summary.txt
+            getent ahostsv4 "$host" | head -3 | tee -a network_report/summary.txt || true
+            curl --location --silent --show-error --output /dev/null \
+              --connect-timeout 4 --max-time 9 \
+              --write-out 'http_code=%{http_code} remote_ip=%{remote_ip} dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect} total=%{time_total}\\n' \
+              "https://${host}/owsp/sp/race/beforeinfo?hd=20261102&jcd=15&rno=12" \
+              >> network_report/summary.txt 2>> network_report/errors.txt
+            echo "curl_exit=$?" | tee -a network_report/summary.txt
+          done
+          echo "Diagnostic only: no raw official race evidence or T-12 certification" >> network_report/summary.txt
+          cat network_report/summary.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-beforeinfo-network-diagnostics
+          path: network_report/
+          retention-days: 7
