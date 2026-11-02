@@ -1007,3 +1007,9 @@
 - GitHub Actionsのworkflow_dispatch履歴に Gemini AI operations optional diagnostics の実API実行は0件であり、実Gemini研究分析・的中率改善は未検証。
 - 手動Gemini分析の前に `four_mode_frozen_diagnostic.compare_race` で保存予想と確定結果を検証し、不足ならAPI要求前に停止するようワークフローを修正。`ai_frozen_race_preflight.json` を収集artifactに加え、比較可能かをread-onlyで記録。先行PR #1057の初期レースコードを維持。
 - PR #1061 CI `41456856034` completed/success、main競合を再確認し統合 `b6fa9fe87d7ab08ea391d223e27e64c6af71d50d`。CIはPRオフラインテストのため、手動Gemini実API成功は意味しない。買い目・4モード・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini API事前検証の実行可能テスト化（PR #1065）
+- `AI operations optional diagnostics` の手動workflow_dispatch実行履歴は確認時点で0件。実Gemini分析成功・予想精度向上は未実証。
+- 従来workflow内に埋め込まれていた保存済みレース/確定結果の事前検査を `ai_frozen_race_preflight.py` に分離し、CIで実際に同じ判定関数をテスト。既存桐生1R `202610280101` に対する比較可能判定、正式扱い・独立証拠欠如ケースのfail-closed、入力不正拒否を検証。
+- PR #1065 AI operations optional diagnostics #41457311378 completed/success、main squash `b73bc29d87d4745d2847f31e1d59f73697438f2f`。手動Gemini API呼出しは行っていない。4モード・買い目・予想ロジック変更なし。
