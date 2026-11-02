@@ -63,6 +63,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          publication_stage="candidate_staging"
+          record_failure() {
+            code=$?
+            PUBLICATION_STAGE="$publication_stage" EXIT_CODE="$code" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("four-mode-evidence").mkdir(exist_ok=True)
+          Path("four-mode-evidence/publication.json").write_text(
+              json.dumps({"outcome":"failed", "stage":os.environ["PUBLICATION_STAGE"],
+                          "exit_code":int(os.environ["EXIT_CODE"])},sort_keys=True)+chr(10),
+              encoding="utf-8")
+          PY
+            exit "$code"
+          }
+          trap record_failure ERR
           # Stage only newly created and individually valid candidates. One
           # expired race must not block still-eligible races in the same batch.
           python - <<'PY'
@@ -123,14 +138,18 @@ jobs:
           PY
           # The delay must not allow any archive to expire.
           python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
+          publication_stage="git_commit"
           git commit -m 'data: freeze four-mode predeadline research candidates'
           for attempt in 1 2 3; do
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
+            publication_stage="fetch_main"
             git fetch origin main
+            publication_stage="rebase_main"
             git -c rebase.autoStash=true rebase origin/main
             # Rebasing changes the commit timestamp. Recheck the actual candidate
             # immediately before publication; never push an expired receipt.
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
+            publication_stage="local_first_add_audit"
             # Verify the exact first-add blob and Git chronology before pushing.
             # This is local provenance only, never remote first-seen validation.
             python - <<'PY'
@@ -146,6 +165,7 @@ jobs:
                 inspect(name)
             print("First-add local chronology preflight passed:", len(names))
             PY
+            publication_stage="push_main"
             if git push origin HEAD:main; then
               # Record the exact pushed commit, not just a success label.
               # This allows the immutable first-add audit to inspect its blob.
