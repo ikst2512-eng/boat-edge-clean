@@ -1,7 +1,7 @@
 name: Reusable official joint T12 evidence (research only)
 on:
   pull_request:
-    paths: ['.github/workflows/official-joint-t12-dispatch.yml']
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py']
   workflow_dispatch:
     inputs:
       race_code:

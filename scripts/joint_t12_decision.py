@@ -21,3 +21,7 @@ def decision(before_received_jst, deadline_jst, now_jst):
 
 def can_retry(now_jst, deadline_jst, attempt, attempts):
     return attempt < attempts and _jst(now_jst) + timedelta(seconds=55) < _jst(deadline_jst) - timedelta(minutes=12)
+
+def receipt_at_or_before_t12(received_at_jst, deadline_jst):
+    """Arrival time, not request start, decides whether evidence is timely."""
+    return _jst(received_at_jst) <= _jst(deadline_jst) - timedelta(minutes=12)
