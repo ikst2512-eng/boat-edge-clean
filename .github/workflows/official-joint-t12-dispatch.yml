@@ -1,7 +1,7 @@
 name: Reusable official joint T12 evidence (research only)
 on:
   pull_request:
-    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py', 'tests/test_joint_t12_workflow_exception.py', 'tests/test_joint_t12_workflow_concurrency.py', 'scripts/publish_official_receipt.py', 'tests/test_publish_official_receipt.py', 'tests/test_receipt_sigkill_recovery.py', 'scripts/capture_official_beforeinfo_json.py', 'scripts/capture_official_odds_receipt.py']
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py', 'tests/test_joint_t12_workflow_exception.py', 'tests/test_joint_t12_workflow_concurrency.py', 'scripts/publish_official_receipt.py', 'tests/test_publish_official_receipt.py', 'tests/test_receipt_sigkill_recovery.py', 'tests/test_receipt_failure_matrix.py', 'scripts/capture_official_beforeinfo_json.py', 'scripts/capture_official_odds_receipt.py']
   workflow_dispatch:
     inputs:
       race_code:
@@ -131,3 +131,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
           python -m unittest discover -s tests -p 'test_publish_official_receipt.py' -v
           python -m unittest discover -s tests -p 'test_receipt_sigkill_recovery.py' -v
+          python -m unittest discover -s tests -p 'test_receipt_failure_matrix.py' -v
