@@ -1,6 +1,7 @@
 """Fail closed on new four-mode forecast Git receipts; no retrospective publication."""
 import argparse
 import json
+import math
 import re
 import subprocess
 from datetime import datetime, timedelta, timezone
@@ -64,6 +65,9 @@ def verify(paths, *, now=None, buffer_seconds=90):
                     raise ValueError("invalid_combo")
                 if len(set(combo.split("-"))) != 3 or combo in seen:
                     raise ValueError("duplicate_or_invalid_combo")
+                p = row.get("p")
+                if type(p) not in (int, float) or not math.isfinite(p) or not 0 <= p <= 100:
+                    raise ValueError("invalid_probability")
                 seen.add(combo)
     return len(paths)
 
