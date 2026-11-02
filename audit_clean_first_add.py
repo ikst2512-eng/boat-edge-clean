@@ -82,7 +82,13 @@ def inspect(path, root=ROOT):
     times=[datetime.fromisoformat(obj[k]) for k in ("source_title_received_jst","source_cards_received_jst")]
     if any(v.utcoffset()!=timedelta(hours=9) for v in [deadline,cutoff,generated,*times]):
         raise ValueError("non-JST timestamp")
-    if deadline-cutoff!=timedelta(minutes=12) or max([generated,*times])>=cutoff or first_committer_at>=cutoff:
+    if deadline-cutoff!=timedelta(minutes=12):
+        raise ValueError("cutoff interval invalid")
+    if generated>=cutoff:
+        raise ValueError("generated after cutoff")
+    if any(t>=cutoff for t in times):
+        raise ValueError("source received after cutoff")
+    if first_committer_at>=cutoff:
         raise ValueError("first Git commit not before prospective cutoff")
     return {"race_code":code,"first_add_sha":sha,
             "first_committer_at":first_committer_at.isoformat(),
