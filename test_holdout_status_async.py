@@ -55,7 +55,7 @@ class HoldoutAsyncTests(unittest.TestCase):
             for day in ("20261028", "20261029", "20261030", "20261101"):
                 (folder / (day + "0101.json")).write_text("{}", encoding="utf-8")
             with patch.object(server, "ROOT", Path(tmp)):
-                with patch("audit_clean_first_add.bulk_first_add", return_value=__import__("contextlib").nullcontext()), patch("compare_topn_signal70_days.report", return_value={
+                with patch("audit_clean_first_add.bulk_first_add", return_value=__import__("contextlib").nullcontext()), patch("audit_clean_first_add.inspect", side_effect=ValueError("unambiguous first addition not found")), patch("compare_topn_signal70_days.report", return_value={
                         "later_holdout_days": 2, "later_holdout_evaluated_races": 4}) as report:
                     status = server._compute_holdout_status()
         report.assert_called_once_with(["20261030", "20261101"])
@@ -77,7 +77,7 @@ class HoldoutAsyncTests(unittest.TestCase):
                            "signal_70_plus": {"evaluated": 1, "awaiting_result": 1, "rejected": 1},
                            "below_70": {"evaluated": 1, "awaiting_result": 1, "rejected": 0}}}]}
             with patch.object(server, "ROOT", root), patch(
-                "audit_clean_first_add.bulk_first_add", return_value=nullcontext()), patch(
+                "audit_clean_first_add.bulk_first_add", return_value=nullcontext()), patch("audit_clean_first_add.inspect", side_effect=ValueError("unambiguous first addition not found")), patch(
                 "compare_topn_signal70_days.report", return_value=payload):
                 result = server._compute_holdout_status()
         self.assertEqual(result["evaluated_holdout_races"], 2)
