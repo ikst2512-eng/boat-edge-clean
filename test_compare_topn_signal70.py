@@ -35,6 +35,19 @@ class Signal70Tests(unittest.TestCase):
             self.assertEqual(group["rejected"],1)
             self.assertIsNone(group["hit_rate_pct"]["top3"])
 
+    def test_audit_rejection_reason_does_not_change_denominator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            (d/"202610300101.json").write_text(json.dumps({"national_win_rates":[1]*6}))
+            def scorer(code,root):
+                raise ValueError("unambiguous first addition not found")
+            result=compare("20261030",root,scorer,lambda rates:.8)
+            group=result["groups"]["signal_70_plus"]
+            self.assertEqual(group["evaluated"],0)
+            self.assertEqual(group["rejected"],1)
+            self.assertEqual(group["rejection_reasons"]["first_add_missing_or_ambiguous"],1)
+            self.assertIsNone(group["hit_rate_pct"]["top3"])
+
     def test_missing_rank_with_hit_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
