@@ -183,10 +183,17 @@ jobs:
           evidence.mkdir(exist_ok=True)
           states = {"source_capture": os.environ["SOURCE_OUTCOME"],
                     "receipt_staging": os.environ["STAGING_OUTCOME"]}
-          states["publication"] = (
-              json.loads((evidence/"publication.json").read_text()).get("outcome")
-              if (evidence/"publication.json").exists() else "not_confirmed"
-          )
+          publication = evidence/"publication.json"
+          states["publication"] = "not_confirmed"
+          if publication.exists():
+              try:
+                  payload = json.loads(publication.read_text(encoding="utf-8"))
+                  if not isinstance(payload, dict) or not isinstance(payload.get("outcome"), str):
+                      raise ValueError("invalid publication verdict")
+                  states["publication"] = payload["outcome"]
+              except (ValueError, UnicodeError, OSError):
+                  states["publication"] = "invalid_publication_evidence"
+          # A malformed publication file must never erase the source/staging verdicts.
           (evidence/"stages.json").write_text(
               json.dumps(states, sort_keys=True) + chr(10), encoding="utf-8")
           print("Four-mode execution stages:", json.dumps(states, sort_keys=True))
