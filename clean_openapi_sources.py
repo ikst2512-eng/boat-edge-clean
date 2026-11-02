@@ -16,12 +16,16 @@ def load(day,fetch=None,now=None):
     if not re.fullmatch(r"20\d{6}",day):raise ValueError("invalid_day")
     datetime.strptime(day,"%Y%m%d")
     now=now or datetime.now(JST)
+    live_fetch=fetch is None
     url=f"{BASE}{day[:4]}/{day}.json"
     if fetch is None:
         def fetch(target):
             with urlopen(Request(target,headers={"User-Agent":"BOAT-EDGE-CLEAN/1.0"}),timeout=12) as response:
                 return response.read(MAX_BYTES+1)
     raw=fetch(url)
+    # Real HTTP acquisition must be timestamped after bytes arrive, not at
+    # collector start. Injected fetches retain the deterministic fixture clock.
+    received_at=datetime.now(JST) if live_fetch else now
     if len(raw)>MAX_BYTES:raise ValueError("source_too_large")
     digest=hashlib.sha256(raw).hexdigest()
     stadiums=json.loads(raw)["programs"]["stadiums"]
@@ -55,4 +59,4 @@ def load(day,fetch=None,now=None):
             except (ValueError,KeyError,TypeError,AttributeError,OverflowError):
                 rejected+=1
     if not titles:raise ValueError("no_valid_races")
-    return titles,cards,now,digest,{"source":"nonofficial_openapi_v1","url":url,"valid":len(titles),"rejected":rejected}
+    return titles,cards,received_at,digest,{"source":"nonofficial_openapi_v1","url":url,"valid":len(titles),"rejected":rejected}
