@@ -5,6 +5,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from scripts.publish_official_receipt import publish_receipt
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -62,9 +63,7 @@ def capture(race_code, deadline_jst, root, observation_id, *, fetch=None, clock=
             deadline_jst=deadline.isoformat()))
         report.update(status="official_odds_observed_research_only",
                       sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
-        dest.mkdir(parents=True, exist_ok=False)
-        (dest / "original.html").write_bytes(raw)
-        (dest / "manifest.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        publish_receipt(dest, "original.html", raw, report)
     except Exception as exc:
         report.update(status="official_odds_probe_failed", error=type(exc).__name__)
     return report
