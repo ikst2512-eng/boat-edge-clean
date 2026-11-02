@@ -1,0 +1,39 @@
+name: CLEAN first-add evidence reproduction
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - audit_clean_first_add.py
+      - .github/workflows/holdout-first-add-repro.yml
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check archived first-add evidence against full Git history
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from audit_clean_first_add import first_add, inspect
+          codes = ("202610301306", "202610312412", "202611011306", "202611022412")
+          for code in codes:
+              rel = "prospective_predictions/" + code + ".json"
+              body, sha, committed = first_add(rel)
+              cutoff = datetime.fromisoformat(json.loads(body)["cutoff_jst"])
+              margin = round((cutoff - committed).total_seconds() / 60, 2)
+              print(json.dumps({"race_code": code, "first_add_sha": sha,
+                                "margin_minutes": margin, "early_commit": margin > 0}))
+              verdict = inspect(rel)
+              assert verdict["git_commit_before_cutoff"] is True
+              assert margin > 0
+          PY
