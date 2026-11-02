@@ -34,13 +34,24 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
                          "topn_hits": hits,
                          "historical_topn_pct": {k: round(100 * v / len(eligible), 2)
                                                  if eligible else None for k, v in hits.items()}}
+    paired = {}
+    for left, right in (("narrow", "hit"), ("hit", "balance"), ("balance", "hole")):
+        counts = {"both_top10": 0, "left_only_top10": 0, "right_only_top10": 0, "neither_top10": 0}
+        for row in eligible:
+            l = row["modes"][left]["top10"] is True
+            rr = row["modes"][right]["top10"] is True
+            key = ("both_top10" if l and rr else
+                   "left_only_top10" if l else
+                   "right_only_top10" if rr else "neither_top10")
+            counts[key] += 1
+        paired[left + "_vs_" + right] = {"evaluated": len(eligible), **counts, "formal": False}
     return {"schema": "FOUR_MODE_HISTORICAL_AI_BATCH_V1",
             "formal": False, "simulated_only": True, "model_improvement_proven": False,
             "remote_first_seen_verified": False,
             "requested": len(codes), "historical_comparable": len(eligible),
             "unavailable": [{"race_code": row.get("race_code"), "status": row.get("status")}
                             for row in rows if row not in eligible],
-            "modes": by_mode,
+            "modes": by_mode, "paired_top10": paired,
             "warning": "Historical coverage only; not independently predeadline verified. No racing dynamics cause inferred."}
 
 
