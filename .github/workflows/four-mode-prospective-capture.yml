@@ -52,6 +52,7 @@ jobs:
         id: source_capture
         if: github.event_name != 'pull_request'
         run: |
+          set -o pipefail
           mkdir -p four-mode-evidence
           python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
       - name: Stage only immutable new forecasts and check receipt window
