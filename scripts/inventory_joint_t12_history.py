@@ -43,12 +43,28 @@ def inventory(repo, token, fetch=None, max_pages=5):
             if run["id"] in seen:
                 raise ValueError("duplicate run in API pagination")
             seen.add(run["id"])
-            artifacts_data = request(base + "/actions/runs/" + str(run["id"]) + "/artifacts?per_page=100")
-            if not isinstance(artifacts_data, dict) or not isinstance(artifacts_data.get("artifacts"), list):
-                raise ValueError("invalid artifact inventory response")
-            artifacts = [a for a in artifacts_data["artifacts"]
-                         if a.get("name") == "official-joint-" + str(run["id"])
-                         and a.get("expired") is False]
+            artifacts = []
+            for artifact_page in range(1, 21):
+                artifacts_url = base + "/actions/runs/" + str(run["id"]) + "/artifacts?" + urlencode(
+                    {"per_page": 100, "page": artifact_page})
+                artifacts_data = request(artifacts_url)
+                if not isinstance(artifacts_data, dict) or not isinstance(artifacts_data.get("artifacts"), list):
+                    raise ValueError("invalid artifact inventory response")
+                artifact_batch = artifacts_data["artifacts"]
+                artifacts.extend(a for a in artifact_batch
+                                 if a.get("name") == "official-joint-" + str(run["id"])
+                                 and a.get("expired") is False)
+                total_count = artifacts_data.get("total_count")
+                if total_count is not None and (
+                        not isinstance(total_count, int) or isinstance(total_count, bool)
+                        or total_count < 0):
+                    raise ValueError("invalid artifact total count")
+                if len(artifact_batch) < 100:
+                    if total_count is not None and 100 * (artifact_page - 1) + len(artifact_batch) < total_count:
+                        raise ValueError("incomplete artifact pagination")
+                    break
+            else:
+                raise ValueError("artifact list exceeds safe pagination bound")
             runs.append({"run_id": run["id"], "status": run.get("status"),
                          "conclusion": run.get("conclusion"),
                          "created_at": run.get("created_at"),
