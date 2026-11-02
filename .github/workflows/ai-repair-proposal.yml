@@ -96,12 +96,12 @@ jobs:
           status=report.get("status","unknown")
           files=report.get("changed_files",[])
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as summary:
-              summary.write("### Gemini UI repair proposal\\n")
-              summary.write(f"- Status: \`{status}\`\\n")
-              summary.write(f"- Changed files: {len(files)}\\n")
-              summary.write("- Automatic merge: disabled\\n")
+              summary.write("### Gemini UI repair proposal\n")
+              summary.write(f"- Status: `{status}`\n")
+              summary.write(f"- Changed files: {len(files)}\n")
+              summary.write("- Automatic merge: disabled\n")
               if status=="no_safe_patch":
-                  summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\\n")
+                  summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\n")
           print("Gemini proposal status:",status,"changed files:",len(files))
           PY
       - name: Validate untrusted AI patch without write token
