@@ -12,6 +12,9 @@ on:
       - 'audit_four_mode_cohort.py'
       - 'audit_four_mode_first_add.py'
       - '.github/workflows/four-mode-audit-cohort.yml'
+  schedule:
+    # 21:25 JST daily: inspect the day's immutable archive cohort.
+    - cron: '25 12 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,4 +33,14 @@ jobs:
       - name: Verify full Git history is present
         run: test "$(git rev-parse --is-shallow-repository)" = false
       - name: Print local Git chronology audit counts; not formal accuracy
-        run: python audit_four_mode_cohort.py
+        run: |
+          mkdir -p four-mode-evidence
+          python audit_four_mode_cohort.py | tee four-mode-evidence/chronology.json
+      - name: Preserve research-only audit counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-mode-chronology-${{ github.run_id }}
+          path: four-mode-evidence/chronology.json
+          if-no-files-found: warn
+          retention-days: 30
