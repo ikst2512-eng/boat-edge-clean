@@ -85,6 +85,43 @@ class ResultCollectorTests(unittest.TestCase):
         state=c.collect_recent(now=now,collector=fake_collect)
         self.assertEqual(calls,["20261027","20261028"])
         self.assertEqual(len(state["days"]),2)
+    def test_hourly_bounded_historical_retry_only(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            forecasts=root/"four_mode_forecasts"
+            forecasts.mkdir()
+            for day in ("20261028","20261029","20261030","20261031","20261101","20261102"):
+                code=day+"0101"
+                (forecasts/(code+".json")).write_text(
+                    json.dumps({"race_code":code,"deadline_jst":day[:4]+"-"+day[4:6]+"-"+day[6:]+"T12:00:00+09:00"}))
+            now=datetime.fromisoformat("2026-11-03T04:03:00+09:00")
+            called=[]
+            result=c.collect_overdue_historical(root,now,lambda d: called.append(d) or {"day":d,"saved":0})
+            self.assertEqual(called,["20261028","20261029","20261030"])
+            self.assertEqual(len(result["days"]),3)
+            called.clear()
+            ignored=c.collect_overdue_historical(root,now.replace(minute=13),lambda d: called.append(d))
+            self.assertEqual(ignored["status"],"not_hourly_window")
+            self.assertFalse(called)
+
+    def test_historical_retry_ignores_saved_or_future_and_limits_age(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            forecasts=root/"four_mode_forecasts"
+            confirmed=root/"confirmed_results"
+            forecasts.mkdir()
+            confirmed.mkdir()
+            for day in ("20260901","20261101","20261102","20261104"):
+                code=day+"0101"
+                (forecasts/(code+".json")).write_text(json.dumps({
+                    "race_code":code,"deadline_jst":day[:4]+"-"+day[4:6]+"-"+day[6:]+"T12:00:00+09:00"}))
+            (confirmed/"202611010101.json").write_text('{"status":"confirmed"}')
+            called=[]
+            r=c.collect_overdue_historical(root,datetime.fromisoformat("2026-11-03T05:01:00+09:00"),
+                lambda d: called.append(d))
+            self.assertEqual(called,[])
+            self.assertEqual(r["days"],[])
+
     def test_rejects_duplicate_codes(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
         row="202610270101,2026-10-27T16:00:00+09:00,1,2,3\n"
