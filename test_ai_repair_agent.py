@@ -46,7 +46,7 @@ class RepairAgentTests(unittest.TestCase):
                 return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":"navigation.js","old":"alpha","new":"beta"}],
                         "reason":"test fixture","tests":"navigation contract"})}
-                }]}}]}).encode()
+                ]}}]}).encode()
         def fake_transport(req,timeout):
             payload=json.loads(req.data)
             self.assertEqual(payload["generationConfig"]["responseMimeType"], "application/json")
@@ -70,7 +70,7 @@ class RepairAgentTests(unittest.TestCase):
                 return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":".github/workflows/ai-repair-proposal.yml",
                                     "old":"a","new":"b"}]})}
-                }]}}]}).encode()
+                ]}}]}).encode()
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError,"unsafe_path"):
                 propose("change workflows",directory,"fake-key","gemini-2.5-flash-lite",
@@ -82,7 +82,7 @@ class RepairAgentTests(unittest.TestCase):
             def __exit__(self, *args): return False
             def read(self, n):
                 return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({"patches":[]})}
-                }]}}]}).encode()
+                ]}}]}).encode()
         def fake(req, timeout):
             sent=json.loads(req.data)["contents"][0]["parts"][0]["text"]
             sources=json.loads(sent)["sources"]
