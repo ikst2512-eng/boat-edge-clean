@@ -55,7 +55,14 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
         # A 200 response can still be a JSON/API error or plain text, not HTML evidence.
         stage="html_signature"
         prefix=raw.removeprefix(bytes.fromhex("efbbbf")).lstrip(b" \t\r\n").lower()
-        if prefix.startswith((b"<!doctype html",b"<html")):
+        # The official site may prefix an XHTML document with an XML declaration.
+        # Accept that declaration ONLY when immediately followed by an HTML root/
+        # HTML doctype. XML error responses remain rejected.
+        xml_header=re.match(rb"<\\?xml[ \\t\\r\\n][^<>]{0,256}\\?>",prefix)
+        after_xml=prefix[xml_header.end():].lstrip(b" \\t\\r\\n") if xml_header else b""
+        is_html=prefix.startswith((b"<!doctype html",b"<html"))
+        is_xhtml=bool(xml_header) and after_xml.startswith((b"<!doctype html",b"<html"))
+        if is_html or is_xhtml:
             response_format="html"
         elif prefix.startswith((b"{",b"[")):
             response_format="json_like"
