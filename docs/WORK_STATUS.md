@@ -887,3 +887,9 @@
 - 検証器 `scripts/verify_four_mode_new_receipts.py` の元データ受信・生成・締切時刻について、時差ありであれば可としていた点をJST +09:00必須に厳格化。UTC表記の等価時刻を拒否する回帰テスト追加。
 - PR #995 Four-mode prospective capture CI `41439460878` completed/success、main squash `8559c075799365f5a40544cd4697918f6a283c58`。
 - これは入力時刻の検証強化。締切前の遠隔初回保存証明、監視scheduleの継続稼働、予想精度向上、Gemini実API稼働を意味しない。4モードと買い目は不変更。
+
+
+## 2026-11-02 4モードGit初回追加の元データSHA256監査強化（PR #1000）
+- `audit_four_mode_first_add.py` が初回Git追加を調べる際、`source_sha256.title` と `source_sha256.race_cards` の64桁16進数を必須化。既存の新規保存受信検証と歴史監査の証拠条件を統一。欠損・不正ハッシュを拒否するテストを追加。
+- PR #1000 Research forecast checks run `41439837038` と Four-mode historical chronology cohort run `41439837041` はいずれも completed/success。main squash `0443d1d65fc15c616a12e187a27ee86153775f29`。
+- ファイル記載のハッシュ形式の検証であり、外部ソース実体との内容一致・remote-first-seen・正式的中率の証明ではない。今後独立取得ハッシュとの照合とprospective評価が必要。Gemini実APIおよびRender本番は今回未検証。買い目・4モード変更なし。
