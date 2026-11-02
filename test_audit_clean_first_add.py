@@ -29,12 +29,11 @@ class FirstAddAuditTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
     def test_first_add_bounds_git_history_without_skipping_ambiguity(self):
-        from unittest.mock import call
         root = Path("/tmp/first-add-check")
         rel = "prospective_predictions/202610281201.json"
         stamp = "2026-10-28T09:00:00+09:00"
         with patch.object(audit.subprocess, "check_output",
-                          side_effect=["a"*40+" "+stamp+"\n", b"original"]) as run, \\
+                          side_effect=["a"*40+" "+stamp+"\n", b"original"]) as run, \
                 patch.object(Path, "read_bytes", return_value=b"original"):
             original, sha, when = audit.first_add(rel, root)
         self.assertEqual(sha, "a"*40)
