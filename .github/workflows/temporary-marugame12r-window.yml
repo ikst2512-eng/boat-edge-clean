@@ -1,0 +1,37 @@
+name: Marugame 12R early-window evidence experiment
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-marugame12r-window.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture three separate official JSON responses
+        run: |
+          mkdir -p reports
+          for i in 1 2 3; do
+            python -m scripts.capture_official_beforeinfo_json 202611021512 --root evidence --observation-id "run${GITHUB_RUN_ID}_attempt${i}" > "reports/attempt${i}.json" || true
+            if [ "$i" -lt 3 ]; then sleep 60; fi
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for file in sorted(Path('reports').glob('attempt*.json')):
+              r=json.loads(file.read_text())
+              print(json.dumps({k:r.get(k) for k in ('race_code','received_at_jst','deadline_display','exhibition_time_observed_boats','tilt_observed_boats','start_exhibition_six_valid_rows','status','forecast_usable')},ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marugame12r-early-window-source
+          path: |
+            evidence/
+            reports/
+          retention-days: 7
