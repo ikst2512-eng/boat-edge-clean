@@ -4,6 +4,7 @@ No API key means no external request. Never modifies forecasts or production.
 """
 import argparse
 import json
+import hashlib
 import os
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -119,6 +120,9 @@ def main():
         error = exc
         result = {"status": "api_error", "reason": type(exc).__name__,
                   "production_change_allowed": False}
+    canonical_input = json.dumps(report, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    result["research_input_sha256"] = hashlib.sha256(canonical_input).hexdigest()
+    result["research_input_digest_scope"] = "local_audit_payload_before_api_call"
     result["evidence_review"] = review_analysis_output(
         result, report.get("frozen_four_mode_research_case"))
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
