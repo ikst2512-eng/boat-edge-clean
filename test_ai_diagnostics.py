@@ -10,22 +10,23 @@ class FakeResponse:
     def __exit__(self, *args):
         return False
     def read(self, max_bytes):
-        return json.dumps({"output": [{"type": "message", "content": [
-            {"type": "output_text", "text": "改善案は確認待ち"}
-        ]}]}).encode()
+        return json.dumps({"candidates": [{"content": {"parts": [
+            {"text": "改善案は確認待ち"}
+        ]}}]}).encode()
 
 
 class DiagnosticsTests(unittest.TestCase):
     def test_missing_key_is_offline(self):
-        with patch.dict("os.environ", {"OPENAI_API_KEY": ""}):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
 
     def test_sends_report_read_only(self):
         def fake(req, timeout):
             payload = json.loads(req.data)
-            self.assertEqual(payload["store"], False)
-            self.assertIn("本命", payload["instructions"])
-            self.assertIn("balance", payload["input"])
+            self.assertIn("gemini-3.5-flash-lite:generateContent", req.full_url)
+            self.assertEqual(req.get_header("X-goog-api-key"), "example")
+            self.assertIn("本命", payload["system_instruction"]["parts"][0]["text"])
+            self.assertIn("balance", payload["contents"][0]["parts"][0]["text"])
             self.assertEqual(timeout, 35)
             return FakeResponse()
         result = ai_diagnostics.analyze({"balance": 1}, api_key="example", transport=fake)
@@ -33,12 +34,12 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertFalse(result["production_change_allowed"])
 
     def test_model_default_is_supported_name(self):
-        with patch.dict('os.environ', {'OPENAI_MODEL': '', 'OPENAI_API_KEY': ''}):
+        with patch.dict('os.environ', {'GEMINI_MODEL': '', 'GEMINI_API_KEY': ''}):
             self.assertEqual(ai_diagnostics.analyze({})['status'], 'disabled')
 
     def test_no_empty_llm_output(self):
         with self.assertRaises(ValueError):
-            ai_diagnostics.extract_text({"output": []})
+            ai_diagnostics.extract_text({"candidates": []})
 
     def test_large_report_rejected(self):
         with self.assertRaisesRegex(ValueError, "report_too_large"):
