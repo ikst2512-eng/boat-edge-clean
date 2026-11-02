@@ -45,6 +45,10 @@ class FourModeFirstAddTests(unittest.TestCase):
         self.assertFalse(result["remote_first_seen_verified"])
         self.assertFalse(result["performance_eligible"])
 
+    def test_utc_git_commit_is_valid_if_before_deadline(self):
+        result = self.check(stamped="2026-10-28T01:01:00+00:00")
+        self.assertTrue(result["git_committer_before_deadline"])
+
     def test_late_git_commit_rejected(self):
         with self.assertRaisesRegex(ValueError, "first_add"):
             self.check(stamped="2026-10-28T11:05:00+09:00")
