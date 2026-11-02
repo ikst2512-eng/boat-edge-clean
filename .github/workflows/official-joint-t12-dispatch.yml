@@ -123,7 +123,7 @@ jobs:
                   break
           PY
       - name: Summarize observed T12 attempts
-        if: \${{ always() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         run: python -m scripts.summarize_joint_t12_reports --reports reports --output reports/t12_summary.json
       - uses: actions/upload-artifact@v4
         if: ${{ always() && github.event_name == 'workflow_dispatch' }}
