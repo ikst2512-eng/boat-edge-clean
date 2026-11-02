@@ -1,0 +1,59 @@
+name: Temporary official 3T odds evidence
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-official-odds-20261102.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture original official odds HTML and verify parsed 120
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import datetime,hashlib,json
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          from server import parse_official_odds_table
+          from scripts.inspect_official_odds_receipt import inspect_odds_receipt
+          jst=datetime.timezone(datetime.timedelta(hours=9))
+          day='20261102'
+          for venue,race,deadline in [('15','12','20:36'),('24','12','20:45')]:
+              root=Path('evidence')/(venue+'-'+race)
+              root.mkdir(parents=True,exist_ok=True)
+              url=f'https://www.boatrace.jp/owpc/pc/race/odds3t?hd={day}&jcd={venue}&rno={race}'
+              info={'race_code':day+venue+race,'request_started_at_jst':datetime.datetime.now(jst).isoformat(),
+                    'official_url':url,'deadline_source':'previously observed beforeinfo for Marugame; unverified for Omura'}
+              try:
+                  req=Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'text/html'})
+                  with urlopen(req,timeout=22) as resp:
+                      raw=resp.read(1500001)
+                      info['status_code']=resp.status
+                      info['final_url']=resp.geturl()
+                  info['received_at_jst']=datetime.datetime.now(jst).isoformat()
+                  info['sha256']=hashlib.sha256(raw).hexdigest()
+                  info['bytes']=len(raw)
+                  (root/'original.html').write_bytes(raw)
+                  odds=parse_official_odds_table(raw.decode('utf-8','replace'))
+                  info['parsed_odds_count']=len(odds)
+                  if venue=='15':
+                      info['audit']=inspect_odds_receipt(odds,race_code=day+venue+race,
+                          received_at_jst=info['received_at_jst'],
+                          deadline_jst='2026-11-02T'+deadline+':00+09:00')
+              except Exception as exc:
+                  info['error']=type(exc).__name__+':'+str(exc)[:180]
+              (root/'manifest.json').write_text(json.dumps(info,ensure_ascii=False,indent=2))
+              print(json.dumps(info,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-3t-odds-real-20261102
+          path: evidence/
+          retention-days: 7
