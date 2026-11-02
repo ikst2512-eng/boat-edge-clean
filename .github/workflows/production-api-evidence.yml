@@ -53,5 +53,26 @@ jobs:
                       report('Odds identity and 120 combos: PASS')
                   else:report('Odds not available; not marked verified.')
                   code,body=fetch('/api/clean-result?hd='+day+'&jcd='+str(v).zfill(2)+'&rno='+str(n))
-                  report('Same-race result: HTTP '+str(code)+' (not assumed confirmed)')
+                  report('Same-race result: HTTP '+str(code))
+                  if code==200:
+                      result=json.loads(body)
+                      race_code=day+str(v).zfill(2)+str(n).zfill(2)
+                      source='https://boatracecsv.github.io/data/results/realtime/'+day[:4]+'/'+day[4:6]+'/'+day[6:8]+'.csv'
+                      finish=result.get('finish_order')
+                      valid=(result.get('ok') is True and result.get('status')=='confirmed'
+                             and result.get('race_code')==race_code and result.get('source_url')==source
+                             and isinstance(finish,list) and len(finish)==3
+                             and all(type(x) is int and 1<=x<=6 for x in finish)
+                             and len(set(finish))==3)
+                      def parsed(name):
+                          value=result.get(name)
+                          dt=datetime.datetime.fromisoformat(value) if isinstance(value,str) else None
+                          return dt if dt and dt.utcoffset() is not None else None
+                      try: confirmed=parsed('confirmed_at_jst');collected=parsed('collected_at_jst')
+                      except ValueError: confirmed=collected=None
+                      valid=valid and confirmed is not None and collected is not None and collected>=confirmed
+                      if not valid:raise AssertionError('Result HTTP 200 but confirmed identity/source/finish/time invalid')
+                      report('Confirmed result identity/source/timestamps and finish: PASS '+ '-'.join(map(str,finish)))
+                      report('Official payout independently checked: NO (not included in this result API)')
+                  else:report('Confirmed result unavailable; not marked verified.')
           PY
