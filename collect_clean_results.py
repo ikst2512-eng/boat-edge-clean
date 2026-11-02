@@ -199,7 +199,7 @@ def publish_collection_status(report, root=ROOT, now=None):
     now = now or datetime.now(JST)
     overdue = audit_missing_results(root, now)
     payload={"schema":"CLEAN_RESULT_COLLECTION_STATUS_V1","checked_at_jst":now.isoformat(),
-             "overdue_result_count":len(overdue),"overdue_race_codes":overdue,"days":[{
+             "overdue_result_count":len(overdue),"overdue_race_codes":overdue,"historical_retries":report.get("historical_retries"),"days":[{
         "day":x.get("day"),"status":x.get("status","available"),
         "source_races":x.get("source_races",0),"newly_saved":x.get("saved",0),
         "http_status":x.get("http_status"),"source_url":x.get("source_url")
@@ -213,7 +213,28 @@ def publish_collection_status(report, root=ROOT, now=None):
     return payload
 
 
+def collect_overdue_historical(root=ROOT, now=None, collector=collect, *, max_days=3):
+    """At most once per hour retry bounded historical days with frozen forecasts.
+
+    Missing result is never converted to a loss. Existing archives retain the
+    collector's immutable, conflict-failing semantics. Only yesterday/today
+    are handled by regular collection, so do not re-request those here.
+    """
+    now = now or datetime.now(JST)
+    if now.astimezone(JST).minute >= 10:
+        return {"status": "not_hourly_window", "days": []}
+    dates = set()
+    for code in audit_missing_results(root, now):
+        day = datetime.strptime(code[:8], "%Y%m%d").date()
+        age = (now.astimezone(JST).date() - day).days
+        if 2 <= age <= 30:
+            dates.add(code[:8])
+    selected = sorted(dates)[:max_days]
+    return {"status": "checked", "days": [collector(day) for day in selected]}
+
+
 if __name__ == "__main__":
     report=collect_recent()
+    report["historical_retries"]=collect_overdue_historical()
     publish_collection_status(report)
     print(json.dumps(report, ensure_ascii=False))
