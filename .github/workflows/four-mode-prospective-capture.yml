@@ -58,7 +58,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add -- 'four_mode_forecasts/*.json'
+          # Stage only newly created and individually valid candidates. One
+          # expired race must not block still-eligible races in the same batch.
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          from scripts.verify_four_mode_new_receipts import verify
+          names = subprocess.check_output(
+              ["git", "ls-files", "--others", "--exclude-standard", "--", "four_mode_forecasts/"],
+              text=True).splitlines()
+          staged = 0
+          skipped = {}
+          for name in names:
+              if not name.endswith(".json") or Path(name).name == "capture_status.json":
+                  continue
+              try:
+                  verify([name], buffer_seconds=90)
+              except (ValueError, OSError, KeyError, TypeError) as exc:
+                  label = str(exc)[:80] or type(exc).__name__
+                  skipped[label] = skipped.get(label, 0) + 1
+                  continue
+              subprocess.run(["git", "add", "--", name], check=True)
+              staged += 1
+          print(f"Staged cutoff-safe four-mode candidates: {staged}; excluded: {skipped}")
+          PY
           git reset -q -- four_mode_forecasts/capture_status.json || true
           if git diff --cached --name-only --diff-filter=CDMRTUX -- four_mode_forecasts/ | grep -q .; then
             echo 'Existing four-mode archive changed: refusing write' >&2; exit 1
