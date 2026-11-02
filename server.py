@@ -263,9 +263,25 @@ def _compute_holdout_status():
                         "sha": proof["first_add_sha"],
                         "first_committer_at": proof["first_committer_at"]}
                 except (ValueError, KeyError, TypeError, OSError) as exc:
+                    late = str(exc) == "first Git commit not before prospective cutoff"
                     first_add_probes[code] = {"ok": False,
                         "reason": type(exc).__name__,
-                        "cutoff_rejected": str(exc) == "first Git commit not before prospective cutoff"}
+                        "cutoff_rejected": late}
+                    if late:
+                        # Diagnostic only: preserve inspect() rejection while
+                        # identifying the *actual* first-add commit used by Render.
+                        try:
+                            from audit_clean_first_add import first_add
+                            import json as _json
+                            raw, sha, when = first_add(
+                                "prospective_predictions/" + code + ".json", ROOT)
+                            cutoff = datetime.fromisoformat(_json.loads(raw)["cutoff_jst"])
+                            first_add_probes[code].update(
+                                sha=sha, first_committer_at=when.isoformat(),
+                                minutes_before_cutoff=round(
+                                    (cutoff - when).total_seconds()/60, 2))
+                        except (ValueError, KeyError, TypeError, OSError):
+                            first_add_probes[code]["commit_details_unavailable"] = True
             data = report(holdout_dates)
     else:
         data = {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
