@@ -77,7 +77,7 @@ jobs:
           try:
               d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
               print("holdout operational diagnostic:", {k:d.get(k) for k in
-                  ("error","running","elapsed_seconds","last_duration_seconds","last_error_type")})
+                  ("error","running","elapsed_seconds","last_duration_seconds","last_error_type","worker_pid","process_uptime_seconds")})
           except (OSError,ValueError,TypeError):
               print("holdout response not valid diagnostic JSON")
           PYLOG
