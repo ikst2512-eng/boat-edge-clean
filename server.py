@@ -133,7 +133,7 @@ def get_odds(params):
                 raise ValueError("HTML too large")
         html = raw.decode("utf-8", errors="replace")
         odds = parse_official_odds_table(html)
-        result = 200, {"ok": True, "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
+        result = 200, {"ok": True, "hd": hd, "jcd": jcd, "rno": int(rno), "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
     except Exception as exc:
         logging.warning("odds_refresh_failed race=%s-%s-%s reason=%s: %s", hd, jcd, rno, type(exc).__name__, str(exc)[:160])
         result = 503, {"ok": False, "message": "このレースのオッズをまだ取得できません。開催状況を確認し、少ししてから更新してください。"}
