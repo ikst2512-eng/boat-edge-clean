@@ -19,6 +19,13 @@ class NavigationContractTest(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
+    def test_navigation_initialization_waits_for_nav_element(self):
+        probe = self.nav.index("const nav=document.querySelector('.site-global-nav');")
+        guard = self.nav.index("if(!nav)return;", probe)
+        initialized = self.nav.index("document.documentElement.dataset.cleanNavigationInit='1';")
+        self.assertLess(probe, guard)
+        self.assertLess(guard, initialized)
+
     def test_nested_forecast_nav_is_hidden_not_deleted(self):
         self.assertIn('#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}', self.index)
         self.assertIn('function setForecastPane(pane)', self.index)
