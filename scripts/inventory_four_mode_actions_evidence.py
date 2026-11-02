@@ -22,7 +22,13 @@ def api(path, token, repo):
 def inventory(repo, token, fetch=api, limit=15):
     if not token or not 1 <= limit <= 50:
         raise ValueError("missing_token_or_invalid_limit")
-    runs = fetch(f"actions/workflows/{WORKFLOW}/runs?per_page={limit}", token, repo)["workflow_runs"]
+    # Query each event directly: frequent PR checks must not crowd out scheduled runs.
+    runs = []
+    for event in ("schedule", "workflow_dispatch"):
+        batch = fetch(f"actions/workflows/{WORKFLOW}/runs?event={event}&per_page={limit}", token, repo)["workflow_runs"]
+        runs.extend(batch)
+    runs = list({run["id"]: run for run in runs}.values())
+    runs.sort(key=lambda r: r.get("created_at") or "", reverse=True)
     rows = []
     for run in runs:
         if run.get("event") not in ("schedule", "workflow_dispatch"):
