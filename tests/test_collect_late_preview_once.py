@@ -26,6 +26,22 @@ class Integration(unittest.TestCase):
             self.assertEqual(second["capture_invalid"],5)
             self.assertEqual(second["sources_unavailable"],0)
             self.assertEqual(second["status"],"capture_invalid")
+    def test_fetch_timing_identifies_network_delay_separately(self):
+        from datetime import timedelta
+        initial=datetime(2026,10,31,18,55,tzinfo=JST)
+        ticks=[0]
+        def clock():
+            value=initial+timedelta(milliseconds=250*ticks[0])
+            ticks[0]+=1
+            return value
+        with tempfile.TemporaryDirectory() as folder:
+            result=collect(day="20261031",root=folder,
+                           fetch=lambda u:"レースコード\\n".encode(),clock=clock)
+            entry=result["kinds"]["stt"]
+            self.assertEqual(entry["fetch_elapsed_ms"],250)
+            self.assertEqual(entry["request_started_at_jst"],initial.isoformat())
+            self.assertEqual(entry["received_at_jst"],(initial+timedelta(milliseconds=250)).isoformat())
+
     def test_total_upstream_outage_is_explicit_not_success(self):
         from urllib.error import HTTPError
         def unavailable(url):
