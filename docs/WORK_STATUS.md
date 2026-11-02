@@ -916,3 +916,10 @@
 - `audit_four_mode_raw_receipts.py` に保存artifact内の各 `.json` / `.bin` ペアを監査する機能を追加。URL許可リスト・受信JST・byte_count・SHA256・原本IDとファイル名の一致、欠損・余分なバイトファイルを検査。検証成功でも正式的中率や独立remote-first-seen証明は許可しない。
 - テスト `test_audit_four_mode_raw_receipts.py` を収集ワークフローに接続。最初のPRテストはID区切りバイトの取り違えで失敗したため修正し、再実行の Four-mode prospective capture run `41441590188` は completed/success。PR #1010 main squash `74fae3a033027f3f3bf5600d28c872321b60034c`。
 - 次はPR #1006/#1010以後の実schedule runの raw-sources artifactを取得して整合性監査し、予想原本のtitle/cardsハッシュと対応確認する。Gemini実APIとRender、精度向上も未検証。
+
+
+## 2026-11-02 4モード予想ハッシュとHTTP原本の対応照合（PR #1011）
+- PR #1006/#1010統合後の新しいschedule収集runは今回取得できた履歴で未確認。実運用のraw-sources artifactと実ハッシュ一致は未実証。
+- `link_four_mode_raw_forecast.py` を追加。既存 `audit_four_mode_raw_receipts.audit` でローカル原本ペアの整合性を合格判定した後、予想JSONに記録された `source_sha256.title/race_cards` が原本マニフェスト群に含まれるか照合する。欠損・不一致・原本未確認を分離。研究専用で `formal=false`、`remote_first_seen_verified=false` を固定。
+- 保存・収集経路、予想ロジック、4モードは変更せず、収集ワークフローのPRテストに対応テストを追加。PR #1011 Four-mode prospective capture run `41442022996` completed/success。main squash `eba9d780cf1e65c9b86c99a84e641a44ca2155b9`。
+- 次は実scheduleで保全された原本artifactを取得して、実予想の対応、タイトル/出走表の取得方式、受信時刻の安全性を検査する。Gemini実API、Render本番、予想精度改善も未証明。
