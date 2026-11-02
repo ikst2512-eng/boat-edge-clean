@@ -1,4 +1,5 @@
 import json
+import io
 import tempfile
 import unittest
 from datetime import datetime
@@ -17,6 +18,12 @@ def raw(duplicate=False):
     return json.dumps({"programs":{"stadiums":{"1":{"races":{"1":{"date":"2026-10-29","closed_at":"2026-10-29 11:00:00","racers":racers}}}}}}).encode()
 
 class AlternatePreraceTests(unittest.TestCase):
+    def test_real_http_receipt_is_not_collector_start_clock(self):
+        with patch("clean_openapi_sources.urlopen", return_value=io.BytesIO(raw())):
+            _, _, received, _, _ = load(DAY, now=NOW)
+        self.assertGreater(received, NOW)
+        self.assertEqual(received.tzinfo, JST)
+
     def test_valid_one_race(self):
         titles,cards,received,digest,meta=load(DAY,fetch=lambda _:raw(),now=NOW)
         self.assertEqual(len(titles),1)
