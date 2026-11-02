@@ -305,7 +305,7 @@ jobs:
           destination = Path("four-mode-evidence/source-links.json")
           destination.parent.mkdir(parents=True, exist_ok=True)
           destination.write_text(json.dumps(output, ensure_ascii=False, sort_keys=True)
-                                 + "\\n", encoding="utf-8")
+                                 + chr(10), encoding="utf-8")
           print("FOUR_MODE_SOURCE_LINKS=" + json.dumps(
               {"checked": len(rows), "hashes_present": matched, "formal": False}))
           PY
