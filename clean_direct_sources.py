@@ -87,6 +87,7 @@ def parse_card(raw,code):
 
 def direct_cards(day,titles,existing_codes=(),now=None,fetch=fetch_bytes,limit=MAX_RACES_PER_RUN):
     now=now or datetime.now(JST)
+    live_fetch=fetch is fetch_bytes
     existing=set(existing_codes)
     pending=[]
     for title in titles:
@@ -108,6 +109,8 @@ def direct_cards(day,titles,existing_codes=(),now=None,fetch=fetch_bytes,limit=M
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
             key=type(exc).__name__
             failed[key]=failed.get(key,0)+1
-    if not cards:return [],now,"",source_hashes,failed
+    # Timestamp the completed source acquisition, not the capture-start clock.
+    received_at=datetime.now(JST) if live_fetch else now
+    if not cards:return [],received_at,"",source_hashes,failed
     combined=hashlib.sha256("".join(source_hashes[c] for c in sorted(source_hashes)).encode("ascii")).hexdigest()
-    return cards,now,combined,source_hashes,failed
+    return cards,received_at,combined,source_hashes,failed
