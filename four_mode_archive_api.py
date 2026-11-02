@@ -32,6 +32,10 @@ def archived_four_modes(code, root=ROOT):
         cutoff = datetime.fromisoformat(data["deadline_jst"])
         if created.utcoffset() is None or cutoff.utcoffset() is None or created >= cutoff:
             raise ValueError("invalid_time")
+        version = data.get("model_version", "CLEAN_FOUR_MODES_V1_UNCALIBRATED")
+        if version not in ("CLEAN_FOUR_MODES_V1_UNCALIBRATED",
+                           "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"):
+            raise ValueError("unknown_model_version")
         modes = data["modes"]
         if not isinstance(modes, dict) or set(modes) != set(MODES):
             raise ValueError("invalid_modes")
@@ -55,6 +59,7 @@ def archived_four_modes(code, root=ROOT):
                             "actual_hit_rate_pct": None}
         return 200, {
             "status": "historical_research_only", "race_code": code,
+            "model_version": version,
             "generated_at_jst": data["generated_at_jst"],
             "deadline_jst": data["deadline_jst"],
             "verified_first_git_add": False,

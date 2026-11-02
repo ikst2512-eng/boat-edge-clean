@@ -41,8 +41,21 @@ class ArchiveApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(list(result["modes"]), ["hit", "balance", "hole", "narrow"])
         self.assertFalse(result["production_forecast"])
+        self.assertEqual(result["model_version"],"CLEAN_FOUR_MODES_V1_UNCALIBRATED")
         self.assertFalse(result["verified_first_git_add"])
         self.assertIsNone(result["modes"]["hit"]["actual_hit_rate_pct"])
+
+    def test_v2_model_provenance_is_exposed_without_formal_claim(self):
+        data=sample(self.code)
+        data["model_version"]="CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
+        self.save(data)
+        status,result=archived_four_modes(self.code,self.root)
+        self.assertEqual(status,200)
+        self.assertEqual(result["model_version"],data["model_version"])
+        self.assertFalse(result["production_forecast"])
+        data["model_version"]="UNRECOGNIZED_MODEL"
+        self.save(data)
+        self.assertEqual(archived_four_modes(self.code,self.root)[0],422)
 
     def test_rejects_late_forecast(self):
         data = sample(self.code)
