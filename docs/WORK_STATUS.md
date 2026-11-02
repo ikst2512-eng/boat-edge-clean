@@ -821,3 +821,10 @@
 - PR #964 の AI operations optional diagnostics CI run `41434090900` は completed/success。main squash `55c34045e53036e10026b3eb3aa4b1ca3128560d`。
 - 本CIは模擬Gemini応答と実保存原本のオフライン検証。Gemini実APIによる分析成功・出力内容の妥当性・精度改善・Render本番挙動の証明ではない。
 - 次: 手動Gemini runの実証と保存artifactの再監査、予想時点の独立初回保存証拠との結合、外れ原因仮説の時系列holdout検証。
+
+
+## 2026-11-02 Gemini分析出力の証拠審査ゲート（PR #969）
+- `ai_diagnostics.py` に `review_analysis_output` を追加。実AI出力を受領しても `improvement_proven=false`, `production_change_allowed=false`, `formal_hit_rate_allowed=false`, `independent_predeadline_receipt_verified=false` を固定し、`manual_evidence_review_required` として次の人手・時系列検証を要請。キー欠落・空出力・未検証レースは別状態へ分類。
+- 実保存レース `202610280101` の研究比較を用いた回帰テストで、「的中率が改善する」というAI出力文字列でも自動昇格されないことを検証。PR #969 CI run `41434612141` completed/success。
+- PR #969 main squash merge `10c28accc8719a8826e73816b868c27ef9ff3c7e`。予想券・4モード・予想ロジック・自動API実行を変更せず。
+- Gemini実APIから返った実分析は今回実行していない。CI成功と分析内容の信頼性・精度改善・Render本番を混同しない。次: 手動Gemini実行のAPI可否と分析artifactを取得して人手証拠審査、独立締切前初回保存時刻と時系列holdoutの接続。
