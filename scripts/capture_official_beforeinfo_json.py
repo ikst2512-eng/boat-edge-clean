@@ -3,7 +3,7 @@ import argparse
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -49,8 +49,10 @@ def capture(race_code, root, observation_id, fetch=None, clock=None):
                 raw = response.read(MAX_BYTES + 1)
         received = now()
         report["received_at_jst"] = received.isoformat()
-        if started.utcoffset() is None or received < started:
-            raise ValueError("invalid chronology")
+        if (started.utcoffset() != timedelta(hours=9)
+                or received.utcoffset() != timedelta(hours=9)
+                or received < started):
+            raise ValueError("invalid JST HTTP observation chronology")
         if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_BYTES:
             raise ValueError("invalid response bytes")
         payload = json.loads(raw)
