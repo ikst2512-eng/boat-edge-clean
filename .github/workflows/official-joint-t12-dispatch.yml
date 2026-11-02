@@ -37,6 +37,7 @@ jobs:
           from scripts.capture_official_beforeinfo_json import capture as before
           from scripts.capture_official_odds_receipt import capture as odds
           from scripts.audit_joint_official_receipts import audit_pair
+          from scripts.joint_t12_decision import decision,can_retry
           race=os.environ['RACE_CODE']
           jst=datetime.timezone(datetime.timedelta(hours=9))
           if not re.fullmatch(r'20\d{10}',race) or race[:8]!=datetime.datetime.now(jst).strftime('%Y%m%d'):
@@ -53,20 +54,18 @@ jobs:
                   raise SystemExit('Verified official race deadline unavailable')
               deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
               cutoff=deadline-datetime.timedelta(minutes=12)
-              if datetime.datetime.fromisoformat(a['received_at_jst'])>cutoff:
-                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'beforeinfo_after_t12','beforeinfo_received_at_jst':a['received_at_jst'],'cutoff_jst':cutoff.isoformat(),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
-                  print('PAST_T12',a['received_at_jst'],cutoff.isoformat())
-                  break
-              if datetime.datetime.now(jst)+datetime.timedelta(seconds=20)>=cutoff:
-                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'insufficient_time_to_fetch_odds','cutoff_jst':cutoff.isoformat(),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
-                  print('ODDS_SKIPPED_NEAR_T12',cutoff.isoformat())
+              gate=decision(a['received_at_jst'],deadline.isoformat(),datetime.datetime.now(jst).isoformat())
+              if gate['status']!='fetch_odds':
+                  gate.update(attempt=i,race_code=race)
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(gate,ensure_ascii=False,indent=2))
+                  print('T12_GATE',json.dumps(gate,ensure_ascii=False))
                   break
               b=odds(race,deadline.isoformat(),'evidence','odds'+identifier)
               Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
               if b.get('status')!='official_odds_observed_research_only':
                   Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'odds_failed','odds_status':b.get('status'),'error':b.get('error'),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
                   print('ODDS_FAILED',json.dumps({'attempt':i,'status':b.get('status'),'error':b.get('error'),'forecast_usable':False},ensure_ascii=False))
-                  if i<attempts and datetime.datetime.now(jst)+datetime.timedelta(seconds=55)<cutoff:
+                  if can_retry(datetime.datetime.now(jst).isoformat(),deadline.isoformat(),i,attempts):
                       time.sleep(30)
                       continue
                   break
@@ -78,7 +77,7 @@ jobs:
               print('JOINT',json.dumps(result,ensure_ascii=False))
               if result['both_complete_before_t12']:
                   break
-              if i<attempts and datetime.datetime.now(jst)+datetime.timedelta(seconds=55)<cutoff:
+              if can_retry(datetime.datetime.now(jst).isoformat(),deadline.isoformat(),i,attempts):
                   time.sleep(30)
               else:
                   break
@@ -93,6 +92,7 @@ jobs:
           retention-days: 14
       - name: Regression tests
         run: |
+          python -m unittest discover -s tests -p 'test_joint_t12_decision.py' -v
           python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
           python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
           python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
