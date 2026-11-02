@@ -40,7 +40,8 @@ def audit_racelist(directory, race_code, cutoff_jst):
         "race_code": race_code, "original_hash_verified": True,
         "html_diagnostics": html_diagnostics,
         "racelist_received_jst": received.isoformat(),
-        "received_by_t12": received <= cutoff,
+        "received_before_supplied_cutoff": received <= cutoff,
+        "cutoff_source_verified": False,
         "six_racers_verified": False, "entry_verified": False,
         "full_t12_source_certified": False,
         "t12_eligible": False, "forecast_usable": False,
@@ -77,6 +78,8 @@ def audit_racelist_with_official_deadline(racelist_dir, beforeinfo_dir, race_cod
     cutoff = datetime.fromisoformat(
         f"{day[:4]}-{day[4:6]}-{day[6:8]}T{deadline_text}:00+09:00") - timedelta(minutes=12)
     result = audit_racelist(racelist_dir, race_code, cutoff.isoformat())
+    result["received_by_t12"] = result["received_before_supplied_cutoff"]
+    result["cutoff_source_verified"] = True
     result["cutoff_provenance"] = "verified_original_beforeinfo"
     result["official_deadline_jst"] = (cutoff + timedelta(minutes=12)).isoformat()
     result["beforeinfo_received_jst"] = before_received.isoformat()
