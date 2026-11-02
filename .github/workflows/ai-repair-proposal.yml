@@ -10,7 +10,7 @@ on:
       issue:
         description: '具体的なUI/ナビゲーション不具合。予想ロジック変更は禁止'
         required: true
-        default: 'navigation.js has an unused line const params=location.search; near its beginning. Remove only this unused declaration, preserving all navigation behavior. No forecast or data changes.'
+        default: 'Inspect navigation.js for a demonstrable UI/navigation issue. Only propose an exact safe fix if evidence supports it. Do not change prediction logic, data capture or tests.'
         type: string
 permissions:
   contents: read
@@ -150,10 +150,10 @@ jobs:
           # Some repositories disable PR creation by GitHub Actions even with
           # pull-requests:write. Keep the reviewed patch branch available.
           if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."; then
-            echo "AI draft PR created"
+            echo "AI draft PR created"\n            echo "### Review-ready draft PR created" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::AI branch pushed but draft PR creation is restricted. Open a draft PR manually or grant Actions PR creation permission."
-            echo "### Manual review needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### AI patch created; PR creation blocked by repository permission" >> "$GITHUB_STEP_SUMMARY"
             echo "AI patch branch: \`$branch\`" >> "$GITHUB_STEP_SUMMARY"
             echo "Open a draft PR: https://github.com/${GITHUB_REPOSITORY}/pull/new/$branch" >> "$GITHUB_STEP_SUMMARY"
           fi
