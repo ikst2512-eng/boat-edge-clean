@@ -138,7 +138,7 @@ def main():
     parser.add_argument("--output", default="ai_repair_proposal.json")
     args = parser.parse_args()
     result = propose(args.issue, Path("."), os.getenv("GEMINI_API_KEY"),
-                     os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"))
+                     os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"))
     Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2)+"\n")
     print(result["status"], result.get("changed_files", []))
 
