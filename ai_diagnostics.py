@@ -26,14 +26,27 @@ Respond in Japanese using headings: 現状, 根拠, 優先修正案, 必要な�
 
 
 def extract_text(response):
-    if not isinstance(response, dict):
+    """Require bounded, well-formed model output before accepting a proposal."""
+    if not isinstance(response, dict) or not isinstance(response.get("candidates"), list):
         raise ValueError("invalid_response")
-    parts = [part.get("text") for candidate in response.get("candidates", [])
-             for part in candidate.get("content", {}).get("parts", [])
-             if isinstance(part.get("text"), str)]
-    if not parts:
+    parts = []
+    for candidate in response["candidates"]:
+        if not isinstance(candidate, dict):
+            raise ValueError("invalid_candidate")
+        content = candidate.get("content", {})
+        if not isinstance(content, dict) or not isinstance(content.get("parts"), list):
+            raise ValueError("invalid_candidate_content")
+        for part in content["parts"]:
+            if not isinstance(part, dict):
+                raise ValueError("invalid_output_part")
+            if isinstance(part.get("text"), str):
+                parts.append(part["text"])
+    if not parts or not any(part.strip() for part in parts):
         raise ValueError("missing_output_text")
-    return "\n".join(parts)
+    combined = "\\n".join(parts)
+    if len(combined.encode("utf-8")) > 16000:
+        raise ValueError("output_too_large")
+    return combined
 
 
 def analyze(report, api_key=None, model=None, transport=urlopen):

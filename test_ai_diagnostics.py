@@ -131,6 +131,18 @@ class DiagnosticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ai_diagnostics.extract_text({"candidates": []})
 
+    def test_malformed_response_is_safely_rejected(self):
+        for payload in ({"candidates": [None]}, {"candidates": [{"content": {"parts": [None]}}]},
+                        {"candidates": [{"content": {"parts": "invalid"}}]},
+                        {"candidates": [{"content": {"parts": [{"text": "  "}]}}]}):
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValueError):
+                    ai_diagnostics.extract_text(payload)
+
+    def test_oversize_ai_response_is_safely_rejected(self):
+        with self.assertRaisesRegex(ValueError, "output_too_large"):
+            ai_diagnostics.extract_text({"candidates": [{"content": {"parts": [{"text": "X"*17000}]}}]})
+
     def test_large_report_rejected(self):
         with self.assertRaisesRegex(ValueError, "report_too_large"):
             ai_diagnostics.analyze({"x": "z" * 25000}, api_key="example")
