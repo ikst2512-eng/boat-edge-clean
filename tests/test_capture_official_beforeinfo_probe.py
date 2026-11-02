@@ -30,6 +30,19 @@ class OfficialProbeTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     capture(code,root,observation_id=unsafe)
 
+    def test_official_timeout_exceeds_observed_eight_second_latency(self):
+        from unittest.mock import patch
+        from scripts.capture_official_beforeinfo_probe import HTTP_TIMEOUT_SECONDS
+        self.assertGreater(HTTP_TIMEOUT_SECONDS, 8.2)
+        self.assertLessEqual(HTTP_TIMEOUT_SECONDS, 20)
+        with tempfile.TemporaryDirectory() as root:
+            with patch("scripts.capture_official_beforeinfo_probe.urlopen",
+                       side_effect=TimeoutError("simulated")) as mocked:
+                outcome=capture("202611010708",root)
+            self.assertEqual(mocked.call_args.kwargs["timeout"],HTTP_TIMEOUT_SECONDS)
+            self.assertEqual(outcome["status"],"official_probe_failed")
+            self.assertFalse(outcome["forecast_usable"])
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
