@@ -804,3 +804,11 @@
 - 回帰テストで1着欠落、1-2着ペア欠落、3着欠落、的中、結果欠損を検査。Research forecast checks run `41432055746` completed/success。
 - PR #956 main squash `3edcde5de2b56964dc9db881ad48d645239f9820`。これは履歴研究用（formal=false、remote_first_seen_verified=false）であり、正式的中率・精度向上の実証ではない。本番公開ブラウザ・Gemini実データ実行は未検証。
 - 次: 外れ分類の実レース例照合と、独立検証された締切前展示/進入/STの結合。Geminiへは読み取り専用で渡し、採用前に時系列holdout/正式prospective評価を行う。
+
+
+## 2026-11-02 手動Gemini・4モードレース別研究ケース連携（PR #962）
+- 既存 `ai_diagnostics.py` に任意 `--race-code` を追加し、`four_mode_frozen_diagnostic.compare_race` が `historical_comparison_only` と判定した保存原本だけを既存監査JSONに添付。結果欠損/不信頼/原本欠損なら Gemini HTTP以前にfail closed。
+- 手動 `ai-operations-diagnostics.yml` に任意レース入力追加。入力は環境変数で安全に渡し、PR CIではAPIキーを渡さず模擬テスト実施。既存の手動未指定動作・APIの自動実行無効を維持。
+- Geminiへの指示で、券種の構造的取りこぼし分類と実際の逃げ/差し/ST/展示要因を区別。未検証のまま正式的中率や予想ロジックを変更しない。
+- PR #962 の AI operations optional diagnostics Actions run `41433384008` completed/success、main squash `475e6d51eaac8b28e247b76b36adac472c705026`。
+- Gemini実APIへの手動送信、実レース1件の分析結果とRender動作、予想精度向上は未検証。次は実保存例の監査・公開前原本時刻証拠と照合し、手動解析結果の妥当性を評価。
