@@ -143,6 +143,21 @@ class RepairAgentTests(unittest.TestCase):
             self.assertEqual(updated.count("const nav=document.querySelector('.site-global-nav');"), 0)
             self.assertEqual(Path("navigation.js").read_text(encoding="utf-8"), original)
 
+    def test_gemini_workflow_preserves_review_gate_and_policy_fallback(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        # No scheduled calls; AI patches can only be requested manually.
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("\\n  schedule:", workflow)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        # A successful push must survive restricted Actions PR creation.
+        self.assertIn('git -c credential.helper=', workflow)
+        self.assertIn('gh pr create --draft', workflow)
+        self.assertIn('GitHub Actions is not permitted to create or approve pull requests', workflow)
+        self.assertIn('manual draft PR needed', workflow)
+        self.assertIn('exit 1', workflow)
+        self.assertNotIn('gh pr merge', workflow)
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
