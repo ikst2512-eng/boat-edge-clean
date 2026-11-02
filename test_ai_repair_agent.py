@@ -97,14 +97,14 @@ class RepairAgentTests(unittest.TestCase):
             self.assertEqual(result["status"],"no_safe_patch")
 
     def test_issue_relevant_html_middle_is_available(self):
-        source = "HEADER_MARKER" + "x" * 40000 + "\\nfunction forecastPaneBug(){return true;}\\n" + "y" * 40000 + "TAIL_MARKER"
+        source = "HEADER_MARKER" + "x" * 40000 + "\nfunction forecastPaneBug(){return true;}\n" + "y" * 40000 + "TAIL_MARKER"
         context = select_source_context(source, "forecastPaneBug")
         self.assertIn("forecastPaneBug", context)
         self.assertIn("HEADER_MARKER", context)
         self.assertIn("TAIL_MARKER", context)
         self.assertLessEqual(len(context), 35000)
         self.assertIn("\n[... contextual excerpt ...]\n", context)
-        self.assertNotIn("\\n[... contextual excerpt ...]\\n", context)
+        self.assertNotIn("\n[... contextual excerpt ...]\n", context)
 
     def test_api_429_reports_billing_or_rate_limit_without_leaking(self):
         def rate_limited(request, timeout):
@@ -148,7 +148,7 @@ class RepairAgentTests(unittest.TestCase):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         # No scheduled calls; AI patches can only be requested manually.
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("\\n  schedule:", workflow)
+        self.assertNotIn("\n  schedule:", workflow)
         self.assertIn("if: github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("persist-credentials: false", workflow)
         # A successful push must survive restricted Actions PR creation.
@@ -161,10 +161,10 @@ class RepairAgentTests(unittest.TestCase):
 
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
-        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\\n", 1)[1]
-        block = block.split("      - name: Archive proposal\\n", 1)[0]
-        script = block.split("        run: |\\n", 1)[1]
-        script = "\\n".join(line[10:] if line.startswith("          ") else line
+        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        block = block.split("      - name: Archive proposal\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
                            for line in script.splitlines())
         check = subprocess.run(["bash", "-n"], input=script,
                                text=True, capture_output=True, check=False)
