@@ -39,7 +39,12 @@ def compare_race(code, root=ROOT):
         modes = {}
         for key in MODES:
             tickets = [row["combo"] for row in archive["modes"][key]["tickets"]]
-            modes[key] = {"hit": winning in tickets, "ticket_count": len(tickets)}
+            rank = tickets.index(winning) + 1 if winning in tickets else None
+            modes[key] = {"hit": rank is not None, "ticket_count": len(tickets),
+                          "winning_rank": rank,
+                          "top3": rank is not None and rank <= 3,
+                          "top5": rank is not None and rank <= 5,
+                          "top10": rank is not None and rank <= 10}
         return {"race_code": code, "status": "historical_comparison_only",
                 "winning_ticket": winning, "modes": modes,
                 "formal": False, "simulated_only": True,
