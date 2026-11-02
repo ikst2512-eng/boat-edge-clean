@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -11,13 +12,15 @@ from research_model import JST
 MAX_BYTES=2_000_000
 BASE="https://www.boatrace.jp/owsp/sp/race/beforeinfo"
 
-def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
+def capture(race_code, root="official_preview_probe", fetch=None, clock=None, observation_id=None):
     if not isinstance(race_code,str) or len(race_code)!=12 or not race_code.isascii() or not race_code.isdigit():
         raise ValueError("race code must be 12 ASCII digits")
     day, venue, race = race_code[:8],int(race_code[8:10]),int(race_code[10:])
     datetime.strptime(day,"%Y%m%d")
     if not 1<=venue<=24 or not 1<=race<=12:
         raise ValueError("invalid venue or race")
+    if observation_id is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}",observation_id):
+        raise ValueError("invalid observation ID")
     now=clock or (lambda: datetime.now(JST))
     url=f"{BASE}?hd={day}&jcd={venue:02d}&rno={race}"
     started=now()
@@ -54,6 +57,8 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
                 "complete_six_lanes":"unverified","deadline_jst":None,
                 "t12_eligible":False,"forecast_usable":False}
         root=Path(root)
+        if observation_id is not None:
+            root=root/"observations"/observation_id
         dest=root/day/race_code
         if dest.exists():
             raise FileExistsError("append-only official observation already exists")
@@ -93,8 +98,9 @@ if __name__=="__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("race_code")
     parser.add_argument("--root",default="official_preview_probe")
+    parser.add_argument("--observation-id",default=None,help="Distinct collection attempt; preserves earlier immutable observations")
     args=parser.parse_args()
-    report=capture(args.race_code,args.root)
+    report=capture(args.race_code,args.root,observation_id=args.observation_id)
     print(json.dumps(report,ensure_ascii=False,indent=2))
     if report["status"]!="raw_http_observed_not_t12_certified":
         raise SystemExit(1)
