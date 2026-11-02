@@ -5,13 +5,35 @@ from pathlib import Path
 from scripts.summarize_joint_t12_reports import summarize
 
 
+def valid_proof():
+    return {"both_complete_before_t12": True,
+            "originals_hash_verified": True,
+            "exhibition_complete": True,
+            "odds_120_complete": True,
+            "cutoff_jst": "2026-11-03T13:48:00+09:00",
+            "before_received_jst": "2026-11-03T13:47:00+09:00",
+            "odds_received_jst": "2026-11-03T13:47:30+09:00"}
+
+
 class T12SummaryTests(unittest.TestCase):
+    def test_unverified_or_late_success_flag_is_never_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            forged = {"race_code":"202611031501","attempt":1,"both_complete_before_t12":True}
+            late = {**valid_proof(), "race_code":"202611031502","attempt":1,
+                    "odds_received_jst":"2026-11-03T13:48:00.000001+09:00"}
+            for i, record in enumerate((forged, late), 1):
+                (root / f"joint_{i}.json").write_text(json.dumps(record))
+            summary = summarize(root)
+            self.assertEqual(summary["complete_pair_attempts"], 0)
+            self.assertEqual(summary["category_counts"], {"audit_invalid":2})
+
     def test_counts_only_existing_observed_attempts(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             samples = [
                 ("joint_1.json", {"race_code":"202611031501","attempt":1,"both_complete_before_t12":False,"failure_category":"transport"}),
-                ("joint_2.json", {"race_code":"202611031501","attempt":2,"both_complete_before_t12":True}),
+                ("joint_2.json", {"race_code":"202611031501","attempt":2,**valid_proof()}),
                 ("joint_3.json", {"race_code":"202611031502","attempt":1,"both_complete_before_t12":False,"status":"beforeinfo_after_t12"}),
             ]
             for name, doc in samples:
@@ -29,7 +51,7 @@ class T12SummaryTests(unittest.TestCase):
             root = Path(d)
             (root/"joint_1.json").write_text("{not json")
             for name in ("joint_2.json","joint_3.json"):
-                (root/name).write_text(json.dumps({"race_code":"202611031501","attempt":2,"both_complete_before_t12":True}))
+                (root/name).write_text(json.dumps({"race_code":"202611031501","attempt":2,**valid_proof()}))
             result = summarize(root)
             self.assertEqual(result["valid_attempt_reports"], 1)
             self.assertEqual(result["invalid_or_duplicate_reports"], 2)
