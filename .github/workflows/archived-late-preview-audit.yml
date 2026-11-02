@@ -33,6 +33,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Validate manual evidence selection
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT: ${{ inputs.source_artifact_name }}
+        run: |
+          if [[ -n "$RUN_ID" && -z "$ARTIFACT" || -z "$RUN_ID" && -n "$ARTIFACT" ]]; then
+            echo "Specify both source_run_id and source_artifact_name"
+            exit 1
+          fi
       - name: Download explicitly selected evidence artifact
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id != '' }}
         env:
@@ -49,7 +59,7 @@ jobs:
             cp -a source_artifact/late_preview_evidence ./late_preview_evidence
           else
             mkdir -p late_preview_evidence
-            find source_artifact -mindepth 1 -maxdepth 1 -type d -name '20????????' -exec cp -a {} late_preview_evidence/ \;
+            find source_artifact -mindepth 1 -maxdepth 1 -type d -name '20??????' -exec cp -a {} late_preview_evidence/ \;
           fi
           test -n "$(find late_preview_evidence -type f -name '*.json' -print -quit)" || { echo "No evidence JSON found in selected artifact"; exit 1; }
       - name: Verify archived data and generate evidence-status report
