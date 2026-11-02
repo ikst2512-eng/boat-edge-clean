@@ -34,10 +34,12 @@ jobs:
           GEMINI_MODEL: gemini-3.5-flash-lite
           RESEARCH_RACE_CODE: ${{ inputs.race_code || '' }}
         run: |
-          if [[ -n "$RESEARCH_RACE_CODE" ]]; then
-            python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json --race-code "$RESEARCH_RACE_CODE"
-          else
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]]; then
             python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
+          elif [[ -n "$RESEARCH_RACE_CODE" ]]; then
+            python ai_diagnostics.py --require-analysis --report ai_operations_report.json --output ai_diagnostics_report.json --race-code "$RESEARCH_RACE_CODE"
+          else
+            python ai_diagnostics.py --require-analysis --report ai_operations_report.json --output ai_diagnostics_report.json
           fi
       - name: Archive both reports
         if: always()
