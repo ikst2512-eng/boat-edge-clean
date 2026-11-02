@@ -4,6 +4,8 @@ on:
     paths:
       - 'audit_clean_first_add.py'
       - 'test_audit_clean_first_add.py'
+      - 'audit_four_mode_first_add.py'
+      - 'test_audit_four_mode_first_add.py'
       - 'four_mode_archive_api.py'
       - 'test_four_mode_archive_api.py'
       - 'research_prospective_miss_report.py'
@@ -38,6 +40,8 @@ on:
     paths:
       - 'audit_clean_first_add.py'
       - 'test_audit_clean_first_add.py'
+      - 'audit_four_mode_first_add.py'
+      - 'test_audit_four_mode_first_add.py'
       - 'four_mode_archive_api.py'
       - 'test_four_mode_archive_api.py'
       - 'research_prospective_miss_report.py'
@@ -72,6 +76,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify four-mode first-add audit is not formal attestation
+        run: python -m unittest -v test_audit_four_mode_first_add
       - name: Verify unchanged four-mode archive contract
         run: python -m unittest -v test_four_mode_archive_api
       - name: Validate first-add chronology and Top-N miss diagnostics
