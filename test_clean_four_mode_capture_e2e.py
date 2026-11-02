@@ -88,6 +88,20 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(status["already_saved"],1)
             self.assertEqual(status["cutoff_skipped"],0)
 
+    def test_empty_titles_with_available_cards_are_not_healthy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,3,8,0,tzinfo=JST)
+            card={"レースコード":"202611030101",**{f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([] if "/title/" in url else [card],now,"a"*64)
+            result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["source_status"],"empty_titles")
+            self.assertEqual(result["new_saved"],[])
+            self.assertEqual(result["published_card_rows"],1)
+            self.assertEqual(result["published_title_rows"],0)
+            status=publish_status(result,root=Path(tmp),now=now)
+            self.assertEqual(status["source_status"],"empty_titles")
+
     def test_source_receipt_after_generation_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)

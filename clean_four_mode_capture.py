@@ -150,7 +150,7 @@ def collect(root=ROOT, now=None, read=read_rows):
     return {"new_saved":saved,"excluded":excluded,"source_probes":outcomes,"date_jst":hd,
             "published_title_rows":len(titles),"published_card_rows":len(cards),
             "cutoff_skipped":cutoff_skipped,"already_saved":already_saved,
-            "source_status":"available" if cards else "empty_cards",
+            "source_status":"empty_titles" if not titles else ("empty_cards" if not cards else "available"),
             "eligible_forecasts_today":len(list(out.glob(hd+"*.json"))) if out.exists() else 0}
 
 
