@@ -45,6 +45,7 @@ def inspect(payload):
         "exhibition_time_observed_boats": exhibition_time_count,
         "tilt_observed_boats": tilt_count,
         "start_exhibition_rows": len(start) if isinstance(start, list) else None,
+        "start_exhibition_six_rows_observed": isinstance(start, list) and len(start) == 6,
         "status": "six_exhibition_values_observed_not_time_certified" if exhibition
                   else "official_racecard_without_complete_exhibition_values",
         "t12_eligible": False,
