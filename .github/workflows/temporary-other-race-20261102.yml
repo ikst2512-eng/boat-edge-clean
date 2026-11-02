@@ -1,0 +1,30 @@
+name: Temporary other-race official beforeinfo proof
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-other-race-20261102.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Observe Marugame 12R and Omura 11R
+        run: |
+          mkdir -p reports
+          for race in 202611021512 202611022411; do
+            python -m scripts.capture_official_beforeinfo_json "$race" --root sources --observation-id "run${GITHUB_RUN_ID}_$race" > "reports/$race.json" || true
+            cat "reports/$race.json"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: additional-races-official-json
+          path: |
+            reports/
+            sources/
+          retention-days: 7
