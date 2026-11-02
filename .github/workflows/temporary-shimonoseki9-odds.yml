@@ -1,0 +1,47 @@
+name: Temporary Shimonoseki 9R T12 odds
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-shimonoseki9-odds.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Official source deadline then immutable odds
+        run: |
+          mkdir -p reports
+          python - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          race='202611021909'
+          item=before(race,'evidence','before'+__import__('os').environ['GITHUB_RUN_ID'])
+          print('BEFOREINFO',json.dumps(item,ensure_ascii=False))
+          Path('reports/beforeinfo.json').write_text(json.dumps(item,ensure_ascii=False))
+          if item.get('status')!='official_json_observed_not_t12_certified':
+              raise SystemExit('Official deadline not verified')
+          source_deadline=item.get('deadline_display')
+          if not isinstance(source_deadline,str) or not __import__('re').fullmatch(r'\d{2}:\d{2}',source_deadline):
+              raise SystemExit('Bad source deadline')
+          deadline='2026-11-02T'+source_deadline+':00+09:00'
+          result=odds(race,deadline,'evidence','odds'+__import__('os').environ['GITHUB_RUN_ID'])
+          Path('reports/odds.json').write_text(json.dumps(result,ensure_ascii=False))
+          print('ODDS',json.dumps(result,ensure_ascii=False))
+          if result.get('status')!='official_odds_observed_research_only':
+              raise SystemExit('No valid official odds evidence')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shimonoseki9-official-t12-source
+          path: |
+            reports/
+            evidence/
+          retention-days: 7
