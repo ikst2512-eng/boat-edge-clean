@@ -1,0 +1,35 @@
+name: Experimental official response category real capture
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-response-category-live.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Observe Marugame 11R response category
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python -m scripts.capture_official_beforeinfo_probe 202611021511 --root evidence --observation-id "run${GITHUB_RUN_ID}" > evidence/status.json || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("evidence/status.json").read_text())
+          print("RESULT",r["status"],"STAGE",r.get("failure_stage"),"FORMAT",r.get("response_format_category"),"ERROR",r.get("error"))
+          print("RECEIVED",r["received_at_jst"],"T12",r["t12_eligible"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-response-category-live
+          path: evidence/
+          retention-days: 7
