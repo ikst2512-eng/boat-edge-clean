@@ -32,6 +32,13 @@ class RacelistReceiptTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 capture(RACE, root, "proof01", fetch=lambda url: raw, clock=self.clock())
 
+    def test_xml_declared_official_xhtml_is_accepted_as_original(self):
+        raw = b'<?xml version="1.0" encoding="UTF-8"?><html><body>fixture</body></html>'
+        with tempfile.TemporaryDirectory() as root:
+            result = capture(RACE, root, "xml01", fetch=lambda _: raw, clock=self.clock())
+            self.assertEqual(result["status"], "official_racelist_html_observed_research_only")
+            self.assertFalse(result["racecard_content_verified"])
+
     def test_json_disguised_as_html_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:
             result = capture(RACE, root, "bad01", fetch=lambda url: b'{"error":true}', clock=self.clock())
