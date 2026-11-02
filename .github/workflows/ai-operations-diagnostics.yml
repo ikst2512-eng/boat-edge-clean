@@ -62,8 +62,8 @@ jobs:
               status, review = "missing_report", "unknown"
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               summary.write("### Gemini research diagnostics\n")
-              summary.write(f"- API analysis status: \`{status}\`\n")
-              summary.write(f"- Evidence review status: \`{review}\`\n")
+              summary.write(f"- API analysis status: `{status}`\n")
+              summary.write(f"- Evidence review status: `{review}`\n")
               summary.write("- This workflow never proves an improvement in accuracy or authorizes prediction changes.\n")
           PY
       - name: Archive both reports
