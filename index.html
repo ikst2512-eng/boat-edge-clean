@@ -896,6 +896,10 @@ async function loadResult(quiet=false){
   const provenance=document.createElement('p');provenance.className='muted';provenance.textContent='CLEAN保存済み結果・取得 '+raw.collected_at_jst+'（公開結果CSVに基づく）';
   const payout=document.createElement('p');payout.className='result-payout';payout.textContent='3連単払戻金：確認中…';
   panel.append(combo,payout,provenance);detail.replaceChildren(panel);
+  // Confirmed order is already validated: show ticket matches without waiting for payout CSV.
+  displayedResultCombo=order.join('-');
+  updateFourModeHitPreview(key);
+  status.textContent='CLEAN保存済み結果';
   // The official result CSV has finish order; payouts are in a separate published CSV.
   // Never infer the cash amount from the predicted odds or the finish order.
   try{
@@ -915,9 +919,6 @@ async function loadResult(quiet=false){
    if(!/^\d{1,8}$/.test(amount)||Number(amount)<=0)throw Error('PAYOUT_AMOUNT_INVALID');
    if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：'+Number(amount).toLocaleString('ja-JP')+'円（100円あたり）';
   }catch(e){if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：未確認';}
-  displayedResultCombo=order.join('-');
-  updateFourModeHitPreview(key);
-  status.textContent='CLEAN保存済み結果';
   comparison.replaceChildren();
   const notice=document.createElement('p');notice.className='muted';notice.textContent='正式予想の締切前保存証拠がCLEANへ移行するまで、的中・不的中の判定は行いません。';
   comparison.append(notice);
