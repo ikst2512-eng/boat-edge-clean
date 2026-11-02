@@ -211,7 +211,12 @@ jobs:
           else:
               data=json.loads(path.read_text(encoding="utf-8"))
               publication_path=Path("four-mode-evidence/publication.json")
-              publication=json.loads(publication_path.read_text(encoding="utf-8")) if publication_path.exists() else {"outcome":"not_confirmed"}
+              try:
+                  publication=json.loads(publication_path.read_text(encoding="utf-8")) if publication_path.exists() else {"outcome":"not_confirmed"}
+                  if not isinstance(publication, dict) or not isinstance(publication.get("outcome"), str):
+                      raise ValueError("invalid publication verdict")
+              except (ValueError, UnicodeError, OSError):
+                  publication={"outcome":"invalid_publication_evidence"}
               staging_path=Path("four-mode-evidence/staging.json")
               staging=json.loads(staging_path.read_text(encoding="utf-8")) if staging_path.exists() else None
               with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
