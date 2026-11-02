@@ -10,6 +10,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/four-mode-capture-watchdog.yml'
+      - 'scripts/four_mode_watchdog_policy.py'
+      - 'test_four_mode_watchdog_policy.py'
       - 'scripts/render_four_mode_dispatch.py'
       - 'test_render_four_mode_dispatch.py'
 permissions:
