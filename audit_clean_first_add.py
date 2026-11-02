@@ -57,4 +57,16 @@ if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("paths",nargs="+")
     args=p.parse_args()
-    print(json.dumps([inspect(f) for f in args.paths],ensure_ascii=False))
+    passed = []
+    rejected = []
+    for path in args.paths:
+        try:
+            passed.append(inspect(path))
+        except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
+            rejected.append({"path": path, "reason": str(exc)[:200]})
+    print(json.dumps({"schema":"CLEAN_FIRST_ADD_BATCH_AUDIT_V1",
+                      "passed":passed,"rejected":rejected,
+                      "counts":{"passed":len(passed),"rejected":len(rejected)},
+                      "formal":False},ensure_ascii=False))
+    if rejected:
+        raise SystemExit(1)  # Preserve fail-closed CI until rejections are reconciled.
