@@ -10,6 +10,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/four-mode-capture-watchdog.yml'
+      - 'scripts/render_four_mode_dispatch.py'
+      - 'test_render_four_mode_dispatch.py'
 permissions:
   actions: read
   contents: read
@@ -27,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test dispatch policy
-        run: python -m unittest -v test_four_mode_watchdog_policy
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch
       - name: Check recent capture runs before fallback dispatch
         env:
           GH_TOKEN: ${{ github.token }}
