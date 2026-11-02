@@ -42,6 +42,44 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(result["action"],"dispatch_accepted_not_publication_proof")
         self.assertEqual([c.get_method() for c in calls],["GET","GET","POST"])
 
+    def test_failed_fallback_uses_retry_cooldown(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req)
+            record={"created_at":(NOW-timedelta(minutes=5)).isoformat(),
+                    "status":"completed","conclusion":"failure",
+                    "event":"workflow_dispatch"}
+            if "event=workflow_dispatch" in req.full_url:
+                return Response(json.dumps({"workflow_runs":[record]}).encode())
+            return Response(b'{"workflow_runs":[]}')
+        result=run(token="test-only",now=NOW,request=request)
+        self.assertEqual(result["action"],"no_dispatch")
+        self.assertEqual(len(calls),2)
+
+    def test_failed_schedule_triggers_recovery(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req)
+            if req.get_method()=="POST":
+                response=Response(b"")
+                response.status=204
+                return response
+            record={"created_at":(NOW-timedelta(minutes=5)).isoformat(),
+                    "status":"completed","conclusion":"failure","event":"schedule"}
+            return Response(json.dumps({"workflow_runs":[record]}).encode()
+                            if "event=schedule" in req.full_url else b'{"workflow_runs":[]}')
+        result=run(token="test-only",now=NOW,request=request)
+        self.assertEqual(result["action"],"dispatch_accepted_not_publication_proof")
+        self.assertEqual([c.get_method() for c in calls],["GET","GET","POST"])
+
+    def test_dispatch_rejection_is_error_not_success(self):
+        def request(req, timeout):
+            if req.get_method()=="POST":
+                return Response(b"")
+            return Response(b'{"workflow_runs":[]}')
+        with self.assertRaises(RuntimeError):
+            run(token="test-only",now=NOW,request=request)
+
     def test_outside_hours_does_not_dispatch(self):
         def request(req, timeout):
             self.fail("Off-hours job must not call GitHub API")
