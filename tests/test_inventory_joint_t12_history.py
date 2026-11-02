@@ -53,6 +53,16 @@ class HistoryInventoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             inventory("test/repo", "token", lambda _: {"unexpected": []})
 
+    def test_short_workflow_page_with_more_total_runs_is_rejected(self):
+        with self.assertRaises(ValueError):
+            inventory("test/repo", "token",
+                      lambda _: {"total_count": 12, "workflow_runs": []})
+
+    def test_invalid_workflow_total_count_is_rejected(self):
+        with self.assertRaises(ValueError):
+            inventory("test/repo", "token",
+                      lambda _: {"total_count": True, "workflow_runs": []})
+
     def test_zero_runs_is_not_zero_success_rate(self):
         report = inventory("test/repo", "token", lambda _: {"workflow_runs": []})
         self.assertEqual(report["real_dispatch_runs_seen"], 0)
