@@ -123,6 +123,25 @@ jobs:
             echo 'Existing four-mode archive changed: refusing write' >&2; exit 1
           fi
           python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
+          # A new V2 model must never be silently published under the old V1 label.
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          names=subprocess.check_output(
+              ["git","diff","--cached","--name-only","--diff-filter=A","--","four_mode_forecasts/"],
+              text=True).splitlines()
+          for name in names:
+              data=json.loads(Path(name).read_text(encoding="utf-8"))
+              if data.get("model_version")!="CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED":
+                  raise ValueError("new_capture_model_version_not_v2: "+name)
+              modes=data.get("modes",{})
+              counts=[len(modes.get(key,{}).get("tickets",[])) for key in ("narrow","hit","balance","hole")]
+              if counts != [5,10,16,22] or any(
+                  modes[key].get("count_policy")!="provisional_new_generation_v2" for key in ("narrow","hit","balance","hole")
+              ):
+                  raise ValueError("new_capture_v2_counts_invalid: "+name)
+          print("V2 staged release gate:",len(names),"validated new archives")
+          PY
           if git diff --cached --quiet; then
             printf '{"outcome":"no_eligible_candidates"}\n' > four-mode-evidence/publication.json
             echo 'No new cutoff-safe four-mode candidates'
