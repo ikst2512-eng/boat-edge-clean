@@ -6,6 +6,7 @@ Write-once archives are committed separately by the existing scheduled action.
 """
 import hashlib
 import json
+import math
 import os
 from urllib.error import HTTPError, URLError
 from datetime import datetime, timedelta
@@ -121,6 +122,8 @@ def collect(root=ROOT, now=None, read=read_rows):
             racer=cards_by_code.get(code)
             if not racer:raise ValueError("missing_race_card")
             rates=[float(racer[f"艇{i}_全国勝率"]) for i in range(1,7)]
+            if not all(math.isfinite(rate) and rate >= 0 for rate in rates):
+                raise ValueError("invalid_national_win_rate")
             forecast=rank_modes(probabilities(rates))
             generated_at=datetime.now(JST) if now_is_live else now
             if generated_at < max(title_received,card_received):
