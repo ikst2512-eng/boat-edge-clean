@@ -1,4 +1,5 @@
 """Publish immutable source receipts only after both files are complete."""
+import fcntl
 import json
 import os
 import shutil
@@ -12,10 +13,15 @@ def publish_receipt(dest, filename, raw, report):
         raise FileExistsError("immutable observation already exists")
     dest.parent.mkdir(parents=True, exist_ok=True)
     lock = dest.with_name(dest.name + ".publish.lock")
-    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    os.close(fd)
+    # Advisory OS lock releases on process death. Do not unlink its inode:
+    # unlinking can let two processes lock different inodes for the same race.
+    fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o600)
     staging = None
     try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise FileExistsError("observation publication already in progress") from exc
         if dest.exists():
             raise FileExistsError("immutable observation already exists")
         staging = Path(tempfile.mkdtemp(prefix=".receipt-", dir=dest.parent))
@@ -30,4 +36,4 @@ def publish_receipt(dest, filename, raw, report):
     finally:
         if staging is not None and staging.exists():
             shutil.rmtree(staging)
-        lock.unlink()
+        os.close(fd)
