@@ -240,6 +240,8 @@ _HOLDOUT_LOCK = threading.Lock()
 _HOLDOUT_STATE = {"value": None, "expires": 0.0, "running": False,
                   "started": None, "last_duration": None, "last_error": None}
 _HOLDOUT_TTL_SECONDS = 900
+_HOLDOUT_PROCESS_BOOT = time.monotonic()
+_HOLDOUT_PROCESS_ID = os.getpid()
 
 def _compute_holdout_status():
     from compare_topn_signal70_days import report
@@ -301,7 +303,9 @@ def holdout_status():
                  "running": running,
                  "elapsed_seconds": round(max(0, now - started), 1) if running and started is not None else None,
                  "last_duration_seconds": last_duration,
-                 "last_error_type": last_error}
+                 "last_error_type": last_error,
+                 "worker_pid": _HOLDOUT_PROCESS_ID,
+                 "process_uptime_seconds": round(time.monotonic() - _HOLDOUT_PROCESS_BOOT, 1)}
 
 class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
