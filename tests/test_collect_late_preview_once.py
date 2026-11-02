@@ -36,7 +36,7 @@ class Integration(unittest.TestCase):
             return value
         with tempfile.TemporaryDirectory() as folder:
             result=collect(day="20261031",root=folder,
-                           fetch=lambda u:"レースコード\\n".encode(),clock=clock)
+                           fetch=lambda u:"レースコード\n".encode(),clock=clock)
             entry=result["kinds"]["stt"]
             self.assertEqual(entry["fetch_elapsed_ms"],250)
             self.assertEqual(entry["request_started_at_jst"],initial.isoformat())
