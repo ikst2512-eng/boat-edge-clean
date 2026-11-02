@@ -1,0 +1,48 @@
+name: Hole second-pair research (read-only)
+on:
+  pull_request:
+    paths:
+      - hole_second_pair_counterfactual.py
+      - test_hole_second_pair_counterfactual.py
+      - .github/workflows/hole-second-pair-research.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python -m unittest -v test_hole_second_pair_counterfactual.py
+      - name: Archived historical comparison
+        run: python hole_second_pair_counterfactual.py > hole_second_pair_counterfactual_report.json
+      - name: Validate output and exclusions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('hole_second_pair_counterfactual_report.json')
+          d = json.loads(p.read_text())
+          assert d["formal"] is False
+          if d["status"] == "historical_research_only":
+              assert d["production_forecast_changed"] is False
+              assert d["remote_first_seen_verified"] is False
+              assert d["comparable"] > 0
+              assert len(d["scenarios"]) == 10
+              for k, row in d["scenarios"].items():
+                  assert row["hits"]["top3"] <= row["hits"]["top5"] <= row["hits"]["top10"]
+          else:
+              raise AssertionError("No comparable historical archives")
+          print(json.dumps({"status": d["status"], "comparable": d["comparable"],
+              "baseline_hole_pair_gap": d["baseline_hole_pair_gap"],
+              "scenarios": {k: {"hits": v["hits"], "delta_hits": v.get("delta_hits")}
+                  for k,v in d["scenarios"].items()}}, ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-second-pair-historical
+          path: hole_second_pair_counterfactual_report.json
