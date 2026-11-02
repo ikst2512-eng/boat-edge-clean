@@ -8,6 +8,7 @@ on:
       - 'scripts/diagnose_official_racelist_html.py'
       - 'tests/test_audit_official_racelist_receipt.py'
       - '.github/workflows/official-racelist-raw-tests.yml'
+      - '.github/workflows/official-racelist-live-dispatch.yml'
   push:
     branches: [main]
     paths:
@@ -25,3 +26,4 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -p 'test_capture_official_racelist_receipt.py' -v
       - run: python -m unittest discover -s tests -p 'test_audit_official_racelist_receipt.py' -v
+      - run: python -m unittest discover -s tests -p 'test_official_racelist_dispatch_contract.py' -v
