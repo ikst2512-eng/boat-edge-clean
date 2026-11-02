@@ -40,6 +40,7 @@ jobs:
                      "status":r["status"],"conclusion":r["conclusion"]}
                     for r in watchdog_data["workflow_runs"]]
           print("FOUR_MODE_WATCHDOG_RUNS="+json.dumps(watchdog[:10],sort_keys=True))
+          print("FOUR_MODE_WATCHDOG_SCHEDULE_COUNT="+str(sum(r["event"]=="schedule" for r in watchdog)))
           if not scheduled:
               print("::warning::No scheduled workflow runs in the most recent 100; execution is unconfirmed")
           else:
