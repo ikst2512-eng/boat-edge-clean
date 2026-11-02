@@ -494,3 +494,8 @@ const fourModeSource=script.slice(script.indexOf('async function loadFourModeArc
 assert.match(fourModeSource,/const data=await response\.json\(\);\s*if\(token!==window\.predictionRequestId\|\|sameRaceKey\(\)!==key\)return;/,'stale archived JSON must not paint a new race');
 const cleanResultSource=script.slice(script.indexOf('async function loadResult(quiet=false)'),script.indexOf('async function loadResult(quiet=false)')+7000);
 assert.match(cleanResultSource,/catch\(e\)\{if\(token===resultRequestId&&key===sameRaceKey\(\)\)payout\.textContent='3連単払戻金：未確認';\}\s*if\(token!==resultRequestId\|\|key!==sameRaceKey\(\)\)return;\s*comparison\.replaceChildren\(\);/,'stale payout must not replace another race comparison');
+
+// Selected race cutoff must update once asynchronous schedule is verified.
+assert.ok(script.includes('function syncActiveRaceDeadline()'),'selected cutoff sync helper exists');
+assert.ok(script.includes('todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();'),'schedule resolution updates active race cutoff');
+assert.ok(script.includes('syncActiveRaceDeadline();document.getElementById(\'previousRace\')'),'race selection updates active cutoff');
