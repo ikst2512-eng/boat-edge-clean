@@ -53,7 +53,14 @@ jobs:
           Path('reports').mkdir()
           for i in range(1,attempts+1):
               identifier=os.environ['GITHUB_RUN_ID']+'_'+str(i)
-              a=before(race,'evidence','before'+identifier)
+              try:
+                  a=before(race,'evidence','before'+identifier)
+              except (OSError,ValueError,KeyError,TypeError,UnicodeError,TimeoutError) as exc:
+                  # Preserve a fail-closed report even if validation or I/O raises
+                  # before the collector returns its normal failure dictionary.
+                  a={'status':'official_beforeinfo_capture_exception',
+                     'error_type':type(exc).__name__,
+                     'forecast_usable':False,'t12_eligible':False}
               Path(f'reports/before_{i}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
               if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
                   failure={'attempt':i,'race_code':race,'status':'beforeinfo_failed_or_deadline_missing',
