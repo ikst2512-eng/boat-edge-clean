@@ -30,6 +30,9 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         self.assertEqual(r["status"],"historical_comparison_only")
         self.assertEqual([r["modes"][m]["hit"] for m in ("hit","balance","hole","narrow")],
                          [True,False,False,False])
+        self.assertEqual(r["modes"]["hit"]["winning_rank"], 1)
+        self.assertTrue(r["modes"]["hit"]["top3"])
+        self.assertFalse(r["modes"]["balance"]["top10"])
         self.assertFalse(r["formal"])
         self.assertFalse(r["remote_first_seen_verified"])
         self.assertNotIn("roi",r)
