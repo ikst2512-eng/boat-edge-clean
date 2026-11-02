@@ -277,6 +277,10 @@ jobs:
                       output.write(f"- {key}: {data.get(key, 'unavailable')}\n")
                   output.write(f"- staging: {staging if staging is not None else 'not reached'}\n")
                   output.write(f"- publication: {publication['outcome']}\n")
+                  # Only freshly staged (not previously archived) records can establish V2 candidates.
+                  v2_candidate_count = staging.get("staged_valid", 0) if isinstance(staging, dict) else None
+                  output.write(f"- V2 staged candidate count: {v2_candidate_count if v2_candidate_count is not None else 'not reached'}\n")
+                  output.write("- V2 live publication independently verified: false (GitHub history/API check required)\n")
               if data.get("source_status") != "available":
                   print("::warning::Race-card source incomplete; no forecast availability is implied.")
           PY
