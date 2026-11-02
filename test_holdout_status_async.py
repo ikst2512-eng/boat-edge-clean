@@ -31,6 +31,8 @@ class HoldoutAsyncTests(unittest.TestCase):
                 self.assertEqual(data["error"], "HOLDOUT_PENDING")
                 self.assertTrue(data["running"])
                 self.assertGreaterEqual(data["elapsed_seconds"], 0)
+                self.assertEqual(data["worker_pid"], server.os.getpid())
+                self.assertGreaterEqual(data["process_uptime_seconds"], 0)
                 self.assertTrue(entered.wait(timeout=1))
                 self.assertEqual(server.holdout_status()[0], 503)
                 gate.set()
