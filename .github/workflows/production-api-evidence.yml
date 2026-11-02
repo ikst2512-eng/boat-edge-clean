@@ -102,6 +102,8 @@ jobs:
                   raise AssertionError('frozen fixture unavailable '+race_code)
               archive=json.loads(raw)
               assert archive.get('status')=='historical_research_only' and archive.get('race_code')==race_code
+              assert archive.get('model_version')=='CLEAN_FOUR_MODES_V1_UNCALIBRATED', 'legacy V1 model identity missing from live API'
+              report('Live archive model_version V1: PASS '+race_code)
               assert archive.get('production_forecast') is False
               code,body=fetch('/api/clean-result?hd='+race_code[:8]+'&jcd='+race_code[8:10]+'&rno='+str(int(race_code[10:])))
               if code!=200:raise AssertionError('confirmed fixture unavailable '+race_code)
@@ -120,7 +122,7 @@ jobs:
           # V2 is counted only when a real immutable saved archive carries V2 provenance.
           # Probe a bounded handful of published races, without generating any predictions.
           checked=0;v2=[]
-          for entry in data.get('races',[])[:12] if status==200 else []:
+          for entry in data.get('races',[])[:36] if status==200 else []:
               if not isinstance(entry,dict):continue
               try:race_code=day+str(int(entry['venue_code'])).zfill(2)+str(int(entry['race_no'])).zfill(2)
               except (KeyError,TypeError,ValueError):continue
@@ -135,7 +137,7 @@ jobs:
               assert actual==[5,10,16,22], 'V2 ticket count mismatch '+race_code
               v2.append(race_code)
           report('V2 production archive scan: '+str(len(v2))+' V2 / '+str(checked)+' scheduled samples')
-          if not v2:report('No V2 sample found; prospective V2 accuracy NOT evaluated')
+          if not v2:report('No V2 sample found in bounded scan; prospective V2 accuracy NOT evaluated')
           else:report('V2 archived sample codes: '+', '.join(v2))
 
           PY
