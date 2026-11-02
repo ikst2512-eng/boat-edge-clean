@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from scripts.audit_joint_official_receipts import audit_pair
 
 RACE = "202611021910"
@@ -51,6 +52,19 @@ class JointReceiptTests(unittest.TestCase):
             (b / "manifest.json").write_text(json.dumps(m))
             with self.assertRaisesRegex(ValueError, "official source URL mismatch"):
                 audit_pair(a, b)
+
+    def test_complete_pair_does_not_certify_uncaptured_entry_or_racecard(self):
+        with tempfile.TemporaryDirectory() as root:
+            a, b = self.make(root)
+            with patch("scripts.audit_joint_official_receipts.parse_official_odds_table", return_value={"fixture": 1}), patch(
+                "scripts.audit_joint_official_receipts.inspect_odds_receipt",
+                return_value={"valid_120_combinations": True, "complete_odds_observed_before_t12": True}
+            ):
+                result = audit_pair(a, b)
+            self.assertTrue(result["both_complete_before_t12"])
+            self.assertFalse(result["full_t12_source_certified"])
+            self.assertFalse(result["independent_source_coverage"]["official_racecard_original"])
+            self.assertFalse(result["independent_source_coverage"]["official_entry_original"])
 
     def test_tampered_odds_original_rejected(self):
         with tempfile.TemporaryDirectory() as root:
