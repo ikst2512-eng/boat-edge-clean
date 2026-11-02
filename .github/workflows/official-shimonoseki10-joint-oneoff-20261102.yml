@@ -23,6 +23,7 @@ jobs:
           from pathlib import Path
           from scripts.capture_official_beforeinfo_json import capture as before
           from scripts.capture_official_odds_receipt import capture as odds
+          from scripts.audit_joint_official_receipts import audit_pair
           jst=datetime.timezone(datetime.timedelta(hours=9))
           if datetime.datetime.now(jst).date().isoformat()!='2026-11-02':
               raise SystemExit('Outside one-date experiment')
@@ -38,18 +39,12 @@ jobs:
               b=odds(race,deadline.isoformat(),'evidence','odds'+os.environ['GITHUB_RUN_ID']+'_'+str(attempt))
               Path(f'reports/odds_{attempt}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
               cutoff=deadline-datetime.timedelta(minutes=12)
-              complete=bool(a.get('six_unique_boats') and a.get('exhibition_time_nonempty_six')
-                            and a.get('tilt_observed_boats')==6 and a.get('start_exhibition_six_valid_rows')
-                            and datetime.datetime.fromisoformat(a['received_at_jst'])<=cutoff
-                            and b.get('complete_odds_observed_before_t12'))
-              summary={'race_code':race,'deadline_jst':deadline.isoformat(),'cutoff_jst':cutoff.isoformat(),
-                       'beforeinfo_received_at_jst':a.get('received_at_jst'),
-                       'odds_received_at_jst':b.get('received_at_jst'),
-                       'exhibition_boats':a.get('exhibition_time_observed_boats'),
-                       'start_valid':a.get('start_exhibition_six_valid_rows'),
-                       'valid_odds_120_before_t12':b.get('complete_odds_observed_before_t12'),
-                       'both_sources_complete_before_t12':complete,
-                       't12_eligible':False,'forecast_usable':False}
+              before_dir=Path('evidence')/'observations'/('before'+os.environ['GITHUB_RUN_ID']+'_'+str(attempt))/race[:8]/race
+              odds_dir=Path('evidence')/'observations'/('odds'+os.environ['GITHUB_RUN_ID']+'_'+str(attempt))/race[:8]/race
+              # Reopen both originals and independently recheck hashes, race, and cutoff.
+              summary=audit_pair(before_dir,odds_dir)
+              summary['attempt']=attempt
+              complete=summary['both_complete_before_t12']
               Path(f'reports/joint_{attempt}.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
               print('JOINT_SUMMARY',json.dumps(summary,ensure_ascii=False))
               if complete:
@@ -63,6 +58,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
           python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
+          python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
       - uses: actions/upload-artifact@v4
         if: ${{ always() && github.event_name != 'pull_request' }}
         with:
