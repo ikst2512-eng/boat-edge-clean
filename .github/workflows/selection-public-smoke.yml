@@ -92,6 +92,15 @@ jobs:
           from pathlib import Path
           d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
           assert d["schema"]=="CLEAN_SIGNAL70_HOLDOUT_STATUS_V1"
+          # The four frozen candidates passed full-history GitHub CI audit.
+          # A production mismatch is a real deployment/evidence defect.
+          probes=d.get("first_add_probes")
+          assert isinstance(probes,dict), "Render has not deployed first-add probes"
+          for code in ("202610301306","202610312412","202611011306","202611022412"):
+              proof=probes.get(code)
+              print("Production first-add probe:",code,proof)
+              assert isinstance(proof,dict) and proof.get("ok") is True, (
+                  "Render first-add audit differs from full-history CI: "+code)
           # Require currently deployed diagnostic contract, not a stale HTTP 200.
           assert all(key in d for key in ("archived_candidates","awaiting_result_races",
                                         "audit_rejected_races","audit_rejection_reasons"))
