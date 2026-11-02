@@ -44,6 +44,7 @@ jobs:
           print("FOUR_MODE_WATCHDOG_RUNS="+json.dumps(watchdog[:10],sort_keys=True))
           print("FOUR_MODE_WATCHDOG_SCHEDULE_COUNT="+str(sum(r["event"]=="schedule" for r in watchdog)))
           print("FOUR_MODE_WATCHDOG_LATEST="+json.dumps(watchdog[:3],sort_keys=True))
+          print("FOUR_MODE_WATCHDOG_PUSH_COUNT="+str(sum(r["event"]=="push" for r in watchdog)))
           for name in ("four-mode-prospective-capture.yml","four-mode-capture-watchdog.yml"):
               metadata=f"https://api.github.com/repos/{repo}/actions/workflows/{name}"
               with urllib.request.urlopen(urllib.request.Request(metadata,headers=request.headers),timeout=20) as response:
