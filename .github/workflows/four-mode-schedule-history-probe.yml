@@ -44,6 +44,7 @@ jobs:
           print("FOUR_MODE_WATCHDOG_RUNS="+json.dumps(watchdog[:10],sort_keys=True))
           print("FOUR_MODE_WATCHDOG_SCHEDULE_COUNT="+str(sum(r["event"]=="schedule" for r in watchdog)))
           print("FOUR_MODE_WATCHDOG_LATEST="+json.dumps(watchdog[:3],sort_keys=True))
+          print("FOUR_MODE_PROBE_PHASE=post_watchdog_main_merge")
           print("FOUR_MODE_HISTORY_CHECK_JST=2026-11-02 20:47+09:00")
           if not scheduled:
               print("::warning::No scheduled workflow runs in the most recent 100; execution is unconfirmed")
