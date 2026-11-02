@@ -1391,8 +1391,17 @@ async function loadFourModeArchives(key,token){
   const oddsUrl='https://boat-edge-clean.onrender.com/api/odds?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
   void (async()=>{
    try{
-    const res=await fetch(oddsUrl,{cache:'no-store',signal:AbortSignal.timeout(30000)});
-    if(!res.ok){if(enrichCurrent())oddsState.textContent='オッズ未取得（通信先から有効な応答なし）';return;}
+    let res;
+    for(let attempt=0;attempt<3;attempt++){
+     if(!enrichCurrent())return;
+     res=await fetch(oddsUrl,{cache:'no-store',signal:AbortSignal.timeout(30000)});
+     if(res.status!==202)break;
+     if(attempt===2){if(enrichCurrent())oddsState.textContent='オッズ取得中（再試行後も未完了・画面更新で再確認できます）';return;}
+     oddsState.textContent='オッズ取得中（再確認 '+(attempt+1)+'/2）…';
+     await new Promise(resolve=>setTimeout(resolve,2000));
+    }
+    if(!enrichCurrent())return;
+    if(!res.ok){oddsState.textContent='オッズ未取得（通信先から有効な応答なし）';return;}
     const feed=await res.json(),received=Date.parse(feed.fetched_at);
     if(!enrichCurrent()||feed.ok!==true||feed.hd!==key.slice(0,8)||String(feed.jcd).padStart(2,'0')!==key.slice(9,11)||Number(feed.rno)!==Number(key.slice(12,14))||!Number.isFinite(received)||received>Date.now()+300000||received<Date.now()-1800000||
       !feed.odds||typeof feed.odds!=='object'||Array.isArray(feed.odds)||Object.keys(feed.odds).length!==120){if(enrichCurrent())oddsState.textContent='オッズ未取得（検証可能なデータなし）';return;}
