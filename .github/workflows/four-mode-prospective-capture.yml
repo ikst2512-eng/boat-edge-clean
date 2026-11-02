@@ -127,7 +127,25 @@ jobs:
             # immediately before publication; never push an expired receipt.
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
             if git push origin HEAD:main; then
-              printf '{"outcome":"pushed_to_main"}\n' > four-mode-evidence/publication.json
+              # Record the exact pushed commit, not just a success label.
+              # This allows the immutable first-add audit to inspect its blob.
+              python - <<'PY'
+              import json, subprocess
+              from pathlib import Path
+              sha = subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True).strip()
+              count = len(subprocess.check_output(
+                  ["git", "diff-tree", "--no-commit-id", "--name-only",
+                   "--diff-filter=A", "-r", "HEAD", "--",
+                   "four_mode_forecasts/"], text=True).splitlines())
+              target = Path("four-mode-evidence/publication.json")
+              target.write_text(json.dumps({
+                  "outcome": "pushed_to_main",
+                  "commit_sha": sha,
+                  "added_forecasts": count
+              }, sort_keys=True) + chr(10), encoding="utf-8")
+              print("Published four-mode commit:", sha, "new archives:", count)
+              PY
               echo 'Immutable four-mode candidates pushed'
               exit 0
             fi
