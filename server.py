@@ -255,9 +255,18 @@ def _compute_holdout_status():
             data = report(holdout_dates)
     else:
         data = {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
+    # Keep rejected audits separate from races with unavailable confirmed results.
+    # Neither may enter a Top-N hit-rate denominator.
+    days = data.get("days", [])
+    awaiting = sum(g["awaiting_result"] for d in days for g in d["groups"].values())
+    rejected = sum(g["rejected"] for d in days for g in d["groups"].values())
+    archived = sum(d["archived"] for d in days)
     return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
             "later_holdout_days": data["later_holdout_days"],
             "evaluated_holdout_races": data["later_holdout_evaluated_races"],
+            "awaiting_result_races": awaiting,
+            "audit_rejected_races": rejected,
+            "archived_candidates": archived,
             "discovery_day": "20261029", "independently_validated": False}
 
 def _refresh_holdout_status():
