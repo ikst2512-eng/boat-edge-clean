@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run fail-closed tests
-        run: python -m unittest -v tests/test_inventory_four_mode_actions_evidence.py
+        run: python -m unittest discover -s tests -p 'test_inventory_four_mode_actions_evidence.py' -v
       - name: Inventory recent scheduled collection run artifacts
         env:
           GH_TOKEN: ${{ github.token }}
