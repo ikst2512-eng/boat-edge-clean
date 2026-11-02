@@ -54,11 +54,17 @@ jobs:
               deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
               cutoff=deadline-datetime.timedelta(minutes=12)
               if datetime.datetime.fromisoformat(a['received_at_jst'])>cutoff:
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'beforeinfo_after_t12','beforeinfo_received_at_jst':a['received_at_jst'],'cutoff_jst':cutoff.isoformat(),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
                   print('PAST_T12',a['received_at_jst'],cutoff.isoformat())
+                  break
+              if datetime.datetime.now(jst)+datetime.timedelta(seconds=20)>=cutoff:
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'insufficient_time_to_fetch_odds','cutoff_jst':cutoff.isoformat(),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
+                  print('ODDS_SKIPPED_NEAR_T12',cutoff.isoformat())
                   break
               b=odds(race,deadline.isoformat(),'evidence','odds'+identifier)
               Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
               if b.get('status')!='official_odds_observed_research_only':
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'odds_failed','odds_status':b.get('status'),'error':b.get('error'),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
                   print('ODDS_FAILED',json.dumps({'attempt':i,'status':b.get('status'),'error':b.get('error'),'forecast_usable':False},ensure_ascii=False))
                   if i<attempts and datetime.datetime.now(jst)+datetime.timedelta(seconds=55)<cutoff:
                       time.sleep(30)
