@@ -106,7 +106,7 @@ def inspect(saved_dir):
                     for row in rows] for label,rows in context.items()}
     # The official smartphone beforeinfo endpoint may serve a dynamic page shell;
     # an empty target div contains no actual boat observations.
-    shell_target=re.search(r'<div\\s+id=["\\\']content_beforeInfo["\\\']\\s*>\\s*</div>',raw.decode("utf-8",errors="replace"),re.I)
+    shell_target=re.search(r"<div\s+id=['\"]content_beforeInfo['\"]\s*>\s*</div>",raw.decode("utf-8",errors="replace"),re.I)
     evidence_kind="client_rendered_shell_no_boat_values" if shell_target and not any(matched.values()) else "unclassified_html"
     return {"race_code":manifest.get("race_code"),"sha256_verified":True,
             "request_started_at_jst":started.isoformat(),
