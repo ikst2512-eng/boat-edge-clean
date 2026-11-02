@@ -112,12 +112,18 @@ def main():
     if args.race_code:
         report = attach_frozen_race(report, args.race_code)
         args.case_output.write_text(json.dumps(report["frozen_four_mode_research_case"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    result = analyze(report)
+    error = None
+    try:
+        result = analyze(report)
+    except (RuntimeError, ValueError, OSError) as exc:
+        error = exc
+        result = {"status": "api_error", "reason": type(exc).__name__,
+                  "production_change_allowed": False}
     result["evidence_review"] = review_analysis_output(
         result, report.get("frozen_four_mode_research_case"))
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("AI diagnostics:", result["status"])
-    if args.require_analysis and result["status"] != "analysis_proposed":
+    if error is not None or (args.require_analysis and result["status"] != "analysis_proposed"):
         parser.error("Gemini manual analysis did not run; inspect archived status")
 
 
