@@ -29,7 +29,7 @@ def run(*, token, now=None, request=urllib.request.urlopen):
         req = urllib.request.Request(base + "/runs?event=" + event + "&per_page=30", headers=headers)
         with request(req, timeout=20) as response:
             events.extend(json.load(response)["workflow_runs"])
-    decision = should_dispatch(events, now, "render_cron")
+    decision = should_dispatch(events, now, "render_cron", recent_minutes=14, cooldown_minutes=14)
     if not decision:
         return {"action": "no_dispatch", "checked_runs": len(events)}
     body = json.dumps({"ref": "main"}).encode()
