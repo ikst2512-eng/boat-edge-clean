@@ -1,5 +1,10 @@
 name: Inventory historical official T12 dispatches (read only)
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/official-t12-history-inventory.yml'
+      - 'scripts/inventory_joint_t12_history.py'
   workflow_dispatch:
 permissions:
   contents: read
