@@ -488,3 +488,9 @@ assert.match(narrowTicketCss,/@media\(max-width:420px\)/,'narrow mobile breakpoi
 assert.match(narrowTicketCss,/\.four-mode-forecast-grid\{grid-template-columns:minmax\(0,1fr\)/,'one forecast mode per row on narrow iPhones');
 assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-combo\{font-size:24px/,'ticket combination must be prominent');
 assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-odds\{font-size:11px/,'odds must remain secondary');
+
+// Async race-switch regression: revalidate identity after every awaited parsing stage.
+const fourModeSource=script.slice(script.indexOf('async function loadFourModeArchives('),script.indexOf('async function loadPredictions('));
+assert.match(fourModeSource,/const data=await response\.json\(\);\s*if\(token!==window\.predictionRequestId\|\|sameRaceKey\(\)!==key\)return;/,'stale archived JSON must not paint a new race');
+const cleanResultSource=script.slice(script.indexOf('async function loadResult(quiet=false)'),script.indexOf('async function loadResult(quiet=false)')+7000);
+assert.match(cleanResultSource,/catch\(e\)\{if\(token===resultRequestId&&key===sameRaceKey\(\)\)payout\.textContent='3連単払戻金：未確認';\}\s*if\(token!==resultRequestId\|\|key!==sameRaceKey\(\)\)return;\s*comparison\.replaceChildren\(\);/,'stale payout must not replace another race comparison');
