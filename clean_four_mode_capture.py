@@ -132,7 +132,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                 raise ValueError("generation_after_safe_cutoff")
             record={"schema":"CLEAN_FOUR_MODES_PREDEADLINE_V1","race_code":code,
                     "status":"provisional","validated":False,
-                    "model_version":"CLEAN_FOUR_MODES_V1_UNCALIBRATED",
+                    "model_version":"CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
                     "deadline_jst":cutoff.isoformat(),"generated_at_jst":generated_at.isoformat(),
                     "source_title_received_jst":title_received.isoformat(),
                     "source_cards_received_jst":card_received.isoformat(),
