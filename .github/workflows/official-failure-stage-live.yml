@@ -1,0 +1,38 @@
+name: Experimental official failure-stage live observation
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-failure-stage-live.yml'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Live official HTTP diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python -m scripts.capture_official_beforeinfo_probe 202611021510 --root evidence --observation-id "run${GITHUB_RUN_ID}" > evidence/observation.json || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("evidence/observation.json").read_text())
+          print("LIVE_CAPTURE_STATUS",r["status"])
+          print("FAILURE_STAGE",r.get("failure_stage","none"))
+          print("ERROR_CLASS",r.get("error","none"))
+          print("RECEIVED_AT",r["received_at_jst"])
+          print("T12_CERTIFIED",r["t12_eligible"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-live-failure-stage
+          path: evidence/
+          retention-days: 7
