@@ -96,6 +96,7 @@ def collect(root=ROOT, now=None, read=read_rows):
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
     cutoff_skipped=0
+    already_saved=0
     # Never record the collection-start clock as forecast generation time.
     # The timestamp is sampled after all source receipts and modeling input checks.
     for title in titles:
@@ -107,14 +108,16 @@ def collect(root=ROOT, now=None, read=read_rows):
             venue,race=int(code[8:10]),int(code[10:12])
             if not 1<=venue<=24 or not 1<=race<=12:
                 raise ValueError("race_code")
+            path=out/(code+".json")
+            if path.is_symlink():raise ValueError("symlink")
+            if path.exists():
+                already_saved+=1
+                continue
             cutoff=datetime.strptime(hd+title["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
             # Allow GitHub commit time before the actual deadline.
             if max(now,title_received,card_received)>cutoff-timedelta(minutes=20):
                 cutoff_skipped+=1
                 continue
-            path=out/(code+".json")
-            if path.is_symlink():raise ValueError("symlink")
-            if path.exists():continue
             racer=cards_by_code.get(code)
             if not racer:raise ValueError("missing_race_card")
             rates=[float(racer[f"艇{i}_全国勝率"]) for i in range(1,7)]
@@ -146,7 +149,7 @@ def collect(root=ROOT, now=None, read=read_rows):
             excluded[label]=excluded.get(label,0)+1
     return {"new_saved":saved,"excluded":excluded,"source_probes":outcomes,"date_jst":hd,
             "published_title_rows":len(titles),"published_card_rows":len(cards),
-            "cutoff_skipped":cutoff_skipped,
+            "cutoff_skipped":cutoff_skipped,"already_saved":already_saved,
             "source_status":"available" if cards else "empty_cards",
             "eligible_forecasts_today":len(list(out.glob(hd+"*.json"))) if out.exists() else 0}
 
@@ -165,6 +168,7 @@ def publish_status(result,root=ROOT,now=None):
            "eligible_forecasts_today":result.get("eligible_forecasts_today",0),
            "excluded":result.get("excluded",{}),
            "cutoff_skipped":result.get("cutoff_skipped",0),
+           "already_saved":result.get("already_saved",0),
            "last_run_new_count":len(result.get("new_saved",[])),
            "research_archives_present":result.get("eligible_forecasts_today",0)>0,
            "production_success_proven":False}
