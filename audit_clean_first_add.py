@@ -12,6 +12,35 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 PATTERN=re.compile(r"^prospective_predictions/(20[0-9]{10})\.json$")
 
+# Bulk audit is opt-in and isolated to the worker thread; all individual
+# records still require original-blob byte equality and cutoff validation.
+from contextlib import contextmanager
+from threading import local
+_BULK = local()
+
+@contextmanager
+def bulk_first_add(root=ROOT):
+    root = Path(root).resolve()
+    raw = subprocess.check_output(
+        ["git", "log", "--format=COMMIT %H %cI", "--name-only",
+         "--diff-filter=A", "--", "prospective_predictions"],
+        cwd=root, text=True)
+    additions = {}
+    sha = stamp = None
+    for line in raw.splitlines():
+        if line.startswith("COMMIT "):
+            sha, stamp = line[7:].split(" ", 1)
+            if len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha):
+                raise ValueError("invalid bulk commit SHA")
+        elif PATTERN.fullmatch(line):
+            additions.setdefault(line, []).append((sha, stamp))
+    previous = getattr(_BULK, "state", None)
+    _BULK.state = (root, additions)
+    try:
+        yield
+    finally:
+        _BULK.state = previous
+
 def first_add(path, root=ROOT):
     rel=str(path).replace("\\","/")
     if not PATTERN.fullmatch(rel):
@@ -19,12 +48,19 @@ def first_add(path, root=ROOT):
     # Read commit SHA and timestamp in one Git traversal; retain the
     # unique-first-add requirement and verify the original blob below.
     # Two matching additions are enough to reject ambiguous evidence.
-    history=subprocess.check_output(
-        ["git","log","--max-count=2","--format=%H %cI","--diff-filter=A","--",rel],
-        cwd=root,text=True).splitlines()
-    if len(history)!=1:
-        raise ValueError("unambiguous first addition not found")
-    sha, stamp = history[0].split(" ",1)
+    bulk = getattr(_BULK, "state", None)
+    if bulk is not None and Path(root).resolve() == bulk[0]:
+        history = bulk[1].get(rel, [])
+        if len(history) != 1:
+            raise ValueError("unambiguous first addition not found")
+        sha, stamp = history[0]
+    else:
+        history=subprocess.check_output(
+            ["git","log","--max-count=2","--format=%H %cI","--diff-filter=A","--",rel],
+            cwd=root,text=True).splitlines()
+        if len(history)!=1:
+            raise ValueError("unambiguous first addition not found")
+        sha, stamp = history[0].split(" ",1)
     if len(sha)!=40 or any(c not in "0123456789abcdef" for c in sha):
         raise ValueError("invalid first addition SHA")
     original=subprocess.check_output(["git","show",sha+":"+rel],cwd=root)
