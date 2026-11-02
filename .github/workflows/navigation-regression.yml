@@ -79,7 +79,7 @@ jobs:
               if(await tabs.count()!==4)throw Error('Four race shortcuts missing');
               await page.locator('#venues button').first().click();
               for(const view of ['forecast','card','exhibit','result']){
-                await tabs.locator('[data-race-view="'+view+'"]').click();
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
                 if(await page.evaluate(()=>activeView)!==view)throw Error('Shortcut failed: '+view);
                 if(await page.locator('[data-home-only]:visible').count())throw Error('Home controls leak into '+view);
               }
