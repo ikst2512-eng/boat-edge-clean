@@ -836,3 +836,10 @@
 - PR #972 AI operations optional diagnostics run `41434975368` completed/success、main squash `603b148676e1f3828617b83024937d4cbe02089b`。
 - GitHubの手動Gemini実API run一覧は本ターンの接続では取得できず、API呼出実績・AI回答・分析効果・Render本番はいずれも未検証。モデル・4モード・原本は不変更。
 - 次: 実手動runのアーティファクトを取得して、Gemini `status=analysis_proposed` と証拠審査の内容を照合する。
+
+
+## 2026-11-02 Gemini実API/CI結果の分離表示（PR #976）
+- GitHub Actions最新100件（確認時点）にある `AI operations optional diagnostics` 7件はすべて `pull_request` トリガー。手動実API解析の完了証拠はこの範囲で未発見。100件より古い履歴も含む完全な不在証明ではない。
+- 手動診断失敗時も既存JSONを基に Actions summary で `API analysis status` と `Evidence review status` を明示するステップを追加。CI成功とGemini実API実行を混同しない。
+- PR #976 Actions run `41435415754` completed/success、main squash `0f1dfa4b5660113a792c15980725175b015b9464`。自動API実行なし、予想原本・モデル・4モード変更なし。
+- Gemini手動実APIの分析と結果内容、的中率向上、本番Render表示は未検証。次は手動dispatchの実行とartifactの取得・検査。
