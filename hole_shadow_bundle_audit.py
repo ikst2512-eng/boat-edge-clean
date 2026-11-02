@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from four_mode_archive_api import archived_four_modes, valid_ticket
 from four_mode_frozen_diagnostic import compare_race
+from hole_upper_rank_pair_protection import propose
+from hole_pair_third_bundle_research import bundle
 
 TOPS=(3,5,10)
 FIELDS=("baseline","shadow","shadow_bundle2")
@@ -48,6 +50,12 @@ def audit(root,shadow_path):
                 or any(not valid_ticket(t) for t in picks)):
                 raise ValueError("invalid_frozen_tickets_"+code+"_"+field)
             candidate_sets[field]=picks
+        hit=[x["combo"] for x in archive["modes"]["hit"]["tickets"]]
+        balance=[x["combo"] for x in archive["modes"]["balance"]["tickets"]]
+        expected_single=propose(base,hit,3)
+        expected_bundle=bundle(base,list(dict.fromkeys(hit+balance)),3,2)
+        if candidate_sets["shadow"]!=expected_single or candidate_sets["shadow_bundle2"]!=expected_bundle:
+            excluded.append({"race_code":code,"reason":"candidate_algorithm_mismatch"});continue
         result=compare_race(code,root)
         if result.get("status")!="historical_comparison_only":
             excluded.append({"race_code":code,"reason":"unconfirmed_result"});continue
