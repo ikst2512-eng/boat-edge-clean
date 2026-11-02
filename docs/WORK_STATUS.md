@@ -995,3 +995,9 @@
 - 最新 `workflow_dispatch` 履歴に AI operations optional diagnostics の実API成功はまだ見当たらない。今回のCIもAPIモック検証であり、Gemini実レース分析・的中率改善を意味しない。
 - `ai_diagnostics.py` の分析プロンプト区切りと複数part出力の結合にリテラル `\\n` が混入していたため、実改行（LF）へ変更。実改行の回帰テスト追加。
 - PR #1051 AI operations optional diagnostics CI `41455070801` completed/success、main squash `81ddc90acbd7f1724e541e76106effb4877b3de2`。4モード・買い目・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini手動実レース分析の初期設定修正（PR #1057）
+- 当時のGitHub Actionsのworkflow_dispatch履歴で `AI operations optional diagnostics` は0件。Geminiの実APIレース分析・予想的中率改善は未実証。
+- 手動Run workflow入力が空の場合、既存ワークフローはレース比較を省略して一般監査だけをGeminiに送っていたため、`race_code` を必須・保存済み `202610280101` を初期値に変更。手動実行では形式を検査して `--race-code` の実レース研究経路を必ず使う。
+- PR #1057 AI operations optional diagnostics CI `41456093913` completed/success。main squash `b92cd29428f5117384309cab12e3222e306045d6`。このPRのCIはモック・オフラインであり、手動Gemini実API実行ではない。4モード・買い目・予想ロジック変更なし。
