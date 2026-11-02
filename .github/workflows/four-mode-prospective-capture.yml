@@ -124,6 +124,9 @@ jobs:
           fi
           python scripts/verify_four_mode_new_receipts.py --staged --buffer-seconds 90
           # A new V2 model must never be silently published under the old V1 label.
+          python scripts/audit_new_v2_staged.py
+          # Previous inline check is replaced by a testable fail-closed module.
+          : <<'PREVIOUS_V2_GATE'
           python - <<'PY'
           import json, subprocess
           from pathlib import Path
@@ -142,6 +145,7 @@ jobs:
                   raise ValueError("new_capture_v2_counts_invalid: "+name)
           print("V2 staged release gate:",len(names),"validated new archives")
           PY
+          PREVIOUS_V2_GATE
           if git diff --cached --quiet; then
             printf '{"outcome":"no_eligible_candidates"}\n' > four-mode-evidence/publication.json
             echo 'No new cutoff-safe four-mode candidates'
