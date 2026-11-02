@@ -103,7 +103,7 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(status["source_status"],"empty_titles")
 
     def test_invalid_national_win_rates_are_excluded_without_archive(self):
-        for bad in ("nan", "inf", "-inf", "-1"):
+        for bad in ("nan", "inf", "-inf", "-1", "10.01", "100"):
             with self.subTest(bad=bad), tempfile.TemporaryDirectory() as tmp:
                 code="202611030101"
                 now=datetime(2026,11,3,8,0,tzinfo=JST)
