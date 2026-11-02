@@ -34,8 +34,11 @@ def audit_racelist(directory, race_code, cutoff_jst):
         raise ValueError("non-JST timestamps")
     if received < started or received.strftime("%Y%m%d") != day or cutoff.strftime("%Y%m%d") != day:
         raise ValueError("invalid chronology or day")
+    from scripts.diagnose_official_racelist_html import diagnose_racelist_html
+    html_diagnostics = diagnose_racelist_html(raw)
     return {
         "race_code": race_code, "original_hash_verified": True,
+        "html_diagnostics": html_diagnostics,
         "racelist_received_jst": received.isoformat(),
         "received_by_t12": received <= cutoff,
         "six_racers_verified": False, "entry_verified": False,

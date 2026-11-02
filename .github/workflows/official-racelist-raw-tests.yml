@@ -5,6 +5,7 @@ on:
       - 'scripts/capture_official_racelist_receipt.py'
       - 'tests/test_capture_official_racelist_receipt.py'
       - 'scripts/audit_official_racelist_receipt.py'
+      - 'scripts/diagnose_official_racelist_html.py'
       - 'tests/test_audit_official_racelist_receipt.py'
       - '.github/workflows/official-racelist-raw-tests.yml'
   push:
