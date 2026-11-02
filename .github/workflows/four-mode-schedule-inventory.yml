@@ -1,0 +1,36 @@
+name: Four-mode scheduled run inventory (read only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/inventory_four_mode_capture_runs.py'
+      - 'tests/test_inventory_four_mode_capture_runs.py'
+      - '.github/workflows/four-mode-schedule-inventory.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/inventory_four_mode_capture_runs.py'
+      - '.github/workflows/four-mode-schedule-inventory.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs
+      - name: Check real scheduled run history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.inventory_four_mode_capture_runs --repo "${{ github.repository }}" --output reports/four_mode_schedule_history.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: four-mode-schedule-history
+          path: reports/four_mode_schedule_history.json
+          if-no-files-found: warn
