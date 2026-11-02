@@ -22,14 +22,19 @@ class LinkTest(unittest.TestCase):
                     preserve(url,raw,datetime(2026,11,2,11,0,tzinfo=JST))
             code="202611020101"
             path=root/"four_mode_forecasts"/(code+".json")
-            path.write_text(json.dumps({"race_code":code,"source_sha256":{
+            path.write_text(json.dumps({"race_code":code,"generated_at_jst":"2026-11-02T12:00:00+09:00","source_sha256":{
                 "title":hashlib.sha256(t).hexdigest(),"race_cards":hashlib.sha256(c).hexdigest()}}))
             yes=link_forecast(code,root,d)
             self.assertEqual(yes["status"],"both_hashes_present")
             self.assertFalse(yes["formal"])
-            path.write_text(json.dumps({"race_code":code,"source_sha256":{
+            path.write_text(json.dumps({"race_code":code,"generated_at_jst":"2026-11-02T12:00:00+09:00","source_sha256":{
                 "title":hashlib.sha256(t).hexdigest(),"race_cards":"a"*64}}))
             self.assertEqual(link_forecast(code,root,d)["status"],"incomplete_source_link")
             self.assertEqual(link_forecast(code,root,root/"missing")["status"],"raw_receipts_unverified")
+            path.write_text(json.dumps({"race_code":code,
+                "generated_at_jst":"2026-11-02T10:00:00+09:00",
+                "source_sha256":{"title":hashlib.sha256(t).hexdigest(),
+                                 "race_cards":hashlib.sha256(c).hexdigest()}}))
+            self.assertEqual(link_forecast(code,root,d)["status"],"incomplete_source_link")
 if __name__=="__main__":
     unittest.main()

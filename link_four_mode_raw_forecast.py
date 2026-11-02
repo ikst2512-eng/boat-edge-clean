@@ -1,5 +1,6 @@
 """Read-only correspondence of frozen forecast hashes with local raw HTTP receipts."""
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from audit_four_mode_raw_receipts import audit
 
@@ -19,7 +20,14 @@ def link_forecast(code, root, receipts):
             raise ValueError("race_mismatch")
         hashes = forecast["source_sha256"]
         manifests = [json.loads(p.read_text(encoding="utf-8")) for p in receipts.glob("*.json")]
-        observed = {m["sha256"] for m in manifests}
+        generated = datetime.fromisoformat(forecast["generated_at_jst"])
+        if generated.utcoffset() != timedelta(hours=9):
+            raise ValueError("invalid_generation_timezone")
+        observed = set()
+        for m in manifests:
+            received = datetime.fromisoformat(m["received_at_jst"])
+            if received.utcoffset() == timedelta(hours=9) and received <= generated:
+                observed.add(m["sha256"])
         matches = {kind: isinstance(hashes.get(kind), str) and hashes[kind].lower() in observed
                    for kind in ("title", "race_cards")}
     except (ValueError, OSError, KeyError, TypeError):
