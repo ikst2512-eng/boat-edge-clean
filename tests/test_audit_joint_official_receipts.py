@@ -33,12 +33,11 @@ class JointReceiptTests(unittest.TestCase):
             (folder / "manifest.json").write_text(json.dumps(manifest))
         return first, second
 
-    def test_partial_is_not_complete(self):
+    def test_nonofficial_odds_html_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:
             a, b = self.make(root, complete=False)
-            report = audit_pair(a, b)
-            self.assertFalse(report["both_complete_before_t12"])
-            self.assertFalse(report["forecast_usable"])
+            with self.assertRaises(ValueError):
+                audit_pair(a, b)
 
     def test_tampered_odds_original_rejected(self):
         with tempfile.TemporaryDirectory() as root:
