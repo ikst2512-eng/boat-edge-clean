@@ -71,7 +71,13 @@ jobs:
                   break
               pa=Path('evidence/observations')/('before'+identifier)/race[:8]/race
               pb=Path('evidence/observations')/('odds'+identifier)/race[:8]/race
-              result=audit_pair(pa,pb)
+              try:
+                  result=audit_pair(pa,pb)
+              except (ValueError,KeyError,TypeError,UnicodeError,OSError) as exc:
+                  result={'race_code':race,'status':'joint_original_audit_failed',
+                          'error_type':type(exc).__name__,
+                          'both_complete_before_t12':False,'forecast_usable':False,
+                          't12_eligible':False}
               result['attempt']=i
               Path(f'reports/joint_{i}.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
               print('JOINT',json.dumps(result,ensure_ascii=False))
