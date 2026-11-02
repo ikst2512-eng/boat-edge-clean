@@ -2,6 +2,9 @@
 import io
 import json
 import os
+import subprocess
+import tempfile
+from pathlib import Path
 import urllib.request
 import urllib.error
 import zipfile
@@ -38,6 +41,20 @@ def api(url,token,accept="application/vnd.github+json"):
         data=response.read(10000000)
     return data
 
+def gh_shadow(run_id, repo, token):
+    with tempfile.TemporaryDirectory() as directory:
+        env={**os.environ,"GH_TOKEN":token}
+        result=subprocess.run(["gh","run","download",str(run_id),"--repo",repo,
+                               "--pattern","four-mode-capture-*","--dir",directory],
+                              capture_output=True,text=True,env=env,timeout=90)
+        if result.returncode:
+            return {"status":"cli_download_failed","exit_code":result.returncode}
+        paths=list(Path(directory).rglob("hole-shadow.json"))
+        if not paths:return {"status":"no_hole_shadow_in_artifact"}
+        if len(paths)!=1:return {"status":"ambiguous_multiple_shadow_files"}
+        if paths[0].stat().st_size>2000000:return {"status":"oversize_shadow"}
+        return inspect_capture(json.loads(paths[0].read_text(encoding="utf-8")))
+
 def run(repo,token,limit=20):
     if not repo or not token:raise ValueError("missing_credentials")
     limit=min(max(int(limit),1),40)
@@ -61,6 +78,11 @@ def run(repo,token,limit=20):
                 info["shadow"]={"status":"artifact_unreadable","error_type":type(e).__name__}
                 if isinstance(e,urllib.error.HTTPError):
                     info["shadow"]["http_status"]=e.code
+                    if e.code==415:
+                        try:info["shadow"]=gh_shadow(run["id"],repo,token)
+                        except (OSError,ValueError,subprocess.TimeoutExpired) as fallback:
+                            info["shadow"]={"status":"cli_download_error",
+                                            "error_type":type(fallback).__name__}
         rows.append(info)
     return {"schema":"HOLE_CAPTURE_ARTIFACT_INVENTORY_V1","status":"inventory_only",
             "formal":False,"production_forecast_changed":False,
