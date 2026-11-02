@@ -101,5 +101,8 @@ jobs:
               assert d["independently_validated"] is False
           print("Public holdout schema OK; later days:",
                 d["later_holdout_days"],"evaluated:",d["evaluated_holdout_races"],
-                "independently validated:",d["independently_validated"])
+                "independently validated:",d["independently_validated"],
+                "archived:",d.get("archived_candidates"),
+                "awaiting result:",d.get("awaiting_result_races"),
+                "audit rejected:",d.get("audit_rejected_races"))
           PY
