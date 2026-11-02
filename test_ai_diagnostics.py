@@ -90,6 +90,12 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertFalse(data["production_change_allowed"])
             self.assertNotIn("Gemini HTTP 429", json.dumps(data))
 
+    def test_input_hash_is_deterministic(self):
+        import hashlib
+        payload = {"gate": {"a": 1}, "b": 2}
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        self.assertEqual(len(hashlib.sha256(canonical).hexdigest()), 64)
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
