@@ -69,8 +69,8 @@ class OfficialProbeTests(unittest.TestCase):
                 self.assertNotIn("hidden",str(result))
 
     def test_xhtml_with_xml_prolog_is_preserved_but_not_t12_certified(self):
-        bodies=(b'<?xml version="1.0" encoding="utf-8"?>\\n<html xmlns="http://www.w3.org/1999/xhtml"><body>ok</body></html>',
-                b'<?xml version="1.0"?>\\n<!DOCTYPE html><html><body>ok</body></html>')
+        bodies=(b'<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><body>ok</body></html>',
+                b'<?xml version="1.0"?>\n<!DOCTYPE html><html><body>ok</body></html>')
         for body in bodies:
             with self.subTest(body=body[:40]), tempfile.TemporaryDirectory() as root:
                 result=capture("202611010708",root,fetch=lambda url:body)
