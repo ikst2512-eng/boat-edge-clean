@@ -43,21 +43,20 @@ class RepairAgentTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, n):
-                return json.dumps({"output":[{"type":"message","content":[
-                    {"type":"output_text","text":json.dumps({
+                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":"navigation.js","old":"alpha","new":"beta"}],
                         "reason":"test fixture","tests":"navigation contract"})}
-                ]}]}).encode()
+                }]}}]}).encode()
         def fake_transport(req,timeout):
             payload=json.loads(req.data)
-            self.assertFalse(payload["store"])
-            self.assertIn("json_object",json.dumps(payload["text"]))
-            self.assertIn("navigation.js",payload["input"])
+            self.assertEqual(payload["generationConfig"]["responseMimeType"], "application/json")
+            self.assertIn("x-goog-api-key",req.headers)
+            self.assertIn("navigation.js",json.dumps(payload["contents"]))
             return FakeResponse()
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             (root/"navigation.js").write_text("alpha")
-            result=propose("navigation sample",root,"fake-key","gpt-4.1-mini",fake_transport)
+            result=propose("navigation sample",root,"fake-key","gemini-2.5-flash-lite",fake_transport)
             self.assertEqual(result["status"],"proposed")
             self.assertEqual(result["changed_files"],["navigation.js"])
             self.assertFalse(result["production_change_allowed"])
@@ -68,14 +67,13 @@ class RepairAgentTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self,n):
-                return json.dumps({"output":[{"type":"message","content":[
-                    {"type":"output_text","text":json.dumps({
+                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":".github/workflows/ai-repair-proposal.yml",
                                     "old":"a","new":"b"}]})}
-                ]}]}).encode()
+                }]}}]}).encode()
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError,"unsafe_path"):
-                propose("change workflows",directory,"fake-key","gpt-4.1-mini",
+                propose("change workflows",directory,"fake-key","gemini-2.5-flash-lite",
                         lambda req,timeout:FakeResponse())
 
     def test_large_main_ui_includes_runtime_tail(self):
@@ -83,11 +81,10 @@ class RepairAgentTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, n):
-                return json.dumps({"output":[{"type":"message","content":[
-                    {"type":"output_text","text":json.dumps({"patches":[]})}
-                ]}]}).encode()
+                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({"patches":[]})}
+                }]}}]}).encode()
         def fake(req, timeout):
-            sent=json.loads(req.data)["input"]
+            sent=json.loads(req.data)["contents"][0]["parts"][0]["text"]
             sources=json.loads(sent)["sources"]
             self.assertIn("RUNTIME_MARKER", sources["index.html"])
             self.assertIn("HEADER_MARKER", sources["index.html"])
@@ -111,7 +108,7 @@ class RepairAgentTests(unittest.TestCase):
             raise HTTPError(request.full_url, 429, "Too Many Requests", {}, None)
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory)/"navigation.js").write_text("unchanged")
-            with self.assertRaisesRegex(RuntimeError, "credits, billing and rate limits"):
+            with self.assertRaisesRegex(RuntimeError, "free-tier quota or rate limit"):
                 propose("navigation fails", directory, "fake-key", "mock", rate_limited)
             self.assertEqual((Path(directory)/"navigation.js").read_text(), "unchanged")
 
