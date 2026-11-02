@@ -27,6 +27,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
     url=f"{BASE}?hd={day}&jcd={venue:02d}&rno={race}"
     started=now()
     received=None
+    stage="transport"
     try:
         if fetch is not None:
             raw=fetch(url)
@@ -38,16 +39,20 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
                 status=response.status
                 raw=response.read(MAX_BYTES+1)
         received=now()
+        stage="chronology"
         if started.utcoffset()!=timedelta(hours=9) or received.utcoffset()!=timedelta(hours=9) or received<started:
             raise ValueError("invalid HTTP observation chronology")
+        stage="response_url"
         parsed=urlparse(final_url)
         if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
                 or parsed.path!="/owsp/sp/race/beforeinfo"
                 or parse_qs(parsed.query)!={"hd":[day],"jcd":[f"{venue:02d}"],"rno":[str(race)]}):
             raise ValueError("unexpected official response URL")
+        stage="response_payload"
         if status!=200 or not isinstance(raw,bytes) or not raw or len(raw)>MAX_BYTES:
             raise ValueError("invalid official HTTP response")
         # A 200 response can still be a JSON/API error or plain text, not HTML evidence.
+        stage="html_signature"
         prefix=raw.removeprefix(bytes.fromhex("efbbbf")).lstrip(b" \t\r\n").lower()
         if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
             raise ValueError("official response is not an HTML document")
@@ -58,6 +63,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
                 "status":"raw_http_observed_not_t12_certified",
                 "complete_six_lanes":"unverified","deadline_jst":None,
                 "t12_eligible":False,"forecast_usable":False}
+        stage="evidence_write"
         root=Path(root)
         if observation_id is not None:
             root=root/"observations"/observation_id
@@ -94,6 +100,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
                 "received_at_jst":ended.isoformat(),
                 "observation_chronology_valid":chronology_valid,
                 "status":"official_probe_failed","error":type(exc).__name__,
+                "failure_stage":stage,
                 "complete_six_lanes":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":
