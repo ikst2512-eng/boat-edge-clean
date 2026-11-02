@@ -141,6 +141,7 @@ jobs:
           publication_stage="git_commit"
           git commit -m 'data: freeze four-mode predeadline research candidates'
           for attempt in 1 2 3; do
+            publication_stage="post_commit_receipt_check"
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
             publication_stage="fetch_main"
             git fetch origin main
@@ -148,6 +149,7 @@ jobs:
             git -c rebase.autoStash=true rebase origin/main
             # Rebasing changes the commit timestamp. Recheck the actual candidate
             # immediately before publication; never push an expired receipt.
+            publication_stage="post_rebase_receipt_check"
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
             publication_stage="local_first_add_audit"
             # Verify the exact first-add blob and Git chronology before pushing.
