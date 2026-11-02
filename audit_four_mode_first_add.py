@@ -47,6 +47,15 @@ def inspect(path, root=ROOT):
         raise ValueError("invalid_timezone")
     if deadline.strftime("%Y%m%d") != match.group(1)[:8]:
         raise ValueError("race_date_mismatch")
+    # Preserve source chronology: a forecast cannot precede either receipt.
+    if "source_title_received_jst" not in obj or "source_cards_received_jst" not in obj:
+        raise ValueError("missing_source_receipts")
+    receipts = [datetime.fromisoformat(obj[k]) for k in
+                ("source_title_received_jst", "source_cards_received_jst")]
+    if any(t.utcoffset() != timedelta(hours=9) for t in receipts):
+        raise ValueError("invalid_source_timezone")
+    if max(receipts) > generated:
+        raise ValueError("source_receipt_after_generation")
     if not (generated <= committed < deadline):
         raise ValueError("git_first_add_not_before_deadline")
     return {"race_code": match.group(1), "modes": list(MODES),
