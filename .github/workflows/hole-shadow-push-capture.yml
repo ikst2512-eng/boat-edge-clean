@@ -1,0 +1,41 @@
+name: Hole shadow capture on new forecast push
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'four_mode_forecasts/**.json'
+  pull_request:
+    paths:
+      - 'hole_shadow_push_capture.py'
+      - 'test_hole_shadow_push_capture.py'
+      - '.github/workflows/hole-shadow-push-capture.yml'
+  workflow_dispatch:
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test push handler
+        run: python -m unittest -v test_hole_shadow_push_capture.py test_hole_shadow_prospective_gate.py
+      - name: Capture new forecasts only on real main push
+        if: github.event_name == 'push'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python hole_shadow_push_capture.py --before "$BEFORE_SHA" --after "$AFTER_SHA" --run-id "$RUN_ID"
+      - name: Upload unverified runner receipt
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hole-shadow-receipt-${{ github.run_id }}
+          path: hole_shadow_push_receipt.json
+          if-no-files-found: error
