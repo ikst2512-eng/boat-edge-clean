@@ -19,9 +19,11 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           import tempfile
           from pathlib import Path
           from clean_four_mode_capture import collect
+          from scripts.verify_four_mode_new_receipts import verify
           with tempfile.TemporaryDirectory() as temporary:
               result=collect(root=Path(temporary))
               report={key:result.get(key) for key in (
@@ -29,6 +31,23 @@ jobs:
                   "published_title_rows", "published_card_rows",
                   "cutoff_skipped", "excluded", "new_saved")}
               report["new_saved_count"]=len(result.get("new_saved", []))
+              original=os.getcwd()
+              valid=0
+              rejected={}
+              try:
+                  os.chdir(temporary)
+                  for code in result.get("new_saved", []):
+                      path="four_mode_forecasts/"+code+".json"
+                      try:
+                          verify([path], buffer_seconds=90)
+                          valid+=1
+                      except (ValueError, KeyError, TypeError, OSError) as exc:
+                          reason=str(exc) or type(exc).__name__
+                          rejected[reason]=rejected.get(reason,0)+1
+              finally:
+                  os.chdir(original)
+              report["staging_valid_now"]=valid
+              report["staging_rejected_now"]=rejected
               report.pop("new_saved", None)
               print("LIVE_FOUR_MODE_PROBE="+json.dumps(report,ensure_ascii=False,sort_keys=True))
           PY
