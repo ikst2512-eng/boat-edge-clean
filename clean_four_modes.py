@@ -75,8 +75,17 @@ def compare_hole_candidates(prob_rows, official_odds=None, confirmed_finish=None
     An externally verified source must supply odds/finish; this function
     never collects data or alters saved forecasts.
     """
-    legacy=rank_modes(prob_rows)["hole"]["tickets"]
-    moderate=research_hole_candidates(prob_rows)["tickets"]
+    normalized=[(tuple(t),float(p)) for t,p in prob_rows]
+    keys=[t for t,_ in normalized]
+    from itertools import permutations
+    import math
+    if (len(keys)!=120 or set(keys)!=set(permutations(range(1,7),3)) or
+            any(not math.isfinite(p) or p<0 for _,p in normalized) or
+            abs(sum(p for _,p in normalized)-1)>1e-6):
+        raise ValueError("probability_board_invalid")
+    normalized.sort(key=lambda item:(-item[1],item[0]))
+    legacy=rank_modes(normalized)["hole"]["tickets"]
+    moderate=research_hole_candidates(normalized)["tickets"]
     if official_odds is not None:
         if (not isinstance(official_odds,dict) or len(official_odds)!=120 or
                 any(type(v) not in (int,float) or not __import__("math").isfinite(v)
