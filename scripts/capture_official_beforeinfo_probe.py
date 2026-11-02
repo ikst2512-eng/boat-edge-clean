@@ -28,6 +28,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
     started=now()
     received=None
     stage="transport"
+    response_format="unobserved"
     try:
         if fetch is not None:
             raw=fetch(url)
@@ -54,7 +55,19 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
         # A 200 response can still be a JSON/API error or plain text, not HTML evidence.
         stage="html_signature"
         prefix=raw.removeprefix(bytes.fromhex("efbbbf")).lstrip(b" \t\r\n").lower()
-        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
+        if prefix.startswith((b"<!doctype html",b"<html")):
+            response_format="html"
+        elif prefix.startswith((b"{",b"[")):
+            response_format="json_like"
+        elif prefix.startswith(b"<?xml"):
+            response_format="xml_like"
+        elif prefix.startswith(bytes.fromhex("1f8b")):
+            response_format="gzip_encoded"
+        elif prefix.startswith(b"\\x1f\\x8b"):
+            response_format="gzip_encoded"
+        else:
+            response_format="other"
+        if response_format!="html":
             raise ValueError("official response is not an HTML document")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.
         result={"race_code":race_code,"source":"official_beforeinfo_html",
@@ -101,6 +114,7 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None, ob
                 "observation_chronology_valid":chronology_valid,
                 "status":"official_probe_failed","error":type(exc).__name__,
                 "failure_stage":stage,
+                "response_format_category":response_format,
                 "complete_six_lanes":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":
