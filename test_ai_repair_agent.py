@@ -50,7 +50,7 @@ class RepairAgentTests(unittest.TestCase):
         def fake_transport(req,timeout):
             payload=json.loads(req.data)
             self.assertEqual(payload["generationConfig"]["responseMimeType"], "application/json")
-            self.assertIn("x-goog-api-key",req.headers)
+            self.assertIn("x-goog-api-key",{k.lower() for k in req.headers})
             self.assertIn("navigation.js",json.dumps(payload["contents"]))
             return FakeResponse()
         with tempfile.TemporaryDirectory() as directory:
