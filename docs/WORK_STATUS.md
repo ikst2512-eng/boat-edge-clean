@@ -982,3 +982,10 @@
 - Gemini応答の `finishReason` がSTOP以外の打ち切り・ブロックを拒否する仕組みは、別作業のPR #1041で既にmain統合されていることを確認し、重複変更を回避。
 - 今回は `ai_diagnostics.extract_text` が複数候補の内容を連結して単一の分析案と誤認し得る点を修正。候補はちょうど1件のみ受理し、複数候補は `ambiguous_candidate_count` でfail closed。回帰テスト追加。
 - PR #1044 AI operations optional diagnostics CI `41453379722` completed/success、main squash `9eb6eb926ea56fb7147ec11b70b78b453a29785c`。モックCIでありGemini実API分析の成功ではない。4モード・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini研究API応答の実モデル・token監査（PR #1047）
+- `workflow_dispatch` 履歴では AI operations optional diagnostics の実API実行は引き続き未確認。Gemini実レース分析の成功・精度改善は主張しない。
+- Google公式ドキュメントで `gemini-3.5-flash-lite` が有効なモデルコードと確認。
+- `ai_diagnostics.py` にレスポンス由来の `modelVersion` と `usageMetadata`（prompt/candidates/total tokens）を任意項目として保存。異常な型・負数などを拒否。使用量は診断監査でありAI精度の実測ではない。
+- PR #1047 AI operations optional diagnostics run `41454646320` completed/success、main squash `84735936f5ab551571e4e338311afd50be3597bd`。API模擬テストであり実課金APIは未実行。4モード、買い目、予想ロジックは維持。
