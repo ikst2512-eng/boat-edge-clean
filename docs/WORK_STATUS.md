@@ -923,3 +923,10 @@
 - `link_four_mode_raw_forecast.py` を追加。既存 `audit_four_mode_raw_receipts.audit` でローカル原本ペアの整合性を合格判定した後、予想JSONに記録された `source_sha256.title/race_cards` が原本マニフェスト群に含まれるか照合する。欠損・不一致・原本未確認を分離。研究専用で `formal=false`、`remote_first_seen_verified=false` を固定。
 - 保存・収集経路、予想ロジック、4モードは変更せず、収集ワークフローのPRテストに対応テストを追加。PR #1011 Four-mode prospective capture run `41442022996` completed/success。main squash `eba9d780cf1e65c9b86c99a84e641a44ca2155b9`。
 - 次は実scheduleで保全された原本artifactを取得して、実予想の対応、タイトル/出走表の取得方式、受信時刻の安全性を検査する。Gemini実API、Render本番、予想精度改善も未証明。
+
+
+## 2026-11-02 4モード実収集の原本照合レポート追加（PR #1016/#1019）
+- 直近確認可能なschedule runは旧SHA `01d5cda7...` の #41396587415 が最新。#1006以降の新しい原本保全を使ったschedule runは未確認。手動run #41440004104 は成功・artifactありだが #1006以前のコードのため、新保全機能の証拠にならない。
+- PR #1016: 各収集runの当日4モード予想について保全されたHTTP原本のハッシュ照合結果を `four-mode-evidence/source-links.json` に記録してartifactに追加。欠損・不一致を合格としない。CI #41442522181 success、main `c12b41bc0194dc6e2db7bf5813f062cb18f9c907`。
+- PR #1019: source-links.jsonの末尾改行にリテラルバックスラッシュが混入する問題を修正。CI #41442668543 success、main `0876cc37bb4580826789afe7e2de19e708e7428e`。
+- この時点で実運用の照合成功件数・独立締切前remote-first-seen証明・正式的中率・Gemini実API・Render本番は未検証。予想ロジックと4モード、買い目は不変更。
