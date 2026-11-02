@@ -16,7 +16,10 @@ def rejection_reason(exc):
     known = {
         "unambiguous first addition not found": "first_add_missing_or_ambiguous",
         "candidate changed since first add": "original_blob_mismatch",
-        "first Git commit not before prospective cutoff": "cutoff_failed",
+        "first Git commit not before prospective cutoff": "first_commit_late",
+        "generated after cutoff": "generation_late",
+        "source received after cutoff": "source_late",
+        "cutoff interval invalid": "cutoff_interval_invalid",
         "wrong archive type": "archive_type_invalid",
         "non-JST timestamp": "timestamp_invalid",
         "invalid prospective predictions": "prediction_invalid",
