@@ -6,6 +6,10 @@ on:
       - "selection.html"
       - "selection_dual.py"
       - "server.py"
+      - "audit_clean_first_add.py"
+      - "compare_topn_signal70.py"
+      - "compare_topn_signal70_days.py"
+      - "evaluate_clean_prospective.py"
       - ".github/workflows/selection-public-smoke.yml"
   schedule:
     - cron: '50 15 * * *'
