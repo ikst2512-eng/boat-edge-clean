@@ -1,0 +1,29 @@
+name: Inventory historical official T12 dispatches (read only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inventory real-run history without changing evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m scripts.inventory_joint_t12_history --repo "$REPOSITORY" --output reports/t12_history_inventory.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: t12-history-inventory-${{ github.run_id }}
+          path: reports/t12_history_inventory.json
+          retention-days: 14
+      - name: Regression tests
+        run: python -m unittest discover -s tests -p 'test_inventory_joint_t12_history.py' -v
