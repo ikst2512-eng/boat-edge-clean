@@ -18,12 +18,12 @@ jobs:
           for host in www.boatrace.jp boatrace.jp; do
             echo "## ${host}" | tee -a network_report/summary.txt
             getent ahostsv4 "$host" | head -3 | tee -a network_report/summary.txt || true
-            curl --location --silent --show-error --output /dev/null \
+            if curl --location --silent --show-error --output /dev/null \
               --connect-timeout 4 --max-time 9 \
               --write-out 'http_code=%{http_code} remote_ip=%{remote_ip} dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect} total=%{time_total}\\n' \
               "https://${host}/owsp/sp/race/beforeinfo?hd=20261102&jcd=15&rno=12" \
-              >> network_report/summary.txt 2>> network_report/errors.txt
-            echo "curl_exit=$?" | tee -a network_report/summary.txt
+              >> network_report/summary.txt 2>> network_report/errors.txt; then code=0; else code=$?; fi
+            echo "curl_exit=$code" | tee -a network_report/summary.txt
           done
           echo "Diagnostic only: no raw official race evidence or T-12 certification" >> network_report/summary.txt
           cat network_report/summary.txt
