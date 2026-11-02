@@ -95,6 +95,24 @@ jobs:
           GEMINI_MODEL: gemini-3.5-flash-lite
           AI_ISSUE: ${{ github.event_name == 'schedule' && needs.tests.outputs.regression_issue || inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
+      - name: Summarize Gemini response without exposing source
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path("ai_repair_proposal.json").read_text(encoding="utf-8"))
+          status=report.get("status","unknown")
+          files=report.get("changed_files",[])
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as summary:
+              summary.write("### Gemini UI repair proposal\\n")
+              summary.write(f"- Status: \`{status}\`\\n")
+              summary.write(f"- Changed files: {len(files)}\\n")
+              summary.write("- Automatic merge: disabled\\n")
+              if status=="no_safe_patch":
+                  summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\\n")
+          print("Gemini proposal status:",status,"changed files:",len(files))
+          PY
       - name: Validate untrusted AI patch without write token
         shell: bash
         run: |
