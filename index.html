@@ -928,6 +928,7 @@ async function loadResult(quiet=false){
    if(!/^\d{1,8}$/.test(amount)||Number(amount)<=0)throw Error('PAYOUT_AMOUNT_INVALID');
    if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：'+Number(amount).toLocaleString('ja-JP')+'円（100円あたり）';
   }catch(e){if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：未確認';}
+  if(token!==resultRequestId||key!==sameRaceKey())return;
   comparison.replaceChildren();
   const notice=document.createElement('p');notice.className='muted';notice.textContent='正式予想の締切前保存証拠がCLEANへ移行するまで、的中・不的中の判定は行いません。';
   comparison.append(notice);
@@ -1360,6 +1361,7 @@ async function loadFourModeArchives(key,token){
   if(response.status===404){status.textContent='このレースの4モード保存予想はありません。後付け生成はしません。';return}
   if(!response.ok)throw Error('FOUR_MODE_ARCHIVE_HTTP_'+response.status);
   const data=await response.json();
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   if(data.status!=='historical_research_only'||data.race_code!==code||data.production_forecast!==false||data.verified_first_git_add!==false)throw Error('FOUR_MODE_ARCHIVE_INVALID');
   const modes=[['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']];
   if(!data.modes||!modes.every(([id])=>Array.isArray(data.modes[id]?.tickets)))throw Error('FOUR_MODE_ARCHIVE_INVALID');
