@@ -57,7 +57,7 @@ def capture(race_code, root, observation_id, *, fetch=None, clock=None):
         report["response_sha256"] = hashlib.sha256(raw).hexdigest()
         report["response_prefix_hex"] = raw[:24].hex()
         prefix = raw.lstrip()[:256].lower()
-        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
+        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html") or prefix.startswith(b"<?xml")):
             raise ValueError("non-HTML source response")
         report.update(status="official_racelist_html_observed_research_only",
                       sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
