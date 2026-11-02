@@ -893,3 +893,11 @@
 - `audit_four_mode_first_add.py` が初回Git追加を調べる際、`source_sha256.title` と `source_sha256.race_cards` の64桁16進数を必須化。既存の新規保存受信検証と歴史監査の証拠条件を統一。欠損・不正ハッシュを拒否するテストを追加。
 - PR #1000 Research forecast checks run `41439837038` と Four-mode historical chronology cohort run `41439837041` はいずれも completed/success。main squash `0443d1d65fc15c616a12e187a27ee86153775f29`。
 - ファイル記載のハッシュ形式の検証であり、外部ソース実体との内容一致・remote-first-seen・正式的中率の証明ではない。今後独立取得ハッシュとの照合とprospective評価が必要。Gemini実APIおよびRender本番は今回未検証。買い目・4モード変更なし。
+
+
+## 2026-11-02 4モード元データSHA256と生バイト照合（PR #1002）
+- 既存の予想JSONには `source_sha256.title` と `source_sha256.race_cards` があるが、元のCSV/HTTP応答の生バイトは同じJSONに保存されておらず、ハッシュ形式だけで出典真正性や締切前取得を証明できないと確認。
+- `four_mode_raw_source_match.py` を追加。別途確保したタイトル/出走表の元バイトファイルを与えたときにSHA256を比較し、一致・不一致・未入手を区別。改変、欠損、シンボリックリンク、巨大ファイルをfail closed。元の予想原本と4モードは読み取り専用。
+- ハッシュ一致でも `formal=false`、`remote_first_seen_verified=false`、取得時刻独立検証falseを維持。テスト `test_four_mode_raw_source_match.py` を既存研究CIに追加。
+- PR #1002 Research forecast checks run `41440230086` / `41440221185` とも completed/success、main squash `34a47e7bbe3c1b69192dddd42ff1b03f59c0bc1e`。
+- このPRは実際の元バイトが既に保全・照合されたという証明ではない。次は各取得方式（CSV全体hash、直接レース別HTTP hash、OpenAPI共通JSON hash）に対応した取得時の原本保存・時刻署名/受信証拠を安全に整備し、独立照合する。Gemini実API・予想精度向上・Render本番未検証。
