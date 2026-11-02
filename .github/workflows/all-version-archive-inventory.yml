@@ -1,0 +1,28 @@
+name: Research all-version archive inventory
+on:
+  pull_request:
+    paths:
+      - four_mode_all_version_inventory.py
+      - test_four_mode_all_version_inventory.py
+      - .github/workflows/all-version-archive-inventory.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit tests
+        run: python -m unittest -v test_four_mode_all_version_inventory
+      - name: All archived versions by date
+        run: python four_mode_all_version_inventory.py | tee all_version_archive_inventory.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: all-version-archive-inventory-${{ github.run_id }}
+          path: all_version_archive_inventory.log
+          retention-days: 30
