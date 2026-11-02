@@ -36,7 +36,7 @@ class FirstAddAuditTests(unittest.TestCase):
              "source_title_received_jst":"2026-10-28T10:00:01+09:00",
              "source_cards_received_jst":"2026-10-28T10:00:02+09:00"}
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T10:01:00+09:00"))):
-            with self.assertRaisesRegex(ValueError,"chronology"):
+            with self.assertRaisesRegex(ValueError,"source_receipt_after_generation"):
                 audit.inspect("prospective_predictions/202610281201.json")
 
     def test_deadline_date_mismatch_rejected(self):
