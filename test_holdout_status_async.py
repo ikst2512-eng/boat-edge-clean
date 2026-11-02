@@ -28,7 +28,9 @@ class HoldoutAsyncTests(unittest.TestCase):
                 status, data = server.holdout_status()
                 self.assertLess(time.monotonic() - before, 0.5)
                 self.assertEqual(status, 503)
-                self.assertEqual(data["error"], "HOLDOUT_PENDING")\n                self.assertTrue(data["running"])\n                self.assertGreaterEqual(data["elapsed_seconds"], 0)
+                self.assertEqual(data["error"], "HOLDOUT_PENDING")
+                self.assertTrue(data["running"])
+                self.assertGreaterEqual(data["elapsed_seconds"], 0)
                 self.assertTrue(entered.wait(timeout=1))
                 self.assertEqual(server.holdout_status()[0], 503)
                 gate.set()
@@ -63,7 +65,8 @@ class HoldoutAsyncTests(unittest.TestCase):
         with patch.object(server, "_compute_holdout_status", side_effect=ValueError("bad evidence")):
             status, data = server.holdout_status()
             self.assertEqual(status, 503)
-            self.assertNotIn("evaluated_holdout_races", data)\n            self.assertIn(data["error"], ("HOLDOUT_PENDING", "HOLDOUT_UNAVAILABLE"))
+            self.assertNotIn("evaluated_holdout_races", data)
+            self.assertIn(data["error"], ("HOLDOUT_PENDING", "HOLDOUT_UNAVAILABLE"))
             deadline = time.monotonic() + 2
             while time.monotonic() < deadline:
                 with server._HOLDOUT_LOCK:
