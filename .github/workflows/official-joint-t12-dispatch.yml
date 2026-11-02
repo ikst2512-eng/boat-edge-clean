@@ -52,7 +52,19 @@ jobs:
           if attempts not in (1,2,3,4,5,6):
               raise SystemExit('Invalid attempt count')
           Path('reports').mkdir()
+          last_deadline=None
           for i in range(1,attempts+1):
+              # Recheck after the 30-second sleep. Never launch a fresh source
+              # request solely because the previous iteration allowed retry.
+              if i>1 and last_deadline is not None:
+                  cutoff=last_deadline-datetime.timedelta(minutes=12)
+                  if datetime.datetime.now(jst)+datetime.timedelta(seconds=20)>=cutoff:
+                      failure={'attempt':i,'race_code':race,'status':'retry_preflight_cutoff',
+                               'failure_category':'cutoff','both_complete_before_t12':False,
+                               'forecast_usable':False,'t12_eligible':False}
+                      Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                      print('RETRY_PREFLIGHT',json.dumps(failure,ensure_ascii=False))
+                      break
               identifier=os.environ['GITHUB_RUN_ID']+'_'+str(i)
               try:
                   a=before(race,'evidence','before'+identifier)
@@ -73,6 +85,7 @@ jobs:
                   # No independently verified cutoff: stop; never guess a race deadline.
                   break
               deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
+              last_deadline=deadline
               cutoff=deadline-datetime.timedelta(minutes=12)
               gate=decision(a['received_at_jst'],deadline.isoformat(),datetime.datetime.now(jst).isoformat())
               if gate['status']!='fetch_odds':
