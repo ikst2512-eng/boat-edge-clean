@@ -72,6 +72,16 @@ class CleanFourModeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.compare_hole_candidates(p,{"1-2-3":40.0},finish)
 
+    def test_hole_comparison_normalizes_order_and_rejects_incomplete_boards(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        original=model.compare_hole_candidates(p)
+        shuffled=model.compare_hole_candidates(list(reversed(p)))
+        self.assertEqual(original,shuffled)
+        invalid=list(p)
+        invalid[0]=invalid[1]
+        with self.assertRaises(ValueError):
+            model.compare_hole_candidates(invalid)
+
     def test_frontend_four_mode_display_contract(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
