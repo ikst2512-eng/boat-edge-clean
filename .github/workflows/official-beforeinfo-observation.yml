@@ -1,0 +1,55 @@
+name: Official beforeinfo observation (research only)
+on:
+  workflow_dispatch:
+    inputs:
+      race_code:
+        description: '12-digit race code YYYYMMDDVVRR'
+        required: true
+        type: string
+      attempts:
+        description: 'Number of observations (1-3)'
+        required: true
+        default: '2'
+        type: choice
+        options: ['1', '2', '3']
+  pull_request:
+    paths:
+      - '.github/workflows/official-beforeinfo-observation.yml'
+      - 'scripts/capture_official_beforeinfo_probe.py'
+      - 'tests/test_capture_official_beforeinfo_probe.py'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Regression tests
+        run: python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_probe.py' -v
+      - name: Collect separate immutable official HTML observations
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        env:
+          RACE_CODE: ${{ inputs.race_code }}
+          ATTEMPTS: ${{ inputs.attempts }}
+        run: |
+          set -euo pipefail
+          [[ "$RACE_CODE" =~ ^20[0-9]{10}$ ]] || { echo "Invalid race code"; exit 1; }
+          [[ "$ATTEMPTS" =~ ^[123]$ ]] || exit 1
+          for ((i=1; i<=ATTEMPTS; i++)); do
+            id="run${GITHUB_RUN_ID}_attempt${i}"
+            python -m scripts.capture_official_beforeinfo_probe "$RACE_CODE" --root official_probe_output --observation-id "$id" || echo "Attempt $i unavailable or invalid (not certified)"
+            if [[ "$i" -lt "$ATTEMPTS" ]]; then sleep 60; fi
+          done
+      - name: Archive original HTML and manifests
+        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          name: official-beforeinfo-probe-${{ github.run_id }}
+          path: official_probe_output/
+          if-no-files-found: warn
+          retention-days: 14
