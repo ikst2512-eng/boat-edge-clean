@@ -19,11 +19,13 @@ def inspect(payload):
         raise ValueError("missing official teiinfolist")
     ids = [v.get("teino") if isinstance(v, dict) else None for v in racers]
     unique_six = len(ids) == 6 and set(ids) == set("123456")
-    exhibition = unique_six and all(
-        isinstance(v.get("extime"), (str, int, float))
-        and str(v["extime"]).strip() not in ("", "-")
-        for v in racers
-    )
+    def present(v, field):
+        return (isinstance(v, dict)
+                and isinstance(v.get(field), (str, int, float))
+                and str(v[field]).strip() not in ("", "-", "None", "null"))
+    exhibition_time_count = sum(present(v, "extime") for v in racers)
+    tilt_count = sum(present(v, "tilt") for v in racers)
+    exhibition = unique_six and exhibition_time_count == 6
     start = main.get("sttenjiinfolist")
     return {
         "race_number": str(main.get("rno", "")),
@@ -31,6 +33,8 @@ def inspect(payload):
         "racers_listed": len(racers),
         "six_unique_boats": unique_six,
         "exhibition_time_nonempty_six": bool(exhibition),
+        "exhibition_time_observed_boats": exhibition_time_count,
+        "tilt_observed_boats": tilt_count,
         "start_exhibition_rows": len(start) if isinstance(start, list) else None,
         "status": "six_exhibition_values_observed_not_time_certified" if exhibition
                   else "official_racecard_without_complete_exhibition_values",
