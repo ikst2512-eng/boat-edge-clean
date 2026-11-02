@@ -3,9 +3,16 @@ on:
   pull_request:
     paths:
       - ai_diagnostics.py
+      - four_mode_frozen_diagnostic.py
+      - test_four_mode_frozen_diagnostic.py
       - test_ai_diagnostics.py
       - .github/workflows/ai-operations-diagnostics.yml
   workflow_dispatch:
+    inputs:
+      race_code:
+        description: "Optional archived four-mode race (YYYYMMDDJJRR); research only"
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -25,7 +32,12 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.GEMINI_API_KEY || '' }}
           GEMINI_MODEL: gemini-3.5-flash-lite
-        run: python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
+        run: |
+          if [[ -n "${{ inputs.race_code }}" ]]; then
+            python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json --race-code "${{ inputs.race_code }}"
+          else
+            python ai_diagnostics.py --report ai_operations_report.json --output ai_diagnostics_report.json
+          fi
       - name: Archive both reports
         if: always()
         uses: actions/upload-artifact@v4
