@@ -96,6 +96,16 @@ jobs:
           assert type(d["independently_validated"]) is bool
           assert type(d["later_holdout_days"]) is int and d["later_holdout_days"]>=0
           assert type(d["evaluated_holdout_races"]) is int and d["evaluated_holdout_races"]>=0
+          # A successful HTTP 200 from an older Render deployment is not
+          # sufficient to validate the newly deployed audit diagnostics.
+          for key in ("archived_candidates", "awaiting_result_races", "audit_rejected_races"):
+              assert type(d.get(key)) is int and d[key]>=0, f"missing {key}"
+          reasons=d.get("audit_rejection_reasons")
+          assert type(reasons) is dict, "missing audit_rejection_reasons (stale deployment)"
+          assert all(type(k) is str and type(v) is int and v>=0 for k,v in reasons.items())
+          assert sum(reasons.values())==d["audit_rejected_races"]
+          assert (d["archived_candidates"]==d["evaluated_holdout_races"]+
+                  d["awaiting_result_races"]+d["audit_rejected_races"])
           if d["later_holdout_days"]==0:
               assert d["evaluated_holdout_races"]==0
               assert d["independently_validated"] is False
