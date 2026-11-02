@@ -94,6 +94,18 @@ class CleanFourModeTests(unittest.TestCase):
         self.assertIn("result.source_url!==source",html)
         self.assertIn("stamp<confirmed",html)
 
+    def test_four_mode_odds_race_identity_is_verified_on_both_sides(self):
+        from pathlib import Path
+        root=Path(__file__).resolve().parent
+        server=(root/"server.py").read_text(encoding="utf-8")
+        html=(root/"index.html").read_text(encoding="utf-8")
+        self.assertIn('"hd": hd, "jcd": jcd, "rno": int(rno)',server)
+        self.assertIn("feed.hd!==key.slice(0,8)",html)
+        self.assertIn("String(feed.jcd).padStart(2,'0')!==key.slice(9,11)",html)
+        self.assertIn("Number(feed.rno)!==Number(key.slice(12,14))",html)
+        self.assertIn("Object.keys(feed.odds).length!==120",html)
+        self.assertIn("oddsState.textContent='オッズ未取得（検証可能なデータなし）'",html)
+
     def test_mobile_ticket_hierarchy_and_cutoff_labels(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
