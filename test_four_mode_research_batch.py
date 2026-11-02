@@ -31,6 +31,30 @@ class BatchTests(unittest.TestCase):
         self.assertIsNone(x["modes"]["hit"]["historical_topn_pct"]["top3"])
         self.assertEqual(x["paired_top10"]["hit_vs_balance"]["evaluated"], 0)
         self.assertIsNone(x["paired_top10"]["hit_vs_balance"]["topn"]["top5"]["net_percentage_points"])
+    def test_missing_flags_not_silently_counted_as_misses(self):
+        def faulty(code, root):
+            modes = {mode: {"coverage_diagnostic": "winner_head_absent",
+                           "race_dynamics_cause": "not_determined",
+                           "top3": False, "top5": False, "top10": False}
+                     for mode in ("narrow", "hit", "balance", "hole")}
+            del modes["hole"]["top5"]
+            return {"race_code": code, "status": "historical_comparison_only",
+                    "formal": False, "remote_first_seen_verified": False, "modes": modes}
+        with self.assertRaisesRegex(ValueError, "invalid_topn_flags"):
+            summarize(["202610280101"], comparator=faulty)
+
+    def test_nonmonotonic_flags_rejected(self):
+        def faulty(code, root):
+            modes = {mode: {"coverage_diagnostic": "winner_head_absent",
+                           "race_dynamics_cause": "not_determined",
+                           "top3": False, "top5": False, "top10": False}
+                     for mode in ("narrow", "hit", "balance", "hole")}
+            modes["hit"]["top3"] = True
+            return {"race_code": code, "status": "historical_comparison_only",
+                    "formal": False, "remote_first_seen_verified": False, "modes": modes}
+        with self.assertRaisesRegex(ValueError, "nonmonotonic_topn"):
+            summarize(["202610280101"], comparator=faulty)
+
     def test_duplicates_rejected(self):
         with self.assertRaises(ValueError):
             summarize(["202610280101"]*2)
