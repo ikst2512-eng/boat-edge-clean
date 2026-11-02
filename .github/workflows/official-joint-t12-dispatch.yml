@@ -1,7 +1,7 @@
 name: Reusable official joint T12 evidence (research only)
 on:
   pull_request:
-    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py', 'tests/test_joint_t12_workflow_exception.py', 'tests/test_joint_t12_workflow_concurrency.py', 'scripts/publish_official_receipt.py', 'tests/test_publish_official_receipt.py', 'tests/test_receipt_sigkill_recovery.py', 'tests/test_receipt_failure_matrix.py', 'scripts/capture_official_beforeinfo_json.py', 'scripts/capture_official_odds_receipt.py']
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py', 'tests/test_joint_t12_workflow_exception.py', 'tests/test_joint_t12_workflow_concurrency.py', 'scripts/publish_official_receipt.py', 'tests/test_publish_official_receipt.py', 'tests/test_receipt_sigkill_recovery.py', 'tests/test_receipt_failure_matrix.py', 'scripts/joint_t12_failure_reason.py', 'tests/test_joint_t12_failure_reason.py', 'scripts/capture_official_beforeinfo_json.py', 'scripts/capture_official_odds_receipt.py']
   workflow_dispatch:
     inputs:
       race_code:
@@ -43,6 +43,7 @@ jobs:
           from scripts.capture_official_odds_receipt import capture as odds
           from scripts.audit_joint_official_receipts import audit_pair
           from scripts.joint_t12_decision import decision,can_retry
+          from scripts.joint_t12_failure_reason import classify
           race=os.environ['RACE_CODE']
           jst=datetime.timezone(datetime.timedelta(hours=9))
           if not re.fullmatch(r'20\d{10}',race) or race[:8]!=datetime.datetime.now(jst).strftime('%Y%m%d'):
@@ -66,7 +67,8 @@ jobs:
                   failure={'attempt':i,'race_code':race,'status':'beforeinfo_failed_or_deadline_missing',
                            'beforeinfo_status':a.get('status'),'error':a.get('error'),
                            'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
-                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                  failure['failure_category']=classify(failure['status'],a.get('error') or a.get('error_type'))
+              Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
                   print('BEFORE_FAILED',json.dumps(failure,ensure_ascii=False))
                   # No independently verified cutoff: stop; never guess a race deadline.
                   break
@@ -74,7 +76,7 @@ jobs:
               cutoff=deadline-datetime.timedelta(minutes=12)
               gate=decision(a['received_at_jst'],deadline.isoformat(),datetime.datetime.now(jst).isoformat())
               if gate['status']!='fetch_odds':
-                  gate.update(attempt=i,race_code=race)
+                  gate.update(attempt=i,race_code=race,failure_category=classify(gate['status']))
                   Path(f'reports/joint_{i}.json').write_text(json.dumps(gate,ensure_ascii=False,indent=2))
                   print('T12_GATE',json.dumps(gate,ensure_ascii=False))
                   break
@@ -88,7 +90,12 @@ jobs:
                      'forecast_usable':False,'t12_eligible':False}
               Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
               if b.get('status')!='official_odds_observed_research_only':
-                  Path(f'reports/joint_{i}.json').write_text(json.dumps({'attempt':i,'race_code':race,'status':'odds_failed','odds_status':b.get('status'),'error':b.get('error'),'both_complete_before_t12':False,'forecast_usable':False},ensure_ascii=False,indent=2))
+                  failure={'attempt':i,'race_code':race,'status':'odds_failed',
+                           'odds_status':b.get('status'),'error':b.get('error'),
+                           'error_type':b.get('error_type'),
+                           'failure_category':classify('odds_failed',b.get('error') or b.get('error_type')),
+                           'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
                   print('ODDS_FAILED',json.dumps({'attempt':i,'status':b.get('status'),'error':b.get('error'),'forecast_usable':False},ensure_ascii=False))
                   if can_retry(datetime.datetime.now(jst).isoformat(),deadline.isoformat(),i,attempts):
                       time.sleep(30)
@@ -104,6 +111,8 @@ jobs:
                           'both_complete_before_t12':False,'forecast_usable':False,
                           't12_eligible':False}
               result['attempt']=i
+              if not result.get('both_complete_before_t12'):
+                  result['failure_category']=classify(result.get('status'),result.get('error_type'))
               Path(f'reports/joint_{i}.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
               print('JOINT',json.dumps(result,ensure_ascii=False))
               if result['both_complete_before_t12']:
@@ -124,6 +133,7 @@ jobs:
       - name: Regression tests
         run: |
           python -m unittest discover -s tests -p 'test_joint_t12_decision.py' -v
+          python -m unittest discover -s tests -p 'test_joint_t12_failure_reason.py' -v
           python -m unittest discover -s tests -p 'test_joint_t12_workflow_exception.py' -v
           python -m unittest discover -s tests -p 'test_joint_t12_workflow_concurrency.py' -v
           python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
