@@ -44,9 +44,10 @@ class DispatchTests(unittest.TestCase):
 
     def test_outside_hours_does_not_dispatch(self):
         def request(req, timeout):
-            self.assertEqual(req.get_method(),"GET")
-            return Response(b'{"workflow_runs":[]}')
-        self.assertEqual(run(token="test-only",now=NOW-timedelta(hours=4),request=request)["action"],"no_dispatch")
+            self.fail("Off-hours job must not call GitHub API")
+        result=run(token="test-only",now=NOW-timedelta(hours=4),request=request)
+        self.assertEqual(result["action"],"no_dispatch")
+        self.assertEqual(result["reason"],"outside_capture_hours")
 
 if __name__ == "__main__":
     unittest.main()
