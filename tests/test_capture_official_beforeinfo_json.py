@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,6 +36,23 @@ class OfficialJSONCaptureTests(unittest.TestCase):
                         fetch=lambda url:json.dumps(bad).encode())
             self.assertEqual(out["status"],"official_json_probe_failed")
             self.assertFalse(list(Path(root).rglob("beforeinfo.json")))
+
+    def test_non_jst_and_reversed_receipt_clocks_fail_closed(self):
+        clock_values = [
+            [datetime(2026,11,2,10,0,tzinfo=timezone.utc)] * 2,
+            [datetime(2026,11,2,19,1,tzinfo=timezone(timedelta(hours=9))),
+             datetime(2026,11,2,19,0,tzinfo=timezone(timedelta(hours=9)))],
+            [datetime(2026,11,2,19,0,tzinfo=timezone(timedelta(hours=9))),
+             datetime(2026,11,2,19,1,tzinfo=timezone.utc)]
+        ]
+        for values in clock_values:
+            with self.subTest(values=values), tempfile.TemporaryDirectory() as root:
+                times = iter(values)
+                out = capture("202611021511",root,"attempt1",
+                              fetch=lambda url:payload(),clock=lambda:next(times))
+                self.assertEqual(out["status"],"official_json_probe_failed")
+                self.assertFalse(out["forecast_usable"])
+                self.assertFalse(list(Path(root).rglob("beforeinfo.json")))
 
     def test_malformed_json_and_bad_race_code_fail_closed(self):
         with tempfile.TemporaryDirectory() as root:
