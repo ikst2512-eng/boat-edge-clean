@@ -54,6 +54,22 @@ class OfficialJSONCaptureTests(unittest.TestCase):
                 self.assertFalse(out["forecast_usable"])
                 self.assertFalse(list(Path(root).rglob("beforeinfo.json")))
 
+    def test_failed_attempt_then_new_id_keeps_original_immutable(self):
+        with tempfile.TemporaryDirectory() as root:
+            failed = capture("202611021511", root, "retry1",
+                             fetch=lambda url: (_ for _ in ()).throw(TimeoutError("network")))
+            self.assertEqual(failed["status"], "official_json_probe_failed")
+            self.assertFalse(failed["forecast_usable"])
+            self.assertFalse(list(Path(root).rglob("beforeinfo.json")))
+            good = capture("202611021511", root, "retry2", fetch=lambda url: payload())
+            self.assertEqual(good["status"], "official_json_observed_not_t12_certified")
+            saved = Path(root) / "observations/retry2/20261102/202611021511/beforeinfo.json"
+            original = saved.read_bytes()
+            with self.assertRaises(FileExistsError):
+                capture("202611021511", root, "retry2", fetch=lambda url: b"changed")
+            self.assertEqual(saved.read_bytes(), original)
+            self.assertFalse(list(Path(root).glob("observations/retry1/**/*json")))
+
     def test_malformed_json_and_bad_race_code_fail_closed(self):
         with tempfile.TemporaryDirectory() as root:
             out=capture("202611021511",root,"attempt1",fetch=lambda url:b"<html>not JSON</html>")
