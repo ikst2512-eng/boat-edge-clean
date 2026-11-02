@@ -7,6 +7,20 @@ from four_mode_archive_api import archived_four_modes, MODES
 ROOT = Path(__file__).resolve().parent
 
 
+def classify_ticket_miss(tickets, winning):
+    """Classify ticket coverage only; never infer race dynamics from result alone."""
+    if winning in tickets:
+        return "covered"
+    first, second, _ = winning.split("-")
+    parsed = [item.split("-") for item in tickets]
+    if not any(row[0] == first for row in parsed):
+        return "winner_head_absent"
+    if not any(row[0] == first and row[1] == second for row in parsed):
+        return "winner_second_pair_absent"
+    return "winner_third_absent"
+
+
+
 def compare_race(code, root=ROOT):
     root = Path(root)
     status, archive = archived_four_modes(code, root)
@@ -42,6 +56,8 @@ def compare_race(code, root=ROOT):
             rank = tickets.index(winning) + 1 if winning in tickets else None
             modes[key] = {"hit": rank is not None, "ticket_count": len(tickets),
                           "winning_rank": rank,
+                          "coverage_diagnostic": classify_ticket_miss(tickets, winning),
+                          "race_dynamics_cause": "not_determined",
                           "top3": rank is not None and rank <= 3,
                           "top5": rank is not None and rank <= 5,
                           "top10": rank is not None and rank <= 10}
