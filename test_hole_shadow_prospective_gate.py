@@ -36,6 +36,18 @@ class ProspectiveGateTest(unittest.TestCase):
         self.assertEqual(output["source_sha256"], hashlib.sha256(self.bytes).hexdigest())
         self.assertEqual(len(output["baseline"]), len(output["shadow"]))
 
+    def test_bundle_shadow_is_result_blind_and_budget_preserving(self):
+        archive = json.loads(json.dumps(self.archive))
+        archive["modes"]["hit"]["tickets"] = [
+            {"combo":"1-4-2"}, {"combo":"1-4-3"}]
+        with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(200, archive)):
+            output = freeze(self.code, self.root, self.cutoff - timedelta(minutes=15))
+        self.assertEqual(output["shadow_bundle2"][2:4], ["1-4-2", "1-4-3"])
+        self.assertEqual(len(output["shadow_bundle2"]), len(output["baseline"]))
+        self.assertEqual(len(set(output["shadow_bundle2"])), len(output["baseline"]))
+        self.assertFalse(output["independent_first_receipt_verified"])
+        self.assertFalse(output["production_forecast"])
+
     def test_deadline_is_strict(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(200, self.archive)):
             self.assertEqual(freeze(self.code, self.root, self.cutoff)["status"], "past_deadline")
