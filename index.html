@@ -873,7 +873,7 @@ function isVerifiedResult(raw,key,now=Date.now(),knownDeadline=null){const cutof
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
- if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo=''}
+ if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo='';updateFourModeHitPreview(key)}
  status.textContent=retainVerified?'CLEAN確定結果を再確認中…':'CLEAN確定結果を確認中…';
  try{
   // This result feed is entirely owned by CLEAN; no old boat-edge fallback.
@@ -1311,7 +1311,7 @@ function updateFourModeHitPreview(key){
  root.querySelectorAll('.four-mode-match-summary').forEach(el=>el.remove());
  root.querySelectorAll('.four-mode-forecast-ticket').forEach(row=>row.classList.remove('four-mode-match-ticket'));
  if(!root.querySelector('.four-mode-forecast-item'))return;
- if(displayedResultKey!==key||!displayedResultCombo||sameRaceKey()!==key)return;
+ if(displayedResultKey!==key||!displayedResultCombo||sameRaceKey()!==key||root.dataset.raceKey!==key)return;
  const summary=document.createElement('section');
  summary.className='four-mode-match-summary';
  summary.setAttribute('aria-label','確定着順と保存済み4モード予想の参考照合');
@@ -1334,7 +1334,7 @@ function updateFourModeHitPreview(key){
 async function loadFourModeArchives(key,token){
  const status=document.getElementById('fourModeForecastStatus'),root=document.getElementById('fourModeForecastRows');
  if(!status||!root)return;
- status.dataset.loaded='false';status.textContent='4モードの保存予想を照合中…';root.replaceChildren();
+ status.dataset.loaded='false';status.textContent='4モードの保存予想を照合中…';root.replaceChildren();delete root.dataset.raceKey;
  try{
   const code=key.replaceAll('-','');
   // Read only saved source. No browser-side or retrospective model generation.
@@ -1359,6 +1359,7 @@ async function loadFourModeArchives(key,token){
   status.textContent=orderValid
     ?'4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。'
     :'点数順が合意仕様（絞り＜本命＜バランス＜穴）と異なる保存データです。過去の記録は変更せず表示しています。正式予想として使用しないでください。';
+  root.dataset.raceKey=key;
   status.dataset.loaded='true';
   updateFourModeHitPreview(key);
   status.dataset.orderWarning=orderValid?'false':'true';
