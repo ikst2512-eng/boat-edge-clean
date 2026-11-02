@@ -12,6 +12,8 @@ on:
       - test_clean_four_mode_capture_e2e.py
       - test_clean_four_modes.py
       - test_four_mode_receipts.py
+      - four_mode_raw_receipt.py
+      - test_four_mode_raw_receipt.py
       - scripts/verify_four_mode_new_receipts.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
@@ -35,7 +37,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -53,6 +55,8 @@ jobs:
       - name: Capture predeadline records
         id: source_capture
         if: github.event_name != 'pull_request'
+        env:
+          FOUR_MODE_RAW_RECEIPT_DIR: four-mode-evidence/raw-sources
         run: |
           set -o pipefail
           mkdir -p four-mode-evidence
@@ -271,6 +275,7 @@ jobs:
         with:
           name: four-mode-capture-${{ github.run_id }}
           path: |
+            four-mode-evidence/raw-sources/**
             four-mode-evidence/capture.log
             four-mode-evidence/staging.json
             four-mode-evidence/publication.json
