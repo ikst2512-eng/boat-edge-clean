@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - ai_diagnostics.py
+      - ai_frozen_race_preflight.py
+      - test_ai_frozen_race_preflight.py
       - four_mode_frozen_diagnostic.py
       - test_four_mode_frozen_diagnostic.py
       - test_ai_diagnostics.py
@@ -28,35 +30,14 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v test_ai_operations test_ai_diagnostics test_four_mode_research_batch
+        run: python -m unittest -v test_ai_operations test_ai_diagnostics test_four_mode_research_batch test_ai_frozen_race_preflight
       - name: Produce immutable-data research audit
         run: python ai_operations.py --output ai_operations_report.json
       - name: Verify archived race evidence before paid Gemini request
         if: github.event_name == 'workflow_dispatch'
         env:
           RESEARCH_RACE_CODE: ${{ inputs.race_code }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import re
-          from pathlib import Path
-          from four_mode_frozen_diagnostic import compare_race
-          code = os.environ.get("RESEARCH_RACE_CODE", "")
-          verdict = {"race_code": code, "status": "invalid_code",
-                     "formal": False, "production_change_allowed": False}
-          if re.fullmatch(r"20[0-9]{10}", code):
-              case = compare_race(code)
-              verdict["status"] = case.get("status", "unknown")
-              verdict["winning_ticket"] = case.get("winning_ticket") if verdict["status"] == "historical_comparison_only" else None
-              verdict["remote_first_seen_verified"] = False
-          Path("ai_frozen_race_preflight.json").write_text(
-              json.dumps(verdict, ensure_ascii=False, sort_keys=True) + chr(10),
-              encoding="utf-8")
-          print("Frozen race preflight:", verdict["status"])
-          if verdict["status"] != "historical_comparison_only":
-              raise SystemExit("Invalid or missing frozen race evidence; Gemini request skipped")
-          PY
+        run: python ai_frozen_race_preflight.py "$RESEARCH_RACE_CODE"
       - name: Optional AI diagnosis (never edits production)
         env:
           GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.GEMINI_API_KEY || '' }}
