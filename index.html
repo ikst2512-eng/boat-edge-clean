@@ -1323,10 +1323,53 @@ async function loadFourModeArchives(key,token){
    if(!tickets.length||!tickets.every(x=>validTicket(x.combo)&&typeof x.p==='number'&&Number.isFinite(x.p)))throw Error('FOUR_MODE_ARCHIVE_INVALID');
    const card=document.createElement('article');card.className='four-mode-forecast-item';
    const heading=document.createElement('strong');heading.textContent=label+'（保存 '+tickets.length+'点）';card.append(heading);
-   tickets.forEach((x,i)=>{const row=document.createElement('div');row.className='four-mode-forecast-ticket';row.textContent=x.combo+'  '+x.p.toFixed(2)+'%';card.append(row)});
+   tickets.forEach((x,i)=>{const row=document.createElement('div');row.className='four-mode-forecast-ticket';row.dataset.fourModeCombo=x.combo;row.textContent=x.combo+'  '+x.p.toFixed(2)+'%';card.append(row)});
    const note=document.createElement('small');note.textContent='過去の研究保存記録・正式な的中率ではありません';card.append(note);root.append(card);
   }
   status.textContent='4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。';status.dataset.loaded='true';
+  // Display-only enrichment. Never reorder, regenerate, or modify archived tickets.
+  // Latest odds are NOT proof of the historical pre-race odds.
+  const enrichCurrent=()=>token===window.predictionRequestId&&sameRaceKey()===key&&activeView==='forecast';
+  const oddsUrl='https://boat-edge-clean.onrender.com/api/odds?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
+  void (async()=>{
+   try{
+    const res=await fetch(oddsUrl,{cache:'no-store',signal:AbortSignal.timeout(30000)});
+    if(!res.ok)return;
+    const feed=await res.json(),received=Date.parse(feed.fetched_at);
+    if(!enrichCurrent()||feed.ok!==true||!Number.isFinite(received)||received>Date.now()+300000||received<Date.now()-1800000||
+      !feed.odds||typeof feed.odds!=='object'||Array.isArray(feed.odds)||Object.keys(feed.odds).length!==120)return;
+    if(!Object.entries(feed.odds).every(([combo,value])=>validTicket(combo)&&typeof value==='number'&&Number.isFinite(value)&&value>=1&&value<=1000000))return;
+    root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
+     const combo=row.dataset.fourModeCombo;
+     if(!Object.hasOwn(feed.odds,combo))return;
+     const extra=document.createElement('span');extra.className='muted';
+     extra.textContent=' ／ 取得時オッズ '+feed.odds[combo].toLocaleString('ja-JP')+'倍';
+     row.append(extra);
+    });
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='オッズ取得 '+new Date(received).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'})+' JST（最新取得値・予想保存時のオッズではありません）';
+    root.prepend(note);
+   }catch(_){/* Unavailable odds never block or distort archived forecasts. */}
+  })();
+  void (async()=>{
+   try{
+    const res=await fetchCleanResultArchive(code);
+    if(!res.ok||!enrichCurrent())return;
+    const result=await res.json(),order=result.finish_order;
+    if(!enrichCurrent()||result.status!=='confirmed'||result.race_code!==code||
+       !Array.isArray(order)||order.length!==3||new Set(order).size!==3||
+       !order.every(n=>Number.isInteger(n)&&n>=1&&n<=6))return;
+    const winning=order.join('-');
+    root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
+     if(row.dataset.fourModeCombo===winning){
+      const mark=document.createElement('strong');mark.textContent=' 的中';row.append(mark);
+     }
+    });
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='確定結果 '+order.join(' - ')+'（保存済み結果との照合。正式的中率の集計とは別）';
+    root.prepend(note);
+   }catch(_){/* Unverified results must not be shown as confirmed. */}
+  })();
  }catch(_){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
   status.textContent='4モード保存データを検証できません。未確認の買い目は表示しません。';root.replaceChildren();
