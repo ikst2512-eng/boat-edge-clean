@@ -47,6 +47,22 @@ def rank_modes(prob_rows):
     return modes
 
 
+def ticket_order_audit(modes):
+    """Audit the agreed count contract without altering archived predictions."""
+    names=("narrow","hit","balance","hole")
+    counts={}
+    for name in names:
+        mode=modes.get(name)
+        tickets=mode.get("tickets") if isinstance(mode,dict) else None
+        if not isinstance(tickets,list):
+            return {"status":"unknown","counts":counts,
+                    "required_order":"narrow < hit < balance < hole"}
+        counts[name]=len(tickets)
+    ordered=all(counts[a] < counts[b] for a,b in zip(names,names[1:]))
+    return {"status":"pass" if ordered else "mismatch","counts":counts,
+            "required_order":"narrow < hit < balance < hole"}
+
+
 def load_archived(code):
     path=Path(__file__).resolve().parent/"four_mode_forecasts"/(code+".json")
     if path.is_symlink():raise ValueError("archive_symlink")
@@ -79,6 +95,6 @@ def load_archived(code):
             "deadline_jst":d["deadline_jst"],"generated_at_jst":d["generated_at_jst"],
             "source_sha256":d["source_sha256"],
             "beforeinfo":d.get("beforeinfo"),"targets_are_not_realized_hit_rates":True,
-            "modes":d["modes"]}
+            "modes":d["modes"],"ticket_order_audit":ticket_order_audit(d["modes"])}
 
 
