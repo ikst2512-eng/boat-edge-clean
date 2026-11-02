@@ -36,13 +36,16 @@ def audit_racelist(directory, race_code, cutoff_jst):
         raise ValueError("invalid chronology or day")
     from scripts.diagnose_official_racelist_html import diagnose_racelist_html
     html_diagnostics = diagnose_racelist_html(raw)
+    from scripts.inspect_official_racelist_registrations import inspect_six_registrations
+    racer_check = inspect_six_registrations(raw)
     return {
         "race_code": race_code, "original_hash_verified": True,
         "html_diagnostics": html_diagnostics,
+        "registrations_by_lane": racer_check["registrations_by_lane"],
         "racelist_received_jst": received.isoformat(),
         "received_before_supplied_cutoff": received <= cutoff,
         "cutoff_source_verified": False,
-        "six_racers_verified": False, "entry_verified": False,
+        "six_racers_verified": racer_check["six_racers_verified"], "entry_verified": False,
         "full_t12_source_certified": False,
         "t12_eligible": False, "forecast_usable": False,
     }
