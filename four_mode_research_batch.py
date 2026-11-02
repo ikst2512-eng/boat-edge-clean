@@ -33,7 +33,7 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
                 raise ValueError("nonmonotonic_topn")
             if part.get("coverage_diagnostic") not in CATEGORIES:
                 raise ValueError("invalid_coverage")
-            if part["coverage_diagnostic"] == "covered" and not flags[2]:
+            if flags[2] and part["coverage_diagnostic"] != "covered":
                 raise ValueError("covered_without_top10")
             if part.get("race_dynamics_cause") != "not_determined":
                 raise ValueError("untrusted_dynamics")
