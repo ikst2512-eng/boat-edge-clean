@@ -1,0 +1,50 @@
+name: Temporary Shimonoseki 12R joint real evidence
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-shimonoseki12-joint.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Official paired receipts and independent audit
+        run: |
+          mkdir -p reports
+          python - <<'PY'
+          import os,re,json
+          from pathlib import Path
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          from scripts.audit_joint_official_receipts import audit_pair
+          race='202611021912'
+          root='evidence'
+          a=before(race,root,'before'+os.environ['GITHUB_RUN_ID'])
+          print('BEFORE',json.dumps(a,ensure_ascii=False))
+          Path('reports/before.json').write_text(json.dumps(a,ensure_ascii=False))
+          if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
+              raise SystemExit('UNVERIFIED_BEFOREINFO')
+          deadline='2026-11-02T'+a['deadline_display']+':00+09:00'
+          b=odds(race,deadline,root,'odds'+os.environ['GITHUB_RUN_ID'])
+          print('ODDS',json.dumps(b,ensure_ascii=False))
+          Path('reports/odds.json').write_text(json.dumps(b,ensure_ascii=False))
+          if b.get('status')!='official_odds_observed_research_only':
+              raise SystemExit('UNVERIFIED_ODDS')
+          origin=Path(root)/'observations'
+          result=audit_pair(origin/('before'+os.environ['GITHUB_RUN_ID'])/race[:8]/race,origin/('odds'+os.environ['GITHUB_RUN_ID'])/race[:8]/race)
+          print('JOINT',json.dumps(result,ensure_ascii=False))
+          Path('reports/joint.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shimonoseki12-paired-originals
+          path: |
+            reports/
+            evidence/
+          retention-days: 14
