@@ -66,6 +66,7 @@ jobs:
                 'tilt_observed_boats':x.get('tilt_observed_boats'),
                 'start_exhibition_rows':x.get('start_exhibition_rows'),
                 'start_exhibition_six_rows_observed':x.get('start_exhibition_six_rows_observed'),
+                'start_exhibition_six_valid_rows':x.get('start_exhibition_six_valid_rows'),
                 't12_certified':False,'forecast_usable':False
               })
           complete=[r for r in rows if r['status']=='official_json_observed_not_t12_certified'
