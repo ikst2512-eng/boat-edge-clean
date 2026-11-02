@@ -19,6 +19,22 @@ class CleanFourModeTests(unittest.TestCase):
         self.assertNotEqual(result["hit"]["tickets"],result["hole"]["tickets"])
         self.assertLessEqual(len(result["narrow"]["tickets"]),5)
 
+    def test_agreed_ticket_count_order_is_reported_not_fabricated(self):
+        modes={"narrow":{"tickets":[1,2,3]},
+               "hit":{"tickets":[1,2,3,4]},
+               "balance":{"tickets":[1,2,3,4,5]},
+               "hole":{"tickets":[1,2,3,4,5,6]}}
+        self.assertEqual(model.ticket_order_audit(modes)["status"],"pass")
+        modes["hit"]["tickets"] = list(range(30))
+        self.assertEqual(model.ticket_order_audit(modes)["status"],"mismatch")
+        self.assertEqual(model.ticket_order_audit({"narrow":{}})["status"],"unknown")
+
+    def test_current_generated_mode_must_not_be_claimed_compliant(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.rank_modes(p)
+        audit=model.ticket_order_audit(result)
+        self.assertEqual(audit["status"],"mismatch")
+
     def test_retired_live_api_generator_not_available(self):
         self.assertFalse(hasattr(model,"forecast"))
 
