@@ -105,6 +105,7 @@ def main():
     parser.add_argument("--report", type=Path, default=Path("ai_operations_report.json"))
     parser.add_argument("--output", type=Path, default=Path("ai_diagnostics_report.json"))
     parser.add_argument("--case-output", type=Path, default=Path("ai_frozen_race_case.json"))
+    parser.add_argument("--require-analysis", action="store_true", help="Fail when manual Gemini analysis did not run")
     parser.add_argument("--race-code", default=None, help="Optional frozen four-mode race code (historical research only)")
     args = parser.parse_args()
     report = json.loads(args.report.read_text(encoding="utf-8"))
@@ -116,6 +117,8 @@ def main():
         result, report.get("frozen_four_mode_research_case"))
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("AI diagnostics:", result["status"])
+    if args.require_analysis and result["status"] != "analysis_proposed":
+        parser.error("Gemini manual analysis did not run; inspect archived status")
 
 
 if __name__ == "__main__":
