@@ -20,10 +20,13 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import subprocess
+          import time
           import tempfile
           from pathlib import Path
           from clean_four_mode_capture import collect
-          from scripts.verify_four_mode_new_receipts import verify
+          from scripts.verify_four_mode_new_receipts import verify, seconds_until_unambiguous_commit
+          from audit_four_mode_first_add import inspect
           with tempfile.TemporaryDirectory() as temporary:
               result=collect(root=Path(temporary))
               report={key:result.get(key) for key in (
@@ -48,6 +51,25 @@ jobs:
                   os.chdir(original)
               report["staging_valid_now"]=valid
               report["staging_rejected_now"]=rejected
+              commit_verdict="not_attempted"
+              if valid:
+                  try:
+                      # Isolated Git repo: never push or alter project history.
+                      subprocess.run(["git","init","-q"],cwd=temporary,check=True)
+                      subprocess.run(["git","config","user.name","four-mode-probe"],cwd=temporary,check=True)
+                      subprocess.run(["git","config","user.email","four-mode-probe@example.invalid"],cwd=temporary,check=True)
+                      files=["four_mode_forecasts/"+code+".json" for code in result["new_saved"]]
+                      subprocess.run(["git","add","--",*files],cwd=temporary,check=True)
+                      generated=[json.loads(Path(temporary,name).read_text())["generated_at_jst"] for name in files]
+                      delay=seconds_until_unambiguous_commit(generated,time.time())
+                      if delay>0:time.sleep(delay)
+                      subprocess.run(["git","commit","-qm","probe immutable receipts"],cwd=temporary,check=True)
+                      for name in files:
+                          inspect(name,root=Path(temporary))
+                      commit_verdict="local_first_add_passed"
+                  except Exception as exc:
+                      commit_verdict="failed:"+type(exc).__name__+":"+str(exc)[:90]
+              report["commit_preflight"]=commit_verdict
               report.pop("new_saved", None)
               print("LIVE_FOUR_MODE_PROBE="+json.dumps(report,ensure_ascii=False,sort_keys=True))
           PY
