@@ -36,6 +36,8 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(data["source_cards_received_jst"],fetched.isoformat())
             second=collect(root=root,now=now,read=read)
             self.assertEqual(second["new_saved"],[])
+            self.assertEqual(second["already_saved"],1)
+            self.assertEqual(second["cutoff_skipped"],0)
             self.assertEqual(path.read_bytes(),original)
 
     def test_next_day_capture_preserves_yesterday_and_rejects_replays(self):
