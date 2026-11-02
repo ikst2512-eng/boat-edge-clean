@@ -47,6 +47,27 @@ def rank_modes(prob_rows):
     return modes
 
 
+def research_hole_candidates(prob_rows, count=12):
+    """Read-only mid-range comparison; never used for saved/live forecasts.
+
+    Probabilities are uncalibrated estimates, not official odds.
+    Choose the moderately likely non-top-ten outcomes, rather than
+    targeting the near-0.4% extreme tail.
+    """
+    rows=[("-".join(map(str,t)),float(p)) for t,p in prob_rows]
+    if len(rows)!=120 or len({combo for combo,_ in rows})!=120 or abs(sum(p for _,p in rows)-1)>1e-6:
+        raise ValueError("probability_board_invalid")
+    if not isinstance(count,int) or isinstance(count,bool) or not 1<=count<=30:
+        raise ValueError("invalid_research_count")
+    ranked=sorted(rows,key=lambda item:(-item[1],item[0]))
+    eligible=ranked[10:]
+    selected=eligible[:count]
+    return {"research_only":True,"official_odds_verified":False,
+            "selection":"probability_rank_11_onwards",
+            "tickets":[{"combo":combo,"p":round(p*100,5)} for combo,p in selected],
+            "estimated_coverage_pct":round(sum(p for _,p in selected)*100,2)}
+
+
 def ticket_order_audit(modes):
     """Audit the agreed count contract without altering archived predictions."""
     names=("narrow","hit","balance","hole")
