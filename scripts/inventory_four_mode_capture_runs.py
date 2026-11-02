@@ -32,7 +32,21 @@ def inventory(repo, token, fetch=None, limit=20):
             raise ValueError("unexpected workflow event")
         if not isinstance(x.get("id"), int) or x["id"] <= 0:
             raise ValueError("invalid run id")
+        job_data = fetch(f"https://api.github.com/repos/{repo}/actions/runs/{x['id']}/jobs?per_page=100")
+        if not isinstance(job_data, dict) or not isinstance(job_data.get("jobs"), list):
+            raise ValueError("invalid GitHub jobs response")
+        captures = [j for j in job_data["jobs"] if isinstance(j, dict) and j.get("name") == "capture"]
+        if len(captures) != 1:
+            raise ValueError("missing or duplicate capture job")
+        capture = captures[0]
+        steps = capture.get("steps")
+        if not isinstance(steps, list):
+            raise ValueError("missing capture steps")
+        failures = [step.get("name") for step in steps
+                    if isinstance(step, dict) and step.get("conclusion") == "failure"]
         runs.append({"id": x["id"], "created_at": x.get("created_at"),
+                     "capture_conclusion": capture.get("conclusion"),
+                     "failed_steps": failures,
                      "status": x.get("status"), "conclusion": x.get("conclusion"),
                      "html_url": x.get("html_url")})
     return {"schema": "FOUR_MODE_SCHEDULE_HISTORY_V1",
@@ -56,7 +70,7 @@ def main():
             f.write("### Four-mode scheduled run inventory (read-only)\n")
             f.write(f"- Scheduled runs inspected: {len(result['runs'])}\n")
             for x in result["runs"]:
-                f.write(f"- Run {x['id']}: {x['created_at']} — {x['status']} / {x['conclusion']}\n")
+                f.write(f"- Run {x['id']}: {x['created_at']} — {x['status']} / {x['conclusion']}; failed={x['failed_steps']}\n")
             f.write("- V2 publication confirmed: **no** (requires Git commit/source audit)\n")
 
 if __name__ == "__main__":
