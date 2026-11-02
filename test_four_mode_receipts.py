@@ -74,6 +74,18 @@ class FourModeReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"source_receipt_out_of_order"):
             verify([str(self.path)],now=self.now)
 
+    def test_refuses_non_jst_source_receipts(self):
+        self.record["source_cards_received_jst"] = (self.now-timedelta(minutes=1)).astimezone(timezone.utc).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "source_receipt_out_of_order"):
+            verify([str(self.path)], now=self.now)
+
+    def test_refuses_non_jst_generation(self):
+        self.record["generated_at_jst"] = self.now.astimezone(timezone.utc).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "deadline_or_receipt_expired"):
+            verify([str(self.path)], now=self.now)
+
     def test_refuses_missing_source_receipt(self):
         self.record.pop("source_title_received_jst")
         self.write()
