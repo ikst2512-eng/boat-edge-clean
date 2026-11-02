@@ -104,7 +104,7 @@ class RepairAgentTests(unittest.TestCase):
         self.assertIn("TAIL_MARKER", context)
         self.assertLessEqual(len(context), 35000)
         self.assertIn("\n[... contextual excerpt ...]\n", context)
-        self.assertNotIn("\n[... contextual excerpt ...]\n", context)
+        self.assertNotIn("\\n[... contextual excerpt ...]\\n", context)
 
     def test_api_429_reports_billing_or_rate_limit_without_leaking(self):
         def rate_limited(request, timeout):
