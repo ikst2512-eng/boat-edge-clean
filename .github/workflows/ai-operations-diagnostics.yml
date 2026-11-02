@@ -41,6 +41,29 @@ jobs:
           else
             python ai_diagnostics.py --require-analysis --report ai_operations_report.json --output ai_diagnostics_report.json
           fi
+      - name: Summarize analysis outcome from saved JSON
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          output = Path("ai_diagnostics_report.json")
+          if output.exists():
+              try:
+                  record = json.loads(output.read_text(encoding="utf-8"))
+                  status = record.get("status", "unknown")
+                  review = record.get("evidence_review", {}).get("review_status", "unknown")
+              except (ValueError, TypeError, OSError, AttributeError):
+                  status, review = "invalid_report", "unknown"
+          else:
+              status, review = "missing_report", "unknown"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("### Gemini research diagnostics\\n")
+              summary.write(f"- API analysis status: \`{status}\`\\n")
+              summary.write(f"- Evidence review status: \`{review}\`\\n")
+              summary.write("- This workflow never proves an improvement in accuracy or authorizes prediction changes.\\n")
+          PY
       - name: Archive both reports
         if: always()
         uses: actions/upload-artifact@v4
