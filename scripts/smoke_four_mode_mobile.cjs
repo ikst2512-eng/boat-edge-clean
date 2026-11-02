@@ -23,6 +23,16 @@ const {chromium, webkit} = require('playwright');
     if(!info.status.includes('過去保存予想')&&!info.status.includes('正式予想として使用しないでください')) throw Error('Research-only provenance missing: '+JSON.stringify(info));
     const hierarchy=await page.evaluate(()=>{const c=document.querySelector('.four-mode-combo'),o=document.querySelector('.four-mode-odds');return {comboPx:c?parseFloat(getComputedStyle(c).fontSize):null,oddsPx:o?parseFloat(getComputedStyle(o).fontSize):null,columns:getComputedStyle(document.querySelector('#fourModeForecastRows')).gridTemplateColumns}});
     if(hierarchy.comboPx!==24||hierarchy.oddsPx!==null&&hierarchy.oddsPx>12)throw Error('Ticket hierarchy incorrect: '+JSON.stringify(hierarchy));
+    // Check selected race label and available result/odds UI without fabricating unavailable values.
+    const evidence=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',resultStatus:document.querySelector('#resultStatus')?.textContent||'',result:document.querySelector('#resultDetail')?.textContent||'',oddsNotice:document.querySelector('#fourModeForecastRows')?.textContent||''}));
+    if(!evidence.selected.includes('11R'))throw Error('Selected race label mismatch: '+JSON.stringify(evidence));
+    if(!evidence.resultStatus)throw Error('Confirmed result status missing');
+    if(/undefined|NaN倍/.test(evidence.result))throw Error('Invalid result rendered: '+JSON.stringify(evidence));
+    await page.evaluate(()=>{s.race=12;render()});
+    await page.waitForTimeout(1200);
+    const switched=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',archiveKey:document.querySelector('#fourModeForecastRows')?.dataset.raceKey||'',result:document.querySelector('#resultDetail')?.textContent||'',resultKey:displayedResultKey}));
+    if(!switched.selected.includes('12R')||switched.archiveKey&&switched.archiveKey!=='20261102-02-12'||switched.resultKey&&switched.resultKey!=='20261102-02-12')throw Error('Cross-race stale display after switch: '+JSON.stringify(switched));
+    console.log(JSON.stringify({publicRaceSwitch:'passed',engine:engineName,initialResultStatus:evidence.resultStatus,switched}));
     console.log(JSON.stringify({publicMobileBrowser:'passed',engine:engineName,raceCode:'202611020211',...info,...hierarchy}));
   } finally {await browser.close()}
   }
