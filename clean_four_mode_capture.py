@@ -19,6 +19,7 @@ ARCHIVE=ROOT/"four_mode_forecasts"
 
 
 def collect(root=ROOT, now=None, read=read_rows):
+    now_is_live = now is None
     now=now or datetime.now(JST)
     hd=now.strftime("%Y%m%d")
     sub=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
@@ -94,6 +95,8 @@ def collect(root=ROOT, now=None, read=read_rows):
         cards_by_code.pop(code,None)
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
+    # Never record the collection-start clock as forecast generation time.
+    # The timestamp is sampled after all source receipts and modeling input checks.
     for title in titles:
         code=title.get("レースコード","")
         if len(code)!=12 or not code.isdecimal() or not code.startswith(hd):
@@ -114,10 +117,15 @@ def collect(root=ROOT, now=None, read=read_rows):
             if not racer:raise ValueError("missing_race_card")
             rates=[float(racer[f"艇{i}_全国勝率"]) for i in range(1,7)]
             forecast=rank_modes(probabilities(rates))
+            generated_at=datetime.now(JST) if now_is_live else now
+            if generated_at < max(title_received,card_received):
+                raise ValueError("source_receipt_after_generation")
+            if generated_at >= cutoff-timedelta(minutes=20):
+                raise ValueError("generation_after_safe_cutoff")
             record={"schema":"CLEAN_FOUR_MODES_PREDEADLINE_V1","race_code":code,
                     "status":"provisional","validated":False,
                     "model_version":"CLEAN_FOUR_MODES_V1_UNCALIBRATED",
-                    "deadline_jst":cutoff.isoformat(),"generated_at_jst":now.isoformat(),
+                    "deadline_jst":cutoff.isoformat(),"generated_at_jst":generated_at.isoformat(),
                     "source_title_received_jst":title_received.isoformat(),
                     "source_cards_received_jst":card_received.isoformat(),
                     "beforeinfo":"optional_not_in_snapshot",
