@@ -55,6 +55,7 @@ jobs:
           mkdir -p four-mode-evidence
           python clean_four_mode_capture.py 2>&1 | tee four-mode-evidence/capture.log
       - name: Verify four-mode capture and receipts before publishing
+        id: before_publish_tests
         run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts
       - name: Stage only immutable new forecasts and check receipt window
         id: receipt_staging
@@ -176,6 +177,7 @@ jobs:
         env:
           SOURCE_OUTCOME: ${{ steps.source_capture.outcome }}
           STAGING_OUTCOME: ${{ steps.receipt_staging.outcome }}
+          TESTS_OUTCOME: ${{ steps.before_publish_tests.outcome }}
         run: |
           python - <<'PY'
           import json, os
@@ -183,6 +185,7 @@ jobs:
           evidence = Path("four-mode-evidence")
           evidence.mkdir(exist_ok=True)
           states = {"source_capture": os.environ["SOURCE_OUTCOME"],
+                    "before_publish_tests": os.environ["TESTS_OUTCOME"],
                     "receipt_staging": os.environ["STAGING_OUTCOME"]}
           publication = evidence/"publication.json"
           states["publication"] = "not_confirmed"
