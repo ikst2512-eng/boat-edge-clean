@@ -49,6 +49,7 @@ def main():
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
         f.write("\n")
+    print("FOUR_MODE_SCHEDULE_HISTORY=" + json.dumps(result, ensure_ascii=False, sort_keys=True))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as f:
