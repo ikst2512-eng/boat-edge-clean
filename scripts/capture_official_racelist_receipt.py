@@ -54,7 +54,7 @@ def capture(race_code, root, observation_id, *, fetch=None, clock=None):
         if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_BYTES:
             raise ValueError("invalid original bytes")
         prefix = raw.lstrip()[:256].lower()
-        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
+        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html") or prefix.startswith(b"<?xml")):
             raise ValueError("non-HTML source response")
         report.update(status="official_racelist_html_observed_research_only",
                       sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
