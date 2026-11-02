@@ -18,12 +18,31 @@ def report(days, evaluator=compare):
     holdouts=[r for r in rows if r["role"]=="later_holdout"]
     evaluated_holdouts=[r for r in holdouts if sum(
         g.get("evaluated", 0) for g in r["groups"].values()) > 0]
+    # Aggregate only later holdout days, with the exact same evaluated cohort
+    # for each TopN numerator. Payout evidence is a separate denominator.
+    totals = {"evaluated": 0, "awaiting_result": 0, "rejected": 0,
+              "payout_verified": 0, "hits": {f"top{n}": 0 for n in (3, 5, 10)}}
+    for row in holdouts:
+        for group in row["groups"].values():
+            for key in ("evaluated", "awaiting_result", "rejected", "payout_verified"):
+                totals[key] += group.get(key, 0)
+            for key in totals["hits"]:
+                totals["hits"][key] += group.get("hits", {}).get(key, 0)
+    totals["hit_rate_pct"] = {
+        key: round(100 * count / totals["evaluated"], 2)
+        if totals["evaluated"] else None
+        for key, count in totals["hits"].items()}
+    totals["payout_coverage_pct"] = (
+        round(100 * totals["payout_verified"] / totals["evaluated"], 2)
+        if totals["evaluated"] else None)
+    totals["formal"] = False
+    totals["independently_validated"] = False
     return {"schema":"CLEAN_SIGNAL70_DAYWISE_V1","policy_reference_day":"20261029",
             "threshold":0.70,"calibrated_confidence":False,"formal":False,
             "later_holdout_days":len(holdouts),
             "later_holdout_evaluated_days":len(evaluated_holdouts),
             "later_holdout_evaluated_races":sum(sum(g.get("evaluated", 0) for g in r["groups"].values()) for r in evaluated_holdouts),
-            "days":rows}
+            "days":rows,"later_holdout_totals":totals}
 
 if __name__=="__main__":
     p=argparse.ArgumentParser();p.add_argument("days",nargs="+");args=p.parse_args()
