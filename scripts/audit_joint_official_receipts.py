@@ -27,6 +27,15 @@ def audit_pair(before_dir, odds_dir):
     race = a["race_code"]
     if race != b.get("race_code") or len(race) != 12 or not race.isdigit():
         raise ValueError("race identity mismatch")
+    # The hash proves stored-byte integrity, not which endpoint supplied it.
+    # Check both immutable receipt URLs against the exact official race identity.
+    from urllib.parse import urlencode
+    day, venue, number = race[:8], race[8:10], str(int(race[10:]))
+    params = urlencode({"hd": day, "jcd": venue, "rno": number})
+    expected_before = ("https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&" + params)
+    expected_odds = ("https://www.boatrace.jp/owpc/pc/race/odds3t?" + params)
+    if a.get("url") != expected_before or b.get("official_url") != expected_odds:
+        raise ValueError("official source URL mismatch")
     source = json.loads(original_before)["maindata"]
     if str(source.get("hd")) != race[:8] or str(source.get("jcd")).zfill(2) != race[8:10] or str(source.get("rno")) != str(int(race[10:])):
         raise ValueError("original beforeinfo race identity mismatch")
