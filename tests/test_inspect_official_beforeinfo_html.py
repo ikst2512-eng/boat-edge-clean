@@ -52,6 +52,30 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
 
+    def test_empty_client_rendered_beforeinfo_shell_is_not_race_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d=Path(tmp)/"20261101"/"202611010708"
+            d.mkdir(parents=True)
+            raw=(b'<?xml version="1.0"?><html><body>'
+                 b'<div id="content_beforeInfo"></div>'
+                 b'<script src="/owsp/js/beforeinfo/beforeinfo_v.js"></script>'
+                 b'</body></html>')
+            (d/"beforeinfo.html").write_bytes(raw)
+            url="https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"
+            (d/"manifest.json").write_text(json.dumps({
+                "source":"official_beforeinfo_html","race_code":"202611010708",
+                "forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),
+                "request_started_at_jst":"2026-11-01T11:59:59+09:00",
+                "received_at_jst":"2026-11-01T12:00:00+09:00",
+                "http_status":200,"status":"raw_http_observed_not_t12_certified",
+                "t12_eligible":False,"complete_six_lanes":"unverified",
+                "url":url,"response_url":url
+            }))
+            result=inspect(d)
+            self.assertEqual(result["body_evidence_class"],"client_rendered_shell_no_boat_values")
+            self.assertFalse(result["t12_eligible"])
+            self.assertEqual(result["six_lane_values"],"unverified")
+
     def test_hidden_html_does_not_create_display_evidence(self):
         from scripts.inspect_official_beforeinfo_html import VisibleText
         parser=VisibleText()
