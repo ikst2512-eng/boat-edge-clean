@@ -20,6 +20,8 @@ class FourModeFirstAddTests(unittest.TestCase):
             "validated": False,
             "generated_at_jst": "2026-10-28T10:00:00+09:00",
             "deadline_jst": "2026-10-28T11:00:00+09:00",
+            "source_title_received_jst": "2026-10-28T09:59:00+09:00",
+            "source_cards_received_jst": "2026-10-28T09:59:10+09:00",
             "modes": {m: {"tickets": [{"combo": "1-2-3", "p": 5.0}]}
                       for m in ("hit", "balance", "hole", "narrow")},
         }
@@ -60,6 +62,16 @@ class FourModeFirstAddTests(unittest.TestCase):
     def test_wrong_mode_set_rejected(self):
         del self.record["modes"]["narrow"]
         with self.assertRaisesRegex(ValueError, "invalid_four_mode_archive"):
+            self.check()
+
+    def test_source_receipt_after_generation_rejected(self):
+        self.record["source_cards_received_jst"] = "2026-10-28T10:00:01+09:00"
+        with self.assertRaisesRegex(ValueError, "source_receipt_after_generation"):
+            self.check()
+
+    def test_missing_source_receipt_rejected(self):
+        del self.record["source_cards_received_jst"]
+        with self.assertRaisesRegex(ValueError, "missing_source_receipts"):
             self.check()
 
     def test_path_traversal_rejected(self):
