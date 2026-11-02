@@ -16,9 +16,6 @@ permissions:
   contents: read
 jobs:
   tests:
-    outputs:
-      regression_failed: ${{ steps.regression.outputs.failed }}
-      regression_issue: ${{ steps.regression.outputs.issue }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,30 +27,6 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest -v test_ai_repair_agent
-      - name: Detect actual UI regression (scheduled only, without AI key)
-        if: github.event_name == 'schedule'
-        id: regression
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os,subprocess
-          commands=[["python","-m","unittest","-v","tests.test_navigation_contract"],
-                    ["node","tests/site-regression.cjs"]]
-          failures=[]
-          for cmd in commands:
-              try:
-                  proc=subprocess.run(cmd,capture_output=True,text=True,timeout=90)
-                  if proc.returncode:
-                      failures.append(" ".join(cmd)+" returned nonzero exit code")
-              except subprocess.TimeoutExpired:
-                  failures.append(" ".join(cmd)+": timed out")
-          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as output:
-              output.write("failed="+("true" if failures else "false")+"\n")
-              output.write("issue="+("UI regression found: "+" | ".join(failures)[:650] if failures else "none")+"\n")
-          print("UI regression failures:",len(failures))
-          if failures:
-              print("Failure identities only; no untrusted test output is sent to AI.")
-          PY
   propose:
     needs: tests
     if: github.event_name == 'workflow_dispatch' # Manual only; no scheduled paid calls
@@ -85,7 +58,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-3.5-flash-lite
-          AI_ISSUE: ${{ github.event_name == 'schedule' && needs.tests.outputs.regression_issue || inputs.issue }}
+          AI_ISSUE: ${{ inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
       - name: Summarize Gemini response without exposing source
         shell: bash
