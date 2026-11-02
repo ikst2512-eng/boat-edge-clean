@@ -34,6 +34,17 @@ class WatchdogPolicyTests(unittest.TestCase):
         self.assertTrue(should_dispatch([run(15,conclusion="success")],self.now,"render_cron",
                                         recent_minutes=14,cooldown_minutes=14))
 
+    def test_old_queued_capture_not_duplicated_by_render(self):
+        self.assertFalse(should_dispatch([run(16,status="queued",conclusion=None)],
+                                         self.now,"render_cron",
+                                         recent_minutes=14,cooldown_minutes=14))
+        self.assertFalse(should_dispatch([run(19,status="in_progress",conclusion=None)],
+                                         self.now,"render_cron",
+                                         recent_minutes=14,cooldown_minutes=14))
+        self.assertTrue(should_dispatch([run(121,status="queued",conclusion=None)],
+                                        self.now,"render_cron",
+                                        recent_minutes=14,cooldown_minutes=14))
+
     def test_timezone_required(self):
         with self.assertRaises(ValueError):
             should_dispatch([],self.now.replace(tzinfo=None),"schedule")
