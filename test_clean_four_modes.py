@@ -33,7 +33,16 @@ class CleanFourModeTests(unittest.TestCase):
         p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
         result=model.rank_modes(p)
         audit=model.ticket_order_audit(result)
-        self.assertEqual(audit["status"],"mismatch")
+        self.assertEqual(audit["status"],"pass")
+        self.assertEqual([len(result[n]["tickets"]) for n in ("narrow","hit","balance","hole")],[5,10,16,22])
+
+    def test_new_hole_avoids_extreme_tail(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.rank_modes(p)
+        ranked=sorted(p,key=lambda row:(-row[1],row[0]))
+        expected={"-".join(map(str,t)) for t,_ in ranked[10:32]}
+        self.assertEqual({x["combo"] for x in result["hole"]["tickets"]},expected)
+        self.assertEqual(result["hole"]["count_policy"],"provisional_new_generation_v2")
 
     def test_midrange_hole_research_does_not_change_live_modes(self):
         p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
