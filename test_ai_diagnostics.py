@@ -10,7 +10,7 @@ class FakeResponse:
     def __exit__(self, *args):
         return False
     def read(self, max_bytes):
-        return json.dumps({"candidates": [{"content": {"parts": [
+        return json.dumps({"candidates": [{"finishReason": "STOP", "content": {"parts": [
             {"text": "改善案は確認待ち"}
         ]}}]}).encode()
 
@@ -139,9 +139,17 @@ class DiagnosticsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     ai_diagnostics.extract_text(payload)
 
+    def test_partial_or_blocked_gemini_output_is_not_success(self):
+        for reason in ("MAX_TOKENS", "SAFETY", None):
+            with self.subTest(reason=reason):
+                response = {"candidates": [{"finishReason": reason,
+                            "content": {"parts": [{"text": "未完了の分析案"}]}}]}
+                with self.assertRaisesRegex(ValueError, "incomplete_or_blocked_generation"):
+                    ai_diagnostics.extract_text(response)
+
     def test_oversize_ai_response_is_safely_rejected(self):
         with self.assertRaisesRegex(ValueError, "output_too_large"):
-            ai_diagnostics.extract_text({"candidates": [{"content": {"parts": [{"text": "X"*17000}]}}]})
+            ai_diagnostics.extract_text({"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": "X"*17000}]}}]})
 
     def test_manual_frozen_race_success_requires_review_not_auto_promotion(self):
         import hashlib
