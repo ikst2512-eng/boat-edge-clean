@@ -46,6 +46,18 @@ jobs:
             python -m scripts.capture_official_beforeinfo_probe "$RACE_CODE" --root official_probe_output --observation-id "$id" > "official_probe_reports/$id.json" || echo "Attempt $i failed; non-certified diagnostic saved"
             if [[ "$i" -lt "$ATTEMPTS" ]]; then sleep 60; fi
           done
+      - name: Inspect captured HTML and export labeled source diagnostics
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p official_probe_inspections
+          while IFS= read -r -d '' manifest; do
+            folder="${manifest%/manifest.json}"
+            id="${folder#official_probe_output/observations/}"
+            id="${id%%/*}"
+            python -m scripts.inspect_official_beforeinfo_html "$folder" > "official_probe_inspections/$id.json"
+          done < <(find official_probe_output -name manifest.json -type f -print0 2>/dev/null || true)
       - name: Archive original HTML and manifests
         uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -54,5 +66,6 @@ jobs:
           path: |
             official_probe_output/
             official_probe_reports/
+            official_probe_inspections/
           if-no-files-found: warn
           retention-days: 14
