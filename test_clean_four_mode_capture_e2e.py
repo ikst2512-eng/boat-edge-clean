@@ -38,6 +38,21 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(second["new_saved"],[])
             self.assertEqual(path.read_bytes(),original)
 
+    def test_source_receipt_after_generation_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            now=datetime(2026,10,28,8,0,tzinfo=JST)
+            later=datetime(2026,10,28,8,0,1,tzinfo=JST)
+            code="202610280101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([title] if "/title/" in url else [card],later,"a"*64)
+            result=collect(root=root,now=now,read=read)
+            self.assertEqual(result["new_saved"],[])
+            self.assertEqual(result["excluded"].get("source_receipt_after_generation"),1)
+            self.assertFalse((root/"four_mode_forecasts"/(code+".json")).exists())
+
     def test_expired_race_is_not_backfilled(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,10,28,11,50,tzinfo=JST)
