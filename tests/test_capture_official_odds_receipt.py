@@ -37,6 +37,25 @@ class ImmutableOddsCaptureTests(unittest.TestCase):
                         fetch=lambda url:b"source",clock=clock())
             self.assertFalse(out["complete_odds_observed_before_t12"])
 
+    @patch("scripts.capture_official_odds_receipt.parse_official_odds_table", return_value=ODDS)
+    def test_timeout_then_distinct_retry_is_write_once(self, parser):
+        with tempfile.TemporaryDirectory() as root:
+            args=("202611021512", "2026-11-02T20:36:00+09:00", root)
+            failed=capture(*args, "retry1",
+                           fetch=lambda url: (_ for _ in ()).throw(TimeoutError("network")),
+                           clock=clock())
+            self.assertEqual(failed["status"], "official_odds_probe_failed")
+            self.assertFalse(failed["forecast_usable"])
+            self.assertFalse(list(Path(root).rglob("original.html")))
+            good=capture(*args, "retry2", fetch=lambda url:b"verified-source", clock=clock())
+            self.assertEqual(good["status"], "official_odds_observed_research_only")
+            original=Path(root)/"observations/retry2/20261102/202611021512/original.html"
+            saved=original.read_bytes()
+            with self.assertRaises(FileExistsError):
+                capture(*args, "retry2", fetch=lambda url:b"changed", clock=clock())
+            self.assertEqual(original.read_bytes(), saved)
+            self.assertFalse(list(Path(root).glob("observations/retry1/**/*html")))
+
     def test_invalid_response_or_deadline_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError):
