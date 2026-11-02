@@ -1358,10 +1358,14 @@ async function loadFourModeArchives(key,token){
     oddsState.replaceWith(note);
    }catch(_){if(enrichCurrent())oddsState.textContent='オッズ未取得（保存予想は表示できます）';}
   })();
+  const resultState=document.createElement('p');resultState.className='muted';
+  resultState.textContent='確定結果を確認中…';root.prepend(resultState);
   void (async()=>{
    try{
     const res=await fetchCleanResultArchive(code);
-    if(!res.ok||!enrichCurrent())return;
+    if(!enrichCurrent())return;
+    if(res.status===404){resultState.textContent='結果未取得（的中・不的中は未判定）';return;}
+    if(!res.ok){resultState.textContent='確定結果を取得できません';return;}
     const result=await res.json(),order=result.finish_order;
     const stamp=Date.parse(result.collected_at_jst),confirmed=Date.parse(result.confirmed_at_jst);
     const source='https://boatracecsv.github.io/data/results/realtime/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
@@ -1369,7 +1373,7 @@ async function loadFourModeArchives(key,token){
        result.source_url!==source||!Number.isFinite(stamp)||!Number.isFinite(confirmed)||
        stamp<confirmed||stamp>Date.now()+300000||
        !Array.isArray(order)||order.length!==3||new Set(order).size!==3||
-       !order.every(n=>Number.isInteger(n)&&n>=1&&n<=6))return;
+       !order.every(n=>Number.isInteger(n)&&n>=1&&n<=6)){if(enrichCurrent())resultState.textContent='確定結果の検証待ち（的中判定なし）';return;}
     const winning=order.join('-');
     root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
      if(row.dataset.fourModeCombo===winning){
@@ -1378,8 +1382,8 @@ async function loadFourModeArchives(key,token){
     });
     const note=document.createElement('p');note.className='muted';
     note.textContent='確定結果 '+order.join(' - ')+'（保存済み結果との照合。正式的中率の集計とは別）';
-    root.prepend(note);
-   }catch(_){/* Unverified results must not be shown as confirmed. */}
+    resultState.replaceWith(note);
+   }catch(_){if(enrichCurrent())resultState.textContent='確定結果を検証できません（的中判定なし）';}
   })();
  }catch(_){
   if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
