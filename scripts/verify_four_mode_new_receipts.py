@@ -40,6 +40,7 @@ def verify(paths, *, now=None, buffer_seconds=90):
         generated = datetime.fromisoformat(data["generated_at_jst"])
         deadline = datetime.fromisoformat(data["deadline_jst"])
         if (generated.utcoffset() is None or deadline.utcoffset() is None or
+            generated > now or
             generated >= deadline - timedelta(minutes=20) or
             now >= deadline - timedelta(seconds=buffer_seconds)):
             raise ValueError("deadline_or_receipt_expired")
