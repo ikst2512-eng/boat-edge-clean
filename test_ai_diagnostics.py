@@ -72,6 +72,24 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertEqual(exc.exception.code, 2)
             self.assertEqual(json.loads(output.read_text())["status"], "disabled")
 
+    def test_api_error_still_saves_safe_report(self):
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "report.json"
+            output = Path(directory) / "out.json"
+            report.write_text('{"gate":{}}', encoding="utf-8")
+            with patch("ai_diagnostics.analyze", side_effect=RuntimeError("Gemini HTTP 429")):
+                with patch("sys.argv", ["ai_diagnostics.py", "--report", str(report),
+                                        "--output", str(output), "--require-analysis"]):
+                    with self.assertRaises(SystemExit) as exc:
+                        ai_diagnostics.main()
+            self.assertEqual(exc.exception.code, 2)
+            data = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(data["status"], "api_error")
+            self.assertFalse(data["production_change_allowed"])
+            self.assertNotIn("Gemini HTTP 429", json.dumps(data))
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
