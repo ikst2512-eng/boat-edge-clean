@@ -90,6 +90,22 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertFalse(data["production_change_allowed"])
             self.assertNotIn("Gemini HTTP 429", json.dumps(data))
 
+    def test_input_hash_is_deterministic(self):
+        import hashlib
+        payload = {"gate": {"a": 1}, "b": 2}
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        self.assertEqual(len(hashlib.sha256(canonical).hexdigest()), 64)
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            inp, out = Path(directory) / "in.json", Path(directory) / "out.json"
+            inp.write_text(json.dumps(payload), encoding="utf-8")
+            with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+                with patch("sys.argv", ["ai_diagnostics.py", "--report", str(inp), "--output", str(out)]):
+                    ai_diagnostics.main()
+            record = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(record["research_input_sha256"], hashlib.sha256(canonical).hexdigest())
+
     def test_missing_key_is_offline(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             self.assertEqual(ai_diagnostics.analyze({"gate": {}})["status"], "disabled")
