@@ -42,3 +42,40 @@ def audit_racelist(directory, race_code, cutoff_jst):
         "full_t12_source_certified": False,
         "t12_eligible": False, "forecast_usable": False,
     }
+
+
+def audit_racelist_with_official_deadline(racelist_dir, beforeinfo_dir, race_code):
+    """Derive the T12 cutoff from independently archived official beforeinfo."""
+    from scripts.inspect_official_beforeinfo_json import inspect
+    beforeinfo_dir = Path(beforeinfo_dir)
+    original = (beforeinfo_dir / "beforeinfo.json").read_bytes()
+    metadata = json.loads((beforeinfo_dir / "manifest.json").read_text(encoding="utf-8"))
+    if hashlib.sha256(original).hexdigest() != metadata.get("sha256") or len(original) != metadata.get("bytes"):
+        raise ValueError("beforeinfo source integrity mismatch")
+    if metadata.get("race_code") != race_code or metadata.get("status") != "official_json_observed_not_t12_certified":
+        raise ValueError("beforeinfo race identity/status mismatch")
+    day, venue, number = race_code[:8], race_code[8:10], str(int(race_code[10:]))
+    expected = "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&" + urlencode(
+        {"hd": day, "jcd": venue, "rno": number})
+    if metadata.get("url") != expected:
+        raise ValueError("beforeinfo official URL mismatch")
+    before_started = datetime.fromisoformat(metadata["request_started_at_jst"])
+    before_received = datetime.fromisoformat(metadata["received_at_jst"])
+    if (before_started.utcoffset() != timedelta(hours=9)
+            or before_received.utcoffset() != timedelta(hours=9)
+            or before_received < before_started):
+        raise ValueError("invalid beforeinfo chronology")
+    source = json.loads(original).get("maindata")
+    if not isinstance(source, dict) or str(source.get("hd")) != day or str(source.get("jcd")).zfill(2) != venue or str(source.get("rno")) != number:
+        raise ValueError("beforeinfo original race identity mismatch")
+    deadline_text = inspect({"maindata": source})["deadline_display"]
+    if not isinstance(deadline_text, str) or not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", deadline_text):
+        raise ValueError("invalid official deadline")
+    cutoff = datetime.fromisoformat(
+        f"{day[:4]}-{day[4:6]}-{day[6:8]}T{deadline_text}:00+09:00") - timedelta(minutes=12)
+    result = audit_racelist(racelist_dir, race_code, cutoff.isoformat())
+    result["cutoff_provenance"] = "verified_original_beforeinfo"
+    result["official_deadline_jst"] = (cutoff + timedelta(minutes=12)).isoformat()
+    result["beforeinfo_received_jst"] = before_received.isoformat()
+    # Still no proof of six racer registrations or actual entry from HTML.
+    return result
