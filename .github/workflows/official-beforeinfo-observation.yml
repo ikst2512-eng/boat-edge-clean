@@ -17,6 +17,8 @@ on:
       - '.github/workflows/official-beforeinfo-observation.yml'
       - 'scripts/capture_official_beforeinfo_probe.py'
       - 'tests/test_capture_official_beforeinfo_probe.py'
+      - 'scripts/inspect_official_beforeinfo_json.py'
+      - 'tests/test_inspect_official_beforeinfo_json.py'
 permissions:
   contents: read
 jobs:
@@ -29,7 +31,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Regression tests
-        run: python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_probe.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_probe.py' -v
+          python -m unittest discover -s tests -p 'test_inspect_official_beforeinfo_json.py' -v
       - name: Collect separate immutable official HTML observations
         if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
