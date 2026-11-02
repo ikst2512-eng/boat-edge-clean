@@ -23,6 +23,19 @@ const {chromium, webkit} = require('playwright');
     if(!info.status.includes('過去保存予想')&&!info.status.includes('正式予想として使用しないでください')) throw Error('Research-only provenance missing: '+JSON.stringify(info));
     const hierarchy=await page.evaluate(()=>{const c=document.querySelector('.four-mode-combo'),o=document.querySelector('.four-mode-odds');return {comboPx:c?parseFloat(getComputedStyle(c).fontSize):null,oddsPx:o?parseFloat(getComputedStyle(o).fontSize):null,columns:getComputedStyle(document.querySelector('#fourModeForecastRows')).gridTemplateColumns}});
     if(hierarchy.comboPx!==24||hierarchy.oddsPx!==null&&hierarchy.oddsPx>12)throw Error('Ticket hierarchy incorrect: '+JSON.stringify(hierarchy));
+    // Fetch real API odds for the selected race. Never mistake historical/current odds.
+    const oddsEvidence=await page.evaluate(async()=>{
+      const key='202611020211';const url='/api/odds?hd=20261102&jcd=02&rno=11';
+      try{const res=await fetch(url,{cache:'no-store'}),feed=await res.json();
+        const rows=[...document.querySelectorAll('#fourModeForecastRows [data-four-mode-combo]')];
+        const rendered=rows.filter(r=>r.querySelector('.four-mode-odds')).map(r=>({combo:r.dataset.fourModeCombo,label:r.querySelector('.four-mode-odds').textContent}));
+        const valid=feed?.ok===true&&feed?.hd==='20261102'&&String(feed?.jcd).padStart(2,'0')==='02'&&Number(feed?.rno)===11&&feed?.odds&&Object.keys(feed.odds).length===120;
+        if(valid){for(const row of rendered){const expected='オッズ '+Number(feed.odds[row.combo]).toLocaleString('ja-JP')+'倍';if(row.label!==expected)throw Error('ODDS_RENDER_MISMATCH '+row.combo+' '+row.label+' != '+expected)}}
+        return {http:res.status,apiValid:!!valid,renderedCount:rendered.length,comparison:valid?'matched':'not-eligible'};
+      }catch(e){return {error:String(e)}}
+    });
+    if(oddsEvidence.error?.startsWith('Error: ODDS_RENDER_MISMATCH'))throw Error(oddsEvidence.error);
+    console.log(JSON.stringify({publicOddsEvidence:oddsEvidence,engine:engineName}));
     // Check selected race label and available result/odds UI without fabricating unavailable values.
     const evidence=await page.evaluate(()=>({selected:document.querySelector('#activeRaceLabel')?.textContent||'',resultStatus:document.querySelector('#resultStatus')?.textContent||'',result:document.querySelector('#resultDetail')?.textContent||'',oddsNotice:document.querySelector('#fourModeForecastRows')?.textContent||''}));
     if(!evidence.selected.includes('11R'))throw Error('Selected race label mismatch: '+JSON.stringify(evidence));
