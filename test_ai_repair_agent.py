@@ -122,8 +122,8 @@ class RepairAgentTests(unittest.TestCase):
             def __exit__(self, *args): return False
             def read(self, n):
                 patch = {"patches": [{"path": "navigation.js",
-                         "old": "const params=location.search;",
-                         "new": "const params=String(location.search);"}],
+                         "old": "const nav=document.querySelector('.site-global-nav');",
+                         "new": "const nav=document.querySelector('nav.site-global-nav');"}],
                          "reason": "mocked navigation improvement", "tests": "contract"}
                 return json.dumps({"candidates":[{"content":{"parts":[
                     {"text":json.dumps(patch)}]}}]}).encode()
@@ -131,16 +131,16 @@ class RepairAgentTests(unittest.TestCase):
             root = Path(directory)
             original = Path("navigation.js").read_text(encoding="utf-8")
             (root/"navigation.js").write_text(original, encoding="utf-8")
-            result = propose("navigation parameter type safety", root,
+            result = propose("navigation selector explicitness", root,
                              "fake-key", "mock-model",
                              lambda req, timeout: FakeResponse())
             updated = (root/"navigation.js").read_text(encoding="utf-8")
             self.assertEqual(result["status"], "proposed")
             self.assertEqual(result["changed_files"], ["navigation.js"])
             self.assertFalse(result["production_change_allowed"])
-            self.assertIn("const params=String(location.search);", updated)
-            self.assertEqual(original.count("const params=location.search;"), 1)
-            self.assertEqual(updated.count("const params=location.search;"), 0)
+            self.assertIn("const nav=document.querySelector('nav.site-global-nav');", updated)
+            self.assertEqual(original.count("const nav=document.querySelector('.site-global-nav');"), 1)
+            self.assertEqual(updated.count("const nav=document.querySelector('.site-global-nav');"), 0)
             self.assertEqual(Path("navigation.js").read_text(encoding="utf-8"), original)
 
     def test_no_api_key_no_network(self):
