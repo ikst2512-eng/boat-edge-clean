@@ -11,6 +11,24 @@ from evaluate_clean_prospective_cohort import verified_payout
 
 ROOT=Path(__file__).resolve().parent
 
+# Bounded diagnostic categories; never expose candidate data or exception text.
+def rejection_reason(exc):
+    known = {
+        "unambiguous first addition not found": "first_add_missing_or_ambiguous",
+        "candidate changed since first add": "original_blob_mismatch",
+        "first Git commit not before prospective cutoff": "cutoff_failed",
+        "wrong archive type": "archive_type_invalid",
+        "non-JST timestamp": "timestamp_invalid",
+        "invalid prospective predictions": "prediction_invalid",
+        "untrusted scoring": "scoring_contract_invalid",
+        "invalid winning rank": "scoring_contract_invalid",
+        "inconsistent top-n scorer outcome": "scoring_contract_invalid",
+    }
+    if isinstance(exc, FileNotFoundError):
+        return "missing_archive"
+    return known.get(str(exc), "other_rejection")
+
+
 def head_mass(rates):
     board=probabilities(rates)
     mass={i:sum(p for t,p in board if t[0]==i) for i in range(1,7)}
@@ -20,7 +38,7 @@ def compare(day,root=ROOT,scorer=evaluate,signal=head_mass):
     if not isinstance(day,str) or len(day)!=8 or not day.isascii() or not day.isdigit() or not day.startswith("20"):
         raise ValueError("invalid day")
     paths=sorted((Path(root)/"prospective_predictions").glob(day+"????.json"))
-    groups={g:{"evaluated":0,"awaiting_result":0,"rejected":0,"payout_verified":0,
+    groups={g:{"evaluated":0,"awaiting_result":0,"rejected":0,"rejection_reasons":{},"payout_verified":0,
                "hits":{f"top{n}":0 for n in (3,5,10)},
                "returns_yen":{f"top{n}":0 for n in (3,5,10)}} for g in ("signal_70_plus","below_70")}
     for path in paths:
@@ -55,9 +73,12 @@ def compare(day,root=ROOT,scorer=evaluate,signal=head_mass):
                     extra=(5000-unit*n)//100
                     if type(rank) is int and 1<=rank<=n:
                         g["returns_yen"][f"top{n}"]+=(unit+(100 if rank<=extra else 0))*proof[1]//100
-        except (ValueError,KeyError,TypeError,OSError):
+        except (ValueError,KeyError,TypeError,OSError) as exc:
             if group is None:group="below_70"
             groups[group]["rejected"]+=1
+            key=rejection_reason(exc)
+            reasons=groups[group]["rejection_reasons"]
+            reasons[key]=reasons.get(key,0)+1
     for g in groups.values():
         g["payout_coverage_pct"]=round(100*g["payout_verified"]/g["evaluated"],2) if g["evaluated"] else None
         g["roi_denominator"]="payout_verified_only_not_all_evaluated_races"

@@ -261,11 +261,17 @@ def _compute_holdout_status():
     awaiting = sum(g["awaiting_result"] for d in days for g in d["groups"].values())
     rejected = sum(g["rejected"] for d in days for g in d["groups"].values())
     archived = sum(d["archived"] for d in days)
+    rejection_reasons = {}
+    for day in days:
+        for group in day["groups"].values():
+            for reason, count in group.get("rejection_reasons", {}).items():
+                rejection_reasons[reason] = rejection_reasons.get(reason, 0) + count
     return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
             "later_holdout_days": data["later_holdout_days"],
             "evaluated_holdout_races": data["later_holdout_evaluated_races"],
             "awaiting_result_races": awaiting,
             "audit_rejected_races": rejected,
+            "audit_rejection_reasons": rejection_reasons,
             "archived_candidates": archived,
             "discovery_day": "20261029", "independently_validated": False}
 
