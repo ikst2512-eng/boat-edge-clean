@@ -16,15 +16,21 @@ def first_add(path, root=ROOT):
     rel=str(path).replace("\\","/")
     if not PATTERN.fullmatch(rel):
         raise ValueError("invalid record path")
-    history=subprocess.check_output(["git","log","--format=%H","--diff-filter=A","--",rel],cwd=root,text=True).splitlines()
+    # Read commit SHA and timestamp in one Git traversal; retain the
+    # unique-first-add requirement and verify the original blob below.
+    history=subprocess.check_output(
+        ["git","log","--format=%H %cI","--diff-filter=A","--",rel],
+        cwd=root,text=True).splitlines()
     if len(history)!=1:
         raise ValueError("unambiguous first addition not found")
-    sha=history[0]
+    sha, stamp = history[0].split(" ",1)
+    if len(sha)!=40 or any(c not in "0123456789abcdef" for c in sha):
+        raise ValueError("invalid first addition SHA")
     original=subprocess.check_output(["git","show",sha+":"+rel],cwd=root)
     current=(root/rel).read_bytes()
     if current!=original:
         raise ValueError("candidate changed since first add")
-    stamp=subprocess.check_output(["git","show","-s","--format=%cI",sha],cwd=root,text=True).strip()
+
     return current,sha,datetime.fromisoformat(stamp)
 
 def inspect(path, root=ROOT):
