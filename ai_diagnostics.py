@@ -80,6 +80,26 @@ def attach_frozen_race(report, race_code, root=Path(__file__).resolve().parent):
             "race_dynamics_evidence": "not_provided"}
 
 
+def review_analysis_output(result, case=None):
+    """Deterministic evidence gate. Never approve research model changes."""
+    status = result.get("status") if isinstance(result, dict) else None
+    text = result.get("analysis", "") if isinstance(result, dict) else ""
+    case_ok = (isinstance(case, dict)
+               and case.get("status") == "historical_comparison_only"
+               and case.get("formal") is False
+               and case.get("remote_first_seen_verified") is False)
+    if status != "analysis_proposed" or not isinstance(text, str) or not text.strip():
+        verdict = "no_analysis"
+    elif not case_ok:
+        verdict = "research_case_not_verified"
+    else:
+        verdict = "manual_evidence_review_required"
+    return {"review_status": verdict, "production_change_allowed": False,
+            "formal_hit_rate_allowed": False, "improvement_proven": False,
+            "independent_predeadline_receipt_verified": False,
+            "next_gate": "Human source review and prospective temporal holdout required."}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, default=Path("ai_operations_report.json"))
@@ -92,6 +112,8 @@ def main():
         report = attach_frozen_race(report, args.race_code)
         args.case_output.write_text(json.dumps(report["frozen_four_mode_research_case"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     result = analyze(report)
+    result["evidence_review"] = review_analysis_output(
+        result, report.get("frozen_four_mode_research_case"))
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("AI diagnostics:", result["status"])
 
