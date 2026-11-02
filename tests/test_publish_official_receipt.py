@@ -1,3 +1,5 @@
+import fcntl
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -30,15 +32,30 @@ class PublishReceiptTests(unittest.TestCase):
                     publish_receipt(dest, "original.html", b"raw", {})
             self.assertFalse(dest.exists())
             self.assertFalse(list(dest.parent.glob(".receipt-*")))
-            self.assertFalse(list(dest.parent.glob("*.publish.lock")))
+            self.assertTrue(dest.with_name(dest.name + ".publish.lock").exists())
 
-    def test_existing_lock_rejects_second_writer(self):
+    def test_live_lock_rejects_second_writer(self):
+        with tempfile.TemporaryDirectory() as root:
+            dest = Path(root) / "observation"
+            lock = dest.with_name(dest.name + ".publish.lock")
+            fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o600)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with self.assertRaises(FileExistsError):
+                    publish_receipt(dest, "original.html", b"raw", {})
+                self.assertFalse(dest.exists())
+            finally:
+                os.close(fd)
+
+    def test_stale_unheld_lock_is_safe_to_reuse(self):
         with tempfile.TemporaryDirectory() as root:
             dest = Path(root) / "observation"
             dest.with_name(dest.name + ".publish.lock").touch()
+            publish_receipt(dest, "original.html", b"raw", {"status": "observed"})
+            self.assertEqual((dest / "original.html").read_bytes(), b"raw")
             with self.assertRaises(FileExistsError):
-                publish_receipt(dest, "original.html", b"raw", {})
-            self.assertFalse(dest.exists())
+                publish_receipt(dest, "original.html", b"changed", {})
+
 
 
 if __name__ == "__main__":
