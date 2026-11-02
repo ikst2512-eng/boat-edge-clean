@@ -33,6 +33,8 @@ def extract_text(response):
     for candidate in response["candidates"]:
         if not isinstance(candidate, dict):
             raise ValueError("invalid_candidate")
+        if candidate.get("finishReason") != "STOP":
+            raise ValueError("incomplete_or_blocked_generation")
         content = candidate.get("content", {})
         if not isinstance(content, dict) or not isinstance(content.get("parts"), list):
             raise ValueError("invalid_candidate_content")
