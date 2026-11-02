@@ -1,0 +1,58 @@
+name: Temporary joint T12 official source proof
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-joint-t12-20261102.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Official beforeinfo plus odds same race
+        shell: bash
+        run: |
+          mkdir -p reports
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          race='202611021910'
+          result=before(race,'evidence','before'+os.environ['GITHUB_RUN_ID'])
+          Path('reports/beforeinfo.json').write_text(json.dumps(result,ensure_ascii=False))
+          print('BEFORE',json.dumps(result,ensure_ascii=False))
+          if result.get('status')!='official_json_observed_not_t12_certified':
+              raise SystemExit('NO_OFFICIAL_BEFOREINFO')
+          clock=result.get('deadline_display')
+          if not isinstance(clock,str) or not re.fullmatch(r'\d{2}:\d{2}',clock):
+              raise SystemExit('NO_OFFICIAL_DEADLINE')
+          outcome=odds(race,'2026-11-02T'+clock+':00+09:00','evidence',
+                       'odds'+os.environ['GITHUB_RUN_ID'])
+          Path('reports/odds.json').write_text(json.dumps(outcome,ensure_ascii=False))
+          print('ODDS',json.dumps(outcome,ensure_ascii=False))
+          from datetime import datetime,timedelta
+          cutoff=datetime.fromisoformat('2026-11-02T'+clock+':00+09:00')-timedelta(minutes=12)
+          joint=bool(result.get('exhibition_time_nonempty_six') and
+                     result.get('tilt_observed_boats')==6 and
+                     result.get('start_exhibition_six_valid_rows') and
+                     outcome.get('complete_odds_observed_before_t12') and
+                     datetime.fromisoformat(result['received_at_jst'])<=cutoff)
+          summary={'race_code':race,'official_deadline':clock,
+                   'cutoff_jst':cutoff.isoformat(),'same_race_both_t12_complete':joint,
+                   'forecast_usable':False,'t12_eligible':False}
+          Path('reports/joint.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
+          print('JOINT',json.dumps(summary,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: joint-shimonoseki10-original-official-evidence
+          path: |
+            reports/
+            evidence/
+          retention-days: 7
