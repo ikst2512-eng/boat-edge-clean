@@ -1,0 +1,35 @@
+name: Hole strict temporal holdout research
+on:
+  pull_request:
+    paths:
+      - hole_strict_temporal_holdout.py
+      - test_hole_strict_temporal_holdout.py
+      - .github/workflows/hole-strict-temporal-holdout.yml
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_strict_temporal_holdout.py
+      - run: python hole_strict_temporal_holdout.py > hole_strict_temporal_holdout.json
+      - name: Check audit flags and output
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_strict_temporal_holdout.json'))
+          assert r['formal'] is False and r['prospective_validation'] is False
+          assert r['production_forecast_changed'] is False
+          if r.get('heldout_codes'):
+              assert all(code[:8]>r['training_max_date'] for code in r['heldout_codes'])
+          print(r['status'],r.get('heldout_comparable'),r.get('scenarios'))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-strict-temporal-holdout
+          path: hole_strict_temporal_holdout.json
