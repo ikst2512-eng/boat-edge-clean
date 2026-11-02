@@ -11,6 +11,14 @@ Do not equate any Top-N subset with a mode.
 | 穴 | Higher payout outcomes | hit rate, ROI, payout distribution |
 | 絞り | Only qualified positive-value opportunities | selection rate, selected-race hit rate, ROI, skipped count |
 
+## Canonical implementation verified against main (2026-11-02)
+- The existing user-facing prediction panel in `index.html` already displays **AI予想｜4モード** and reads `GET /api/four-mode-archive?code=...`; do not replace it with Top-N.
+- The canonical reader is `four_mode_archive_api.py`: `four_mode_forecasts/<race_code>.json`, schema `CLEAN_FOUR_MODES_PREDEADLINE_V1`, with modes `hit`, `balance`, `hole`, `narrow`. Each contains `tickets` entries `{combo,p}`.
+- That API expressly returns `historical_research_only`, `production_forecast:false`, `verified_first_git_add:false` and `actual_hit_rate_pct:null`. Do **not** interpret it as validated production four-mode performance.
+- The distinct `four_mode_performance/verified_races` records are historical **simulated** performance, not current formal predictions. Keep the existing UI separation.
+- The current focused PR's `collect_clean_prospective.py` emits **one** national-beta ranked list, not four per-mode outputs. Its corrected timestamps must not be advertised as a four-mode generation fix.
+- The mode names above are existing implementation labels, not permission to change model objectives, allocation, buy/no-buy thresholds or display format. Preserve actual implementation decisions unless separately tested and authorized.
+
 ## Cohort and provenance
 - Each mode must preserve its **own frozen tickets, selection state, stake, forecast timestamp, source receipts and model version** before race cutoff; never infer these from another mode's Top-N.
 - Evaluate all four modes on the same eligible race inventory, while reporting `絞り` selection rate and chosen-race performance separately; skipped races are **not losses**.
