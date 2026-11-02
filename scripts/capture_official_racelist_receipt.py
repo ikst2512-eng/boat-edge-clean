@@ -60,7 +60,9 @@ def capture(race_code, root, observation_id, *, fetch=None, clock=None):
                       sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
         publish_receipt(dest, "racelist.html", raw, report)
     except Exception as exc:
-        report.update(status="official_racelist_probe_failed", error=type(exc).__name__)
+        report.update(status="official_racelist_probe_failed", error=type(exc).__name__,
+                      error_reason=(str(exc)[:180] if isinstance(exc, ValueError) else ""),
+                      http_status=getattr(exc, "code", None))
     return report
 
 
