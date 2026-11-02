@@ -1,0 +1,28 @@
+name: Temporary Shimonoseki 10R official beforeinfo snapshot
+on:
+  pull_request:
+    paths: ['.github/workflows/temporary-shimonoseki10-2109.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Immutable early snapshot
+        run: |
+          mkdir -p reports
+          python -m scripts.capture_official_beforeinfo_json 202611021910 --root evidence --observation-id "run${GITHUB_RUN_ID}" > reports/beforeinfo.json
+          cat reports/beforeinfo.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shimonoseki10-early-original-json
+          path: |
+            reports/
+            evidence/
+          retention-days: 7
