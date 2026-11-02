@@ -94,6 +94,19 @@ class CleanFourModeTests(unittest.TestCase):
         self.assertIn("result.source_url!==source",html)
         self.assertIn("stamp<confirmed",html)
 
+    def test_mobile_ticket_hierarchy_and_cutoff_labels(self):
+        from pathlib import Path
+        html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
+        self.assertIn("combo.className='four-mode-combo'",html)
+        self.assertIn("prob.className='four-mode-prob'",html)
+        self.assertIn("extra.className='four-mode-odds'",html)
+        self.assertIn(".four-mode-combo{font-size:18px",html)
+        self.assertIn(".four-mode-prob{font-size:12px",html)
+        self.assertIn(".four-mode-odds{grid-column:1/-1",html)
+        self.assertIn("font-size:11px",html)
+        self.assertIn("i+'R'+(time?' 締切 '+time:'')",html)
+        self.assertIn("time=/^\\d{2}:\\d{2}$/.test(r?.deadline||'')",html)
+
     def test_retired_live_api_generator_not_available(self):
         self.assertFalse(hasattr(model,"forecast"))
 
