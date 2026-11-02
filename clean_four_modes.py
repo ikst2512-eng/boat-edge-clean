@@ -14,36 +14,37 @@ def rank_modes(prob_rows):
     rows=[("-".join(map(str,t)),float(p)) for t,p in prob_rows]
     if len(rows)!=120 or abs(sum(p for _,p in rows)-1)>1e-6:
         raise ValueError("probability_board_invalid")
-    hit=rows[:]
-    # Spread balance candidates across different 1st/2nd-place branches.
-    # Never hardcode a particular lane as favored.
-    remaining=list(rows)
-    balance=[]
+    from itertools import permutations
+    import math
+    keys=[combo for combo,_ in rows]
+    valid={"-".join(map(str,t)) for t in permutations(range(1,7),3)}
+    if len(set(keys))!=120 or set(keys)!=valid or any(not math.isfinite(p) or p<0 for _,p in rows):
+        raise ValueError("probability_board_invalid")
+    ranked=sorted(rows,key=lambda item:(-item[1],item[0]))
+    # Provisional new-generation count ladder, not a claim of historically agreed exact counts.
+    # All modes use probability estimates, not unverified official odds.
+    counts={"narrow":5,"hit":10,"balance":16,"hole":22}
+    remaining=list(ranked)
+    diverse=[]
     while remaining:
-        firsts={x[0][0] for x in balance}
-        pairs={x[0][:3] for x in balance}
-        best=max(remaining,key=lambda x:(x[1]*(1.0+(0.30 if x[0][0] not in firsts else 0)+(0.15 if x[0][:3] not in pairs else 0)),-int(x[0][0]),-int(x[0][2]),-int(x[0][4])))
+        firsts={combo[0] for combo,_ in diverse}
+        pairs={combo[:3] for combo,_ in diverse}
+        best=max(remaining,key=lambda x:(x[1]*(1+(0.30 if x[0][0] not in firsts else 0)+(0.15 if x[0][:3] not in pairs else 0)),x[1],x[0]))
+        diverse.append(best)
         remaining.remove(best)
-        balance.append(best)
-    # Hole is low-probability coverage, NOT a fabricated high-odds forecast.
-    hole=sorted(rows,key=lambda item:(abs(item[1]-0.004),-item[1],item[0]))
-    narrow=rows[:]
-    ordering={"hit":hit,"balance":balance,"hole":hole,"narrow":narrow}
-    caps={"hit":30,"balance":20,"hole":12,"narrow":5}
+    # Moderate-hole: exclude the ten most likely tickets but avoid a tiny-probability tail.
+    ordering={"narrow":ranked[:5],"hit":ranked[:10],"balance":diverse[:16],
+              "hole":ranked[10:32]}
     modes={}
-    for name,ordered in ordering.items():
-        target=TARGETS[name]
-        selected=[]
-        total=0.0
-        for combo,p in ordered:
-            selected.append({"combo":combo,"p":round(p*100,5)})
-            total+=p
-            if total>=target or len(selected)>=caps[name]:
-                break
-        modes[name]={"tickets":selected,"estimated_coverage_pct":round(total*100,2),
-                     "target_hit_rate_pct":round(target*100,1),
-                     "target_met_by_estimate":total>=target,
-                     "actual_hit_rate_pct":None}
+    for name,selected in ordering.items():
+        total=sum(p for _,p in selected)
+        modes[name]={"tickets":[{"combo":combo,"p":round(p*100,5)} for combo,p in selected],
+                     "estimated_coverage_pct":round(total*100,2),
+                     "target_hit_rate_pct":round(TARGETS[name]*100,1),
+                     "target_met_by_estimate":total>=TARGETS[name],
+                     "actual_hit_rate_pct":None,
+                     "count_policy":"provisional_new_generation_v2"}
+    assert ticket_order_audit(modes)["status"]=="pass"
     return modes
 
 
