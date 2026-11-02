@@ -6,8 +6,9 @@ from scripts.reaudit_joint_t12_inventory import reaudit_inventory
 class InventoryReauditTests(unittest.TestCase):
     def test_only_verified_source_pairs_count(self):
         data = {"repo":"test/repo","pagination_may_be_truncated":False,
-                "real_dispatch_runs_seen":1,
-                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77,78]}]}
+                "real_dispatch_runs_seen":2,
+                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77]},
+                        {"run_id":124,"matching_unexpired_artifact_ids":[78]}]}
         def loader(repo, token, artifact):
             if artifact == 78:
                 raise OSError("expired")
@@ -20,6 +21,15 @@ class InventoryReauditTests(unittest.TestCase):
                          {"source_reaudit_complete":1,"source_reaudit_unresolved":1})
         self.assertIsNone(result["historical_success_rate"])
         self.assertFalse(result["full_history_verified"])
+
+    def test_two_different_artifacts_for_same_run_are_ambiguous(self):
+        data = {"repo":"test/repo","pagination_may_be_truncated":False,
+                "real_dispatch_runs_seen":1,
+                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77,78]}]}
+        with self.assertRaises(ValueError):
+            reaudit_inventory(data,"test/repo","token",lambda *a:b"zip",
+                              lambda *a:{"independently_verified_complete_pairs":1,
+                                         "attempt_reports":1})
 
     def test_duplicate_artifact_cannot_double_count_verified_pairs(self):
         data = {"repo":"test/repo","pagination_may_be_truncated":False,
@@ -42,8 +52,9 @@ class InventoryReauditTests(unittest.TestCase):
 
     def test_corrupt_zip_does_not_abort_other_artifacts(self):
         data = {"repo":"test/repo","pagination_may_be_truncated":False,
-                "real_dispatch_runs_seen":1,
-                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77,78]}]}
+                "real_dispatch_runs_seen":2,
+                "runs":[{"run_id":123,"matching_unexpired_artifact_ids":[77]},
+                        {"run_id":124,"matching_unexpired_artifact_ids":[78]}]}
         def auditor(raw, run):
             if raw == b"corrupt":
                 raise BadZipFile("broken archive")
