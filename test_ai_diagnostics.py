@@ -23,7 +23,8 @@ class DiagnosticsTests(unittest.TestCase):
     def test_sends_report_read_only(self):
         def fake(req, timeout):
             payload = json.loads(req.data)
-            self.assertIn("gemini-3.5-flash-lite:generateContent", req.full_url)\n            self.assertEqual(req.get_header("X-goog-api-key"), "example")
+            self.assertIn("gemini-3.5-flash-lite:generateContent", req.full_url)
+            self.assertEqual(req.get_header("X-goog-api-key"), "example")
             self.assertIn("本命", payload["system_instruction"]["parts"][0]["text"])
             self.assertIn("balance", payload["contents"][0]["parts"][0]["text"])
             self.assertEqual(timeout, 35)
