@@ -45,6 +45,26 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertFalse(result["forecast_usable"])
         self.assertFalse(result["t12_eligible"])
 
+    def test_non_numeric_nonfinite_and_boolean_are_not_observed_readings(self):
+        for invalid in ("--", "pending", "NaN", "Infinity", "-Infinity", True, False, 0, -1):
+            with self.subTest(invalid=invalid):
+                p = self.sample(["6.8"] * 6)
+                p["maindata"]["teiinfolist"][0]["extime"] = invalid
+                report = inspect(p)
+                self.assertEqual(report["exhibition_time_observed_boats"], 5)
+                self.assertFalse(report["exhibition_time_nonempty_six"])
+                self.assertFalse(report["forecast_usable"])
+
+    def test_zero_negative_tilt_are_valid_but_invalid_strings_are_not(self):
+        p = self.sample(["6.8"] * 6)
+        tilts = [0, -0.5, "0.0", "-0.5", "N/A", "Infinity"]
+        for boat, tilt in zip(p["maindata"]["teiinfolist"], tilts):
+            boat["tilt"] = tilt
+        report = inspect(p)
+        self.assertEqual(report["tilt_observed_boats"], 4)
+        self.assertTrue(report["exhibition_time_nonempty_six"])
+        self.assertFalse(report["t12_eligible"])
+
     def test_missing_schema_rejected(self):
         with self.assertRaises(ValueError):
             inspect({"maindata": {"teiinfolist": None}})
