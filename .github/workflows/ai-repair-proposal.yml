@@ -147,7 +147,16 @@ jobs:
           # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
-          gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."
+          # Some repositories disable PR creation by GitHub Actions even with
+          # pull-requests:write. Keep the reviewed patch branch available.
+          if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval."; then
+            echo "AI draft PR created"
+          else
+            echo "::warning::AI branch pushed but draft PR creation is restricted. Open a draft PR manually or grant Actions PR creation permission."
+            echo "### Manual review needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "AI patch branch: \`$branch\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "Open a draft PR: https://github.com/${GITHUB_REPOSITORY}/pull/new/$branch" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Archive proposal
         if: always()
         uses: actions/upload-artifact@v4
