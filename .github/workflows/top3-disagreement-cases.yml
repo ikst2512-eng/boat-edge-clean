@@ -1,0 +1,28 @@
+name: Research Top3 disagreement cases
+on:
+  pull_request:
+    paths:
+      - four_mode_top3_disagreement_cases.py
+      - test_four_mode_top3_disagreement_cases.py
+      - .github/workflows/top3-disagreement-cases.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regression test
+        run: python -m unittest -v test_four_mode_top3_disagreement_cases
+      - name: Inspect real historical disagreements
+        run: python four_mode_top3_disagreement_cases.py | tee top3_disagreement_cases.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top3-disagreements-${{ github.run_id }}
+          path: top3_disagreement_cases.log
+          retention-days: 30
