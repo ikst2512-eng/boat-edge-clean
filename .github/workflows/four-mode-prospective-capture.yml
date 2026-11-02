@@ -281,7 +281,7 @@ jobs:
               with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
                   output.write("### Four-mode research capture\n")
                   output.write(f"- status_current_day: {data.get('day_jst') == expected_day}\n")
-                  for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","cutoff_skipped","already_saved","research_archives_present","production_success_proven"):
+                  for key in ("day_jst","source_status","published_title_rows","published_card_rows","eligible_forecasts_today","last_run_new_count","capture_outcome","cutoff_skipped","already_saved","research_archives_present","production_success_proven"):
                       output.write(f"- {key}: {data.get(key, 'unavailable')}\n")
                   output.write(f"- staging: {staging if staging is not None else 'not reached'}\n")
                   output.write(f"- publication: {publication['outcome']}\n")
