@@ -976,3 +976,9 @@
 - GitHub Actions `workflow_dispatch` 履歴では `AI operations optional diagnostics` の実API分析runは引き続き0件。既存モデル名 `gemini-3.5-flash-lite` はGoogle公式モデル資料で有効なモデル名と確認したが、当該キーでのAPIアクセス成功は未確認。
 - `ai_diagnostics.extract_text` で Gemini `finishReason=STOP` を必須化。テキストがあっても MAX_TOKENS、SAFETY、finishReason欠損は分析成功扱いしない。模擬レスポンスと回帰テスト更新。
 - PR #1041 AI operations optional diagnostics CI `41453095723` completed/success、main squash `04e10368827bae073a0681e4c5065ff8cabf02de`。実Gemini APIはこのCIで呼んでいない。4モード・買い目・正式的中率を不変更。
+
+
+## 2026-11-02 Gemini研究AIの複数候補混同対策（PR #1044）
+- Gemini応答の `finishReason` がSTOP以外の打ち切り・ブロックを拒否する仕組みは、別作業のPR #1041で既にmain統合されていることを確認し、重複変更を回避。
+- 今回は `ai_diagnostics.extract_text` が複数候補の内容を連結して単一の分析案と誤認し得る点を修正。候補はちょうど1件のみ受理し、複数候補は `ambiguous_candidate_count` でfail closed。回帰テスト追加。
+- PR #1044 AI operations optional diagnostics CI `41453379722` completed/success、main squash `9eb6eb926ea56fb7147ec11b70b78b453a29785c`。モックCIでありGemini実API分析の成功ではない。4モード・予想ロジック不変更。
