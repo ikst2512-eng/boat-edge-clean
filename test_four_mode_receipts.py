@@ -57,6 +57,12 @@ class FourModeReceiptTests(unittest.TestCase):
         self.write()
         with self.assertRaises(ValueError):
             verify([str(self.path)],now=self.now)
+    def test_refuses_future_generated_timestamp(self):
+        self.record["generated_at_jst"]=(self.now+timedelta(seconds=1)).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "deadline_or_receipt_expired"):
+            verify([str(self.path)],now=self.now)
+
     def test_refuses_missing_mode(self):
         self.record["modes"].pop("hole")
         self.write()
