@@ -18,6 +18,25 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
     rows = [comparator(code, root) for code in codes]
     eligible = [r for r in rows if r.get("status") == "historical_comparison_only"
                 and r.get("formal") is False and r.get("remote_first_seen_verified") is False]
+    # Fail closed: missing/invalid flags are never silently counted as misses.
+    for row in eligible:
+        if not isinstance(row.get("modes"), dict):
+            raise ValueError("untrusted_mode_rows")
+        for mode in MODES:
+            part = row["modes"].get(mode)
+            if not isinstance(part, dict):
+                raise ValueError("untrusted_mode_rows")
+            flags = [part.get(f"top{n}") for n in (3, 5, 10)]
+            if any(type(flag) is not bool for flag in flags):
+                raise ValueError("invalid_topn_flags")
+            if (flags[0] and not flags[1]) or (flags[1] and not flags[2]):
+                raise ValueError("nonmonotonic_topn")
+            if part.get("coverage_diagnostic") not in CATEGORIES:
+                raise ValueError("invalid_coverage")
+            if part["coverage_diagnostic"] == "covered" and not flags[2]:
+                raise ValueError("covered_without_top10")
+            if part.get("race_dynamics_cause") != "not_determined":
+                raise ValueError("untrusted_dynamics")
     by_mode = {}
     for mode in MODES:
         counts = Counter()
