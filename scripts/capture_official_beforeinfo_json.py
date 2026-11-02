@@ -5,6 +5,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from scripts.publish_official_receipt import publish_receipt
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -66,10 +67,7 @@ def capture(race_code, root, observation_id, fetch=None, clock=None):
         report.update(verdict)
         report.update(status="official_json_observed_not_t12_certified",
                       sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
-        dest.mkdir(parents=True, exist_ok=False)
-        (dest / "beforeinfo.json").write_bytes(raw)
-        (dest / "manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2),
-                                             encoding="utf-8")
+        publish_receipt(dest, "beforeinfo.json", raw, report)
     except Exception as exc:
         report.update(status="official_json_probe_failed", error=type(exc).__name__)
     return report
