@@ -33,9 +33,21 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         self.assertEqual(r["modes"]["hit"]["winning_rank"], 1)
         self.assertTrue(r["modes"]["hit"]["top3"])
         self.assertFalse(r["modes"]["balance"]["top10"])
+        self.assertEqual(r["modes"]["balance"]["coverage_diagnostic"], "winner_head_absent")
+        self.assertEqual(r["modes"]["hit"]["coverage_diagnostic"], "covered")
+        self.assertEqual(r["modes"]["hole"]["race_dynamics_cause"], "not_determined")
         self.assertFalse(r["formal"])
         self.assertFalse(r["remote_first_seen_verified"])
         self.assertNotIn("roi",r)
+    def test_miss_taxonomy_uses_only_frozen_tickets(self):
+        a = archive()
+        a["modes"]["balance"]["tickets"] = [{"combo": "1-3-2", "p": 4.5}]
+        a["modes"]["hole"]["tickets"] = [{"combo": "1-2-4", "p": 4.5}]
+        (self.root/"four_mode_forecasts"/(CODE+".json")).write_text(json.dumps(a))
+        modes = compare_race(CODE, self.root)["modes"]
+        self.assertEqual(modes["balance"]["coverage_diagnostic"], "winner_second_pair_absent")
+        self.assertEqual(modes["hole"]["coverage_diagnostic"], "winner_third_absent")
+
     def test_missing_result_is_not_a_loss(self):
         self.result.unlink()
         self.assertEqual(compare_race(CODE,self.root)["status"],"result_unavailable")
