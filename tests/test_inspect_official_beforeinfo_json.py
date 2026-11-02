@@ -16,6 +16,8 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertEqual(result["racers_listed"], 6)
         self.assertTrue(result["six_unique_boats"])
         self.assertFalse(result["exhibition_time_nonempty_six"])
+        self.assertEqual(result["exhibition_time_observed_boats"], 0)
+        self.assertEqual(result["tilt_observed_boats"], 0)
         self.assertFalse(result["forecast_usable"])
         self.assertFalse(result["t12_eligible"])
 
@@ -32,6 +34,16 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         self.assertFalse(inspect(result)["six_unique_boats"])
         self.assertFalse(inspect(result)["exhibition_time_nonempty_six"])
         self.assertFalse(inspect(self.sample(["6.8"]*5 + [""]))["exhibition_time_nonempty_six"])
+
+    def test_partial_exhibition_counts_do_not_certify(self):
+        payload = self.sample(["6.8", "6.9", "", "", "", ""])
+        payload["maindata"]["teiinfolist"][0]["tilt"] = "-0.5"
+        result = inspect(payload)
+        self.assertEqual(result["exhibition_time_observed_boats"], 2)
+        self.assertEqual(result["tilt_observed_boats"], 1)
+        self.assertFalse(result["exhibition_time_nonempty_six"])
+        self.assertFalse(result["forecast_usable"])
+        self.assertFalse(result["t12_eligible"])
 
     def test_missing_schema_rejected(self):
         with self.assertRaises(ValueError):
