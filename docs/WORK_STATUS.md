@@ -938,3 +938,11 @@
 - `link_four_mode_raw_forecast.py` が、予想生成後に取得した元データでも同ハッシュなら一致扱いにし得る点を修正。JST受信時刻 <= JST予想生成時刻を必須にし、遅い証拠を照合対象から除外。テスト追加。
 - PR #1021 Four-mode prospective capture run `41443079562` completed/success、main squash `02b7387d95c76bf6152fce6e53604b96f5d5c3f0`。一度main更新競合したが再確認の上正常統合。
 - 実生データの保全・ハッシュ照合、独立remote-first-seen、Gemini実API、的中率改善は未確認。予想原本・モデル・4モード不変更。
+
+
+## 2026-11-02 Gemini予想研究向け4モード複数レース比較（PR #1027）
+- 手動workflow_dispatch履歴を確認。`AI operations optional diagnostics` の手動Gemini実API実行成功は今回も見つからず、`AI repair proposal` の実行とは混同しない。
+- `four_mode_research_batch.py` を追加。最大30件の履歴4モード固定買い目と確定結果を比較し、モード別の外れ分類、Top3/Top5/Top10、結果待ち・不正記録を分離。欠場・水面展開などの原因を結果だけから捏造しない。
+- 出力は必ず `formal=false`、`model_improvement_proven=false`、`remote_first_seen_verified=false`。この履歴率は正式な前向き的中率ではない。既存モード順・買い目・予想ロジック変更なし。
+- PR #1027 AI operations optional diagnostics run `41444434450` completed/success、main squash `fb87d710b0ddb9784a7f4e090903ac08b3120891`。
+- 次は実レース履歴複数件で一括研究レポートを生成し、Geminiを手動実行した際の監査用入力に利用する。実API成功・予想改善・Render本番は未検証。
