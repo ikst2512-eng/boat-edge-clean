@@ -796,3 +796,11 @@
 - #954 squash merge `826abf1e77d2295de79c61be4452c14e2a7d9336`。重複・競合した旧PR #851は後継PRへの置き換えとしてクローズ。
 - 注意: この比較はGit初回公開時刻を独立検証していない研究用であり、正式的中率・ROI・精度向上の証明ではない。Render公開の実動作、Geminiの実データ実行も未検証。
 - 次: 保存証拠を持つ4モードの真正性監査→レース別外れ原因分類→Geminiへの読み取り専用入力→実測比較。運用予想の自動書換禁止。
+
+
+## 2026-11-02 4モード買い目取りこぼし分類（PR #956）
+- 最新mainから分岐し、`four_mode_frozen_diagnostic.py` に `coverage_diagnostic` を追加。`covered` / `winner_head_absent` / `winner_second_pair_absent` / `winner_third_absent` の4分類を保存券と確定3連単のみに基づいて計算。
+- `race_dynamics_cause=not_determined` を明示。逃げ/差し/まくり・展示・STの物理的原因を、結果のみで断定しない。予想券、予測値、4モード、オッズ順位、正式実測集計を変更しない。
+- 回帰テストで1着欠落、1-2着ペア欠落、3着欠落、的中、結果欠損を検査。Research forecast checks run `41432055746` completed/success。
+- PR #956 main squash `3edcde5de2b56964dc9db881ad48d645239f9820`。これは履歴研究用（formal=false、remote_first_seen_verified=false）であり、正式的中率・精度向上の実証ではない。本番公開ブラウザ・Gemini実データ実行は未検証。
+- 次: 外れ分類の実レース例照合と、独立検証された締切前展示/進入/STの結合。Geminiへは読み取り専用で渡し、採用前に時系列holdout/正式prospective評価を行う。
