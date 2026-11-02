@@ -62,6 +62,10 @@ class CleanFourModeTests(unittest.TestCase):
         board={combo:50.0 for combo in combos}
         finish=model.research_hole_candidates(p)["tickets"][0]["combo"]
         checked=model.compare_hole_candidates(p,board,finish)
+        self.assertTrue(checked["odds_supplied"])
+        self.assertTrue(checked["result_supplied"])
+        self.assertFalse(checked["odds_verified"])
+        self.assertFalse(checked["result_verified"])
         self.assertEqual(checked["moderate_candidate"]["official_odds_range"],[50.0,50.0])
         self.assertTrue(checked["moderate_candidate"]["hit"])
         self.assertFalse(checked["historical_formal_evidence"])
