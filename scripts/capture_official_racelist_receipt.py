@@ -53,6 +53,9 @@ def capture(race_code, root, observation_id, *, fetch=None, clock=None):
             raise ValueError("invalid JST chronology")
         if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_BYTES:
             raise ValueError("invalid original bytes")
+        report["response_bytes"] = len(raw)
+        report["response_sha256"] = hashlib.sha256(raw).hexdigest()
+        report["response_prefix_hex"] = raw[:24].hex()
         prefix = raw.lstrip()[:256].lower()
         if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
             raise ValueError("non-HTML source response")
