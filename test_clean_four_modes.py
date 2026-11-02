@@ -35,6 +35,18 @@ class CleanFourModeTests(unittest.TestCase):
         audit=model.ticket_order_audit(result)
         self.assertEqual(audit["status"],"mismatch")
 
+    def test_frontend_four_mode_display_contract(self):
+        from pathlib import Path
+        html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
+        self.assertIn("const modes=[['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']]",html)
+        self.assertIn("status.dataset.orderWarning=orderValid?'false':'true'",html)
+        self.assertIn('#fourModeForecastStatus[data-order-warning="true"]{display:block',html)
+        self.assertIn("overflow-wrap:anywhere",html)
+        self.assertIn("オッズ未取得（検証可能なデータなし）",html)
+        self.assertIn("結果未取得（的中・不的中は未判定）",html)
+        self.assertIn("result.source_url!==source",html)
+        self.assertIn("stamp<confirmed",html)
+
     def test_retired_live_api_generator_not_available(self):
         self.assertFalse(hasattr(model,"forecast"))
 
