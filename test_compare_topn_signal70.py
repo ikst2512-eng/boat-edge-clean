@@ -48,6 +48,21 @@ class Signal70Tests(unittest.TestCase):
             self.assertEqual(group["rejection_reasons"]["first_add_missing_or_ambiguous"],1)
             self.assertIsNone(group["hit_rate_pct"]["top3"])
 
+    def test_late_commit_and_late_source_are_distinct_rejections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
+            for code in ("202610300101","202610300102"):
+                (d/(code+".json")).write_text(json.dumps({"national_win_rates":[1]*6}))
+            def scorer(code,root):
+                raise ValueError("generated after cutoff" if code.endswith("01")
+                                 else "first Git commit not before prospective cutoff")
+            report=compare("20261030",root,scorer,lambda rates: .8)
+            group=report["groups"]["signal_70_plus"]
+            self.assertEqual(group["rejected"],2)
+            self.assertEqual(group["rejection_reasons"],
+                             {"generation_late":1,"first_commit_late":1})
+            self.assertEqual(group["evaluated"],0)
+
     def test_missing_rank_with_hit_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); d=root/"prospective_predictions"; d.mkdir()
