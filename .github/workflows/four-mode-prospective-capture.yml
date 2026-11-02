@@ -53,6 +53,8 @@ jobs:
       - name: Capture predeadline records
         id: source_capture
         if: github.event_name != 'pull_request'
+        env:
+          FOUR_MODE_RAW_RECEIPT_DIR: four-mode-evidence/raw-sources
         run: |
           set -o pipefail
           mkdir -p four-mode-evidence
@@ -271,6 +273,7 @@ jobs:
         with:
           name: four-mode-capture-${{ github.run_id }}
           path: |
+            four-mode-evidence/raw-sources/**
             four-mode-evidence/capture.log
             four-mode-evidence/staging.json
             four-mode-evidence/publication.json
