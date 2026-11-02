@@ -122,6 +122,13 @@ jobs:
           assert sum(reasons.values())==d["audit_rejected_races"]
           assert (d["archived_candidates"]==d["evaluated_holdout_races"]+
                   d["awaiting_result_races"]+d["audit_rejected_races"])
+          # Archived post-discovery cohort has confirmed historical results.
+          # Prevent the earlier 550 archived / 0 evaluated regression from
+          # passing as a healthy HTTP 200. This is an operational smoke guard,
+          # not an assertion of independently validated forecasting accuracy.
+          if d["archived_candidates"]>=550:
+              assert d["evaluated_holdout_races"]>0, (
+                  "holdout audit regression: archived cohort has zero evaluated races")
           if d["later_holdout_days"]==0:
               assert d["evaluated_holdout_races"]==0
               assert d["independently_validated"] is False
