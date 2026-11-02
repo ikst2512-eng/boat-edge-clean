@@ -7,6 +7,8 @@ on:
       - 'scripts/inventory_joint_t12_history.py'
       - 'scripts/render_joint_t12_inventory_summary.py'
       - 'scripts/inspect_joint_t12_archive.py'
+      - 'scripts/reaudit_joint_t12_archive.py'
+      - 'tests/test_reaudit_joint_t12_archive.py'
       - 'tests/test_inspect_joint_t12_archive.py'
   pull_request:
     paths:
@@ -47,3 +49,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_inventory_joint_t12_history.py' -v
           python -m unittest discover -s tests -p 'test_render_joint_t12_inventory_summary.py' -v
           python -m unittest discover -s tests -p 'test_inspect_joint_t12_archive.py' -v
+          python -m unittest discover -s tests -p 'test_reaudit_joint_t12_archive.py' -v
