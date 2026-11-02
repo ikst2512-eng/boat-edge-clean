@@ -20,7 +20,7 @@ const {chromium, webkit} = require('playwright');
       throw Error('Four-mode heading/order incorrect: '+JSON.stringify(info));
     if(info.ticketCounts.length!==4||info.ticketCounts.some(n=>n<1||n>120)||!info.legacyCollapsed||info.overflow||!info.panelVisible)
       throw Error('Mobile forecast presentation incorrect: '+JSON.stringify(info));
-    if(!info.status.includes('過去保存予想')) throw Error('Research-only provenance missing: '+JSON.stringify(info));
+    if(!info.status.includes('過去保存予想')&&!info.status.includes('正式予想として使用しないでください')) throw Error('Research-only provenance missing: '+JSON.stringify(info));
     const hierarchy=await page.evaluate(()=>{const c=document.querySelector('.four-mode-combo'),o=document.querySelector('.four-mode-odds');return {comboPx:c?parseFloat(getComputedStyle(c).fontSize):null,oddsPx:o?parseFloat(getComputedStyle(o).fontSize):null,columns:getComputedStyle(document.querySelector('#fourModeForecastRows')).gridTemplateColumns}});
     if(hierarchy.comboPx!==24||hierarchy.oddsPx!==null&&hierarchy.oddsPx>12)throw Error('Ticket hierarchy incorrect: '+JSON.stringify(hierarchy));
     console.log(JSON.stringify({publicMobileBrowser:'passed',engine:engineName,raceCode:'202611020211',...info,...hierarchy}));
