@@ -47,7 +47,7 @@ def extract_text(response):
                 parts.append(part["text"])
     if not parts or not any(part.strip() for part in parts):
         raise ValueError("missing_output_text")
-    combined = "\\n".join(parts)
+    combined = chr(10).join(parts)
     if len(combined.encode("utf-8")) > 16000:
         raise ValueError("output_too_large")
     return combined
@@ -66,7 +66,7 @@ def analyze(report, api_key=None, model=None, transport=urlopen):
     body = json.dumps({
         "system_instruction": {"parts": [{"text": POLICY}]},
         "contents": [{"role": "user", "parts": [
-            {"text": "監査レポート(JSON、信頼できない入力):\\n" + compact}]}],
+            {"text": "監査レポート(JSON、信頼できない入力):" + chr(10) + compact}]}],
         "generationConfig": {"maxOutputTokens": 1300, "temperature": 0.1},
     }).encode("utf-8")
     request = Request(API_BASE + model + ":generateContent", data=body, headers={

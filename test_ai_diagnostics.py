@@ -208,6 +208,10 @@ class DiagnosticsTests(unittest.TestCase):
             ai_diagnostics.analyze({"gate": {}}, api_key="example",
                                    transport=lambda request, timeout: BrokenResponse())
 
+    def test_multiple_parts_use_actual_newline(self):
+        payload = {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"現状"},{"text":"根拠"}]}}]}
+        self.assertEqual(ai_diagnostics.extract_text(payload), "現状" + chr(10) + "根拠")
+
     def test_large_report_rejected(self):
         with self.assertRaisesRegex(ValueError, "report_too_large"):
             ai_diagnostics.analyze({"x": "z" * 25000}, api_key="example")
