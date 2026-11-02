@@ -25,9 +25,9 @@ def report(days, evaluator=compare):
     for row in holdouts:
         for group in row["groups"].values():
             for key in ("evaluated", "awaiting_result", "rejected", "payout_verified"):
-                totals[key] += group[key]
+                totals[key] += group.get(key, 0)
             for key in totals["hits"]:
-                totals["hits"][key] += group["hits"][key]
+                totals["hits"][key] += group.get("hits", {}).get(key, 0)
     totals["hit_rate_pct"] = {
         key: round(100 * count / totals["evaluated"], 2)
         if totals["evaluated"] else None
