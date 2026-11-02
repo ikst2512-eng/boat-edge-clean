@@ -79,6 +79,21 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             self.assertFalse(report["entry_verified"])
             self.assertFalse(report["full_t12_source_certified"])
 
+    def test_xml_declared_original_is_accepted_by_independent_audit(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = self.make(root)
+            original = directory / "racelist.html"
+            raw = b'<?xml version="1.0"?><html><body>fixture</body></html>'
+            original.write_bytes(raw)
+            manifest_file = directory / "manifest.json"
+            manifest = json.loads(manifest_file.read_text())
+            manifest["sha256"] = hashlib.sha256(raw).hexdigest()
+            manifest["bytes"] = len(raw)
+            manifest_file.write_text(json.dumps(manifest))
+            report = audit_racelist(directory, RACE, "2026-11-03T10:05:00+09:00")
+            self.assertTrue(report["original_hash_verified"])
+            self.assertFalse(report["six_racers_verified"])
+
     def test_late_receipt_is_not_t12(self):
         with tempfile.TemporaryDirectory() as root:
             directory = self.make(root)

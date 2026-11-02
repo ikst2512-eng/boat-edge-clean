@@ -1,9 +1,12 @@
 name: Official racelist raw source observation (research only)
+# PR diagnosis: accept observed XML-declared XHTML; retain source-only evidence.
 on:
   # One-off evidence observation: this workflow file's first merge on 2026-11-03.
   # The in-job JST date gate rejects all other calendar dates.
   push:
     branches: [main]
+    paths: ['.github/workflows/official-racelist-live-dispatch.yml']
+  pull_request:
     paths: ['.github/workflows/official-racelist-live-dispatch.yml']
   workflow_dispatch:
     inputs:
@@ -24,7 +27,7 @@ jobs:
           python-version: '3.11'
       - name: Capture official racecard raw bytes with immutable timestamp
         env:
-          RACE_CODE: ${{ github.event_name == 'push' && '202611030212' || inputs.race_code }}
+          RACE_CODE: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && '202611030212' || inputs.race_code }}
         run: |
           python - <<'PY'
           import json, os, re

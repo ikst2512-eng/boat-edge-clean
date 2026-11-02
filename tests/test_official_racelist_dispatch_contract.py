@@ -8,7 +8,7 @@ class OfficialRacelistDispatchContract(unittest.TestCase):
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("branches: [main]", workflow)
         self.assertIn("202611030212", workflow)
-        self.assertIn("github.event_name == 'push'", workflow)
+        self.assertIn("github.event_name == 'pull_request'", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn('code[:8] != datetime.now(JST).strftime("%Y%m%d")', workflow)
         self.assertIn('capture(code, "evidence"', workflow)
