@@ -126,6 +126,21 @@ jobs:
             # Rebasing changes the commit timestamp. Recheck the actual candidate
             # immediately before publication; never push an expired receipt.
             python scripts/verify_four_mode_new_receipts.py --commit HEAD --buffer-seconds 90
+            # Verify the exact first-add blob and Git chronology before pushing.
+            # This is local provenance only, never remote first-seen validation.
+            python - <<'PY'
+            import subprocess
+            from audit_four_mode_first_add import inspect
+            names = subprocess.check_output(
+                ["git", "diff-tree", "--no-commit-id", "--name-only",
+                 "--diff-filter=A", "-r", "HEAD", "--",
+                 "four_mode_forecasts/"], text=True).splitlines()
+            if not names:
+                raise SystemExit("No immutable forecasts in capture commit")
+            for name in names:
+                inspect(name)
+            print("First-add local chronology preflight passed:", len(names))
+            PY
             if git push origin HEAD:main; then
               # Record the exact pushed commit, not just a success label.
               # This allows the immutable first-add audit to inspect its blob.
