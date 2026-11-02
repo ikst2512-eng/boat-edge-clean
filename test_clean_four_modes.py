@@ -51,6 +51,23 @@ class CleanFourModeTests(unittest.TestCase):
         new=[row["p"] for row in candidate["tickets"]]
         self.assertGreater(sum(new)/len(new),sum(old.values())/len(old))
 
+    def test_hole_comparison_never_invents_actual_odds_or_results(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.compare_hole_candidates(p)
+        self.assertFalse(result["odds_verified"])
+        self.assertFalse(result["result_verified"])
+        self.assertIsNone(result["legacy_extreme"]["official_odds_range"])
+        self.assertIsNone(result["moderate_candidate"]["hit"])
+        combos={"-".join(map(str,t)) for t,_ in p}
+        board={combo:50.0 for combo in combos}
+        finish=model.research_hole_candidates(p)["tickets"][0]["combo"]
+        checked=model.compare_hole_candidates(p,board,finish)
+        self.assertEqual(checked["moderate_candidate"]["official_odds_range"],[50.0,50.0])
+        self.assertTrue(checked["moderate_candidate"]["hit"])
+        self.assertFalse(checked["historical_formal_evidence"])
+        with self.assertRaises(ValueError):
+            model.compare_hole_candidates(p,{"1-2-3":40.0},finish)
+
     def test_frontend_four_mode_display_contract(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
