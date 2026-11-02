@@ -10,7 +10,6 @@ from urllib.error import HTTPError
 ALLOWED = {"navigation.js", "secondary_navigation.js", "index.html"}
 MAX_FILE = 350000
 MAX_PATCHES = 2
-API = "https://api.openai.com/v1/responses"
 PROMPT = """You are a conservative software repair assistant for BOAT EDGE CLEAN.
 The product contract is four modes 本命・バランス・穴・絞り, BOATERS-inspired independent UI.
 TopN is secondary research. Never change model formulas, predictions, official
@@ -80,11 +79,11 @@ def select_source_context(source, issue, budget=35000):
     lowered = source.lower()
     hits = [(lowered.find(term), len(term)) for term in terms if term in lowered]
     if not hits:
-        return source[:12000] + "\\n[... middle omitted ...]\\n" + source[-22000:]
+        return source[:12000] + "\n[... middle omitted ...]\n" + source[-22000:]
     position, length = max(hits, key=lambda pair: pair[1])
     middle = source[max(0, position-8500):min(len(source), position+length+8500)]
-    return (source[:6000] + "\\n[... contextual excerpt ...]\\n" +
-            middle + "\\n[... end excerpt ...]\\n" + source[-8000:])[:budget]
+    return (source[:6000] + "\n[... contextual excerpt ...]\n" +
+            middle + "\n[... end excerpt ...]\n" + source[-8000:])[:budget]
 
 
 def propose(issue, root, api_key, model, transport=urlopen):
