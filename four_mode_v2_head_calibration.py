@@ -38,6 +38,16 @@ def assess(root=ROOT):
         "sample_by_day": {},
         "venue_sensitivity": {"by_venue": {}, "leave_one_venue_out": {},
                               "all_venue_deltas_negative": None},
+        "unresolved_head_sensitivity": {
+            "missing_reproduced_races": 0,
+            "counterfactual_all_missing_best_case_brier_delta": None,
+            "counterfactual_all_missing_worst_case_brier_delta": None,
+            "counterfactual_full_cohort_brier_delta_range": None,
+            "counterfactual_all_missing_best_case_log_delta": None,
+            "counterfactual_all_missing_worst_case_log_delta": None,
+            "minimum_adverse_missing_outcomes_to_reverse_observed_brier": None,
+            "warning": "Mathematical possible-head bounds only, NOT predicted or verified outcomes.",
+        },
         "leave_one_race_out": {
             "evaluated_exclusions": 0,
             "all_brier_deltas_negative": None,
@@ -73,6 +83,7 @@ def assess(root=ROOT):
     wins = 0
     venue_stats = {}
     paired_race_deltas = []
+    missing_counterfactual = []
     prior = [w / sum(WIN) for w in WIN]
     six_model_brier = six_prior_brier = 0.0
     six_model_log = six_prior_log = 0.0
@@ -121,6 +132,19 @@ def assess(root=ROOT):
         outcome = compare_race(code, root)
         if outcome.get("status") == "result_unavailable":
             output["missing_finish"] += 1
+            hypothetical = []
+            for first in range(1, 7):
+                model_score = sum((heads[i] - int(i + 1 == first))**2 for i in range(6))
+                prior_score = sum((prior[i] - int(i + 1 == first))**2 for i in range(6))
+                hypothetical.append((model_score-prior_score,
+                                     math.log(prior[first-1])-math.log(heads[first-1])))
+            missing_counterfactual.append({
+                "race_code": code,
+                "brier_min": min(x[0] for x in hypothetical),
+                "brier_max": max(x[0] for x in hypothetical),
+                "log_min": min(x[1] for x in hypothetical),
+                "log_max": max(x[1] for x in hypothetical),
+            })
             continue
         if outcome.get("status") != "historical_comparison_only":
             output["invalid_or_untrusted_finish"] += 1
@@ -232,6 +256,37 @@ def assess(root=ROOT):
             round(min(brier_diffs), 6), round(max(brier_diffs), 6)]
         output["leave_one_race_out"]["log_loss_delta_range"] = [
             round(min(log_diffs), 6), round(max(log_diffs), 6)]
+    sensitivity = output["unresolved_head_sensitivity"]
+    m = len(missing_counterfactual)
+    if m != output["missing_finish"]:
+        raise ValueError("missing_counterfactual_partition_mismatch")
+    sensitivity["missing_reproduced_races"] = m
+    if m:
+        min_b = sum(x["brier_min"] for x in missing_counterfactual)
+        max_b = sum(x["brier_max"] for x in missing_counterfactual)
+        min_log = sum(x["log_min"] for x in missing_counterfactual)
+        max_log = sum(x["log_max"] for x in missing_counterfactual)
+        sensitivity["counterfactual_all_missing_best_case_brier_delta"] = round(min_b/m, 6)
+        sensitivity["counterfactual_all_missing_worst_case_brier_delta"] = round(max_b/m, 6)
+        sensitivity["counterfactual_all_missing_best_case_log_delta"] = round(min_log/m, 6)
+        sensitivity["counterfactual_all_missing_worst_case_log_delta"] = round(max_log/m, 6)
+        combined = n + m
+        observed_brier_delta = six_model_brier - six_prior_brier
+        sensitivity["counterfactual_full_cohort_brier_delta_range"] = [
+            round((observed_brier_delta + min_b)/combined, 6),
+            round((observed_brier_delta + max_b)/combined, 6),
+        ]
+        # Hypothetical threshold using only the most adverse missing head
+        # outcomes, without assuming anything about later unresolved races.
+        if n and observed_brier_delta < 0:
+            running = observed_brier_delta
+            for k, max_case in enumerate(
+                    sorted((x["brier_max"] for x in missing_counterfactual),
+                           reverse=True), 1):
+                running += max_case
+                if running >= 0:
+                    sensitivity["minimum_adverse_missing_outcomes_to_reverse_observed_brier"] = k
+                    break
     if len(paired_race_deltas) != n:
         raise ValueError("leave_one_race_cohort_mismatch")
     for row in output["sample_by_day"].values():
