@@ -31,7 +31,7 @@ def _entry_from_preview(card, cutoff):
     ids=[x.get("lane") for x in starts if isinstance(x,dict)]
     courses=[x.get("course") for x in starts if isinstance(x,dict)]
     if (len(ids)!=6 or len(courses)!=6 or
-            any(type(n)!=int for n in ids+courses) or
+            any(type(n) not in (int,float) or n not in range(1,7) for n in ids+courses) or
             set(ids)!=set(range(1,7)) or set(courses)!=set(range(1,7))):
         raise ValueError("preview_course_permutation_invalid")
     receipts=[]
@@ -43,7 +43,7 @@ def _entry_from_preview(card, cutoff):
             raise ValueError("preview_"+kind+"_receipt_missing_or_late")
         receipts.append({"received_at":timestamp.isoformat(),"sha256":r["sha256"],
                          "source":"third_party_preview_"+kind})
-    return [x["lane"] for x in sorted(starts,key=lambda r:r["course"])],receipts
+    return [int(x["lane"]) for x in sorted(starts,key=lambda r:r["course"])],receipts
 
 
 def prepare_prospective_capture(base,card,history_batch,*,frozen_at,min_starts=10):
