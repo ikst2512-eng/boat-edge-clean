@@ -99,6 +99,18 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(output["comparable"],0)
   self.assertEqual(output["duplicate_codes_quarantined"],[CODE1])
   self.assertEqual(output["identical_snapshot_codes_deduplicated"],[])
+ def test_bad_duplicate_artifact_cannot_rescue_prior_score(self):
+  a=self.artifact("run1",CODE1)
+  self.artifact("run2",CODE1)
+  def grader(root,path):
+   if path==a:
+    return self.scored(CODE1,False,True)
+   raise ValueError("invalid_or_duplicate_code")
+  with patch("hole_future_artifact_batch.audit",side_effect=grader):
+   output=aggregate(self.root,self.folder)
+  self.assertEqual(output["comparable"],0)
+  self.assertEqual(output["duplicate_codes_quarantined"],[CODE1])
+  self.assertEqual(output["invalid_artifacts"]["ValueError"],1)
  def test_identical_source_but_conflicting_scores_are_quarantined(self):
   a=self.artifact("run1",CODE1)
   b=self.artifact("run2",CODE1)
