@@ -84,7 +84,12 @@ jobs:
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
       - name: Score preserved third-rate original evidence from durable branch
         if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # Checkout intentionally doesn't persist credentials. Configure an
+          # ephemeral GitHub CLI credential helper for this read-only fetch.
+          gh auth setup-git
           git fetch origin refs/heads/v2-third-rate-evidence-ledger:refs/remotes/origin/v2-third-rate-evidence-ledger
           python four_mode_v2_third_rate_ledger_rollup.py --output v2_third_rate_durable_ledger.json | tee v2_third_rate_durable_ledger.log
       - uses: actions/upload-artifact@v4

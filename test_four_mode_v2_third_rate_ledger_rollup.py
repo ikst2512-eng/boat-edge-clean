@@ -82,6 +82,16 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
         self.assertEqual(report["pending_results"], 1)
         self.assertEqual(report["topn"]["top10"]["candidate"], 0)
 
+    def test_nightly_checkout_fetch_has_ephemeral_github_credentials(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/v2-predeclared-shadow-research.yml").read_text()
+        start = workflow.index("      - name: Score preserved third-rate original evidence")
+        body = workflow[start:workflow.index("      - uses: actions/upload-artifact@v4", start)]
+        self.assertIn("GH_TOKEN: ${{ github.token }}", body)
+        self.assertLess(body.index("gh auth setup-git"),
+                        body.index("git fetch origin refs/heads/v2-third-rate-evidence-ledger"))
+        self.assertIn("persist-credentials: false", workflow)
+
     def test_no_ledger_entries_is_not_prospective_success(self):
         report = evaluate(self.root, lambda *_: b"")
         self.assertEqual(report["status"], "no_long_lived_frozen_evidence")
