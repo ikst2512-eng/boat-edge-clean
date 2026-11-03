@@ -38,18 +38,20 @@ def collect(root=ROOT, now=None, read=read_rows):
         except (URLError,TimeoutError,ConnectionError,OSError) as exc:
             outcomes[kind]={"status":"network_error","error_type":type(exc).__name__,"source_url":url}
     direct_meta={}
-    if len(datasets)!=2:
+    if len(datasets)!=2 or any(not datasets[kind][0] for kind in ("title", "race_cards")):
+        # A successful HTTP request with zero rows is not usable source
+        # coverage. Retry strictly pre-race sources before returning zero.
         # The daily third-party files may be published only after the race.
         # Fetch directly from their documented pre-race origin, within bounds.
         from clean_direct_sources import holding_rows,direct_cards
         try:
-            if "title" not in datasets:
+            if "title" not in datasets or not datasets["title"][0]:
                 datasets["title"]=holding_rows(hd)
                 outcomes["title_direct"]={"status":"available","rows":len(datasets["title"][0])}
             title_rows,recv_title,sha_title=datasets["title"]
             old_archive=root/"four_mode_forecasts"
             existing={p.stem for p in old_archive.glob(hd+"*.json")} if old_archive.exists() else set()
-            if "race_cards" not in datasets:
+            if "race_cards" not in datasets or not datasets["race_cards"][0]:
                 direct,received,combined,hashes,failed=direct_cards(hd,title_rows,existing,now=now)
                 outcomes["race_cards_direct"]={"status":"available" if direct else "unavailable",
                     "rows":len(direct),"failed":failed,"requested_limit":18}
@@ -59,7 +61,9 @@ def collect(root=ROOT, now=None, read=read_rows):
             outcomes["direct_error"]={"status":"error","type":type(exc).__name__,
                 "http_status":getattr(exc,"code",None),
                 "source_url":getattr(exc,"url",None)}
-    if len(datasets)!=2:
+    if len(datasets)!=2 or any(not datasets[kind][0] for kind in ("title", "race_cards")):
+        # The alternate source must supply title and cards as ONE snapshot
+        # if direct/CSV evidence still has an empty side.
         # Independently published pre-race source; validated six racers and
         # immutable receipt time. Do not use outcome or after-cutoff data.
         try:
