@@ -24,6 +24,24 @@ class NightlyDiagnosticsIndependenceTest(unittest.TestCase):
         self.assertIn("v2_third_ledger_reconciliation.json", workflow)
         self.assertIn("if: always()\n        with:\n          name: v2-predeclared-shadow-", workflow)
 
+    def test_capture_inventory_excludes_pr_traffic_before_combining(self):
+        workflow = Path(".github/workflows/v2-predeclared-shadow-research.yml").read_text(
+            encoding="utf-8")
+        for event, destination in (
+            ("schedule", "v2_capture_scheduled.json"),
+            ("workflow_dispatch", "v2_capture_dispatched.json"),
+        ):
+            with self.subTest(event=event):
+                self.assertIn(
+                    "--event " + event
+                    + " --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > "
+                    + destination,
+                    workflow,
+                )
+                self.assertIn("            " + destination + "\n", workflow)
+        self.assertIn('rows.extend(data)', workflow)
+        self.assertIn('json.dumps(rows, sort_keys=True)', workflow)
+
     def test_nightly_piped_scorer_failure_cannot_be_hidden_by_tee(self):
         import subprocess
 

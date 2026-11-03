@@ -72,7 +72,13 @@ def summarize(inventory, root, download, out_dir):
     unsuccessful = sorted(run_id for _, run_id, conclusion in selected
                           if conclusion != "success")
     truncated = eligible > RUN_MAX
-    inventory_limit_reached = len(inventory) >= INVENTORY_LIMIT
+    # Schedule and workflow_dispatch are retrieved separately, each capped at
+    # INVENTORY_LIMIT. An aggregate >500 is not itself evidence of truncation.
+    # Fail closed if either event-specific query actually hits its own cap.
+    counts_by_event = {event: sum(row.get("event") == event for row in inventory)
+                       for event in EVENTS}
+    inventory_limit_reached = any(count >= INVENTORY_LIMIT
+                                  for count in counts_by_event.values())
     report = {
         "schema": "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1",
         "status": "no_future_capture_runs" if not selected else "scored_frozen_artifacts",

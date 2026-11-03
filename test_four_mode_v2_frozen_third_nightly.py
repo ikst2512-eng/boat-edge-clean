@@ -236,6 +236,33 @@ class FrozenNightlyTests(unittest.TestCase):
             self.assertEqual(day["topn"][key], out["topn"][key])
         self.assertEqual(day["race_codes"], [CODE])
 
+    def test_event_scoped_inventory_does_not_false_flag_combined_limit(self):
+        # Two independently bounded event queries can together exceed 500
+        # without either source reaching the cap. All rows predate Nov 4.
+        inventory = [
+            run(20000 + i, "2026-11-03T10:00:00Z", event="schedule")
+            for i in range(300)
+        ] + [
+            run(30000 + i, "2026-11-03T10:00:00Z",
+                event="workflow_dispatch")
+            for i in range(300)
+        ]
+        out = summarize(inventory, self.root, self.download, self.root)
+        self.assertEqual(out["selected_runs"], 0)
+        self.assertFalse(out["inventory_limit_reached"])
+        self.assertFalse(out["cohort_completeness_verified"])
+        self.assertEqual(out["status"], "no_future_capture_runs")
+
+    def test_dispatch_inventory_event_cap_still_fails_closed(self):
+        inventory = [
+            run(40000 + i, "2026-11-03T10:00:00Z",
+                event="workflow_dispatch")
+            for i in range(500)
+        ]
+        out = summarize(inventory, self.root, self.download, self.root)
+        self.assertTrue(out["inventory_limit_reached"])
+        self.assertEqual(out["status"], "incomplete_run_inventory_coverage")
+
     def test_inventory_api_limit_hit_is_never_claimed_complete(self):
         inventory = [run(10000 + i, "2026-11-03T10:00:00Z")
                      for i in range(500)]
