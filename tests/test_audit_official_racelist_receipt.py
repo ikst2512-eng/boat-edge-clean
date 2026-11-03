@@ -171,6 +171,17 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source identity mismatch"):
                 audit_racelist(directory, RACE, "2026-11-03T10:05:00+09:00")
 
+    def test_racecard_started_previous_day_must_not_count_as_t12(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = self.make(root)
+            path = directory / "manifest.json"
+            manifest = json.loads(path.read_text())
+            manifest["request_started_at_jst"] = "2026-11-02T23:59:59+09:00"
+            manifest["received_at_jst"] = "2026-11-03T00:00:01+09:00"
+            path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "chronology or day"):
+                audit_racelist(directory, RACE, "2026-11-03T10:05:00+09:00")
+
     def test_reversed_or_non_jst_time_rejected(self):
         with tempfile.TemporaryDirectory() as root:
             directory = self.make(root)
