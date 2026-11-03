@@ -37,6 +37,16 @@ def fixture():
                 "both": min(a, b), "left_only": max(a-b, 0),
                 "right_only": max(b-a, 0), "neither": 8-max(a,b)}
     report["groups"]["20261103"]["paired_modes"] = pairs
+    report["changed_top3_cases"] = [
+        {"race_code": "202611030101", "date_jst": "20261103", "venue_code": "01",
+         "baseline_top3": ["1-2-3", "1-3-2", "1-2-4"],
+         "candidate_top3": ["1-2-3", "2-1-3", "1-3-2"],
+         "result_status": "confirmed_research_only", "pending_phase": None},
+        {"race_code": "202611030102", "date_jst": "20261103", "venue_code": "01",
+         "baseline_top3": ["1-2-3", "1-3-2", "1-2-4"],
+         "candidate_top3": ["1-2-3", "2-1-3", "1-3-2"],
+         "result_status": "missing", "pending_phase": "over_60m_after_deadline"},
+    ]
     return report
 
 
@@ -142,6 +152,24 @@ class V2ReadinessTests(unittest.TestCase):
     def test_rejects_impossible_forecast_exposure(self):
         d = fixture()
         d["groups"]["20261103"]["forecast_only_exposure"]["changed_top3_membership"] = 5
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_changed_top3_cases_separate_missing_from_compared(self):
+        report = summarize(fixture())
+        self.assertEqual(report["changed_top3_case_status_counts"]["missing"], 1)
+        self.assertEqual(report["changed_top3_case_status_counts"]["confirmed_research_only"], 1)
+        self.assertEqual(report["changed_top3_missing_race_codes"], ["202611030102"])
+
+    def test_rejects_changed_top3_roster_mismatch(self):
+        d = fixture()
+        d["changed_top3_cases"].pop()
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_rejects_duplicate_changed_races(self):
+        d = fixture()
+        d["changed_top3_cases"][1]["race_code"] = "202611030101"
         with self.assertRaises(ValueError):
             summarize(d)
 
