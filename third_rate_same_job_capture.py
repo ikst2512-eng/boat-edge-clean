@@ -55,8 +55,8 @@ def freeze_published(root, evidence_path, now=None, git=None):
     if now.tzinfo is None:
         raise ValueError("naive_capture_time")
     git = git or (lambda args: subprocess.check_output(
-        ["git", *args], cwd=root, text=True, timeout=30).strip())
-    if git(["rev-parse", "HEAD"]) != sha:
+        ["git", *args], cwd=root, text=True, timeout=30))
+    if git(["rev-parse", "HEAD"]).strip() != sha:
         raise ValueError("publication_commit_not_checkout_head")
     names = git(["diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A",
                  "-r", sha, "--", "four_mode_forecasts/"]).splitlines()
