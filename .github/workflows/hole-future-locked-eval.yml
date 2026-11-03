@@ -6,6 +6,7 @@ on:
       - hole_future_first_add_audit.py
       - hole_future_remote_observation_link.py
       - test_hole_future_remote_observation_link.py
+      - test_four_mode_remote_evidence_end_to_end.py
       - test_hole_future_first_add_audit.py
       - test_hole_future_locked_eval.py
       - test_hole_locked_selector_integrity.py
@@ -39,7 +40,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Enforce locked future-period safeguards
-        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py test_hole_future_first_add_audit.py test_hole_future_remote_observation_link.py
+        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py test_hole_future_first_add_audit.py test_hole_future_remote_observation_link.py test_four_mode_remote_evidence_end_to_end.py
       - name: Evaluate only 2026-11-04+ frozen predictions and confirmed results
         run: python hole_future_locked_eval.py > hole_future_locked_results.json
       - name: Audit first-add Git blob provenance without claiming remote receipt
