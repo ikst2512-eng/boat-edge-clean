@@ -12,6 +12,22 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_schedule_fails_closed_on_wrong_or_unknown_first_add_day(self):
+        script = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn(
+            'and not report["same_day_git_commit_time_verified"]',
+            script,
+        )
+        self.assertIn(
+            "Daily V2 archive first-add Git commit dates are mismatched or unknown",
+            script,
+        )
+        self.assertLess(
+            script.index('and not report["same_day_git_commit_time_verified"]'),
+            script.index('and not report["v2_archive_payloads_verified"]'),
+        )
+
     def test_archive_commit_jst_day_separate_from_filename_day(self):
         paths = [P, P2, OLD]
         commits = {A: "2026-11-03T15:05:00+00:00",

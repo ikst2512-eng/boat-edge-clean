@@ -246,6 +246,12 @@ def main():
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["today_archive_count"] > 0
+            and not report["same_day_git_commit_time_verified"]):
+        print("::error::Daily V2 archive first-add Git commit dates are mismatched or unknown")
+        raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["today_archive_count"] > 0
             and not report["v2_archive_payloads_verified"]):
         print("::error::Today's saved research archives are not all readable V2 payloads")
         raise SystemExit(2)
