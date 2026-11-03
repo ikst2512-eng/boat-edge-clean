@@ -6,7 +6,7 @@ from html import unescape
 ROW = re.compile(
     r'<tr\b[^>]*>\s*<td\b(?=[^>]*class="is-boatColor([1-6])\s+is-fs14")'
     r'(?=[^>]*rowspan="4")[^>]*>\s*([１２３４５６])\s*</td>'
-    r'(?P<cells>.{0,1800}?)</tr>',
+    r'(?P<cells>.{0,4096}?)</tr>',
     re.S,
 )
 REG = re.compile(r'/owpc/pc/data/racersearch/profile\?toban=([0-9]{4})')
@@ -21,7 +21,8 @@ def inspect_six_registrations(raw):
         lane = int(row.group(1))
         label_lane = "１２３４５６".index(row.group(2)) + 1
         ids = REG.findall(row.group("cells"))
-        if lane != label_lane or len(ids) != 1 or lane in registrations:
+        if (lane != label_lane or not 1 <= len(ids) <= 2
+                or len(set(ids)) != 1 or lane in registrations):
             raise ValueError("ambiguous racer row")
         registrations[lane] = ids[0]
     complete = (set(registrations) == set(range(1, 7))

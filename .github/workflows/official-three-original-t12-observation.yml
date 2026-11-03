@@ -1,0 +1,40 @@
+name: Official three-original T12 live research observation
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-three-original-t12-observation.yml'
+      - 'scripts/observe_three_official_t12_originals.py'
+  workflow_dispatch:
+    inputs:
+      race_code:
+        description: 'Current-JST-day YYYYMMDDJJRR; must have time before T−12'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Observe three original sources without persisting forecasts
+        env:
+          RACE_CODE: ${{ github.event_name == 'pull_request' && '202611030212' || inputs.race_code }}
+          OBSERVATION_ID: ${{ github.run_id }}
+        run: |
+          python -m scripts.observe_three_official_t12_originals \
+            --race-code "$RACE_CODE" --observation-id "$OBSERVATION_ID" \
+            --root evidence --report reports/three_originals.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-three-originals-${{ github.run_id }}
+          path: |
+            evidence/
+            reports/
+          retention-days: 14
+          if-no-files-found: warn
