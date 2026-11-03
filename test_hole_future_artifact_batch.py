@@ -78,10 +78,33 @@ class FutureBatchTests(unittest.TestCase):
    result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
   self.assertEqual(result["comparable"],0)
   self.assertEqual(result["outside_race_day_codes"],["202611050101"])
- def test_duplicate_code_quarantined(self):
+ def test_identical_snapshot_is_counted_once_not_thrown_away(self):
   self.artifact("run1",CODE1)
   self.artifact("run2",CODE1)
   with patch("hole_future_artifact_batch.audit",return_value=self.scored(CODE1,False,True)):
+   output=aggregate(self.root,self.folder)
+  self.assertEqual(output["comparable"],1)
+  self.assertEqual(output["race_codes"],[CODE1])
+  self.assertEqual(output["hits"]["third_national_rate"]["top10"],1)
+  self.assertEqual(output["duplicate_codes_quarantined"],[])
+  self.assertEqual(output["identical_snapshot_codes_deduplicated"],[CODE1])
+ def test_different_frozen_source_for_same_race_is_quarantined(self):
+  a=self.artifact("run1",CODE1)
+  b=self.artifact("run2",CODE1)
+  payload=json.loads(b.read_text())
+  payload["records"][0]["source_sha256"]="different-source"
+  b.write_text(json.dumps(payload))
+  with patch("hole_future_artifact_batch.audit",return_value=self.scored(CODE1,False,True)):
+   output=aggregate(self.root,self.folder)
+  self.assertEqual(output["comparable"],0)
+  self.assertEqual(output["duplicate_codes_quarantined"],[CODE1])
+  self.assertEqual(output["identical_snapshot_codes_deduplicated"],[])
+ def test_identical_source_but_conflicting_scores_are_quarantined(self):
+  a=self.artifact("run1",CODE1)
+  b=self.artifact("run2",CODE1)
+  def grader(root,path):
+   return self.scored(CODE1,False,path==a)
+  with patch("hole_future_artifact_batch.audit",side_effect=grader):
    output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],0)
   self.assertEqual(output["duplicate_codes_quarantined"],[CODE1])
