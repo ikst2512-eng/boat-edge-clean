@@ -59,3 +59,24 @@ def preview_codes_at_receipt(rows, race_day, received_at):
         except (TypeError,KeyError,ValueError):
             continue
     return result
+
+
+def fresh_candidates_at_selection(candidates, selection_now, min_minutes=2):
+    """Drop races that ceased to be safely upcoming during source HTTP calls.
+
+    Returns (upcoming, expired) for separate diagnostics. Selection never
+    relies on the earlier scan start time after network I/O has completed.
+    """
+    if selection_now.tzinfo is None:
+        raise ValueError("candidate_selection_timezone_missing")
+    eligible=[]
+    expired=[]
+    margin=timedelta(minutes=min_minutes)
+    for deadline,code in candidates:
+        if deadline.tzinfo is None:
+            raise ValueError("candidate_deadline_timezone_missing")
+        if deadline>selection_now+margin:
+            eligible.append((deadline,code))
+        else:
+            expired.append((deadline,code))
+    return eligible,expired
