@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_third_feature_gap_audit.py
+      - test_hole_third_feature_gap_audit.py
       - hole_third_full_denominator_audit.py
       - test_hole_third_full_denominator_audit.py
       - hole_locked_two_pair_miss_audit.py
@@ -34,7 +36,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py test_hole_third_full_denominator_audit.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py test_hole_third_full_denominator_audit.py test_hole_third_feature_gap_audit.py
+      - run: python hole_third_feature_gap_audit.py > hole_third_feature_gap_results.json
+      - name: Validate third-ticket feature gaps with full denominator
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_feature_gap_results.json"))
+          assert all(report[x] is False for x in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,g in report["groups"].items():
+              print("GROUP",name,"COMPARABLE",g["comparable"])
+              print("OUTCOMES",g["outcomes"])
+              print("FEATURE_GAP_SIGNS",g["feature_gap_signs"])
+              assert sum(g["outcomes"].values())==g["comparable"]
+              misses=g["outcomes"]["selected_pair_wrong_third_donor_exact"]
+              for key,values in g["feature_gap_signs"].items():
+                  assert sum(values.values())==misses
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+          PY
       - run: python hole_third_full_denominator_audit.py > hole_third_full_denominator_results.json
       - name: Validate same-race Top10 policy differences and correct-pair conditioning
         run: |
@@ -274,3 +296,4 @@ jobs:
             hole_new_head_coverage_results.json
             hole_locked_two_pair_miss_results.json
             hole_third_full_denominator_results.json
+            hole_third_feature_gap_results.json
