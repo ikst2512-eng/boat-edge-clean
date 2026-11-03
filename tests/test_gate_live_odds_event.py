@@ -222,12 +222,35 @@ class FallbackGateTests(unittest.TestCase):
             trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
             probe_check=lambda *_: "unavailable"), "fallback_lookup_unavailable")
         first["status"], first["conclusion"] = "in_progress", None
+        # PR-origin no-op runs can overlap the serialized operational group;
+        # their incomplete state must not suppress an eligible fallback.
         self.assertEqual(gate.prior_fallback_guard(
-            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_observed")
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
         first["status"], first["conclusion"] = "completed", "failure"
         self.assertEqual(gate.prior_fallback_guard(
             trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
 
+
+    def test_in_progress_noop_does_not_hide_completed_valid_fallback(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:45:00Z"}
+        now = datetime(2026, 11, 3, 7, 50, tzinfo=timezone.utc)
+        pending_noop = {"id": 10, "event": "workflow_run",
+                        "created_at": "2026-11-03T07:48:00Z",
+                        "status": "in_progress", "conclusion": None}
+        completed = {"id": 9, "event": "workflow_run",
+                     "created_at": "2026-11-03T07:40:00Z",
+                     "status": "completed", "conclusion": "success"}
+        checked = []
+        def probe(repository, token, run_id):
+            checked.append(run_id)
+            return "valid"
+        result = gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now,
+            fetch_json=lambda *_: {"workflow_runs": [pending_noop, completed]},
+            probe_check=probe)
+        self.assertEqual(result, "prior_fallback_observed")
+        self.assertEqual(checked, [9])
 
     def test_prior_fallback_paginates_busy_history_without_false_absence(self):
         from datetime import datetime, timezone
