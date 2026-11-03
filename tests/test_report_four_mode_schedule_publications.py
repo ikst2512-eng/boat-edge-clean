@@ -89,6 +89,33 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertFalse(row["remote_main_verified"])
         self.assertFalse(result["remote_main_verified"])
 
+    def test_excluded_race_identity_exposed_only_for_matching_run_day(self):
+        def download(_, root):
+            self.save(root, "four_mode_forecasts/capture_status.json", {
+                "day_jst": "20261103",
+                "excluded": {"invalid_national_win_rate": 1},
+                "excluded_races": [{"race_code": "202611030712",
+                                    "reason": "invalid_national_win_rate"}]})
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertEqual(row["excluded_race_count"], 1)
+        self.assertEqual(row["excluded_races"], [
+            {"race_code": "202611030712", "reason": "invalid_national_win_rate"}])
+
+    def test_stale_or_malformed_exclusion_identity_never_claimed(self):
+        for day, code in (("20261102", "202611020712"),
+                          ("20261103", "202611020712"),
+                          ("20261103", "invalid")):
+            with self.subTest(day=day, code=code):
+                def download(_, root):
+                    self.save(root, "four_mode_forecasts/capture_status.json", {
+                        "day_jst": day, "excluded": {"invalid_national_win_rate": 1},
+                        "excluded_races": [{"race_code": code,
+                                            "reason": "invalid_national_win_rate"}]})
+                row = report({"runs": [self.RUN]}, download)["runs"][0]
+                self.assertIsNone(row["excluded_races"])
+                self.assertIsNone(row["excluded_race_count"] if day != "20261103"
+                                  else None)
+
     def test_stale_capture_status_is_not_counted(self):
         def download(_, root):
             self.save(root, "four_mode_forecasts/capture_status.json", {
