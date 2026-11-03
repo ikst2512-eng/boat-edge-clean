@@ -112,7 +112,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 return {"tree": {"sha": "tree-" + endpoint.split("/")[-1]}}
             if endpoint == "git/blobs":
                 raw = base64.b64decode(data["content"])
-                return {"sha": hashlib.sha1(f"blob {len(raw)}\\0".encode() + raw).hexdigest()}
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
             if endpoint == "git/trees":
                 return {"sha": "new-tree-based-" + data["base_tree"]}
             if endpoint == "git/commits":
@@ -141,7 +141,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 return {"tree": {"sha": "base"}}
             if endpoint == "git/blobs":
                 raw = base64.b64decode(data["content"])
-                return {"sha": hashlib.sha1(f"blob {len(raw)}\\0".encode() + raw).hexdigest()}
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
             if endpoint == "git/trees":
                 return {"sha": "tree"}
             if endpoint == "git/commits":
@@ -164,7 +164,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 return {"tree": {"sha": "tree"}}
             if endpoint == "git/blobs":
                 raw = base64.b64decode(data["content"])
-                return {"sha": hashlib.sha1(f"blob {len(raw)}\\0".encode() + raw).hexdigest()}
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
             if endpoint == "git/trees":
                 return {"sha": "tree"}
             if endpoint == "git/commits":
