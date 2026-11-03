@@ -219,6 +219,45 @@ class FallbackGateTests(unittest.TestCase):
         self.assertEqual(gate.prior_fallback_guard(
             trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
 
+
+    def test_prior_valid_200_requires_matching_scheduled_upstream_and_slot(self):
+        from datetime import datetime, timezone
+        import io
+        import zipfile
+        slot = datetime(2026, 11, 3, 7, 25, tzinfo=timezone.utc)
+        run_created = datetime(2026, 11, 3, 7, 41, tzinfo=timezone.utc)
+        trigger = {"event": "workflow_run", "upstream_event": "schedule",
+                   "upstream_workflow": gate.SECONDARY_UPSTREAM,
+                   "upstream_branch": "main", "upstream_run_id": 42,
+                   "upstream_created_at": "2026-11-03T07:38:00Z"}
+        evidence = {"source_status": "ok", "trigger": trigger,
+                    "samples": [{"race_code": "202611030111",
+                                 "attempts": [{"http": 200, "state": "valid_200",
+                                               "latency_ms": 80}]}]}
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 7, "expired": False}]}
+        def probe(record):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w") as archive:
+                archive.writestr("live_odds_metrics.json", json.dumps(record))
+            return gate.direct_probe_evidence(
+                "a/b", "token", 10, fetch_json=artifacts,
+                fetch_zip=lambda *_: buffer.getvalue(),
+                expected_slot=slot, run_created_at=run_created)
+        self.assertEqual(probe(evidence), "valid")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_event": "push"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_branch": "dev"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_run_id": None}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger,
+                          "upstream_created_at": "2026-11-03T05:38:00Z"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": None}), "no_valid_odds")
+        self.assertEqual(probe({**evidence, "source_status": "fallback_ineligible"}),
+                         "no_valid_odds")
+
     def test_secondary_fallback_fails_closed_on_missing_history(self):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T07:38:00Z"}
