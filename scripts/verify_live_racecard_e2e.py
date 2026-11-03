@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_direct_sources import holding_rows
 from scripts.live_racecard_candidate_priority import (rank_candidates, t12_window_open,
-    live_sampling_window_open, preview_codes_at_receipt)
+    live_sampling_window_open, preview_codes_at_receipt, fresh_candidates_at_selection)
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
@@ -41,29 +41,45 @@ candidates.sort()
 # Prefer a currently published, race-matched predeadline exhibition over
 # arbitrary earliest races; separately retain the ordinary racecard sample.
 preview_candidates=set()
+preview_source_status={}
+preview_source_codes={}
 try:
     from clean_racecard import _preview_rows
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
-    matched={}
     for kind in ("tkz","stt"):
-        preview_rows,digest=_preview_rows(kind,path)
-        source_received_at=datetime.now(JST)
-        selected=preview_codes_at_receipt(preview_rows,hd,source_received_at)
-        matched[kind]=selected
-        print(json.dumps({"outcome":"PREVIEW_SOURCE_RECEIVED","kind":kind,
-                          "source_received_at_jst":source_received_at.isoformat(),
-                          "matched_future_count":len(selected),"sha256":digest},ensure_ascii=False))
-    preview_candidates=matched["tkz"] & matched["stt"]
-except (OSError,ValueError,KeyError,TimeoutError):
-    pass
+        try:
+            preview_rows,digest=_preview_rows(kind,path)
+            source_received_at=datetime.now(JST)
+            selected=preview_codes_at_receipt(preview_rows,hd,source_received_at)
+            preview_source_codes[kind]=selected
+            preview_source_status[kind]="ok"
+            print(json.dumps({"outcome":"PREVIEW_SOURCE_RECEIVED","kind":kind,
+                              "source_received_at_jst":source_received_at.isoformat(),
+                              "matched_future_count":len(selected),"sha256":digest},ensure_ascii=False))
+        except (OSError,ValueError,KeyError,TimeoutError,HTTPError) as exc:
+            preview_source_status[kind]=type(exc).__name__
+            print(json.dumps({"outcome":"PREVIEW_SOURCE_UNAVAILABLE","kind":kind,
+                              "reason":type(exc).__name__,"detail":str(exc)[:140]},ensure_ascii=False))
+    preview_candidates=preview_source_codes.get("tkz",set()) & preview_source_codes.get("stt",set())
+except ImportError as exc:
+    print(json.dumps({"outcome":"PREVIEW_ADAPTER_IMPORT_UNAVAILABLE",
+                      "reason":str(exc)[:140]},ensure_ascii=False))
 # Recheck opportunity after the independent HTTP source probes. Stale
 # scan-start time can promote a race whose T-12 window closed in transit.
 selection_now=datetime.now(JST)
+candidates,expired_during_source_probe=fresh_candidates_at_selection(candidates,selection_now)
 candidates=rank_candidates(candidates,preview_candidates,selection_now)
 t12_opportunities=sum(t12_window_open(deadline,selection_now) for deadline,code in candidates)
+if expired_during_source_probe:
+    print(json.dumps({"outcome":"RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE",
+                      "selection_at_jst":selection_now.isoformat(),
+                      "expired":[{"race":code,"deadline":deadline.isoformat()}
+                                 for deadline,code in expired_during_source_probe]},ensure_ascii=False))
 print(json.dumps({"outcome":"PREVIEW_CANDIDATES","eligible":len(preview_candidates),
                   "upcoming_candidates":len(candidates),"t12_opportunities":t12_opportunities,
                   "selection_at_jst":selection_now.isoformat(),
+                  "preview_source_status":preview_source_status,
+                  "expired_during_source_probe":len(expired_during_source_probe),
                   "sampled":[{"race":code,"deadline":deadline.isoformat(),
                               "t12_window_open":t12_window_open(deadline,selection_now),
                               "preview_candidate":code in preview_candidates}

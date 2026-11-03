@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
 from scripts.live_racecard_candidate_priority import (rank_candidates,t12_window_open,
-    live_sampling_window_open,preview_codes_at_receipt)
+    live_sampling_window_open,preview_codes_at_receipt,fresh_candidates_at_selection)
 
 JST=ZoneInfo("Asia/Tokyo")
 NOW=datetime(2026,11,4,17,30,tzinfo=JST)
@@ -63,6 +63,52 @@ class LiveRacecardCandidatePriorityTests(unittest.TestCase):
             preview_codes_at_receipt(rows,"20261104",datetime(2026,11,4,17,31))
         with self.assertRaisesRegex(ValueError,"sample_clock_timezone_missing"):
             live_sampling_window_open(datetime(2026,11,4,0,23))
+
+    def test_just_expired_during_http_is_excluded_from_live_sample(self):
+        # At job start both races were upcoming; 3 minutes passed in HTTP.
+        started=NOW
+        selection=NOW+timedelta(minutes=3)
+        candidates=[race("expired",5),race("still_valid",18)]
+        eligible,expired=fresh_candidates_at_selection(candidates,selection)
+        self.assertEqual([code for _,code in eligible],["still_valid"])
+        self.assertEqual([code for _,code in expired],["expired"])
+        self.assertTrue(t12_window_open(eligible[0][0],selection))
+
+    def test_two_minute_sampling_margin_is_strict(self):
+        selection=NOW+timedelta(minutes=4)
+        candidates=[race("at_margin",6),race("just_over",6.1)]
+        eligible,expired=fresh_candidates_at_selection(candidates,selection)
+        self.assertEqual([code for _,code in eligible],["just_over"])
+        self.assertEqual([code for _,code in expired],["at_margin"])
+
+    def test_expired_candidates_preserved_as_diagnostics(self):
+        eligible,expired=fresh_candidates_at_selection([race("closed",0),race("almost",1)],NOW)
+        self.assertEqual(eligible,[])
+        self.assertEqual(len(expired),2)
+
+    def test_selection_rejects_naive_time_and_deadline(self):
+        with self.assertRaisesRegex(ValueError,"candidate_selection_timezone_missing"):
+            fresh_candidates_at_selection([race("x",5)],datetime(2026,11,4,17,30))
+        with self.assertRaisesRegex(ValueError,"candidate_deadline_timezone_missing"):
+            fresh_candidates_at_selection([(datetime(2026,11,4,17,50),"x")],NOW)
+
+    def test_live_e2e_logs_each_independent_preview_failure(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] /
+                "scripts/verify_live_racecard_e2e.py").read_text()
+        self.assertIn('for kind in ("tkz","stt"):',source)
+        self.assertIn('"outcome":"PREVIEW_SOURCE_UNAVAILABLE","kind":kind',source)
+        self.assertIn('"preview_source_status":preview_source_status',source)
+        self.assertIn('preview_source_codes.get("tkz",set()) & preview_source_codes.get("stt",set())',source)
+
+    def test_live_e2e_resamples_candidates_before_api_calls(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] /
+                "scripts/verify_live_racecard_e2e.py").read_text()
+        refresh=source.index("fresh_candidates_at_selection(candidates,selection_now)")
+        api=source.index("for source_deadline,code in candidates[:3]:")
+        self.assertLess(refresh,api)
+        self.assertIn('"outcome":"RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE"',source)
 
     def test_timezone_missing_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"t12_clock_timezone_missing"):
