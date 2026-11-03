@@ -122,6 +122,27 @@ class EvidenceVerdictTests(unittest.TestCase):
             verify(self.root)
         self.assertEqual(record_verdict(self.root)["status"], "failed")
 
+    def test_cross_run_receipt_substitution_is_not_same_job_proof(self):
+        self.published(); self.good(); self.good_third()
+        ledger = self.root / "four-mode-evidence" / "third-rate-ledger.json"
+        data = json.loads(ledger.read_text(encoding="utf-8"))
+        data["path"] = "third_rate/20261104/run-9999-attempt-1.json"
+        self.write("third-rate-ledger.json", data)
+        with self.assertRaisesRegex(ValueError,
+                                    "future_evidence_ledger_run_identity_mismatch"):
+            verify(self.root)
+        self.assertEqual(record_verdict(self.root)["status"], "failed")
+
+    def test_cross_attempt_receipt_substitution_is_not_same_job_proof(self):
+        self.published(); self.good(); self.good_third()
+        ledger = self.root / "four-mode-evidence" / "third-rate-ledger.json"
+        data = json.loads(ledger.read_text(encoding="utf-8"))
+        data["path"] = "third_rate/20261104/run-1234-attempt-2.json"
+        self.write("third-rate-ledger.json", data)
+        with self.assertRaisesRegex(ValueError,
+                                    "future_evidence_ledger_run_identity_mismatch"):
+            verify(self.root)
+
     def test_valid_future_shadow_and_ledger_are_required_for_publication_pass(self):
         self.published(); self.good(); self.good_third()
         self.assertEqual(verify(self.root)["status"],
