@@ -90,10 +90,14 @@ def historical_prefetch(day, *, lookback_days=31, fetch=_fetch, workers=6):
 def attempt(root, *, now=None, prefetch=historical_prefetch,
             card_reader=None, ledger_ops=None, sleep=time.sleep,
             output_dir=None, max_minutes=6, min_starts=10,
-            waku_enabled=True, waku_fetch=None):
+            waku_enabled=True, waku_fetch=None,
+            _selected=None, preview_poll_limit=3,
+            skip_historical_fallback=False):
+    if type(preview_poll_limit) is not int or not 1<=preview_poll_limit<=3:
+        raise ValueError("invalid_preview_poll_limit")
     now=now or (lambda:datetime.now(JST))
     sampled_now=now()
-    target=candidates(root,now=sampled_now,max_minutes=max_minutes)
+    target=[_selected] if _selected is not None else candidates(root,now=sampled_now,max_minutes=max_minutes)
     if not target:
         return {"status":"no_frozen_baseline_in_late_window","stored":False,
                 "baseline_audit":audit_daily_bases(root,now=sampled_now,max_minutes=max_minutes),
@@ -111,7 +115,7 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     card=None
     preview_error="late_preview_unavailable"
     preview_attempts=0
-    for i in range(3):
+    for i in range(preview_poll_limit):
         if now()>=late-timedelta(seconds=10):
             break
         preview_attempts+=1
@@ -131,7 +135,7 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             break
         except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
             preview_error=str(exc) or type(exc).__name__
-        if i<2 and now()+timedelta(seconds=35)<late:
+        if i<preview_poll_limit-1 and now()+timedelta(seconds=35)<late:
             sleep(35)
         else:
             break
@@ -168,6 +172,14 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             return verdict
     else:
         waku_reason="waku10_disabled_or_cutoff_too_close"
+    if skip_historical_fallback:
+        # A multi-race five-minute run must not spend its entire time budget
+        # fetching 62 older CSVs for one failed Waku10 arm. The original
+        # strict course-history fallback remains available to standalone runs.
+        return {"status":"ineligible_waku10_pilot","stored":False,
+                "race_code":code,"reason":waku_reason,
+                "preview_attempts":preview_attempts,
+                "historical_requests":0,"research_only":True}
     cache,fetch_errors=prefetch(code[:8])
     if now()>=late:
         return {"status":"history_fetch_crossed_late_cutoff","stored":False,"race_code":code,
@@ -232,6 +244,38 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     return verdict
 
 
+def attempt_batch(root, *, now=None, max_per_run=3, **kwargs):
+    """Bounded independent race attempts; never mix the race cohorts."""
+    if type(max_per_run) is not int or not 1<=max_per_run<=3:
+        raise ValueError("invalid_t2_batch_size")
+    now=now or (lambda:datetime.now(JST))
+    snapshot_time=now()
+    pool=candidates(root,now=snapshot_time)
+    if not pool:
+        # Preserve the existing explicit missing-baseline diagnosis.
+        return attempt(root,now=now,**kwargs)
+    selected=pool[:max_per_run]
+    records=[]
+    for chosen in selected:
+        code=chosen[1]
+        try:
+            result=attempt(root,now=now,_selected=chosen,
+                           preview_poll_limit=1,
+                           skip_historical_fallback=True,**kwargs)
+        except Exception as exc:
+            records.append({"race_code":code,"status":"collector_error",
+                            "stored":False,"error_type":type(exc).__name__,
+                            "research_only":True})
+        else:
+            records.append(result)
+    stored=sum(r.get("stored") is True for r in records)
+    failed=sum(r.get("status")=="collector_error" for r in records)
+    return {"status":"t2_batch_error" if failed else "t2_batch_completed",
+            "attempted_count":len(records),"stored_count":stored,
+            "errors":failed,"deferred_count":max(0,len(pool)-max_per_run),
+            "results":records,"research_only":True}
+
+
 def main():
     import argparse
     p=argparse.ArgumentParser()
@@ -241,7 +285,7 @@ def main():
     try:
         remote_read,remote_create=github_ops(os.environ['GITHUB_REPOSITORY'])
         access=verify_write_access(remote_read,remote_create)
-        verdict=attempt(Path(args.root),ledger_ops=(remote_read,remote_create))
+        verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create))
         verdict['ledger_write_access_probe']=access
     except Exception as exc:
         verdict={"status":"course_evidence_collector_failed","stored":False,
@@ -250,7 +294,7 @@ def main():
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(verdict,ensure_ascii=False,sort_keys=True)+"\n",encoding="utf-8")
     print("COURSE_LATE_EVIDENCE="+json.dumps(verdict,ensure_ascii=False,sort_keys=True))
-    if verdict["status"]=="course_evidence_collector_failed":
+    if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error"):
         raise SystemExit(2)
 
 if __name__=="__main__":
