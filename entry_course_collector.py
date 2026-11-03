@@ -383,11 +383,30 @@ def attempt_batch(root, *, now=None, max_per_run=3,
     skipped=len(records)-stored-failed
     if stored!=newly_stored+reused:
         raise ValueError("t2_unrecognized_stored_verdict")
+    # Validate the entire current T−2 cohort, not only when the candidate
+    # pool is empty. A partially missing T−12 ledger must not be hidden by
+    # one successful Waku10 capture. This check happens AFTER each available
+    # forecast has been attempted, so a source outage cannot starve captures.
+    missing_bases=[]
+    expected_schedule=None
+    schedule_error_type=None
+    if verify_expected_schedule:
+        try:
+            expected_schedule=expected_t2_without_baseline(
+                snapshot_time,root,schedule_fetch=schedule_fetch)
+            known={entry[1] for entry in pool}
+            missing_bases=sorted(set(expected_schedule["expected_race_codes"])-known)
+        except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
+            schedule_error_type=type(exc).__name__
     # A successful workflow with actual eligible races but zero verified
     # archives would hide an operational failure. No eligible races remain
     # a valid no-op, and partially stored batches remain visible as partial.
     if failed:
         status="t2_batch_error"
+    elif schedule_error_type is not None:
+        status="t2_batch_expected_schedule_unavailable"
+    elif missing_bases:
+        status="t2_batch_missing_expected_t12_baselines"
     elif stored==0:
         status="t2_batch_no_capture"
     elif skipped:
@@ -402,6 +421,9 @@ def attempt_batch(root, *, now=None, max_per_run=3,
             "preview_retry_rounds_configured":preview_retry_rounds,
             "preview_retry_sleeps":retry_sleeps,
             "preview_retry_attempts":retry_attempts,
+            "expected_schedule":expected_schedule,
+            "missing_baseline_race_codes":missing_bases,
+            "schedule_error_type":schedule_error_type,
             "results":records,"research_only":True}
 
 
@@ -431,7 +453,9 @@ def main():
     if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error",
                             "t2_batch_no_capture",
                             "t2_missing_expected_t12_baselines",
-                            "t2_expected_schedule_unavailable"):
+                            "t2_expected_schedule_unavailable",
+                            "t2_batch_missing_expected_t12_baselines",
+                            "t2_batch_expected_schedule_unavailable"):
         raise SystemExit(2)
 
 if __name__=="__main__":
