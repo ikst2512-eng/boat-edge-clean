@@ -35,6 +35,9 @@ def summarize(raw, venue_report=None):
         raise ValueError("invalid_groups")
     totals = {
         "saved_forecasts": 0, "paired_results": 0, "pending_results": 0,
+        "forecast_only_exposure": {"valid": 0, "eligible": 0,
+                                   "reordered_top10": 0, "changed_top3_membership": 0,
+                                   "changed_top5_membership": 0},
         "matured_comparable": 0,
         "matured_modes": {m: {f"top{n}": 0 for n in (3, 5, 10)}
                           for m in ("narrow", "hit", "balance", "hole")},
@@ -74,6 +77,30 @@ def summarize(raw, venue_report=None):
             raise ValueError("changed_subset_exceeds_reorders")
         if row["gained_top3"] + row["lost_top3"] > row["changed_top3_membership"]:
             raise ValueError("discordance_without_top3_membership_change")
+        # The forecast-only denominator must not be silently substituted
+        # for the paired-result denominator.
+        exposure = row["forecast_only_exposure"]
+        valid = exposure["valid"]
+        if type(valid) is not int or not 0 <= valid <= saved:
+            raise ValueError("invalid_forecast_only_denominator")
+        eligible = exposure["eligible"]
+        if type(eligible) is not int or not 0 <= eligible <= valid:
+            raise ValueError("invalid_forecast_only_eligible")
+        for key in ("reordered_top10", "changed_top3_membership",
+                    "changed_top5_membership"):
+            value = exposure[key]
+            if type(value) is not int or not 0 <= value <= eligible:
+                raise ValueError("invalid_forecast_only_change")
+            totals["forecast_only_exposure"][key] += value
+        if (exposure["changed_top3_membership"] > exposure["reordered_top10"]
+                or exposure["changed_top5_membership"] > exposure["reordered_top10"]
+                or row["applied"] > eligible
+                or row["reordered_top10"] > exposure["reordered_top10"]
+                or row["changed_top3_membership"] > exposure["changed_top3_membership"]
+                or row["changed_top5_membership"] > exposure["changed_top5_membership"]):
+            raise ValueError("paired_exposure_exceeds_forecast_exposure")
+        totals["forecast_only_exposure"]["valid"] += valid
+        totals["forecast_only_exposure"]["eligible"] += eligible
         completed_days += int(c > 0)
         totals["matured_comparable"] += matured
         for key, value in (("saved_forecasts", saved), ("paired_results", c),
