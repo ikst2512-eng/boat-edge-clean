@@ -135,6 +135,34 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(row["artifact_download_error"], "CalledProcessError")
         self.assertIsNone(result["claimed_added_forecasts_sum"])
 
+    def test_research_failure_kept_separate_from_verified_push_claim(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 3,
+                "commit_sha": "a" * 40})
+            self.save(root, "four-mode-evidence/stages.json", {
+                "publication": "pushed_to_main",
+                "third_rate_shadow": "failure", "hole_shadow": "success"})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["publication_outcome"], "pushed_to_main")
+        self.assertEqual(row["third_rate_shadow_outcome"], "failure")
+        self.assertEqual(row["hole_shadow_outcome"], "success")
+        self.assertEqual(result["third_rate_shadow_failure_runs"], [123])
+        self.assertEqual(result["hole_shadow_failure_runs"], [])
+        self.assertEqual(result["claimed_added_forecasts_sum"], 3)
+
+    def test_missing_and_invalid_research_verdicts_stay_unknown(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/stages.json", {
+                "third_rate_shadow": "unexpected", "hole_shadow": None})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertIsNone(row["third_rate_shadow_outcome"])
+        self.assertIsNone(row["hole_shadow_outcome"])
+        self.assertEqual(result["third_rate_shadow_failure_runs"], [])
+        self.assertEqual(result["hole_shadow_failure_runs"], [])
+
     def test_failed_publication_records_stage(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/staging.json", {"staged_valid": 0})

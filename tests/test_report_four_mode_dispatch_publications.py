@@ -37,6 +37,23 @@ class DispatchEvidenceTests(unittest.TestCase):
         self.assertEqual(result["runs"][1]["capture_conclusion"], "failure")
         self.assertFalse(result["remote_main_verified"])
 
+    def test_dispatch_propagates_research_error_independently_of_push(self):
+        def download(_, root):
+            p = root / "four-mode-evidence"
+            p.mkdir(parents=True)
+            (p / "publication.json").write_text(json.dumps({
+                "outcome": "pushed_to_main", "added_forecasts": 2,
+                "commit_sha": "a" * 40}), encoding="utf-8")
+            (p / "stages.json").write_text(json.dumps({
+                "publication": "pushed_to_main",
+                "third_rate_shadow": "success",
+                "hole_shadow": "failure"}), encoding="utf-8")
+        result = inspect_dispatches({"recent_capture_runs": [run(9)]}, download)
+        self.assertEqual(result["claimed_added_forecasts_sum"], 2)
+        self.assertEqual(result["third_rate_shadow_failure_runs"], [])
+        self.assertEqual(result["hole_shadow_failure_runs"], [9])
+        self.assertEqual(result["runs"][0]["hole_shadow_outcome"], "failure")
+
     def test_empty_dispatch_is_unproven(self):
         result = inspect_dispatches({"recent_capture_runs": [run(5, event="schedule")]},
                                     lambda *_: self.fail("no download"))

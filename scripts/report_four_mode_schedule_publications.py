@@ -38,7 +38,8 @@ def inspect(run, root):
               "newly_generated": None, "staged_valid": None,
               "publication_outcome": None, "claimed_added_forecasts": None,
               "claimed_commit_sha": None, "remote_main_verified": False,
-              "failure_stage": None, "source_link_status": None,
+              "failure_stage": None, "third_rate_shadow_outcome": None,
+              "hole_shadow_outcome": None, "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
               "source_link_formal": False}
     status = safe_json(root, "four_mode_forecasts/capture_status.json")
@@ -92,6 +93,13 @@ def inspect(run, root):
                 result["claimed_added_forecasts"] = added
         elif publication["outcome"] == "failed":
             result["failure_stage"] = publication.get("stage")
+    # Research step outcomes are separate from immutable V2 publication.
+    # Old artifacts may lack these fields: unknown is not success.
+    if isinstance(stages, dict):
+        for field in ("third_rate_shadow", "hole_shadow"):
+            value = stages.get(field)
+            if value in ("success", "failure", "skipped", "cancelled"):
+                result[field + "_outcome"] = value
     if result["failure_stage"] is None and isinstance(stages, dict):
         if stages.get("publication") == "failed":
             result["failure_stage"] = stages.get("receipt_staging")
@@ -135,6 +143,10 @@ def report(history, downloader, limit=12):
             "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
+            "third_rate_shadow_failure_runs": [
+                r["run_id"] for r in rows if r["third_rate_shadow_outcome"] == "failure"],
+            "hole_shadow_failure_runs": [
+                r["run_id"] for r in rows if r["hole_shadow_outcome"] == "failure"],
             "claimed_added_forecasts_sum": sum(claimed) if claimed else None,
             "remote_main_verified": False,
             "note": "Artifact push claims are not independent proof of remote main ancestry.",
@@ -169,6 +181,8 @@ def main():
         ],
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
+        "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
+        "hole_shadow_failure_runs": result["hole_shadow_failure_runs"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
         "remote_main_verified": False}, sort_keys=True))
 
