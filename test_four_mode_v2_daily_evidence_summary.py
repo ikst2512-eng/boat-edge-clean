@@ -29,7 +29,7 @@ class EvidenceSummaryTests(unittest.TestCase):
             "by_race_day_jst":{
                 "20261104":{"paired":1,"race_codes":[A],"topn":{
                     "top1":{"baseline":0,"candidate":0,"gained":0,"lost":0},
-                "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
+                    "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
                     "top5":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                     "top10":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                 }}
@@ -51,6 +51,7 @@ class EvidenceSummaryTests(unittest.TestCase):
     def test_verified_paired_day_shows_numerical_topn_delta(self):
         md = summarize(self.capture,self.ledger,self.reconciliation)
         self.assertIn("Evidence ready for bounded research comparison: yes",md)
+        self.assertIn("| TOP1 | 0 | 0 | +0 |",md)
         self.assertIn("| TOP3 | 0 | 1 | +1 |",md)
         self.assertIn("| TOP5 | 1 | 1 | +0 |",md)
         self.assertIn("Not certified:",md)
@@ -71,6 +72,19 @@ class EvidenceSummaryTests(unittest.TestCase):
                 self.assertIn("TopN accuracy withheld",md)
                 self.assertNotIn("| TOP3 |",md)
                 obj[field]=original
+
+    def test_missing_top1_withholds_results_instead_of_counting_miss(self):
+        del self.capture["paired_race_scores"][0]["topn"]["top1"]
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP1 |", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_top1_aggregate_mismatch_withholds_all_scores(self):
+        self.capture["topn"]["top1"]["candidate"] = 1
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP1 |", md)
 
     def test_no_paired_results_never_claims_comparison_ready(self):
         self.capture.update({"paired": 0, "by_race_day_jst": {}})
