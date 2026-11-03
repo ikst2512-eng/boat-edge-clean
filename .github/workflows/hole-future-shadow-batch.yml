@@ -3,7 +3,9 @@ on:
   pull_request:
     paths:
       - hole_future_artifact_batch.py
+      - hole_future_cumulative_rollup.py
       - test_hole_future_artifact_batch.py
+      - test_hole_future_late_recheck.py
       - hole_future_result_coverage.py
       - test_hole_future_result_coverage.py
       - .github/workflows/hole-future-shadow-batch.yml
@@ -27,7 +29,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test batch evidence quarantine
-        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py
+        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py test_hole_future_late_recheck.py
       - name: Audit last 20 collection runs (read only)
         env:
           GH_TOKEN: ${{ github.token }}
