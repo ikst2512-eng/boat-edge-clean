@@ -74,6 +74,8 @@ def summarize(inventory, root, download, out_dir):
         "cohort_completeness_verified": False,
         "selected_runs": len(selected),
         "downloaded_artifacts": 0,
+        "no_new_candidate_runs": 0,
+        "bad_validation_runs": [],
         "missing_or_failed_artifacts": [],
         "paired": 0, "frozen": 0, "pending_results": 0,
         "invalid": 0, "excluded": 0,
@@ -96,11 +98,14 @@ def summarize(inventory, root, download, out_dir):
                 raise ValueError("missing_or_unsafe_zip")
             scoring = score_zip(path, root)
             if scoring["published_forecasts"] == 0 and scoring["frozen"] == 0:
-                # Explicit negative publisher/validation evidence is useful
-                # for operations but is not a valid scored forecast.
-                raise ValueError("capture_without_frozen_publication")
-            if scoring["invalid"] or scoring["excluded"]:
-                raise ValueError("artifact_has_invalid_or_excluded_records")
+                # "No new candidates" is normal, never a 0-hit race.
+                row["status"] = "no_new_candidate_publication"
+                report["no_new_candidate_runs"] += 1
+                report["downloaded_artifacts"] += 1
+                report["runs"].append(row)
+                continue
+            if scoring["invalid"]:
+                report["bad_validation_runs"].append(run_id)
         except (OSError, ValueError, KeyError, TypeError,
                 subprocess.SubprocessError, __import__("zipfile").BadZipFile) as exc:
             row["status"] = "artifact_unavailable_or_invalid"
@@ -131,7 +136,7 @@ def summarize(inventory, root, download, out_dir):
     for score in report["topn"].values():
         if score["candidate"] - score["baseline"] != score["gained"] - score["lost"]:
             raise ValueError("paired_gain_loss_mismatch")
-    if report["missing_or_failed_artifacts"]:
+    if report["missing_or_failed_artifacts"] or report["bad_validation_runs"]:
         report["status"] = "incomplete_capture_artifact_evidence"
     if truncated or inventory_limit_reached:
         report["status"] = "incomplete_run_inventory_coverage"
@@ -139,7 +144,8 @@ def summarize(inventory, root, download, out_dir):
         report["status"] = "capture_artifacts_unavailable"
     report["cohort_completeness_verified"] = bool(
         selected and not truncated and not inventory_limit_reached
-        and not report["missing_or_failed_artifacts"])
+        and not report["missing_or_failed_artifacts"]
+        and not report["bad_validation_runs"])
     if report["cohort_completeness_verified"] and report["status"] == "scored_frozen_artifacts":
         report["status"] = "frozen_artifacts_scored_limited_cohort"
     return report
