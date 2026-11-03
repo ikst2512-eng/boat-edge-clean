@@ -28,13 +28,13 @@ class AIReviewGuardTests(unittest.TestCase):
     def test_current_main_parent_and_draft_candidate_with_api_fixtures(self):
         """Execute the actual inline validators on mocked GitHub API replies."""
         workflow = self.source()
-        step = workflow.split("      - name: Verify candidate PR is draft and from local AI branch\\n", 1)[1]
-        script = step.split("        run: |\\n", 1)[1].split("      - uses: actions/checkout@v4", 1)[0]
-        first = script.split('head_sha="$(python - <<\'PY\'\\n', 1)[1].split("          PY\\n", 1)[0]
-        after = script.split("          gh api \\"repos/${GITHUB_REPOSITORY}/git/ref/heads/main\\" > /tmp/main-ref.json\\n", 1)[1]
-        second = after.split("          python - <<'PY'\\n", 1)[1].split("          PY\\n", 1)[0]
-        first = "\\n".join(line[10:] if line.startswith("          ") else line for line in first.splitlines())
-        second = "\\n".join(line[10:] if line.startswith("          ") else line for line in second.splitlines())
+        step = workflow.split("      - name: Verify candidate PR is draft and from local AI branch\n", 1)[1]
+        script = step.split("        run: |\n", 1)[1].split("      - uses: actions/checkout@v4", 1)[0]
+        first = script.split('head_sha="$(python - <<\'PY\'\n', 1)[1].split("          PY\n", 1)[0]
+        after = script.split('          gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" > /tmp/main-ref.json\n', 1)[1]
+        second = after.split("          python - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
+        first = "\n".join(line[10:] if line.startswith("          ") else line for line in first.splitlines())
+        second = "\n".join(line[10:] if line.startswith("          ") else line for line in second.splitlines())
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -54,7 +54,7 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("stale-parent", "main-a", ["old-main"], 1, True, False),
                 ("stale-base", "old-main", ["main-a"], 1, True, False),
                 ("multi-parent", "main-a", ["main-a", "other"], 1, True, False),
-                ("multi-commit", "main-a", ["main-a"], 2, False, False),
+                ("multi-commit", "main-a", ["main-a"], 2, True, False),
                 ("non-draft", "main-a", ["main-a"], 1, False, False),
             )
             for label, base, parents, count, draft, expected in cases:
