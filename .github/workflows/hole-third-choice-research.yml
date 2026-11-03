@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_error_attribution_research.py
+      - test_hole_error_attribution_research.py
       - test_hole_third_choice_research.py
       - .github/workflows/hole-third-choice-research.yml
   workflow_dispatch:
@@ -16,7 +18,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py
+      - run: python hole_error_attribution_research.py > hole_error_attribution_results.json
+      - name: Report why hole tickets miss (retrospective diagnostic only)
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_error_attribution_results.json"))
+          assert all(r[k] is False for k in ("formal","independent_holdout",
+                     "prospective_validation","independent_first_receipt_verified",
+                     "production_forecast_changed","selector_changed"))
+          for group,stats in r["groups"].items():
+              print("GROUP",group,"SAMPLE",stats["comparable"])
+              print("MISS_REASONS",stats["miss_reasons"])
+              print("SECOND_PAIR_THIRD_ATTRIBUTION",stats["missing_pair_recovery"])
+              print("TOPN",stats["topn"])
+          PY
       - run: python hole_third_choice_research.py > hole_third_choice_results.json
       - name: Verify bounded claims and report observed gains and losses
         run: |
@@ -39,4 +56,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: hole-third-choice-research
-          path: hole_third_choice_results.json
+          path: |
+            hole_third_choice_results.json
+            hole_error_attribution_results.json
