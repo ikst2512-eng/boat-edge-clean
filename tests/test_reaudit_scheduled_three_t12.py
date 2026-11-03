@@ -92,6 +92,7 @@ class T12ScheduledAuditTests(unittest.TestCase):
     def test_empty_inventory_does_not_invent_completion(self):
         result = review_runs([], lambda _: [], lambda _: b"")
         self.assertEqual(result["observed_scheduled_runs"], 0)
+        self.assertEqual(result["expected_schedule_count"], 7)
         self.assertIn("記録なし", markdown(result))
 
     def test_archive_traversal_and_duplicate_entries_rejected(self):
