@@ -6,6 +6,7 @@ No forecast model, saved prediction or result data is used.
 import json
 import os
 import statistics
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from itertools import permutations
@@ -21,9 +22,13 @@ USER_AGENT = "BOAT-EDGE-CLEAN-LIVE-ODDS-AUDIT/1.0"
 def valid_odds(payload, race_code, now):
     if not isinstance(payload, dict) or payload.get("ok") is not True:
         return False
-    if (payload.get("hd") != race_code[:8] or
-            str(payload.get("jcd")).zfill(2) != race_code[8:10] or
-            int(payload.get("rno") or 0) != int(race_code[10:12])):
+    try:
+        matching = (payload.get("hd") == race_code[:8] and
+                    str(payload.get("jcd")).zfill(2) == race_code[8:10] and
+                    int(payload.get("rno") or 0) == int(race_code[10:12]))
+    except (ValueError, TypeError):
+        return False
+    if not matching:
         return False
     odds = payload.get("odds")
     if not isinstance(odds, dict) or set(odds) != EXPECTED:
@@ -95,6 +100,7 @@ def summarize(samples):
 
 
 def main():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from clean_openapi_sources import load
     from research_model import JST
     now = datetime.now(JST)
