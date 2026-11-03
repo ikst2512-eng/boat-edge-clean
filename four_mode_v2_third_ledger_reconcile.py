@@ -6,6 +6,7 @@ complete lifetime inventory; the ledger may contain older entries.
 """
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 TOPS = ("top3", "top5", "top10")
@@ -48,7 +49,7 @@ def paired_scores(report):
         raise ValueError("paired_score_roster_disagrees")
     return mapping
 
-def reconcile(capture, ledger):
+def reconcile(capture, ledger, *, before_future_start=False):
     if (type(capture) is not dict or type(ledger) is not dict
             or capture.get("schema") != "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1"
             or ledger.get("schema") != "V2_THIRD_RATE_DURABLE_LEDGER_SCORE_V1"):
@@ -91,6 +92,25 @@ def reconcile(capture, ledger):
     empty_ledger = (ledger.get("status") == "no_long_lived_frozen_evidence"
                     and ledger["frozen"] == 0 and not right
                     and not ledger.get("invalid_files"))
+    # Before the prospective study starts (Nov 4 JST), there cannot be a
+    # future frozen capture. This is a zero denominator, not a missing
+    # production result. Keep every nonempty/failed/incomplete report blocked.
+    prestart_empty = (
+        before_future_start
+        and capture.get("status") == "no_future_capture_runs"
+        and capture.get("eligible_runs_in_inventory") == 0
+        and capture.get("selected_runs") == 0
+        and capture.get("pending_or_unknown_runs") == 0
+        and capture.get("unsuccessful_runs") == 0
+        and capture.get("inventory_limit_reached") is False
+        and not capture.get("missing_or_failed_artifacts")
+        and not capture.get("bad_validation_runs")
+        and capture.get("frozen") == 0 and capture.get("paired") == 0
+        and not left and empty_ledger and not right
+    )
+    if prestart_empty:
+        out["status"] = "prestart_no_future_capture_runs"
+        return out
     if (not capture_scored
             or capture.get("cohort_completeness_verified") is not True
             or capture.get("missing_or_failed_artifacts")
@@ -161,7 +181,7 @@ if __name__ == "__main__":
         }
     else:
         try:
-            report = reconcile(values["capture"], values["ledger"])
+            report = reconcile(\n                values["capture"], values["ledger"],\n                before_future_start=datetime.now(timezone.utc) < datetime(\n                    2026, 11, 3, 15, 0, tzinfo=timezone.utc))
         except (ValueError, TypeError, KeyError):
             report = {
                 "schema": "V2_THIRD_RATE_CAPTURE_LEDGER_RECONCILIATION_V1",
