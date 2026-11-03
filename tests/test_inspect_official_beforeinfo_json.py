@@ -82,13 +82,27 @@ class OfficialJsonReadinessTests(unittest.TestCase):
         ]
         report = inspect(p)
         self.assertTrue(report["start_exhibition_six_valid_rows"])
+        self.assertEqual(report["exhibition_course_to_boat"], {str(i):str(i) for i in range(1,7)})
         self.assertFalse(report["forecast_usable"])
         self.assertFalse(report["t12_eligible"])
         p["maindata"]["sttenjiinfolist"][2]["cs"] = 2
         self.assertFalse(inspect(p)["start_exhibition_six_valid_rows"])
+        self.assertEqual(inspect(p)["exhibition_course_to_boat"], {})
         p["maindata"]["sttenjiinfolist"][2]["cs"] = 3
         p["maindata"]["sttenjiinfolist"][2]["st"] = "pending"
         self.assertFalse(inspect(p)["start_exhibition_six_valid_rows"])
+
+    def test_permuted_exhibition_course_map_is_not_final_entry(self):
+        p = self.sample(["6.8"] * 6)
+        p["maindata"]["sttenjiinfolist"] = [
+            {"teino": str(i), "cs": 7-i, "st": ".08"} for i in range(1,7)
+        ]
+        report = inspect(p)
+        self.assertEqual(report["exhibition_course_to_boat"], {
+            str(i): str(7-i) for i in range(1,7)
+        })
+        self.assertFalse(report["forecast_usable"])
+        self.assertFalse(report["t12_eligible"])
 
     def test_missing_schema_rejected(self):
         with self.assertRaises(ValueError):
