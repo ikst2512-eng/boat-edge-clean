@@ -1,5 +1,7 @@
 import hashlib
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -292,6 +294,40 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["missing_or_failed_artifacts"], [127])
         self.assertEqual(out["status"], "capture_artifacts_unavailable")
         self.assertFalse(out["cohort_completeness_verified"])
+
+    def _run_nightly_cli(self, inventory_text):
+        inventory = self.root / "inventory.json"
+        inventory.write_text(inventory_text, encoding="utf-8")
+        output = self.root / "nightly.json"
+        proc = subprocess.run([
+            sys.executable,
+            str(Path(__file__).with_name("four_mode_v2_frozen_third_nightly.py")),
+            "--run-inventory", str(inventory),
+            "--root", str(self.root), "--out-dir", str(self.root / "artifacts"),
+            "--output", str(output),
+        ], capture_output=True, text=True, timeout=20)
+        return proc, json.loads(output.read_text(encoding="utf-8"))
+
+    def test_cli_invalid_inventory_retains_fatal_diagnostic_json(self):
+        proc, report = self._run_nightly_cli("{bad json")
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(report["status"], "fatal_capture_audit_error")
+        self.assertEqual(report["error_type"], "JSONDecodeError")
+        self.assertFalse(report["cohort_completeness_verified"])
+        self.assertFalse(report["production_promotion_allowed"])
+
+    def test_cli_duplicate_inventory_run_keeps_error_reason(self):
+        proc, report = self._run_nightly_cli(json.dumps([run(123), run(123)]))
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(report["status"], "fatal_capture_audit_error")
+        self.assertEqual(report["error_reason"], "invalid_or_duplicate_run_id")
+        self.assertFalse(report["cohort_completeness_verified"])
+
+    def test_cli_empty_inventory_remains_nonfatal_no_future_capture(self):
+        proc, report = self._run_nightly_cli("[]")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(report["status"], "no_future_capture_runs")
+        self.assertFalse(report["cohort_completeness_verified"])
 
     def test_reject_duplicate_run_ids(self):
         with self.assertRaisesRegex(ValueError, "duplicate_run_id"):
