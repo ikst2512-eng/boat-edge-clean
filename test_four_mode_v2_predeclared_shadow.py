@@ -97,6 +97,8 @@ class V2ShadowTests(unittest.TestCase):
                 report = evaluate(root, now=datetime(2026, 11, 3, 15, 30, tzinfo=timezone(timedelta(hours=9))))
             self.assertEqual(report["v2_forecasts_seen"], 2)
             self.assertEqual(report["v2_comparable"], 0)
+            self.assertEqual(report["groups"]["20261103"]["forecast_only_exposure"]["valid"], 2)
+            self.assertEqual(report["groups"]["20261103"]["forecast_only_exposure"]["eligible"], 2)
             self.assertEqual(report["groups"]["20261103"]["pending_results"], 1)
             self.assertEqual(report["groups"]["20261103"]["pending_by_deadline"]["over_60m_after_deadline"], 1)
             self.assertEqual(report["excluded"]["invalid_or_untrusted_result"], 1)
