@@ -8,7 +8,7 @@ import argparse
 import json
 from pathlib import Path
 
-TOPS = ("top3", "top5", "top10")
+TOPS = ("top1", "top3", "top5", "top10")
 FIELDS = ("baseline", "candidate", "gained", "lost")
 MATCHED = "bounded_frozen_roster_matched"
 CAPTURE_SCHEMA = "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1"
