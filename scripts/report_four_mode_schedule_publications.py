@@ -179,7 +179,8 @@ def github_observation_integrity(publication, observed):
     return {"status": "matched",
             "before_t12": states["github_server_observed_before_t_minus_12"],
             "after_t12": states["github_server_observed_after_t_minus_12"],
-            "unverified": states["remote_observation_unverified"]}
+            "unverified": states["remote_observation_unverified"],
+            "race_codes": sorted(seen)}
 
 
 def safe_run_day_jst(run):
@@ -256,6 +257,23 @@ def inspect(run, root):
                 "new_write_permission_probe", "existing_write_probe_readback"):
             result["third_rate_ledger_probe_status"] = probe["status"]
     result["research_roster_evidence"] = research_roster_evidence(publication, third, hole)
+    # A matching count/commit is insufficient: a remote observation for a
+    # different race must not be credited to the archived research roster.
+    # Compare only when BOTH independent same-job identity summaries exist;
+    # missing old shadow artifacts remain unknown rather than a false failure.
+    roster = result["research_roster_evidence"]
+    integrity = result["github_observation_integrity"]
+    if (integrity["status"] == "matched" and roster["status"] == "matched"
+            and integrity["race_codes"] != roster["race_codes"]):
+        result["github_observation_integrity"] = {
+            "status": "mismatch", "reason": "observation_vs_research_race_roster",
+            "observation_only": sorted(set(integrity["race_codes"]) -
+                                       set(roster["race_codes"]))[:10],
+            "research_only": sorted(set(roster["race_codes"]) -
+                                    set(integrity["race_codes"]))[:10]}
+        result["github_observation_before_t12"] = None
+        result["github_observation_after_t12"] = None
+        result["github_observation_unverified"] = None
     source_links = safe_json(root, "four-mode-evidence/source-links.json")
     result["artifact_present"] = any(
         x is not None for x in (
