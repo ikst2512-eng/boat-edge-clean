@@ -33,12 +33,17 @@ def build_records(day, raw, collected_at):
         raise ValueError("unrecognized result schema")
     digest = hashlib.sha256(raw).hexdigest()
     records = {}
+    seen_codes = set()
     for row in reader:
         code = row.get("レースコード", "")
         if not isinstance(code, str) or not RACE_RE.fullmatch(code) or not code.startswith(day):
             continue
-        if code in records:
+        # Reject duplicate race IDs even when an earlier row was ineligible.
+        # Otherwise a malformed first row can be silently ignored while a
+        # second row is admitted, disagreeing with source-gap diagnostics.
+        if code in seen_codes:
             raise ValueError("duplicate source result")
+        seen_codes.add(code)
         tokens = [str(row.get(f"{i}着_艇番", "")).strip() for i in (1, 2, 3)]
         # Canceled races, disqualifications, unfinished or joint finish must
         # not be converted into an ordinary trifecta.
