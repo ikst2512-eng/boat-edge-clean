@@ -12,8 +12,8 @@ from pathlib import Path
 
 from link_four_mode_raw_forecast import link_forecast
 
-SHA = re.compile(r"[a-f0-9]{40}\\Z")
-FORECAST = re.compile(r"four_mode_forecasts/(20[0-9]{10})\\.json\\Z")
+SHA = re.compile(r"[a-f0-9]{40}\Z")
+FORECAST = re.compile(r"four_mode_forecasts/(20[0-9]{10})\.json\Z")
 JST = timezone(timedelta(hours=9))
 
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     output = report()
     destination = Path("four-mode-evidence/source-links.json")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(output, ensure_ascii=False, sort_keys=True) + "\\n",
+    destination.write_text(json.dumps(output, ensure_ascii=False, sort_keys=True) + "\n",
                            encoding="utf-8")
     print("FOUR_MODE_SOURCE_LINKS=" + json.dumps({
         "checked": output["checked"], "hashes_present": output["hashes_present"],
