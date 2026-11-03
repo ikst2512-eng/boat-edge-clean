@@ -137,6 +137,37 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertEqual(reconcile(self.capture, self.ledger)["status"],
                          "bounded_frozen_roster_matched")
 
+    def test_both_reports_cannot_score_a_race_without_a_frozen_original(self):
+        # Even identical TopN flags cannot certify a result that neither
+        # producer says was frozen in its own immutable prediction roster.
+        wrong = "202611040103"
+        row = self.race_score(wrong, 0, 1)
+        self.capture.update({"paired": 1, "race_codes_paired": [wrong],
+                             "paired_race_scores": [row]})
+        self.ledger.update({"paired": 1, "race_codes_paired": [wrong],
+                            "paired_race_scores": [row]})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "paired_score_evidence_missing_or_invalid")
+
+    def test_ledger_only_unfrozen_score_cannot_be_ignored_as_older_history(self):
+        row = self.race_score(A, 0, 1)
+        wrong = self.race_score("202611040103", 1, 1)
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [row]})
+        self.ledger.update({"paired": 2, "race_codes_paired": [A, wrong["race_code"]],
+                            "paired_race_scores": [row, wrong]})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "paired_score_evidence_missing_or_invalid")
+
+    def test_valid_pairs_within_both_frozen_rosters_are_accepted(self):
+        row = self.race_score(A, 0, 1)
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [row]})
+        self.ledger.update({"paired": 1, "race_codes_paired": [A],
+                            "paired_race_scores": [row]})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "bounded_frozen_roster_matched")
+
     def test_missing_per_race_score_refuses_matched_status(self):
         self.capture.update({"paired": 1, "race_codes_paired": [A]})
         self.assertEqual(reconcile(self.capture, self.ledger)["status"],

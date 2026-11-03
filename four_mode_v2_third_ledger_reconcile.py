@@ -24,6 +24,15 @@ def paired_scores(report):
             or len(scores) != paired or len(codes) != paired
             or len(set(codes)) != len(codes)):
         raise ValueError("invalid_paired_score_roster")
+    frozen = report.get("race_codes_frozen")
+    # Every scored race must have a preserved frozen prediction in the
+    # same producer's own roster, not just matching another report's score.
+    if (type(frozen) is not list
+            or any(type(code) is not str for code in frozen)
+            or len(set(frozen)) != len(frozen)
+            or not set(codes).issubset(set(frozen))
+            or paired > len(frozen)):
+        raise ValueError("paired_races_without_frozen_original")
     mapping = {}
     for row in scores:
         if type(row) is not dict or type(row.get("race_code")) is not str:
