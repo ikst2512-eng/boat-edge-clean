@@ -128,6 +128,49 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(result["source_probes"]["race_cards"]["invalid_nonmapping_rows"],2)
             self.assertFalse((Path(tmp)/"four_mode_forecasts"/"202611040102.json").exists())
 
+    def test_unhashable_and_invalid_race_codes_cannot_crash_capture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            receipt=datetime(2026,11,4,7,30,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            invalid_codes=([1,2], {"unexpected":"dict"}, 42, None,
+                           "202611049901", "202611040113", "202611050101")
+            titles=[title]+[{"レースコード":v,"電話投票締切予定":"12:00"}
+                            for v in invalid_codes]
+            cards=[card]+[{"レースコード":v} for v in invalid_codes]
+            def read(url):
+                return (titles if "/title/" in url else cards,receipt,"a"*64)
+            with patch("clean_direct_sources.direct_cards") as direct:
+                result=collect(root=root,now=now,read=read)
+            direct.assert_not_called()
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["title"]["invalid_race_code_rows"],7)
+            self.assertEqual(result["source_probes"]["race_cards"]["invalid_race_code_rows"],7)
+            self.assertEqual(len(list((root/"four_mode_forecasts").glob("*.json"))),1)
+
+    def test_only_invalid_daily_id_rows_trigger_safe_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            receipt=datetime(2026,11,4,7,30,tzinfo=JST)
+            code="202611040101"
+            good_title={"レースコード":code,"電話投票締切予定":"12:00"}
+            good_card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([{"レースコード":["bad"]}] if "/title/" in url
+                        else [good_card],receipt,"a"*64)
+            with patch("clean_direct_sources.holding_rows",
+                       return_value=([good_title],receipt,"b"*64)):
+                result=collect(root=root,now=now,read=read)
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["title"]["invalid_race_code_rows"],1)
+            self.assertEqual(result["source_probes"]["title_direct"]["status"],"available")
+
     def test_malformed_title_row_does_not_abort_valid_title(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,11,4,8,0,tzinfo=JST)
