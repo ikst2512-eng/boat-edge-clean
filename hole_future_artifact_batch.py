@@ -50,6 +50,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
     identical_repeated_codes=set()
     for path in files:
         examined+=1
+        file_codes=set()
         try:
             data=json.loads(path.read_text(encoding="utf-8"))
             records=data.get("records") if isinstance(data,dict) else None
@@ -60,6 +61,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             for record in records:
                 code=record.get("race_code") if isinstance(record,dict) else None
                 if in_window(code):
+                    file_codes.add(code)
                     # Byte-equivalent source records from repeated Actions runs
                     # are one frozen prediction, not two independent races.
                     # Any different snapshot for the same race is ambiguous.
@@ -76,6 +78,9 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
                     outside_window.add(code)
             scored=audit(root,path)
         except (OSError,UnicodeError,ValueError,KeyError,TypeError) as exc:
+            # If one artifact is invalid, its race cannot be rescued by a
+            # duplicate from another run without proving which is canonical.
+            duplicates.update(file_codes)
             nonusable[type(exc).__name__]+=1;continue
         for name,n in scored.get("excluded_by_reason",{}).items():
             excluded[name]+=n
