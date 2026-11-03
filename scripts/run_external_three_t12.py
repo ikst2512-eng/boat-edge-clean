@@ -136,8 +136,12 @@ def run(race, root, obs_id, repo, branch, token, *, observer=observe,
     expected_remote_status = (
         "independent_originals_reaudited" if completed_locally
         else "observation_not_ready")
-    local_complete = bool(report.get("audit", {}).get(
-        "all_research_components_observed_by_t12")) if completed_locally else False
+    local_complete = (report.get("audit") or {}).get(
+        "all_research_components_observed_by_t12") is True
+    if report["status"] == "research_components_complete_by_t12" and not local_complete:
+        raise ValueError("local research completion claim lacks source audit proof")
+    if report["status"] != "research_components_complete_by_t12" and local_complete:
+        raise ValueError("local incomplete report contradicts source audit proof")
     if (verified.get("status") != expected_remote_status
             or verified.get("declared_status") != report["status"]
             or verified.get("research_complete") is not local_complete
