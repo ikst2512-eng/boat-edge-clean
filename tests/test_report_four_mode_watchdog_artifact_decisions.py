@@ -39,6 +39,15 @@ class ArtifactDecisionTests(unittest.TestCase):
         self.assertFalse(result["causal_link_proven"])
         self.assertFalse(result["remote_publication_proven"])
 
+    def test_flat_single_file_artifact_path_is_accepted(self):
+        history = {"recent_watchdog_runs": [run()], "recent_capture_runs": []}
+        def download(run_id, root):
+            write(root, run_id, action="no_dispatch")
+            path = root / "four-mode-evidence/watchdog-decision.json"
+            path.rename(root / "watchdog-decision.json")
+        result = inspect(history, download)
+        self.assertEqual(result["no_dispatch_verified"], 1)
+
     def test_no_dispatch_not_reclassified_as_recovery(self):
         result = inspect({"recent_watchdog_runs": [run()], "recent_capture_runs": [capture()]},
                          lambda run_id, root: write(root, run_id, action="no_dispatch"))
