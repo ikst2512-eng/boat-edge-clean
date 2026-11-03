@@ -10,10 +10,11 @@ from four_mode_v2_model_reproduction import audit, VERSION
 RATES = [6.2, 5.1, 4.5, 5.4, 3.8, 4.9]
 
 
-def fixture(root, race_code="202611030101", tamper=False):
+def fixture(root, race_code="202611030101", tamper=False, rates=None):
+    rates = RATES if rates is None else rates
     folder = root / "four_mode_forecasts"
     folder.mkdir(exist_ok=True)
-    modes = rank_modes(probabilities(RATES))
+    modes = rank_modes(probabilities(rates))
     if tamper:
         modes["hit"]["tickets"][0]["p"] += 0.01
     obj = {
@@ -22,7 +23,7 @@ def fixture(root, race_code="202611030101", tamper=False):
         "generated_at_jst": "2026-11-03T11:00:00+09:00",
         "deadline_jst": "2026-11-03T12:00:00+09:00",
         "model_version": VERSION,
-        "input_national_win_rates": RATES,
+        "input_national_win_rates": rates,
         "modes": modes,
     }
     (folder / (race_code + ".json")).write_text(json.dumps(obj), encoding="utf-8")
@@ -56,11 +57,12 @@ class ReproductionTests(unittest.TestCase):
     def test_rate_nonmax_and_exactly_reproduced_counts_as_model_bias_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            fixture(root)
+            lower_boat1 = [5.2, 6.1, 4.5, 5.4, 3.8, 4.9]
+            fixture(root, rates=lower_boat1)
             report = audit(root)
             self.assertEqual(report["boat1_rate_not_max"], 1)
             self.assertEqual(report["boat1_rate_not_max_but_top1_head1"],
-                             int(rank_modes(probabilities(RATES))["hit"]["tickets"][0]["combo"][0] == "1"))
+                             int(rank_modes(probabilities(lower_boat1))["hit"]["tickets"][0]["combo"][0] == "1"))
 
     def test_mismatch_is_excluded_from_structural_attribution(self):
         with tempfile.TemporaryDirectory() as td:
