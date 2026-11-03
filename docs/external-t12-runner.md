@@ -20,6 +20,12 @@ The Git tree update is one non-force commit with SHA-verified blobs.\nOnly the e
 It does not alter `main`, publish official forecasts, or enable
 `forecast_usable`, `full_t12_source_certified` or `t12_eligible`.
 Failed evidence uploads make the runner fail, not report success.
+The command also exits **nonzero** when the only durable evidence is a
+diagnostic report (for example, source unavailable or T−12 preflight expired).
+The diagnostic stays archived, but a green GitHub/Render job means six
+original files were fetched, saved, and independently reread. A verified set
+of three originals may still be `research_components_incomplete` when
+exhibition fields are missing; neither condition authorizes a forecast.
 
 After the evidence commit is created, the runner now **downloads every saved
 blob at that exact immutable commit SHA**, recomputes the Git blob SHA and
