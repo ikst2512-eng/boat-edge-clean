@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from summarize_live_odds_history import consistent_attempts
+from summarize_live_odds_history import consistent_observation_times
 
 
 def verdict(record):
@@ -22,7 +22,7 @@ def verdict(record):
         code = sample.get("race_code")
         attempts = sample.get("attempts")
         if (isinstance(code, str) and len(code) == 12 and code.isdigit()
-                and consistent_attempts(attempts)
+                and consistent_observation_times(attempts, record.get("checked_at_jst"))
                 and attempts[-1]["state"] == "valid_200"
                 and attempts[-1]["http"] == 200):
             return "valid_200_observed"
