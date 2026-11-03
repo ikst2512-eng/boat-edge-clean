@@ -67,6 +67,26 @@ def research_roster_evidence(publication, third, hole):
         rosters.append(set(codes))
     if rosters[0] != rosters[1]:
         return {"status": "mismatch", "reason": "shadow_race_rosters_disagree"}
+    # Match of IDs is not proof that all records were successfully frozen.
+    # Where the producer supplies aggregate verdicts, they must agree with
+    # each actual per-race status. Older hole artifacts without the new
+    # validation_error_count retain identity-only verification.
+    for artifact, frozen_key, frozen_status, label in (
+            (third, "frozen_before_t_minus_12",
+             "frozen_in_same_job_before_t_minus_12", "third"),
+            (hole, "frozen_count", "shadow_frozen_unverified", "hole")):
+        records = artifact["records"]
+        for key, status in ((frozen_key, frozen_status),
+                            ("validation_error_count", "validation_error")):
+            if key not in artifact:
+                continue  # Legacy artifact: unknown accounting, not proven zero.
+            reported = artifact[key]
+            actual = sum(row.get("status") == status for row in records)
+            if type(reported) is not int or reported < 0 or reported != actual:
+                return {"status": "mismatch",
+                        "reason": "shadow_freeze_accounting_mismatch",
+                        "research": label, "field": key,
+                        "reported": reported, "record_count": actual}
     return {"status": "matched", "reason": "same_local_push_claim_and_race_roster",
             "matched_races": added, "commit_sha": sha,
             # Exact identities are needed for the later independent Git-tree
