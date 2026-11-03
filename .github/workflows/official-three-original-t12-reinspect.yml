@@ -1,5 +1,10 @@
 name: Re-audit Toda T12 scheduled original archives (research only)
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/official-three-original-t12-reinspect.yml'
+      - 'scripts/reaudit_scheduled_three_t12.py'
+      - 'tests/test_reaudit_scheduled_three_t12.py'
   # 2026-11-03 16:25 JST; later-year dates are rejected by in-job UTC guard.
   schedule:
     - cron: '25 7 3 11 *'
