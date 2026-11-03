@@ -71,7 +71,7 @@ def score_evidence(evidence, root):
            "publication_evidence_status": evidence["status"],
            "validation_error_count": evidence.get("validation_error_count", 0),
            "frozen": 0, "paired": 0, "pending_results": 0,
-           "excluded": 0, "invalid": 0, "race_codes_paired": [],
+           "excluded": 0, "invalid": 0, "race_codes_paired": [], "paired_race_scores": [],
            "race_codes_frozen": [],
            "topn": scores, "warning": "Results scored ONLY from same-job frozen artifact, not independently timestamped publication."}
     seen = set()
@@ -127,6 +127,8 @@ def score_evidence(evidence, root):
             continue
         out["paired"] += 1
         out["race_codes_paired"].append(code)
+        per_race = {"race_code": code, "topn": {}}
+        out["paired_race_scores"].append(per_race)
         for n in (3, 5, 10):
             row = scores[f"top{n}"]
             base_hit = winning in item["baseline_top10"][:n]
@@ -135,6 +137,11 @@ def score_evidence(evidence, root):
             row["candidate"] += int(candidate_hit)
             row["gained"] += int(candidate_hit and not base_hit)
             row["lost"] += int(base_hit and not candidate_hit)
+            per_race["topn"][f"top{n}"] = {
+                "baseline": int(base_hit), "candidate": int(candidate_hit),
+                "gained": int(candidate_hit and not base_hit),
+                "lost": int(base_hit and not candidate_hit),
+            }
     if out["frozen"] != out["paired"] + out["pending_results"] + out["invalid"]:
         raise ValueError("frozen_partition_mismatch")
     if out["frozen"] + out["excluded"] != published:
@@ -143,6 +150,7 @@ def score_evidence(evidence, root):
         if row["candidate"] - row["baseline"] != row["gained"] - row["lost"]:
             raise ValueError("gain_loss_mismatch")
     out["race_codes_paired"].sort()
+    out["paired_race_scores"].sort(key=lambda x: x["race_code"])
     out["race_codes_frozen"].sort()
     return out
 
