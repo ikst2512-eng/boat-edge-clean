@@ -34,6 +34,67 @@ class EvidenceVerdictTests(unittest.TestCase):
             "stored":True,"formal":False,"status":"new_append_only_observation",
             "sha256":hashlib.sha256(source).hexdigest(),
             "path":"github_server/20261104/run-1234-attempt-1.json"})
+    def good_third(self):
+        original = {
+            "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+            "status": "captured_local_after_push_not_remote_proven",
+            "formal": False,
+            "publication_commit_sha": "a" * 40,
+            "published_forecasts": 1,
+            "frozen_before_t_minus_12": 1,
+            "validation_error_count": 0,
+            "records": [{
+                "race_code": "202611040101",
+                "status": "frozen_in_same_job_before_t_minus_12",
+                "source_commit_sha": "a" * 40,
+                "frozen_at_utc": "2026-11-04T01:00:00+00:00",
+                "t_minus_12_jst": "2026-11-04T11:48:00+09:00",
+            }],
+        }
+        self.write("third-rate-shadow.json", original)
+        blob = (self.root / "four-mode-evidence" / "third-rate-shadow.json").read_bytes()
+        self.write("third-rate-ledger.json", {
+            "status": "new_immutable_ledger_entry",
+            "stored": True, "formal": False,
+            "branch": "v2-third-rate-evidence-ledger",
+            "original_sha256": hashlib.sha256(blob).hexdigest(),
+            "path": "third_rate/20261104/run-1234-attempt-1.json",
+        })
+
+    def test_future_publication_requires_durable_third_shadow(self):
+        self.published(); self.good()
+        with self.assertRaises(FileNotFoundError):
+            verify(self.root)
+
+    def test_future_rejects_third_shadow_without_long_term_bytes(self):
+        self.published(); self.good(); self.good_third()
+        (self.root / "four-mode-evidence" / "third-rate-ledger.json").unlink()
+        with self.assertRaises(FileNotFoundError):
+            verify(self.root)
+
+    def test_future_rejects_third_shadow_with_wrong_digest(self):
+        self.published(); self.good(); self.good_third()
+        path = self.root / "four-mode-evidence" / "third-rate-ledger.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["original_sha256"] = "0" * 64
+        self.write("third-rate-ledger.json", data)
+        with self.assertRaisesRegex(ValueError, "future_third_rate_not_durable"):
+            verify(self.root)
+
+    def test_future_rejects_no_frozen_third_predictions(self):
+        self.published(); self.good(); self.good_third()
+        path = self.root / "four-mode-evidence" / "third-rate-shadow.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["frozen_before_t_minus_12"] = 0
+        self.write("third-rate-shadow.json", data)
+        with self.assertRaisesRegex(ValueError, "future_third_rate_shadow_missing_or_invalid"):
+            verify(self.root)
+
+    def test_valid_future_shadow_and_ledger_are_required_for_publication_pass(self):
+        self.published(); self.good(); self.good_third()
+        self.assertEqual(verify(self.root)["status"],
+                         "published_with_durable_early_observation")
+
     def test_hash_mismatch_does_not_claim_durable_same_evidence(self):
         self.published();self.good()
         path=self.root/"four-mode-evidence"/"github-server-observation-ledger.json"
@@ -94,7 +155,7 @@ class EvidenceVerdictTests(unittest.TestCase):
         self.write("publication.json", {"outcome":"no_eligible_candidates"})
         self.assertFalse(verify(self.root)["evidence_required"])
     def test_published_valid_evidence_passes(self):
-        self.published(); self.good()
+        self.published(); self.good(); self.good_third()
         self.assertEqual(verify(self.root)["published"], 1)
     def test_published_without_ledger_fails(self):
         self.published()
