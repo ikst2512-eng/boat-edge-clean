@@ -27,6 +27,50 @@ def count(data, key):
     return value if type(value) is int and value >= 0 else None
 
 
+def research_roster_evidence(publication, third, hole):
+    """Check artifact-local same-run identities, not independent Git remote proof."""
+    if not isinstance(publication, dict):
+        return {"status": "unknown", "reason": "publication_evidence_missing"}
+    if publication.get("outcome") != "pushed_to_main":
+        return {"status": "not_applicable" if publication.get("outcome") == "no_eligible_candidates"
+                else "unknown", "reason": "no_confirmed_push"}
+    sha = publication.get("commit_sha")
+    added = count(publication, "added_forecasts")
+    if (not isinstance(sha, str) or len(sha) != 40
+            or any(ch not in "0123456789abcdef" for ch in sha)
+            or added is None or added <= 0):
+        return {"status": "mismatch", "reason": "invalid_publication_claim"}
+    if not isinstance(third, dict) or not isinstance(hole, dict):
+        return {"status": "unknown", "reason": "research_artifact_missing"}
+    if (third.get("schema") != "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1"
+            or hole.get("schema") != "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1"):
+        return {"status": "mismatch", "reason": "wrong_shadow_schema"}
+    if (third.get("publication_commit_sha") != sha
+            or hole.get("publication_commit_sha") != sha
+            or count(third, "published_forecasts") != added
+            or count(hole, "published_new_count") != added):
+        return {"status": "mismatch", "reason": "shadow_commit_or_count_mismatch"}
+    rosters = []
+    for artifact in (third, hole):
+        records = artifact.get("records")
+        if (not isinstance(records, list) or len(records) != added
+                or not all(isinstance(row, dict)
+                           and isinstance(row.get("race_code"), str)
+                           and len(row["race_code"]) == 12
+                           and row["race_code"].isdigit()
+                           and row["race_code"].startswith("20")
+                           for row in records)):
+            return {"status": "mismatch", "reason": "invalid_shadow_race_roster"}
+        codes = [row["race_code"] for row in records]
+        if len(set(codes)) != len(codes):
+            return {"status": "mismatch", "reason": "duplicate_shadow_race"}
+        rosters.append(set(codes))
+    if rosters[0] != rosters[1]:
+        return {"status": "mismatch", "reason": "shadow_race_rosters_disagree"}
+    return {"status": "matched", "reason": "same_local_push_claim_and_race_roster",
+            "matched_races": added, "commit_sha": sha}
+
+
 def inspect(run, root):
     """Keep unknown separate from zero; never reclassify local push claims as remote proof."""
     result = {"run_id": run["id"], "created_at": run.get("created_at"),
@@ -39,13 +83,17 @@ def inspect(run, root):
               "publication_outcome": None, "claimed_added_forecasts": None,
               "claimed_commit_sha": None, "remote_main_verified": False,
               "failure_stage": None, "third_rate_shadow_outcome": None,
-              "hole_shadow_outcome": None, "source_link_status": None,
+              "hole_shadow_outcome": None, "research_roster_evidence": None,
+              "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
               "source_link_formal": False}
     status = safe_json(root, "four_mode_forecasts/capture_status.json")
     staging = safe_json(root, "four-mode-evidence/staging.json")
     publication = safe_json(root, "four-mode-evidence/publication.json")
     stages = safe_json(root, "four-mode-evidence/stages.json")
+    third = safe_json(root, "four-mode-evidence/third-rate-shadow.json")
+    hole = safe_json(root, "four-mode-evidence/hole-shadow.json")
+    result["research_roster_evidence"] = research_roster_evidence(publication, third, hole)
     source_links = safe_json(root, "four-mode-evidence/source-links.json")
     result["artifact_present"] = any(x is not None for x in (status, staging, publication, stages, source_links))
     if source_links is not None and source_links.get("schema") in ("FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V1", "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2"):
@@ -157,6 +205,12 @@ def report(history, downloader, limit=12):
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "research_stage_coverage": research_coverage,
+            "research_roster_status_counts": {
+                state: sum(r["research_roster_evidence"]["status"] == state for r in rows)
+                for state in ("matched", "mismatch", "unknown", "not_applicable")},
+            "research_roster_mismatch_run_ids": [
+                r["run_id"] for r in rows
+                if r["research_roster_evidence"]["status"] == "mismatch"],
             "third_rate_shadow_failure_runs": [
                 r["run_id"] for r in rows if r["third_rate_shadow_outcome"] == "failure"],
             "hole_shadow_failure_runs": [
@@ -196,6 +250,8 @@ def main():
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "research_stage_coverage": result["research_stage_coverage"],
+        "research_roster_status_counts": result["research_roster_status_counts"],
+        "research_roster_mismatch_run_ids": result["research_roster_mismatch_run_ids"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
         "hole_shadow_failure_runs": result["hole_shadow_failure_runs"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
