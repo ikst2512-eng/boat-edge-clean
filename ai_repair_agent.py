@@ -118,10 +118,20 @@ def propose(issue, root, api_key, model, transport=urlopen):
             raise RuntimeError("Gemini API key or project authorization failed. No code changed.") from None
         raise RuntimeError(f"Gemini API HTTP {exc.code}: no code changed.") from None
     try:
-        candidate = result["candidates"][0]
+        candidates = result["candidates"]
+        if not isinstance(candidates, list) or len(candidates) != 1:
+            raise ValueError("ambiguous_gemini_candidates")
+        candidate = candidates[0]
+        if candidate["finishReason"] != "STOP":
+            raise ValueError("incomplete_gemini_generation")
         parts = candidate["content"]["parts"]
-        proposal = json.loads("".join(part["text"] for part in parts if "text" in part))
-    except (KeyError,IndexError,TypeError,ValueError) as exc:
+        if not isinstance(parts, list) or not parts:
+            raise ValueError("invalid_gemini_parts")
+        texts = [part["text"] for part in parts]
+        if any(not isinstance(value, str) for value in texts):
+            raise ValueError("invalid_gemini_text")
+        proposal = json.loads("".join(texts))
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
         raise ValueError("invalid_gemini_response") from exc
     patches = parse_patches(proposal)
     changed = apply(root, patches) if patches else []
