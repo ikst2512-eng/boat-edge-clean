@@ -36,16 +36,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::AI repair PR review must run from main."
+            exit 1
+          fi
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr.json
-          python - <<'PY'
+          head_sha="$(python - <<'PY'
           import json,os
           from pathlib import Path
           p=json.loads(Path('/tmp/pr.json').read_text())
           if (p['state']!='open' or not p['draft'] or
               p['head']['repo']['full_name']!=os.environ['GITHUB_REPOSITORY'] or
               not p['head']['ref'].startswith('ai/repair-') or
-              p['base']['ref']!='main'):
-              raise SystemExit('Not an open local AI draft PR against main')
+              p['base']['ref']!='main' or p['commits']!=1):
+              raise SystemExit('Not a one-commit local AI draft PR against main')
+          print(p['head']['sha'])
+          PY
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${head_sha}" > /tmp/head-commit.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" > /tmp/main-ref.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path('/tmp/pr.json').read_text())
+          commit=json.loads(Path('/tmp/head-commit.json').read_text())
+          main=json.loads(Path('/tmp/main-ref.json').read_text())['object']['sha']
+          parents=commit.get('parents',[])
+          if (len(parents)!=1 or parents[0].get('sha')!=main or
+              p['base']['sha']!=main or commit.get('sha')!=p['head']['sha']):
+              raise SystemExit('AI draft PR is stale or not a direct child of current main')
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
               f.write('sha='+p['head']['sha']+'\n')
           PY
