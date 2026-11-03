@@ -100,6 +100,32 @@ class FallbackGateTests(unittest.TestCase):
                          fetch_json=lambda *_: {"workflow_runs": []}), "direct_schedule_absent_or_failed")
 
 
+    def test_hours_late_direct_cron_cannot_suppress_same_slot_fallback(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 5, 30, tzinfo=timezone.utc)
+        delayed = {"id": 41624217156, "event": "schedule",
+                   "created_at": "2026-11-03T11:02:28Z",
+                   "status": "completed", "conclusion": "success"}
+        def fetch(url, token):
+            return {"workflow_runs": [delayed]}
+        self.assertEqual(gate.direct_schedule_guard(
+            trigger, "a/b", "token", now=now, fetch_json=fetch,
+            probe_check=lambda *_: "valid"), "direct_schedule_absent_or_failed")
+
+    def test_direct_cron_at_grace_boundary_can_suppress_fallback(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 4, 56, tzinfo=timezone.utc)
+        in_window = {"id": 71, "event": "schedule",
+                     "created_at": "2026-11-03T04:55:00Z",
+                     "status": "completed", "conclusion": "success"}
+        def fetch(url, token):
+            return {"workflow_runs": [in_window]}
+        self.assertEqual(gate.direct_schedule_guard(
+            trigger, "a/b", "token", now=now, fetch_json=fetch,
+            probe_check=lambda *_: "valid"), "direct_schedule_observed")
+
     def test_saved_artifact_with_verified_200_suppresses_fallback(self):
         import io
         import zipfile
