@@ -1,0 +1,51 @@
+name: Hole locked future-period evaluation (research only)
+on:
+  pull_request:
+    paths:
+      - hole_future_locked_eval.py
+      - test_hole_future_locked_eval.py
+      - .github/workflows/hole-future-locked-eval.yml
+  workflow_dispatch:
+  schedule:
+    # 15:15 UTC = 00:15 JST next day, after the complete prior racing day.
+    - cron: '15 15 * * *'
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce locked future-period safeguards
+        run: python -m unittest -v test_hole_future_locked_eval.py
+      - name: Evaluate only 2026-11-04+ frozen predictions and confirmed results
+        run: python hole_future_locked_eval.py > hole_future_locked_results.json
+      - name: Print honest results and evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_future_locked_results.json"))
+          assert r["formal"] is False
+          if r["status"]=="not_yet_eligible":
+              print("STATUS",r["status"])
+          else:
+              assert r["prospective_validation"] is False
+              assert r["independent_first_receipt_verified"] is False
+              assert r["candidate_scores_calibrated"] is False
+              assert r["production_forecast_changed"] is False
+              assert r["first_eligible_jst"]=="2026-11-04"
+              print("STATUS",r["status"],"COMPARABLE",r["comparable"])
+              print("RACES",r["race_codes"])
+              print("MISSING",r["excluded_by_reason"])
+              print("HITS",r["hits"])
+              print("DELTA",r["delta"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-future-locked-results
+          path: hole_future_locked_results.json
