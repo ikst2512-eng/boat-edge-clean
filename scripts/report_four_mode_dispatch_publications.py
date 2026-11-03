@@ -23,6 +23,7 @@ def dispatch_history(capture_inventory, *, limit=12):
         raise ValueError("invalid capture inventory")
     runs = []
     seen = set()
+    matched = 0
     for run in capture_inventory["recent_capture_runs"]:
         if not isinstance(run, dict):
             raise ValueError("invalid capture run")
@@ -36,13 +37,14 @@ def dispatch_history(capture_inventory, *, limit=12):
                 or not stamp or run_id in seen):
             raise ValueError("invalid or duplicate dispatch run")
         seen.add(run_id)
-        runs.append({"id": run_id, "created_at": stamp,
-                     "capture_conclusion": run.get("conclusion"),
-                     # Workflow listing cannot prove which step failed.
-                     "failed_steps": []})
-        if len(runs) >= limit:
-            break
-    return {"schema": "FOUR_MODE_DISPATCH_CAPTURE_HISTORY_V1", "runs": runs}
+        matched += 1
+        if len(runs) < limit:
+            runs.append({"id": run_id, "created_at": stamp,
+                         "capture_conclusion": run.get("conclusion"),
+                         # Workflow listing cannot prove which step failed.
+                         "failed_steps": []})
+    return {"schema": "FOUR_MODE_DISPATCH_CAPTURE_HISTORY_V1",
+            "matching_dispatch_runs_available": matched, "runs": runs}
 
 
 def inspect_dispatches(capture_inventory, downloader, limit=12):
@@ -57,6 +59,9 @@ def inspect_dispatches(capture_inventory, downloader, limit=12):
     result = report(history, downloader, limit=limit)
     result["schema"] = "FOUR_MODE_DISPATCH_PUBLICATION_EVIDENCE_V1"
     result["dispatch_runs_checked"] = result.pop("scheduled_runs_checked")
+    result["history_runs_available"] = history["matching_dispatch_runs_available"]
+    result["history_runs_omitted"] = max(
+        0, history["matching_dispatch_runs_available"] - result["dispatch_runs_checked"])
     for row in result["runs"]:
         row["trigger_event"] = "workflow_dispatch"
     return result
@@ -84,6 +89,7 @@ def main():
                       encoding="utf-8")
     print("FOUR_MODE_DISPATCH_PUBLICATIONS=" + json.dumps({
         "dispatch_runs_checked": result["dispatch_runs_checked"],
+        "history_runs_omitted": result.get("history_runs_omitted", 0),
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
