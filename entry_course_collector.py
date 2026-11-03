@@ -23,7 +23,7 @@ JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
 
 
-def candidates(root, *, now=None, max_minutes=12):
+def candidates(root, *, now=None, max_minutes=6):
     """Return only current-day frozen bases nearing later T-2 cutoff."""
     now=now or datetime.now(JST)
     root=Path(root)
@@ -76,7 +76,7 @@ def historical_prefetch(day, *, lookback_days=31, fetch=_fetch, workers=6):
 
 def attempt(root, *, now=None, prefetch=historical_prefetch,
             card_reader=None, ledger_ops=None, sleep=time.sleep,
-            output_dir=None, max_minutes=12, min_starts=10):
+            output_dir=None, max_minutes=6, min_starts=10):
     now=now or (lambda:datetime.now(JST))
     target=candidates(root,now=now(),max_minutes=max_minutes)
     if not target:
