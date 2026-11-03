@@ -42,6 +42,25 @@ class FirstAddAuditTests(unittest.TestCase):
         self.assertEqual(run.call_args_list[0].args[0][:3],
                          ["git", "log", "--max-count=2"])
 
+    def test_bulk_refuses_shallow_history_before_reading_additions(self):
+        root = Path("/tmp/first-add-check")
+        with patch.object(audit.subprocess, "check_output",
+                          return_value="true\\n") as run:
+            with self.assertRaisesRegex(ValueError, "incomplete local git history"):
+                with audit.bulk_first_add(root):
+                    self.fail("shallow evidence must never be examined")
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0],
+                         ["git", "rev-parse", "--is-shallow-repository"])
+
+    def test_bulk_full_history_still_checks_unique_additions(self):
+        root = Path("/tmp/first-add-check")
+        with patch.object(audit.subprocess, "check_output",
+                          side_effect=["false\\n", "COMMIT " + "a"*40 + " 2026-10-28T09:00:00+09:00\\nprospective_predictions/202610281201.json\\n"]) as run:
+            with audit.bulk_first_add(root):
+                self.assertEqual(audit._BULK.state[1]["prospective_predictions/202610281201.json"][0][0], "a"*40)
+        self.assertEqual(run.call_count, 2)
+
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
