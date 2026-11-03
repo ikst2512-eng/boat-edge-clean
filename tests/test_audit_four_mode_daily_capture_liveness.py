@@ -44,6 +44,18 @@ class CaptureLivenessTests(unittest.TestCase):
             self.assertEqual(evidence["status"], "capture_inventory_unavailable")
             self.assertFalse(evidence["publication_verified"])
 
+    def test_truncated_history_cannot_prove_all_runs_failed_or_absent(self):
+        inventory = {"recent_capture_runs": [run(1, conclusion="failure")],
+                     "source_coverage": {WF + ":schedule": {
+                         "returned": 100, "may_be_truncated": True}}}
+        result = report("20261104", inventory)
+        self.assertEqual(result["status"], "capture_inventory_incomplete")
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+        inventory["recent_capture_runs"] = [run(2)]
+        result = report("20261104", inventory)
+        self.assertEqual(result["status"], "capture_success_observed")
+        self.assertTrue(result["capture_coverage_incomplete"])
+
     def test_prior_jst_day_does_not_count(self):
         result = report("20261104", {"recent_capture_runs": [
             run(1, "2026-11-03T14:59:59Z")]})

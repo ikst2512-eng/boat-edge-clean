@@ -40,7 +40,21 @@ def report(day, inventory):
             raise ValueError("capture timestamp has no timezone")
         if instant.astimezone(JST).strftime("%Y%m%d") == day:
             selected.append(run)
+    # A full first page is not complete evidence: older same-day runs may
+    # be hidden beyond the API page boundary. Do not assert absence/all failure.
+    coverage = inventory.get("source_coverage", {})
+    if not isinstance(coverage, dict):
+        raise ValueError("invalid source coverage")
+    capture_coverage_incomplete = any(
+        coverage.get(CAPTURE + ":" + event, {}).get("may_be_truncated") is True
+        for event in EVENTS
+    )
     status = (
+        "capture_inventory_incomplete"
+        if capture_coverage_incomplete and not any(
+            x.get("conclusion") == "success" and x.get("status") == "completed"
+            for x in selected
+        ) else
         "no_capture_runs_observed" if not selected
         else "capture_success_observed" if any(x.get("conclusion") == "success" and x.get("status") == "completed" for x in selected)
         else "capture_pending" if any(x.get("status") != "completed" for x in selected)
@@ -51,6 +65,7 @@ def report(day, inventory):
         "day_jst": day,
         "status": status,
         "same_day_run_ids": [r["id"] for r in selected],
+        "capture_coverage_incomplete": capture_coverage_incomplete,
         "completed_success_count": sum(r.get("status") == "completed" and r.get("conclusion") == "success" for r in selected),
         "completed_failure_count": sum(r.get("status") == "completed" and r.get("conclusion") == "failure" for r in selected),
         "pending_count": sum(r.get("status") != "completed" for r in selected),
@@ -63,7 +78,8 @@ def report(day, inventory):
 def should_fail(result, event, ref):
     return (event == "schedule" and ref == "refs/heads/main"
             and result.get("status") in ("no_capture_runs_observed", "all_observed_captures_failed",
-                                        "capture_inventory_unavailable"))
+                                        "capture_inventory_unavailable",
+                                        "capture_inventory_incomplete"))
 
 
 def main():
@@ -95,7 +111,7 @@ def main():
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print("FOUR_MODE_DAILY_CAPTURE_LIVENESS=" + json.dumps(result, sort_keys=True))
     if should_fail(result, os.getenv("GITHUB_EVENT_NAME"), os.getenv("GITHUB_REF")):
-        print("::error::Daily V2 capture execution is absent or all observed runs failed")
+        print("::error::Daily V2 capture history is absent, failed, incomplete or unavailable")
         raise SystemExit(2)
     if result["status"] == "capture_pending":
         print("::warning::Daily V2 capture is pending; publication not yet proven")
