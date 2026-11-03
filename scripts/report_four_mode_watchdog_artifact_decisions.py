@@ -58,7 +58,11 @@ def inspect(history, downloader, limit=40):
                 row["evidence_status"] = "artifact_download_" + type(exc).__name__
                 rows.append(row)
                 continue
-            record = safe_json(root, "four-mode-evidence/watchdog-decision.json")
+            nested = safe_json(root, "four-mode-evidence/watchdog-decision.json")
+            flat = safe_json(root, "watchdog-decision.json")
+            # GitHub's artifact upload may flatten an individual-file upload.
+            # Conflicting copies must not be accepted as valid proof.
+            record = nested if flat is None else flat if nested is None else None
         if record is not None:
             try:
                 checked_at = timestamp(record.get("checked_at_utc"))
