@@ -78,6 +78,20 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertEqual(result, {"same_day": 0, "other_day": 0, "unknown": 2})
         self.assertEqual(late, [])
 
+    def test_scheduled_git_audit_refreshes_main_after_artifact_downloads(self):
+        workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
+            encoding="utf-8")
+        refresh = "name: Refresh remote main before final Git publication audit"
+        audit = "name: Confirm today's first-add archive presence in checked-out Git main"
+        self.assertIn(refresh, workflow)
+        self.assertIn("if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("git fetch --no-tags origin main", workflow)
+        self.assertIn("git checkout --detach FETCH_HEAD", workflow)
+        self.assertLess(workflow.index("name: Audit watchdog decision artifacts"),
+                        workflow.index(refresh))
+        self.assertLess(workflow.index(refresh), workflow.index(audit))
+        self.assertIn(audit + "\\n        if: always()".replace("\\n", "\n"), workflow)
+
     def test_main_archive_audit_runs_independently_of_liveness_failure(self):
         workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
             encoding="utf-8")
