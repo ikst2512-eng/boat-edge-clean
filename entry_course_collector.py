@@ -18,6 +18,7 @@ from entry_course_history_source import BASE, _fetch, load_asof_history
 from entry_course_late_preview import prepare_late_preview_study
 from entry_course_write_once import freeze_capture
 from entry_course_durable_ledger import github_ops, publish, verify_write_access
+from entry_course_baseline_audit import audit_daily_bases
 
 JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
@@ -78,9 +79,12 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             card_reader=None, ledger_ops=None, sleep=time.sleep,
             output_dir=None, max_minutes=6, min_starts=10):
     now=now or (lambda:datetime.now(JST))
-    target=candidates(root,now=now(),max_minutes=max_minutes)
+    sampled_now=now()
+    target=candidates(root,now=sampled_now,max_minutes=max_minutes)
     if not target:
-        return {"status":"no_frozen_baseline_in_late_window","stored":False,"research_only":True}
+        return {"status":"no_frozen_baseline_in_late_window","stored":False,
+                "baseline_audit":audit_daily_bases(root,now=sampled_now,max_minutes=max_minutes),
+                "research_only":True}
     late,code,base=target[0]
     remaining=(late-now()).total_seconds()
     if remaining<45:
