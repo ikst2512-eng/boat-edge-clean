@@ -364,7 +364,7 @@ assert.ok(!pagesPublishingWorkflow.includes("await shortcuts.locator("),
 // Historical P0 browser coverage must span separate dates and venues with stored
 // forecast, card, and result evidence; these are research-only, never formal scores.
 const historicalPagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-for(const key of ['202610280101','202610310708','202611021905']){
+for(const key of ['202610280101','202610310708','202611021905','202611031911']){
   assert.ok(historicalPagesWorkflow.split(key).length>=4,
     'Pages must inspect forecast, racecard and confirmed result for '+key);
 }
