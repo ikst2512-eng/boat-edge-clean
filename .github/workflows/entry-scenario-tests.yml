@@ -4,10 +4,13 @@ on:
     paths:
       - entry_scenario.js
       - entry_evidence_gate.js
+      - entry_racecard_evidence.js
       - index.html
       - server.py
       - tests/test_entry_scenario.cjs
       - tests/test_entry_evidence_gate.cjs
+      - tests/test_entry_racecard_evidence.cjs
+      - tests/test_entry_racecard_evidence.cjs
       - .github/workflows/entry-scenario-tests.yml
   workflow_dispatch:
 permissions:
@@ -22,7 +25,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify client simulator JavaScript
-        run: node --check entry_scenario.js && node --check entry_evidence_gate.js
+        run: node --check entry_scenario.js && node --check entry_evidence_gate.js && node --check entry_racecard_evidence.js
       - name: Test entry permutation calculations and front-end integration
         run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs
       - name: Check Python web route syntax
