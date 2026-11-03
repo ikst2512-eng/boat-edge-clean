@@ -9,10 +9,20 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_direct_sources import holding_rows
-from scripts.live_racecard_candidate_priority import rank_candidates, t12_window_open
+from scripts.live_racecard_candidate_priority import (rank_candidates, t12_window_open,
+    live_sampling_window_open, preview_codes_at_receipt)
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
+# GitHub schedule dispatch can be delayed across Japan midnight. A run
+# outside racing hours must not report tomorrow's unpublished CSV as an
+# ordinary upstream outage or count as valid unattended T-12 coverage.
+import os
+if os.environ.get("GITHUB_EVENT_NAME")=="schedule" and not live_sampling_window_open(now):
+    print(json.dumps({"outcome":"SCHEDULED_LIVE_SAMPLE_OUTSIDE_JST_RACING_WINDOW",
+                      "run_at_jst":now.isoformat(),"race_day":hd,
+                      "reason":"cron_dispatch_too_late_or_early"},ensure_ascii=False))
+    raise SystemExit("NO_VALID_UNATTENDED_RACE_WINDOW")
 try:
     rows,_,_=holding_rows(hd)
     source="boatcast_holding"
@@ -36,27 +46,26 @@ try:
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     matched={}
     for kind in ("tkz","stt"):
-        preview_rows,_=_preview_rows(kind,path)
-        selected=set()
-        for row in preview_rows:
-            try:
-                code=row["レースコード"]
-                observed=datetime.fromisoformat(row["取得日時"])
-                cutoff=datetime.strptime(hd+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=JST)
-                if observed.tzinfo and observed<=datetime.now(JST) and observed<cutoff and datetime.now(JST)<cutoff:
-                    selected.add(code)
-            except (ValueError,KeyError,TypeError):
-                continue
+        preview_rows,digest=_preview_rows(kind,path)
+        source_received_at=datetime.now(JST)
+        selected=preview_codes_at_receipt(preview_rows,hd,source_received_at)
         matched[kind]=selected
+        print(json.dumps({"outcome":"PREVIEW_SOURCE_RECEIVED","kind":kind,
+                          "source_received_at_jst":source_received_at.isoformat(),
+                          "matched_future_count":len(selected),"sha256":digest},ensure_ascii=False))
     preview_candidates=matched["tkz"] & matched["stt"]
 except (OSError,ValueError,KeyError,TimeoutError):
     pass
-candidates=rank_candidates(candidates,preview_candidates,now)
-t12_opportunities=sum(t12_window_open(deadline,now) for deadline,code in candidates)
+# Recheck opportunity after the independent HTTP source probes. Stale
+# scan-start time can promote a race whose T-12 window closed in transit.
+selection_now=datetime.now(JST)
+candidates=rank_candidates(candidates,preview_candidates,selection_now)
+t12_opportunities=sum(t12_window_open(deadline,selection_now) for deadline,code in candidates)
 print(json.dumps({"outcome":"PREVIEW_CANDIDATES","eligible":len(preview_candidates),
                   "upcoming_candidates":len(candidates),"t12_opportunities":t12_opportunities,
+                  "selection_at_jst":selection_now.isoformat(),
                   "sampled":[{"race":code,"deadline":deadline.isoformat(),
-                              "t12_window_open":t12_window_open(deadline,now),
+                              "t12_window_open":t12_window_open(deadline,selection_now),
                               "preview_candidate":code in preview_candidates}
                              for deadline,code in candidates[:3]]},ensure_ascii=False))
 if not candidates:
@@ -70,7 +79,7 @@ for source_deadline,code in candidates[:3]:
     # independent live API receipt and both source observations still decide.
     print(json.dumps({"outcome":"T12_SAMPLE_STARTED","race":code,
                       "deadline":source_deadline.isoformat(),
-                      "t12_possible_at_selection":t12_window_open(source_deadline,now)},ensure_ascii=False))
+                      "t12_possible_at_selection":t12_window_open(source_deadline,selection_now)},ensure_ascii=False))
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
