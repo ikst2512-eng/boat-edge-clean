@@ -37,6 +37,15 @@ def collect(root=ROOT, now=None, read=read_rows):
             outcomes[kind]={"status":"not_published" if exc.code==404 else "http_error","http_status":exc.code,"source_url":url}
         except (URLError,TimeoutError,ConnectionError,OSError) as exc:
             outcomes[kind]={"status":"network_error","error_type":type(exc).__name__,"source_url":url}
+    # Parsed CSVs may contain malformed non-object rows. Preserve the raw
+    # source digest, but never allow one corrupt row to abort the batch while
+    # other race entries are still valid.
+    for kind, (rows, received, digest) in list(datasets.items()):
+        valid=[row for row in rows if type(row) is dict]
+        rejected=len(rows)-len(valid)
+        if rejected:
+            outcomes[kind]["invalid_nonmapping_rows"]=rejected
+            datasets[kind]=(valid,received,digest)
     direct_meta={}
     if len(datasets)!=2 or any(not datasets[kind][0] for kind in ("title", "race_cards")):
         # A successful HTTP request with zero rows is not usable source
