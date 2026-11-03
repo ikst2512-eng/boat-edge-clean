@@ -21,7 +21,7 @@ from entry_course_durable_ledger import github_ops, publish, verify_write_access
 from entry_course_baseline_audit import audit_daily_bases
 from entry_waku10_source import fetch_waku10
 from entry_waku10_pilot import prepare_waku10_pilot
-from entry_waku10_durable_ledger import publish_waku10
+from entry_waku10_durable_ledger import publish_waku10, validate_waku10_archive
 
 JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
@@ -106,6 +106,31 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     remaining=(late-now()).total_seconds()
     if remaining<45:
         return {"status":"too_close_to_late_cutoff","stored":False,"race_code":code,"research_only":True}
+    if waku_enabled and ledger_ops is not None:
+        # Five-minute schedule windows can overlap for the same race.
+        # A fresh Actions runner must not regenerate a different immutable
+        # 120-ticket ranking when the exact original is already archived.
+        archived_path=f"waku10/{code[:8]}/{code}.json"
+        remote_read,_=ledger_ops
+        previous=remote_read(archived_path)
+        if previous is not None:
+            verified_path=validate_waku10_archive(previous,now=now())
+            previous_data=json.loads(previous)
+            if (verified_path!=archived_path or
+                    previous_data.get("race_code")!=code or
+                    previous_data.get("cutoff_at")!=late.isoformat() or
+                    previous_data.get("reference_baseline_cutoff_at")!=base.get("cutoff_jst") or
+                    previous_data.get("reference_t12_top10")!=base.get("predictions")):
+                raise ValueError("existing_waku10_archive_reference_mismatch")
+            if remote_read(archived_path)!=previous:
+                raise ValueError("existing_waku10_archive_readback_changed")
+            from hashlib import sha256
+            return {"status":"already_identical_waku10_pilot","stored":True,
+                    "path":archived_path,"branch":"entry-course-evidence-ledger",
+                    "sha256":sha256(previous).hexdigest(),"race_code":code,
+                    "research_only":True,"formal":False,
+                    "forecast_record":True,
+                    "independent_remote_first_seen_verified":False}
     if card_reader is None:
         from clean_racecard import racecard
         card_reader=racecard
