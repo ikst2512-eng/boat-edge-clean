@@ -53,8 +53,19 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
             with request(Request(url, headers={"User-Agent": USER_AGENT}), timeout=25) as response:
                 status = response.status
                 raw = response.read(200000)
-            payload = json.loads(raw)
-            state = ("valid_200" if valid_odds(payload, code, now) else "invalid_200") if status == 200 else ("pending_202" if status == 202 else "other_http")
+            if status == 202:
+                # Pending is an HTTP-level state. The response body is
+                # optional and must not prevent the bounded retry.
+                state = "pending_202"
+            elif status == 200:
+                try:
+                    payload = json.loads(raw)
+                except (ValueError, TypeError):
+                    state = "invalid_200"
+                else:
+                    state = "valid_200" if valid_odds(payload, code, now) else "invalid_200"
+            else:
+                state = "other_http"
         except HTTPError as error:
             status = error.code
             state = "pending_202" if status == 202 else "http_error"

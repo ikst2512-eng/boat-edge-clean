@@ -67,6 +67,40 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(summary["pending_recovery_rate_pct"], 100.0)
         self.assertEqual(summary["first_attempt_valid_races"], 0)
 
+    def test_non_json_pending_202_is_retried(self):
+        calls = []
+        class PendingResponse:
+            status = 202
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+            def read(self, limit):
+                return b""
+        def request(req, timeout):
+            calls.append(True)
+            return PendingResponse() if len(calls) == 1 else Response(valid_body())
+        result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
+        self.assertEqual([step["state"] for step in result["attempts"]],
+                         ["pending_202", "valid_200"])
+        self.assertEqual([step["http"] for step in result["attempts"]], [202, 200])
+
+    def test_non_json_http_200_is_invalid_not_transport(self):
+        class InvalidResponse:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+            def read(self, limit):
+                return b"<not-json>"
+        result = probe.sample_race(
+            CODE, request=lambda req, timeout: InvalidResponse(), now=NOW,
+            pause=lambda _: None)
+        self.assertEqual(result["attempts"][0]["http"], 200)
+        self.assertEqual(result["final_state"], "invalid_200")
+        self.assertEqual(len(result["attempts"]), 1)
+
     def test_repeated_pending_not_success(self):
         def request(req, timeout):
             raise HTTPError(req.full_url, 202, "pending", {}, io.BytesIO())
