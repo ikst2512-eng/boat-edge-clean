@@ -1,4 +1,9 @@
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 from four_mode_v2_third_ledger_reconcile import reconcile
 
@@ -130,6 +135,44 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         report = reconcile(self.capture, self.ledger)
         self.assertEqual(report["status"], "no_frozen_predictions_to_compare")
         self.assertEqual(report["missing_from_ledger"], [])
+
+    def test_cli_incomplete_capture_fails_ci_but_preserves_diagnostic_json(self):
+        self.capture["status"] = "incomplete_capture_run_outcomes"
+        self.capture["cohort_completeness_verified"] = False
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            capture = root / "capture.json"
+            ledger = root / "ledger.json"
+            report = root / "reconciliation.json"
+            capture.write_text(json.dumps(self.capture), encoding="utf-8")
+            ledger.write_text(json.dumps(self.ledger), encoding="utf-8")
+            proc = subprocess.run([
+                sys.executable,
+                str(Path(__file__).with_name("four_mode_v2_third_ledger_reconcile.py")),
+                "--capture", str(capture), "--ledger", str(ledger),
+                "--output", str(report),
+            ], capture_output=True, text=True, timeout=20)
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["status"],
+                             "incomplete_capture_inventory")
+
+    def test_cli_bounded_matched_roster_succeeds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            capture = root / "capture.json"
+            ledger = root / "ledger.json"
+            report = root / "reconciliation.json"
+            capture.write_text(json.dumps(self.capture), encoding="utf-8")
+            ledger.write_text(json.dumps(self.ledger), encoding="utf-8")
+            proc = subprocess.run([
+                sys.executable,
+                str(Path(__file__).with_name("four_mode_v2_third_ledger_reconcile.py")),
+                "--capture", str(capture), "--ledger", str(ledger),
+                "--output", str(report),
+            ], capture_output=True, text=True, timeout=20)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["status"],
+                             "bounded_frozen_roster_matched")
 
     def test_truncated_capture_is_incomplete_even_when_subset_matches(self):
         self.capture["status"] = "incomplete_run_inventory_coverage"
