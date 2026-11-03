@@ -65,6 +65,7 @@ class V2ShadowTests(unittest.TestCase):
             self.assertEqual(report["v2_forecasts_seen"], 1)
             self.assertEqual(report["v2_comparable"], 1)
             self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
+            self.assertEqual(report["groups"]["20261103"]["paired_modes"]["hit_vs_balance"]["top3"]["neither"], 1)
             self.assertEqual(report["groups"]["20261103"]["miss_reasons"]["hit"]["winner_head_absent"], 1)
             self.assertFalse(report["formal"])
             self.assertFalse(report["independent_remote_first_seen_verified"])

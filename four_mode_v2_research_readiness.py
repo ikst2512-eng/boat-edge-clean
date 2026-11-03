@@ -6,7 +6,7 @@ shadow candidate, so this is not a preregistered independent holdout.
 """
 import json
 from math import comb
-from four_mode_v2_predeclared_shadow import evaluate
+from four_mode_v2_predeclared_shadow import evaluate, PAIRS, PAIR_OUTCOMES
 
 MIN_PAIRED = 100
 MIN_DAYS = 3
@@ -38,6 +38,8 @@ def summarize(raw):
         "candidate": {f"top{n}": 0 for n in (3, 5, 10)},
         "modes": {m: {f"top{n}": 0 for n in (3, 5, 10)}
                   for m in ("narrow", "hit", "balance", "hole")},
+        "paired_modes": {f"{a}_vs_{b}": {f"top{n}": {o: 0 for o in PAIR_OUTCOMES}
+                         for n in (3, 5, 10)} for a,b in PAIRS},
     }
     completed_days = 0
     for date, row in sorted(groups.items()):
@@ -75,6 +77,21 @@ def summarize(raw):
                 if type(val) is not int or not 0 <= val <= c:
                     raise ValueError("invalid_mode_topn")
                 totals["modes"][mode][k] += val
+        for left, right in PAIRS:
+            key = f"{left}_vs_{right}"
+            for n in (3, 5, 10):
+                flag = f"top{n}"
+                pair = row["paired_modes"][key][flag]
+                if (set(pair) != set(PAIR_OUTCOMES)
+                        or any(type(v) is not int or v < 0 for v in pair.values())
+                        or sum(pair.values()) != c):
+                    raise ValueError("invalid_paired_mode_partition")
+                if pair["both"] + pair["left_only"] != row["modes"][left][flag]:
+                    raise ValueError("paired_left_mismatch")
+                if pair["both"] + pair["right_only"] != row["modes"][right][flag]:
+                    raise ValueError("paired_right_mismatch")
+                for outcome in PAIR_OUTCOMES:
+                    totals["paired_modes"][key][flag][outcome] += pair[outcome]
         if row["candidate"]["top10"] != row["baseline"]["top10"]:
             raise ValueError("membership_violation")
         if row["candidate"]["top3"] - row["baseline"]["top3"] != row["gained_top3"] - row["lost_top3"]:
