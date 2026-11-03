@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -84,10 +85,12 @@ def inspect(run, root):
 def report(history, downloader, limit=12):
     if not isinstance(history, dict) or not isinstance(history.get("runs"), list) or not 1 <= limit <= 20:
         raise ValueError("invalid schedule history")
-    rows = []
-    for run in history["runs"][:limit]:
+    selected = history["runs"][:limit]
+    for run in selected:
         if not isinstance(run, dict) or type(run.get("id")) is not int or run["id"] <= 0:
             raise ValueError("invalid run")
+
+    def inspect_one(run):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             error = None
@@ -98,7 +101,14 @@ def report(history, downloader, limit=12):
             row = inspect(run, root)
             if error is not None:
                 row["artifact_download_error"] = error
-            rows.append(row)
+            return row
+
+    # At 09:20 JST the daily audit checks up to twelve captures. Twelve
+    # sequential 50-second gh downloads can exhaust the 12-minute job budget
+    # before the independent Git publication gate executes. Four bounded
+    # workers preserve listing order and isolate downloads in separate dirs.
+    with ThreadPoolExecutor(max_workers=min(4, len(selected) or 1)) as pool:
+        rows = list(pool.map(inspect_one, selected))
     claimed = [r["claimed_added_forecasts"] for r in rows if r["claimed_added_forecasts"] is not None]
     return {"schema": "FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE_V1",
             "scheduled_runs_checked": len(rows),
