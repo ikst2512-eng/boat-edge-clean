@@ -3,6 +3,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from urllib.error import HTTPError
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -99,6 +100,83 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                                 "stub-token", files, api=api)
         self.assertEqual(sha, "new-commit")
         self.assertEqual(len([event for event in events if event[0] == "PATCH"]), 1)
+
+    def test_nonforce_branch_conflict_rebases_and_preserves_other_receipts(self):
+        calls = []
+        refs = iter(["parent-A", "parent-B"])
+        def api(repo, token, method, endpoint, data=None):
+            calls.append((method, endpoint, data))
+            if method == "GET" and endpoint.startswith("git/ref/"):
+                return {"object": {"sha": next(refs)}}
+            if method == "GET" and endpoint.startswith("git/commits/"):
+                return {"tree": {"sha": "tree-" + endpoint.split("/")[-1]}}
+            if endpoint == "git/blobs":
+                raw = base64.b64decode(data["content"])
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
+            if endpoint == "git/trees":
+                return {"sha": "new-tree-based-" + data["base_tree"]}
+            if endpoint == "git/commits":
+                return {"sha": "new-commit-from-" + data["parents"][0]}
+            if method == "PATCH":
+                self.assertFalse(data["force"])
+                if data["sha"].endswith("parent-A"):
+                    raise HTTPError("https://api.github.com", 422, "non fast forward", {}, None)
+                return {"object": {"sha": data["sha"]}}
+            raise AssertionError(endpoint)
+        files = {"external_three_t12/20261103/" + RACE + "/obs/report.json": b"evidence"}
+        result = publish_originals("owner/repo", "research-t12-external-evidence",
+                                   "stub-token", files, api=api)
+        self.assertEqual(result, "new-commit-from-parent-B")
+        self.assertEqual(len([x for x in calls if x[1] == "git/blobs"]), 1)
+        self.assertEqual(len([x for x in calls if x[1] == "git/trees"]), 2)
+        self.assertEqual(len([x for x in calls if x[0] == "PATCH"]), 2)
+
+    def test_permission_denial_never_retried(self):
+        requests = []
+        def api(repo, token, method, endpoint, data=None):
+            requests.append((method, endpoint))
+            if method == "GET" and endpoint.startswith("git/ref/"):
+                return {"object": {"sha": "parent"}}
+            if method == "GET" and endpoint.startswith("git/commits"):
+                return {"tree": {"sha": "base"}}
+            if endpoint == "git/blobs":
+                raw = base64.b64decode(data["content"])
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
+            if endpoint == "git/trees":
+                return {"sha": "tree"}
+            if endpoint == "git/commits":
+                return {"sha": "commit"}
+            if method == "PATCH":
+                raise HTTPError("https://api.github.com", 403, "forbidden", {}, None)
+            raise AssertionError(endpoint)
+        with self.assertRaises(HTTPError):
+            publish_originals("owner/repo", "research-t12-external-evidence",
+                "stub-token", {"external_three_t12/x": b"evidence"}, api=api)
+        self.assertEqual(len([x for x in requests if x[0] == "PATCH"]), 1)
+
+    def test_exhausted_nonforce_conflicts_fail_without_force(self):
+        attempts = []
+        def api(repo, token, method, endpoint, data=None):
+            attempts.append((method, endpoint, data))
+            if method == "GET" and endpoint.startswith("git/ref/"):
+                return {"object": {"sha": "parent"}}
+            if method == "GET" and endpoint.startswith("git/commits"):
+                return {"tree": {"sha": "tree"}}
+            if endpoint == "git/blobs":
+                raw = base64.b64decode(data["content"])
+                return {"sha": hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()}
+            if endpoint == "git/trees":
+                return {"sha": "tree"}
+            if endpoint == "git/commits":
+                return {"sha": "commit"}
+            if method == "PATCH":
+                self.assertIs(data["force"], False)
+                raise HTTPError("https://api.github.com", 409, "conflict", {}, None)
+            raise AssertionError(endpoint)
+        with self.assertRaises(HTTPError):
+            publish_originals("owner/repo", "research-t12-external-evidence",
+                "stub-token", {"external_three_t12/x": b"evidence"}, api=api)
+        self.assertEqual(len([x for x in attempts if x[0] == "PATCH"]), 3)
 
     def test_remote_reinspection_failure_prevents_success_result(self):
         with tempfile.TemporaryDirectory() as root:
