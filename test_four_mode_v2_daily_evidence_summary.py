@@ -86,6 +86,18 @@ class EvidenceSummaryTests(unittest.TestCase):
         self.assertIn("TopN accuracy withheld", md)
         self.assertNotIn("| TOP1 |", md)
 
+    def test_impossible_top1_hit_progression_withholds_entire_table(self):
+        # Keep the aggregate consistent with the forged individual score.
+        for topn in (self.capture["paired_race_scores"][0]["topn"],
+                     self.capture["by_race_day_jst"]["20261104"]["topn"],
+                     self.capture["topn"]):
+            topn["top1"] = {"baseline":0, "candidate":1,
+                             "gained":1, "lost":0}
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP1 |", md)
+        self.assertNotIn("| TOP3 |", md)
+
     def test_no_paired_results_never_claims_comparison_ready(self):
         self.capture.update({"paired": 0, "by_race_day_jst": {}})
         md = summarize(self.capture, self.ledger, self.reconciliation)
