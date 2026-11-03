@@ -25,7 +25,11 @@ class LinkTests(unittest.TestCase):
         self.location.parent.mkdir(parents=True)
         self.future={"formal":False,
                      "independent_first_receipt_verified":False,
-                     "race_codes":[CODE]}
+                     "race_codes":[CODE],
+                     "race_flags":{CODE:{p:{"top3":False,"top5":False,"top10":True}
+                         for p in ("baseline","donor_order","max_ticket_score","third_national_rate")}},
+                     "hits":{p:{"top3":0,"top5":0,"top10":1}
+                         for p in ("baseline","donor_order","max_ticket_score","third_national_rate")}}
         self.local={"formal":False,
                     "independent_remote_first_receipt_verified":False,
                     "records":[{"race_code":CODE,
@@ -95,12 +99,29 @@ class LinkTests(unittest.TestCase):
                          "conflicting_observations")
 
     def test_pre_eligible_nov3_zero_cohort(self):
-        self.future={"status":"not_yet_eligible","formal":False,"comparable":0}
+        self.future={"status":"not_yet_eligible","formal":False,"comparable":0,"race_flags":{}}
         result=self.evaluate()
         self.assertEqual(result["comparable"],0)
         self.assertEqual(result["remote_observed_before_t12_count"],0)
         self.assertEqual(result["race_status"],{})
         self.assertFalse(result["formal"])
+
+    def test_evidence_strata_reconcile_all_policy_hits(self):
+        self.save()
+        data=self.evaluate()
+        self.assertEqual(data["topn_by_evidence_status"]["observed_before_t12"]["races"],1)
+        self.assertEqual(data["topn_by_evidence_status"]["observed_before_t12"]["hits"]
+                         ["third_national_rate"]["top10"],1)
+        self.location.unlink()
+        data=self.evaluate()
+        self.assertEqual(data["topn_by_evidence_status"]["missing_observation"]["races"],1)
+        self.assertEqual(data["topn_by_evidence_status"]["missing_observation"]["hits"]
+                         ["third_national_rate"]["top10"],1)
+
+    def test_mismatched_outcome_flags_fail_closed(self):
+        self.future["hits"]["third_national_rate"]["top10"]=0
+        with self.assertRaisesRegex(ValueError,"stratum_hit_reconciliation"):
+            self.evaluate()
 
     def test_prior_dates_not_allowed_in_new_cohort(self):
         self.future["race_codes"]=["202611030101"]

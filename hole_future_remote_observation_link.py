@@ -131,12 +131,51 @@ def match(future,first_add,ledger_root,forecast_root):
         result[code]=verdict
     if sum(tally.values())!=len(codes):
         raise ValueError("remote_link_denominator_mismatch")
+    # Post-outcome reporting: no hit information is used to infer evidence.
+    # All comparable races are partitioned, including those without proof.
+    from hole_future_locked_eval import POLICIES,TOPS
+    flags=future.get("race_flags",{})
+    if not isinstance(flags,dict) or set(flags)!=set(codes):
+        if not codes and flags=={}:
+            pass
+        else:
+            raise ValueError("outcome_flags_missing_or_mismatched")
+    strata={state:{"races":0,"hits":{p:{f"top{k}":0 for k in TOPS}
+                                 for p in POLICIES}} for state in KNOWN}
+    for code in codes:
+        state=result[code]
+        group=strata[state]
+        group["races"]+=1
+        for policy in POLICIES:
+            policy_flags=flags[code].get(policy)
+            if not isinstance(policy_flags,dict):
+                raise ValueError("missing_policy_flags")
+            previous=False
+            for k in TOPS:
+                key=f"top{k}"
+                hit=policy_flags.get(key)
+                if type(hit) is not bool or (previous and not hit):
+                    raise ValueError("invalid_topn_flags")
+                group["hits"][policy][key]+=int(hit)
+                previous=hit
+    if sum(group["races"] for group in strata.values())!=len(codes):
+        raise ValueError("stratum_denominator_mismatch")
+    total_hits=future.get("hits")
+    if codes:
+        if not isinstance(total_hits,dict):
+            raise ValueError("missing_full_cohort_hits")
+        for p in POLICIES:
+            for k in TOPS:
+                key=f"top{k}"
+                if sum(group["hits"][p][key] for group in strata.values())!=total_hits[p][key]:
+                    raise ValueError("stratum_hit_reconciliation")
     return {
         "schema":"HOLE_FUTURE_REMOTE_OBSERVATION_LINK_V1",
         "status":"observational_research_linkage_only",
         "comparable":len(codes),
         "evidence_status_counts":{key:tally[key] for key in KNOWN},
         "race_status":result,"excluded_ledger_files":dict(invalid_files),
+        "topn_by_evidence_status":strata,
         "remote_observed_before_t12_count":tally["observed_before_t12"],
         "independent_first_remote_receipt_verified":False,
         "formal":False,"production_forecast_changed":False,

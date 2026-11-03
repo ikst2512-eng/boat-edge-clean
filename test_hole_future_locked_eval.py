@@ -36,6 +36,7 @@ class FutureLockedEvaluationTests(unittest.TestCase):
             r=evaluate(self.root,date(2026,11,4))
         self.assertEqual(r["comparable"],1)
         self.assertEqual(r["race_codes"],[CODE])
+        self.assertEqual(r["race_flags"][CODE]["third_national_rate"]["top10"],True)
         self.assertEqual(r["delta"]["third_national_rate"]["top10"]["net"],1)
         self.assertEqual(r["delta"]["donor_order"]["top10"]["net"],0)
         self.assertFalse(r["formal"])
