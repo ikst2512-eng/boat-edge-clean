@@ -91,7 +91,7 @@ def audit(day, paths, additions, *, main_context):
 
 
 def positive_eligible_run_ids(day, evidence_reports):
-    """Only same-JST-day, readable capture artifacts establish eligible races."""
+    """Use same-day newly generated/staged candidate evidence, never local archive totals."""
     confirmed = set()
     for report in evidence_reports:
         if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
@@ -99,8 +99,15 @@ def positive_eligible_run_ids(day, evidence_reports):
         for row in report["runs"]:
             if not isinstance(row, dict) or row.get("artifact_present") is not True:
                 continue
-            count = row.get("generated_today")
-            if type(count) is not int or count <= 0:
+            # generated_today is just len(local saved archive files),
+            # not evidence of newly generated candidates. In particular,
+            # it may be zero when a new archive failed to reach main.
+            # Require a positive per-execution candidate or staging count.
+            generated = row.get("newly_generated")
+            staged = row.get("staged_valid")
+            added = row.get("claimed_added_forecasts")
+            if not any(type(value) is int and value > 0
+                       for value in (generated, staged, added)):
                 continue
             try:
                 stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
@@ -150,18 +157,18 @@ def main():
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
     report["daily_alert_basis"] = (
         "incomplete_git_first_add" if report["assessment"] == "git_first_add_incomplete" else
-        "eligible_races_without_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
+        "new_candidates_without_main_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
         "unverified_or_no_eligible_capture" if report["assessment"] == "no_new_day_archives_yet" else
         "archives_present_or_pr_checkout")
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
     if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME"), evidence):
-        print("::error::Daily V2 main first-add archives missing despite eligible capture evidence, or Git history incomplete")
+        print("::error::Daily V2 main archives missing despite new local candidate or staged evidence, or Git first-add history incomplete")
         raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and report["assessment"] == "no_new_day_archives_yet"):
-        print("::warning::Daily V2 archives absent; no positive same-day eligible capture artifact was verified")
+        print("::warning::Daily V2 archives absent; positive new-candidate or staged evidence is unverified")
 
 
 if __name__ == "__main__":
