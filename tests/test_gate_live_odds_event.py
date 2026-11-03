@@ -47,6 +47,28 @@ class FallbackGateTests(unittest.TestCase):
             self.assertIn("github.event_name == 'pull_request'", line)
             self.assertIn("github.event_name == 'workflow_dispatch'", line)
 
+    def test_failed_unattended_verdict_still_records_history_and_artifact(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        sample = workflow.index("      - name: Sample up to three independently sourced upcoming races")
+        verdict = workflow.index("      - name: Fail unhealthy unattended odds sampling")
+        history = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
+        artifact = workflow.index("      - name: Preserve per-race statuses and timings")
+        self.assertTrue(sample < verdict < history < artifact)
+        self.assertIn(
+            "      - name: Summarize eligible preceding scheduled run artifacts\n"
+            "        # Keep diagnostic history when a real unattended sample failed its\n"
+            "        # strict HTTP-200 verdict; never turn that failure into a green job.\n"
+            "        if: always() && steps.gate.outputs.collect == 'true'\n",
+            workflow)
+        self.assertIn(
+            "      - name: Fail unhealthy unattended odds sampling\n"
+            "        if: steps.gate.outputs.collect == 'true' && "
+            "(github.event_name == 'schedule' || github.event_name == 'workflow_run')\n",
+            workflow)
+        self.assertIn("      - name: Preserve per-race statuses and timings\n"
+                      "        if: always()\n", workflow)
+
     def test_primary_cron_has_exactly_three_original_jst_slots(self):
         # Split cron entries must retain the exact original daily times.
         workflow = (Path(__file__).resolve().parents[1] /
