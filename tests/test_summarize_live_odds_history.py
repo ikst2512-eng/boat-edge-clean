@@ -158,6 +158,31 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(m["http_202"], 0)
         self.assertEqual(m["http_200"], 1)
 
+    def test_initial_timeout_retry_is_valid_evidence(self):
+        recovered = race("202611030116", ["transport_error:TimeoutError", "valid_200"])
+        expired = race("202611030117", ["transport_error:TimeoutError",
+                                        "transport_error:TimeoutError"])
+        self.assertTrue(history.consistent_attempts(recovered["attempts"]))
+        self.assertTrue(history.consistent_attempts(expired["attempts"]))
+        m = history.summarize([{"source_status": "ok",
+                               "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                               "samples": [recovered, expired]}])
+        self.assertEqual(m["race_observations"], 2)
+        self.assertEqual(m["eventual_valid_races"], 1)
+        self.assertEqual(m["other_http_or_transport"], 3)
+
+    def test_timeout_after_pending_or_after_second_attempt_cannot_retry(self):
+        invalid_sequences = [
+            ["pending_202", "transport_error:TimeoutError", "valid_200"],
+            ["transport_error:TimeoutError", "transport_error:TimeoutError", "valid_200"],
+            ["valid_200", "transport_error:TimeoutError"],
+            ["http_error", "valid_200"],
+        ]
+        for states in invalid_sequences:
+            with self.subTest(states=states):
+                self.assertFalse(history.consistent_attempts(
+                    race("202611030118", states)["attempts"]))
+
     def test_valid_pending_recovery_and_http_error_still_count(self):
         rows = [{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                  "samples": [race("202611030111", ["pending_202", "valid_200"]),
