@@ -44,6 +44,8 @@ class T12SeedTests(unittest.TestCase):
                 ledger_ops=(store.get,lambda key,value:store.setdefault(key,value)))
             self.assertEqual(out["title_schedule_source"],"live_holding_schedule")
             self.assertEqual(out["stored_count"],1)
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(out["reused_count"],0)
             self.assertEqual(store["t12_baselines/20261103/"+CODE+".json"],raw())
     def test_bad_live_holding_timestamp_is_not_used(self):
         with self.assertRaisesRegex(ValueError,"live_schedule_receipt_invalid"):
@@ -153,6 +155,8 @@ class T12SeedTests(unittest.TestCase):
                 record_path=lambda code:self.fail("no local file needed"),
                 ledger_ops=(store.get,lambda k,v:self.fail("must not overwrite")))
             self.assertEqual(first["stored_count"],1)
+            self.assertEqual(first["newly_stored_count"],0)
+            self.assertEqual(first["reused_count"],1)
             self.assertEqual(first["results"][0]["status"],"existing_identical_t12_baseline")
             self.assertEqual(first["results"][0]["sha256"],__import__("hashlib").sha256(raw()).hexdigest())
     def test_existing_wrong_race_rejected_without_overwrite(self):
@@ -190,6 +194,8 @@ class T12SeedTests(unittest.TestCase):
                 predictor=predictor,record_path=saved,
                 ledger_ops=(lambda path:None,lambda path,raw:self.fail("deadline mismatch must never publish")))
             self.assertEqual(out["stored_count"],0)
+        self.assertEqual(out["newly_stored_count"],0)
+        self.assertEqual(out["reused_count"],0)
             self.assertEqual(out["results"][0]["status"],"failed")
             self.assertIn("missed_cutoff",out["results"][0]["error_code"])
     def test_existing_original_with_different_deadline_rejected(self):
@@ -228,5 +234,6 @@ class T12SeedTests(unittest.TestCase):
                  predictor=lambda *a:(_ for _ in ()).throw(ValueError("source_unavailable")),
                  ledger_ops=(lambda p:None,lambda p,r:self.fail("write")))
         self.assertEqual(report["stored_count"],0)
+        self.assertEqual(report["failed_count"],1)
         self.assertEqual(report["results"][0]["status"],"failed")
 if __name__=="__main__":unittest.main()
