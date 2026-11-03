@@ -67,6 +67,18 @@ def evaluate(root,as_of,days=14):
     counts={p:{f"top{k}":0 for k in TOPS} for p in POLICIES}
     changes=Counter();skips=Counter()
     rows=[];dates=set()
+    daily={}
+    by_model={}
+    def day_entry(day):
+        label=day.isoformat()
+        if label not in daily:
+            daily[label]={"scanned":0,"comparable":0,"excluded":{},
+                          "hits":{p:{f"top{k}":0 for k in TOPS} for p in POLICIES}}
+        return daily[label]
+    def exclude(day,reason):
+        skips[reason]+=1
+        d=day_entry(day)["excluded"]
+        d[reason]=d.get(reason,0)+1
     for path in files:
         if path.is_symlink():
             skips["symlink_source"]+=1;continue
@@ -77,17 +89,18 @@ def evaluate(root,as_of,days=14):
         code=path.stem
         if code in dates:raise ValueError("duplicate_race")
         dates.add(code)
+        day_entry(day)["scanned"]+=1
         status,archive=archived_four_modes(code,root)
         if status!=200:
-            skips["invalid_frozen_archive"]+=1;continue
+            exclude(day,"invalid_frozen_archive");continue
         if archive["model_version"] not in EXPECTED_MODEL_VERSIONS:
-            skips["unexpected_model_version"]+=1;continue
+            exclude(day,"unexpected_model_version");continue
         creation=datetime.fromisoformat(archive["generated_at_jst"])
         cutoff=datetime.fromisoformat(archive["deadline_jst"])
         if (creation.utcoffset()!=timedelta(hours=9)
                 or cutoff.utcoffset()!=timedelta(hours=9)
                 or creation>=cutoff or cutoff.date()!=day):
-            skips["local_timing_invalid"]+=1;continue
+            exclude(day,"local_timing_invalid");continue
         # All candidates determined before opening any confirmed result.
         rates=national_rates(code,root)
         picks=variants(archive,rates)
@@ -98,13 +111,24 @@ def evaluate(root,as_of,days=14):
             raise ValueError("top5_protection_failed")
         outcome=compare_race(code,root)
         if outcome.get("status")!="historical_comparison_only":
-            skips["unconfirmed_result"]+=1;continue
+            exclude(day,"unconfirmed_result");continue
         winner=outcome["winning_ticket"]
+        day_entry(day)["comparable"]+=1
+        version=archive["model_version"]
+        if version not in by_model:
+            by_model[version]={"comparable":0,"hits":{
+                p:{f"top{k}":0 for k in TOPS} for p in POLICIES}}
+        by_model[version]["comparable"]+=1
         flags={}
         for p in POLICIES:
             flags[p]={f"top{k}":winner in picks[p][:k] for k in TOPS}
             changes[p]+=int(picks[p]!=base)
-            for k in TOPS:counts[p][f"top{k}"]+=int(flags[p][f"top{k}"])
+            for k in TOPS:
+                key=f"top{k}"
+                flag=int(flags[p][key])
+                counts[p][key]+=flag
+                day_entry(day)["hits"][p][key]+=flag
+                by_model[version]["hits"][p][key]+=flag
         rows.append({"race_code":code,"flags":flags,
                      "model_version":archive["model_version"],
                      "local_generated_at_jst":archive["generated_at_jst"]})
@@ -123,6 +147,24 @@ def evaluate(root,as_of,days=14):
             delta[p][key]={"gained":gained,"lost":lost,"net":gained-lost}
             if k<=5 and (gained or lost):
                 raise ValueError("top5_moved")
+    if sum(d["scanned"] for d in daily.values())!=len(dates):
+        raise ValueError("daily_scanned_denominator_mismatch")
+    if sum(d["comparable"] for d in daily.values())!=len(rows):
+        raise ValueError("daily_comparable_denominator_mismatch")
+    if sum(x["comparable"] for x in by_model.values())!=len(rows):
+        raise ValueError("model_comparable_denominator_mismatch")
+    if len(rows)+sum(skips.values())!=len(dates):
+        # Unparseable/symlink forecast files are recorded separately and
+        # must not be silently treated as valid dated forecasts.
+        if len(rows)+sum(d["excluded"].get(reason,0)
+               for d in daily.values() for reason in d["excluded"])!=len(dates):
+            raise ValueError("forecast_inventory_denominator_mismatch")
+    for p in POLICIES:
+        for k in TOPS:
+            key=f"top{k}"
+            if (sum(d["hits"][p][key] for d in daily.values())!=counts[p][key]
+                    or sum(v["hits"][p][key] for v in by_model.values())!=counts[p][key]):
+                raise ValueError("by_day_model_hit_reconciliation")
     # Pin the exact current algorithm bytes in each result to detect later tuning.
     algorithm_path=Path(__file__).resolve().parent/"hole_third_choice_research.py"
     algorithm_sha=hashlib.sha256(algorithm_path.read_bytes()).hexdigest()
@@ -135,6 +177,14 @@ def evaluate(root,as_of,days=14):
             "algorithm_sha256":algorithm_sha,
             "locked_selector_git_blobs":locked_selector_blobs,
             "scanned_valid_date_codes":len(dates),
+            "by_day":dict(sorted(daily.items())),
+            "by_model_version":dict(sorted(by_model.items())),
+            "evidence_quality":{
+                "archive_file_creation_time_is_self_reported":True,
+                "independent_remote_first_receipt_proof_present":False,
+                "confirmed_result_file_required":True,
+                "eligible_for_formal_accuracy":False,
+            },
             "comparable":len(rows),"excluded_by_reason":dict(skips),
             "hits":counts,"changed":dict(changes),"delta":delta,
             "race_codes":[r["race_code"] for r in rows],
