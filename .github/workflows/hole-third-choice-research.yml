@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_second_pair_priority_research.py
+      - test_hole_second_pair_priority_research.py
       - hole_error_attribution_research.py
       - hole_third_donor_ranking_research.py
       - hole_third_consensus_guard_research.py
@@ -22,7 +24,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py
+      - run: python hole_second_pair_priority_research.py > hole_second_pair_priority_results.json
+      - name: Verify paired second-place forecasts against locked third-choice result
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_second_pair_priority_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for name,g in r["groups"].items():
+              print("GROUP",name,"N",g["comparable"],"CHANGED",g["changed"])
+              print("PAIRED_PAIR_PRIORITY",g["paired_vs_locked"])
+              print("BY_DATE",g["by_date"])
+              print("TOPN",g["topn"])
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+              for policy,pair in g["paired_vs_locked"].items():
+                  assert pair["net"]==(
+                      g["topn"][policy]["top10"]["hits"]-
+                      g["topn"]["third_national_rate"]["top10"]["hits"])
+          PY
       - run: python hole_third_consensus_guard_research.py > hole_third_consensus_guard_results.json
       - name: Report exploratory guard versus locked national-rate choice
         run: |
@@ -116,3 +139,4 @@ jobs:
             hole_error_attribution_results.json
             hole_third_donor_ranking_results.json
             hole_third_consensus_guard_results.json
+            hole_second_pair_priority_results.json
