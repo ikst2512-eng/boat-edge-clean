@@ -46,6 +46,10 @@ jobs:
   evaluate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Explicit bash turns on pipefail: a failed scorer before `| tee` fails CI.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
