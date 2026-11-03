@@ -76,6 +76,37 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(later["newly_stored_count"],0)
             self.assertEqual(later["reused_count"],2)
             self.assertEqual(later["not_stored_count"],0)
+    def test_all_eligible_races_without_preview_are_operational_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            def no_preview(day,venue,race):
+                raise ValueError("preview_not_published")
+            out=attempt_batch(tmp,now=lambda:NOW,
+                card_reader=no_preview,
+                waku_fetch=lambda url:self.fail("no preview means no Waku10"),
+                prefetch=lambda day:self.fail("no historical requests"),
+                ledger_ops=(lambda key:None,lambda key,value:self.fail("no archive")))
+            self.assertEqual(out["status"],"t2_batch_no_capture")
+            self.assertEqual(out["attempted_count"],2)
+            self.assertEqual(out["stored_count"],0)
+            self.assertEqual(out["not_stored_count"],2)
+            self.assertEqual(out["errors"],0)
+            self.assertTrue(all(r["status"]=="preview_not_ready" for r in out["results"]))
+    def test_partial_capture_exposes_unstored_races(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            store={}
+            def sometimes_unavailable(day,venue,race):
+                if race=="09":
+                    raise ValueError("preview_unavailable")
+                return cards[day+venue+race]
+            out=attempt_batch(tmp,now=lambda:NOW,
+                card_reader=sometimes_unavailable,waku_fetch=lambda url:bytes_,
+                ledger_ops=(store.get,lambda path,data:store.setdefault(path,data)))
+            self.assertEqual(out["status"],"t2_batch_partial_capture")
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(out["not_stored_count"],1)
+            self.assertEqual(out["errors"],0)
     def test_one_race_unavailable_does_not_block_other_candidates(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,bytes_=setup(tmp,3)
@@ -91,6 +122,7 @@ class BatchTests(unittest.TestCase):
                 prefetch=lambda day:self.fail("no 62-file fallback"),
                 sleep=lambda sec:self.fail("batch must not sleep"),
                 ledger_ops=(archive.get,lambda path,data:archive.setdefault(path,data)))
+            self.assertEqual(out["status"],"t2_batch_partial_capture")
             self.assertEqual(out["attempted_count"],3)
             self.assertEqual(out["stored_count"],2)
             self.assertEqual(out["newly_stored_count"],2)
