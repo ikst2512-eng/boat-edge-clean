@@ -109,6 +109,7 @@ def audit(root=ROOT):
             "untouched_future_holdout_verified": False,
             "date_separation_only_not_prospective_evidence": True,
             "paired": 0, "changed_paired": 0, "distinct_paired_days": 0,
+            "paired_race_codes": [],
             "topn": {f"top{n}": {"baseline": 0, "candidate": 0, "gained": 0, "lost": 0}
                      for n in TOPS},
             "blocked_reasons": ["no_future_outcomes"],
@@ -183,6 +184,8 @@ def audit(root=ROOT):
                 "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                                     "gained": 0, "lost": 0} for n in TOPS}}
         group = out["by_date"][date]
+        if date >= FUTURE_START_JST:
+            out["date_separated_forward_reference"]["paired_race_codes"].append(code)
         group["paired"] += 1
         group["changed_paired"] += int(changed)
         for n in TOPS:
@@ -213,6 +216,11 @@ def audit(root=ROOT):
             key = f"top{n}"
             for field in ("baseline", "candidate", "gained", "lost"):
                 forward["topn"][key][field] += row["topn"][key][field]
+    if (len(forward["paired_race_codes"]) != forward["paired"]
+            or len(set(forward["paired_race_codes"])) != forward["paired"]
+            or forward["paired_race_codes"] != sorted(forward["paired_race_codes"])
+            or any(code[:8] < FUTURE_START_JST for code in forward["paired_race_codes"])):
+        raise ValueError("forward_race_roster_inconsistent")
     forward["blocked_reasons"] = []
     if forward["paired"] == 0:
         forward["blocked_reasons"].append("no_future_outcomes")

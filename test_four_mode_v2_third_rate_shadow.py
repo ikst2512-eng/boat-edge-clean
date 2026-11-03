@@ -82,6 +82,7 @@ class ThirdRateShadowTests(unittest.TestCase):
             forward = report["date_separated_forward_reference"]
             self.assertEqual(report["paired_results"], 1)
             self.assertEqual(forward["paired"], 0)
+            self.assertEqual(forward["paired_race_codes"], [])
             self.assertIn("no_future_outcomes", forward["blocked_reasons"])
             self.assertFalse(forward["production_promotion_allowed"])
 
@@ -97,6 +98,7 @@ class ThirdRateShadowTests(unittest.TestCase):
             forward = report["date_separated_forward_reference"]
             self.assertEqual(report["paired_results"], 2)
             self.assertEqual(forward["paired"], 1)
+            self.assertEqual(forward["paired_race_codes"], ["202611040101"])
             self.assertEqual(forward["distinct_paired_days"], 1)
             self.assertEqual(forward["topn"]["top3"],
                              report["by_date"]["20261104"]["topn"]["top3"])
