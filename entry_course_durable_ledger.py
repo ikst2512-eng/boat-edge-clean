@@ -98,7 +98,7 @@ def publish(raw, remote_read, remote_create, *, clock=None):
 # the first actual course forecast. This is never counted as a race capture.
 WRITE_PROBE_PATH="operations/entry-course-write-access-v1.json"
 WRITE_PROBE_BYTES=(b'{"formal":false,"forecast_record":false,'
-                   b'"schema":"ENTRY_COURSE_LEDGER_WRITE_ACCESS_PROBE_V1"}\\n')
+                   b'"schema":"ENTRY_COURSE_LEDGER_WRITE_ACCESS_PROBE_V1"}' + bytes([10]))
 
 
 def verify_write_access(remote_read,remote_create):
