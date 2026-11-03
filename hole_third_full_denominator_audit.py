@@ -117,7 +117,7 @@ def inspect(codes,root):
         if sum(day.get(p+"_net",0) for day in daily.values())!=m["net"]:
             raise ValueError("date_reconciliation")
         paired[p]=dict(m)
-    if sum(miss_states.values())>compared-output["third_national_rate"]["hits"]:
+    if sum(miss_states.values())>compared-output["third_national_rate"].get("hits",0):
         raise ValueError("invalid_wrong_third_count")
     return {
         "comparable":compared,"unavailable":dict(unavailable),
