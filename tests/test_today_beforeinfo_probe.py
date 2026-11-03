@@ -52,7 +52,7 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
                    "scripts.probe_today_beforeinfo._fetch_preview",
                    return_value=(preview,{"status":"ok"})):
             with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_VERIFIED_SIX_LANE"):
-                run(now=NOW,event_name="schedule",clock=lambda:after_cutoff)
+                run(now=NOW,event_name="schedule",clock=iter([NOW,NOW,NOW,after_cutoff]).__next__)
 
     def test_predeadline_adapter_receipt_is_accepted(self):
         preview={"racers":[{"lane":i} for i in range(1,7)],
@@ -64,6 +64,36 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
                    return_value=(preview,{"status":"ok"})):
             result=run(now=NOW,event_name="schedule",clock=lambda:just_before)
         self.assertEqual(result["verified_count"],1)
+
+    def test_new_snapshot_during_http_fetch_is_not_falsely_future(self):
+        # Scan started at 17:30, source HTTP returned at 17:31. A 17:30:30
+        # source snapshot is valid by source receipt, though newer than start.
+        received=datetime(2026,11,4,17,31,tzinfo=JST)
+        source_row=row(observed="2026-11-04T17:30:30+09:00")
+        preview={"racers":[{"lane":i} for i in range(1,7)],
+                 "start_exhibition":[{"lane":i} for i in range(1,7)]}
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([source_row],"a"*64)),patch(
+                   "scripts.probe_today_beforeinfo._fetch_preview",
+                   return_value=(preview,{"status":"ok"})):
+            result=run(now=NOW,event_name="schedule",clock=lambda:received)
+        self.assertEqual(result["eligible_count"],1)
+        self.assertEqual(result["verified_count"],1)
+
+    def test_source_snapshot_newer_than_http_receipt_rejected(self):
+        received=datetime(2026,11,4,17,31,tzinfo=JST)
+        source_row=row(observed="2026-11-04T17:31:01+09:00")
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([source_row],"a"*64)):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_MATCHED_PREDEADLINE_RACES"):
+                run(now=NOW,event_name="schedule",clock=lambda:received)
+
+    def test_source_receipt_at_cutoff_cannot_count_as_live(self):
+        received=datetime(2026,11,4,18,0,tzinfo=JST)
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row()],"a"*64)):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_MATCHED_PREDEADLINE_RACES"):
+                run(now=NOW,event_name="schedule",clock=lambda:received)
 
     def test_no_source_is_explicit_failure_on_schedule(self):
         with patch("scripts.probe_today_beforeinfo._preview_rows",
