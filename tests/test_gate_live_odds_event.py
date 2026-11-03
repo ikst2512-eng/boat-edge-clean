@@ -69,6 +69,20 @@ class FallbackGateTests(unittest.TestCase):
         self.assertIn("      - name: Preserve per-race statuses and timings\n"
                       "        if: always()\n", workflow)
 
+    def test_history_scan_is_bounded_before_always_uploaded_evidence(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        start = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
+        end = workflow.index("      - name: Preserve per-race statuses and timings", start)
+        history = workflow[start:end]
+        self.assertIn("if: always() && steps.gate.outputs.collect == 'true'", history)
+        self.assertIn(
+            "run: timeout --signal=TERM --kill-after=5s 60s python "
+            "scripts/summarize_live_odds_history.py", history)
+        self.assertIn("timeout-minutes: 8", workflow)
+        self.assertIn("      - name: Preserve per-race statuses and timings\n"
+                      "        if: always()\n", workflow)
+
     def test_primary_cron_has_exactly_three_original_jst_slots(self):
         # Split cron entries must retain the exact original daily times.
         workflow = (Path(__file__).resolve().parents[1] /
