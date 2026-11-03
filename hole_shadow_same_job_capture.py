@@ -40,12 +40,28 @@ def capture_published(root, evidence_path, now=None, git=None):
     if any(PATH.fullmatch(name) is None for name in added):
         raise ValueError("invalid_added_forecast_path")
     now = now or datetime.now(timezone.utc)
-    records = [freeze(PATH.fullmatch(name).group(1), root, now) for name in added]
+    if now.tzinfo is None:
+        raise ValueError("naive_capture_time")
+    records = []
+    for name in added:
+        code = PATH.fullmatch(name).group(1)
+        try:
+            item = freeze(code, root, now)
+            if not isinstance(item, dict) or item.get("race_code") != code:
+                raise ValueError("invalid_shadow_race_identity")
+        except (ValueError, TypeError, KeyError, UnicodeError, OSError,
+                subprocess.CalledProcessError) as exc:
+            # A single broken race must not erase already valid same-job
+            # shadows. Record the failure and retain a nonzero exit verdict.
+            item = {"race_code": code, "status": "validation_error",
+                    "error_type": type(exc).__name__}
+        records.append(item)
     return {"schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
             "status": "research_only_after_confirmed_push",
             "publication_commit_sha": commit, "capture_run_at_utc": now.isoformat(),
             "published_new_count": len(added),
             "frozen_count": sum(r.get("status") == "shadow_frozen_unverified" for r in records),
+            "validation_error_count": sum(r.get("status") == "validation_error" for r in records),
             "records": records, "formal": False, "production_forecast_changed": False,
             "independent_first_receipt_verified": False,
             "warning": "Same-job post-push snapshot is not independent proof of predeadline publication."}
@@ -61,5 +77,8 @@ if __name__ == "__main__":
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"status": report["status"], "frozen_count": report.get("frozen_count", 0)},
+    print(json.dumps({"status": report["status"], "frozen_count": report.get("frozen_count", 0),
+                      "validation_error_count": report.get("validation_error_count", 0)},
                      ensure_ascii=False, sort_keys=True))
+    if report.get("validation_error_count", 0):
+        raise SystemExit(2)
