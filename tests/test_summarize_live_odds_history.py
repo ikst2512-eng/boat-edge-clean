@@ -86,6 +86,21 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(history.summarize(rows)["eventual_valid_races"], 1)
 
+    def test_invalid_same_race_run_does_not_inflate_eligible_runs(self):
+        code = "202611030111"
+        rows = [
+            {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
+             "samples": [race(code, ["valid_200"])]},
+            {"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+             "samples": [race(code, ["fake_success"])]},
+        ]
+        result = history.summarize(rows)
+        self.assertEqual(result["runs_with_eligible_observations"], 1)
+        self.assertEqual(result["race_observations"], 1)
+
+    def test_all_42_scheduled_runs_are_inside_history_capacity(self):
+        self.assertGreaterEqual(history.MAX_RUNS, 42)
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])

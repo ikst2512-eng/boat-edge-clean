@@ -16,7 +16,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 DAYS = 14
-MAX_RUNS = 35
+MAX_RUNS = 100
 WORKFLOW = "live-official-odds-probe.yml"
 ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
@@ -26,6 +26,7 @@ def summarize(records):
     """Count observed race requests, never infer success for missing runs."""
     observations = []
     seen = set()
+    eligible_runs = set()
     for run in records:
         if run.get("source_status") != "ok" or not isinstance(run.get("samples"), list):
             continue
@@ -45,6 +46,7 @@ def summarize(records):
             if any(not isinstance(step, dict) or not isinstance(step.get("latency_ms"), int) or step["latency_ms"] < 0 for step in steps):
                 continue
             seen.add(key)
+            eligible_runs.add(stamp)
             observations.append({"code": code, "steps": steps, "elapsed": sample.get("elapsed_ms")})
     http = Counter(str(step.get("http")) for item in observations for step in item["steps"])
     first_valid = sum(item["steps"][0]["state"] == "valid_200" for item in observations)
@@ -54,8 +56,7 @@ def summarize(records):
     request_times = [step["latency_ms"] for item in observations for step in item["steps"]]
     elapsed_times = [item["elapsed"] for item in observations if type(item["elapsed"]) is int and item["elapsed"] >= 0]
     return {
-        "runs_with_eligible_observations": len({(r.get("checked_at_jst")) for r in records if r.get("source_status") == "ok" and any(
-            item.get("race_code") in {o["code"] for o in observations} for item in r.get("samples", []) if isinstance(item, dict))}),
+        "runs_with_eligible_observations": len(eligible_runs),
         "race_observations": len(observations),
         "unique_races": len({item["code"] for item in observations}),
         "requests": sum(http.values()),
