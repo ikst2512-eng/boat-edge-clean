@@ -226,7 +226,7 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
     result["run_listing_complete"]=discovery["listing_complete"]
     result["download_limit_reached"]=len(candidates)>MAX_DOWNLOADS
     result["capture_window_complete"]=(
-        discovery["listing_complete"] and not failures
+        discovery["listing_complete"] and len(candidates)>0 and not failures
         and len(candidates)<=MAX_DOWNLOADS
         and len(downloaded)==len(candidates)
         and result["downloaded_runs_without_shadow"]==0)
