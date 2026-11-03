@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,40 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_claimed_push_matches_actual_first_add_commit_and_count(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "artifact_present": True, "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2}
+        checked, missing = reconcile_claimed_pushes(
+            "20261104", [P, P2, OLD], {P: [A], P2: [A]}, [{"runs": [row]}])
+        self.assertEqual(len(checked), 1)
+        self.assertEqual(checked[0]["first_add_archives_in_checkout"], 2)
+        self.assertEqual(missing, [])
+
+    def test_claimed_push_cannot_hide_partial_or_absent_archive(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "artifact_present": True, "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2}
+        checked, missing = reconcile_claimed_pushes(
+            "20261104", [P, OLD], {P: [A]}, [{"runs": [row]}])
+        self.assertEqual(checked, [])
+        self.assertEqual(missing[0]["first_add_archives_in_checkout"], 1)
+        row["claimed_commit_sha"] = B
+        _, missing = reconcile_claimed_pushes(
+            "20261104", [P, OLD], {P: [A]}, [{"runs": [row]}])
+        self.assertEqual(missing[0]["first_add_archives_in_checkout"], 0)
+
+    def test_claimed_push_does_not_mix_prior_day_or_noop_runs(self):
+        report = {"runs": [
+            {"run_id": 10, "created_at": "2026-11-03T14:00:00Z",
+             "artifact_present": True, "publication_outcome": "pushed_to_main",
+             "claimed_commit_sha": A, "claimed_added_forecasts": 1},
+            {"run_id": 11, "created_at": "2026-11-04T00:07:00Z",
+             "artifact_present": True, "publication_outcome": "no_eligible_candidates"}]}
+        checked, missing = reconcile_claimed_pushes(
+            "20261104", [P], {P: [A]}, [report])
+        self.assertEqual((checked, missing), ([], []))
+
     def test_schedule_fails_closed_on_wrong_or_unknown_first_add_day(self):
         script = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
             encoding="utf-8")

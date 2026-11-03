@@ -179,6 +179,55 @@ def positive_eligible_run_ids(day, evidence_reports):
     return sorted(confirmed)
 
 
+
+def reconcile_claimed_pushes(day, paths, additions, evidence_reports):
+    """Cross-check artifact push claims against same-day first-add Git history.
+
+    A local artifact is only a claim. A matching Git first-add SHA and count
+    establish archive correspondence in the checkout, not remote first-seen.
+    """
+    valid_paths = set(paths)
+    by_sha = {}
+    for path in valid_paths:
+        if ARCHIVE.fullmatch(path) and Path(path).name.startswith(day):
+            shas = additions.get(path, [])
+            if len(shas) == 1 and isinstance(shas[0], str) and SHA.fullmatch(shas[0]):
+                by_sha[shas[0]] = by_sha.get(shas[0], 0) + 1
+    checked = []
+    mismatched = []
+    seen = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if not isinstance(row, dict) or row.get("artifact_present") is not True:
+                continue
+            if row.get("publication_outcome") != "pushed_to_main":
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None or stamp.astimezone(JST).strftime("%Y%m%d") != day:
+                    continue
+            except (KeyError, AttributeError, ValueError, TypeError):
+                continue
+            run_id = row.get("run_id")
+            if type(run_id) is not int or run_id <= 0 or run_id in seen:
+                continue
+            seen.add(run_id)
+            sha = row.get("claimed_commit_sha")
+            claimed = row.get("claimed_added_forecasts")
+            actual = by_sha.get(sha, 0) if isinstance(sha, str) and SHA.fullmatch(sha) else 0
+            match = bool(isinstance(sha, str) and SHA.fullmatch(sha)
+                         and type(claimed) is int and claimed > 0 and actual == claimed)
+            record = {"run_id": run_id, "claimed_commit_sha": sha,
+                      "claimed_added_forecasts": claimed, "first_add_archives_in_checkout": actual}
+            if match:
+                checked.append(record)
+            else:
+                mismatched.append(record)
+    return checked, mismatched
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -235,6 +284,11 @@ def main():
             evidence.append(None)
     eligible_ids = positive_eligible_run_ids(day, evidence)
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
+    verified_claims, mismatched_claims = reconcile_claimed_pushes(
+        day, paths, additions, evidence)
+    report["claimed_push_first_add_verified_runs"] = verified_claims
+    report["claimed_push_first_add_mismatched_runs"] = mismatched_claims
+    report["claimed_push_archive_reconciliation_verified"] = bool(verified_claims) and not mismatched_claims
     report["daily_alert_basis"] = (
         "incomplete_git_first_add" if report["assessment"] == "git_first_add_incomplete" else
         "new_candidates_without_main_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
@@ -243,6 +297,11 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and mismatched_claims):
+        print("::error::Claimed V2 publication commit or archive count absent from checked-out Git main")
+        raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["today_archive_count"] > 0
