@@ -254,11 +254,38 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 "research_complete": False, "original_files_found": 6,
                 "full_t12_source_certified": False, "forecast_usable": False,
             }
+            publisher = Mock(return_value="saved-commit")
+            verifier = Mock(return_value=remote)
             with self.assertRaisesRegex(ValueError, "lacks source audit proof"):
                 run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
                     "token", observer=lambda *args: local,
-                    publisher=lambda *args: "saved-commit",
-                    verifier=lambda *args: remote)
+                    publisher=publisher, verifier=verifier)
+            publisher.assert_not_called()
+            verifier.assert_not_called()
+
+    def test_incomplete_claim_with_complete_audit_never_publishes(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            local = report("research_components_incomplete")
+            local["audit"] = {"all_research_components_observed_by_t12": True}
+            publisher = Mock(return_value="saved-commit")
+            verifier = Mock()
+            with self.assertRaisesRegex(ValueError, "contradicts source audit"):
+                run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
+                    "token", observer=lambda *args: local,
+                    publisher=publisher, verifier=verifier)
+            publisher.assert_not_called()
+            verifier.assert_not_called()
+
+    def test_diagnostic_claim_with_complete_audit_never_publishes(self):
+        local = report("t12_preflight_expired")
+        local["audit"] = {"all_research_components_observed_by_t12": True}
+        publisher = Mock()
+        with self.assertRaisesRegex(ValueError, "contradicts source audit"):
+            run(RACE, "unused", OBS, "owner/repo", "research-t12-external-evidence",
+                "token", observer=lambda *args: local, publisher=publisher,
+                verifier=Mock())
+        publisher.assert_not_called()
 
     def test_remote_file_count_mismatch_blocks_success(self):
         with tempfile.TemporaryDirectory() as root:
