@@ -45,7 +45,7 @@ jobs:
       - name: Evaluate only 2026-11-04+ frozen predictions and confirmed results
         run: python hole_future_locked_eval.py --as-of "$(TZ=Asia/Tokyo date -d 'yesterday' +%F)" > hole_future_locked_results.json
       - name: Audit first-add Git blob provenance without claiming remote receipt
-        run: python hole_future_first_add_audit.py > hole_future_first_add_results.json
+        run: python hole_future_first_add_audit.py --as-of "$(TZ=Asia/Tokyo date -d 'yesterday' +%F)" > hole_future_first_add_results.json
       - name: Fail closed on inconsistent first-add evidence reporting
         run: |
           python - <<'PY'

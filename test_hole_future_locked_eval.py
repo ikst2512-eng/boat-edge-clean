@@ -115,6 +115,7 @@ class FutureLockedEvaluationTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/hole-future-locked-eval.yml").read_text(encoding="utf-8")
         self.assertIn("--as-of \"$(TZ=Asia/Tokyo date -d 'yesterday' +%F)\"", workflow)
+        self.assertIn("run: python hole_future_first_add_audit.py --as-of \"$(TZ=Asia/Tokyo date -d 'yesterday' +%F)\"", workflow)
         self.assertNotIn("run: python hole_future_locked_eval.py >", workflow)
 
     def test_reject_invalid_window(self):
