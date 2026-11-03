@@ -27,6 +27,8 @@ on:
       - third_rate_same_job_capture.py
       - four_mode_github_server_observation.py
       - test_four_mode_remote_evidence_end_to_end.py
+      - test_verify_four_mode_capture_evidence.py
+      - scripts/verify_four_mode_capture_evidence.py
       - four_mode_github_server_observation_ledger.py
       - test_four_mode_github_server_observation_ledger.py
       - test_four_mode_github_server_observation.py
@@ -313,6 +315,9 @@ jobs:
               json.dumps(states, sort_keys=True) + chr(10), encoding="utf-8")
           print("Four-mode execution stages:", json.dumps(states, sort_keys=True))
           PY
+      - name: Verify published forecasts have durable early observation evidence
+        if: always()
+        run: python -m unittest -v test_verify_four_mode_capture_evidence && python scripts/verify_four_mode_capture_evidence.py
       - name: Publish source acquisition summary
         if: always()
         shell: bash
