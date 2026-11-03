@@ -82,6 +82,48 @@ def select(archive,rates=None):
                        for name in POLICIES[4:]}}
 
 
+def paired_outcomes(rows, challenger="third_national_rate",
+                    comparator="donor_consensus", k=10):
+    """Use one identical race denominator for a paired, date-level comparison.
+
+    This is descriptive retrospective evidence, NOT a significance or
+    independent holdout test.
+    """
+    if challenger not in POLICIES or comparator not in POLICIES or k not in TOPS:
+        raise ValueError("unknown_comparison")
+    tally={"both_hit":0,"only_challenger":0,"only_comparator":0,"neither_hit":0}
+    by_day={}
+    changed_codes=[]
+    for row in rows:
+        code=row["race_code"]
+        if not isinstance(code,str) or len(code)!=12 or not code.isdigit():
+            raise ValueError("invalid_race_code")
+        day=code[:8]
+        flags=row["flags"]
+        a=flags[challenger][f"top{k}"]
+        b=flags[comparator][f"top{k}"]
+        if type(a) is not bool or type(b) is not bool:
+            raise ValueError("invalid_hit_boolean")
+        bucket=("both_hit" if a and b else
+                "only_challenger" if a else
+                "only_comparator" if b else "neither_hit")
+        tally[bucket]+=1
+        day_stats=by_day.setdefault(day,{
+            "races":0,"both_hit":0,"only_challenger":0,
+            "only_comparator":0,"neither_hit":0})
+        day_stats["races"]+=1
+        day_stats[bucket]+=1
+        if a!=b:
+            changed_codes.append(code)
+    if sum(tally.values())!=len(rows):
+        raise ValueError("paired_denominator_mismatch")
+    net=tally["only_challenger"]-tally["only_comparator"]
+    return {"challenger":challenger,"comparator":comparator,
+            "topk":k,"sample":len(rows),**tally,"net":net,
+            "dates":dict(sorted(by_day.items())),
+            "disagreement_race_codes":sorted(changed_codes)}
+
+
 def inspect(codes,root):
     hits={name:{f"top{k}":{"hits":0,"gained":0,"lost":0,"net":0}
                 for k in TOPS} for name in POLICIES}
@@ -124,7 +166,12 @@ def inspect(codes,root):
             if k in (3,5) and (d["gained"] or d["lost"]):
                 raise ValueError("protected_top5_changed")
     return {"comparable":len(rows),"unavailable":dict(unavailable),
-            "changed":dict(changes),"topn":hits,"rows":rows}
+            "changed":dict(changes),"topn":hits,
+            "paired_top10":{
+                comparison:paired_outcomes(rows,"third_national_rate",comparison,10)
+                for comparison in ("donor_consensus","hit_rank_first","baseline")
+            },
+            "rows":rows}
 
 
 def run(root=None):
