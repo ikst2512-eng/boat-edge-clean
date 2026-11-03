@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from datetime import datetime, timezone, timedelta
-from tests.test_entry_course_prospective_capture import fixture
+from test_entry_course_prospective_capture import fixture
 from entry_course_late_preview import prepare_late_preview_study
 from entry_course_prospective_capture import prepare_prospective_capture
 from entry_course_write_once import freeze_capture
