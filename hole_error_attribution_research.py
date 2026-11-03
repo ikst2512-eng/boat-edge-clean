@@ -34,6 +34,7 @@ def inspect(codes, root):
     gains = {p: {f"top{k}": {"gained": 0, "lost": 0, "hits": 0}
                  for k in TOPS} for p in POLICIES}
     pair_recovery = {p: Counter() for p in POLICIES[1:]}
+    third_gap = {p: Counter() for p in POLICIES}
     rows = []
     for code in codes:
         status, archive = archived_four_modes(code, root)
@@ -54,6 +55,9 @@ def inspect(codes, root):
             continue
         winning = result["winning_ticket"]
         base_cause = failure_class(baseline, winning)
+        winning_pair = tuple(winning.split("-")[:2])
+        matching_donors = {t for t in donor
+                           if tuple(t.split("-")[:2]) == winning_pair}
         reason_by_policy = {}
         flags = {}
         for p in POLICIES:
@@ -61,6 +65,14 @@ def inspect(codes, root):
             reason = failure_class(picks, winning)
             reason_by_policy[p] = reason
             reasons[p][reason] += 1
+            if reason == "third_boat_absent":
+                gap = third_gap[p]
+                gap["correct_pair_wrong_third"] += 1
+                gap["winner_available_in_donors"] += int(winning in matching_donors)
+                gap["winner_absent_from_donors"] += int(winning not in matching_donors)
+                gap["zero_donor_thirds"] += int(len(matching_donors) == 0)
+                gap["one_donor_third"] += int(len(matching_donors) == 1)
+                gap["multiple_donor_thirds"] += int(len(matching_donors) > 1)
             flags[p] = {f"top{k}": winning in picks[:k] for k in TOPS}
             for k in TOPS:
                 key = f"top{k}"
@@ -75,6 +87,10 @@ def inspect(codes, root):
                 bucket["baseline_missing_pair"] += 1
                 bucket["pair_added"] += int(reason in ("hit", "third_boat_absent"))
                 bucket["third_still_wrong"] += int(reason == "third_boat_absent")
+                bucket["third_wrong_but_winner_in_donors"] += int(
+                    reason == "third_boat_absent" and winning in matching_donors)
+                bucket["third_wrong_and_winner_not_in_donors"] += int(
+                    reason == "third_boat_absent" and winning not in matching_donors)
                 bucket["full_ticket_added"] += int(reason == "hit")
                 bucket["winner_in_donor_tickets"] += int(winning in donor)
                 bucket["winner_pair_in_donor_tickets"] += int(
@@ -90,6 +106,7 @@ def inspect(codes, root):
                 raise ValueError("top5_performance_changed")
     return {"comparable": len(rows), "unavailable": dict(unavailable),
             "miss_reasons": {p: dict(reasons[p]) for p in POLICIES},
+            "third_choice_gaps": {p: dict(third_gap[p]) for p in POLICIES},
             "missing_pair_recovery": {p: dict(pair_recovery[p])
                                       for p in POLICIES[1:]},
             "topn": gains, "rows": rows}
