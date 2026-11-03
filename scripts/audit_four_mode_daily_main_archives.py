@@ -412,6 +412,30 @@ def github_observation_failure_run_ids(day, evidence_reports):
     return sorted(failures)
 
 
+def research_shadow_failure_run_ids(day, evidence_reports):
+    """Only explicit same-day third-rate/hole stage failures, not missing legacy data."""
+    failures = {"third_rate_shadow": set(), "hole_shadow": set()}
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if not isinstance(row, dict):
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None or stamp.astimezone(JST).strftime("%Y%m%d") != day:
+                    continue
+            except (KeyError, AttributeError, TypeError, ValueError):
+                continue
+            run_id = row.get("run_id")
+            if type(run_id) is not int or run_id <= 0:
+                continue
+            for stage in failures:
+                if row.get(stage + "_outcome") == "failure":
+                    failures[stage].add(run_id)
+    return {stage: sorted(ids) for stage, ids in failures.items()}
+
+
 def final_evidence_failure_run_ids(day, evidence_reports):
     """Escalate only explicit failed final evidence gates for this JST day.
 
@@ -566,6 +590,7 @@ def main():
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
     report["unpublished_new_candidate_runs"] = unpublished_new_candidate_runs(day, evidence)
     report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
+    report["research_shadow_failure_run_ids"] = research_shadow_failure_run_ids(day, evidence)
     report["final_evidence_failure_run_ids"] = final_evidence_failure_run_ids(day, evidence)
     report["missing_new_push_final_evidence_run_ids"] = missing_new_push_final_evidence_run_ids(day, evidence)
     report["uncertified_new_push_final_evidence_run_ids"] = uncertified_new_push_final_evidence_run_ids(day, evidence)
@@ -614,6 +639,11 @@ def main():
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["github_observation_failure_run_ids"]):
         print("::error::GitHub server observation or append-only evidence preservation explicitly failed")
+        raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and any(report["research_shadow_failure_run_ids"].values())):
+        print("::error::Same-day V2 third-rate or hole research shadow stage explicitly failed")
         raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"

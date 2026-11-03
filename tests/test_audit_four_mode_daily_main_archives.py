@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids, missing_new_push_final_evidence_run_ids, uncertified_new_push_final_evidence_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids, missing_new_push_final_evidence_run_ids, uncertified_new_push_final_evidence_run_ids, research_shadow_failure_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,35 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_research_shadow_stage_failures_are_day_scoped_and_deduplicated(self):
+        third = {"run_id": 1001, "created_at": "2026-11-03T15:07:00Z",
+                 "third_rate_shadow_outcome": "failure", "hole_shadow_outcome": "success"}
+        hole = {"run_id": 1002, "created_at": "2026-11-04T09:07:00+09:00",
+                "third_rate_shadow_outcome": "success", "hole_shadow_outcome": "failure"}
+        old = {"run_id": 1003, "created_at": "2026-11-03T14:59:00Z",
+               "third_rate_shadow_outcome": "failure", "hole_shadow_outcome": "failure"}
+        missing = {"run_id": 1004, "created_at": "2026-11-04T09:22:00+09:00"}
+        evidence = [{"runs": [third, hole, old, missing]},
+                    {"runs": [dict(third)]}]
+        self.assertEqual(research_shadow_failure_run_ids("20261104", evidence),
+                         {"third_rate_shadow": [1001], "hole_shadow": [1002]})
+        self.assertEqual(research_shadow_failure_run_ids("20261105", evidence),
+                         {"third_rate_shadow": [], "hole_shadow": []})
+        source = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn('any(report["research_shadow_failure_run_ids"].values())', source)
+
+    def test_unknown_or_malformed_research_stage_evidence_not_fabricated_failure(self):
+        evidence = {"runs": [
+            {"run_id": 1005, "created_at": "bad", "third_rate_shadow_outcome": "failure"},
+            {"run_id": 1006, "created_at": "2026-11-04T09:07:00",
+             "hole_shadow_outcome": "failure"},
+            {"run_id": 1007, "created_at": "2026-11-04T09:07:00+09:00",
+             "third_rate_shadow_outcome": None, "hole_shadow_outcome": "skipped"},
+        ]}
+        self.assertEqual(research_shadow_failure_run_ids("20261104", [evidence]),
+                         {"third_rate_shadow": [], "hole_shadow": []})
+
     def test_final_gate_passed_label_without_matching_published_detail_fails(self):
         base = {
             "run_id": 951, "created_at": "2026-11-03T15:07:00Z",
