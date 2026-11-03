@@ -27,7 +27,7 @@ JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
 
 
-def candidates(root, *, now=None, max_minutes=6):
+def candidates(root, *, now=None, max_minutes=6, require_durable_t12=False):
     """Return only current-day frozen bases nearing later T-2 cutoff."""
     now=now or datetime.now(JST)
     root=Path(root)
@@ -35,8 +35,11 @@ def candidates(root, *, now=None, max_minutes=6):
     day=now.strftime("%Y%m%d")
     # The automatic T−12 seeder writes immutable originals on the dedicated
     # branch. Actions checks that branch out into entry-course-ledger/.
-    # Existing main snapshots remain valid and retain priority.
-    sources=(root/"research_snapshots",root/"entry-course-ledger"/"t12_baselines"/day)
+    # Production requires an actual checkout of the immutable evidence branch;
+    # local snapshots are only eligible for explicit research/test mode.
+    durable=root/"entry-course-ledger"/"t12_baselines"/day
+    sources=((durable,) if require_durable_t12 else
+             (root/"research_snapshots",durable))
     seen=set()
     for file in [p for folder in sources for p in sorted(folder.glob(day+"*.json"))]:
         if file.is_symlink() or file.stat().st_size>30000:
@@ -92,12 +95,14 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             output_dir=None, max_minutes=6, min_starts=10,
             waku_enabled=True, waku_fetch=None,
             _selected=None, preview_poll_limit=3,
-            skip_historical_fallback=False):
+            skip_historical_fallback=False, require_durable_t12=False):
     if type(preview_poll_limit) is not int or not 1<=preview_poll_limit<=3:
         raise ValueError("invalid_preview_poll_limit")
     now=now or (lambda:datetime.now(JST))
     sampled_now=now()
-    target=[_selected] if _selected is not None else candidates(root,now=sampled_now,max_minutes=max_minutes)
+    target=[_selected] if _selected is not None else candidates(
+        root,now=sampled_now,max_minutes=max_minutes,
+        require_durable_t12=require_durable_t12)
     if not target:
         return {"status":"no_frozen_baseline_in_late_window","stored":False,
                 "baseline_audit":audit_daily_bases(root,now=sampled_now,max_minutes=max_minutes),
@@ -301,7 +306,7 @@ def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
 def attempt_batch(root, *, now=None, max_per_run=3,
                   verify_expected_schedule=False, schedule_fetch=None,
                   preview_retry_rounds=1, preview_retry_interval=35,
-                  **kwargs):
+                  require_durable_t12=False, **kwargs):
     """Bounded independent race attempts; never mix the race cohorts."""
     if type(max_per_run) is not int or not 1<=max_per_run<=3:
         raise ValueError("invalid_t2_batch_size")
@@ -311,11 +316,13 @@ def attempt_batch(root, *, now=None, max_per_run=3,
         raise ValueError("invalid_t2_batch_preview_retry_bounds")
     now=now or (lambda:datetime.now(JST))
     snapshot_time=now()
-    pool=candidates(root,now=snapshot_time)
+    pool=candidates(root,now=snapshot_time,
+                    require_durable_t12=require_durable_t12)
     if not pool:
         # Preserve the baseline diagnostics, but do not silently count a
         # scheduled T−2 race as a no-op when its T−12 original is absent.
-        report=attempt(root,now=now,**kwargs)
+        report=attempt(root,now=now,
+                       require_durable_t12=require_durable_t12,**kwargs)
         if not verify_expected_schedule:
             return report
         try:
@@ -339,7 +346,8 @@ def attempt_batch(root, *, now=None, max_per_run=3,
         try:
             return attempt(root,now=now,_selected=chosen,
                            preview_poll_limit=1,
-                           skip_historical_fallback=True,**kwargs)
+                           skip_historical_fallback=True,
+                           require_durable_t12=require_durable_t12,**kwargs)
         except Exception as exc:
             return {"race_code":code,"status":"collector_error",
                     "stored":False,"error_type":type(exc).__name__,
@@ -453,7 +461,8 @@ def main():
         scheduled_access=from_environment("t2",remote_read,remote_create)
         verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create),
                               verify_expected_schedule=True,
-                              preview_retry_rounds=7)
+                              preview_retry_rounds=7,
+                              require_durable_t12=True)
         verdict['ledger_write_access_probe']=access
         verdict['scheduled_actions_write_probe']=scheduled_access
     except Exception as exc:
