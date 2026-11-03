@@ -32,6 +32,20 @@ class CourseHistoryTests(unittest.TestCase):
         self.assertEqual(two["courseTop2Rate"],1.0)
         self.assertEqual(two["courseWinRate"],0)
         self.assertFalse(result["formal_forecast_approved"])
+    def test_real_nov2_csv_spaced_decision_normalizes_without_changing_outcome(self):
+        # Actual realtime CSV 2026-11-02 row uses full-width gap: 逃　げ.
+        row=historical()
+        row["result"]["決まり手"]="逃　げ"
+        out=self.build([row],min_starts=1)
+        self.assertEqual(out["eligible_races"],1)
+        self.assertEqual(out["boats"][0]["first_place_decisions"],{"逃げ":1})
+        self.assertEqual(out["boats"][0]["courseWinRate"],1.0)
+    def test_unknown_decision_remains_unknown_without_guess(self):
+        row=historical()
+        row["result"]["決まり手"]="不明"
+        out=self.build([row],min_starts=1)
+        self.assertEqual(out["eligible_races"],1)
+        self.assertEqual(out["boats"][0]["first_place_decisions"],{})
     def test_late_receipt_not_counted(self):
         late=historical(1,receipt="2026-11-03T19:09:00+09:00")
         result=self.build([late])
