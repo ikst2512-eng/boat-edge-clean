@@ -26,6 +26,7 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         modes = rank_modes(probabilities(RATES))
         archive = {"race_code": CODE, "model_version":
                    "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+                   "deadline_jst": "2026-11-04T12:00:00+09:00",
                    "modes": modes}
         f = folder / (CODE + ".json")
         f.write_text(json.dumps(archive) + "\n", encoding="utf-8")
@@ -137,6 +138,13 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         self.data["records"][0]["source_forecast_sha256"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "frozen_source_digest_mismatch"):
             prepare(self.original(), self.root, "412345", "1")
+
+    def test_forged_late_twelve_minute_cutoff_not_preserved(self):
+        self.data["records"][0]["frozen_at_utc"] = "2026-11-04T02:00:00+00:00"
+        self.data["records"][0]["t_minus_12_jst"] = "2026-11-04T13:48:00+09:00"
+        with self.assertRaisesRegex(ValueError, "frozen_cutoff_disagrees_with_original"):
+            prepare(self.original(), self.root, "412345", "1")
+        self.assertEqual(self.storage, {})
 
     def test_reject_late_or_development_period_prediction(self):
         self.data["records"][0]["frozen_at_utc"] = "2026-11-04T02:48:00+00:00"

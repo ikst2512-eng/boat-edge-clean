@@ -28,6 +28,7 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         modes = rank_modes(probabilities(RATES))
         archive = {"race_code": CODE, "model_version":
                    "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+                   "deadline_jst": "2026-11-04T12:00:00+09:00",
                    "modes": modes}
         self.path = folder / (CODE + ".json")
         self.path.write_text(json.dumps(archive) + "\n", encoding="utf-8")
@@ -79,6 +80,15 @@ class FrozenArtifactScoreTests(unittest.TestCase):
             report = score_evidence(self.evidence, self.root)
         compare.assert_not_called()
         self.assertEqual(report["invalid"], 1)
+
+    def test_forged_later_cutoff_is_not_scored(self):
+        self.evidence["records"][0]["frozen_at_utc"] = "2026-11-04T02:00:00+00:00"
+        self.evidence["records"][0]["t_minus_12_jst"] = "2026-11-04T13:48:00+09:00"
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race") as compare:
+            report = score_evidence(self.evidence, self.root)
+        compare.assert_not_called()
+        self.assertEqual(report["invalid"], 1)
+        self.assertEqual(report["paired"], 0)
 
     def test_after_cutoff_and_dev_day_are_never_scored(self):
         self.evidence["records"][0]["frozen_at_utc"] = "2026-11-04T02:48:00+00:00"

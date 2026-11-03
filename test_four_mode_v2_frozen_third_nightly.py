@@ -32,6 +32,7 @@ class FrozenNightlyTests(unittest.TestCase):
         modes = rank_modes(probabilities(RATES))
         archived = {"race_code": CODE,
                     "model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+                   "deadline_jst": "2026-11-04T12:00:00+09:00",
                     "modes": modes}
         file = folder / (CODE + ".json")
         file.write_text(json.dumps(archived) + "\n")

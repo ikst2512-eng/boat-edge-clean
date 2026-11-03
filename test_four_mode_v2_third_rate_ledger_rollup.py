@@ -26,6 +26,7 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
         modes = rank_modes(probabilities(RATES))
         archive = {"race_code": CODE, "model_version":
                    "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+                   "deadline_jst": "2026-11-04T12:00:00+09:00",
                    "modes": modes}
         f = folder / (CODE + ".json")
         f.write_text(json.dumps(archive) + "\n", encoding="utf-8")
