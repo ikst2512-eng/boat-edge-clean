@@ -22,6 +22,7 @@ def audit_three_originals(racelist_dir, beforeinfo_dir, odds_dir):
     component_checks = {
         "racecard_original_hash_verified": bool(card["original_hash_verified"]),
         "racecard_six_registrations": bool(card["six_racers_verified"]),
+        "racer_registration_ids_match": bool(card["racer_registration_identities_agree"]),
         "racecard_received_by_t12": bool(card["received_by_t12"]),
         "beforeinfo_received_by_t12": bool(card["beforeinfo_received_by_t12"]),
         "exhibition_six_courses": len(card["exhibition_course_to_boat"]) == 6,
