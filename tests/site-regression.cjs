@@ -551,3 +551,13 @@ assert.match(script,/for\(let attempt=0;attempt<3;attempt\+\+\)/,'odds pending r
 assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*res=await fetch\(oddsUrl/,'pending odds must abort for another race');
 assert.match(script,/if\(res.status!==202\)break;/,'retry only pending HTTP 202');
 assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*if\(!res.ok\)/,'recheck race before applying completed odds');
+
+// Confirmed full schedule excludes absent choices; partial/unpublished sources leave picker usable.
+assert.ok(script.includes('function completeHeldSchedule()'),'full CLEAN schedule gate must be explicit');
+assert.ok(script.includes('todayVenueRaces.partial_coverage!==true&&todayVenueRaces.historical_result_only!==true'),'partial or archive-derived schedule must not disable a real race');
+assert.ok(script.includes('button.disabled=!hasConfirmedVenue(i+1)'),'confirmed absent venue must be visibly disabled');
+assert.ok(script.includes('b.disabled=!hasConfirmedRace(s.venue+1,i)'),'confirmed absent race must be visibly disabled');
+assert.ok(script.includes("if(!hasConfirmedVenue(i+1))return;venueTouched=true"),'confirmed venue guard on click');
+assert.ok(script.includes("if(!hasConfirmedRace(s.venue+1,i))return;venueTouched=true"),'confirmed race guard on click');
+assert.ok(script.includes("next>12||!hasConfirmedRace(s.venue+1,next)"),'previous/next navigation cannot bypass held-race gate');
+assert.ok(script.includes("button.disabled=false;button.classList.remove('held')"),'failed or unpublished schedule must restore navigation');
