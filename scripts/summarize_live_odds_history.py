@@ -48,9 +48,13 @@ def consistent_attempts(steps):
                 return False
         else:
             return False
-        # The live probe retries only a pending HTTP 202, never a success or failure.
-        if index > 0 and steps[index - 1]["state"] != "pending_202":
-            return False
+        # Mirror the live probe: pending 202 permits another request up to
+        # three attempts; only an initial TimeoutError gets one retry.
+        if index > 0:
+            prior = steps[index - 1]["state"]
+            if prior != "pending_202" and not (
+                    index == 1 and prior == "transport_error:TimeoutError"):
+                return False
     return True
 
 
