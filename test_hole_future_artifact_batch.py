@@ -95,7 +95,7 @@ class FullDayListingTests(unittest.TestCase):
   self.assertIn("page=2",api.call_args_list[-1].args[0])
  def test_current_jst_day_is_not_complete(self):
   pages=[{"id":1,"event":"schedule","created_at":"2026-11-03T01:00:00Z"},
-         {"id":2,"event":"schedule","created_at":"2026-11-02T16:00:00Z"}]
+         {"id":2,"event":"schedule","created_at":"2026-11-01T16:00:00Z"}]
   with patch("hole_future_artifact_batch.api",
        return_value=json.dumps({"workflow_runs":pages}).encode()):
    found=discover_full_days("a/b","token",days=2,
