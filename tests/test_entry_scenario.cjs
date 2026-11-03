@@ -40,7 +40,8 @@ test('exact historical beta0.4 research-model identity weighting is preserved',(
 });
 test('main page connects distinct source, user controls, never rewrites saved forecasts',()=>{
  const html=readFileSync('index.html','utf8');
- assert(html.includes('<script src="entry_scenario.js"></script>'));
+ assert.equal((html.match(/<\\/script>/g)||[]).length,1,'one app script');
+ assert(html.includes('entry-position-transfer-beta0.4-research'));
  for(const name of ['entryScenarioOrder','entryScenarioApply','entryScenarioReset','entryScenarioTickets','loadEntryScenario();','BoatEntryScenario.rank']){
   assert(html.includes(name),'missing '+name);
  }
