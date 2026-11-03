@@ -371,6 +371,15 @@ for(const key of ['202610280101','202610310708','202611021905']){
 assert.ok(historicalPagesWorkflow.includes("if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())"),
   'P0 historical browser check must reject unverified scoring');
 
+// Pages result verification must retry only transient delivery errors without
+// treating a missing or mismatched historical result as proof.
+assert.ok(historicalPagesWorkflow.includes("attempt<4;attempt++"),
+  'Published-result HTTP 503 handling must have a bounded retry budget');
+assert.ok(historicalPagesWorkflow.includes("[429,500,502,503,504].includes(archived.status())"),
+  'Published-result delivery retries must be limited to transient HTTP errors');
+assert.ok(historicalPagesWorkflow.includes("if(!archived.ok())throw Error('CLEAN published result unavailable:"),
+  'Published-result checker must fail closed after retry exhaustion');
+
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
