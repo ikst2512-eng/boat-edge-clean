@@ -1,7 +1,7 @@
 import json
 import unittest
 from datetime import datetime, timezone, timedelta
-from entry_course_durable_ledger import prepare,publish
+from entry_course_durable_ledger import prepare,publish,verify_write_access,WRITE_PROBE_PATH,WRITE_PROBE_BYTES
 from test_entry_course_late_preview import inputs,FROZEN,T2
 from entry_course_late_preview import prepare_late_preview_study
 
@@ -15,6 +15,29 @@ def frozen():
 def raw(obj):
     return (json.dumps(obj,ensure_ascii=False,sort_keys=True)+"\n").encode()
 class LedgerTests(unittest.TestCase):
+    def test_first_run_write_probe_uses_exact_nonforecast_bytes(self):
+        storage={}
+        def get(path):return storage.get(path)
+        def put(path,raw):storage[path]=raw
+        verdict=verify_write_access(get,put)
+        self.assertEqual(verdict["status"],"new_write_probe")
+        self.assertFalse(verdict["forecast_record"])
+        self.assertFalse(verdict["formal"])
+        self.assertEqual(storage[WRITE_PROBE_PATH],WRITE_PROBE_BYTES)
+        self.assertFalse(json.loads(WRITE_PROBE_BYTES)["forecast_record"])
+    def test_write_probe_is_idempotent_without_overwrite(self):
+        storage={WRITE_PROBE_PATH:WRITE_PROBE_BYTES}
+        verdict=verify_write_access(storage.get,lambda p,b:self.fail("unexpected write"))
+        self.assertEqual(verdict["status"],"existing_write_probe_readback")
+        self.assertFalse(verdict["write_permission_tested_this_run"])
+    def test_write_probe_rejects_conflicting_or_unreadable_content(self):
+        with self.assertRaisesRegex(ValueError,"write_probe_collision"):
+            verify_write_access(lambda p:b"changed",lambda p,b:self.fail("write"))
+        with self.assertRaisesRegex(ValueError,"write_probe_readback_mismatch"):
+            verify_write_access(lambda p:None,lambda p,b:None)
+    def test_write_probe_denied_write_propagates(self):
+        with self.assertRaisesRegex(ValueError,"unauthorized"):
+            verify_write_access(lambda p:None,lambda p,b:(_ for _ in ()).throw(ValueError("unauthorized")))
     def test_prospectively_eligible_capture_has_stable_path(self):
         path=prepare(raw(frozen()),now=datetime(2026,11,3,18,30,20,tzinfo=JST))
         self.assertEqual(path,"entry_course/20261103/202611030708.json")

@@ -17,7 +17,7 @@ import time
 from entry_course_history_source import BASE, _fetch, load_asof_history
 from entry_course_late_preview import prepare_late_preview_study
 from entry_course_write_once import freeze_capture
-from entry_course_durable_ledger import github_ops, publish
+from entry_course_durable_ledger import github_ops, publish, verify_write_access
 
 JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
@@ -141,7 +141,10 @@ def main():
     p.add_argument("--output",default="entry-course-evidence/last-attempt.json")
     args=p.parse_args()
     try:
-        verdict=attempt(Path(args.root))
+        remote_read,remote_create=github_ops(os.environ['GITHUB_REPOSITORY'])
+        access=verify_write_access(remote_read,remote_create)
+        verdict=attempt(Path(args.root),ledger_ops=(remote_read,remote_create))
+        verdict['ledger_write_access_probe']=access
     except Exception as exc:
         verdict={"status":"course_evidence_collector_failed","stored":False,
                  "error_type":type(exc).__name__,"research_only":True}
