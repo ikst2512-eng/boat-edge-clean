@@ -27,3 +27,11 @@ Four JSON responses parsed and `race_key` matched. Result shows winning trifecta
 - The separate standalone toolkit exists for an operator in a network-capable host but cannot be treated as an executed real backup.
 
 **STOP/DELETE/MIGRATE all remain blocked.** Keep source forecasts separate from CLEAN, and do not infer formal eligibility from embedded flags.
+
+## Follow-up: first Git-add evidence found and linked
+
+- The legacy post-settlement, site-only evaluation `data/site_learning/site_mode_evaluations_v136/20261008-01-03.json` at pinned tree stores `first_git_snapshot_commit=1d06d01b5cae217f137e71a5a69e92c9ef7fb208` and `scope=SITE_REFERENCE_POST_SETTLEMENT_ONLY_NOT_FORMAL_FRESH`.
+- Direct GitHub fetch of commit [1d06d01](https://github.com/ikst2512-eng/boat-edge/commit/1d06d01b5cae217f137e71a5a69e92c9ef7fb208) reports timestamp `2026-10-08T07:15:40Z` and includes `data/site_prediction_snapshots/20261008-01-03.json` with a new-file patch header `@@ -0,0 +1,279 @@`. This substantiates that the source file was added in that commit, not merely self-declared in JSON. Commit timestamp alone is not an independent proof of wall-clock event ordering, so preserve receipt confidence separately.
+- Direct fetch of that path *at the alleged first-add commit* gives blob `4758d57a765ee06c56a8f85680b7d600728677ca`, identical to the original pinned-tree source and previously indexed hash. This is a Git blob identity verification, **not** an off-host independent SHA256 restore.
+- Direct fetch at pinned tree of `data/site_odds/20261008-01-03.json` and `data/site_autopilot/v229_evidence/20261008-01-03.json` returned GitHub 404. Snapshot declares `odds_sha256=null`; source odds coverage is **NOT VERIFIED**. Do not invent an odds sidecar or mark official 120 odds present.
+- Mark this single race as `FIRST_GIT_ADD_COMMIT_OBSERVED` and `SOURCE_BLOB_MATCH`, while `ODDS_SOURCE_MISSING`, `INDEPENDENT_BYTES_BACKUP_UNVERIFIED`, and `FORMAL_FRESH_NOT_APPLICABLE` remain. No generalization to the other P0 races.
