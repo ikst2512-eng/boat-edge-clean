@@ -42,8 +42,38 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             result = audit_racelist_with_official_deadline(racecard, beforeinfo, RACE)
             self.assertTrue(result["received_by_t12"])
             self.assertTrue(result["cutoff_source_verified"])
+            self.assertTrue(result["beforeinfo_received_by_t12"])
+            self.assertFalse(result["exhibition_entry_received_by_t12"])
+            self.assertFalse(result["racecard_and_exhibition_entry_observed_by_t12"])
+            self.assertEqual(result["exhibition_course_to_boat"], {})
             self.assertEqual(result["official_deadline_jst"], "2026-11-03T10:14:00+09:00")
             self.assertFalse(result["full_t12_source_certified"])
+
+    def test_late_beforeinfo_exhibition_must_not_be_t12_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            racecard = self.make(root)
+            beforeinfo = self.make_beforeinfo(root)
+            source_path = beforeinfo / "beforeinfo.json"
+            payload = json.loads(source_path.read_text())
+            payload["maindata"]["sttenjiinfolist"] = [
+                {"teino": str(i), "cs": i, "st": ".06"} for i in range(1, 7)
+            ]
+            payload["maindata"]["teiinfolist"] = [{"teino": str(i)} for i in range(1, 7)]
+            raw = json.dumps(payload).encode()
+            source_path.write_bytes(raw)
+            manifest_path = beforeinfo / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["sha256"] = hashlib.sha256(raw).hexdigest()
+            manifest["bytes"] = len(raw)
+            manifest["received_at_jst"] = "2026-11-03T10:03:00+09:00"
+            manifest_path.write_text(json.dumps(manifest))
+            result = audit_racelist_with_official_deadline(racecard, beforeinfo, RACE)
+            self.assertFalse(result["beforeinfo_received_by_t12"])
+            self.assertFalse(result["exhibition_entry_received_by_t12"])
+            self.assertEqual(result["exhibition_course_to_boat"]["1"], "1")
+            self.assertFalse(result["racecard_and_exhibition_entry_observed_by_t12"])
+            self.assertFalse(result["entry_verified"])
+            self.assertFalse(result["forecast_usable"])
 
     def test_tampered_deadline_original_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:
