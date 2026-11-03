@@ -332,6 +332,28 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(data["not_observed_after_grace"], 1)
         self.assertEqual(data["observed_slots"], 0)
 
+    def test_hours_late_direct_schedule_is_reported_without_slot_credit(self):
+        jst = timezone(__import__("datetime").timedelta(hours=9))
+        now = datetime(2026, 11, 3, 20, 15, tzinfo=jst)
+        late = {"id": 41624217156, "event": "schedule",
+                "status": "completed", "conclusion": "success",
+                "created_at": "2026-11-03T11:02:28Z"}
+        result = history.schedule_trigger_health([late], now=now)
+        self.assertEqual(result["observed_slots"], 0)
+        self.assertEqual(result["not_observed_after_grace"], 3)
+        self.assertEqual(result["outside_grace_unattributed_runs"], [{
+            "run_id": 41624217156, "created_at": "2026-11-03T11:02:28Z",
+            "conclusion": "success", "status": "completed"}])
+
+    def test_in_window_schedule_is_not_misreported_as_unattributed(self):
+        jst = timezone(__import__("datetime").timedelta(hours=9))
+        now = datetime(2026, 11, 3, 16, 30, tzinfo=jst)
+        scheduled = {"id": 11, "event": "schedule", "status": "completed",
+                     "conclusion": "success", "created_at": "2026-11-03T05:25:10Z"}
+        result = history.schedule_trigger_health([scheduled], now=now)
+        self.assertEqual(result["observed_slots"], 1)
+        self.assertEqual(result["outside_grace_unattributed_runs"], [])
+
     def test_observed_schedule_event_requires_correct_slot(self):
         jst = timezone(__import__("datetime").timedelta(hours=9))
         now = datetime(2026, 11, 3, 15, 2, tzinfo=jst)
