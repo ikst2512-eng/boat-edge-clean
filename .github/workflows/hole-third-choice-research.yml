@@ -4,6 +4,8 @@ on:
     paths:
       - hole_third_choice_research.py
       - hole_error_attribution_research.py
+      - hole_third_donor_ranking_research.py
+      - test_hole_third_donor_ranking_research.py
       - test_hole_error_attribution_research.py
       - test_hole_third_choice_research.py
       - .github/workflows/hole-third-choice-research.yml
@@ -18,7 +20,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py
+      - run: python hole_third_donor_ranking_research.py > hole_third_donor_ranking_results.json
+      - name: Compare donor ranks across prior inspected date blocks (not holdout)
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_third_donor_ranking_results.json"))
+          assert all(r[key] is False for key in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for cohort,report in r["groups"].items():
+              print("GROUP",cohort,"N",report["comparable"],"MISSING",report["unavailable"])
+              print("TOPN",report["topn"])
+              for method,data in report["topn"].items():
+                  for k in (3,5):
+                      assert data[f"top{k}"]["gained"]==data[f"top{k}"]["lost"]==0
+          PY
       - run: python hole_error_attribution_research.py > hole_error_attribution_results.json
       - name: Report why hole tickets miss (retrospective diagnostic only)
         run: |
@@ -60,3 +79,4 @@ jobs:
           path: |
             hole_third_choice_results.json
             hole_error_attribution_results.json
+            hole_third_donor_ranking_results.json
