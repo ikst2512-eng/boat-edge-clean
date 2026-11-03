@@ -79,6 +79,6 @@ class Waku10SourceTests(unittest.TestCase):
         original=encode(waku())
         with self.assertRaisesRegex(ValueError,"duplicate_race"):
             fetch_waku10(CODE,cutoff_at="2026-11-03T18:31:00+09:00",
-                         fetch=lambda url:original+original.split(b"\\n",1)[1],
+                         fetch=lambda url:original+original.split(bytes([10]),1)[1],
                          clock=lambda:datetime(2026,11,3,18,28,tzinfo=JST))
 if __name__=="__main__":unittest.main()
