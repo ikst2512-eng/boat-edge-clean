@@ -354,6 +354,13 @@ assert.ok(scheduleLoader.includes("else throw Error('SCHEDULE_ARCHIVE_HTTP_'+arc
 assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
 console.log('PASS: historical schedule 404/503 fallback regression');
 
+// Published browser test must click the shortcut button itself, not a descendant.
+const pagesPublishingWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(pagesPublishingWorkflow.includes("await page.locator('.race-detail-shortcuts button[data-race-view=\\"'+view+'\\"]').click();"),
+  'Pages browser smoke must target the tab button directly');
+assert.ok(!pagesPublishingWorkflow.includes("await shortcuts.locator('[data-race-view=\\"'+view+'\\"]').click();"),
+  'Pages browser smoke must not search for nested buttons');
+
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
