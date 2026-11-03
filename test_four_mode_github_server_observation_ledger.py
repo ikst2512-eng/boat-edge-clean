@@ -74,6 +74,7 @@ class ObservationLedgerTests(unittest.TestCase):
                   "first_add_commit":SHA}
         self.artifact["observed_before_t_minus_12"]=0
         self.artifact["unverified_count"]=1
+        self.artifact["records"]=[self.row]
         self.artifact["observed_after_t_minus_12"]=0
         self.assertIsNotNone(prepare(self.payload(),self.root,"1234","1",self.git))
 
