@@ -45,29 +45,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/gate_live_odds_event.py
-      - name: Verify fallback event classification
-        if: steps.gate.outputs.collect == 'true'
-        run: python -m unittest discover -s tests -p test_gate_live_odds_event.py -v
-      - name: Verify read-only live odds metric classification
-        if: steps.gate.outputs.collect == 'true'
-        run: python -m unittest discover -s tests -p test_probe_live_odds_health.py -v
-      - name: Verify 14-day odds trend aggregation
-        if: steps.gate.outputs.collect == 'true'
-        run: python -m unittest discover -s tests -p test_summarize_live_odds_history.py -v
+      # Production monitoring must sample and verdict before optional diagnostics.
+      # A regression test or slow history lookup must not block the live sample.
       - name: Sample up to three independently sourced upcoming races
         if: steps.gate.outputs.collect == 'true'
         run: python scripts/probe_live_odds_health.py
+      - name: Fail unhealthy unattended odds sampling
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_run')
+        run: python scripts/check_live_odds_probe_verdict.py
+      - name: Verify fallback event classification
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        run: python -m unittest discover -s tests -p test_gate_live_odds_event.py -v
+      - name: Verify read-only live odds metric classification
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        run: python -m unittest discover -s tests -p test_probe_live_odds_health.py -v
+      - name: Verify 14-day odds trend aggregation
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        run: python -m unittest discover -s tests -p test_summarize_live_odds_history.py -v
       - name: Verify strict operational verdict tests
-        if: steps.gate.outputs.collect == 'true'
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
         run: python -m unittest discover -s tests -p test_check_live_odds_probe_verdict.py -v
       - name: Summarize eligible preceding scheduled run artifacts
         if: steps.gate.outputs.collect == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/summarize_live_odds_history.py
-      - name: Fail unhealthy unattended odds sampling
-        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_run')
-        run: python scripts/check_live_odds_probe_verdict.py
       - name: Preserve per-race statuses and timings
         if: always()
         uses: actions/upload-artifact@v4
