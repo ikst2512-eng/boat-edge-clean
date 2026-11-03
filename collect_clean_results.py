@@ -198,7 +198,8 @@ def confirmed_record_is_usable(path, code):
                 or any(type(boat) is not int or boat not in range(1,7) for boat in order)
                 or len(set(order))!=3
                 or not isinstance(record.get("source_url"),str)
-                or not record["source_url"].startswith("https://")
+                or record["source_url"] != (BASE + code[:4] + "/" + code[4:6]
+                                            + "/" + code[6:8] + ".csv")
                 or not isinstance(record.get("source_sha256"),str)
                 or re.fullmatch(r"[a-f0-9]{64}",record["source_sha256"]) is None):
             return False

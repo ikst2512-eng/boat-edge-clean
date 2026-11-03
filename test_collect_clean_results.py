@@ -13,7 +13,7 @@ class ResultCollectorTests(unittest.TestCase):
     def valid_confirmation(code):
         return {
             "race_code":code, "status":"confirmed", "finish_order":[1,2,3],
-            "source_url":"https://boatracecsv.github.io/data/results/realtime/2026/11/03.csv",
+            "source_url":c.BASE+code[:4]+"/"+code[4:6]+"/"+code[6:8]+".csv",
             "source_sha256":"a"*64,
             "confirmed_at_jst":"2026-11-03T12:01:00+09:00",
             "collected_at_jst":"2026-11-03T12:02:00+09:00",
@@ -166,6 +166,24 @@ class ResultCollectorTests(unittest.TestCase):
                         self.assertEqual(target.read_text(encoding="utf-8"),data)
                 target.write_text(json.dumps(valid),encoding="utf-8")
                 self.assertEqual(c.collect("20261027")["saved"],0)
+
+    def test_saved_result_provenance_must_match_exact_day_csv(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            code="202611030101"
+            target=root/(code+".json")
+            good=self.valid_confirmation(code)
+            target.write_text(json.dumps(good),encoding="utf-8")
+            self.assertTrue(c.confirmed_record_is_usable(target,code))
+            for wrong in (
+                "https://example.com/results.csv",
+                c.BASE+"2026/11/02.csv",
+                c.BASE+"2026/11/03.csv?cached=1",
+                "https://boatracecsv.github.io.evil.test/data/results/realtime/2026/11/03.csv",
+            ):
+                with self.subTest(wrong=wrong):
+                    target.write_text(json.dumps(dict(good,source_url=wrong)),encoding="utf-8")
+                    self.assertFalse(c.confirmed_record_is_usable(target,code))
 
     def test_missing_source_rows_are_not_declared_losses(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
