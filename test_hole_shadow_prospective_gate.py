@@ -29,7 +29,8 @@ class ProspectiveGateTest(unittest.TestCase):
 
     def test_result_blind_freeze_and_hash(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(200, self.archive)):
-            output = freeze(self.code, self.root, self.cutoff - timedelta(minutes=15))
+            moment = self.cutoff - timedelta(minutes=15)
+            output = freeze(self.code, self.root, moment, clock=lambda: moment)
         self.assertEqual(output["status"], "shadow_frozen_unverified")
         self.assertFalse(output["prospective_verified"])
         self.assertEqual(output["shadow"][2], "1-4-2")
@@ -50,8 +51,34 @@ class ProspectiveGateTest(unittest.TestCase):
 
     def test_deadline_is_strict(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(200, self.archive)):
-            self.assertEqual(freeze(self.code, self.root, self.cutoff)["status"], "past_deadline")
-            self.assertEqual(freeze(self.code, self.root, self.cutoff + timedelta(seconds=1))["status"], "past_deadline")
+            self.assertEqual(freeze(self.code, self.root, self.cutoff)["status"], "after_t_minus_12")
+            self.assertEqual(freeze(self.code, self.root, self.cutoff + timedelta(seconds=1))["status"], "after_t_minus_12")
+
+    def test_t_minus_12_boundary_is_strict(self):
+        with patch("hole_shadow_prospective_gate.archived_four_modes",
+                   return_value=(200, self.archive)):
+            before = self.cutoff - timedelta(minutes=12, seconds=1)
+            output = freeze(self.code, self.root, before, clock=lambda: before)
+            self.assertEqual(output["status"], "shadow_frozen_unverified")
+            self.assertEqual(output["t_minus_12_jst"],
+                             (self.cutoff - timedelta(minutes=12)).isoformat())
+            self.assertEqual(
+                freeze(self.code, self.root,
+                       self.cutoff - timedelta(minutes=12))["status"],
+                "after_t_minus_12")
+            self.assertEqual(
+                freeze(self.code, self.root,
+                       self.cutoff - timedelta(minutes=11))["status"],
+                "after_t_minus_12")
+
+    def test_crossing_t_minus_12_during_calculation_not_frozen(self):
+        before = self.cutoff - timedelta(minutes=13)
+        after = self.cutoff - timedelta(minutes=11)
+        with patch("hole_shadow_prospective_gate.archived_four_modes",
+                   return_value=(200, self.archive)):
+            output = freeze(self.code, self.root, before, clock=lambda: after)
+        self.assertEqual(output["status"], "calculation_crossed_t_minus_12")
+        self.assertFalse(output["prospective_verified"])
 
     def test_missing_archive(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(404, {})):
