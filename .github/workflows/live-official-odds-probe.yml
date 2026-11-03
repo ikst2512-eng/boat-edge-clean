@@ -10,11 +10,16 @@ on:
       - 'tests/test_summarize_live_odds_history.py'
   schedule:
     - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
+  workflow_run:
+    workflows: ['CLEAN prospective pre-cutoff capture']
+    types: [completed] # Read-only fallback; upstream schedules actually observed
 permissions:
   contents: read
   actions: read
 jobs:
   live-odds:
+    # Never inherit PR/push/manual upstream runs as operational sampling.
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
