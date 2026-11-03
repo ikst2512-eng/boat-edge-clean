@@ -229,7 +229,7 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
         and len(candidates)<=MAX_DOWNLOADS
         and len(downloaded)==len(candidates)
         and result["downloaded_runs_without_shadow"]==0)
-    result["repository_result_coverage"]["capture_window_complete_proven"]=(
+    result["repository_result_coverage"]["checked_out_file_coverage_complete"]=(
         result["capture_window_complete"] and result["repository_result_coverage"]["confirmed"]>0
         and result["repository_result_coverage"]["confirmed_without_shadow"]==0
         and result["repository_result_coverage"]["confirmed_shadow_but_unscored"]==0)
