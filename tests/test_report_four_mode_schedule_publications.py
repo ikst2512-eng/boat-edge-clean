@@ -156,6 +156,58 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(report_data["runs"][0]["research_roster_evidence"]["race_codes"],
                          ["202611040101", "202611040102"])
 
+    def test_partial_hole_freeze_counts_match_records_not_full_success(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 2})
+            codes = ["202611040101", "202611040102"]
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": "a" * 40, "published_forecasts": 2,
+                "frozen_before_t_minus_12": 1, "validation_error_count": 0,
+                "records": [{"race_code": codes[0],
+                             "status": "frozen_in_same_job_before_t_minus_12"},
+                            {"race_code": codes[1], "status": "ineligible"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": "a" * 40, "published_new_count": 2,
+                "frozen_count": 1, "validation_error_count": 1,
+                "records": [{"race_code": codes[0],
+                             "status": "shadow_frozen_unverified"},
+                            {"race_code": codes[1], "status": "validation_error"}]})
+        result = report({"runs": [self.RUN]}, download)
+        self.assertEqual(result["runs"][0]["research_roster_evidence"]["status"], "matched")
+        self.assertEqual(result["research_roster_mismatch_run_ids"], [])
+
+    def test_false_hole_freeze_count_is_explicit_research_mismatch(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 2})
+            codes = ["202611040101", "202611040102"]
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": "a" * 40, "published_forecasts": 2,
+                "frozen_before_t_minus_12": 0, "validation_error_count": 0,
+                "records": [{"race_code": code, "status": "ineligible"}
+                            for code in codes]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": "a" * 40, "published_new_count": 2,
+                "frozen_count": 2, "validation_error_count": 0,
+                "records": [{"race_code": codes[0],
+                             "status": "shadow_frozen_unverified"},
+                            {"race_code": codes[1], "status": "validation_error"}]})
+        result = report({"runs": [self.RUN]}, download)
+        issue = result["runs"][0]["research_roster_evidence"]
+        self.assertEqual(issue["status"], "mismatch")
+        self.assertEqual(issue["reason"], "shadow_freeze_accounting_mismatch")
+        self.assertEqual(issue["research"], "hole")
+        self.assertEqual(issue["field"], "frozen_count")
+        self.assertEqual(result["research_roster_mismatch_run_ids"], [123])
+        self.assertEqual(result["runs"][0]["publication_outcome"], "pushed_to_main")
+
     def test_research_roster_mismatch_does_not_relabel_push(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/publication.json", {
