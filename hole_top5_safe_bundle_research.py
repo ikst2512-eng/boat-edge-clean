@@ -4,6 +4,7 @@ This is a conservative Top10 exploration, not a Top5 improvement strategy.
 Results are loaded only after candidates are determined. No formal first-receipt proof.
 """
 import json
+import hashlib
 from collections import Counter
 from pathlib import Path
 
@@ -85,6 +86,8 @@ def run(root=None):
         return {"status":"historical_dates_unavailable","formal":False}
     archives=root/"four_mode_forecasts"
     newer=sorted(path.stem for path in archives.glob("20261103????.json") if not path.is_symlink())
+    date_counts=dict(sorted(Counter(code[:8] for code in cohort["cohort_codes"]).items()))
+    cohort_fingerprint=hashlib.sha256("\\n".join(sorted(cohort["cohort_codes"])).encode("utf-8")).hexdigest()
     results={"earlier_reused":compare(blocks["earlier"],root),
              "later_reused":compare(blocks["later"],root),
              "new_date_20261103":compare(newer,root)}
@@ -93,8 +96,12 @@ def run(root=None):
             "independent_holdout":False,"prospective_validation":False,
             "independent_first_receipt_verified":False,
             "production_forecast_changed":False,
-            "top5_prefix_unchanged_by_design":True,"groups":results,
-            "warning":"Old 120 races repeatedly used. 20261103 is newer but has no independently verified first receipt and is a small evolving result cohort. No production promotion."}
+            "top5_prefix_unchanged_by_design":True,
+            "historical_cohort_fingerprint":cohort_fingerprint,
+            "historical_date_counts":date_counts,
+            "historical_sample_not_guaranteed_stable":True,
+            "groups":results,
+            "warning":"Old 120 races repeatedly used and dynamic cohort selection may drift as new data arrive; do not equate block sizes with earlier runs. 20261103 is newer but has no independently verified first receipt and is a small evolving result cohort. No production promotion."}
 
 
 if __name__=="__main__":
