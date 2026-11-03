@@ -22,7 +22,7 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         (self.root/"four_mode_forecasts"/(CODE+".json")).write_text(json.dumps(archive()))
         self.result = self.root/"confirmed_results"/(CODE+".json")
         self.result.write_text(json.dumps({"race_code":CODE,"status":"confirmed",
-            "finish_order":[1,2,3],"source_url":"https://example.org/results",
+            "finish_order":[1,2,3],"source_url":"https://boatracecsv.github.io/data/results/realtime/2026/10/28.csv",
             "source_sha256":"a"*64,
             "confirmed_at_jst":"2026-10-28T14:01:00+09:00",
             "collected_at_jst":"2026-10-28T14:02:00+09:00"}))
@@ -81,6 +81,16 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         outcome=compare_race(CODE,self.root)
         self.assertEqual(outcome["status"],"invalid_result_or_timing")
         self.assertFalse(outcome["formal"])
+
+    def test_noncanonical_source_url_is_not_scored(self):
+        data=json.loads(self.result.read_text(encoding="utf-8"))
+        for url in ("https://example.org/results",
+                    "https://boatracecsv.github.io/data/results/realtime/2026/10/27.csv"):
+            with self.subTest(url=url):
+                self.result.write_text(json.dumps(dict(data,source_url=url)),encoding="utf-8")
+                outcome=compare_race(CODE,self.root)
+                self.assertEqual(outcome["status"],"invalid_result_or_timing")
+                self.assertFalse(outcome["formal"])
 
     def test_wrong_date_is_not_formally_promoted(self):
         a=archive()
