@@ -56,10 +56,13 @@ class V2ShadowTests(unittest.TestCase):
             with patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived), \
                  patch("four_mode_v2_predeclared_shadow.compare_race",
                        return_value={"status": "historical_comparison_only",
-                                     "winning_ticket": "2-1-3"}):
+                                     "winning_ticket": "2-1-3",
+                                     "modes": {m: {f"top{n}": False for n in (3, 5, 10)}
+                                               for m in ("narrow", "hit", "balance", "hole")}}):
                 report = evaluate(root)
             self.assertEqual(report["v2_forecasts_seen"], 1)
             self.assertEqual(report["v2_comparable"], 1)
+            self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
             self.assertFalse(report["formal"])
             self.assertFalse(report["independent_remote_first_seen_verified"])
 
