@@ -11,7 +11,7 @@ function stNumber(v){
 }
 function sixPermutation(v){return Array.isArray(v)&&v.length===6&&v.every(n=>Number.isInteger(n)&&n>=1&&n<=6)&&new Set(v).size===6;}
 function validIso(v){return typeof v==='string'&&/^(?:\d{4}-\d\d-\d\d)T\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(v)&&Number.isFinite(Date.parse(v));}
-function cleanRacecardEvidence(card,{selectedEntry,courseRecords,officialReceipt}={}){
+function cleanRacecardEvidence(card,{selectedEntry,courseRecords}={}){
   const meta=card?.meta||{}, audit=card?.source_audit?.beforeinfo||{};
   const racers=card?.racers, preview=card?.beforeinfo;
   const missing=[];
@@ -35,10 +35,9 @@ function cleanRacecardEvidence(card,{selectedEntry,courseRecords,officialReceipt
   const officialEntry=sttValid?stt.slice().sort((a,b)=>a.course-b.course).map(x=>x.lane):null;
   const entry=selectedEntry===undefined?(officialEntry||[1,2,3,4,5,6]):selectedEntry;
   // The current card's source is a third-party snapshot, not BOAT RACE official.
-  const certified=officialReceipt?.verified===true&&officialReceipt?.source==='official_beforeinfo'&&
-    validIso(officialReceipt?.observedAt)&&Number.isFinite(cutoff)&&Date.parse(officialReceipt.observedAt)<cutoff&&
-    sixPermutation(officialReceipt?.entry)&&
-    sixPermutation(officialEntry)&&officialEntry.every((n,i)=>n===officialReceipt.entry[i]);
+  // There is no independently verified BOAT RACE official receipt adapter yet.
+  // No caller-supplied object can upgrade a third-party preview to official.
+  const certified=false;
   const records=Array.isArray(courseRecords)?courseRecords.map(r=>({...r})):[];
   const byBoat=Array.isArray(stt)?new Map(stt.map(x=>[x.lane,x])):new Map();
   // The original snapshot provides exhibition ST, not course-specific stats.
