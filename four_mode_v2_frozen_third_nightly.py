@@ -67,6 +67,10 @@ def summarize(inventory, root, download, out_dir):
                         and isinstance(row.get("createdAt"), str)
                         and row["createdAt"] >= CUTOFF_CREATED_UTC
                         and row.get("conclusion") not in STATUS)
+    # Failed and cancelled runs are still useful evidence sources, but they
+    # cannot certify that all eligible pre-race collection completed safely.
+    unsuccessful = sorted(run_id for _, run_id, conclusion in selected
+                          if conclusion != "success")
     truncated = eligible > RUN_MAX
     inventory_limit_reached = len(inventory) >= INVENTORY_LIMIT
     report = {
@@ -80,6 +84,8 @@ def summarize(inventory, root, download, out_dir):
         "eligible_runs_in_inventory": eligible,
         "pending_or_unknown_run_ids": unresolved,
         "pending_or_unknown_runs": len(unresolved),
+        "unsuccessful_run_ids": unsuccessful,
+        "unsuccessful_runs": len(unsuccessful),
         "older_eligible_runs_omitted": max(0, eligible - len(selected)),
         "inventory_limit_reached": inventory_limit_reached,
         "cohort_completeness_verified": False,
@@ -119,8 +125,11 @@ def summarize(inventory, root, download, out_dir):
                 if (scoring.get("publication_evidence_status") != "no_confirmed_publication"
                         or scoring.get("validation_error_count", 0)):
                     raise ValueError("invalid_or_failed_empty_publication")
-                row["status"] = "no_new_candidate_publication"
-                report["no_new_candidate_runs"] += 1
+                row["status"] = ("no_new_candidate_publication"
+                                 if conclusion == "success"
+                                 else "failed_run_without_new_publication")
+                if conclusion == "success":
+                    report["no_new_candidate_runs"] += 1
                 report["downloaded_artifacts"] += 1
                 report["runs"].append(row)
                 continue
@@ -194,8 +203,8 @@ def summarize(inventory, root, download, out_dir):
             raise ValueError("paired_gain_loss_mismatch")
     if report["missing_or_failed_artifacts"] or report["bad_validation_runs"]:
         report["status"] = "incomplete_capture_artifact_evidence"
-    if unresolved and report["status"] in ("scored_frozen_artifacts",
-                                            "no_future_capture_runs"):
+    if (unresolved or unsuccessful) and report["status"] in (
+            "scored_frozen_artifacts", "no_future_capture_runs"):
         report["status"] = "incomplete_capture_run_outcomes"
     if truncated or inventory_limit_reached:
         report["status"] = "incomplete_run_inventory_coverage"
@@ -203,7 +212,7 @@ def summarize(inventory, root, download, out_dir):
         report["status"] = "capture_artifacts_unavailable"
     report["cohort_completeness_verified"] = bool(
         selected and not truncated and not inventory_limit_reached
-        and not unresolved
+        and not unresolved and not unsuccessful
         and not report["missing_or_failed_artifacts"]
         and not report["bad_validation_runs"])
     if report["cohort_completeness_verified"] and report["status"] == "scored_frozen_artifacts":
