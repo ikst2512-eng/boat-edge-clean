@@ -1,0 +1,56 @@
+name: Hole future shadow batch evidence (research only)
+on:
+  pull_request:
+    paths:
+      - hole_future_artifact_batch.py
+      - test_hole_future_artifact_batch.py
+      - .github/workflows/hole-future-shadow-batch.yml
+  workflow_dispatch:
+  schedule:
+    # 16:40 UTC = 01:40 JST, after the artifact inventory.
+    - cron: '40 16 * * *'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test batch evidence quarantine
+        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py
+      - name: Audit last 20 collection runs (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python hole_future_artifact_batch.py --runs 20 > hole_future_batch.json
+          python - <<'PY'
+          import json
+          d=json.load(open("hole_future_batch.json"))
+          assert d["formal"] is False
+          assert d["independent_first_receipt_verified"] is False
+          assert d["prospective_validation"] is False
+          assert d["production_forecast_changed"] is False
+          assert d["capture_window_complete"] is False
+          print("RUNS",d["runs_inspected"],"DOWNLOADED",d["runs_downloaded"])
+          print("ARTIFACT_FILES",d["artifact_files"],"SCORABLE",d["comparable"])
+          print("DOWNLOAD_FAILURES",d["run_download_failures"])
+          print("SHADOW_STATUSES",d["shadow_status_counts"])
+          print("RUNS_WITHOUT_SHADOW",d["downloaded_runs_without_shadow"])
+          print("DUPLICATES_QUARANTINED",d["duplicate_codes_quarantined"])
+          print("EXCLUDED",d["excluded_by_reason"])
+          print("HITS",d["hits"],"DELTA",d["delta"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hole-future-shadow-batch
+          path: hole_future_batch.json
+          if-no-files-found: warn
