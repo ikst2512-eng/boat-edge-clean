@@ -5,8 +5,9 @@ from zoneinfo import ZoneInfo
 from urllib.error import HTTPError, URLError
 from clean_racecard import _preview_rows, _fetch_preview
 
-def run(now=None,event_name=None):
-    now=now or datetime.now(ZoneInfo("Asia/Tokyo"))
+def run(now=None,event_name=None,clock=None):
+    clock=clock or (lambda: datetime.now(ZoneInfo("Asia/Tokyo")))
+    now=now or clock()
     day=now.strftime("%Y/%m/%d.csv")
     print("PROBE_DAY",day,"NOW_JST",now.isoformat(),flush=True)
     sources={}
@@ -45,9 +46,17 @@ def run(now=None,event_name=None):
                     continue
                 deadline=datetime.strptime(code[:8]+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
                 preview,audit=_fetch_preview(code,day,deadline)
+                # A race that was upcoming at job start may close while slow
+                # source HTTP calls run. Never certify it as a live predeadline
+                # observation once the adapter has returned after cutoff.
+                received_at=clock()
+                if received_at.tzinfo is None or received_at >= deadline:
+                    print("SIX_LANE_NOT_VERIFIED",code,"cutoff_passed_before_receipt",flush=True)
+                    continue
                 if audit.get("status")=="ok" and len((preview or {}).get("racers",[]))==6 and len((preview or {}).get("start_exhibition",[]))==6:
                     verified.append(code)
-                    print("VERIFIED_SIX_LANE",code,"source",audit.get("source"),flush=True)
+                    print("VERIFIED_SIX_LANE",code,"source",audit.get("source"),
+                          "received_at_jst",received_at.isoformat(),flush=True)
                 else:
                     print("SIX_LANE_NOT_VERIFIED",code,audit.get("status"),flush=True)
             except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
