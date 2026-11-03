@@ -108,6 +108,16 @@ class FullDayListingTests(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,"duplicate_run"):
     discover_full_days("a/b","token",days=2,
       as_of_jst=datetime(2026,11,4,tzinfo=timezone(timedelta(hours=9))))
+ def test_empty_historical_capture_window_is_not_complete(self):
+  with tempfile.TemporaryDirectory() as directory:
+   discovery={"candidates":[],"listing_complete":True,"pages_fetched":1,
+              "window_start_jst":"2026-10-12",
+              "window_end_exclusive_jst":"2026-10-13"}
+   with patch("hole_future_artifact_batch.discover_full_days",return_value=discovery):
+    result=collect_recent(directory,"a/b","token",days=1)
+  self.assertEqual(result["runs_inspected"],0)
+  self.assertFalse(result["capture_window_complete"])
+  self.assertEqual(result["repository_result_coverage"]["status"],"no_eligible_complete_days")
  def test_days_limit(self):
   with self.assertRaises(ValueError):
    discover_full_days("a/b","token",days=4)
