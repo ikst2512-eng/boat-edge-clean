@@ -65,6 +65,7 @@ jobs:
           cp -R confirmed_results public/confirmed_results
           test -s public/confirmed_results/202610270101.json
           test -s public/confirmed_results/202610310708.json
+          test -s public/confirmed_results/202611031911.json
           test -s public/index.html
           test -s public/navigation.js
       - name: Setup Pages
@@ -102,7 +103,7 @@ jobs:
                   continue
                 fi
                 result_ok=1
-                for RESULT_KEY in 202610270101 202610310708; do
+                for RESULT_KEY in 202610270101 202610310708 202611031911; do
                   RESULT_URL="${PAGE_URL%/}/confirmed_results/${RESULT_KEY}.json"
                   if ! curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o "/tmp/clean-deployed-${RESULT_KEY}.json" || ! cmp -s "public/confirmed_results/${RESULT_KEY}.json" "/tmp/clean-deployed-${RESULT_KEY}.json"; then
                     echo "Published confirmed result not yet identical: ${RESULT_KEY} (attempt $attempt)" >&2
@@ -196,7 +197,8 @@ jobs:
               for(const race of [
                 {key:'202610280101',date:'2026-10-28',venue:'01',race:'1'},
                 {key:'202610310708',date:'2026-10-31',venue:'07',race:'8'},
-                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'}
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11'}
               ]){
               const key=race.key;
               const original=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key+'.json',{timeout:30000});
@@ -234,7 +236,8 @@ jobs:
               for(const race of [
                 {key:'202610280101',date:'2026-10-28',venue:'01',race:'1'},
                 {key:'202610310708',date:'2026-10-31',venue:'07',race:'8'},
-                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'}
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11'}
               ]){
               const url=new URL(process.env.PAGE_URL);
               url.searchParams.set('date',race.date);
@@ -281,7 +284,8 @@ jobs:
                 {key:'202610272301',date:'2026-10-27',venue:'23',race:'1',finish:'1-2-5'},
                 {key:'202610280101',date:'2026-10-28',venue:'01',race:'1',finish:'4-1-3'},
                 {key:'202610310708',date:'2026-10-31',venue:'07',race:'8',finish:'1-4-6'},
-                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5',finish:'1-3-4'}
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5',finish:'1-3-4'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11',finish:'1-5-3'}
               ]){
                 // Compare against the already published, byte-checked Pages archive.
                 // Requiring GitHub Raw here would fail despite a healthy same-origin result.
