@@ -19,6 +19,7 @@ VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
 PROTOCOL = "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1"
 COUNT_POLICY = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 TOPS = (3, 5, 10)
+MODES = ("narrow", "hit", "balance", "hole")
 
 
 def candidate_order(tickets, rates):
@@ -54,7 +55,8 @@ def evaluate(root=ROOT):
     directory = root / "four_mode_forecasts"
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
-        "applied": 0, "baseline": {f"top{n}": 0 for n in TOPS},
+        "applied": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
+        "baseline": {f"top{n}": 0 for n in TOPS},
         "candidate": {f"top{n}": 0 for n in TOPS},
         "gained_top3": 0, "lost_top3": 0})
     excluded = defaultdict(int)
@@ -103,6 +105,9 @@ def evaluate(root=ROOT):
             continue
         row["comparable"] += 1
         row["applied"] += int(enabled)
+        for m in MODES:
+            for n in TOPS:
+                row["modes"][m][f"top{n}"] += int(compared["modes"][m][f"top{n}"])
         for n in TOPS:
             row["baseline"][f"top{n}"] += int(winning in baseline[:n])
             row["candidate"][f"top{n}"] += int(winning in candidate[:n])
