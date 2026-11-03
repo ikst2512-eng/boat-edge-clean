@@ -60,7 +60,7 @@ class CollectorTests(unittest.TestCase):
     def test_source_not_used_if_prefetch_crosses_cutoff(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,_,urls=setup(tmp)
-            iter_time=iter((NOW,datetime(2026,11,3,18,32,tzinfo=JST)))
+            iter_time=iter((NOW,NOW,datetime(2026,11,3,18,32,tzinfo=JST)))
             out=attempt(root,now=lambda:next(iter_time),prefetch=lambda day:(urls,{}))
             self.assertEqual(out["status"],"history_fetch_crossed_late_cutoff")
 if __name__=="__main__":unittest.main()
