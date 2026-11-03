@@ -72,6 +72,7 @@ def evaluate(root=ROOT, now=None):
     directory = root / "four_mode_forecasts"
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
+        "matured_comparable": 0,
         "pending_by_deadline": {"before_deadline": 0,
                                 "within_60m_after_deadline": 0,
                                 "over_60m_after_deadline": 0},
@@ -139,7 +140,16 @@ def evaluate(root=ROOT, now=None):
         if set(candidate) != set(baseline):
             excluded["membership_changed"] += 1
             continue
+        # A mature confirmed result and an overdue missing result share the
+        # same denominator. The 60m window is an operational diagnostic,
+        # not proof that the upstream result should already exist.
+        try:
+            maturity = missing_result_phase(archive["deadline_jst"], now)
+        except (KeyError, ValueError, TypeError, OverflowError):
+            excluded["invalid_confirmed_deadline"] += 1
+            continue
         row["comparable"] += 1
+        row["matured_comparable"] += int(maturity == "over_60m_after_deadline")
         row["applied"] += int(enabled)
         for m in MODES:
             row["miss_reasons"][m][compared["modes"][m]["coverage_diagnostic"]] += 1

@@ -10,6 +10,7 @@ def fixture():
             "protocol": "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1",
             "groups": {"20261103": {
                 "forecast_files": 149, "comparable": 8, "pending_results": 141,
+                "matured_comparable": 8,
                 "pending_by_deadline": {"before_deadline": 67,
                     "within_60m_after_deadline": 16, "over_60m_after_deadline": 58},
                 "applied": 3, "gained_top3": 0, "lost_top3": 0,
@@ -40,6 +41,9 @@ class V2ReadinessTests(unittest.TestCase):
         self.assertEqual(r["comparable_denominator"], 8)
         self.assertEqual(r["total"]["over_60m_after_deadline"], 58)
         self.assertIn("fewer_than_100_paired_races", r["blocking_reasons"])
+        self.assertIn("insufficient_mature_result_coverage", r["blocking_reasons"])
+        self.assertEqual(r["mature_outcome_denominator"], 66)
+        self.assertAlmostEqual(r["mature_result_coverage"], 8/66, places=6)
 
     def test_rejects_false_paired_mode_counts(self):
         d = fixture()
@@ -51,6 +55,21 @@ class V2ReadinessTests(unittest.TestCase):
         report = summarize(fixture())
         self.assertEqual(report["total"]["paired_modes"]["hit_vs_balance"]["top10"]["right_only"], 1)
         self.assertEqual(report["total"]["paired_modes"]["hit_vs_balance"]["top10"]["both"], 5)
+
+    def test_rejects_excessive_mature_count(self):
+        d = fixture()
+        d["groups"]["20261103"]["matured_comparable"] = 9
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_no_overdue_result_coverage_is_unproven(self):
+        d = fixture()
+        d["groups"]["20261103"]["matured_comparable"] = 0
+        d["groups"]["20261103"]["pending_by_deadline"]["before_deadline"] += 58
+        d["groups"]["20261103"]["pending_by_deadline"]["over_60m_after_deadline"] = 0
+        result = summarize(d)
+        self.assertIsNone(result["mature_result_coverage"])
+        self.assertIn("insufficient_mature_result_coverage", result["blocking_reasons"])
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()

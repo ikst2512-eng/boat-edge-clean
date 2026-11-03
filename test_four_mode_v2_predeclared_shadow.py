@@ -61,8 +61,9 @@ class V2ShadowTests(unittest.TestCase):
                                      "winning_ticket": "2-1-3",
                                      "modes": {m: dict({f"top{n}": False for n in (3, 5, 10)}, coverage_diagnostic="winner_head_absent")
                                                for m in ("narrow", "hit", "balance", "hole")}}):
-                report = evaluate(root)
+                report = evaluate(root, now=datetime(2026, 11, 3, 14, 1, tzinfo=timezone(timedelta(hours=9))))
             self.assertEqual(report["v2_forecasts_seen"], 1)
+            self.assertEqual(report["groups"]["20261103"]["matured_comparable"], 0)
             self.assertEqual(report["v2_comparable"], 1)
             self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
             self.assertEqual(report["groups"]["20261103"]["paired_modes"]["hit_vs_balance"]["top3"]["neither"], 1)
