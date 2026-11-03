@@ -101,6 +101,42 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertEqual(report["status"], "paired_result_coverage_mismatch")
         self.assertEqual(report["paired_result_coverage_mismatch_codes"], [A])
 
+    def test_identical_impossible_topn_progression_is_not_a_verified_match(self):
+        for field in ("baseline", "candidate"):
+            with self.subTest(field=field):
+                row = self.race_score(A, 0, 0)
+                # Top3 cannot hit if Top5 does not, even if the two source
+                # reports agree on the same internally contradictory flags.
+                row["topn"]["top3"][field] = 1
+                if field == "baseline":
+                    row["topn"]["top3"]["lost"] = 1
+                else:
+                    row["topn"]["top3"]["gained"] = 1
+                self.capture.update({"paired": 1, "race_codes_paired": [A],
+                                     "paired_race_scores": [row]})
+                self.ledger.update({"paired": 1, "race_codes_paired": [A],
+                                    "paired_race_scores": [row]})
+                result = reconcile(self.capture, self.ledger)
+                self.assertEqual(result["status"],
+                                 "paired_score_evidence_missing_or_invalid")
+
+    def test_possible_topn_progression_is_accepted(self):
+        row = self.race_score(A, 0, 0)
+        # A winning ticket can first appear at rank 5 in the baseline and
+        # at rank 10 in the candidate without violating either ordering.
+        for n, base, candidate in (("top3", 0, 0),
+                                   ("top5", 1, 0),
+                                   ("top10", 1, 1)):
+            row["topn"][n] = {
+                "baseline": base, "candidate": candidate,
+                "gained": int(candidate > base), "lost": int(base > candidate)}
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [row]})
+        self.ledger.update({"paired": 1, "race_codes_paired": [A],
+                            "paired_race_scores": [row]})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "bounded_frozen_roster_matched")
+
     def test_missing_per_race_score_refuses_matched_status(self):
         self.capture.update({"paired": 1, "race_codes_paired": [A]})
         self.assertEqual(reconcile(self.capture, self.ledger)["status"],

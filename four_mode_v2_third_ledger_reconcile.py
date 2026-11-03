@@ -45,6 +45,13 @@ def paired_scores(report):
                     or values["gained"] and values["lost"]):
                 raise ValueError("invalid_paired_score_value")
             verified[n] = dict(values)
+        # Top3 is a subset of Top5, and Top5 of Top10. The per-TopN
+        # gain/loss identity alone would accept an impossible hit trajectory
+        # if both upstream reports contained the same corrupted flags.
+        for field in ("baseline", "candidate"):
+            if not (verified["top3"][field] <= verified["top5"][field]
+                    <= verified["top10"][field]):
+                raise ValueError("impossible_topn_hit_progression")
         mapping[code] = verified
     if set(mapping) != set(codes):
         raise ValueError("paired_score_roster_disagrees")
