@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - four_mode_v2_predeclared_shadow.py
+      - four_mode_v2_research_readiness.py
+      - test_four_mode_v2_research_readiness.py
       - test_four_mode_v2_predeclared_shadow.py
       - .github/workflows/v2-predeclared-shadow-research.yml
   schedule:
@@ -22,11 +24,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness
       - name: Evaluate read-only V2 shadow on confirmed results
         run: python four_mode_v2_predeclared_shadow.py | tee v2_predeclared_shadow.log
+      - name: Validate V2 sample sufficiency and no-production-promotion gate
+        run: python four_mode_v2_research_readiness.py | tee v2_research_readiness.log
       - uses: actions/upload-artifact@v4
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
-          path: v2_predeclared_shadow.log
+          path: |
+            v2_predeclared_shadow.log
+            v2_research_readiness.log
           retention-days: 30
