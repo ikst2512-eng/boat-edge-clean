@@ -4,7 +4,7 @@ import hashlib
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.verify_four_mode_capture_evidence import verify
+from scripts.verify_four_mode_capture_evidence import verify, record_verdict
 
 
 class EvidenceVerdictTests(unittest.TestCase):
@@ -73,6 +73,22 @@ class EvidenceVerdictTests(unittest.TestCase):
         ledger.write_text(json.dumps(saved))
         with self.assertRaisesRegex(ValueError,"observation_not_before_t_minus_12"):
             verify(self.root)
+
+    def test_final_verdict_artifact_preserves_success_and_failure(self):
+        self.write("publication.json", {"outcome": "no_eligible_candidates"})
+        success = record_verdict(self.root)
+        self.assertEqual(success["status"], "passed")
+        self.assertFalse(success["detail"]["evidence_required"])
+        self.assertEqual(json.loads((self.root / "four-mode-evidence" /
+                                     "final-evidence-verdict.json").read_text()),
+                         success)
+        self.published()
+        failure = record_verdict(self.root)
+        self.assertEqual(failure["status"], "failed")
+        self.assertEqual(failure["error_type"], "FileNotFoundError")
+        self.assertEqual(json.loads((self.root / "four-mode-evidence" /
+                                     "final-evidence-verdict.json").read_text()),
+                         failure)
 
     def test_empty_capture_is_not_error(self):
         self.write("publication.json", {"outcome":"no_eligible_candidates"})
