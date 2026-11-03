@@ -32,8 +32,11 @@ def classify_course_timing(base: Mapping, preview: Mapping | None,
     if not cutoff or not deadline or not frozen or not frozen <= cutoff < deadline:
         return {"status": "invalid_baseline_timing", "research_only": True,
                 "eligible_for_t12_comparison": False}
+    if type(late_margin_minutes) not in (int, float) or not 0 < late_margin_minutes <= 5:
+        return {"status": "invalid_late_window", "research_only": True,
+                "eligible_for_t12_comparison": False}
     late_cutoff = deadline - timedelta(minutes=late_margin_minutes)
-    if not 0 < late_margin_minutes <= 5 or late_cutoff <= cutoff:
+    if late_cutoff <= cutoff:
         return {"status": "invalid_late_window", "research_only": True,
                 "eligible_for_t12_comparison": False}
     receipts = []
@@ -52,14 +55,14 @@ def classify_course_timing(base: Mapping, preview: Mapping | None,
     last = max(receipts)
     if last >= deadline:
         status = "preview_after_deadline"
-    elif last > cutoff and last < late_cutoff:
+    elif last >= cutoff and last < late_cutoff:
         status = "preview_after_t12_late_research_only"
     elif last >= late_cutoff:
         status = "preview_too_late_for_late_research"
     else:
         status = "preview_available_before_t12"
     return {"status": status,
-            "eligible_for_t12_comparison": last <= cutoff,
+            "eligible_for_t12_comparison": last < cutoff,
             "late_experiment_possible": last < late_cutoff,
             "t12_cutoff": cutoff.isoformat(),
             "late_cutoff": late_cutoff.isoformat(),
