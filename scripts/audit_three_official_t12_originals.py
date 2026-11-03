@@ -2,6 +2,7 @@
 
 Completeness is NOT certification of final race entry or forecast usability.
 """
+from datetime import datetime, timedelta
 from scripts.audit_joint_official_receipts import audit_pair
 from scripts.audit_official_racelist_receipt import audit_racelist_with_official_deadline
 
@@ -15,8 +16,7 @@ def audit_three_originals(racelist_dir, beforeinfo_dir, odds_dir):
     if card["race_code"] != pair["race_code"]:
         raise ValueError("three-source race identity mismatch")
     if card["official_deadline_jst"] != (
-        __import__("datetime").datetime.fromisoformat(pair["cutoff_jst"])
-        + __import__("datetime").timedelta(minutes=12)
+        datetime.fromisoformat(pair["cutoff_jst"]) + timedelta(minutes=12)
     ).isoformat():
         raise ValueError("three-source deadline mismatch")
     component_checks = {
