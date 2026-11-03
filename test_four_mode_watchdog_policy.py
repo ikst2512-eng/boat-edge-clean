@@ -72,6 +72,31 @@ class WatchdogPolicyTests(unittest.TestCase):
                                          self.now, "schedule",
                                          recent_minutes=14, cooldown_minutes=14))
 
+    def test_nonmain_manual_dispatch_does_not_suppress_main_recovery(self):
+        other = dict(run(5, event="workflow_dispatch", conclusion="success"),
+                     head_branch="research/alternative")
+        self.assertTrue(should_dispatch([other], self.now, "schedule",
+                                        recent_minutes=14, cooldown_minutes=14))
+        for status, conclusion in (("queued", None), ("in_progress", None),
+                                   ("completed", "failure")):
+            other = dict(run(5, event="workflow_dispatch",
+                             status=status, conclusion=conclusion),
+                         head_branch="research/alternative")
+            self.assertTrue(should_dispatch([other], self.now, "render_cron",
+                                            recent_minutes=14, cooldown_minutes=14))
+        main = dict(run(5, event="workflow_dispatch", conclusion="failure"),
+                    head_branch="main")
+        self.assertFalse(should_dispatch([other, main], self.now, "schedule",
+                                         recent_minutes=14, cooldown_minutes=14))
+
+    def test_nonmain_success_does_not_hide_main_failed_capture(self):
+        offbranch = dict(run(3, event="workflow_dispatch", conclusion="success"),
+                         head_branch="experiment")
+        failed_main = dict(run(5), head_branch="main")
+        self.assertTrue(should_dispatch([offbranch, failed_main], self.now,
+                                        "schedule", recent_minutes=14,
+                                        cooldown_minutes=14))
+
     def test_timezone_required(self):
         with self.assertRaises(ValueError):
             should_dispatch([],self.now.replace(tzinfo=None),"schedule")
