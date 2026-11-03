@@ -104,6 +104,49 @@ def prepare(original, root, run_id, attempt):
     return name
 
 
+def verify_first_add_git_provenance(original, root, git=None):
+    """Fail closed unless every frozen race was first added by the claimed SHA.
+
+    The local full-history Git evidence cannot establish remote first-seen
+    chronology, but it prevents copying a misattributed or modified archive
+    into the durable research ledger.
+    """
+    data = json.loads(original)
+    sha = data.get("publication_commit_sha")
+    if type(sha) is not str or not SHA.fullmatch(sha):
+        raise ValueError("invalid_publication_sha")
+    git = git or (lambda *args: subprocess.check_output(
+        ["git", *args], cwd=root, timeout=30))
+    try:
+        head = git("rev-parse", "HEAD").decode().strip()
+        if head != sha:
+            raise ValueError("ledger_publication_head_mismatch")
+        # The successful capture publication workflow fetches remote main and
+        # confirms the pushed commit. Recheck the local fetched remote ref.
+        git("merge-base", "--is-ancestor", sha, "origin/main")
+        added = set(git("diff-tree", "--no-commit-id", "--name-only",
+                        "--diff-filter=A", "-r", sha, "--",
+                        "four_mode_forecasts/").decode().splitlines())
+        records = data["records"]
+        checked = 0
+        for row in records:
+            if row.get("status") != "frozen_in_same_job_before_t_minus_12":
+                continue
+            code = row["race_code"]
+            name = f"four_mode_forecasts/{code}.json"
+            if name not in added:
+                raise ValueError("ledger_source_not_first_add_in_commit")
+            first_bytes = git("show", sha + ":" + name)
+            if hashlib.sha256(first_bytes).hexdigest() != row["source_forecast_sha256"]:
+                raise ValueError("ledger_first_add_blob_mismatch")
+            checked += 1
+        if checked == 0 or checked != data["frozen_before_t_minus_12"]:
+            raise ValueError("ledger_verified_roster_mismatch")
+    except (OSError, UnicodeError, subprocess.SubprocessError) as exc:
+        raise ValueError("ledger_git_history_unavailable") from exc
+    return checked
+
+
 def publish(original, root, run_id, attempt, remote_read, remote_create):
     path = prepare(original, root, run_id, attempt)
     if path is None:
@@ -170,6 +213,9 @@ def main():
         if not args.evidence.is_file() or args.evidence.is_symlink():
             raise ValueError("missing_original_shadow")
         original = args.evidence.read_bytes()
+        if prepare(original, args.root, os.environ["GITHUB_RUN_ID"],
+                   os.environ.get("GITHUB_RUN_ATTEMPT", "1")) is not None:
+            verify_first_add_git_provenance(original, args.root)
         remote_read, remote_create = _github_ops(os.environ["GITHUB_REPOSITORY"])
         verdict = publish(original, args.root, os.environ["GITHUB_RUN_ID"],
                           os.environ.get("GITHUB_RUN_ATTEMPT", "1"),
