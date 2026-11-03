@@ -81,10 +81,18 @@ def audit_racelist_with_official_deadline(racelist_dir, beforeinfo_dir, race_cod
     cutoff = datetime.fromisoformat(
         f"{day[:4]}-{day[4:6]}-{day[6:8]}T{deadline_text}:00+09:00") - timedelta(minutes=12)
     result = audit_racelist(racelist_dir, race_code, cutoff.isoformat())
+    inspection = inspect({"maindata": source})
+    exhibition_map = inspection["exhibition_course_to_boat"]
+    result["beforeinfo_received_by_t12"] = before_received <= cutoff
+    result["exhibition_entry_received_by_t12"] = (before_received <= cutoff and bool(exhibition_map))
+    result["exhibition_course_to_boat"] = exhibition_map
+    result["racecard_and_exhibition_entry_observed_by_t12"] = bool(
+        result["received_before_supplied_cutoff"] and before_received <= cutoff
+        and result["six_racers_verified"] and len(exhibition_map) == 6)
     result["received_by_t12"] = result["received_before_supplied_cutoff"]
     result["cutoff_source_verified"] = True
     result["cutoff_provenance"] = "verified_original_beforeinfo"
     result["official_deadline_jst"] = (cutoff + timedelta(minutes=12)).isoformat()
     result["beforeinfo_received_jst"] = before_received.isoformat()
-    # Still no proof of six racer registrations or actual entry from HTML.
+    # Exhibition course mapping is not final entry. No forecast permission is granted.
     return result
