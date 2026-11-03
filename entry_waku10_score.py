@@ -95,7 +95,9 @@ def evaluate_waku10_archives(root, day, *, result_fetch=None, clock=None):
             continue
         reported=_at(r.get("取得日時"))
         cutoff=_at(value["cutoff_at"])
-        if not reported or not cutoff or reported<=cutoff:
+        received=_at(result_source["received_at"]) if result_source else None
+        if (not reported or not cutoff or not received or
+                reported<=cutoff or received<=cutoff or reported>received):
             exclusions["result_not_post_cutoff"]+=1
             continue
         try:
@@ -140,7 +142,8 @@ def main():
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("--ledger-root",default="entry-course-ledger")
-    p.add_argument("--day",default=datetime.now(timezone.utc).strftime("%Y%m%d"))
+    from datetime import timedelta
+    p.add_argument("--day",default=datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d"))
     p.add_argument("--output",default="entry-course-evidence/waku10-score.json")
     args=p.parse_args()
     report=evaluate_waku10_archives(args.ledger_root,args.day)
