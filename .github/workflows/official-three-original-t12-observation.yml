@@ -1,5 +1,9 @@
 name: Official three-original T12 live research observation
 on:
+  # Nov 3 only; Python's exact 20261103 JST date guard rejects other years.
+  # Scheduled GitHub Actions may start late; all sources remain subject to cutoff.
+  schedule:
+    - cron: '30,40,48 6 3 11 *'
   pull_request:
     paths:
       - '.github/workflows/official-three-original-t12-observation.yml'
@@ -23,7 +27,7 @@ jobs:
           python-version: '3.11'
       - name: Observe three original sources without persisting forecasts
         env:
-          RACE_CODE: ${{ github.event_name == 'pull_request' && '202611030212' || inputs.race_code }}
+          RACE_CODE: ${{ (github.event_name == 'pull_request' || github.event_name == 'schedule') && '202611030212' || inputs.race_code }}
           OBSERVATION_ID: ${{ github.run_id }}
         run: |
           python -m scripts.observe_three_official_t12_originals \
