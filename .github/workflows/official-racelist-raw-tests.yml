@@ -13,6 +13,8 @@ on:
       - '.github/workflows/official-three-original-t12-observation.yml'
       - 'tests/test_official_three_original_t12_schedule.py'
       - 'scripts/summarize_three_t12_venues.py'
+      - 'scripts/run_external_three_t12.py'
+      - 'tests/test_run_external_three_t12.py'
       - 'tests/test_summarize_three_t12_venues.py'
       - 'scripts/render_three_t12_live_summary.py'
       - 'tests/test_render_three_t12_live_summary.py'
@@ -50,6 +52,7 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_observe_three_official_t12_originals.py' -v
       - run: python -m unittest discover -s tests -p 'test_official_three_original_t12_schedule.py' -v
       - run: python -m unittest discover -s tests -p 'test_summarize_three_t12_venues.py' -v
+      - run: python -m unittest discover -s tests -p 'test_run_external_three_t12.py' -v
       - run: python -m unittest discover -s tests -p 'test_render_three_t12_live_summary.py' -v
       - run: python -m unittest discover -s tests -p 'test_reaudit_scheduled_three_t12.py' -v
       - run: python -m unittest discover -s tests -p 'test_inspect_official_racelist_registrations.py' -v
