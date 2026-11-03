@@ -16,6 +16,42 @@ class ScheduledEvidenceTest(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value), encoding="utf-8")
 
+    def test_morning_nine_scheduled_runs_include_earliest_publication_evidence(self):
+        # Chronological GitHub listing is newest first; the first 07:07
+        # capture is index 8 by the 09:20 JST daily audit.
+        runs = [
+            {"id": 900 - i, "created_at": "2026-11-04T00:07:00Z",
+             "capture_conclusion": "success", "failed_steps": []}
+            for i in range(9)
+        ]
+        seen = []
+        def download(run_id, root):
+            seen.append(run_id)
+            if run_id == 892:
+                self.save(root, "four-mode-evidence/staging.json",
+                          {"staged_valid": 3})
+                self.save(root, "four-mode-evidence/publication.json",
+                          {"outcome": "failed", "stage": "push_main"})
+        result = report({"runs": runs}, download)
+        self.assertEqual(result["scheduled_runs_checked"], 9)
+        self.assertEqual(result["history_runs_omitted"], 0)
+        self.assertIn(892, seen)
+        self.assertEqual(result["runs"][-1]["staged_valid"], 3)
+        self.assertEqual(result["runs"][-1]["failure_stage"], "push_main")
+
+    def test_bounded_coverage_reports_omitted_history_explicitly(self):
+        runs = [
+            {"id": 1000 + i, "created_at": "2026-11-04T00:07:00Z",
+             "capture_conclusion": "success", "failed_steps": []}
+            for i in range(15)
+        ]
+        seen = []
+        result = report({"runs": runs}, lambda rid, _: seen.append(rid))
+        self.assertEqual(len(seen), 12)
+        self.assertEqual(result["history_runs_available"], 15)
+        self.assertEqual(result["history_runs_omitted"], 3)
+        self.assertFalse(result["remote_main_verified"])
+
     def test_counts_are_read_from_matching_day_and_push_is_only_claimed(self):
         def download(run_id, root):
             self.assertEqual(run_id, 123)
