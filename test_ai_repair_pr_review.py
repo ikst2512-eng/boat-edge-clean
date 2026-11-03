@@ -49,7 +49,7 @@ class AIReviewGuardTests(unittest.TestCase):
             ("head-a", "", 1),
         ):
             with self.subTest(live_head=live_head, live_main=live_main):
-                env = dict(os.environ, GITHUB_REPOSITORY="example/repo",
+                env = dict(os.environ, GITHUB_REPOSITORY="example/repo", PR_NUMBER="42",
                            CHECKED_SHA="head-a", CHECKED_MAIN_SHA="main-a",
                            LIVE_HEAD=live_head, LIVE_MAIN=live_main)
                 result = subprocess.run(["bash", "-c", command], text=True,
