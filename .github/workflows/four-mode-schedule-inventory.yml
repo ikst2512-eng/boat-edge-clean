@@ -6,12 +6,14 @@ on:
       - 'scripts/report_four_mode_schedule_publications.py'
       - 'scripts/report_four_mode_dispatch_publications.py'
       - 'scripts/audit_four_mode_daily_main_archives.py'
+      - 'scripts/audit_four_mode_daily_capture_liveness.py'
       - 'scripts/inventory_four_mode_watchdog_dispatch.py'
       - 'scripts/report_four_mode_watchdog_artifact_decisions.py'
       - 'tests/test_inventory_four_mode_capture_runs.py'
       - 'tests/test_report_four_mode_schedule_publications.py'
       - 'tests/test_report_four_mode_dispatch_publications.py'
       - 'tests/test_audit_four_mode_daily_main_archives.py'
+      - 'tests/test_audit_four_mode_daily_capture_liveness.py'
       - 'tests/test_inventory_four_mode_watchdog_dispatch.py'
       - 'tests/test_report_four_mode_watchdog_artifact_decisions.py'
       - '.github/workflows/four-mode-schedule-inventory.yml'
@@ -45,7 +47,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives
+      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness
       - name: Check real scheduled run history
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -67,6 +69,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_watchdog_artifact_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_artifact_decisions.json
+      - name: Audit today's actual capture execution separately from Git archives
+        if: success()
+        run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json
       - name: Confirm today's first-add archive presence in checked-out Git main
         run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
       - uses: actions/upload-artifact@v4
@@ -80,4 +85,5 @@ jobs:
             reports/four_mode_dispatch_publications.json
             reports/four_mode_watchdog_artifact_decisions.json
             reports/four_mode_daily_main_archives.json
+            reports/four_mode_daily_capture_liveness.json
           if-no-files-found: warn
