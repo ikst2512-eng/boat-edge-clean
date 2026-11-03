@@ -42,6 +42,42 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(output["delta"]["third_national_rate"]["top10"],{"gained":1,"lost":1,"net":0})
   self.assertFalse(output["formal"])
   self.assertFalse(output["independent_first_receipt_verified"])
+ def test_outside_day_in_same_capture_never_counts_as_hit(self):
+  self.artifact("run1",CODE1)
+  code_other_day="202611050101"
+  def audit_result(root,path):
+   return {"rows":[self.scored(CODE1,False,True)["rows"][0],
+                   self.scored(code_other_day,True,False)["rows"][0]],
+           "excluded_by_reason":{}}
+  with patch("hole_future_artifact_batch.audit",side_effect=audit_result):
+   result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(result["comparable"],1)
+  self.assertEqual(result["race_codes"],[CODE1])
+  self.assertEqual(result["hits"]["baseline"]["top10"],0)
+  self.assertEqual(result["hits"]["third_national_rate"]["top10"],1)
+  self.assertEqual(result["excluded_outside_race_day_window"],1)
+  self.assertNotIn(code_other_day,result["observed_future_codes"])
+ def test_next_day_record_must_not_corrupt_duplicate_quarantine(self):
+  self.artifact("run1","202611050101")
+  self.artifact("run2",CODE1)
+  with patch("hole_future_artifact_batch.audit") as scorer:
+   scorer.side_effect=[self.scored("202611050101",False,True),
+                       self.scored(CODE1,False,True)]
+   result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(result["comparable"],1)
+  self.assertEqual(result["duplicate_codes_quarantined"],[])
+  self.assertEqual(result["race_codes"],[CODE1])
+ def test_invalid_or_incomplete_window_rejected(self):
+  with self.assertRaisesRegex(ValueError,"incomplete_race_day_window"):
+   aggregate(self.root,self.folder,"2026-11-04")
+  with self.assertRaisesRegex(ValueError,"invalid_race_day_window"):
+   aggregate(self.root,self.folder,"2026-11-05","2026-11-05")
+ def test_boundary_day_exclusive_not_included(self):
+  self.artifact("run1","202611050101")
+  with patch("hole_future_artifact_batch.audit",return_value=self.scored("202611050101",False,True)):
+   result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["outside_race_day_codes"],["202611050101"])
  def test_duplicate_code_quarantined(self):
   self.artifact("run1",CODE1)
   self.artifact("run2",CODE1)

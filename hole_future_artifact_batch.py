@@ -10,7 +10,7 @@ import re
 import subprocess
 import tempfile
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from hole_capture_artifact_inventory import api
@@ -19,13 +19,33 @@ from hole_future_shadow_audit import audit, POLICIES, TOPS
 from hole_future_locked_eval import verify_locked_selection
 from hole_future_result_coverage import reconcile
 
-def aggregate(root,artifacts):
+def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
+    """Score only the stated race-day window; run start date is not race date."""
     root=Path(root);artifacts=Path(artifacts)
     verify_locked_selection()
+    if (window_start is None)!=(window_end_exclusive is None):
+        raise ValueError("incomplete_race_day_window")
+    if window_start is not None:
+        first=date.fromisoformat(window_start)
+        last=date.fromisoformat(window_end_exclusive)
+        if first>=last:
+            raise ValueError("invalid_race_day_window")
+    else:
+        first=last=None
+    def in_window(code):
+        if not isinstance(code,str) or not re.fullmatch(r"20[0-9]{10}",code):
+            return False
+        try:
+            day=date.fromisoformat(code[:4]+"-"+code[4:6]+"-"+code[6:8])
+        except ValueError:
+            return False
+        return (day>=date(2026,11,4) and
+                (first is None or first<=day<last))
     if artifacts.is_symlink() or not artifacts.is_dir():
         return {"status":"no_artifact_directory","formal":False,"comparable":0}
     files=sorted(p for p in artifacts.rglob("hole-shadow.json") if p.is_file() and not p.is_symlink())
     examined=0;all_rows={};duplicates=set();excluded=Counter();nonusable=Counter();shadow_statuses=Counter()
+    outside_window=set()
     for path in files:
         examined+=1
         try:
@@ -37,9 +57,11 @@ def aggregate(root,artifacts):
             # Record duplicate codes regardless of whether a result is currently settled.
             for record in records:
                 code=record.get("race_code") if isinstance(record,dict) else None
-                if isinstance(code,str) and re.fullmatch(r"20\d{10}",code) and code[:8]>="20261104":
+                if in_window(code):
                     if code in all_rows:duplicates.add(code)
                     all_rows.setdefault(code,None)
+                elif first is not None and isinstance(code,str) and re.fullmatch(r"20[0-9]{10}",code):
+                    outside_window.add(code)
             scored=audit(root,path)
         except (OSError,UnicodeError,ValueError,KeyError,TypeError) as exc:
             nonusable[type(exc).__name__]+=1;continue
@@ -47,8 +69,10 @@ def aggregate(root,artifacts):
             excluded[name]+=n
         for row in scored.get("rows",[]):
             code=row["race_code"]
-            if not isinstance(code,str) or code[:8]<"20261104":
-                raise ValueError("invalid_scored_date")
+            if not in_window(code):
+                if first is not None and isinstance(code,str):
+                    outside_window.add(code)
+                continue
             if code in all_rows and all_rows[code] is not None:
                 duplicates.add(code)
             all_rows[code]=row
@@ -77,6 +101,8 @@ def aggregate(root,artifacts):
             "prospective_validation":False,"production_forecast_changed":False,
             "artifact_files":examined,"distinct_future_codes_seen":len(all_rows)+len(duplicates),
             "duplicate_codes_quarantined":sorted(duplicates),
+            "excluded_outside_race_day_window":len(outside_window),
+            "outside_race_day_codes":sorted(outside_window),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
             "per_race_flags":{r["race_code"]:r["flags"] for r in rows},
             "observed_future_codes":sorted(set(all_rows)|duplicates),
@@ -223,7 +249,8 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
                     downloaded.append(run_id)
             except (OSError,subprocess.TimeoutExpired):
                 failures.append({"run_id":run_id,"reason":"download_error"})
-        result=aggregate(root,dest)
+        result=aggregate(root,dest,discovery["window_start_jst"],
+                         discovery["window_end_exclusive_jst"])
         run_evidence=summarize_downloaded_runs(dest,downloaded)
     result["downloaded_run_evidence"]=run_evidence
     result["downloaded_stage_counts"]=dict(Counter(
