@@ -125,7 +125,10 @@ jobs:
                       assert sum(day["hits"][policy][metric] for day in r["by_day"].values())==value
                       assert sum(version["hits"][policy][metric] for version in r["by_model_version"].values())==value
           PY
+      # Preserve partial JSON even if an upstream evidence gate fails.
+      # A failed audit must remain inspectable, never count as a pass.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: hole-future-locked-results
           path: |
