@@ -9,6 +9,19 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         return {"event": "schedule", "id": run_id, "created_at": timestamp,
                 "status": status, "conclusion": conclusion}
 
+    def test_failed_daily_metadata_does_not_suppress_detail_artifact_audit(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn(
+            "name: Check complete JST-day scheduled capture execution metadata\n"
+            "        if: always()", workflow)
+        self.assertIn(
+            "name: Inspect recent capture artifacts without inferring remote push proof\n"
+            "        if: always()", workflow)
+        self.assertIn("reports/four_mode_schedule_publications.json", workflow)
+        self.assertIn("reports/four_mode_daily_schedule_metadata.json", workflow)
+
     def test_full_day_detects_early_failure_outside_last_twelve_artifacts(self):
         latest = datetime(2026, 11, 4, 20, 52,
                           tzinfo=timezone(timedelta(hours=9)))
