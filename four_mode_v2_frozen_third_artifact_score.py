@@ -141,7 +141,11 @@ def score_evidence(evidence, root):
                     or [r.get("combo") for r in archive["modes"]["hit"]["tickets"]]
                     != item["baseline_top10"]):
                 raise ValueError("original_baseline_mismatch")
-        except (KeyError, ValueError, TypeError, OSError, UnicodeError):
+        except (KeyError, ValueError, TypeError, AttributeError,
+                IndexError, OSError, UnicodeError):
+            # Malformed archive substructure (e.g. list ticket rows) must
+            # invalidate only this race, not prevent later frozen siblings
+            # from being scored and retained as incomplete research evidence.
             out["invalid"] += 1
             continue
         # A single corrupt/unreadable result must not discard valid frozen

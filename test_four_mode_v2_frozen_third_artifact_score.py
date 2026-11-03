@@ -138,6 +138,44 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         compare.assert_not_called()
         self.assertEqual(report["invalid"], 1)
 
+    def test_malformed_original_ticket_row_does_not_abort_sibling(self):
+        second = "202611040102"
+        other = self.path.with_name(second + ".json")
+        other.write_bytes(self.path.read_bytes().replace(CODE.encode(),
+                                                        second.encode()))
+        sibling = dict(self.evidence["records"][0])
+        sibling["race_code"] = second
+        sibling["source_forecast_sha256"] = hashlib.sha256(other.read_bytes()).hexdigest()
+        self.evidence["records"].append(sibling)
+        self.evidence["published_forecasts"] = 2
+        self.evidence["frozen_before_t_minus_12"] = 2
+        # Keep the original sha256 consistent so the malformed nested
+        # structure reaches the per-race archive integrity check.
+        broken = json.loads(self.path.read_text(encoding="utf-8"))
+        broken["modes"]["hit"]["tickets"][0] = None
+        self.path.write_text(json.dumps(broken) + "\n", encoding="utf-8")
+        self.evidence["records"][0]["source_forecast_sha256"] = hashlib.sha256(
+            self.path.read_bytes()).hexdigest()
+        winner = sibling["candidate_top10"][0]
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status":"historical_comparison_only",
+                                 "winning_ticket":winner}):
+            report = score_evidence(self.evidence, self.root)
+        self.assertEqual(report["invalid"], 1)
+        self.assertEqual(report["paired"], 1)
+        self.assertEqual(report["race_codes_paired"], [second])
+        self.assertFalse(report["production_promotion_allowed"])
+
+    def test_malformed_original_mode_list_is_invalid_not_uncaught(self):
+        broken = json.loads(self.path.read_text(encoding="utf-8"))
+        broken["modes"]["hit"]["tickets"] = [None]
+        self.path.write_text(json.dumps(broken) + "\n", encoding="utf-8")
+        self.evidence["records"][0]["source_forecast_sha256"] = hashlib.sha256(
+            self.path.read_bytes()).hexdigest()
+        result = score_evidence(self.evidence, self.root)
+        self.assertEqual(result["invalid"], 1)
+        self.assertEqual(result["paired"], 0)
+
     def test_one_validation_error_does_not_erase_valid_frozen_race(self):
         # Match the producer's real mutually-exclusive status partition:
         # one valid freeze and one validation_error, never two exclusions.
