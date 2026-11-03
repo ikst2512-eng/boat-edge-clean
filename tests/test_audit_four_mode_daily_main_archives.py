@@ -137,8 +137,12 @@ class DailyMainArchivesTest(unittest.TestCase):
         row = {"run_id": 430, "created_at": "2026-11-04T00:07:00Z",
                "artifact_present": True, "newly_generated": 1,
                "staged_valid": 0, "publication_outcome": "no_eligible_candidates"}
+        # Generated-but-expired candidates are deliberately NOT staged.
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261104", [{"runs": [row]}, {"runs": [{**row}]}]), [])
         self.assertEqual([r["run_id"] for r in unpublished_new_candidate_runs(
-            "20261104", [{"runs": [row]}, {"runs": [{**row}]}])], [430])
+            "20261104", [{"runs": [{**row, "staged_valid": 1}]},
+                         {"runs": [{**row, "staged_valid": 1}]}])], [430])
         self.assertEqual(unpublished_new_candidate_runs(
             "20261105", [{"runs": [row]}]), [])
         self.assertEqual(unpublished_new_candidate_runs(
@@ -146,6 +150,28 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertEqual(unpublished_new_candidate_runs(
             "20261104", [{"runs": [{**row, "newly_generated": None,
                                   "staged_valid": None}]}]), [])
+
+    def test_expired_generated_candidates_are_not_false_publication_failures(self):
+        base = {"run_id": 431, "created_at": "2026-11-04T00:07:00Z",
+                "artifact_present": True, "newly_generated": 3,
+                "staged_valid": 0, "publication_outcome": "no_eligible_candidates"}
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261104", [{"runs": [base]}]), [])
+        # One safe race was staged and pushed; other generated candidates
+        # expired before the staging gate and must not cause a false alarm.
+        good = {**base, "staged_valid": 1,
+                "publication_outcome": "pushed_to_main",
+                "claimed_added_forecasts": 1}
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261104", [{"runs": [good]}]), [])
+        # A staged valid race without any publication remains a real loss.
+        bad = {**base, "staged_valid": 1}
+        self.assertEqual([r["run_id"] for r in unpublished_new_candidate_runs(
+            "20261104", [{"runs": [bad]}])], [431])
+        # Failure before staging is still visible when new work existed.
+        failed = {**base, "staged_valid": None, "publication_outcome": "failed"}
+        self.assertEqual([r["run_id"] for r in unpublished_new_candidate_runs(
+            "20261104", [{"runs": [failed]}])], [431])
 
     def test_claimed_push_matches_actual_first_add_commit_and_count(self):
         row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
