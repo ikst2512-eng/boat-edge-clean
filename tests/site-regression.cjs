@@ -561,3 +561,10 @@ assert.ok(script.includes("if(!hasConfirmedVenue(i+1))return;venueTouched=true")
 assert.ok(script.includes("if(!hasConfirmedRace(s.venue+1,i))return;venueTouched=true"),'confirmed race guard on click');
 assert.ok(script.includes("next>12||!hasConfirmedRace(s.venue+1,next)"),'previous/next navigation cannot bypass held-race gate');
 assert.ok(script.includes("button.disabled=false;button.classList.remove('held')"),'failed or unpublished schedule must restore navigation');
+
+// Racecard gate and visually disabled previous/next buttons must share the same complete-schedule predicate.
+const raceDataGate=script.slice(script.indexOf('async function loadRaceData(force=false)'),script.indexOf('async function loadRaceData(force=false)')+1700);
+assert.ok(raceDataGate.includes('if(completeHeldSchedule())'), 'partial/recovered schedule must not falsely hide archived six-boat racecards');
+assert.ok(!raceDataGate.includes('todayVenueRaces.partial_coverage!==true'), 'racecard path must reuse the centralized complete-coverage gate');
+assert.ok(script.includes("document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1)"), 'previous button must reflect confirmed absent race');
+assert.ok(script.includes("document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1)"), 'next button must reflect confirmed absent race');
