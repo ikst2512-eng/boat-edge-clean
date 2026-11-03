@@ -77,7 +77,8 @@ def evaluate(root=ROOT, now=None):
         "pending_by_deadline": {"before_deadline": 0,
                                 "within_60m_after_deadline": 0,
                                 "over_60m_after_deadline": 0},
-        "applied": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
+        "applied": 0, "reordered_top10": 0, "changed_top3_membership": 0,
+        "changed_top5_membership": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
         "paired_modes": {f"{left}_vs_{right}": {f"top{n}": {o: 0 for o in PAIR_OUTCOMES}
                           for n in TOPS} for left, right in PAIRS},
         "miss_reasons": {m: {reason: 0 for reason in MISS_REASONS} for m in MODES},
@@ -152,6 +153,10 @@ def evaluate(root=ROOT, now=None):
         row["comparable"] += 1
         row["matured_comparable"] += int(maturity == "over_60m_after_deadline")
         row["applied"] += int(enabled)
+        # Eligibility is not evidence that the candidate changed a ranking.
+        row["reordered_top10"] += int(candidate != baseline)
+        row["changed_top3_membership"] += int(set(candidate[:3]) != set(baseline[:3]))
+        row["changed_top5_membership"] += int(set(candidate[:5]) != set(baseline[:5]))
         for m in MODES:
             row["miss_reasons"][m][compared["modes"][m]["coverage_diagnostic"]] += 1
             for n in TOPS:
