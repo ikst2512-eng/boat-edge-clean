@@ -105,7 +105,7 @@ class FallbackGateTests(unittest.TestCase):
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
         now = datetime(2026, 11, 3, 5, 30, tzinfo=timezone.utc)
         delayed = {"id": 41624217156, "event": "schedule",
-                   "created_at": "2026-11-03T11:02:28Z",
+                   "created_at": "2026-11-03T05:10:00Z",
                    "status": "completed", "conclusion": "success"}
         def fetch(url, token):
             return {"workflow_runs": [delayed]}
