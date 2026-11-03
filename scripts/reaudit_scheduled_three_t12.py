@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 import zipfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -91,7 +92,12 @@ def audit_artifact(raw, run_id, auditor=audit_three_originals):
         }
 
 
-def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact):
+def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact, *, as_of_utc=None):
+    as_of_utc = as_of_utc or datetime.now(timezone.utc)
+    if as_of_utc.utcoffset() != timedelta(0):
+        raise ValueError("as_of_utc must have UTC offset")
+    elapsed = sum(datetime.fromisoformat("2026-11-03T" + hhmm + ":00+09:00")
+                  <= as_of_utc for hhmm in EXPECTED_SLOTS_JST)
     if not isinstance(runs, list) or len(runs) > 100:
         raise ValueError("invalid run inventory")
     findings = []
@@ -135,6 +141,11 @@ def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact):
         "expected_schedule_count": len(EXPECTED_SLOTS_JST),
         "expected_jst_schedule": list(EXPECTED_SLOTS_JST),
         "observed_scheduled_runs": len(findings),
+        "as_of_utc": as_of_utc.isoformat(),
+        "planned_slots_elapsed": elapsed,
+        "planned_slots_future": len(EXPECTED_SLOTS_JST) - elapsed,
+        # Missing at snapshot != skipped event; delayed runs can appear later.
+        "elapsed_slots_without_matching_run_at_snapshot": max(0, elapsed - len(findings)),
         "independent_originals_reaudited": sum(
             x["source_status"] == "independent_originals_reaudited" for x in findings),
         "research_complete_by_t12": sum(x["research_complete"] is True for x in findings),
@@ -180,6 +191,9 @@ def markdown(result):
     lines = ["## 戸田12R｜T−12直前・保存原本の独立再監査", "",
              f"- 予定実行: {result['expected_schedule_count']}回（15:20、15:25、15:30、15:40、15:48、15:50、15:51 JST）",
              f"- 実行記録: {result['observed_scheduled_runs']}件（UTC当日のスケジュール実行）",
+             f"- 予定時刻経過: {result['planned_slots_elapsed']}回",
+             f"- 未到来の予定時刻: {result['planned_slots_future']}回",
+             f"- 経過済み時刻に対する実行記録不足（現時点の下限）: {result['elapsed_slots_without_matching_run_at_snapshot']}件",
              f"- 原本3種類を独立再監査: {result['independent_originals_reaudited']}件",
              f"- 研究用T−12充足: {result['research_complete_by_t12']}件",
              f"- 未検証／不足Artifact: {result['missing_or_unverified_runs']}件",
