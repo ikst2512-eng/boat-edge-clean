@@ -22,6 +22,23 @@
 - 現行T-12成功は、レース固有の締切から12分差し引いた境界に対して、**API応答受領時刻と独立tkz/stt元の取得日時**がすべて境界以前、6艇の展示・6艇のスタート展示・1〜6コース置換・SHA256等がすべて妥当であることを要する。Render側の`source_audit.beforeinfo.sources[kind].received_at_jst`も新しく保存されるが、この属性の存在は新規live API実レスポンスで別途検証する必要がある。
 - 現時点で確認できる11/4の日中schedule実行について成功証拠なし。確認時点でGitHub APIが示す直近の同名実scheduleは`41663438908`。**未来の日中ジョブを起動済みとは記載しない**。
 
+## 独立した「Preview capture」無人原本の追加検証（2026-11-04 JST確認）
+
+`Check real live predeadline racecard`とは別ジョブの原本も照合した。これは既存4件のT-12サンプル分母に加えない。
+
+| 無人run | 実起動JST | ソース取得・6艇ペア | T-12 |
+| --- | --- | --- | --- |
+| [41574478481](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/41574478481) | 11/03 12:49 | stt/tkz各59行、独立締切前の観測値各1行、完全6艇ペア`202611030906` 1件、`too_late`各58行 | 0 |
+| [41627186144](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/41627186144) | 11/03 20:23 | 各5系統148行応答、全系統`pre_cutoff_observed=0`・`too_late=148`、完全ペア0 | 0 |
+| [41647178739](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/41647178739) | 11/03 22:45 | 研究用の厳密な完全ペア0、12分前証拠0、正式予想へ転用なし | 0 |
+
+11/03 12:49 runの`202611030906`は独立のstt/tkzが共に6艇完全であったが、各HTTP受信時刻は`12:49:41+09:00`付近。実ジョブログは`t12_gap_counts.both_too_late=1`と判定する。**完全性と時間的適格性は別の条件**である。
+
+### 取得元・設計の制約
+`late_preview_capture.py`の`save_preview`は`classify(...,margin_minutes=2)`を使い、`cutoff_policy=before_deadline_minus_2min_buffer`と明記している。`scripts/collect_late_preview_evidence.py`の冒頭にも「12分前研究スナップショットへ統合しない」とある。この別経路の成功を厳密T-12成功へ読み替えてはいけない。`scripts/preview_timing_integrity.py`の`margin_minutes=12`判定は公開時刻と受信時刻の双方がT-12以前であることを要求する。
+
+**現時点のボトルネック候補**は①GitHub予定発火時刻の不規則性、②上流展示データの掲載時間、③Render APIへの到達・受信時間。原因の寄与度やT-12実現可能性を断定するには、最新mainでの日中無人実測と独立したT-12利用可能な展示元の観測が必要。改修を増やす前にこれらを照合する。
+
 ## 次の実運用判定
 1. 11/4の日中に実際に出たschedule runを必ず`event=schedule`、run ID、GitHub UTC run_started_at/JST変換、実head SHAで特定する。cron枠の欠落・深夜発火は元データ障害と別集計する。
 2. 現行コミットで、`PREVIEW_SOURCE_RECEIVED/UNAVAILABLE`をtkz/sttごとに記録できたか、`RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE`数、`T12_SAMPLE_STARTED`対象を検査する。
