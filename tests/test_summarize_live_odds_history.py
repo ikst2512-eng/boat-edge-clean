@@ -51,6 +51,45 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(m["pending_recovered"], 1)
         self.assertEqual(m["pending_recovery_rate_pct"], 50.0)
 
+    def test_daily_trend_missing_days_are_not_successes(self):
+        from datetime import timezone, timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 14, 0, tzinfo=jst)
+        data = [
+            {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
+             "samples": [race("202611030111", ["valid_200"]),
+                         race("202611030112", ["pending_202", "valid_200"])]},
+            {"source_status": "ok", "checked_at_jst": "2026-11-02T14:25:00+09:00",
+             "samples": [race("202611020111", ["pending_202", "pending_202", "pending_202"])]},
+            {"source_status": "ok", "checked_at_jst": "2026-10-01T14:25:00+09:00",
+             "samples": [race("202610010111", ["valid_200"])]},
+        ]
+        rows = history.daily_trends(data, now=now)
+        self.assertEqual(len(rows), 14)
+        self.assertEqual(rows[-1]["date_jst"], "2026-11-03")
+        self.assertEqual(rows[-1]["valid_rate_pct"], 100.0)
+        self.assertEqual(rows[-1]["pending_recovery_rate_pct"], 100.0)
+        self.assertEqual(rows[-2]["date_jst"], "2026-11-02")
+        self.assertEqual(rows[-2]["valid_rate_pct"], 0.0)
+        self.assertEqual(rows[-2]["pending_recovery_rate_pct"], 0.0)
+        self.assertEqual(sum(row["has_valid_observations"] for row in rows), 2)
+        self.assertIsNone(rows[0]["valid_rate_pct"])
+        self.assertIsNone(rows[0]["pending_recovery_rate_pct"])
+
+    def test_daily_trend_rejects_naive_future_and_invalid_timestamps(self):
+        from datetime import timezone, timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 14, 0, tzinfo=jst)
+        rows = history.daily_trends([
+            {"source_status": "ok", "checked_at_jst": "2026-11-04T12:25:00+09:00",
+             "samples": [race("202611040111", ["valid_200"])]},
+            {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00",
+             "samples": [race("202611030111", ["valid_200"])]},
+            {"source_status": "ok", "checked_at_jst": "invalid",
+             "samples": [race("202611030112", ["valid_200"])]},
+        ], now=now)
+        self.assertTrue(all(not row["has_valid_observations"] for row in rows))
+
     def test_no_observations_is_not_success(self):
         m = history.summarize([{"source_status": "no_upcoming_race", "checked_at_jst": "x", "samples": []}])
         self.assertEqual(m["race_observations"], 0)

@@ -75,6 +75,43 @@ def summarize(records):
     }
 
 
+
+def daily_trends(records, *, now=None):
+    """14 JST calendar days. Missing days are N/A, never zero successes."""
+    jst = timezone(timedelta(hours=9))
+    today = (now or datetime.now(timezone.utc)).astimezone(jst).date()
+    buckets = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        try:
+            stamp = datetime.fromisoformat(record["checked_at_jst"])
+            if stamp.tzinfo is None:
+                continue
+            day = stamp.astimezone(jst).date()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not today - timedelta(days=DAYS - 1) <= day <= today:
+            continue
+        buckets.setdefault(day.isoformat(), []).append(record)
+    rows = []
+    for offset in range(DAYS - 1, -1, -1):
+        day = (today - timedelta(days=offset)).isoformat()
+        records_for_day = buckets.get(day, [])
+        values = summarize(records_for_day)
+        rows.append({"date_jst": day, "has_valid_observations": values["race_observations"] > 0,
+                     "runs_with_observations": values["runs_with_eligible_observations"],
+                     "races": values["race_observations"], "http_200": values["http_200"],
+                     "http_202": values["http_202"], "http_503": values["http_503"],
+                     "valid_200_races": values["eventual_valid_races"],
+                     "valid_rate_pct": values["eventual_valid_rate_pct"],
+                     "initially_pending_races": values["initially_pending_races"],
+                     "pending_recovered": values["pending_recovered"],
+                     "pending_recovery_rate_pct": values["pending_recovery_rate_pct"],
+                     "median_request_latency_ms": values["median_request_latency_ms"]})
+    return rows
+
+
 def api_json(url, token):
     with urlopen(Request(url, headers={
         "Authorization": "Bearer " + token,
@@ -154,9 +191,10 @@ def main():
     if status == "ok" and errors:
         status = "partial_history"
     metrics = summarize(history)
+    daily = daily_trends(history)
     report = {"window_days": DAYS, "status": status, "history_runs_selected": scanned,
               "history_evidence_loaded": len(history) - 1, "history_errors": errors,
-              "includes_current_run": True, "metrics": metrics}
+              "includes_current_run": True, "metrics": metrics, "daily": daily}
     Path("live_odds_14day_trend.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("LIVE_ODDS_14DAY_TREND " + json.dumps(report, ensure_ascii=False), flush=True)
     path = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -173,6 +211,8 @@ def main():
                          str(metrics["initially_pending_races"]) + " (" +
                          str(metrics["pending_recovery_rate_pct"]) + "%)\n\n")
             stream.write("Median request latency: " + str(metrics["median_request_latency_ms"]) + "ms\n\n")
+            stream.write("Observed JST dates: " + str(sum(row["has_valid_observations"] for row in daily)) +
+                         "/14; missing days are N/A, not successes.\n\n")
             stream.write("Missing runs and unavailable history are not counted as successes.\n")
 
 
