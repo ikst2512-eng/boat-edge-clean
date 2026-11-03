@@ -155,9 +155,11 @@ def collect(day=None):
         if file.is_symlink():
             raise ValueError("symlink record refused")
         if file.exists():
+            # Never silently accept a record that the overdue audit and
+            # four-mode scorer correctly reject as invalid.
+            if not confirmed_record_is_usable(file, code):
+                raise ValueError("existing archive invalid; manual review required")
             existing = json.loads(file.read_text(encoding="utf-8"))
-            if existing.get("race_code") != code or existing.get("status") != "confirmed":
-                raise ValueError("existing archive invalid")
             if existing.get("finish_order") != record["finish_order"]:
                 raise ValueError("published finish order changed; manual review required")
             continue
