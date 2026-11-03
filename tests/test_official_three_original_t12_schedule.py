@@ -11,6 +11,14 @@ class NearCutoffScheduleTests(unittest.TestCase):
         self.assertIn("cron: '20,25,30,40,48,50,51 6 3 11 *'", workflow)
         self.assertIn("github.event_name == 'schedule'", workflow)
         self.assertIn("202611030212", workflow)
+        for audited_path in (
+            "scripts/audit_official_racelist_receipt.py",
+            "scripts/audit_three_official_t12_originals.py",
+            "scripts/audit_joint_official_receipts.py",
+            "scripts/inspect_official_racelist_registrations.py",
+            "scripts/inspect_official_beforeinfo_json.py",
+        ):
+            self.assertIn(audited_path, workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("datetime.now(JST)", observer)
         self.assertIn('if now().strftime("%Y%m%d") != day:', observer)
