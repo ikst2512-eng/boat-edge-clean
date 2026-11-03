@@ -3,6 +3,18 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const html=fs.readFileSync('index.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'inline application script must exist');
+// The header exposes exactly one daily-candidate entry, never fake per-race tabs.
+assert.equal((html.match(/class="header-candidate-tab"/g)||[]).length,1);
+assert.ok(html.includes('class="header-candidate-tab" href="/selection"'));
+assert.ok(html.includes('>候補レース</a>'));
+assert.ok(!html.includes('href="/selection">購入候補</a>'),'avoid duplicate candidate navigation');
+// Candidate destination must not promote historical verified comparisons to today's tips.
+const candidateHtml=fs.readFileSync('selection.html','utf8');
+assert.ok(candidateHtml.includes('id="todayCandidateRaces"'));
+assert.ok(candidateHtml.includes('id="todayCandidateDate"'));
+assert.ok(candidateHtml.includes("timeZone:'Asia/Tokyo'"));
+assert.ok(candidateHtml.includes('過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。'));
+
 new vm.Script(script,{filename:'index.html'});
 function extract(name){
  const line=script.split('\n').find(l=>l.startsWith('function '+name+'('));

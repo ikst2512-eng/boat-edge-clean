@@ -9,10 +9,10 @@ if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat
  const review=nav.querySelector('a[href="/review"]');
  if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
  // The candidate list is a Render route, not a GitHub Pages file.
- const selection=nav.querySelector('a[href="/selection"]');
+ const selection=document.querySelector('.site-head .header-candidate-tab[href="/selection"]');
  if(selection)selection.href='https://boat-edge-clean.onrender.com/selection';
 }
-nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
+document.querySelectorAll('.site-global-nav a, .site-head .header-candidate-tab').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
  const state=typeof s==='undefined'?null:s;
  const date=state?.date,venue=state?.venue,race=state?.race;
