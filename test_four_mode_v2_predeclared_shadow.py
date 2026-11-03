@@ -85,8 +85,8 @@ class V2ShadowTests(unittest.TestCase):
                               "hole": {"tickets": [{}]*22}}}
             def compared(code, root):
                 return {"status": "result_unavailable" if code.endswith("01") else "invalid_result_or_timing"}
-            with patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived), \\
-                 patch("four_mode_v2_predeclared_shadow.compare_race", side_effect=compared):
+            with (patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived),
+                  patch("four_mode_v2_predeclared_shadow.compare_race", side_effect=compared)):
                 report = evaluate(root)
             self.assertEqual(report["v2_forecasts_seen"], 2)
             self.assertEqual(report["v2_comparable"], 0)
