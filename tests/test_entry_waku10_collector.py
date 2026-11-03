@@ -73,7 +73,7 @@ class CollectorWaku10Tests(unittest.TestCase):
                 ledger_ops=(storage.get,lambda key,data:storage.setdefault(key,data)))
             original=json.loads(storage[first["path"]])
             original["reference_t12_top10"]=["1-2-3"]
-            storage[first["path"]]=(json.dumps(original)+"\\n").encode()
+            storage[first["path"]]=json.dumps(original).encode()+bytes([10])
             with self.assertRaisesRegex(ValueError,"existing_waku10_archive_reference_mismatch"):
                 attempt(root,now=lambda:NOW,
                     card_reader=lambda *x:self.fail("do not refetch mismatched archive"),
