@@ -64,7 +64,8 @@ def eligible(event, trigger, *, now=None):
 
 
 
-def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_zip=None):
+def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_zip=None,
+                          expected_slot=None, run_created_at=None):
     """Only a validated saved 200 counts as completed direct monitoring.
 
     Returns valid, no_valid_odds, or unavailable. Metadata/ZIP network errors
@@ -110,6 +111,26 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
             data = json.loads(archive.read("live_odds_metrics.json"))
         if not isinstance(data, dict) or data.get("source_status") != "ok":
             return "no_valid_odds"
+        if expected_slot is not None:
+            provenance = data.get("trigger")
+            if not isinstance(provenance, dict) or run_created_at is None:
+                return "no_valid_odds"
+            # The archived odds result must belong to an admitted scheduled
+            # upstream for this same slot, not a manual/PR/skipped run.
+            if not eligible("workflow_run", provenance, now=run_created_at):
+                return "no_valid_odds"
+            try:
+                created = datetime.fromisoformat(
+                    provenance["upstream_created_at"].replace("Z", "+00:00"))
+                local = created.astimezone(timezone(timedelta(hours=9)))
+                slot_local = min(
+                    (local.replace(hour=h, minute=25, second=0, microsecond=0)
+                     for h in (12, 14, 16)),
+                    key=lambda candidate: abs((local - candidate).total_seconds()))
+                if slot_local.astimezone(timezone.utc) != expected_slot:
+                    return "no_valid_odds"
+            except (KeyError, TypeError, ValueError, AttributeError):
+                return "no_valid_odds"
         samples = data.get("samples")
         if not isinstance(samples, list):
             return "no_valid_odds"
@@ -232,7 +253,12 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 run_id = run.get("id")
                 if type(run_id) is not int or run_id <= 0:
                     return "fallback_lookup_unavailable"
-                state = (probe_check or direct_probe_evidence)(repository, token, run_id)
+                if probe_check is None:
+                    state = direct_probe_evidence(
+                        repository, token, run_id, expected_slot=slot,
+                        run_created_at=created)
+                else:
+                    state = probe_check(repository, token, run_id)
                 if state == "valid":
                     return "prior_fallback_observed"
                 if state != "no_valid_odds":
