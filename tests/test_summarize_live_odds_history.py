@@ -140,6 +140,35 @@ class OddsHistoryTests(unittest.TestCase):
     def test_all_42_scheduled_runs_are_inside_history_capacity(self):
         self.assertGreaterEqual(history.MAX_RUNS, 42)
 
+    def test_reject_http_status_and_retry_state_contradictions(self):
+        code = "202611030111"
+        valid = race(code, ["valid_200"])
+        mismatched = race("202611030112", ["valid_200"])
+        mismatched["attempts"][0]["http"] = 202
+        impossible = race("202611030113", ["valid_200", "pending_202"])
+        transport = race("202611030114", ["transport_error:TimeoutError"])
+        transport["attempts"][0]["http"] = 200
+        false_pending = race("202611030115", ["pending_202"])
+        false_pending["attempts"][0]["http"] = 200
+        rows = [{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                 "samples": [valid, mismatched, impossible, transport, false_pending]}]
+        m = history.summarize(rows)
+        self.assertEqual(m["race_observations"], 1)
+        self.assertEqual(m["eventual_valid_races"], 1)
+        self.assertEqual(m["http_202"], 0)
+        self.assertEqual(m["http_200"], 1)
+
+    def test_valid_pending_recovery_and_http_error_still_count(self):
+        rows = [{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                 "samples": [race("202611030111", ["pending_202", "valid_200"]),
+                             race("202611030112", ["http_error"]),
+                             race("202611030113", ["transport_error:TimeoutError"])]}]
+        m = history.summarize(rows)
+        self.assertEqual(m["race_observations"], 3)
+        self.assertEqual(m["pending_recovered"], 1)
+        self.assertEqual(m["other_http_or_transport"], 1)
+        self.assertEqual(m["http_503"], 1)
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
