@@ -24,6 +24,12 @@ permissions:
 jobs:
   observe:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Different venues are PR research observations only.
+        # Scheduled jobs remain scoped exclusively to Toda 12R.
+        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030212","202611030612","202611030412","202611030104"]' || '["202611030212"]') }}
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +38,7 @@ jobs:
           python-version: '3.11'
       - name: Observe three original sources without persisting forecasts
         env:
-          RACE_CODE: ${{ (github.event_name == 'pull_request' || github.event_name == 'schedule') && '202611030212' || inputs.race_code }}
+          RACE_CODE: ${{ github.event_name == 'workflow_dispatch' && inputs.race_code || matrix.race_code }}
           OBSERVATION_ID: ${{ github.run_id }}
         run: |
           python -m scripts.observe_three_official_t12_originals \
@@ -49,7 +55,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: official-three-originals-${{ github.run_id }}
+          name: official-three-originals-${{ github.run_id }}${{ github.event_name == 'pull_request' && format('-{0}', matrix.race_code) || '' }}
           path: |
             evidence/
             reports/
