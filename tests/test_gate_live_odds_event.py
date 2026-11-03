@@ -65,6 +65,62 @@ class FallbackGateTests(unittest.TestCase):
         self.assertFalse(gate.eligible("workflow_run", trigger, now=source - timedelta(seconds=1)))
         self.assertFalse(gate.eligible("workflow_run", trigger, now=source + timedelta(hours=2)))
 
+
+    def test_direct_schedule_guard_avoids_duplicate_and_allows_failed_retry(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
+        direct = {"event": "schedule", "created_at": "2026-11-03T03:26:00Z",
+                  "status": "completed", "conclusion": "success"}
+        def fetch(url, token):
+            self.assertIn("event=schedule", url)
+            return {"workflow_runs": [direct]}
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                                                    fetch_json=fetch), "direct_schedule_observed")
+        direct["status"], direct["conclusion"] = "in_progress", None
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                                                    fetch_json=fetch), "direct_schedule_observed")
+        direct["status"], direct["conclusion"] = "completed", "failure"
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                                                    fetch_json=fetch), "direct_schedule_absent_or_failed")
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                         fetch_json=lambda *_: {"workflow_runs": []}), "direct_schedule_absent_or_failed")
+
+    def test_direct_guard_fails_closed_for_unknown_api_status(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "", now=now),
+                         "schedule_lookup_unavailable")
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                         fetch_json=lambda *_: {"workflow_runs": None}), "schedule_lookup_unavailable")
+        def unavailable(*_):
+            raise OSError("network unavailable")
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                         fetch_json=unavailable), "schedule_lookup_unavailable")
+
+    def test_fallback_gate_writes_skipped_evidence_if_direct_cron_seen(self):
+        old = os.getcwd()
+        with tempfile.TemporaryDirectory() as folder:
+            try:
+                os.chdir(folder)
+                trigger = {"event": "workflow_run", "upstream_event": "schedule",
+                           "upstream_workflow": gate.UPSTREAM, "upstream_branch": "main",
+                           "upstream_run_id": 123, "upstream_created_at": "2026-11-03T03:45:00Z"}
+                with patch.dict(os.environ, {"GITHUB_REPOSITORY": "a/b", "GH_TOKEN": "token",
+                         "GITHUB_OUTPUT": str(Path(folder) / "out")}), patch.object(
+                         gate, "event_provenance", return_value=trigger), patch.object(
+                         gate, "eligible", return_value=True), patch.object(
+                         gate, "direct_schedule_guard", return_value="direct_schedule_observed"):
+                    gate.main()
+                evidence = json.loads(Path("live_odds_metrics.json").read_text())
+                self.assertEqual(evidence["source_status"], "fallback_ineligible")
+                self.assertEqual(evidence["reason"], "direct_schedule_observed")
+                self.assertEqual(evidence["samples"], [])
+                self.assertIn("collect=false", Path("out").read_text())
+            finally:
+                os.chdir(old)
+
     def test_non_schedule_upstream_is_marked_ineligible_not_success(self):
         old = os.getcwd()
         with tempfile.TemporaryDirectory() as folder:
