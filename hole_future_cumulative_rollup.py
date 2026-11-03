@@ -33,6 +33,16 @@ def report_totals_match(flags, claimed_hits, claimed_delta):
             expected_delta[m][key]={"gained":gain,"lost":loss,"net":gain-loss}
     return claimed_delta==expected_delta
 
+def code_in_window(code,start_date,end_date):
+    """Validate date-bearing race codes without propagating parse errors."""
+    if not isinstance(code,str) or len(code)!=12 or not code.isdigit():
+        return False
+    try:
+        day=date(int(code[:4]),int(code[4:6]),int(code[6:8]))
+    except ValueError:
+        return False
+    return date(2026,11,4)<=day and start_date<=day<end_date
+
 def rollup(reports):
     rows={}; conflicts=set(); quarantined=set(); invalid=Counter(); days=set()
     report_count=0; covered=set(); partial=0; all_reports=[]
@@ -116,11 +126,7 @@ def rollup(reports):
         if claimed_quarantine is None:
             continue
         if (claimed_quarantine.intersection(flags) or
-                any(len(code)!=12 or not code.isdigit() or
-                    not (date(2026,11,4)<=
-                         date(int(code[:4]),int(code[4:6]),int(code[6:8]))
-                         <end_date) or
-                    date(int(code[:4]),int(code[4:6]),int(code[6:8]))<start_date
+                any(not code_in_window(code,start_date,end_date)
                     for code in claimed_quarantine)):
             invalid["invalid_quarantine_metadata"]+=1
             continue
