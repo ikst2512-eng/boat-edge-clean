@@ -15,6 +15,9 @@ on:
       - entry_course_late_preview.py
       - entry_course_durable_ledger.py
       - entry_course_collector.py
+      - scripts/entry_course_activation_watchdog.py
+      - .github/workflows/entry-course-activation-watchdog.yml
+      - tests/test_entry_course_activation_watchdog.py
       - research_model.py
       - tests/test_research_model_partial_live.py
       - entry_course_baseline_audit.py
@@ -108,6 +111,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_entry_course_first_add_audit.py -v
       - name: Verify Actions schedule token witness without counting any forecasts
         run: python -m unittest discover -s tests -p test_entry_course_scheduled_write_probe.py -v
+      - name: Verify missed-cron fallback never creates false scheduled proof
+        run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
       - name: Verify archived daily write proof against actual schedule-run IDs
         run: python -m unittest discover -s tests -p test_entry_course_schedule_write_audit.py -v
       - name: Verify actual research-model partial daily CSV recovery
