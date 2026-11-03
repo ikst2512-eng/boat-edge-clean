@@ -113,6 +113,20 @@ def prepare(original, root, run_id, attempt):
                 or path.stat().st_size > 30000
                 or hashlib.sha256(path.read_bytes()).hexdigest() != digest):
             raise ValueError("frozen_source_digest_mismatch")
+        # Bind T-12 to the byte-verified original forecast before storing
+        # any research evidence. A late freeze cannot supply a forged cutoff.
+        try:
+            original_archive = json.loads(path.read_bytes())
+            if (type(original_archive) is not dict
+                    or original_archive.get("race_code") != race):
+                raise ValueError("invalid_original_forecast_identity")
+            deadline = datetime.fromisoformat(original_archive["deadline_jst"])
+        except (ValueError, TypeError, KeyError, UnicodeError) as exc:
+            raise ValueError("invalid_original_forecast_deadline") from exc
+        if (deadline.utcoffset() != timedelta(hours=9)
+                or deadline.strftime("%Y%m%d") != race[:8]
+                or cutoff != deadline - timedelta(minutes=12)):
+            raise ValueError("frozen_cutoff_disagrees_with_original")
     if len(days) != 1:
         raise ValueError("multi_day_capture_not_supported")
     race_day = next(iter(days))
