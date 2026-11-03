@@ -1,7 +1,7 @@
 name: T12 Kiryu12 upstream completion recovery (research only, Nov 3)
 on:
   workflow_run:
-    workflows: ['Four-mode prospective capture (research only)']
+    workflows: ['Four-mode prospective capture (research only)', 'CLEAN prospective pre-cutoff capture']
     types: [completed]
 permissions:
   contents: write
