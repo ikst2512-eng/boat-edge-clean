@@ -38,6 +38,7 @@ def _title(now, *, fetch=None, fallback=None):
         raise ValueError("t12_clock_without_timezone")
     day=now.astimezone(JST).strftime("%Y%m%d")
     url=f"{URL_ROOT}{day[:4]}/{day[4:6]}/{day[6:8]}.csv"
+    live_fetch=fetch is None
     if fetch is None:
         def fetch(url):
             with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESEARCH/1.0"}),timeout=8) as r:
@@ -69,7 +70,54 @@ def _title(now, *, fetch=None, fallback=None):
         rows=list(parsed)
     except (UnicodeError,csv.Error) as exc:
         raise ValueError("t12_title_csv_invalid") from exc
-    return rows,day,hashlib.sha256(raw).hexdigest(),"published_daily_title"
+    archive_digest=hashlib.sha256(raw).hexdigest()
+    # A published daily file can itself be an earlier, partial snapshot.
+    # In live operation, supplement *only missing race codes* using a
+    # separately receipt-backed, pre-result holding schedule. Never silently
+    # overwrite a conflicting existing deadline.
+    if live_fetch or fallback is not None:
+        if fallback is None:
+            from clean_direct_sources import holding_rows
+            fallback=holding_rows
+        try:
+            live_rows,observed,live_digest=fallback(day)
+            if (not isinstance(live_rows,list) or not live_rows or
+                    not isinstance(observed,datetime) or observed.utcoffset() is None or
+                    observed>now+timedelta(seconds=30) or
+                    not SHA.fullmatch(str(live_digest or ""))):
+                raise ValueError("t12_live_schedule_receipt_invalid")
+        except (OSError,TimeoutError,ValueError,KeyError,URLError,HTTPError):
+            # Already valid public archive remains usable; no fabricated
+            # supplementation or source-confidence claim.
+            return rows,day,archive_digest,"published_daily_title"
+        current={r["レースコード"]:r for r in rows
+                 if isinstance(r,dict) and isinstance(r.get("レースコード"),str)}
+        additions=[]
+        conflicts=set()
+        for entry in live_rows:
+            if not isinstance(entry,dict):
+                continue
+            code=entry.get("レースコード")
+            clock=entry.get("電話投票締切予定")
+            if (type(code) is not str or not CODE.fullmatch(code) or
+                    code[:8]!=day or type(clock) is not str or
+                    re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",clock) is None):
+                continue
+            if code in current:
+                if current[code].get("電話投票締切予定")!=clock:
+                    conflicts.add(code)
+                continue
+            if code not in {r["レースコード"] for r in additions}:
+                additions.append(entry)
+        if conflicts:
+            # Conflicting deadlines are not a safe basis for pre-cutoff
+            # publication, even when the target race looks eligible.
+            rows=[r for r in rows if r.get("レースコード") not in conflicts]
+        if additions or conflicts:
+            combined=hashlib.sha256(
+                (archive_digest+":"+live_digest).encode("ascii")).hexdigest()
+            return rows+additions,day,combined,"published_title_plus_live_checked"
+    return rows,day,archive_digest,"published_daily_title"
 
 
 def near_t12(rows, day, *, now, max_per_run=3):

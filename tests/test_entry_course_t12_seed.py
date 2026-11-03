@@ -56,8 +56,55 @@ class T12SeedTests(unittest.TestCase):
                 ledger_ops=(lambda p:None,lambda p,b:self.fail("not allowed")))
     def test_bad_csv_schema_does_not_silently_switch_source(self):
         with self.assertRaisesRegex(ValueError,"t12_title_source_schema_invalid"):
-            seed_once(now=lambda:NOW,fetch_title=lambda url:b"foo,bar\\n1,2\\n",
+            seed_once(now=lambda:NOW,fetch_title=lambda url:b"foo,bar\n1,2\n",
                 fallback_title=lambda day:self.fail("malformed published source must fail"))
+    def test_partial_published_title_is_supplemented_without_mutating_original(self):
+        more="202611030709"
+        with tempfile.TemporaryDirectory() as tmp:
+            store={}
+            root=Path(tmp)
+            original=(f"レースコード,電話投票締切予定\n202611030101,15:20\n").encode()
+            seen=[]
+            def saver(code):return root/(code+".json")
+            def make(day,venue,race):
+                seen.append(day+venue+race)
+                d=base();d["race_code"]=more
+                saver(more).write_bytes(json.dumps(d).encode())
+            output=seed_once(now=lambda:NOW,fetch_title=lambda url:original,
+                fallback_title=lambda day:(
+                    [{"レースコード":"202611030101","電話投票締切予定":"15:20"},
+                     {"レースコード":more,"電話投票締切予定":"18:33"}],
+                    NOW,"a"*64),
+                predictor=make,record_path=saver,
+                ledger_ops=(store.get,lambda k,v:store.setdefault(k,v)))
+            # The live-supplemented race receives a genuine test-fixture
+            # archive while the unrelated published race is left untouched.
+            self.assertEqual(output["title_schedule_source"],
+                             "published_title_plus_live_checked")
+            self.assertEqual(output["eligible_count"],1)
+            self.assertEqual(seen,[more])
+            self.assertEqual(output["stored_count"],1)
+            self.assertEqual(output["results"][0]["status"],"new_t12_baseline")
+            self.assertIn("t12_baselines/20261103/"+more+".json",store)
+    def test_conflicting_deadline_is_not_selected(self):
+        partial=(f"レースコード,電話投票締切予定\n{CODE},18:33\n").encode()
+        output=seed_once(now=lambda:NOW,
+            fetch_title=lambda url:partial,
+            fallback_title=lambda day:(
+                [{"レースコード":CODE,"電話投票締切予定":"18:36"}],
+                NOW,"f"*64),
+            predictor=lambda *a:self.fail("conflicted race must never be used"))
+        self.assertEqual(output["title_schedule_source"],
+                         "published_title_plus_live_checked")
+        self.assertEqual(output["eligible_count"],0)
+    def test_unavailable_supplement_does_not_hide_valid_archive(self):
+        output=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+            fallback_title=lambda day:(_ for _ in ()).throw(OSError("holding unavailable")),
+            predictor=lambda *a:(_ for _ in ()).throw(ValueError("test-stop")),
+            ledger_ops=(lambda p:None,lambda p,b:self.fail("not saved")))
+        self.assertEqual(output["title_schedule_source"],"published_daily_title")
+        self.assertEqual(output["eligible_count"],1)
+        self.assertEqual(output["results"][0]["status"],"failed")
     def test_selector_rejects_after_cutoff_and_very_early(self):
         rows=[{"レースコード":CODE,"電話投票締切予定":"18:33"},
               {"レースコード":"202611030709","電話投票締切予定":"18:10"}]
