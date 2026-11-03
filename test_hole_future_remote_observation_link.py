@@ -94,6 +94,14 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(self.evaluate()["race_status"][CODE],
                          "conflicting_observations")
 
+    def test_pre_eligible_nov3_zero_cohort(self):
+        self.future={"status":"not_yet_eligible","formal":False,"comparable":0}
+        result=self.evaluate()
+        self.assertEqual(result["comparable"],0)
+        self.assertEqual(result["remote_observed_before_t12_count"],0)
+        self.assertEqual(result["race_status"],{})
+        self.assertFalse(result["formal"])
+
     def test_prior_dates_not_allowed_in_new_cohort(self):
         self.future["race_codes"]=["202611030101"]
         with self.assertRaisesRegex(ValueError,"invalid_comparable_race_codes"):
