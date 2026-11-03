@@ -7,7 +7,9 @@ from pathlib import Path
 from clean_four_modes import rank_modes
 from research_model import probabilities
 from four_mode_v2_third_rate_shadow import PROTOCOL, candidate
-from third_rate_evidence_ledger import prepare, publish, BRANCH, verify_first_add_git_provenance
+from third_rate_evidence_ledger import (prepare, publish, BRANCH,
+    verify_first_add_git_provenance, verify_ledger_write_access,
+    WRITE_PROBE_PATH, WRITE_PROBE_BYTES)
 
 CODE = "202611040101"
 SHA = "a" * 40
@@ -177,6 +179,39 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
             return self.git_provenance(*args)
         with self.assertRaisesRegex(ValueError, "ledger_git_history_unavailable"):
             verify_first_add_git_provenance(self.original(), self.root, wrong)
+
+    def test_first_run_write_probe_creates_exact_nonforecast_file(self):
+        verdict = verify_ledger_write_access(self.remote_read, self.remote_create)
+        self.assertEqual(verdict["status"], "new_write_permission_probe")
+        self.assertFalse(verdict["forecast_record"])
+        self.assertFalse(verdict["formal"])
+        self.assertTrue(verdict["write_permission_tested_this_run"])
+        self.assertEqual(self.storage[WRITE_PROBE_PATH], WRITE_PROBE_BYTES)
+        self.assertNotIn(b"candidate_top10", WRITE_PROBE_BYTES)
+
+    def test_write_probe_is_idempotent_and_does_not_overwrite(self):
+        verify_ledger_write_access(self.remote_read, self.remote_create)
+        verdict = verify_ledger_write_access(
+            self.remote_read, lambda *a: self.fail("second write"))
+        self.assertEqual(verdict["status"], "existing_write_probe_readback")
+        self.assertFalse(verdict["write_permission_tested_this_run"])
+
+    def test_write_probe_detects_conflicting_existing_content(self):
+        self.storage[WRITE_PROBE_PATH] = b"tampered"
+        with self.assertRaisesRegex(ValueError, "write_probe_collision"):
+            verify_ledger_write_access(self.remote_read, self.remote_create)
+
+    def test_write_probe_denied_write_does_not_claim_success(self):
+        def deny(*args):
+            raise ValueError("github_append_only_write_failed")
+        with self.assertRaisesRegex(ValueError, "github_append_only_write_failed"):
+            verify_ledger_write_access(self.remote_read, deny)
+        self.assertNotIn(WRITE_PROBE_PATH, self.storage)
+
+    def test_write_probe_requires_remote_readback(self):
+        with self.assertRaisesRegex(ValueError, "write_probe_readback_mismatch"):
+            verify_ledger_write_access(lambda _: None,
+                                       lambda *args: None)
 
     def test_invalid_run_identity_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "invalid_run_identity"):

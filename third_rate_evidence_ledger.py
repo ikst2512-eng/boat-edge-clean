@@ -168,6 +168,33 @@ def publish(original, root, run_id, attempt, remote_read, remote_create):
             "formal": False, "independent_remote_first_seen_verified": False}
 
 
+# A write-once non-forecast canary tests this job's permission to create a
+# ledger-branch file BEFORE the first actual Nov 4+ freeze. It MUST NOT be
+# counted as prediction evidence, nor mistaken for remote first-seen proof.
+WRITE_PROBE_PATH = "operations/third-rate-write-access-v1.json"
+WRITE_PROBE_BYTES = (
+    b'{"formal":false,"forecast_record":false,'
+    b'"schema":"THIRD_RATE_LEDGER_WRITE_ACCESS_PROBE_V1"}\n'
+)
+
+
+def verify_ledger_write_access(remote_read, remote_create):
+    """Create once, and byte-verify on every later run, without overwrite."""
+    original = remote_read(WRITE_PROBE_PATH)
+    if original is None:
+        remote_create(WRITE_PROBE_PATH, WRITE_PROBE_BYTES, "write-access-probe")
+        state = "new_write_permission_probe"
+    elif original == WRITE_PROBE_BYTES:
+        state = "existing_write_probe_readback"
+    else:
+        raise ValueError("write_probe_collision")
+    if remote_read(WRITE_PROBE_PATH) != WRITE_PROBE_BYTES:
+        raise ValueError("write_probe_readback_mismatch")
+    return {"status": state, "path": WRITE_PROBE_PATH,
+            "forecast_record": False, "formal": False,
+            "write_permission_tested_this_run": state == "new_write_permission_probe"}
+
+
 def _api(args):
     result = subprocess.run(["gh", "api", *args],
                             capture_output=True, timeout=30)
@@ -217,9 +244,13 @@ def main():
                    os.environ.get("GITHUB_RUN_ATTEMPT", "1")) is not None:
             verify_first_add_git_provenance(original, args.root)
         remote_read, remote_create = _github_ops(os.environ["GITHUB_REPOSITORY"])
+        # Even an empty collection run checks the dedicated ledger canary,
+        # so permission issues surface before the first future race freezes.
+        write_probe = verify_ledger_write_access(remote_read, remote_create)
         verdict = publish(original, args.root, os.environ["GITHUB_RUN_ID"],
                           os.environ.get("GITHUB_RUN_ATTEMPT", "1"),
                           remote_read, remote_create)
+        verdict["write_access_probe"] = write_probe
     except (OSError, KeyError, ValueError, TypeError,
             subprocess.SubprocessError) as exc:
         verdict = {"status": "ledger_preservation_failed", "stored": False,
