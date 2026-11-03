@@ -19,6 +19,12 @@ VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
 PROTOCOL = "V2_THIRD_PLACE_RATE_BETA_0_25_CONDITIONAL_EXPLORATORY_V1"
 MODES = ("narrow", "hit", "balance", "hole")
 TOPS = (3, 5, 10)
+# Existing merged commit containing this exact candidate, not evidence of first publication.
+LOCKED_PROTOCOL_MAIN_SHA = "0831bde10ef9739ce982c778bbdce8700f7c8a7a"
+FUTURE_START_JST = "20261104"
+MIN_FUTURE_PAIRED = 100
+MIN_FUTURE_DAYS = 3
+MIN_FUTURE_TOP3_DISCORDANT = 20
 
 
 def candidate(baseline, rates, board):
@@ -95,6 +101,19 @@ def audit(root=ROOT):
         "candidate_changed_on_unpaired_forecasts": 0,
         "candidate_first_second_pair_diversity_sum": 0,
         "by_date": {},
+        "date_separated_forward_reference": {
+            "start_day_jst": FUTURE_START_JST,
+            "locked_protocol_main_sha": LOCKED_PROTOCOL_MAIN_SHA,
+            "protocol_lock_independent_readback_verified": False,
+            "snapshot_first_git_add_before_deadline_verified": False,
+            "untouched_future_holdout_verified": False,
+            "date_separation_only_not_prospective_evidence": True,
+            "paired": 0, "changed_paired": 0, "distinct_paired_days": 0,
+            "topn": {f"top{n}": {"baseline": 0, "candidate": 0, "gained": 0, "lost": 0}
+                     for n in TOPS},
+            "blocked_reasons": ["no_future_outcomes"],
+            "production_promotion_allowed": False,
+        },
         "warning": "Third-rate factor chosen after viewing Nov 3 evidence; same-date results only exploratory, no holdout.",
     }
     directory = root / "four_mode_forecasts"
@@ -183,6 +202,41 @@ def audit(root=ROOT):
         if info["candidate"] - info["baseline"] != info["gained"] - info["lost"]:
             raise ValueError("paired_gain_loss_mismatch")
     out["by_date"] = dict(sorted(out["by_date"].items()))
+    forward = out["date_separated_forward_reference"]
+    future_days = [row for day, row in out["by_date"].items()
+                   if day >= FUTURE_START_JST and row["paired"] > 0]
+    forward["distinct_paired_days"] = len(future_days)
+    for row in future_days:
+        forward["paired"] += row["paired"]
+        forward["changed_paired"] += row["changed_paired"]
+        for n in TOPS:
+            key = f"top{n}"
+            for field in ("baseline", "candidate", "gained", "lost"):
+                forward["topn"][key][field] += row["topn"][key][field]
+    forward["blocked_reasons"] = []
+    if forward["paired"] == 0:
+        forward["blocked_reasons"].append("no_future_outcomes")
+    if forward["paired"] < MIN_FUTURE_PAIRED:
+        forward["blocked_reasons"].append("fewer_than_100_future_paired")
+    if forward["distinct_paired_days"] < MIN_FUTURE_DAYS:
+        forward["blocked_reasons"].append("fewer_than_3_future_days")
+    if (forward["topn"]["top3"]["gained"] + forward["topn"]["top3"]["lost"]
+            < MIN_FUTURE_TOP3_DISCORDANT):
+        forward["blocked_reasons"].append("fewer_than_20_future_top3_discordances")
+    if forward["topn"]["top3"]["candidate"] <= forward["topn"]["top3"]["baseline"]:
+        forward["blocked_reasons"].append("no_future_top3_net_gain")
+    if forward["topn"]["top5"]["candidate"] < forward["topn"]["top5"]["baseline"]:
+        forward["blocked_reasons"].append("future_top5_degradation")
+    # Date separation cannot independently prove Git first publication or untouched predictions.
+    forward["blocked_reasons"].extend((
+        "protocol_lock_independent_readback_unverified",
+        "first_git_publication_before_cutoff_unverified",
+        "untouched_future_holdout_unverified",
+    ))
+    if (sum(v["paired"] for v in out["by_date"].values())
+            != out["paired_results"] or
+            forward["paired"] > out["paired_results"]):
+        raise ValueError("forward_cohort_partition_mismatch")
     return out
 
 
