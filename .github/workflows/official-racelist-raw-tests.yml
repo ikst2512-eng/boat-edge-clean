@@ -5,6 +5,8 @@ on:
       - 'scripts/capture_official_racelist_receipt.py'
       - 'tests/test_capture_official_racelist_receipt.py'
       - 'scripts/audit_official_racelist_receipt.py'
+      - 'scripts/audit_three_official_t12_originals.py'
+      - 'tests/test_audit_three_official_t12_originals.py'
       - 'scripts/diagnose_official_racelist_html.py'
       - 'scripts/inspect_official_racelist_registrations.py'
       - 'tests/test_inspect_official_racelist_registrations.py'
@@ -30,6 +32,7 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -p 'test_capture_official_racelist_receipt.py' -v
       - run: python -m unittest discover -s tests -p 'test_audit_official_racelist_receipt.py' -v
+      - run: python -m unittest discover -s tests -p 'test_audit_three_official_t12_originals.py' -v
       - run: python -m unittest discover -s tests -p 'test_inspect_official_racelist_registrations.py' -v
       - run: python -m unittest discover -s tests -p 'test_inspect_official_beforeinfo_json.py' -v
       - run: python -m unittest discover -s tests -p 'test_official_racelist_dispatch_contract.py' -v
