@@ -58,6 +58,26 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         report = reconcile(self.capture, self.ledger)
         self.assertEqual(report["status"], "incomplete_capture_inventory")
 
+    def test_unknown_capture_status_cannot_claim_matched_roster(self):
+        for state in ("unexpected_success", "scored_frozen_artifacts",
+                      "no_future_capture_runs", None):
+            with self.subTest(state=state):
+                self.capture["status"] = state
+                self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                                 "incomplete_capture_inventory")
+
+    def test_unexpected_ledger_status_cannot_claim_matched_roster(self):
+        for state in ("unexpected_success", "no_long_lived_frozen_evidence", None):
+            with self.subTest(state=state):
+                self.ledger["status"] = state
+                self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                                 "invalid_or_unavailable_ledger")
+
+    def test_missing_explicit_cohort_completeness_cannot_claim_match(self):
+        self.capture["cohort_completeness_verified"] = 1
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "incomplete_capture_inventory")
+
     def test_ledger_invalid_blocks_matched_claim(self):
         self.ledger["invalid_files"] = ["third_rate/bad.json"]
         report = reconcile(self.capture, self.ledger)
