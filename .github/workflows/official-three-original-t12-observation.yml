@@ -13,6 +13,7 @@ on:
       - 'scripts/audit_joint_official_receipts.py'
       - 'scripts/inspect_official_racelist_registrations.py'
       - 'scripts/inspect_official_beforeinfo_json.py'
+      - 'scripts/summarize_three_t12_venues.py'
   workflow_dispatch:
     inputs:
       race_code:
@@ -59,5 +60,30 @@ jobs:
           path: |
             evidence/
             reports/
+          retention-days: 14
+          if-no-files-found: warn
+
+  summarize:
+    if: always()
+    needs: observe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: official-three-originals-${{ github.run_id }}*
+          path: collected
+          merge-multiple: false
+      - name: Aggregate T12 source completeness across venues (not certified)
+        run: python -m scripts.summarize_three_t12_venues --root collected --output reports/cross_venue_t12.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-three-originals-cross-venue-summary-${{ github.run_id }}
+          path: reports/cross_venue_t12.json
           retention-days: 14
           if-no-files-found: warn
