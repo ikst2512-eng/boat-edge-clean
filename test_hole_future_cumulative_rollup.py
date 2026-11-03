@@ -29,7 +29,7 @@ class CumulativeEvidenceTests(unittest.TestCase):
     def test_conflicting_later_evidence_quarantined(self):
         a=report({"202611040101":flags(False,True)})
         b=report({"202611040101":flags(False,False)},
-                 "2026-11-05","2026-11-07")
+                 "2026-11-04","2026-11-07")
         out=rollup([a,b])
         self.assertEqual(out["comparable"],0)
         self.assertEqual(out["conflicted_codes_quarantined"],["202611040101"])
