@@ -13,7 +13,7 @@ from four_mode_historical_cohort import run as cohort_run
 from hole_chronological_exploratory import date_blocks
 from hole_pair_diversification_research import first_second
 from hole_third_choice_research import national_rates
-from hole_third_donor_ranking_research import select,paired_outcomes
+from hole_third_donor_ranking_research import select
 
 TOPS=(3,5,10)
 METHODS=("baseline","third_national_rate","donor_consensus","consensus_guard")
@@ -99,7 +99,21 @@ def inspect(codes,root):
                 raise ValueError("bad_attribution")
             if k<10 and (d["gained"] or d["lost"]):
                 raise ValueError("top5_changed")
-    paired=paired_outcomes(rows,"consensus_guard","third_national_rate",10)
+    pair_stats={"both_hit":0,"only_challenger":0,
+                "only_comparator":0,"neither_hit":0}
+    by_date={}
+    for row in rows:
+        a=row["flags"]["consensus_guard"]["top10"]
+        b=row["flags"]["third_national_rate"]["top10"]
+        label=("both_hit" if a and b else "only_challenger" if a
+               else "only_comparator" if b else "neither_hit")
+        pair_stats[label]+=1
+        day=by_date.setdefault(row["race_code"][:8],{"races":0,"net":0})
+        day["races"]+=1
+        day["net"]+=int(a)-int(b)
+    paired={"sample":len(rows),**pair_stats,
+            "net":pair_stats["only_challenger"]-pair_stats["only_comparator"],
+            "by_date":dict(sorted(by_date.items()))}
     if paired["net"]!=(
         totals["consensus_guard"]["top10"]["hits"]-
         totals["third_national_rate"]["top10"]["hits"]):
