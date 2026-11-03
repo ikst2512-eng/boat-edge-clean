@@ -156,6 +156,62 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["status"],
                              "incomplete_capture_inventory")
 
+    def test_cli_missing_ledger_writes_diagnostic_and_exits_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            capture = root / "capture.json"
+            ledger = root / "missing_ledger.json"
+            report = root / "reconciliation.json"
+            capture.write_text(json.dumps(self.capture), encoding="utf-8")
+            proc = subprocess.run([
+                sys.executable,
+                str(Path(__file__).with_name("four_mode_v2_third_ledger_reconcile.py")),
+                "--capture", str(capture), "--ledger", str(ledger),
+                "--output", str(report),
+            ], capture_output=True, text=True, timeout=20)
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            data = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(data["status"], "reconciliation_inputs_unavailable")
+            self.assertEqual(data["missing_input_reports"], ["ledger"])
+            self.assertFalse(data["production_promotion_allowed"])
+
+    def test_cli_invalid_capture_json_preserves_diagnostic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            capture = root / "capture.json"
+            ledger = root / "ledger.json"
+            report = root / "reconciliation.json"
+            capture.write_text("{not-json", encoding="utf-8")
+            ledger.write_text(json.dumps(self.ledger), encoding="utf-8")
+            proc = subprocess.run([
+                sys.executable,
+                str(Path(__file__).with_name("four_mode_v2_third_ledger_reconcile.py")),
+                "--capture", str(capture), "--ledger", str(ledger),
+                "--output", str(report),
+            ], capture_output=True, text=True, timeout=20)
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            data = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(data["status"], "reconciliation_inputs_unavailable")
+            self.assertEqual(data["invalid_input_reports"], ["capture"])
+
+    def test_cli_wrong_report_schema_preserves_diagnostic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            capture = root / "capture.json"
+            ledger = root / "ledger.json"
+            report = root / "reconciliation.json"
+            capture.write_text(json.dumps({"schema":"INVALID"}), encoding="utf-8")
+            ledger.write_text(json.dumps(self.ledger), encoding="utf-8")
+            proc = subprocess.run([
+                sys.executable,
+                str(Path(__file__).with_name("four_mode_v2_third_ledger_reconcile.py")),
+                "--capture", str(capture), "--ledger", str(ledger),
+                "--output", str(report),
+            ], capture_output=True, text=True, timeout=20)
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            data = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(data["status"], "reconciliation_input_schema_invalid")
+
     def test_cli_bounded_matched_roster_succeeds(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
