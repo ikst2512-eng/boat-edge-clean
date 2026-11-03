@@ -62,7 +62,7 @@ def audit_frozen_comparison(base, candidate, result=None):
         issues.append("candidate_not_frozen_before_identical_cutoff")
     if candidate.get("research_only") is not True:
         issues.append("candidate_research_provenance_missing")
-    if candidate.get("entry_source") not in ("verified_official_beforeinfo","verified_independent_preview"):
+    if candidate.get("entry_source") not in ("third_party_timestamped_preview",):
         issues.append("candidate_entry_source_unverified")
     entry=candidate.get("entry")
     if (not isinstance(entry,list) or len(entry)!=6 or
