@@ -25,12 +25,18 @@ def audit_daily_bases(root, *, now, max_minutes=6):
         raise ValueError("audit_clock_not_timezone_aware")
     if type(max_minutes) not in (int,float) or not 1<=max_minutes<=30:
         raise ValueError("invalid_candidate_audit_window")
-    folder=Path(root)/"research_snapshots"
+    root=Path(root)
     counts=Counter()
     sample_ids={key:[] for key in ("eligible","outside_window","past_t2","invalid")}
     day=now.strftime("%Y%m%d")
     counts["snapshot_files_today"]=0
-    for file in sorted(folder.glob(day+"*.json")) if folder.is_dir() else ():
+    sources=(root/"research_snapshots",root/"entry-course-ledger"/"t12_baselines"/day)
+    seen=set()
+    for file in [p for folder in sources for p in sorted(folder.glob(day+"*.json"))]:
+        if file.stem in seen:
+            counts["duplicate_baseline_code"]+=1
+            continue
+        seen.add(file.stem)
         counts["snapshot_files_today"]+=1
         code=file.stem
         if not CODE.fullmatch(code) or file.is_symlink() or file.stat().st_size>30000:
@@ -82,6 +88,7 @@ def audit_daily_bases(root, *, now, max_minutes=6):
             "day":day,"observed_at":now.isoformat(),
             "counts":{k:counts[k] for k in (
                 "snapshot_files_today","valid_frozen_research","invalid_snapshot",
-                "past_t2","outside_window","too_close_to_t2","eligible")},
+                "past_t2","outside_window","too_close_to_t2","eligible",
+                "duplicate_baseline_code")},
             "race_code_samples":{k:v[:10] for k,v in sample_ids.items()},
             "research_only":True,"forecast_record":False}
