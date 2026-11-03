@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from four_mode_v2_predeclared_shadow import candidate_order, evaluate, VERSION
+from datetime import datetime, timedelta, timezone
+from four_mode_v2_predeclared_shadow import candidate_order, evaluate, VERSION, missing_result_phase
 
 
 def tickets():
@@ -49,6 +50,7 @@ class V2ShadowTests(unittest.TestCase):
                     "input_national_win_rates": [5.0]*6}))
             def archived(code, root):
                 return 200, {"model_version": VERSION,
+                    "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
                               "narrow": {"tickets": [{}]*5},
                               "balance": {"tickets": [{}]*16},
@@ -79,6 +81,7 @@ class V2ShadowTests(unittest.TestCase):
                     "input_national_win_rates": [5.0]*6}))
             def archived(code, root):
                 return 200, {"model_version": VERSION,
+                    "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
                               "narrow": {"tickets": [{}]*5},
                               "balance": {"tickets": [{}]*16},
@@ -87,11 +90,21 @@ class V2ShadowTests(unittest.TestCase):
                 return {"status": "result_unavailable" if code.endswith("01") else "invalid_result_or_timing"}
             with (patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived),
                   patch("four_mode_v2_predeclared_shadow.compare_race", side_effect=compared)):
-                report = evaluate(root)
+                report = evaluate(root, now=datetime(2026, 11, 3, 15, 30, tzinfo=timezone(timedelta(hours=9))))
             self.assertEqual(report["v2_forecasts_seen"], 2)
             self.assertEqual(report["v2_comparable"], 0)
             self.assertEqual(report["groups"]["20261103"]["pending_results"], 1)
+            self.assertEqual(report["groups"]["20261103"]["pending_by_deadline"]["over_60m_after_deadline"], 1)
             self.assertEqual(report["excluded"]["invalid_or_untrusted_result"], 1)
+
+    def test_pending_cutoff_boundaries(self):
+        jst = timezone(timedelta(hours=9))
+        cutoff = "2026-11-03T14:00:00+09:00"
+        self.assertEqual(missing_result_phase(cutoff, datetime(2026, 11, 3, 13, 59, tzinfo=jst)), "before_deadline")
+        self.assertEqual(missing_result_phase(cutoff, datetime(2026, 11, 3, 14, 59, tzinfo=jst)), "within_60m_after_deadline")
+        self.assertEqual(missing_result_phase(cutoff, datetime(2026, 11, 3, 15, 0, tzinfo=jst)), "over_60m_after_deadline")
+        with self.assertRaises(ValueError):
+            missing_result_phase("2026-11-03T14:00:00+00:00", datetime(2026, 11, 3, 14, 0, tzinfo=jst))
 
     def test_no_v2_is_explicit(self):
         with tempfile.TemporaryDirectory() as td:

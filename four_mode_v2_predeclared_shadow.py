@@ -9,6 +9,7 @@ import json
 import math
 import re
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from four_mode_archive_api import archived_four_modes
@@ -51,11 +52,27 @@ def candidate_order(tickets, rates):
     return [row["combo"] for row in chosen], True
 
 
-def evaluate(root=ROOT):
+def missing_result_phase(deadline_jst, now):
+    """Classify missing outcomes by schedule only; never infer collection failure."""
+    deadline = datetime.fromisoformat(deadline_jst)
+    if deadline.utcoffset() != timedelta(hours=9) or now.utcoffset() != timedelta(hours=9):
+        raise ValueError("non_jst_timestamp")
+    if now < deadline:
+        return "before_deadline"
+    if now < deadline + timedelta(minutes=60):
+        return "within_60m_after_deadline"
+    return "over_60m_after_deadline"
+
+
+def evaluate(root=ROOT, now=None):
     root = Path(root)
+    now = now or datetime.now(timezone(timedelta(hours=9)))
     directory = root / "four_mode_forecasts"
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
+        "pending_by_deadline": {"before_deadline": 0,
+                                "within_60m_after_deadline": 0,
+                                "over_60m_after_deadline": 0},
         "applied": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
         "miss_reasons": {m: {reason: 0 for reason in MISS_REASONS} for m in MODES},
         "baseline": {f"top{n}": 0 for n in TOPS},
@@ -98,7 +115,13 @@ def evaluate(root=ROOT):
             continue
         compared = compare_race(path.stem, root)
         if compared.get("status") == "result_unavailable":
+            try:
+                phase = missing_result_phase(archive["deadline_jst"], now)
+            except (KeyError, ValueError, TypeError, OverflowError):
+                excluded["invalid_pending_deadline"] += 1
+                continue
             row["pending_results"] += 1
+            row["pending_by_deadline"][phase] += 1
             continue
         if compared.get("status") != "historical_comparison_only":
             excluded["invalid_or_untrusted_result"] += 1
@@ -130,6 +153,7 @@ def evaluate(root=ROOT):
             "independent_remote_first_seen_verified": False,
             "v2_forecasts_seen": sum(v["forecast_files"] for v in output.values()),
             "v2_comparable": total, "groups": output, "excluded": dict(excluded),
+            "evaluated_at_jst": now.isoformat(),
             "warning": "No official accuracy, no independent holdout, no claim of actual improvement."}
 
 
