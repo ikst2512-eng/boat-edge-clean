@@ -66,7 +66,37 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertAlmostEqual(report["six_head_model_minus_prior_brier"],
                                    expected_model_brier-expected_prior_brier, places=6)
             self.assertEqual(report["sample_by_day"]["20261103"]["n"], 2)
+            self.assertEqual(report["venue_sensitivity"]["by_venue"]["01"]["n"], 2)
+            self.assertIsNone(report["venue_sensitivity"]["leave_one_venue_out"]["01"]["model_minus_prior_brier"])
+            self.assertFalse(report["venue_sensitivity"]["all_venue_deltas_negative"])
             self.assertFalse(report["formal"])
+
+    def test_leave_one_venue_out_uses_same_paired_results(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for code in ("202611030101", "202611030201", "202611030301"):
+                saved(root, code)
+            results = {
+                "202611030101": "1-2-3",
+                "202611030201": "2-1-3",
+                "202611030301": "1-3-2",
+            }
+            def compared(code, root):
+                return {"status": "historical_comparison_only",
+                        "winning_ticket": results[code]}
+            with patch("four_mode_v2_head_calibration.compare_race", side_effect=compared):
+                report = assess(root)
+            summary = report["venue_sensitivity"]
+            self.assertEqual(report["matched_valid_finish"], 3)
+            self.assertEqual(set(summary["by_venue"]), {"01", "02", "03"})
+            for venue in ("01", "02", "03"):
+                self.assertEqual(summary["by_venue"][venue]["n"], 1)
+                self.assertEqual(summary["leave_one_venue_out"][venue]["n"], 2)
+            self.assertAlmostEqual(
+                summary["leave_one_venue_out"]["02"]["model_minus_prior_brier"],
+                (summary["by_venue"]["01"]["model_minus_prior_brier"] +
+                 summary["by_venue"]["03"]["model_minus_prior_brier"]) / 2,
+                places=5)
 
     def test_invalid_result_not_counted_as_loss(self):
         with tempfile.TemporaryDirectory() as td:
