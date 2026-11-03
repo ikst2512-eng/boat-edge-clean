@@ -61,6 +61,35 @@ class EvidenceSummaryTests(unittest.TestCase):
                 self.assertNotIn("| TOP3 |",md)
                 obj[field]=original
 
+    def test_no_paired_results_never_claims_comparison_ready(self):
+        self.capture.update({"paired": 0, "by_race_day_jst": {}})
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertIn("TopN accuracy withheld", md)
+
+    def test_daily_paired_count_must_match_total(self):
+        self.capture["paired"] = 2
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_invalid_second_day_cannot_be_silently_skipped(self):
+        self.capture["paired"] = 2
+        self.capture["by_race_day_jst"]["20261105"] = {
+            "paired": 1, "topn": {"top3": {"baseline": 1}}}
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_per_day_topn_must_match_global_topn_if_supplied(self):
+        self.capture["topn"] = {
+            k: dict(v) for k,v in
+            self.capture["by_race_day_jst"]["20261104"]["topn"].items()}
+        self.capture["topn"]["top3"]["candidate"] = 0
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertNotIn("| TOP3 |", md)
+
     def test_missing_reports_are_diagnostic_not_zero_hits(self):
         md=summarize(None,None,None)
         self.assertIn("Capture audit: unavailable",md)
