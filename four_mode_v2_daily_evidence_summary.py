@@ -36,13 +36,37 @@ def _valid_daily_partition(capture):
     days = capture.get("by_race_day_jst")
     if type(days) is not dict or not days:
         return False
+    overall_codes = capture.get("race_codes_paired")
+    paired_scores = capture.get("paired_race_scores")
+    if (type(overall_codes) is not list
+            or type(paired_scores) is not list
+            or len(overall_codes) != capture["paired"]
+            or len(paired_scores) != capture["paired"]
+            or any(type(code) is not str or len(code) != 12
+                   or not code.isdecimal() or code[:8] < "20261104"
+                   for code in overall_codes)
+            or len(set(overall_codes)) != len(overall_codes)):
+        return False
+    score_codes = [row.get("race_code") for row in paired_scores
+                   if type(row) is dict]
+    if (len(score_codes) != capture["paired"]
+            or sorted(score_codes) != sorted(overall_codes)):
+        return False
     paired_total = 0
+    all_day_codes = []
     totals = {key: {field: 0 for field in FIELDS} for key in TOPS}
     for day, group in days.items():
         if (type(day) is not str or len(day) != 8 or not day.isdecimal()
                 or day < "20261104" or type(group) is not dict
                 or type(group.get("paired")) is not int or group["paired"] <= 0):
             return False
+        codes = group.get("race_codes")
+        if (type(codes) is not list or len(codes) != group["paired"]
+                or any(type(code) is not str or code[:8] != day
+                       for code in codes)
+                or len(set(codes)) != len(codes)):
+            return False
+        all_day_codes.extend(codes)
         paired_total += group["paired"]
         topn = group.get("topn")
         if type(topn) is not dict or set(topn) != set(TOPS):
@@ -57,14 +81,15 @@ def _valid_daily_partition(capture):
                 return False
             for field in FIELDS:
                 totals[n][field] += values[field]
-    if paired_total != capture["paired"]:
+    if (paired_total != capture["paired"]
+            or sorted(all_day_codes) != sorted(overall_codes)):
         return False
     reported = capture.get("topn")
-    if reported is not None and (
-            type(reported) is not dict or set(reported) != set(TOPS)
+    if (type(reported) is not dict or set(reported) != set(TOPS)
             or any(type(reported[n]) is not dict or
-                   any(type(reported[n].get(k)) is not int or
-                       reported[n][k] != totals[n][k] for k in FIELDS)
+                   set(reported[n]) != set(FIELDS)
+                   or any(type(reported[n].get(k)) is not int or
+                          reported[n][k] != totals[n][k] for k in FIELDS)
                    for n in TOPS)):
         return False
     return True
