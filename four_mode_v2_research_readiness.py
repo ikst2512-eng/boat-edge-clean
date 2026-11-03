@@ -33,6 +33,8 @@ def summarize(raw):
     totals = {
         "saved_forecasts": 0, "paired_results": 0, "pending_results": 0,
         "matured_comparable": 0,
+        "matured_modes": {m: {f"top{n}": 0 for n in (3, 5, 10)}
+                          for m in ("narrow", "hit", "balance", "hole")},
         "before_deadline": 0, "within_60m_after_deadline": 0,
         "over_60m_after_deadline": 0, "applied": 0,
         "gained_top3": 0, "lost_top3": 0,
@@ -83,6 +85,12 @@ def summarize(raw):
                 if type(val) is not int or not 0 <= val <= c:
                     raise ValueError("invalid_mode_topn")
                 totals["modes"][mode][k] += val
+                mature_hits = row["matured_modes"][mode][k]
+                if type(mature_hits) is not int or not 0 <= mature_hits <= matured:
+                    raise ValueError("invalid_matured_topn")
+                if mature_hits > val:
+                    raise ValueError("mature_hits_exceed_all_hits")
+                totals["matured_modes"][mode][k] += mature_hits
         for left, right in PAIRS:
             key = f"{left}_vs_{right}"
             for n in (3, 5, 10):
@@ -114,6 +122,24 @@ def summarize(raw):
     mature_denom = totals["matured_comparable"] + totals["over_60m_after_deadline"]
     mature_coverage = (totals["matured_comparable"] / mature_denom
                        if mature_denom else None)
+    missing_overdue = totals["over_60m_after_deadline"]
+    # Sensitivity envelope under the explicit scenario that all currently
+    # unresolved overdue races eventually produce a valid finish order.
+    # These are not confidence intervals, official hit-rate bounds, or
+    # empirical evidence about the missing outcomes.
+    mature_sensitivity = {}
+    for mode, counts in totals["matured_modes"].items():
+        mature_sensitivity[mode] = {}
+        for label, hits in counts.items():
+            mature_sensitivity[mode][label] = {
+                "confirmed_mature_hits": hits,
+                "unresolved_overdue": missing_overdue,
+                "scenario_denominator": mature_denom,
+                "all_missing_miss_rate": (round(hits / mature_denom, 6)
+                                           if mature_denom else None),
+                "all_missing_hit_rate": (round((hits + missing_overdue) / mature_denom, 6)
+                                          if mature_denom else None),
+            }
     reasons = []
     if mature_coverage is None or mature_coverage < MIN_MATURE_RESULT_COVERAGE:
         reasons.append("insufficient_mature_result_coverage")
@@ -142,6 +168,8 @@ def summarize(raw):
         "paired_top3_one_sided_pvalue": pvalue,
         "comparable_denominator": n,
         "mature_outcome_denominator": mature_denom,
+        "overdue_missingness_sensitivity": mature_sensitivity,
+        "sensitivity_assumption": "All unresolved overdue cases eventually have valid finish orders; not verified.",
         "mature_result_coverage": round(mature_coverage, 6) if mature_coverage is not None else None,
         "mature_coverage_diagnostic_threshold": MIN_MATURE_RESULT_COVERAGE,
         "blocking_reasons": reasons,

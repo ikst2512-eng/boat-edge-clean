@@ -64,6 +64,7 @@ class V2ShadowTests(unittest.TestCase):
                 report = evaluate(root, now=datetime(2026, 11, 3, 14, 1, tzinfo=timezone(timedelta(hours=9))))
             self.assertEqual(report["v2_forecasts_seen"], 1)
             self.assertEqual(report["groups"]["20261103"]["matured_comparable"], 0)
+            self.assertEqual(report["groups"]["20261103"]["matured_modes"]["hit"]["top3"], 0)
             self.assertEqual(report["v2_comparable"], 1)
             self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
             self.assertEqual(report["groups"]["20261103"]["paired_modes"]["hit_vs_balance"]["top3"]["neither"], 1)

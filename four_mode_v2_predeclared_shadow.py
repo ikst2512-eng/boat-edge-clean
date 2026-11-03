@@ -73,6 +73,7 @@ def evaluate(root=ROOT, now=None):
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
         "matured_comparable": 0,
+        "matured_modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
         "pending_by_deadline": {"before_deadline": 0,
                                 "within_60m_after_deadline": 0,
                                 "over_60m_after_deadline": 0},
@@ -154,7 +155,12 @@ def evaluate(root=ROOT, now=None):
         for m in MODES:
             row["miss_reasons"][m][compared["modes"][m]["coverage_diagnostic"]] += 1
             for n in TOPS:
-                row["modes"][m][f"top{n}"] += int(compared["modes"][m][f"top{n}"])
+                hit_flag = compared["modes"][m][f"top{n}"]
+                if type(hit_flag) is not bool:
+                    raise ValueError("invalid_topn_flag")
+                row["modes"][m][f"top{n}"] += int(hit_flag)
+                if maturity == "over_60m_after_deadline":
+                    row["matured_modes"][m][f"top{n}"] += int(hit_flag)
         for left, right in PAIRS:
             for n in TOPS:
                 flag = f"top{n}"
