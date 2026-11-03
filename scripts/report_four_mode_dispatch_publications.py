@@ -59,6 +59,11 @@ def inspect_dispatches(capture_inventory, downloader, limit=12):
                             "cancelled": 0, "unknown": 0, "checked": 0}
                     for field in ("third_rate_shadow", "hole_shadow")},
                 "third_rate_shadow_failure_runs": [], "hole_shadow_failure_runs": [],
+                "third_rate_ledger_coverage": {
+                    "success": 0, "failure": 0, "skipped": 0,
+                    "cancelled": 0, "unknown": 0, "checked": 0},
+                "third_rate_ledger_failure_run_ids": [],
+                "third_rate_ledger_probe_verified_run_ids": [],
                 "research_roster_status_counts": {
                     "matched": 0, "mismatch": 0, "unknown": 0, "not_applicable": 0},
                 "research_roster_mismatch_run_ids": [],
@@ -101,6 +106,9 @@ def main():
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "research_stage_coverage": result["research_stage_coverage"],
+        "third_rate_ledger_coverage": result["third_rate_ledger_coverage"],
+        "third_rate_ledger_failure_run_ids": result["third_rate_ledger_failure_run_ids"],
+        "third_rate_ledger_probe_verified_run_ids": result["third_rate_ledger_probe_verified_run_ids"],
         "research_roster_status_counts": result["research_roster_status_counts"],
         "research_roster_mismatch_run_ids": result["research_roster_mismatch_run_ids"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
@@ -111,6 +119,9 @@ def main():
                       "publication_outcome": row["publication_outcome"],
                       "third_rate_shadow_outcome": row["third_rate_shadow_outcome"],
                       "hole_shadow_outcome": row["hole_shadow_outcome"],
+                      "third_rate_ledger_outcome": row["third_rate_ledger_outcome"],
+                      "third_rate_ledger_status": row["third_rate_ledger_status"],
+                      "third_rate_ledger_probe_status": row["third_rate_ledger_probe_status"],
                       "research_roster_evidence": row["research_roster_evidence"],
                       "source_link_status": row["source_link_status"],
                       "staged_valid": row["staged_valid"],
