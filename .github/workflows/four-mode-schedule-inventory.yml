@@ -6,6 +6,8 @@ on:
       - 'scripts/report_four_mode_schedule_publications.py'
       - 'scripts/report_four_mode_dispatch_publications.py'
       - 'scripts/audit_four_mode_daily_main_archives.py'
+      - 'scripts/audit_four_mode_daily_schedule_runs.py'
+      - 'tests/test_audit_four_mode_daily_schedule_runs.py'
       - 'scripts/audit_four_mode_daily_capture_liveness.py'
       - 'scripts/inventory_four_mode_watchdog_dispatch.py'
       - 'scripts/report_four_mode_watchdog_artifact_decisions.py'
@@ -25,6 +27,7 @@ on:
       - 'scripts/inventory_four_mode_watchdog_dispatch.py'
       - 'scripts/report_four_mode_source_links.py'
       - 'scripts/audit_four_mode_daily_main_archives.py'
+      - 'scripts/audit_four_mode_daily_schedule_runs.py'
       - '.github/workflows/four-mode-prospective-capture.yml'
       - '.github/workflows/four-mode-capture-watchdog.yml'
       - '.github/workflows/four-mode-schedule-inventory.yml'
@@ -52,11 +55,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness
+      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs
       - name: Check real scheduled run history
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.inventory_four_mode_capture_runs --repo "${{ github.repository }}" --output reports/four_mode_schedule_history.json
+      # Independent metadata-only full-day coverage; detailed capture
+      # artifacts stay bounded to avoid exceeding the 12-minute audit job.
+      - name: Check complete JST-day scheduled capture execution metadata
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.audit_four_mode_daily_schedule_runs --repo "${{ github.repository }}" --output reports/four_mode_daily_schedule_metadata.json
       - name: Inspect recent capture artifacts without inferring remote push proof
         if: success()
         env:
@@ -94,6 +104,7 @@ jobs:
           name: four-mode-schedule-history
           path: |
             reports/four_mode_schedule_history.json
+            reports/four_mode_daily_schedule_metadata.json
             reports/four_mode_schedule_publications.json
             reports/four_mode_watchdog_dispatch.json
             reports/four_mode_dispatch_publications.json
