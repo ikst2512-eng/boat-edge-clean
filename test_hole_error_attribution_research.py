@@ -83,7 +83,7 @@ class AttributionTests(unittest.TestCase):
                          ["third_wrong_and_winner_not_in_donors"], 1)
 
     def test_same_existing_pair_wrong_third_not_mislabelled_as_pair_recovery(self):
-        archive = {"modes": {"hit": {"tickets": [{"combo": "1-2-6"}]},
+        archive = {"modes": {"hit": {"tickets": [{"combo": "1-4-6"}]},
                              "balance": {"tickets": []}}}
         chosen = {p: BASE for p in
                   ("baseline", "donor_order",
@@ -94,9 +94,10 @@ class AttributionTests(unittest.TestCase):
              "hole_error_attribution_research.variants", return_value=chosen), patch(
              "hole_error_attribution_research.compare_race",
              return_value={"status": "historical_comparison_only",
-                           "winning_ticket": "1-2-6"}):
+                           "winning_ticket": "1-4-6"}):
             result = inspect([CODE], Path("."))
-        self.assertEqual(result["third_choice_gaps"]["baseline"], {})
+        self.assertEqual(result["third_choice_gaps"]["baseline"]["correct_pair_wrong_third"], 1)
+        self.assertEqual(result["third_choice_gaps"]["baseline"]["winner_available_in_donors"], 1)
         self.assertEqual(result["missing_pair_recovery"]["donor_order"], {})
 
     def test_pending_result_not_used_as_a_scored_hit(self):
