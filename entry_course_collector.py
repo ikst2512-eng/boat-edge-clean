@@ -58,6 +58,22 @@ def candidates(root, *, now=None, max_minutes=6, require_durable_t12=False):
             if (base.get("status")!="research" or base.get("validated") is not False
                     or not freeze<=t12<late or not 45 <= (late-now).total_seconds() <= max_minutes*60):
                 continue
+            if require_durable_t12:
+                # Being present on the dedicated branch is necessary, but
+                # not sufficient. Revalidate the exact immutable bytes with
+                # the T−12 predictor/source/cutoff schema. The simulated time
+                # is used ONLY for retrospective internal consistency:
+                # GitHub-server first-add-before-cutoff remains unproven.
+                from entry_course_t12_seed import validate_base
+                try:
+                    archive_path=validate_base(
+                        file.read_bytes(),code,
+                        now=t12-timedelta(microseconds=1),
+                        expected_deadline=deadline)
+                except ValueError:
+                    continue
+                if archive_path!=f"t12_baselines/{day}/{code}.json":
+                    continue
             if code in seen:
                 continue
             seen.add(code)
