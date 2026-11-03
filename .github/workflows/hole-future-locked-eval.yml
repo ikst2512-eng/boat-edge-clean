@@ -4,7 +4,9 @@ on:
     paths:
       - hole_future_locked_eval.py
       - hole_future_first_add_audit.py
-      - test_hole_future_first_add_audit.py
+      - hole_future_remote_observation_link.py
+      - test_hole_future_remote_observation_link.py
+      - test_hole_future_first_add_audit.py test_hole_future_remote_observation_link.py
       - test_hole_future_locked_eval.py
       - test_hole_locked_selector_integrity.py
       - hole_third_choice_research.py
@@ -27,6 +29,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Read durable GitHub observations from separate research branch
+        uses: actions/checkout@v4
+        with:
+          ref: v2-third-rate-evidence-ledger
+          path: remote-observation-ledger
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -54,6 +62,24 @@ jobs:
                   {row["race_code"] for row in proof["records"]})
           print("FIRST_ADD_AUDIT_COUNTS",proof["counts"])
           print("FIRST_ADD_EVIDENCE",proof["records"])
+          print("REMOTE_FIRST_RECEIPT_PROVEN",False)
+          PY
+      - name: Link future research rows to durable GitHub server observations
+        run: python hole_future_remote_observation_link.py > hole_future_remote_observation_link.json
+      - name: Reject overclaims and reconcile source evidence coverage
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_future_remote_observation_link.json"))
+          future=json.load(open("hole_future_locked_results.json"))
+          assert r["formal"] is False
+          assert r["independent_first_remote_receipt_verified"] is False
+          assert r["locked_selector_changed"] is False
+          assert r["production_forecast_changed"] is False
+          assert r["comparable"]==future.get("comparable",0)
+          assert sum(r["evidence_status_counts"].values())==r["comparable"]
+          assert set(r["race_status"])==set(future.get("race_codes",[]))
+          print("SERVER_OBSERVATION_LINK",r["evidence_status_counts"])
           print("REMOTE_FIRST_RECEIPT_PROVEN",False)
           PY
       - name: Print honest results and evidence boundary
@@ -95,3 +121,4 @@ jobs:
           path: |
             hole_future_locked_results.json
             hole_future_first_add_results.json
+            hole_future_remote_observation_link.json

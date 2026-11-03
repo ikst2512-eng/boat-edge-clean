@@ -26,6 +26,8 @@ on:
       - test_hole_shadow_prospective_gate.py
       - third_rate_same_job_capture.py
       - four_mode_github_server_observation.py
+      - four_mode_github_server_observation_ledger.py
+      - test_four_mode_github_server_observation_ledger.py
       - test_four_mode_github_server_observation.py
       - third_rate_evidence_ledger.py
       - test_third_rate_evidence_ledger.py
@@ -57,7 +59,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -261,6 +263,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python third_rate_evidence_ledger.py
+      - name: Preserve GitHub API observation in write-once research ledger
+        id: github_observation_ledger
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python four_mode_github_server_observation_ledger.py
       - name: Record per-stage capture verdict
         if: always()
         env:
@@ -270,6 +279,7 @@ jobs:
           LEDGER_OUTCOME: ${{ steps.third_rate_ledger.outcome }}
           THIRD_RATE_SHADOW_OUTCOME: ${{ steps.third_rate_shadow.outcome }}
           GITHUB_SERVER_OBSERVATION_OUTCOME: ${{ steps.github_server_observation.outcome }}
+          GITHUB_OBSERVATION_LEDGER_OUTCOME: ${{ steps.github_observation_ledger.outcome }}
           HOLE_SHADOW_OUTCOME: ${{ steps.hole_shadow.outcome }}
         run: |
           python - <<'PY'
@@ -277,7 +287,8 @@ jobs:
           from pathlib import Path
           evidence = Path("four-mode-evidence")
           evidence.mkdir(exist_ok=True)
-          states = {"github_server_observation": os.environ["GITHUB_SERVER_OBSERVATION_OUTCOME"],
+          states = {"github_observation_ledger": os.environ["GITHUB_OBSERVATION_LEDGER_OUTCOME"],
+                    "github_server_observation": os.environ["GITHUB_SERVER_OBSERVATION_OUTCOME"],
                     "third_rate_ledger": os.environ["LEDGER_OUTCOME"],
                     "source_capture": os.environ["SOURCE_OUTCOME"],
                     "before_publish_tests": os.environ["TESTS_OUTCOME"],
@@ -363,6 +374,7 @@ jobs:
             four-mode-evidence/third-rate-shadow.json
             four-mode-evidence/third-rate-ledger.json
             four-mode-evidence/github-server-observation.json
+            four-mode-evidence/github-server-observation-ledger.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
