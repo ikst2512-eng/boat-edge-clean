@@ -92,6 +92,13 @@
 - **main push Pages本番run `41655377223` / job `125984145558` complete/success**。GitHub Pages公開URLのChromium 390px幅実ブラウザで、11/3下関11Rの研究用予想注意表示、6艇出走表、`CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS`、展示の未検証状態表示、確定結果`1-5-3`を確認。以前の10/28桐生1R・10/31蒲郡8R・11/2下関5Rの3実レースも予想注意文/6艇出走表/結果全て成功。10/27の確定結果も表示成功。公開HTML/JS/保存済み確定結果のバイト一致と4タブ操作も成功。
 - P0の**当日締切済みレースと複数過去日**で公開ブラウザ表示成功の証拠を確保。ただし当日締切前の実表示・全24場・iPhone Safari実機・展示タイムの真正な締切前証明・正式Top3/5/10的中率は未実証。研究予想は未検証のままで採点しない。旧リポジトリ削除なし。新規有料サービス・重複ワークフローなし。
 
+## 2026-11-03 23:48 JST 締切前展示の予定実行でゼロ証拠を誤成功扱いしない
+- GitHub Actions実行原本を再確認：`Check real live predeadline racecard` の2026-11-03 JST16:04頃の予定実行 `41593838820` / job `125776466301` は `CARD_PASS` 3レース、`EXHIBITION_PASS` 1レース（`202611030103`）だが、締切12分前のAPI受領・2元展示がそろった証拠がなく`T12_UNVERIFIED`でfailure。2026-11-02のrun `41400724125` も正規締切前展示は未実証。2026-10-31のrun `41190323532` は一度PASSしたが、その1件だけで継続安定稼働とは認めない。
+- 別系統 `CLEAN today's predeadline exhibition source probe` の11/3無人schedule run `41631033275` / job `125900347136` は、実CSV tkz/stt/sui の各151行を読めたが、すべて `eligible_future 0`、アダプタの検証も0件なのにジョブがsuccess。これは**実HTTP CSV取得成功と、締切前の6艇展示データ取得成功を混同する誤った緑判定**。
+- PR #1528をmainへsquash統合（`3a6c794acca6885bebaa941b6895eb2b79ec0b22`）。既存 `scripts/probe_today_beforeinfo.py` をHTTP実行せずimportできる`run(now,event_name)`に整理。**schedule実行では**「全情報源不通」「締切前のtkz/stt同一レース一致ゼロ」「アダプタで6艇検証ゼロ」を別々のRuntimeErrorで失敗扱いにし、6艇検証>=1でのみ `SCHEDULED_PREVIEW_VERIFIED` を出す。手動workflow_dispatchとPRは診断専用で従来どおり0件でも診断結果を返す。T-12基準は緩和していない。
+- 新設 `tests/test_today_beforeinfo_probe.py` で、0件、アダプタ不完全、全情報源不通、6艇証明成功、手動0件の5パターンを独立時計/モックで検証。既存 `.github/workflows/today-beforeinfo-probe.yml` のPR実行にテストを追加。PR CI run `41657163439` job `125990433208` success、5テストPASS。PR上の実CSV取得は23:47頃JSTですでに締切前レース0件であり、**PR成功を当日締切前の運用証拠とは呼ばない**。
+- 既存 schedule は 13:15 / 15:15 / 17:15 / 19:15 JST のまま。GitHub cron遅延により締切後に起動する可能性は引き続き未解決。次は11/4の実schedule run ID・開始時刻・同一レースの両展示ソース時刻・6艇完全性・T-12成立可否を実観測する。新しいジョブや有料サービス、予想ロジック変更なし。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
