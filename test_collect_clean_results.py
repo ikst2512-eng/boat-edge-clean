@@ -9,6 +9,21 @@ import collect_clean_results as c
 
 
 class ResultCollectorTests(unittest.TestCase):
+    def test_workflow_run_fallback_never_trusts_pr_or_foreign_repo(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/collect-clean-results.yml").read_text()
+        self.assertIn("workflow_run:", workflow)
+        self.assertIn("Four-mode prospective capture (research only)", workflow)
+        self.assertIn("types: [completed]", workflow)
+        self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", workflow)
+        self.assertIn(
+            "github.event.workflow_run.head_repository.full_name == github.repository",
+            workflow)
+        self.assertIn("group: clean-main-data-writers", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+        self.assertIn("git add -- confirmed_results/", workflow)
+
     def test_source_validated(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
         row="202610270101,2026-10-27T16:00:00+09:00,1,2,3\n"
