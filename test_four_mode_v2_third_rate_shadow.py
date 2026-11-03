@@ -21,8 +21,8 @@ def save(root, code, tamper=False):
     record = {
         "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
         "race_code": code,
-        "generated_at_jst": "2026-11-03T08:00:00+09:00",
-        "deadline_jst": "2026-11-03T12:00:00+09:00",
+        "generated_at_jst": f"{code[:4]}-{code[4:6]}-{code[6:8]}T08:00:00+09:00",
+        "deadline_jst": f"{code[:4]}-{code[4:6]}-{code[6:8]}T12:00:00+09:00",
         "model_version": VERSION,
         "input_national_win_rates": RATES,
         "modes": modes,
@@ -70,6 +70,39 @@ class ThirdRateShadowTests(unittest.TestCase):
                                  score["gained"] - score["lost"])
             self.assertFalse(result["formal"])
             self.assertFalse(result["independent_holdout_verified"])
+
+    def test_forward_stays_zero_with_only_development_date(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            save(root, "202611030101")
+            with patch("four_mode_v2_third_rate_shadow.compare_race",
+                       return_value={"status": "historical_comparison_only",
+                                     "winning_ticket": "2-1-3"}):
+                report = audit(root)
+            forward = report["date_separated_forward_reference"]
+            self.assertEqual(report["paired_results"], 1)
+            self.assertEqual(forward["paired"], 0)
+            self.assertIn("no_future_outcomes", forward["blocked_reasons"])
+            self.assertFalse(forward["production_promotion_allowed"])
+
+    def test_forward_filters_date_and_remains_unverified(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            save(root, "202611030101")
+            save(root, "202611040101")
+            with patch("four_mode_v2_third_rate_shadow.compare_race",
+                       return_value={"status": "historical_comparison_only",
+                                     "winning_ticket": "2-1-3"}):
+                report = audit(root)
+            forward = report["date_separated_forward_reference"]
+            self.assertEqual(report["paired_results"], 2)
+            self.assertEqual(forward["paired"], 1)
+            self.assertEqual(forward["distinct_paired_days"], 1)
+            self.assertEqual(forward["topn"]["top3"],
+                             report["by_date"]["20261104"]["topn"]["top3"])
+            self.assertIn("first_git_publication_before_cutoff_unverified",
+                          forward["blocked_reasons"])
+            self.assertFalse(forward["production_promotion_allowed"])
 
     def test_nonreproducible_archive_never_scored(self):
         with tempfile.TemporaryDirectory() as td:
