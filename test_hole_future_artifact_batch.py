@@ -370,6 +370,20 @@ class PerRunShadowCoverageTests(unittest.TestCase):
   self.assertEqual(result["downloaded_runs_without_shadow"],1)
   self.assertEqual(result["downloaded_runs_ambiguous_shadow"],1)
   self.assertFalse(result["capture_window_complete"])
+ def test_corrupt_frozen_record_does_not_prove_run_coverage(self):
+  good=json.dumps({"status":"not_published","records":[]})
+  malformed=json.dumps({"status":"research_only_after_confirmed_push",
+                         "records":[None]})
+  result=self.run_collection({1:[good],2:[malformed]})
+  self.assertEqual(result["downloaded_runs_without_shadow"],0)
+  self.assertEqual(result["downloaded_runs_unusable_shadow"],1)
+  self.assertFalse(result["capture_window_complete"])
+ def test_unknown_shadow_status_not_usable_even_with_records_array(self):
+  good=json.dumps({"status":"not_published","records":[]})
+  dubious=json.dumps({"status":"published","records":[]})
+  result=self.run_collection({1:[good],2:[dubious]})
+  self.assertEqual(result["downloaded_runs_unusable_shadow"],1)
+  self.assertFalse(result["capture_window_complete"])
  def test_invalid_json_is_not_usable_shadow_evidence(self):
   ok=json.dumps({"status":"not_published","records":[]})
   result=self.run_collection({1:[ok],2:["{broken"]})
