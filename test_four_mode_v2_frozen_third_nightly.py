@@ -102,6 +102,14 @@ class FrozenNightlyTests(unittest.TestCase):
                 summarize([run(123), run(124)], self.root,
                           self.download, self.root)
 
+    def test_malformed_shadow_row_is_reported_without_crashing_nightly(self):
+        self.evidence["records"] = [None]
+        out = summarize([run(128)], self.root, self.download, self.root)
+        self.assertEqual(out["missing_or_failed_artifacts"], [128])
+        self.assertEqual(out["runs"][0]["error_type"], "ValueError")
+        self.assertEqual(out["status"], "capture_artifacts_unavailable")
+        self.assertFalse(out["cohort_completeness_verified"])
+
     def test_missing_artifact_is_explicit_incomplete_not_zero_hit(self):
         def fail(id, path):
             raise OSError("artifact unavailable")
