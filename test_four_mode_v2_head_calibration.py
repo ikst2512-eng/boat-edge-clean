@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from clean_four_modes import rank_modes
-from research_model import probabilities
+from research_model import probabilities, WIN
 from four_mode_v2_head_calibration import assess, VERSION
 
 RATES = [6.2, 5.1, 4.5, 5.4, 3.8, 4.9]
@@ -48,6 +48,23 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertAlmostEqual(report["boat1_brier_score"],
                                    ((p1-1)**2 + p1**2)/2, places=6)
             self.assertEqual(report["constant_0_5_brier_on_same_cohort"], 0.25)
+            board = probabilities(RATES)
+            heads = [sum(prob for combo, prob in board if combo[0] == i) for i in range(1, 7)]
+            prior = [w / sum(WIN) for w in WIN]
+            expected_model_brier = sum(sum((head[i]-int(i+1==winner))**2 for i in range(6))
+                                       for head, winner in ((heads,1),(heads,2))) / 2
+            expected_prior_brier = sum(sum((prior[i]-int(i+1==winner))**2 for i in range(6))
+                                       for winner in (1,2)) / 2
+            self.assertAlmostEqual(report["six_head_brier_model"], expected_model_brier, places=6)
+            self.assertAlmostEqual(report["six_head_brier_fixed_prior"], expected_prior_brier, places=6)
+            self.assertAlmostEqual(report["six_head_log_loss_model"],
+                                   (-__import__("math").log(heads[0])-__import__("math").log(heads[1]))/2, places=6)
+            self.assertEqual(sum(report[k] for k in (
+                "six_head_brier_model_better_races",
+                "six_head_brier_prior_better_races",
+                "six_head_brier_ties")), 2)
+            self.assertAlmostEqual(report["six_head_model_minus_prior_brier"],
+                                   expected_model_brier-expected_prior_brier, places=6)
             self.assertEqual(report["sample_by_day"]["20261103"]["n"], 2)
             self.assertFalse(report["formal"])
 
@@ -61,6 +78,8 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertEqual(report["invalid_or_untrusted_finish"], 1)
             self.assertEqual(report["matched_valid_finish"], 0)
             self.assertIsNone(report["boat1_brier_score"])
+            self.assertIsNone(report["six_head_brier_model"])
+            self.assertIsNone(report["six_head_log_loss_model"])
             self.assertIsNone(report["observed_boat1_rate"])
 
     def test_nonreproducible_archive_excluded_from_calibration(self):
