@@ -19,14 +19,19 @@ class EvidenceSummaryTests(unittest.TestCase):
             "frozen":1,"paired":1,"pending_results":0,
             "pending_or_unknown_runs":0,"unsuccessful_runs":0,
             "missing_or_failed_artifacts":[],"bad_validation_runs":[],
+            "race_codes_paired":[A],
+            "paired_race_scores":[{"race_code":A}],
             "by_race_day_jst":{
-                "20261104":{"paired":1,"topn":{
+                "20261104":{"paired":1,"race_codes":[A],"topn":{
                     "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
                     "top5":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                     "top10":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                 }}
             },
         }
+        self.capture["topn"] = {
+            key: dict(vals) for key, vals in
+            self.capture["by_race_day_jst"]["20261104"]["topn"].items()}
         self.ledger = {
             "schema":"V2_THIRD_RATE_DURABLE_LEDGER_SCORE_V1",
             "status":"durable_frozen_evidence_scored",
@@ -88,6 +93,35 @@ class EvidenceSummaryTests(unittest.TestCase):
         self.capture["topn"]["top3"]["candidate"] = 0
         md = summarize(self.capture, self.ledger, self.reconciliation)
         self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_same_count_wrong_daily_race_id_must_withhold_accuracy(self):
+        self.capture["by_race_day_jst"]["20261104"]["race_codes"] = [
+            "202611040102"]
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_same_count_wrong_global_scored_identity_must_withhold(self):
+        self.capture["paired_race_scores"] = [{"race_code":"202611040102"}]
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_missing_global_totals_cannot_claim_matched_comparison(self):
+        self.capture.pop("topn")
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+
+    def test_duplicate_daily_roster_cannot_show_comparison(self):
+        self.capture["paired"] = 2
+        group = self.capture["by_race_day_jst"]["20261104"]
+        group["paired"] = 2
+        group["race_codes"] = [A, A]
+        self.capture["race_codes_paired"] = [A, "202611040102"]
+        self.capture["paired_race_scores"] = [
+            {"race_code":A}, {"race_code":"202611040102"}]
+        md = summarize(self.capture, self.ledger, self.reconciliation)
         self.assertNotIn("| TOP3 |", md)
 
     def test_missing_reports_are_diagnostic_not_zero_hits(self):
