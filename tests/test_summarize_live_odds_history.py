@@ -351,6 +351,47 @@ class OddsHistoryTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_fallback_only_trusted_scheduled_upstream_enters_monitoring(self):
+        base = {"event": "workflow_run", "upstream_event": "schedule",
+                "upstream_workflow": "CLEAN prospective pre-cutoff capture",
+                "upstream_branch": "main", "upstream_run_id": 42}
+        record = {"trigger": base}
+        self.assertTrue(history.include_current_event("workflow_run", record))
+        self.assertFalse(history.include_current_event("pull_request", record))
+        for key, value in (("upstream_event", "pull_request"),
+                           ("upstream_workflow", "Some other workflow"),
+                           ("upstream_branch", "feature"),
+                           ("upstream_run_id", None)):
+            changed = dict(base)
+            changed[key] = value
+            self.assertFalse(history.include_current_event("workflow_run", {"trigger": changed}))
+
+    def test_prior_verified_scheduled_fallback_artifact_enters_trend(self):
+        record = {"checked_at_jst": "2026-11-03T14:00:00+09:00",
+                  "source_status": "ok",
+                  "trigger": {"event": "workflow_run", "upstream_event": "schedule",
+                              "upstream_workflow": "CLEAN prospective pre-cutoff capture",
+                              "upstream_branch": "main", "upstream_run_id": 123},
+                  "samples": [race("202611030111", ["valid_200"])]}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(record))
+        upstream = {"id": 999, "event": "workflow_run", "conclusion": "success",
+                    "created_at": "2026-11-03T05:00:00Z"}
+        def fake_api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [upstream]}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 77, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(archive.getvalue())):
+            records, count, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake",
+                {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, 0, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(history.summarize(records)["eventual_valid_races"], 1)
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
