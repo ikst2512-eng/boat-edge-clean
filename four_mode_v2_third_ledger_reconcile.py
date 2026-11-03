@@ -36,15 +36,17 @@ def reconcile(capture, ledger):
     out["capture_codes"] = sorted(left)
     out["missing_from_ledger"] = sorted(set(left) - set(right))
     out["additional_ledger_codes"] = sorted(set(right) - set(left))
-    if (capture.get("status") in ("capture_artifacts_unavailable",
-                                 "incomplete_capture_artifact_evidence",
-                                 "incomplete_run_inventory_coverage")
-            or not capture.get("cohort_completeness_verified")
+    # Matching IDs are not sufficient when either upstream producer has an
+    # unknown/contradictory result status. Only an explicitly scored bounded
+    # capture and a valid durable rollup can establish a matched roster.
+    capture_scored = capture.get("status") == "frozen_artifacts_scored_limited_cohort"
+    ledger_scored = ledger.get("status") == "durable_frozen_evidence_scored"
+    if (not capture_scored
+            or capture.get("cohort_completeness_verified") is not True
             or capture.get("missing_or_failed_artifacts")
             or capture.get("bad_validation_runs")):
         out["status"] = "incomplete_capture_inventory"
-    elif ledger.get("status") in ("ledger_branch_unavailable",
-                                  "incomplete_or_invalid_ledger_evidence") or ledger.get("invalid_files"):
+    elif (not ledger_scored or ledger.get("invalid_files")):
         out["status"] = "invalid_or_unavailable_ledger"
     elif out["missing_from_ledger"]:
         out["status"] = "frozen_predictions_missing_from_ledger"
