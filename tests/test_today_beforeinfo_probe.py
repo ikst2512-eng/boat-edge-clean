@@ -1,0 +1,61 @@
+"""Scheduled predeadline proof is not green merely because CSV requests worked."""
+import unittest
+from datetime import datetime
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
+
+from scripts.probe_today_beforeinfo import run
+
+JST=ZoneInfo("Asia/Tokyo")
+NOW=datetime(2026,11,4,17,30,tzinfo=JST)
+CODE="202611041911"
+
+
+def row(code=CODE, clock="18:00", observed="2026-11-04T17:20:00+09:00"):
+    return {"レースコード":code,"締切時刻":clock,"取得日時":observed}
+
+
+class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
+    def test_scheduled_zero_matching_future_is_failure_not_green(self):
+        # Three real HTTP CSV responses, but no future predeadline race.
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row(clock="17:00")],"a"*64)):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_MATCHED_PREDEADLINE_RACES"):
+                run(now=NOW,event_name="schedule")
+
+    def test_scheduled_zero_six_lane_verification_fails(self):
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row()],"a"*64)),patch(
+                   "scripts.probe_today_beforeinfo._fetch_preview",
+                   return_value=(None,{"status":"invalid_or_incomplete_exhibition"})):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_VERIFIED_SIX_LANE"):
+                run(now=NOW,event_name="schedule")
+
+    def test_scheduled_verified_six_lane_passes(self):
+        preview={"racers":[{"lane":i} for i in range(1,7)],
+                 "start_exhibition":[{"lane":i} for i in range(1,7)]}
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row()],"a"*64)),patch(
+                   "scripts.probe_today_beforeinfo._fetch_preview",
+                   return_value=(preview,{"status":"ok"})):
+            result=run(now=NOW,event_name="schedule")
+        self.assertEqual(result["eligible_count"],1)
+        self.assertEqual(result["verified_count"],1)
+        self.assertEqual(result["verified_races"],[CODE])
+
+    def test_no_source_is_explicit_failure_on_schedule(self):
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=OSError("source down")):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_ALL_SOURCES_UNAVAILABLE"):
+                run(now=NOW,event_name="schedule")
+
+    def test_manual_diagnostics_can_report_no_evidence_without_fake_success(self):
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row(clock="17:00")],"a"*64)):
+            result=run(now=NOW,event_name="workflow_dispatch")
+        self.assertEqual(result["verified_count"],0)
+        self.assertEqual(result["eligible_count"],0)
+
+
+if __name__ == "__main__":
+    unittest.main()
