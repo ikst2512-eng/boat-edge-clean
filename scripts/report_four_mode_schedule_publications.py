@@ -34,6 +34,7 @@ def inspect(run, root):
               "failed_steps": run.get("failed_steps", []),
               "artifact_present": False, "source_title_rows": None,
               "source_card_rows": None, "generated_today": None,
+              "excluded_races": None, "excluded_race_count": None,
               "newly_generated": None, "staged_valid": None,
               "publication_outcome": None, "claimed_added_forecasts": None,
               "claimed_commit_sha": None, "remote_main_verified": False,
@@ -60,6 +61,24 @@ def inspect(run, root):
         result["source_card_rows"] = count(status, "published_card_rows")
         result["generated_today"] = count(status, "eligible_forecasts_today")
         result["newly_generated"] = count(status, "last_run_new_count")
+        excluded = status.get("excluded")
+        if isinstance(excluded, dict) and all(
+            isinstance(reason, str) and type(number) is int and number >= 0
+            for reason, number in excluded.items()
+        ):
+            result["excluded_race_count"] = sum(excluded.values())
+        details = status.get("excluded_races")
+        if isinstance(details, list) and len(details) <= 30 and all(
+            isinstance(row, dict)
+            and isinstance(row.get("race_code"), str)
+            and len(row["race_code"]) == 12
+            and row["race_code"].isdigit()
+            and row["race_code"].startswith(day)
+            and isinstance(row.get("reason"), str)
+            and 0 < len(row["reason"]) <= 64
+            for row in details
+        ):
+            result["excluded_races"] = details
     if staging is not None:
         result["staged_valid"] = count(staging, "staged_valid")
     if publication is not None and publication.get("outcome") in (
@@ -142,6 +161,12 @@ def main():
     print("FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE=" + json.dumps({
         "scheduled_runs_checked": result["scheduled_runs_checked"],
         "history_runs_omitted": result["history_runs_omitted"],
+        "excluded_race_evidence": [
+            {"run_id": row["run_id"],
+             "excluded_race_count": row["excluded_race_count"],
+             "excluded_races": row["excluded_races"]}
+            for row in result["runs"] if row["excluded_race_count"]
+        ],
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
