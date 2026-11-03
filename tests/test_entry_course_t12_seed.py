@@ -30,6 +30,34 @@ def title():
     return ("レースコード,電話投票締切予定\n"+CODE+",18:33\n").encode()
 
 class T12SeedTests(unittest.TestCase):
+    def test_missing_published_title_uses_timestamped_live_holding_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);store={}
+            def save(code):return root/(code+".json")
+            def predictor(day,venue,race):save(CODE).write_bytes(raw())
+            out=seed_once(now=lambda:NOW,
+                fetch_title=lambda url:(_ for _ in ()).throw(OSError("daily CSV not published")),
+                fallback_title=lambda day:(
+                    [{"レースコード":CODE,"電話投票締切予定":"18:33"}],
+                    NOW,"e"*64),
+                predictor=predictor,record_path=save,
+                ledger_ops=(store.get,lambda key,value:store.setdefault(key,value)))
+            self.assertEqual(out["title_schedule_source"],"live_holding_schedule")
+            self.assertEqual(out["stored_count"],1)
+            self.assertEqual(store["t12_baselines/20261103/"+CODE+".json"],raw())
+    def test_bad_live_holding_timestamp_is_not_used(self):
+        with self.assertRaisesRegex(ValueError,"live_schedule_receipt_invalid"):
+            seed_once(now=lambda:NOW,
+                fetch_title=lambda url:(_ for _ in ()).throw(OSError("daily missing")),
+                fallback_title=lambda day:(
+                    [{"レースコード":CODE,"電話投票締切予定":"18:33"}],
+                    NOW+timedelta(minutes=2),"e"*64),
+                predictor=lambda *a:self.fail("future schedule not allowed"),
+                ledger_ops=(lambda p:None,lambda p,b:self.fail("not allowed")))
+    def test_bad_csv_schema_does_not_silently_switch_source(self):
+        with self.assertRaisesRegex(ValueError,"t12_title_source_schema_invalid"):
+            seed_once(now=lambda:NOW,fetch_title=lambda url:b"foo,bar\\n1,2\\n",
+                fallback_title=lambda day:self.fail("malformed published source must fail"))
     def test_selector_rejects_after_cutoff_and_very_early(self):
         rows=[{"レースコード":CODE,"電話投票締切予定":"18:33"},
               {"レースコード":"202611030709","電話投票締切予定":"18:10"}]
