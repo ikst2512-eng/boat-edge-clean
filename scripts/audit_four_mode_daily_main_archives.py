@@ -412,6 +412,30 @@ def github_observation_failure_run_ids(day, evidence_reports):
     return sorted(failures)
 
 
+def final_evidence_failure_run_ids(day, evidence_reports):
+    """Escalate only explicit failed final evidence gates for this JST day.
+
+    Older runs lack this artifact: their result remains unknown, not passed.
+    """
+    failures = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if not isinstance(row, dict) or row.get("final_evidence_verdict_status") != "failed":
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None or stamp.astimezone(JST).strftime("%Y%m%d") != day:
+                    continue
+            except (KeyError, AttributeError, ValueError, TypeError):
+                continue
+            rid = row.get("run_id")
+            if type(rid) is int and rid > 0:
+                failures.add(rid)
+    return sorted(failures)
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -470,6 +494,7 @@ def main():
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
     report["unpublished_new_candidate_runs"] = unpublished_new_candidate_runs(day, evidence)
     report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
+    report["final_evidence_failure_run_ids"] = final_evidence_failure_run_ids(day, evidence)
     report["github_observation_failure_run_ids"] = github_observation_failure_run_ids(day, evidence)
     verified_claims, mismatched_claims = reconcile_claimed_pushes(
         day, paths, additions, evidence)
@@ -495,6 +520,11 @@ def main():
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["unpublished_new_candidate_runs"]):
         print("::error::Same-day V2 capture staged or generated new races without a complete publication claim")
+        raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["final_evidence_failure_run_ids"]):
+        print("::error::Same-day final V2 publication evidence gate explicitly failed")
         raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
