@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ai-repair-pr-review.yml
+      - test_ai_repair_pr_review.py
   workflow_dispatch:
     inputs:
       pr_number:
@@ -22,6 +23,7 @@ jobs:
         with:
           persist-credentials: false
       - run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ai-repair-pr-review.yml"); puts "workflow YAML parsed"'
+      - run: python -m unittest -v test_ai_repair_pr_review
   verify:
     if: github.event_name == 'workflow_dispatch'
     needs: syntax
