@@ -23,6 +23,19 @@ class SameJobTest(unittest.TestCase):
         data.update(kwargs)
         self.path.write_text(json.dumps(data))
 
+    def test_hole_shadow_step_is_independent_of_third_rate_step_failure(self):
+        workflow = (Path(__file__).parent /
+                    ".github/workflows/four-mode-prospective-capture.yml").read_text(
+                        encoding="utf-8")
+        third = workflow.index("      - name: Freeze third-place research shadow")
+        hole = workflow.index("      - name: Freeze shadow after confirmed publication")
+        stage = workflow.index("      - name: Record per-stage capture verdict")
+        self.assertLess(third, hole)
+        self.assertLess(hole, stage)
+        block = workflow[hole:stage]
+        self.assertIn("if: ${{ always() && github.event_name != 'pull_request' }}", block)
+        self.assertIn("python hole_shadow_same_job_capture.py", block)
+
     def test_missing_or_unpublished_never_freezes(self):
         self.assertEqual(capture_published(self.root, self.path)["status"], "no_publication_evidence")
         self.put(outcome="no_eligible_candidates")
