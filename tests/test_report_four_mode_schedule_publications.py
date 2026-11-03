@@ -361,7 +361,7 @@ class ScheduledEvidenceTest(unittest.TestCase):
                 "records": [{"race_code": "202611040101",
                              "first_add_commit": "a" * 40,
                              "status": "github_server_observed_before_t_minus_12",
-                             "github_api_server_date_utc": "2026-11-04T02:00:00+00:00",
+                             "github_api_server_date_utc": "2026-11-04T03:00:00+00:00",
                              "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
                              "first_add_blob_matches_remote": True,
                              "original_sha256": "f" * 64}]})
