@@ -298,6 +298,29 @@ def reconcile_research_rosters_with_main(day, paths, additions, evidence_reports
     return matched, mismatched, unknown
 
 
+def ledger_failure_run_ids(day, evidence_reports):
+    """Only explicit failures on the current JST day; missing is unknown."""
+    bad = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if not isinstance(row, dict):
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None or stamp.astimezone(JST).strftime("%Y%m%d") != day:
+                    continue
+            except (KeyError, AttributeError, ValueError, TypeError):
+                continue
+            run_id = row.get("run_id")
+            if (type(run_id) is int and run_id > 0
+                    and (row.get("third_rate_ledger_outcome") == "failure"
+                         or row.get("third_rate_ledger_status") == "ledger_preservation_failed")):
+                bad.add(run_id)
+    return sorted(bad)
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -354,6 +377,7 @@ def main():
             evidence.append(None)
     eligible_ids = positive_eligible_run_ids(day, evidence)
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
+    report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
     verified_claims, mismatched_claims = reconcile_claimed_pushes(
         day, paths, additions, evidence)
     report["claimed_push_first_add_verified_runs"] = verified_claims
@@ -374,6 +398,11 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["third_rate_ledger_failure_run_ids"]):
+        print("::error::Durable third-rate ledger explicitly failed in inspected capture evidence")
+        raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and mismatched_rosters):
