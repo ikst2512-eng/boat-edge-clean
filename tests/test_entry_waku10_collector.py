@@ -36,6 +36,48 @@ class CollectorWaku10Tests(unittest.TestCase):
             self.assertEqual(len(content["waku10_course"]),120)
             self.assertEqual(len(content["waku10_course_plus_frame_st_proxy"]),120)
             self.assertFalse(content["formal"])
+    def test_repeated_t2_job_reuses_original_without_downloading_or_predicting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,evidence=setup(tmp)
+            storage={}
+            ops=(storage.get,lambda path,data:storage.setdefault(path,data))
+            first=attempt(root,now=lambda:NOW,card_reader=lambda *x:card,
+                waku_fetch=lambda url:encode(evidence["row"]),
+                prefetch=lambda day:self.fail("no history"),ledger_ops=ops)
+            self.assertTrue(first["stored"])
+            previous=storage[first["path"]]
+            second=attempt(root,now=lambda:NOW,
+                card_reader=lambda *x:self.fail("must reuse immutable capture"),
+                waku_fetch=lambda url:self.fail("no Waku10 refetch"),
+                prefetch=lambda day:self.fail("no historical fetch"),
+                ledger_ops=(storage.get,lambda path,data:self.fail("no overwrite")))
+            self.assertEqual(second["status"],"already_identical_waku10_pilot")
+            self.assertEqual(second["sha256"],first["sha256"])
+            self.assertEqual(storage[first["path"]],previous)
+    def test_corrupt_preexisting_waku10_does_not_recompute_or_replace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,evidence=setup(tmp)
+            key="waku10/20261103/"+evidence["race_code"]+".json"
+            existing={key:b"not valid json"}
+            with self.assertRaisesRegex(ValueError,"waku10_archive_json_invalid"):
+                attempt(root,now=lambda:NOW,
+                    card_reader=lambda *x:self.fail("do not reconstruct corrupt evidence"),
+                    waku_fetch=lambda url:self.fail("do not overwrite"),
+                    ledger_ops=(existing.get,lambda *a:self.fail("no overwrite")))
+    def test_original_capture_bound_to_different_t12_baseline_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,evidence=setup(tmp)
+            storage={}
+            first=attempt(root,now=lambda:NOW,card_reader=lambda *x:card,
+                waku_fetch=lambda url:encode(evidence["row"]),
+                ledger_ops=(storage.get,lambda key,data:storage.setdefault(key,data)))
+            original=json.loads(storage[first["path"]])
+            original["reference_t12_top10"]=["1-2-3"]
+            storage[first["path"]]=(json.dumps(original)+"\\n").encode()
+            with self.assertRaisesRegex(ValueError,"existing_waku10_archive_reference_mismatch"):
+                attempt(root,now=lambda:NOW,
+                    card_reader=lambda *x:self.fail("do not refetch mismatched archive"),
+                    ledger_ops=(storage.get,lambda *a:self.fail("no overwrite")))
     def test_swapped_course_does_not_fake_10_qualified_starts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,evidence=setup(tmp)
