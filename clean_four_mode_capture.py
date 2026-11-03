@@ -91,9 +91,11 @@ def collect(root=ROOT, now=None, read=read_rows):
             outcomes["openapi_direct"]={"status":"unavailable","error_type":type(exc).__name__,
                                         "http_status":getattr(exc,"code",None)}
     if (len(datasets)!=2
-            or not datasets["title"][0] or not datasets["race_cards"][0]
-            or not ({row.get("レースコード") for row in datasets["title"][0]}
-                    & {row.get("レースコード") for row in datasets["race_cards"][0]})):
+            or (datasets["title"][0] and datasets["race_cards"][0]
+                and not ({row.get("レースコード") for row in datasets["title"][0]}
+                         & {row.get("レースコード") for row in datasets["race_cards"][0]}))):
+        # For an empty side, retain the existing granular empty_titles /
+        # empty_cards diagnostic and original row counts below.
         return {"new_saved":[],"excluded":{},"date_jst":hd,
                 "source_status":"source_blocked" if outcomes.get("direct_error",{}).get("http_status")==403 else "source_incomplete","source_probes":outcomes,
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
