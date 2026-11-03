@@ -256,7 +256,11 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 if created > now:
                     continue
                 if run.get("status") != "completed":
-                    return "prior_fallback_observed"
+                    # Operational odds runs share a serialized concurrency group.
+                    # An overlapping in-progress run here belongs to another
+                    # group (for example, an ineligible PR-origin no-op) and
+                    # cannot prove that this slot is already being sampled.
+                    continue
                 if run.get("conclusion") == "success":
                     run_id = run.get("id")
                     if type(run_id) is not int or run_id <= 0:
