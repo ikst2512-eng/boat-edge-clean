@@ -61,7 +61,7 @@ class DailyMainArchivesTest(unittest.TestCase):
     @staticmethod
     def positive_capture(at="2026-11-04T00:07:00Z", eligible=3, present=True):
         return {"runs": [{"run_id": 415, "created_at": at,
-                          "artifact_present": present, "generated_today": eligible}]}
+                          "artifact_present": present, "generated_today": 0, "newly_generated": eligible}]}
 
     def test_cross_day_or_missing_artifact_not_positive(self):
         missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
@@ -72,6 +72,19 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertFalse(scheduled_audit_alert(missing, "schedule",
                                                [self.positive_capture(eligible=0)]))
         self.assertEqual(positive_eligible_run_ids("20261104", [self.positive_capture()]), [415])
+
+    def test_existing_local_archives_do_not_prove_new_candidates(self):
+        missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
+        record = self.positive_capture(eligible=0)
+        record["runs"][0]["generated_today"] = 149
+        self.assertFalse(scheduled_audit_alert(missing, "schedule", [record]))
+        self.assertEqual(positive_eligible_run_ids("20261104", [record]), [])
+
+    def test_staged_valid_and_claimed_push_are_positive(self):
+        for key in ("staged_valid", "claimed_added_forecasts"):
+            report = self.positive_capture(eligible=0)
+            report["runs"][0][key] = 2
+            self.assertEqual(positive_eligible_run_ids("20261104", [report]), [415])
 
     def test_positive_same_day_from_dispatch_evidence(self):
         missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
