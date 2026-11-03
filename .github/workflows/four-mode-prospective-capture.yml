@@ -23,6 +23,8 @@ on:
       - test_audit_new_v2_staged.py
       - hole_shadow_same_job_capture.py
       - third_rate_same_job_capture.py
+      - third_rate_evidence_ledger.py
+      - test_third_rate_evidence_ledger.py
       - four_mode_v2_third_rate_shadow.py
       - test_third_rate_same_job_capture.py
       - test_hole_shadow_same_job_capture.py
@@ -51,7 +53,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_third_rate_same_job_capture test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -241,12 +243,20 @@ jobs:
         if: ${{ always() && github.event_name != 'pull_request' }}
         run: |
           python hole_shadow_same_job_capture.py
+      - name: Preserve frozen third-rate research evidence in append-only Git branch
+        id: third_rate_ledger
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python third_rate_evidence_ledger.py
       - name: Record per-stage capture verdict
         if: always()
         env:
           SOURCE_OUTCOME: ${{ steps.source_capture.outcome }}
           STAGING_OUTCOME: ${{ steps.receipt_staging.outcome }}
           TESTS_OUTCOME: ${{ steps.before_publish_tests.outcome }}
+          LEDGER_OUTCOME: ${{ steps.third_rate_ledger.outcome }}
           THIRD_RATE_SHADOW_OUTCOME: ${{ steps.third_rate_shadow.outcome }}
           HOLE_SHADOW_OUTCOME: ${{ steps.hole_shadow.outcome }}
         run: |
@@ -255,7 +265,8 @@ jobs:
           from pathlib import Path
           evidence = Path("four-mode-evidence")
           evidence.mkdir(exist_ok=True)
-          states = {"source_capture": os.environ["SOURCE_OUTCOME"],
+          states = {"third_rate_ledger": os.environ["LEDGER_OUTCOME"],
+                    "source_capture": os.environ["SOURCE_OUTCOME"],
                     "before_publish_tests": os.environ["TESTS_OUTCOME"],
                     "receipt_staging": os.environ["STAGING_OUTCOME"],
                     # Research failures remain visible and never overwrite
@@ -337,6 +348,7 @@ jobs:
             four-mode-evidence/source-links.json
             four-mode-evidence/hole-shadow.json
             four-mode-evidence/third-rate-shadow.json
+            four-mode-evidence/third-rate-ledger.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30
