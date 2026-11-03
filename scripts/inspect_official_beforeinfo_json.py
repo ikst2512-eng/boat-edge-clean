@@ -38,6 +38,7 @@ def inspect(payload):
     exhibition = unique_six and exhibition_time_count == 6
     start = main.get("sttenjiinfolist")
     start_valid = False
+    exhibition_course_to_boat = {}
     if isinstance(start, list) and len(start) == 6:
         boat_ids = [str(row.get("teino")) for row in start if isinstance(row, dict)]
         courses = [str(row.get("cs")) for row in start if isinstance(row, dict)]
@@ -49,6 +50,9 @@ def inspect(payload):
         start_valid = (len(boat_ids) == 6 and set(boat_ids) == set("123456")
                        and len(courses) == 6 and set(courses) == set("123456")
                        and st_values_valid)
+        if start_valid:
+            exhibition_course_to_boat = {str(row["cs"]): str(row["teino"]) for row in start}
+            exhibition_course_to_boat = dict(sorted(exhibition_course_to_boat.items(), key=lambda item: int(item[0])))
     return {
         "race_number": str(main.get("rno", "")),
         "deadline_display": main.get("deadline"),
@@ -60,6 +64,7 @@ def inspect(payload):
         "start_exhibition_rows": len(start) if isinstance(start, list) else None,
         "start_exhibition_six_rows_observed": isinstance(start, list) and len(start) == 6,
         "start_exhibition_six_valid_rows": start_valid,
+        "exhibition_course_to_boat": exhibition_course_to_boat,
         "status": "six_exhibition_values_observed_not_time_certified" if exhibition
                   else "official_racecard_without_complete_exhibition_values",
         "t12_eligible": False,
