@@ -107,6 +107,9 @@ def main():
         if result["failed_run_ids"]:
             print("::error::Scheduled V2 captures failed earlier today, outside bounded artifact audit")
             raise SystemExit(2)
+        if result["pending_or_unknown_run_ids"]:
+            print("::error::Scheduled V2 captures are pending or have no confirmed outcome; day cannot be certified")
+            raise SystemExit(2)
 
 
 if __name__ == "__main__":
