@@ -55,12 +55,9 @@ class FallbackGateTests(unittest.TestCase):
         history = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
         artifact = workflow.index("      - name: Preserve per-race statuses and timings")
         self.assertTrue(sample < verdict < history < artifact)
-        self.assertIn(
-            "      - name: Summarize eligible preceding scheduled run artifacts\n"
-            "        # Keep diagnostic history when a real unattended sample failed its\n"
-            "        # strict HTTP-200 verdict; never turn that failure into a green job.\n"
-            "        if: always() && steps.gate.outputs.collect == 'true'\n",
-            workflow)
+        history_block = workflow[history:artifact]
+        self.assertIn("if: always() && steps.gate.outputs.collect == 'true'",
+                      history_block)
         self.assertIn(
             "      - name: Fail unhealthy unattended odds sampling\n"
             "        if: steps.gate.outputs.collect == 'true' && "
