@@ -58,6 +58,12 @@
 - PR CI run `41645484616` は従来回帰テストがコメント全文固定チェックを行うため失敗し、コメント変更に依存しないテストへ改善して再実行。`41645584262` job `125949925323` success、20+14+39+5=78件の回帰テスト成功、PR HTTP200は1/1（無人定時起動成功には含めない）。
 - 11/4の実測では無人schedule/正規fallbackの成功・失敗runから、開始時刻、HTTP証拠、履歴ステップの実行時間、タイムアウト失敗時のartifact有無を確認。Render有料Cronは未作成。
 
+## 2026-11-03 22:45 JST 過去日の開催場表示フォールバック拡張（P0）
+- PR #1488 main統合（`2094545487ddf4ce0fda4b400946f4fbdadb9b43`）。`index.html`の`loadHeldVenues`で、GitHub Rawの日付別`schedule_snapshots`取得が通信例外やHTTP 403/429になると、**過去日でも既存のCLEAN日程API→日付一致の結果CSV開催場復元へ進まない**コード分岐を修正。過去日に限り、アーカイブの通信エラーまたは任意の非OK HTTPレスポンスで既存の代替経路を試す。正規アーカイブ200優先、当日/未来の404未公開表示・結果混入防止・予想締切前判定は不変。
+- 既存`tests/site-regression.cjs`を更新し、GitHub Rawの通信障害・403/429・5xxで過去日の代替分岐が存在することを静的に確認。PR CI `41646893137` のcheckとpublish-smoke成功、`41646893036` のnavigation-contractとbrowser-pr-smoke成功。ほかにDaily findings/official odds/cross-model/dual verification/entry-orderのPR checksも成功。CIは**公開本番ブラウザの実測ではない**。
+- RenderでこのPRコミットに対応したデプロイ成功、本番APIとPagesの公開画面実機確認は別に行う。2026-10-31等の過去レースで開催場→出走表→予想→結果が通し表示されるか未実証のため、P0は完了扱いにしない。
+- 旧リポジトリ`boat-edge`削除なし。現在確認されたRender workspace内Webサービスは`boat-edge-clean`1件で、現行フロント主要API・スナップショット通信先はCLEAN系。旧GitHub Pages/外部リンク/古い資産の参照関係が完全に除去済みとはまだ確定しないため、破壊的な整理は保留。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
