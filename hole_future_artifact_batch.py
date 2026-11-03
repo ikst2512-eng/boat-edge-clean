@@ -14,13 +14,15 @@ from pathlib import Path
 
 from hole_capture_artifact_inventory import api
 from hole_future_shadow_audit import audit, POLICIES, TOPS
+from hole_future_locked_eval import verify_locked_selection
 
 def aggregate(root,artifacts):
     root=Path(root);artifacts=Path(artifacts)
+    verify_locked_selection()
     if artifacts.is_symlink() or not artifacts.is_dir():
         return {"status":"no_artifact_directory","formal":False,"comparable":0}
     files=sorted(p for p in artifacts.rglob("hole-shadow.json") if p.is_file() and not p.is_symlink())
-    examined=0;all_rows={};duplicates=set();excluded=Counter();nonusable=Counter()
+    examined=0;all_rows={};duplicates=set();excluded=Counter();nonusable=Counter();shadow_statuses=Counter()
     for path in files:
         examined+=1
         try:
@@ -28,6 +30,7 @@ def aggregate(root,artifacts):
             records=data.get("records") if isinstance(data,dict) else None
             if not isinstance(records,list):
                 nonusable["invalid_record_set"]+=1;continue
+            shadow_statuses[str(data.get("status","missing_status"))]+=1
             # Record duplicate codes regardless of whether a result is currently settled.
             for record in records:
                 code=record.get("race_code") if isinstance(record,dict) else None
@@ -73,6 +76,7 @@ def aggregate(root,artifacts):
             "duplicate_codes_quarantined":sorted(duplicates),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
             "excluded_by_reason":dict(excluded),"invalid_artifacts":dict(nonusable),
+            "shadow_status_counts":dict(shadow_statuses),
             "hits":hits,"delta":delta,
             "warning":"These are result-blind same-job locally frozen snapshots, NOT independently verified first receipts. Empty or incomplete capture window cannot establish accuracy."}
 
@@ -106,6 +110,7 @@ def collect_recent(root,repo,token,limit=20):
         result=aggregate(root,dest)
     result["runs_inspected"]=len(candidates)
     result["runs_downloaded"]=len(downloaded)
+    result["downloaded_runs_without_shadow"]=max(0,len(downloaded)-result["artifact_files"])
     result["run_download_failures"]=failures
     result["run_list_limit"]=limit
     result["capture_window_complete"]=False
