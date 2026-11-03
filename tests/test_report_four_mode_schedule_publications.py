@@ -300,6 +300,35 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(data["research_roster_status_counts"]["unknown"], 1)
         self.assertEqual(data["research_roster_status_counts"]["matched"], 0)
 
+    def test_remote_server_observation_failure_is_not_hidden_in_successful_capture(self):
+        def download(run_id, root):
+            self.save(root, "four-mode-evidence/publication.json",
+                      {"outcome": "no_eligible_candidates"})
+            self.save(root, "four-mode-evidence/stages.json", {
+                "github_server_observation": "failure" if run_id == 123 else "success",
+                "github_observation_ledger": "failure" if run_id == 123 else "success"})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "no_confirmed_publication",
+                "observed_before_t_minus_12": 0,
+                "observed_after_t_minus_12": 0, "unverified_count": 0})
+            self.save(root, "four-mode-evidence/github-server-observation-ledger.json",
+                      {"status": "observation_preservation_failed"} if run_id == 123
+                       else {"status": "no_published_forecast"})
+        result = report({"runs": [self.RUN, {**self.RUN, "id": 124}]}, download)
+        self.assertEqual(result["github_observation_coverage"]["failure"], 1)
+        self.assertEqual(result["github_observation_ledger_coverage"]["success"], 1)
+        self.assertEqual(result["github_observation_failure_run_ids"], [123])
+        self.assertEqual(result["github_observation_ledger_failure_run_ids"], [123])
+        self.assertEqual(result["runs"][1]["github_observation_before_t12"], 0)
+        self.assertFalse(result["remote_main_verified"])
+
+    def test_legacy_server_observation_absent_is_unknown(self):
+        result = report({"runs": [self.RUN]}, lambda *_: None)
+        self.assertEqual(result["github_observation_coverage"]["unknown"], 1)
+        self.assertEqual(result["github_observation_ledger_coverage"]["unknown"], 1)
+        self.assertEqual(result["github_observation_failure_run_ids"], [])
+
     def test_ledger_probe_and_failure_are_distinguished_from_capture_success(self):
         def download(run_id, root):
             self.save(root, "four-mode-evidence/publication.json",
