@@ -39,6 +39,16 @@ def fixture():
             pairs[f"{left}_vs_{right}"][key] = {
                 "both": min(a, b), "left_only": max(a-b, 0),
                 "right_only": max(b-a, 0), "neither": 8-max(a,b)}
+    report["groups"]["20261103"]["miss_reasons"] = {
+        "narrow": {"covered": 2, "winner_head_absent": 4,
+                   "winner_second_pair_absent": 1, "winner_third_absent": 1},
+        "hit": {"covered": 5, "winner_head_absent": 2,
+                "winner_second_pair_absent": 1, "winner_third_absent": 0},
+        "balance": {"covered": 6, "winner_head_absent": 1,
+                    "winner_second_pair_absent": 0, "winner_third_absent": 1},
+        "hole": {"covered": 5, "winner_head_absent": 1,
+                 "winner_second_pair_absent": 1, "winner_third_absent": 1},
+    }
     report["groups"]["20261103"]["paired_modes"] = pairs
     report["changed_top3_cases"] = [
         {"race_code": "202611030101", "date_jst": "20261103", "venue_code": "01",
@@ -66,6 +76,37 @@ class V2ReadinessTests(unittest.TestCase):
         self.assertIn("insufficient_mature_result_coverage", r["blocking_reasons"])
         self.assertEqual(r["mature_outcome_denominator"], 66)
         self.assertAlmostEqual(r["mature_result_coverage"], 8/66, places=6)
+
+    def test_mode_miss_funnel_separates_head_pair_and_third(self):
+        out = summarize(fixture())["mode_miss_funnel"]
+        self.assertEqual(out["hit"]["paired_races"], 8)
+        self.assertEqual(out["hit"]["covered_full_ticket_list"], 5)
+        self.assertEqual(out["hit"]["head_absent"], 2)
+        self.assertEqual(out["hit"]["head_represented_in_any_ticket"], 6)
+        self.assertEqual(out["hit"]["head_and_second_pair_represented"], 5)
+        self.assertEqual(out["balance"]["head_and_second_pair_represented"], 7)
+        self.assertEqual(out["narrow"]["ticket_count"], 5)
+        self.assertEqual(out["hole"]["ticket_count"], 22)
+
+    def test_rejects_unsupported_miss_reason(self):
+        d = fixture()
+        d["groups"]["20261103"]["miss_reasons"]["hit"]["made_up"] = 0
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_rejects_miss_partition_count_mismatch(self):
+        d = fixture()
+        d["groups"]["20261103"]["miss_reasons"]["hit"]["winner_head_absent"] += 1
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_rejects_full_list_coverage_mismatch(self):
+        d = fixture()
+        reasons = d["groups"]["20261103"]["miss_reasons"]["hit"]
+        reasons["covered"] -= 1
+        reasons["winner_head_absent"] += 1
+        with self.assertRaises(ValueError):
+            summarize(d)
 
     def test_rejects_false_paired_mode_counts(self):
         d = fixture()
