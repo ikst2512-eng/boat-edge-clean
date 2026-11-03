@@ -208,6 +208,34 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(result["research_roster_mismatch_run_ids"], [123])
         self.assertEqual(result["runs"][0]["publication_outcome"], "pushed_to_main")
 
+    def test_third_rate_ineligible_double_count_detected_independently(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 2})
+            codes = ["202611040101", "202611040102"]
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": "a" * 40, "published_forecasts": 2,
+                "frozen_before_t_minus_12": 1, "ineligible_count": 1,
+                "validation_error_count": 1,
+                "records": [{"race_code": codes[0],
+                             "status": "frozen_in_same_job_before_t_minus_12"},
+                            {"race_code": codes[1], "status": "validation_error"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": "a" * 40, "published_new_count": 2,
+                "frozen_count": 1, "validation_error_count": 1,
+                "records": [{"race_code": codes[0],
+                             "status": "shadow_frozen_unverified"},
+                            {"race_code": codes[1], "status": "validation_error"}]})
+        result = report({"runs": [self.RUN]}, download)
+        evidence = result["runs"][0]["research_roster_evidence"]
+        self.assertEqual(evidence["status"], "mismatch")
+        self.assertEqual(evidence["research"], "third")
+        self.assertEqual(evidence["field"], "ineligible_count")
+        self.assertEqual(result["research_roster_mismatch_run_ids"], [123])
+
     def test_research_roster_mismatch_does_not_relabel_push(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/publication.json", {

@@ -67,6 +67,16 @@ def research_roster_evidence(publication, third, hole):
         rosters.append(set(codes))
     if rosters[0] != rosters[1]:
         return {"status": "mismatch", "reason": "shadow_race_rosters_disagree"}
+    # The three third-rate verdicts must form a strict partition, including
+    # the independently accounted validation-error status.
+    if "ineligible_count" in third:
+        actual = sum(row.get("status") == "ineligible" for row in third["records"])
+        reported = third["ineligible_count"]
+        if type(reported) is not int or reported != actual:
+            return {"status": "mismatch",
+                    "reason": "shadow_freeze_accounting_mismatch",
+                    "research": "third", "field": "ineligible_count",
+                    "reported": reported, "record_count": actual}
     # Match of IDs is not proof that all records were successfully frozen.
     # Where the producer supplies aggregate verdicts, they must agree with
     # each actual per-race status. Older hole artifacts without the new

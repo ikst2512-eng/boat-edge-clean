@@ -55,6 +55,8 @@ class CaptureThirdRateTests(unittest.TestCase):
         evidence = freeze_published(self.root, self.publication, NOW, self.git)
         self.assertEqual(evidence["published_forecasts"], 1)
         self.assertEqual(evidence["frozen_before_t_minus_12"], 1)
+        self.assertEqual(evidence["ineligible_count"], 0)
+        self.assertEqual(evidence["validation_error_count"], 0)
         item = evidence["records"][0]
         self.assertEqual(item["race_code"], CODE)
         self.assertEqual(item["status"], "frozen_in_same_job_before_t_minus_12")
@@ -127,6 +129,9 @@ class CaptureThirdRateTests(unittest.TestCase):
         self.assertEqual(report["published_forecasts"], 2)
         self.assertEqual(report["frozen_before_t_minus_12"], 1)
         self.assertEqual(report["validation_error_count"], 1)
+        self.assertEqual(report["ineligible_count"], 0)
+        self.assertEqual(report["frozen_before_t_minus_12"] + report["ineligible_count"] +
+                         report["validation_error_count"], report["published_forecasts"])
         self.assertEqual([row["status"] for row in report["records"]],
                          ["frozen_in_same_job_before_t_minus_12", "validation_error"])
         self.assertEqual([row["race_code"] for row in report["records"]], [CODE, second])
