@@ -58,6 +58,38 @@ class T12SeedTests(unittest.TestCase):
             self.assertEqual(len(matching),1)
             self.assertEqual(matching[0][1],CODE)
             self.assertEqual(matching[0][2]["predictions"],base()["predictions"])
+    def test_repeated_scheduled_run_reuses_original_without_predicting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store={"t12_baselines/20261103/"+CODE+".json":raw()}
+            def no_prediction(*args):
+                self.fail("already archived: never regenerate")
+            first=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+                predictor=no_prediction,
+                record_path=lambda code:self.fail("no local file needed"),
+                ledger_ops=(store.get,lambda k,v:self.fail("must not overwrite")))
+            self.assertEqual(first["stored_count"],1)
+            self.assertEqual(first["results"][0]["status"],"existing_identical_t12_baseline")
+            self.assertEqual(first["results"][0]["sha256"],__import__("hashlib").sha256(raw()).hexdigest())
+    def test_existing_wrong_race_rejected_without_overwrite(self):
+        bad=base()
+        bad["race_code"]="202611030709"
+        store={"t12_baselines/20261103/"+CODE+".json":json.dumps(bad).encode()}
+        output=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+            predictor=lambda *args:self.fail("cannot regenerate conflicting evidence"),
+            ledger_ops=(store.get,lambda k,v:self.fail("overwrite")))
+        self.assertEqual(output["stored_count"],0)
+        self.assertEqual(output["results"][0]["status"],"failed")
+        self.assertIn("invalid_reference",output["results"][0]["error_code"])
+    def test_remote_readback_mutation_blocks_existing_baseline(self):
+        calls=[raw(), b"mutated"]
+        def read(path):
+            return calls.pop(0)
+        output=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+            predictor=lambda *args:self.fail("must not re-predict"),
+            ledger_ops=(read,lambda k,v:self.fail("overwrite")))
+        self.assertEqual(output["stored_count"],0)
+        self.assertEqual(output["results"][0]["status"],"failed")
+        self.assertIn("readback_changed",output["results"][0]["error_code"])
     def test_immutable_append_prevents_edited_forecasts(self):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
