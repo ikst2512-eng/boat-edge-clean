@@ -56,14 +56,14 @@ class T12SeedTests(unittest.TestCase):
                 ledger_ops=(lambda p:None,lambda p,b:self.fail("not allowed")))
     def test_bad_csv_schema_does_not_silently_switch_source(self):
         with self.assertRaisesRegex(ValueError,"t12_title_source_schema_invalid"):
-            seed_once(now=lambda:NOW,fetch_title=lambda url:b"foo,bar\\n1,2\\n",
+            seed_once(now=lambda:NOW,fetch_title=lambda url:b"foo,bar\n1,2\n",
                 fallback_title=lambda day:self.fail("malformed published source must fail"))
     def test_partial_published_title_is_supplemented_without_mutating_original(self):
         more="202611030709"
         with tempfile.TemporaryDirectory() as tmp:
             store={}
             root=Path(tmp)
-            original=(f"レースコード,電話投票締切予定\\n202611030101,15:20\\n").encode()
+            original=(f"レースコード,電話投票締切予定\n202611030101,15:20\n").encode()
             seen=[]
             def saver(code):return root/(code+".json")
             def make(day,venue,race):
@@ -87,7 +87,7 @@ class T12SeedTests(unittest.TestCase):
             self.assertEqual(output["results"][0]["status"],"new_t12_baseline")
             self.assertIn("t12_baselines/20261103/"+more+".json",store)
     def test_conflicting_deadline_is_not_selected(self):
-        partial=(f"レースコード,電話投票締切予定\\n{CODE},18:33\\n").encode()
+        partial=(f"レースコード,電話投票締切予定\n{CODE},18:33\n").encode()
         output=seed_once(now=lambda:NOW,
             fetch_title=lambda url:partial,
             fallback_title=lambda day:(
