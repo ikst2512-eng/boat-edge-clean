@@ -75,6 +75,30 @@ class AuditRacelistReceiptTests(unittest.TestCase):
             self.assertFalse(result["entry_verified"])
             self.assertFalse(result["forecast_usable"])
 
+    def test_prior_day_beforeinfo_receipt_cannot_certify_t12(self):
+        with tempfile.TemporaryDirectory() as root:
+            racecard = self.make(root)
+            beforeinfo = self.make_beforeinfo(root)
+            manifest_path = beforeinfo / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["request_started_at_jst"] = "2026-11-02T23:55:00+09:00"
+            manifest["received_at_jst"] = "2026-11-02T23:55:01+09:00"
+            manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "chronology"):
+                audit_racelist_with_official_deadline(racecard, beforeinfo, RACE)
+
+    def test_cross_midnight_beforeinfo_receipt_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            racecard = self.make(root)
+            beforeinfo = self.make_beforeinfo(root)
+            manifest_path = beforeinfo / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["request_started_at_jst"] = "2026-11-02T23:59:59+09:00"
+            manifest["received_at_jst"] = "2026-11-03T00:00:01+09:00"
+            manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "chronology"):
+                audit_racelist_with_official_deadline(racecard, beforeinfo, RACE)
+
     def test_tampered_deadline_original_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:
             racecard = self.make(root)

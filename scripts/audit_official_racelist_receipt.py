@@ -70,7 +70,9 @@ def audit_racelist_with_official_deadline(racelist_dir, beforeinfo_dir, race_cod
     before_received = datetime.fromisoformat(metadata["received_at_jst"])
     if (before_started.utcoffset() != timedelta(hours=9)
             or before_received.utcoffset() != timedelta(hours=9)
-            or before_received < before_started):
+            or before_received < before_started
+            or before_started.strftime("%Y%m%d") != day
+            or before_received.strftime("%Y%m%d") != day):
         raise ValueError("invalid beforeinfo chronology")
     source = json.loads(original).get("maindata")
     if not isinstance(source, dict) or str(source.get("hd")) != day or str(source.get("jcd")).zfill(2) != venue or str(source.get("rno")) != number:
