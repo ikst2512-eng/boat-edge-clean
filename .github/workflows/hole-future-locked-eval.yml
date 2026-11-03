@@ -50,6 +50,18 @@ jobs:
               print("MISSING",r["excluded_by_reason"])
               print("HITS",r["hits"])
               print("DELTA",r["delta"])
+              print("BY_DAY",r["by_day"])
+              print("BY_MODEL_VERSION",r["by_model_version"])
+              print("EVIDENCE_QUALITY",r["evidence_quality"])
+              assert r["evidence_quality"]["independent_remote_first_receipt_proof_present"] is False
+              assert r["evidence_quality"]["eligible_for_formal_accuracy"] is False
+              assert sum(day["scanned"] for day in r["by_day"].values())==r["scanned_valid_date_codes"]
+              assert sum(day["comparable"] for day in r["by_day"].values())==r["comparable"]
+              assert sum(version["comparable"] for version in r["by_model_version"].values())==r["comparable"]
+              for policy,metrics in r["hits"].items():
+                  for metric,value in metrics.items():
+                      assert sum(day["hits"][policy][metric] for day in r["by_day"].values())==value
+                      assert sum(version["hits"][policy][metric] for version in r["by_model_version"].values())==value
           PY
       - uses: actions/upload-artifact@v4
         with:
