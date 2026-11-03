@@ -67,6 +67,7 @@ jobs:
               raise SystemExit('AI draft PR is stale or not a direct child of current main')
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
               f.write('sha='+p['head']['sha']+'\n')
+              f.write('main_sha='+main+'\n')
           PY
       - uses: actions/checkout@v4
         with:
@@ -103,12 +104,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
           CHECKED_SHA: ${{ steps.pr.outputs.sha }}
+          CHECKED_MAIN_SHA: ${{ steps.pr.outputs.main_sha }}
         shell: bash
         run: |
           set -euo pipefail
           current="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
           if [ "$current" != "$CHECKED_SHA" ]; then
             echo "::error::AI draft PR changed during validation; rerun against the new head."
+            exit 1
+          fi
+          main_now="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ -z "$main_now" || "$main_now" != "${CHECKED_MAIN_SHA}" ]]; then
+            echo "::error::main changed during AI PR validation; rerun against the new base."
             exit 1
           fi
       - name: Review note
