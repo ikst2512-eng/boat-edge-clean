@@ -183,9 +183,35 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None, earli
             state = "observed" if observed else ("not_observed_after_grace" if utc_now >= deadline else "awaiting_grace")
         slots.append({"scheduled_jst": scheduled.astimezone(jst).isoformat(),
                       "state": state, "matching_runs": observed})
+    # Do not attribute an hours-late schedule event to a particular cron
+    # slot: the shared cron expression does not encode its intended hour.
+    # Preserve such runs separately from the on-time slot coverage numerator.
+    windows = [
+        (datetime.fromisoformat(item["scheduled_jst"]).astimezone(timezone.utc),
+         datetime.fromisoformat(item["scheduled_jst"]).astimezone(timezone.utc)
+         + timedelta(minutes=grace_minutes))
+        for item in slots
+    ]
+    unattributed = []
+    for run in runs:
+        if not isinstance(run, dict) or run.get("event") != "schedule":
+            continue
+        try:
+            created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+        except (KeyError, AttributeError, TypeError, ValueError):
+            continue
+        if (created.tzinfo is None or created.astimezone(jst).date() != day
+                or created < windows[0][0] or created > utc_now):
+            continue
+        if any(start <= created <= end for start, end in windows):
+            continue
+        unattributed.append({"run_id": run.get("id"), "created_at": run["created_at"],
+                             "conclusion": run.get("conclusion"),
+                             "status": run.get("status")})
     return {"observed_slots": sum(s["state"] == "observed" for s in slots),
             "not_observed_after_grace": sum(s["state"] == "not_observed_after_grace" for s in slots),
-            "grace_minutes": grace_minutes, "slots": slots}
+            "grace_minutes": grace_minutes, "slots": slots,
+            "outside_grace_unattributed_runs": unattributed}
 
 
 def schedule_history_coverage(runs, *, now=None, days=DAYS, grace_minutes=90,
