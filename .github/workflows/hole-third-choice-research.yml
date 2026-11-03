@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_second_pair_source_audit.py
+      - test_hole_second_pair_source_audit.py
       - hole_second_pair_priority_research.py
       - test_hole_second_pair_priority_research.py
       - hole_error_attribution_research.py
@@ -24,7 +26,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py
+      - run: python hole_second_pair_source_audit.py > hole_second_pair_source_report.json
+      - name: Validate source coverage without claiming missing inputs caused misses
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_second_pair_source_report.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for name,group in r["groups"].items():
+              miss=group["miss_classes"]
+              places=group["missing_pair_location"]
+              assert sum(miss.values())==group["comparable"]
+              assert sum(places.values())==miss["pair_missing"]
+              assert sum(day.get("comparable",0) for day in group["by_day"].values())==group["comparable"]
+              print("GROUP",name,"N",group["comparable"])
+              print("MISS_CLASSES",miss)
+              print("MISSING_PAIR_LOCATION",places)
+              print("DONOR_RANK_BINS",group["donor_first_pair_rank"])
+              print("SOURCE_FEATURE_COVERAGE",group["source_feature_coverage"])
+          PY
       - run: python hole_second_pair_priority_research.py > hole_second_pair_priority_results.json
       - name: Verify paired second-place forecasts against locked third-choice result
         run: |
@@ -140,3 +164,4 @@ jobs:
             hole_third_donor_ranking_results.json
             hole_third_consensus_guard_results.json
             hole_second_pair_priority_results.json
+            hole_second_pair_source_report.json
