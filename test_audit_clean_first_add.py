@@ -45,7 +45,7 @@ class FirstAddAuditTests(unittest.TestCase):
     def test_bulk_refuses_shallow_history_before_reading_additions(self):
         root = Path("/tmp/first-add-check")
         with patch.object(audit.subprocess, "check_output",
-                          return_value="true\\n") as run:
+                          return_value="true\n") as run:
             with self.assertRaisesRegex(ValueError, "incomplete local git history"):
                 with audit.bulk_first_add(root):
                     self.fail("shallow evidence must never be examined")
@@ -56,7 +56,7 @@ class FirstAddAuditTests(unittest.TestCase):
     def test_bulk_full_history_still_checks_unique_additions(self):
         root = Path("/tmp/first-add-check")
         with patch.object(audit.subprocess, "check_output",
-                          side_effect=["false\\n", "COMMIT " + "a"*40 + " 2026-10-28T09:00:00+09:00\\nprospective_predictions/202610281201.json\\n"]) as run:
+                          side_effect=["false\n", "COMMIT " + "a"*40 + " 2026-10-28T09:00:00+09:00\nprospective_predictions/202610281201.json\n"]) as run:
             with audit.bulk_first_add(root):
                 self.assertEqual(audit._BULK.state[1]["prospective_predictions/202610281201.json"][0][0], "a"*40)
         self.assertEqual(run.call_count, 2)
