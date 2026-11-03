@@ -41,7 +41,7 @@ def verify_locked_selection(root=None):
         if source.is_symlink() or not source.is_file():
             raise ValueError("locked_selector_missing:"+name)
         blob=source.read_bytes()
-        actual=hashlib.sha1(b"blob "+str(len(blob)).encode()+b"\\0"+blob).hexdigest()
+        actual=hashlib.sha1(b"blob "+str(len(blob)).encode()+b"\0"+blob).hexdigest()
         if actual!=expected:
             raise ValueError("locked_selector_changed:"+name)
         matches[name]=actual
