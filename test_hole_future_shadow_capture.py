@@ -38,7 +38,8 @@ class FutureFrozenTests(unittest.TestCase):
         with patch("hole_shadow_prospective_gate.archived_four_modes",return_value=(200,self.archive)),patch(
              "hole_shadow_prospective_gate.variants",return_value=self.expected),patch(
              "hole_shadow_prospective_gate.verify_locked_selection",return_value={"selector":"abc"}):
-            output=freeze(CODE,self.root,self.cutoff-timedelta(minutes=15))
+            moment=self.cutoff-timedelta(minutes=15)
+            output=freeze(CODE,self.root,moment,clock=lambda: moment)
         self.assertEqual(output["future_locked_candidates"],self.expected)
         self.assertEqual(output["future_locked_selector_git_blobs"],{"selector":"abc"})
         self.assertEqual(output["source_sha256"],hashlib.sha256(self.blob).hexdigest())
@@ -54,13 +55,14 @@ class FutureFrozenTests(unittest.TestCase):
                 freeze(CODE,self.root,self.cutoff-timedelta(minutes=15))
     def test_future_past_deadline_never_freezes(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes",return_value=(200,self.archive)):
-            self.assertEqual(freeze(CODE,self.root,self.cutoff)["status"],"past_deadline")
+            self.assertEqual(freeze(CODE,self.root,self.cutoff)["status"],"after_t_minus_12")
     def test_no_postrace_results_read_during_freeze(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes",return_value=(200,self.archive)),patch(
              "hole_shadow_prospective_gate.verify_locked_selection",return_value={}),patch(
              "hole_shadow_prospective_gate.variants",return_value=self.expected),patch(
              "four_mode_frozen_diagnostic.compare_race",side_effect=AssertionError("result leaked")):
-            self.assertEqual(freeze(CODE,self.root,self.cutoff-timedelta(hours=1))["status"],
+            moment=self.cutoff-timedelta(hours=1)
+            self.assertEqual(freeze(CODE,self.root,moment,clock=lambda: moment)["status"],
                              "shadow_frozen_unverified")
 
 if __name__=="__main__":unittest.main()
