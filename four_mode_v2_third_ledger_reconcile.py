@@ -108,8 +108,13 @@ def reconcile(capture, ledger):
         except ValueError:
             out["status"] = "paired_score_evidence_missing_or_invalid"
         else:
+            # Both sides must agree on which races in this bounded
+            # capture cohort already have confirmed results. Ignore older
+            # ledger-only frozen races outside the capture roster.
+            capture_frozen_codes = set(left)
             out["paired_result_coverage_mismatch_codes"] = sorted(
-                set(capture_scores) - set(ledger_scores))
+                set(capture_scores).symmetric_difference(
+                    set(ledger_scores) & capture_frozen_codes))
             out["paired_score_mismatch_codes"] = sorted(
                 code for code in set(capture_scores) & set(ledger_scores)
                 if capture_scores[code] != ledger_scores[code])
