@@ -27,7 +27,7 @@ def setup(tmp):
 class CollectorTests(unittest.TestCase):
     def test_empty_snapshots_skip_without_network(self):
         with tempfile.TemporaryDirectory() as tmp:
-            out=attempt(tmp,now=lambda:NOW,prefetch=lambda *a,**k:self.fail("unnecessary fetch"))
+            out=attempt(tmp,waku_enabled=False,now=lambda:NOW,prefetch=lambda *a,**k:self.fail("unnecessary fetch"))
             self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
     def test_only_same_day_pre_cutoff_snapshots_eligible(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,7 +41,7 @@ class CollectorTests(unittest.TestCase):
             prefetch=lambda day:(urls,{})
             get=lambda p:storage.get(p)
             put=lambda p,raw:storage.setdefault(p,raw)
-            out=attempt(root,now=lambda:NOW,prefetch=prefetch,card_reader=lambda *a:card,
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,prefetch=prefetch,card_reader=lambda *a:card,
                         ledger_ops=(get,put),output_dir=root/"research_captures",min_starts=1)
             self.assertEqual(out["status"],"new_append_only_late_capture")
             self.assertEqual(out["race_code"],"202611030708")
@@ -52,7 +52,7 @@ class CollectorTests(unittest.TestCase):
     def test_no_history_is_not_promoted_to_fake_research(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,_=setup(tmp)
-            out=attempt(root,now=lambda:NOW,prefetch=lambda day:({},{}),
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,prefetch=lambda day:({},{}),
                         card_reader=lambda *args:card,
                         ledger_ops=(lambda p:None,lambda p,b:self.fail("no publish")))
             self.assertEqual(out["status"],"no_verified_historical_pairs")
@@ -60,7 +60,7 @@ class CollectorTests(unittest.TestCase):
     def test_insufficient_history_reports_each_boat_course_starts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,urls=setup(tmp)
-            out=attempt(root,now=lambda:NOW,prefetch=lambda day:(urls,{}),
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,prefetch=lambda day:(urls,{}),
                 card_reader=lambda *args:card,min_starts=10)
             self.assertEqual(out["status"],"ineligible_late_study")
             self.assertEqual(out["reason"],"late_study_insufficient_course_samples")
@@ -71,7 +71,7 @@ class CollectorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,_=setup(tmp)
             card["source_audit"]["beforeinfo"]["status"]="not_published_or_unavailable"
-            out=attempt(root,now=lambda:NOW,
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,
                 prefetch=lambda day:self.fail("should not download 62 files"),
                 card_reader=lambda *args:card,sleep=lambda seconds:None)
             self.assertEqual(out["status"],"preview_not_ready")
@@ -81,7 +81,7 @@ class CollectorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,_=setup(tmp)
             card["race_key"]="20261103-07-09"
-            out=attempt(root,now=lambda:NOW,
+            out=attempt(root,waku_enabled=False,now=lambda:NOW,
                 prefetch=lambda day:self.fail("wrong race should not download"),
                 card_reader=lambda *args:card,sleep=lambda seconds:None)
             self.assertEqual(out["status"],"preview_not_ready")
@@ -90,6 +90,6 @@ class CollectorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,urls=setup(tmp)
             iter_time=iter((NOW,NOW,NOW,NOW,NOW,datetime(2026,11,3,18,32,tzinfo=JST)))
-            out=attempt(root,now=lambda:next(iter_time),prefetch=lambda day:(urls,{}),card_reader=lambda *args:card)
+            out=attempt(root,waku_enabled=False,now=lambda:next(iter_time),prefetch=lambda day:(urls,{}),card_reader=lambda *args:card)
             self.assertEqual(out["status"],"history_fetch_crossed_late_cutoff")
 if __name__=="__main__":unittest.main()

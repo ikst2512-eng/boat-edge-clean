@@ -11,7 +11,7 @@ import re
 
 
 def freeze_capture(candidate, directory, *, clock=None):
-    if not isinstance(candidate,dict) or candidate.get("schema") not in ("entry-course-prospective-capture-v1","entry-course-late-preview-study-v1"):
+    if not isinstance(candidate,dict) or candidate.get("schema") not in ("entry-course-prospective-capture-v1","entry-course-late-preview-study-v1","entry-waku10-late-preview-pilot-v1"):
         raise ValueError("invalid_candidate_capture")
     code=candidate.get("race_code")
     if not isinstance(code,str) or not re.fullmatch(r"20\d{10}",code):
