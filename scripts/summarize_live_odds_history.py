@@ -29,9 +29,29 @@ def consistent_attempts(steps):
     if not isinstance(steps, list) or not 1 <= len(steps) <= 3:
         return False
     codes = {"valid_200": 200, "invalid_200": 200, "pending_202": 202}
+    # Historical artifacts predate the per-attempt UTC fields. Preserve those
+    # records, but never accept a partially timestamped or contradictory new
+    # sequence as precise evidence of when HTTP odds were observed.
+    timestamped = any(
+        isinstance(step, dict) and
+        ("started_at_utc" in step or "finished_at_utc" in step)
+        for step in steps)
+    previous_finish = None
     for index, step in enumerate(steps):
         if not isinstance(step, dict) or type(step.get("latency_ms")) is not int or step["latency_ms"] < 0:
             return False
+        if timestamped:
+            try:
+                started = datetime.fromisoformat(step["started_at_utc"].replace("Z", "+00:00"))
+                finished = datetime.fromisoformat(step["finished_at_utc"].replace("Z", "+00:00"))
+                if (started.utcoffset() != timedelta(0)
+                        or finished.utcoffset() != timedelta(0)
+                        or started > finished
+                        or (previous_finish is not None and started < previous_finish)):
+                    return False
+                previous_finish = finished
+            except (KeyError, AttributeError, TypeError, ValueError):
+                return False
         state = step.get("state")
         http = step.get("http")
         if state in codes:
