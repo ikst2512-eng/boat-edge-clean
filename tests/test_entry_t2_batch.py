@@ -359,6 +359,10 @@ class BatchTests(unittest.TestCase):
             durable=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
             durable.mkdir(parents=True)
             original=__import__("test_entry_waku10_pilot").fixture()[0]
+            original.update({
+                "model_version":"national-beta0.4-exploratory-v1",
+                "source_title_received_jst":original["generated_at"],
+                "source_cards_received_jst":original["generated_at"]})
             (durable/"202611030708.json").write_text(json.dumps(original))
             selected=__import__("entry_course_collector").candidates(
                 tmp,now=NOW,require_durable_t12=True)
@@ -372,6 +376,40 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["status"],"t2_batch_completed")
             self.assertEqual(out["newly_stored_count"],1)
             self.assertEqual(len(archive),1)
+    def test_unattended_rejects_durable_baseline_with_rank_or_digest_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            durable=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
+            durable.mkdir(parents=True)
+            original=__import__("test_entry_waku10_pilot").fixture()[0]
+            original.update({
+                "model_version":"national-beta0.4-exploratory-v1",
+                "source_title_received_jst":original["generated_at"],
+                "source_cards_received_jst":original["generated_at"]})
+            target=durable/"202611030708.json"
+            for bad in ("rank","digest","future_receipt","cutoff_receipt"):
+                with self.subTest(bad=bad):
+                    item=json.loads(json.dumps(original))
+                    if bad=="rank":
+                        item["predictions"]=["6-5-4"]
+                    if bad=="digest":
+                        item["source_title_sha256"]="invalid"
+                    if bad=="future_receipt":
+                        item["source_cards_received_jst"]="2026-11-03T18:22:00+09:00"
+                    if bad=="cutoff_receipt":
+                        item["source_cards_received_jst"]=item["cutoff_jst"]
+                    target.write_text(json.dumps(item))
+                    self.assertEqual(__import__("entry_course_collector").candidates(
+                        tmp,now=NOW,require_durable_t12=True),[])
+                    report=attempt_batch(tmp,now=lambda:NOW,require_durable_t12=True,
+                        verify_expected_schedule=True,
+                        schedule_fetch=lambda when:(
+                            [{"レースコード":"202611030708",
+                              "電話投票締切予定":"18:33"}],
+                            "20261103","a"*64,"published_daily_title"),
+                        card_reader=lambda *args:self.fail("unverified T12 not usable"))
+                    self.assertEqual(report["status"],
+                                     "t2_missing_expected_t12_baselines")
     def test_batch_size_guard(self):
         with self.assertRaisesRegex(ValueError,"batch_size"):
             attempt_batch(".",now=lambda:NOW,max_per_run=100)
