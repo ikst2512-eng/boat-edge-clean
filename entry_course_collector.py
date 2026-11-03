@@ -427,6 +427,19 @@ def attempt_batch(root, *, now=None, max_per_run=3,
             "results":records,"research_only":True}
 
 
+def t2_cli_failure(verdict):
+    """The scheduled job must not mark partially captured races as success."""
+    if not isinstance(verdict,dict):
+        raise ValueError("t2_cli_invalid_verdict")
+    fatal={"course_evidence_collector_failed","t2_batch_error",
+           "t2_batch_no_capture","t2_batch_partial_capture",
+           "t2_missing_expected_t12_baselines",
+           "t2_expected_schedule_unavailable",
+           "t2_batch_missing_expected_t12_baselines",
+           "t2_batch_expected_schedule_unavailable"}
+    return verdict.get("status") in fatal
+
+
 def main():
     import argparse
     p=argparse.ArgumentParser()
@@ -450,12 +463,7 @@ def main():
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(verdict,ensure_ascii=False,sort_keys=True)+"\n",encoding="utf-8")
     print("COURSE_LATE_EVIDENCE="+json.dumps(verdict,ensure_ascii=False,sort_keys=True))
-    if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error",
-                            "t2_batch_no_capture",
-                            "t2_missing_expected_t12_baselines",
-                            "t2_expected_schedule_unavailable",
-                            "t2_batch_missing_expected_t12_baselines",
-                            "t2_batch_expected_schedule_unavailable"):
+    if t2_cli_failure(verdict):
         raise SystemExit(2)
 
 if __name__=="__main__":
