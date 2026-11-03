@@ -4,6 +4,8 @@ on:
     paths:
       - four_mode_v2_predeclared_shadow.py
       - four_mode_v2_research_readiness.py
+      - four_mode_v2_model_reproduction.py
+      - test_four_mode_v2_model_reproduction.py
       - four_mode_v2_venue_coverage.py
       - test_four_mode_v2_venue_coverage.py
       - test_four_mode_v2_research_readiness.py
@@ -26,13 +28,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction
       - name: Evaluate read-only V2 shadow on confirmed results
         run: python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
       - name: Validate V2 sample sufficiency and no-production-promotion gate
         run: python four_mode_v2_research_readiness.py | tee v2_research_readiness.log
       - name: Audit V2 result availability by venue and day
         run: python four_mode_v2_venue_coverage.py --roster-output v2_overdue_roster.json | tee v2_venue_coverage.log
+      - name: Reproduce archived V2 rankings from current research model
+        run: python four_mode_v2_model_reproduction.py | tee v2_model_reproduction.log
       - uses: actions/upload-artifact@v4
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
@@ -42,4 +46,5 @@ jobs:
             v2_research_readiness.log
             v2_venue_coverage.log
             v2_overdue_roster.json
+            v2_model_reproduction.log
           retention-days: 30
