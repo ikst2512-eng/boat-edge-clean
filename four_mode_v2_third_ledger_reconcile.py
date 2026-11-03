@@ -135,12 +135,49 @@ if __name__ == "__main__":
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    report = reconcile(json.loads(args.capture.read_text(encoding="utf-8")),
-                       json.loads(args.ledger.read_text(encoding="utf-8")))
+    # An upstream stage can fail before writing its own report. Persist a
+    # diagnostic artifact identifying the unavailable input rather than
+    # losing the final reconciliation JSON to an uncaught file/JSON error.
+    missing = []
+    invalid = []
+    values = {}
+    for name, path in (("capture", args.capture), ("ledger", args.ledger)):
+        try:
+            values[name] = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            missing.append(name)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            invalid.append(name)
+    if missing or invalid:
+        report = {
+            "schema": "V2_THIRD_RATE_CAPTURE_LEDGER_RECONCILIATION_V1",
+            "status": "reconciliation_inputs_unavailable",
+            "formal": False,
+            "remote_first_seen_independently_verified": False,
+            "production_promotion_allowed": False,
+            "missing_input_reports": missing,
+            "invalid_input_reports": invalid,
+            "warning": "Upstream capture or ledger stage did not supply valid report JSON.",
+        }
+    else:
+        try:
+            report = reconcile(values["capture"], values["ledger"])
+        except (ValueError, TypeError, KeyError):
+            report = {
+                "schema": "V2_THIRD_RATE_CAPTURE_LEDGER_RECONCILIATION_V1",
+                "status": "reconciliation_input_schema_invalid",
+                "formal": False,
+                "remote_first_seen_independently_verified": False,
+                "production_promotion_allowed": False,
+                "invalid_input_reports": ["capture", "ledger"],
+                "warning": "One or both upstream reports violate the reconciliation schema.",
+            }
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                            encoding="utf-8")
     print("V2_THIRD_RATE_LEDGER_RECONCILIATION=" + json.dumps(report, sort_keys=True))
-    if report["status"] in ("incomplete_capture_inventory",
+    if report["status"] in ("reconciliation_inputs_unavailable",
+                            "reconciliation_input_schema_invalid",
+                            "incomplete_capture_inventory",
                             "frozen_predictions_missing_from_ledger",
                             "invalid_or_unavailable_ledger",
                             "paired_score_evidence_missing_or_invalid",
