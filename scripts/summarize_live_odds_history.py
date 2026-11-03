@@ -282,7 +282,8 @@ def fetch_history(repository, token, current, *, now=None):
     # from pushing the 14-day scheduled evidence outside the first N pages.
     selected = []
     list_truncated = False
-    for event in ("schedule", "workflow_dispatch", "workflow_run"):
+    # Manual workflow_dispatch is QA, never unattended reliability evidence.
+    for event in ("schedule", "workflow_run"):
         for page in range(1, MAX_PAGES + 1):
             payload = api_json(root + "/actions/workflows/" + WORKFLOW +
                                "/runs?status=completed&event=" + event +
@@ -363,7 +364,7 @@ def fetch_history(repository, token, current, *, now=None):
 
 def include_current_event(event, evidence=None):
     """Only independently verifiable operational events enter reliability rates."""
-    if event in ("schedule", "workflow_dispatch"):
+    if event == "schedule":
         return True
     if event != "workflow_run" or not isinstance(evidence, dict):
         return False
