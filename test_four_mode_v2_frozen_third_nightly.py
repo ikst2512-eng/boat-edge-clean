@@ -144,6 +144,20 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["paired"], 0)
         self.assertEqual(out["status"], "incomplete_capture_artifact_evidence")
 
+    def test_failed_freeze_artifact_is_not_normal_no_new_run(self):
+        self.evidence.update({"status": "validation_error_before_freeze",
+                              "published_forecasts": 0,
+                              "frozen_before_t_minus_12": 0,
+                              "ineligible_count": 0,
+                              "validation_error_count": 1,
+                              "records": []})
+        self.evidence.pop("publication_commit_sha")
+        out = summarize([run(127)], self.root, self.download, self.root)
+        self.assertEqual(out["no_new_candidate_runs"], 0)
+        self.assertEqual(out["missing_or_failed_artifacts"], [127])
+        self.assertEqual(out["status"], "capture_artifacts_unavailable")
+        self.assertFalse(out["cohort_completeness_verified"])
+
     def test_reject_duplicate_run_ids(self):
         with self.assertRaisesRegex(ValueError, "duplicate_run_id"):
             choose_runs([run(123), run(123)])
