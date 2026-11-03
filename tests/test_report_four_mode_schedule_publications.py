@@ -113,8 +113,10 @@ class ScheduledEvidenceTest(unittest.TestCase):
                                             "reason": "invalid_national_win_rate"}]})
                 row = report({"runs": [self.RUN]}, download)["runs"][0]
                 self.assertIsNone(row["excluded_races"])
-                self.assertIsNone(row["excluded_race_count"] if day != "20261103"
-                                  else None)
+                if day != "20261103":
+                    self.assertIsNone(row["excluded_race_count"])
+                else:
+                    self.assertEqual(row["excluded_race_count"], 1)
 
     def test_stale_capture_status_is_not_counted(self):
         def download(_, root):
