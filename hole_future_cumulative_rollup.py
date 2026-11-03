@@ -137,13 +137,29 @@ def fetch_previous(repo,limit=40):
     if not repo or type(limit) is not int or not 1<=limit<=70:
         raise ValueError("invalid_request")
     env={**os.environ}
-    command=["gh","run","list","--repo",repo,"--workflow",
-             "hole-future-shadow-batch.yml","--limit",str(limit),
-             "--json","databaseId,event,conclusion"]
-    listing=subprocess.run(command,capture_output=True,text=True,env=env,timeout=30,check=True)
-    ids=[item["databaseId"] for item in json.loads(listing.stdout)
-         if item.get("event") in ("schedule","workflow_dispatch")
-         and item.get("conclusion")=="success"]
+    # Filter BEFORE limiting: many PR CI runs can otherwise push all daily
+    # scheduled reports beyond the latest N results and hide the cohort.
+    ids=[];seen=set();runs_by_event={}
+    for event in ("schedule","workflow_dispatch"):
+        command=["gh","run","list","--repo",repo,"--workflow",
+                 "hole-future-shadow-batch.yml","--event",event,
+                 "--limit",str(limit),"--json","databaseId,event,conclusion"]
+        listing=subprocess.run(command,capture_output=True,text=True,
+                               env=env,timeout=30,check=True)
+        listed=json.loads(listing.stdout)
+        if not isinstance(listed,list):
+            raise ValueError("invalid_event_run_listing")
+        runs_by_event[event]=len(listed)
+        for item in listed:
+            if not isinstance(item,dict) or item.get("event")!=event or (
+                    item.get("conclusion")!="success"):
+                continue
+            run_id=item.get("databaseId")
+            if type(run_id) is not int or run_id<=0:
+                continue
+            if run_id not in seen:
+                seen.add(run_id)
+                ids.append(run_id)
     reports=[];failed=[]
     with tempfile.TemporaryDirectory() as directory:
         for run_id in ids:
@@ -182,6 +198,7 @@ def fetch_previous(repo,limit=40):
             reports.extend(batch)
     result=rollup(reports)
     result["runs_listed"]=len(ids)
+    result["event_runs_returned"]=runs_by_event
     result["daily_artifacts_read"]=len(reports)
     result["late_recheck_reports_read"]=sum(
         x.get("recheck_lag_days",0) in (7,21) for x in reports)
