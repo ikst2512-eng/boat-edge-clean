@@ -144,7 +144,17 @@ def score_evidence(evidence, root):
         except (KeyError, ValueError, TypeError, OSError, UnicodeError):
             out["invalid"] += 1
             continue
-        compared = compare_race(code, root)
+        # A single corrupt/unreadable result must not discard valid frozen
+        # pairs from the same published batch. Fail this race closed, retain
+        # sibling scores, and mark the whole research cohort incomplete.
+        try:
+            compared = compare_race(code, root)
+            if type(compared) is not dict:
+                raise ValueError("malformed_comparison_response")
+        except (OSError, ValueError, KeyError, TypeError, AttributeError,
+                UnicodeError, json.JSONDecodeError):
+            out["invalid"] += 1
+            continue
         if compared.get("status") == "result_unavailable":
             out["pending_results"] += 1
             continue
