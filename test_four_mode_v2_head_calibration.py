@@ -43,6 +43,13 @@ class HeadCalibrationTests(unittest.TestCase):
             p1 = sum(p for combo, p in probabilities(RATES) if combo[0] == 1)
             self.assertEqual(report["matched_valid_finish"], 2)
             self.assertEqual(report["missing_finish"], 1)
+            sensitivity = report["unresolved_head_sensitivity"]
+            self.assertEqual(sensitivity["missing_reproduced_races"], 1)
+            self.assertLessEqual(
+                sensitivity["counterfactual_full_cohort_brier_delta_range"][0],
+                sensitivity["counterfactual_full_cohort_brier_delta_range"][1])
+            self.assertLessEqual(sensitivity["counterfactual_all_missing_best_case_brier_delta"],
+                                 sensitivity["counterfactual_all_missing_worst_case_brier_delta"])
             self.assertEqual(report["observed_boat1_wins"], 1)
             self.assertAlmostEqual(report["mean_predicted_boat1"], p1, places=6)
             self.assertAlmostEqual(report["boat1_brier_score"],
@@ -110,6 +117,8 @@ class HeadCalibrationTests(unittest.TestCase):
                        return_value={"status": "invalid_result_or_timing"}):
                 report = assess(root)
             self.assertEqual(report["invalid_or_untrusted_finish"], 1)
+            self.assertEqual(report["unresolved_head_sensitivity"]["missing_reproduced_races"], 0)
+            self.assertIsNone(report["unresolved_head_sensitivity"]["counterfactual_full_cohort_brier_delta_range"])
             self.assertEqual(report["matched_valid_finish"], 0)
             self.assertIsNone(report["boat1_brier_score"])
             self.assertIsNone(report["six_head_brier_model"])
@@ -139,6 +148,24 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertEqual(report["matched_valid_finish"], 1)
             self.assertEqual(report["leave_one_race_out"]["evaluated_exclusions"], 0)
             self.assertIsNone(report["leave_one_race_out"]["brier_delta_range"])
+
+    def test_all_missing_bound_does_not_invent_observed_score(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for code in ("202611030101", "202611030102"):
+                saved(root, code)
+            with patch("four_mode_v2_head_calibration.compare_race",
+                       return_value={"status": "result_unavailable"}):
+                report = assess(root)
+            self.assertEqual(report["matched_valid_finish"], 0)
+            self.assertIsNone(report["six_head_brier_model"])
+            bounds = report["unresolved_head_sensitivity"]
+            self.assertEqual(bounds["missing_reproduced_races"], 2)
+            self.assertEqual(bounds["counterfactual_full_cohort_brier_delta_range"], [
+                bounds["counterfactual_all_missing_best_case_brier_delta"],
+                bounds["counterfactual_all_missing_worst_case_brier_delta"],
+            ])
+            self.assertIsNone(bounds["minimum_adverse_missing_outcomes_to_reverse_observed_brier"])
 
     def test_no_archive_is_not_zero_calibration(self):
         with tempfile.TemporaryDirectory() as td:
