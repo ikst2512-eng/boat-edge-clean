@@ -110,6 +110,10 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(result["comparable"],0)
   self.assertEqual(result["excluded_by_reason"]["not_future_eligible"],1)
 
+def self_fake_flags():
+ return {m:{"top3":False,"top5":False,"top10":m=="third_national_rate"}
+         for m in ("baseline","donor_order","max_ticket_score","third_national_rate")}
+
 class FullDayListingTests(unittest.TestCase):
  def test_paginates_beyond_twenty_and_handles_jst_midnight(self):
   # 2026-11-02 15:30 UTC is already Nov 3 in Japan.
@@ -148,12 +152,47 @@ class FullDayListingTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as directory:
    discovery={"candidates":[],"listing_complete":True,"pages_fetched":1,
               "window_start_jst":"2026-10-12",
+              "capture_window_start_jst":"2026-10-11",
+              "capture_lookback_days":1,
               "window_end_exclusive_jst":"2026-10-13"}
    with patch("hole_future_artifact_batch.discover_full_days",return_value=discovery):
     result=collect_recent(directory,"a/b","token",days=1)
   self.assertEqual(result["runs_inspected"],0)
   self.assertFalse(result["capture_window_complete"])
   self.assertEqual(result["repository_result_coverage"]["status"],"no_eligible_complete_days")
+ def test_capture_lookback_recovers_nov3_run_for_nov4_race(self):
+  now=datetime(2026,11,11,1,40,tzinfo=timezone(timedelta(hours=9)))
+  target=late_window_as_of(now,7)
+  page=[{"id":10,"event":"schedule","created_at":"2026-11-04T04:30:00Z"},
+        {"id":11,"event":"schedule","created_at":"2026-11-03T06:30:00Z"},
+        {"id":12,"event":"schedule","created_at":"2026-11-02T06:30:00Z"}]
+  with patch("hole_future_artifact_batch.api",
+             return_value=json.dumps({"workflow_runs":page}).encode()):
+   found=discover_full_days("a/b","token",days=1,as_of_jst=target,
+                            capture_lookback_days=1)
+  self.assertEqual(found["window_start_jst"],"2026-11-04")
+  self.assertEqual(found["window_end_exclusive_jst"],"2026-11-05")
+  self.assertEqual(found["capture_window_start_jst"],"2026-11-03")
+  self.assertEqual([r["id"] for r in found["candidates"]],[10,11])
+ def test_capture_lookback_does_not_expand_scoring_window(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   directory=Path(tmp)
+   evidence=directory/"11"/"four-mode-evidence"
+   evidence.mkdir(parents=True)
+   (evidence/"hole-shadow.json").write_text(json.dumps({
+     "status":"research_only_after_confirmed_push",
+     "records":[{"race_code":CODE1,"status":"shadow_frozen_unverified"},
+                {"race_code":"202611030101","status":"shadow_frozen_unverified"}]}))
+   with patch("hole_future_artifact_batch.audit",return_value={
+     "rows":[{"race_code":CODE1,"flags":self_fake_flags()},
+             {"race_code":"202611030101","flags":self_fake_flags()}],
+     "excluded_by_reason":{}}):
+    scored=aggregate(tmp,directory,"2026-11-04","2026-11-05")
+   self.assertEqual(scored["race_codes"],[CODE1])
+   self.assertEqual(scored["comparable"],1)
+ def test_invalid_capture_lookback_rejected(self):
+  with self.assertRaisesRegex(ValueError,"invalid_capture_lookback"):
+   discover_full_days("a/b","token",days=1,capture_lookback_days=2)
  def test_days_limit(self):
   with self.assertRaises(ValueError):
    discover_full_days("a/b","token",days=4)

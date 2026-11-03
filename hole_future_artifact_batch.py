@@ -116,7 +116,7 @@ PAGE_SIZE=100
 MAX_PAGES=4
 MAX_DOWNLOADS=180
 
-def discover_full_days(repo,token,days=2,as_of_jst=None):
+def discover_full_days(repo,token,days=2,as_of_jst=None,capture_lookback_days=0):
     """Page GitHub runs by CREATED date, not a small latest-N limit.
 
     Include only completed JST days; partially collected current-day runs must
@@ -124,11 +124,14 @@ def discover_full_days(repo,token,days=2,as_of_jst=None):
     """
     if type(days) is not int or not 1<=days<=3:
         raise ValueError("invalid_day_window")
+    if type(capture_lookback_days) is not int or not 0<=capture_lookback_days<=1:
+        raise ValueError("invalid_capture_lookback")
     now=as_of_jst or datetime.now(JST)
     if now.utcoffset()!=timedelta(hours=9):
         raise ValueError("as_of_must_be_jst")
     end_day=now.date()  # exclusive: today is incomplete
     first_day=end_day-timedelta(days=days)
+    capture_first_day=first_day-timedelta(days=capture_lookback_days)
     base="https://api.github.com/repos/"+repo
     runs=[];seen=set();listing_complete=False
     pages=0
@@ -149,16 +152,18 @@ def discover_full_days(repo,token,days=2,as_of_jst=None):
             if timestamp.utcoffset() is None:continue
             local_day=timestamp.astimezone(JST).date()
             if oldest_day is None or local_day<oldest_day:oldest_day=local_day
-            if first_day<=local_day<end_day and item.get("event") in ("schedule","workflow_dispatch"):
+            if capture_first_day<=local_day<end_day and item.get("event") in ("schedule","workflow_dispatch"):
                 run_id=item["id"]
                 if run_id in seen:raise ValueError("duplicate_run_in_listing")
                 seen.add(run_id);runs.append(item)
         # Older-than-window entry proves traversal reached the window boundary.
-        if len(page_runs)<PAGE_SIZE or (oldest_day is not None and oldest_day<first_day):
+        if len(page_runs)<PAGE_SIZE or (oldest_day is not None and oldest_day<capture_first_day):
             listing_complete=True
             break
     return {"candidates":runs,"listing_complete":listing_complete,
             "pages_fetched":pages,"window_start_jst":first_day.isoformat(),
+            "capture_window_start_jst":capture_first_day.isoformat(),
+            "capture_lookback_days":capture_lookback_days,
             "window_end_exclusive_jst":end_day.isoformat(),"days":days}
 
 
@@ -229,7 +234,7 @@ def late_window_as_of(now_jst, lag_days, days=1):
 
 def collect_recent(root,repo,token,days=2,as_of_jst=None):
     if not repo or not token:raise ValueError("credentials_required")
-    discovery=discover_full_days(repo,token,days,as_of_jst)
+    discovery=discover_full_days(repo,token,days,as_of_jst,capture_lookback_days=1)
     candidates=discovery["candidates"]
     failures=[];downloaded=[]
     with tempfile.TemporaryDirectory() as directory:
@@ -261,6 +266,8 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
     result["downloaded_runs_without_shadow"]=max(0,len(downloaded)-result["artifact_files"])
     result["run_download_failures"]=failures
     result["window_start_jst"]=discovery["window_start_jst"]
+    result["capture_window_start_jst"]=discovery["capture_window_start_jst"]
+    result["capture_lookback_days"]=discovery["capture_lookback_days"]
     result["window_end_exclusive_jst"]=discovery["window_end_exclusive_jst"]
     result["repository_result_coverage"]=reconcile(root,
         discovery["window_start_jst"],discovery["window_end_exclusive_jst"],
@@ -277,7 +284,7 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
         result["capture_window_complete"] and result["repository_result_coverage"]["confirmed"]>0
         and result["repository_result_coverage"]["confirmed_without_shadow"]==0
         and result["repository_result_coverage"]["confirmed_shadow_but_unscored"]==0)
-    result["warning"]+=" Complete capture window describes artifact retrieval ONLY, not race/result completeness or independent first receipt."
+    result["warning"]+=" Run discovery includes the preceding JST day for advance-published predictions; only requested race dates are scored. Complete capture window describes artifact retrieval ONLY, not race/result completeness or independent first receipt."
     return result
 
 if __name__=="__main__":
