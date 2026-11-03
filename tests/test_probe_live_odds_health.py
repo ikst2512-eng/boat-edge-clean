@@ -60,6 +60,12 @@ class ProbeTests(unittest.TestCase):
         result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
         self.assertEqual([r["http"] for r in result["attempts"]], [202, 200])
         self.assertEqual(result["final_state"], "valid_200")
+        summary = probe.summarize([result])
+        self.assertEqual(summary["initially_pending_races"], 1)
+        self.assertEqual(summary["pending_recovered_to_valid_200"], 1)
+        self.assertEqual(summary["pending_still_202"], 0)
+        self.assertEqual(summary["pending_recovery_rate_pct"], 100.0)
+        self.assertEqual(summary["first_attempt_valid_races"], 0)
 
     def test_repeated_pending_not_success(self):
         def request(req, timeout):
@@ -71,11 +77,28 @@ class ProbeTests(unittest.TestCase):
         stats = probe.summarize([result])
         self.assertEqual(stats["http_counts"]["202"], 3)
         self.assertEqual(stats["valid_200_races"], 0)
+        self.assertEqual(stats["initially_pending_races"], 1)
+        self.assertEqual(stats["pending_still_202"], 1)
+        self.assertEqual(stats["pending_recovery_rate_pct"], 0.0)
 
     def test_no_samples_not_success(self):
         stats = probe.summarize([])
         self.assertEqual(stats["valid_200_races"], 0)
         self.assertIsNone(stats["median_race_elapsed_ms"])
+        self.assertIsNone(stats["median_request_latency_ms"])
+        self.assertIsNone(stats["pending_recovery_rate_pct"])
+        self.assertEqual(stats["initially_pending_races"], 0)
+
+    def test_first_attempt_valid_is_not_pending_recovery(self):
+        result = probe.sample_race(CODE, request=lambda req, timeout: Response(valid_body()),
+                                   now=NOW, pause=lambda _: None)
+        stats = probe.summarize([result])
+        self.assertEqual(stats["first_attempt_valid_races"], 1)
+        self.assertEqual(stats["valid_200_races"], 1)
+        self.assertEqual(stats["initially_pending_races"], 0)
+        self.assertEqual(stats["pending_recovered_to_valid_200"], 0)
+        self.assertIsNone(stats["pending_recovery_rate_pct"])
+        self.assertIsInstance(stats["median_request_latency_ms"], int)
 
     def test_source_candidate_window(self):
         jst = timezone(timedelta(hours=9))
