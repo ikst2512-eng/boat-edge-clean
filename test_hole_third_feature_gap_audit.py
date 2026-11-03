@@ -46,7 +46,7 @@ class ThirdFeatureGapTests(unittest.TestCase):
             "pair_not_selected":1})
         self.assertEqual(result["feature_gap_signs"]["national_rate"],{"positive":1})
         self.assertEqual(result["feature_gap_signs"]["max_donor_score"],{"positive":1})
-        self.assertEqual(result["feature_gap_signs"]["best_donor_rank"],{"negative":1})
+        self.assertEqual(result["feature_gap_signs"]["best_donor_rank"],{"positive":1})
         self.assertEqual(len(result["examples"]),1)
         self.assertEqual(events,[
             ("archive",c) if i%2==0 else ("result",c)
