@@ -16,6 +16,15 @@ spec.loader.exec_module(gate)
 
 
 class FallbackGateTests(unittest.TestCase):
+    def test_workflow_concurrency_does_not_evict_scheduled_sampling(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        self.assertIn("queue: max", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+        self.assertIn("github.event.workflow_run.event != 'schedule'", workflow)
+        self.assertIn("live-odds-ineligible-", workflow)
+        self.assertIn("live-odds-operational-", workflow)
+
     def test_only_approved_schedule_upstream_is_operational(self):
         from datetime import datetime, timezone
         allowed = {"event": "workflow_run", "upstream_event": "schedule",
