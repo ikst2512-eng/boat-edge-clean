@@ -180,6 +180,44 @@ def summarize(raw, venue_report=None):
                     venue_coverage["low_coverage_venues"].append(key)
                 if matured == 0:
                     venue_coverage["zero_confirmed_venues"].append(key)
+    changed_cases = raw.get("changed_top3_cases", [])
+    if not isinstance(changed_cases, list) or len(changed_cases) != totals["forecast_only_exposure"]["changed_top3_membership"]:
+        raise ValueError("changed_top3_roster_mismatch")
+    statuses = {"confirmed_research_only": 0, "missing": 0,
+                "invalid_or_untrusted": 0, "invalid_deadline": 0}
+    seen = set()
+    per_day = {}
+    for case in changed_cases:
+        code = case["race_code"]
+        day = case["date_jst"]
+        if (type(code) is not str or len(code) != 12 or not code.isdecimal()
+                or code[:8] != day or code[8:10] != case["venue_code"]
+                or code in seen):
+            raise ValueError("invalid_changed_case_identity")
+        seen.add(code)
+        per_day[day] = per_day.get(day, 0) + 1
+        original, candidate = case["baseline_top3"], case["candidate_top3"]
+        if (type(original) is not list or type(candidate) is not list
+                or len(original) != 3 or len(candidate) != 3
+                or len(set(original)) != 3 or len(set(candidate)) != 3
+                or set(original) == set(candidate)):
+            raise ValueError("invalid_changed_top3_membership")
+        status = case["result_status"]
+        if status not in statuses:
+            raise ValueError("invalid_changed_case_status")
+        if status == "missing":
+            if case["pending_phase"] not in ("before_deadline",
+                                             "within_60m_after_deadline",
+                                             "over_60m_after_deadline"):
+                raise ValueError("invalid_missing_case_phase")
+        elif case["pending_phase"] is not None:
+            raise ValueError("unexpected_case_phase")
+        statuses[status] += 1
+    for day, count in per_day.items():
+        if count != groups[day]["forecast_only_exposure"]["changed_top3_membership"]:
+            raise ValueError("changed_case_date_count_mismatch")
+    if statuses["confirmed_research_only"] != totals["changed_top3_membership"]:
+        raise ValueError("changed_case_confirmed_mismatch")
     n = totals["paired_results"]
     gains = totals["gained_top3"]
     losses = totals["lost_top3"]
@@ -238,6 +276,10 @@ def summarize(raw, venue_report=None):
         "total": totals, "evaluation_days": completed_days,
         "top3_net_gain": gains - losses,
         "venue_coverage": venue_coverage,
+        "changed_top3_case_status_counts": statuses,
+        "changed_top3_missing_race_codes": [
+            case["race_code"] for case in changed_cases if case["result_status"] == "missing"
+        ],
         "paired_top3_one_sided_pvalue": pvalue,
         "comparable_denominator": n,
         "mature_outcome_denominator": mature_denom,

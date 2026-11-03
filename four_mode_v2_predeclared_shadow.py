@@ -5,6 +5,7 @@ first-place novelty bonus *within the existing hit Top10*. This rule was
 informed by inspected V1 history; it is not an independent V1 holdout.
 No forecast or result files are written or modified.
 """
+import argparse
 import json
 import math
 import re
@@ -90,6 +91,7 @@ def evaluate(root=ROOT, now=None):
         "candidate": {f"top{n}": 0 for n in TOPS},
         "gained_top3": 0, "lost_top3": 0})
     excluded = defaultdict(int)
+    changed_top3_cases = []
     if not directory.is_dir():
         return {"status": "no_forecast_directory", "protocol": PROTOCOL,
                 "formal": False, "groups": {}}
@@ -138,6 +140,25 @@ def evaluate(root=ROOT, now=None):
         exposure["changed_top3_membership"] += int(set(candidate[:3]) != set(baseline[:3]))
         exposure["changed_top5_membership"] += int(set(candidate[:5]) != set(baseline[:5]))
         compared = compare_race(path.stem, root)
+        # Freeze changed-case identity and the original/candidate Top3 before
+        # reading any outcome. A separate unresolved cohort is critical:
+        # result availability is uneven and must never count as a model miss.
+        if set(candidate[:3]) != set(baseline[:3]):
+            case = {"race_code": path.stem, "date_jst": date,
+                    "venue_code": path.stem[8:10],
+                    "baseline_top3": baseline[:3], "candidate_top3": candidate[:3],
+                    "result_status": ("confirmed_research_only"
+                                      if compared.get("status") == "historical_comparison_only"
+                                      else "missing"
+                                      if compared.get("status") == "result_unavailable"
+                                      else "invalid_or_untrusted"),
+                    "pending_phase": None}
+            if compared.get("status") == "result_unavailable":
+                try:
+                    case["pending_phase"] = missing_result_phase(archive["deadline_jst"], now)
+                except (KeyError, ValueError, TypeError, OverflowError):
+                    case["result_status"] = "invalid_deadline"
+            changed_top3_cases.append(case)
         if compared.get("status") == "result_unavailable":
             try:
                 phase = missing_result_phase(archive["deadline_jst"], now)
@@ -202,9 +223,24 @@ def evaluate(root=ROOT, now=None):
             "independent_remote_first_seen_verified": False,
             "v2_forecasts_seen": sum(v["forecast_files"] for v in output.values()),
             "v2_comparable": total, "groups": output, "excluded": dict(excluded),
+            "changed_top3_cases": changed_top3_cases,
+            "changed_top3_cases_count": len(changed_top3_cases),
             "evaluated_at_jst": now.isoformat(),
             "warning": "No official accuracy, no independent holdout, no claim of actual improvement."}
 
 
 if __name__ == "__main__":
-    print("V2_PREDECLARED_SHADOW=" + json.dumps(evaluate(), sort_keys=True))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--changed-top3-output", type=Path)
+    args = parser.parse_args()
+    report = evaluate()
+    if args.changed_top3_output:
+        cases = report.get("changed_top3_cases", [])
+        args.changed_top3_output.write_text(
+            json.dumps({"schema": "V2_SHADOW_CHANGED_TOP3_CASES_V1",
+                        "formal": False,
+                        "independent_remote_first_seen_verified": False,
+                        "evaluated_at_jst": report.get("evaluated_at_jst"),
+                        "count": len(cases), "cases": cases},
+                       sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    print("V2_PREDECLARED_SHADOW=" + json.dumps(report, sort_keys=True))
