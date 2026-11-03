@@ -87,7 +87,7 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
                     ".github/workflows/v2-predeclared-shadow-research.yml").read_text()
         start = workflow.index("      - name: Score preserved third-rate original evidence")
         body = workflow[start:workflow.index("      - uses: actions/upload-artifact@v4", start)]
-        self.assertIn("GH_TOKEN: \${{ github.token }}", body)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", body)
         self.assertLess(body.index("gh auth setup-git"),
                         body.index("git fetch origin refs/heads/v2-third-rate-evidence-ledger"))
         self.assertIn("persist-credentials: false", workflow)
