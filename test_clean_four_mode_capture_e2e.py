@@ -177,6 +177,76 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(saved["source_sha256"],
                              {"title":"b"*64,"race_cards":"b"*64})
 
+    def test_partially_missing_cards_recover_only_missing_race(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            receipt=datetime(2026,11,4,7,30,tzinfo=JST)
+            direct_receipt=datetime(2026,11,4,7,50,tzinfo=JST)
+            one="202611040101"
+            two="202611040102"
+            titles=[{"レースコード":code,"電話投票締切予定":"12:00"}
+                    for code in (one,two)]
+            cards=[{"レースコード":one,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}]
+            new_card={"レースコード":two,**{
+                f"艇{i}_全国勝率":"5.5" for i in range(1,7)}}
+            def read(url):
+                return (titles if "/title/" in url else cards,receipt,"a"*64)
+            with patch("clean_direct_sources.direct_cards",
+                       return_value=([new_card],direct_receipt,"b"*64,
+                                     {two:"c"*64},{})) as direct:
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[one,two])
+            self.assertEqual([x["レースコード"] for x in direct.call_args.args[1]],
+                             [two])
+            self.assertEqual(result["source_probes"]["partial_cards_direct"]["rows"],1)
+            original=json.loads((Path(tmp)/"four_mode_forecasts"/(one+".json")).read_text())
+            recovered=json.loads((Path(tmp)/"four_mode_forecasts"/(two+".json")).read_text())
+            self.assertEqual(original["source_sha256"]["race_cards"],"a"*64)
+            self.assertEqual(recovered["source_sha256"]["race_cards"],"c"*64)
+            self.assertEqual(original["source_cards_received_jst"],receipt.isoformat())
+            self.assertEqual(recovered["source_cards_received_jst"],direct_receipt.isoformat())
+
+    def test_partial_direct_failure_keeps_valid_existing_card(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            receipt=datetime(2026,11,4,7,30,tzinfo=JST)
+            one="202611040101"
+            two="202611040102"
+            titles=[{"レースコード":code,"電話投票締切予定":"12:00"}
+                    for code in (one,two)]
+            cards=[{"レースコード":one,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}]
+            def read(url):
+                return (titles if "/title/" in url else cards,receipt,"a"*64)
+            with patch("clean_direct_sources.direct_cards",
+                       side_effect=ValueError("source unavailable")):
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[one])
+            self.assertEqual(result["excluded"].get("missing_race_card"),1)
+            self.assertEqual(result["source_probes"]["partial_cards_direct"]["status"],
+                             "unavailable")
+
+    def test_partially_missing_cards_never_replace_duplicate_csv_race(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            receipt=datetime(2026,11,4,7,30,tzinfo=JST)
+            one="202611040101"
+            two="202611040102"
+            titles=[{"レースコード":code,"電話投票締切予定":"12:00"}
+                    for code in (one,two)]
+            cards=[{"レースコード":one,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}} for _ in range(2)]
+            def read(url):
+                return (titles if "/title/" in url else cards,receipt,"a"*64)
+            with patch("clean_direct_sources.direct_cards",
+                       return_value=([],receipt,"",{},{})) as direct:
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual([x["レースコード"] for x in direct.call_args.args[1]],
+                             [two])
+            self.assertEqual(result["new_saved"],[])
+            self.assertFalse((Path(tmp)/"four_mode_forecasts"/(one+".json")).exists())
+
     def test_disjoint_nonempty_daily_rosters_use_coherent_pre_race_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,11,4,8,0,tzinfo=JST)
