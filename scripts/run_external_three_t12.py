@@ -146,6 +146,16 @@ def run(race, root, obs_id, repo, branch, token, *, observer=observe,
         publisher=publish_originals, verifier=None):
     report = observer(race, root, obs_id)
     files = collected_files(root, race, obs_id, report)
+    # Reject contradictory local research claims before any durable Git write.
+    # An invalid claim must not be recorded as a first-add evidence receipt.
+    completed_locally = report["status"] in (
+        "research_components_complete_by_t12", "research_components_incomplete")
+    local_complete = (report.get("audit") or {}).get(
+        "all_research_components_observed_by_t12") is True
+    if report["status"] == "research_components_complete_by_t12" and not local_complete:
+        raise ValueError("local research completion claim lacks source audit proof")
+    if report["status"] != "research_components_complete_by_t12" and local_complete:
+        raise ValueError("local incomplete report contradicts source audit proof")
     sha = publisher(repo, branch, token, files)
     if verifier is None:
         # Local import prevents dependency cycle with read-only re-auditor.
@@ -155,17 +165,9 @@ def run(race, root, obs_id, repo, branch, token, *, observer=observe,
     if verified.get("status") not in (
             "independent_originals_reaudited", "observation_not_ready"):
         raise ValueError("remote evidence reinspection did not succeed")
-    completed_locally = report["status"] in (
-        "research_components_complete_by_t12", "research_components_incomplete")
     expected_remote_status = (
         "independent_originals_reaudited" if completed_locally
         else "observation_not_ready")
-    local_complete = (report.get("audit") or {}).get(
-        "all_research_components_observed_by_t12") is True
-    if report["status"] == "research_components_complete_by_t12" and not local_complete:
-        raise ValueError("local research completion claim lacks source audit proof")
-    if report["status"] != "research_components_complete_by_t12" and local_complete:
-        raise ValueError("local incomplete report contradicts source audit proof")
     if (verified.get("status") != expected_remote_status
             or verified.get("declared_status") != report["status"]
             or verified.get("research_complete") is not local_complete
