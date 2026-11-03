@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -75,6 +78,25 @@ class SourceLinkScopeTests(unittest.TestCase):
             result = report(root, now=self.NOW)
             self.assertEqual(result["checked"], 0)
             self.assertEqual(result["publication_scope_status"], "no_new_publication")
+
+    def test_real_cli_module_invocation_handles_noop_capture(self):
+        # Regression for 2026-11-03 15:01 JST production failure:
+        # calling scripts/report_four_mode_source_links.py directly did not
+        # include the repository root in sys.path.
+        repo_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.publication(root, "no_eligible_candidates")
+            env = dict(os.environ)
+            env["PYTHONPATH"] = str(repo_root)
+            proc = subprocess.run(
+                [sys.executable, "-m", "scripts.report_four_mode_source_links"],
+                cwd=root, env=env, text=True, capture_output=True, timeout=15)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            data = json.loads((root / "four-mode-evidence/source-links.json").read_text())
+            self.assertEqual(data["checked"], 0)
+            self.assertEqual(data["hashes_present"], 0)
+            self.assertEqual(data["publication_scope_status"], "no_new_publication")
 
 
 if __name__ == "__main__":
