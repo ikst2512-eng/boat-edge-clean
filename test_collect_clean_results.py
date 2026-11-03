@@ -15,7 +15,7 @@ class ResultCollectorTests(unittest.TestCase):
         self.assertIn("workflow_run:", workflow)
         self.assertIn("Four-mode prospective capture (research only)", workflow)
         self.assertIn("types: [completed]", workflow)
-        self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
+        self.assertIn("contains(fromJSON('[\"schedule\", \"workflow_dispatch\"]'), github.event.workflow_run.event)", workflow)
         self.assertIn("github.event.workflow_run.head_branch == 'main'", workflow)
         self.assertIn(
             "github.event.workflow_run.head_repository.full_name == github.repository",
