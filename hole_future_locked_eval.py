@@ -22,6 +22,31 @@ EXPECTED_MODEL_VERSIONS=frozenset(
     ("CLEAN_FOUR_MODES_V1_UNCALIBRATED",
      "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"))
 
+
+# Pin exact Git blobs of every research module that chooses candidate tickets.
+# Changing one of these files invalidates future comparisons until a separately
+# versioned method and fresh future-only window are defined.
+LOCKED_SELECTION_BLOBS={
+    "hole_third_choice_research.py":"579edc1ae846489d447307fbf03b35fc7d4c09b9",
+    "hole_pair_diversification_research.py":"56f06c10f6d07e03b2e37624ecf57dc6de7d8748",
+    "hole_top5_safe_bundle_research.py":"a43f53d898ac73829e7f2b24f81624d69d26d74a",
+}
+
+def verify_locked_selection(root=None):
+    """Fail closed if any selector source differs from the precommitted method."""
+    source_root=Path(__file__).resolve().parent if root is None else Path(root)
+    matches={}
+    for name,expected in LOCKED_SELECTION_BLOBS.items():
+        source=source_root/name
+        if source.is_symlink() or not source.is_file():
+            raise ValueError("locked_selector_missing:"+name)
+        blob=source.read_bytes()
+        actual=hashlib.sha1(b"blob "+str(len(blob)).encode()+b"\0"+blob).hexdigest()
+        if actual!=expected:
+            raise ValueError("locked_selector_changed:"+name)
+        matches[name]=actual
+    return matches
+
 def date_from_code(code):
     if not re.fullmatch(r"20[0-9]{10}",code):
         raise ValueError("invalid_race_code")
@@ -29,6 +54,7 @@ def date_from_code(code):
 
 def evaluate(root,as_of,days=14):
     root=Path(root)
+    locked_selector_blobs=verify_locked_selection()
     if as_of < FIRST_ELIGIBLE_DAY:
         return {"status":"not_yet_eligible","formal":False,"comparable":0}
     if type(days) is not int or not 1<=days<=31:
@@ -106,6 +132,7 @@ def evaluate(root,as_of,days=14):
             "window_start_jst":earliest_day.isoformat(),
             "window_end_jst":latest_day.isoformat(),
             "algorithm_sha256":algorithm_sha,
+            "locked_selector_git_blobs":locked_selector_blobs,
             "scanned_valid_date_codes":len(dates),
             "comparable":len(rows),"excluded_by_reason":dict(skips),
             "hits":counts,"changed":dict(changes),"delta":delta,
