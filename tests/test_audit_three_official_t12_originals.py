@@ -70,7 +70,7 @@ class ThreeOriginalAuditTests(unittest.TestCase):
             self.assertEqual(result["missing_components"], [])
             self.assertEqual(result["registrations_by_lane"]["1"], "4180")
             self.assertEqual(result["latest_original_received_jst"], RECEIVED)
-            self.assertEqual(result["t12_receipt_margin_seconds"], 14 * 60 - 5)
+            self.assertEqual(result["t12_receipt_margin_seconds"], 19 * 60 - 5)
             self.assertEqual(result["exhibition_course_to_boat"]["1"], "6")
             self.assertFalse(result["final_race_entry_verified"])
             self.assertFalse(result["full_t12_source_certified"])
