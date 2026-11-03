@@ -336,12 +336,71 @@ class ScheduledEvidenceTest(unittest.TestCase):
                 "observed_after_t_minus_12": 0, "unverified_count": 0,
                 "records": [{"race_code": "202611040101",
                              "first_add_commit": "a" * 40,
-                             "status": "github_server_observed_before_t_minus_12"}]})
+                             "status": "github_server_observed_before_t_minus_12",
+                             "github_api_server_date_utc": "2026-11-04T01:00:00+00:00",
+                             "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                             "first_add_blob_matches_remote": True,
+                             "original_sha256": "f" * 64}]})
         result = report({"runs": [self.RUN]}, download)
         row = result["runs"][0]
         self.assertEqual(row["github_observation_integrity"]["status"], "matched")
         self.assertEqual(result["github_observation_before_t12_total"], 1)
         self.assertFalse(result["remote_main_verified"])
+
+    def test_false_early_label_cannot_be_certified_by_matching_aggregate(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "remote_observation_audited_nonformal",
+                "publication_commit_sha": "a" * 40, "publication_count": 1,
+                "observed_before_t_minus_12": 1,
+                "observed_after_t_minus_12": 0, "unverified_count": 0,
+                "records": [{"race_code": "202611040101",
+                             "first_add_commit": "a" * 40,
+                             "status": "github_server_observed_before_t_minus_12",
+                             "github_api_server_date_utc": "2026-11-04T02:00:00+00:00",
+                             "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                             "first_add_blob_matches_remote": True,
+                             "original_sha256": "f" * 64}]})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["github_observation_integrity"]["status"], "mismatch")
+        self.assertEqual(row["github_observation_integrity"]["reason"],
+                         "observation_false_time_label")
+        self.assertIsNone(row["github_observation_before_t12"])
+        self.assertEqual(result["github_observation_before_t12_total"], 0)
+        self.assertEqual(result["github_observation_integrity_mismatch_run_ids"], [123])
+
+    def test_verified_observation_missing_blob_and_dates_is_not_matched(self):
+        for field in ("github_api_server_date_utc", "deadline_minus_12_jst",
+                      "first_add_blob_matches_remote", "original_sha256"):
+            with self.subTest(field=field):
+                row = {"race_code": "202611040101",
+                       "first_add_commit": "a" * 40,
+                       "status": "github_server_observed_before_t_minus_12",
+                       "github_api_server_date_utc": "2026-11-04T01:00:00+00:00",
+                       "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                       "first_add_blob_matches_remote": True,
+                       "original_sha256": "f" * 64}
+                row.pop(field)
+                def download(_, root):
+                    self.save(root, "four-mode-evidence/publication.json", {
+                        "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                        "added_forecasts": 1})
+                    self.save(root, "four-mode-evidence/github-server-observation.json", {
+                        "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                        "status": "remote_observation_audited_nonformal",
+                        "publication_commit_sha": "a" * 40,
+                        "publication_count": 1,
+                        "observed_before_t_minus_12": 1,
+                        "observed_after_t_minus_12": 0, "unverified_count": 0,
+                        "records": [row]})
+                report_row = report({"runs": [self.RUN]}, download)["runs"][0]
+                self.assertEqual(report_row["github_observation_integrity"]["status"],
+                                 "mismatch")
 
     def test_remote_server_observation_failure_is_not_hidden_in_successful_capture(self):
         def download(run_id, root):
