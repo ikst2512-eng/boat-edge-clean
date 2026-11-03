@@ -12,6 +12,20 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_main_archive_audit_runs_independently_of_liveness_failure(self):
+        workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn(
+            "name: Confirm today's first-add archive presence in checked-out Git main" + chr(10)
+            + "        if: always()" + chr(10),
+            workflow,
+        )
+        self.assertIn(
+            "name: Audit today's actual capture execution separately from Git archives" + chr(10)
+            + "        if: always()" + chr(10),
+            workflow,
+        )
+
     def test_november_fourth_first_add_proven_only_as_git_evidence(self):
         adds = parse_additions(A + "\n\n" + P + "\n" + P2 + "\n\n" + B + "\n\n" + OLD + "\n")
         result = audit("20261104", [P, P2, OLD, "four_mode_forecasts/capture_status.json"],
