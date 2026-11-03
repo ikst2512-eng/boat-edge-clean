@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from four_mode_archive_api import archived_four_modes, MODES
+from collect_clean_results import confirmed_record_is_usable
 
 ROOT = Path(__file__).resolve().parent
 
@@ -31,6 +32,11 @@ def compare_race(code, root=ROOT):
     result_path = root / "confirmed_results" / (code + ".json")
     if result_path.is_symlink() or not result_path.is_file() or result_path.stat().st_size > 20000:
         return {"race_code": code, "status": "result_unavailable",
+                "formal": False}
+    # Use the same persisted-result trust gate as overdue coverage.
+    # Otherwise malformed result files could be scored while flagged overdue.
+    if not confirmed_record_is_usable(result_path, code):
+        return {"race_code": code, "status": "invalid_result_or_timing",
                 "formal": False}
     try:
         record = json.loads(result_path.read_text(encoding="utf-8"))
