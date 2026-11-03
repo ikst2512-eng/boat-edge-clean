@@ -112,6 +112,38 @@ class V2ShadowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             missing_result_phase("2026-11-03T14:00:00+00:00", datetime(2026, 11, 3, 14, 0, tzinfo=jst))
 
+    def test_missing_changed_top3_race_is_enumerated_without_scoring(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            folder = root / "four_mode_forecasts"
+            folder.mkdir()
+            code = "202611030101"
+            (folder / (code + ".json")).write_text(json.dumps({
+                "race_code": code, "model_version": VERSION,
+                "input_national_win_rates": [5.0]*6}))
+            original = [x["combo"] for x in tickets()]
+            moved = [original[0], original[3], original[1]] + [
+                x for x in original if x not in (original[0],original[3],original[1])]
+            def archive(code, root):
+                return 200, {"model_version": VERSION,
+                    "deadline_jst": "2026-11-03T14:00:00+09:00",
+                    "modes": {"hit": {"tickets": tickets()},
+                              "narrow": {"tickets": [{}]*5},
+                              "balance": {"tickets": [{}]*16},
+                              "hole": {"tickets": [{}]*22}}}
+            with (patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archive),
+                  patch("four_mode_v2_predeclared_shadow.candidate_order", return_value=(moved, True)),
+                  patch("four_mode_v2_predeclared_shadow.compare_race",
+                        return_value={"status": "result_unavailable"})):
+                report = evaluate(root, now=datetime(2026, 11, 3, 15, 30,
+                     tzinfo=timezone(timedelta(hours=9))))
+            self.assertEqual(report["v2_comparable"], 0)
+            self.assertEqual(report["changed_top3_cases_count"], 1)
+            self.assertEqual(report["changed_top3_cases"][0]["race_code"], code)
+            self.assertEqual(report["changed_top3_cases"][0]["result_status"], "missing")
+            self.assertEqual(report["changed_top3_cases"][0]["pending_phase"], "over_60m_after_deadline")
+            self.assertEqual(report["groups"]["20261103"]["forecast_only_exposure"]["changed_top3_membership"], 1)
+
     def test_no_v2_is_explicit(self):
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "four_mode_forecasts").mkdir()
