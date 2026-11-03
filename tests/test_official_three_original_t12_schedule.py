@@ -11,6 +11,13 @@ class NearCutoffScheduleTests(unittest.TestCase):
         self.assertIn("cron: '20,25,30,40,48,50,51 6 3 11 *'", workflow)
         self.assertIn("github.event_name == 'schedule'", workflow)
         self.assertIn("202611030212", workflow)
+        for race in ("202611030612", "202611030412", "202611030104"):
+            self.assertIn(race, workflow)
+        self.assertIn("github.event_name == 'pull_request'", workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
+        self.assertIn("matrix.race_code", workflow)
+        self.assertIn("strategy:", workflow)
+        self.assertIn("fail-fast: false", workflow)
         for audited_path in (
             "scripts/audit_official_racelist_receipt.py",
             "scripts/audit_three_official_t12_originals.py",
