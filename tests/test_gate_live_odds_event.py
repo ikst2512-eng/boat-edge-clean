@@ -70,13 +70,19 @@ class FallbackGateTests(unittest.TestCase):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
         now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
-        direct = {"event": "schedule", "created_at": "2026-11-03T03:26:00Z",
+        direct = {"id": 17, "event": "schedule", "created_at": "2026-11-03T03:26:00Z",
                   "status": "completed", "conclusion": "success"}
         def fetch(url, token):
             self.assertIn("event=schedule", url)
             return {"workflow_runs": [direct]}
         self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
-                                                    fetch_json=fetch), "direct_schedule_observed")
+                          fetch_json=fetch, probe_check=lambda *_: "valid"), "direct_schedule_observed")
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                          fetch_json=fetch, probe_check=lambda *_: "no_valid_odds"),
+                         "direct_schedule_absent_or_failed")
+        self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
+                          fetch_json=fetch, probe_check=lambda *_: "unavailable"),
+                         "schedule_lookup_unavailable")
         direct["status"], direct["conclusion"] = "in_progress", None
         self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
                                                     fetch_json=fetch), "direct_schedule_observed")
@@ -85,6 +91,44 @@ class FallbackGateTests(unittest.TestCase):
                                                     fetch_json=fetch), "direct_schedule_absent_or_failed")
         self.assertEqual(gate.direct_schedule_guard(trigger, "a/b", "token", now=now,
                          fetch_json=lambda *_: {"workflow_runs": []}), "direct_schedule_absent_or_failed")
+
+
+    def test_saved_artifact_with_verified_200_suppresses_fallback(self):
+        import io
+        import zipfile
+        evidence = {"source_status": "ok", "samples": [{
+            "race_code": "202611030111", "attempts": [{
+                "http": 202, "state": "pending_202", "latency_ms": 80}, {
+                "http": 200, "state": "valid_200", "latency_ms": 100}]}]}
+        def archive_of(data):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w") as out:
+                out.writestr("live_odds_metrics.json", json.dumps(data))
+            return buffer.getvalue()
+        artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics", "id": 7, "expired": False}]}
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
+                          fetch_zip=lambda *_: archive_of(evidence)), "valid")
+        pending = {"source_status": "ok", "samples": [{"race_code": "202611030111",
+                    "attempts": [{"http": 202, "state": "pending_202", "latency_ms": 100}]}]}
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
+                          fetch_zip=lambda *_: archive_of(pending)), "no_valid_odds")
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
+                          fetch_zip=lambda *_: archive_of({"source_status": "unavailable:URLError",
+                                                            "samples": []})), "no_valid_odds")
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17,
+                          fetch_json=lambda *_: {"artifacts": []}), "no_valid_odds")
+        evidence["samples"][0]["attempts"][-1]["http"] = 202
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
+                          fetch_zip=lambda *_: archive_of(evidence)), "no_valid_odds")
+
+    def test_failed_artifact_download_does_not_assume_direct_success(self):
+        artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics", "id": 7, "expired": False}]}
+        def inaccessible(*_):
+            raise OSError("connection down")
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17,
+                          fetch_json=artifacts, fetch_zip=inaccessible), "unavailable")
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17,
+                          fetch_json=lambda *_: {}), "unavailable")
 
     def test_direct_guard_fails_closed_for_unknown_api_status(self):
         from datetime import datetime, timezone
