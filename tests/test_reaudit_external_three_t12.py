@@ -38,8 +38,13 @@ def evidence(complete=False):
     for part, name in (("card", "racelist.html"),
                        ("before", "beforeinfo.json"),
                        ("odds", "original.html")):
-        files[f"{PREFIX}/{part}/{name}"] = ("original " + part).encode()
-        files[f"{PREFIX}/{part}/manifest.json"] = b"{}"
+        original = ("original " + part).encode()
+        files[f"{PREFIX}/{part}/{name}"] = original
+        files[f"{PREFIX}/{part}/manifest.json"] = json.dumps({
+            "race_code": RACE,
+            "sha256": hashlib.sha256(original).hexdigest(),
+            "bytes": len(original)
+        }).encode()
     return files, result
 
 
@@ -71,6 +76,38 @@ class ExternalRemoteReauditTests(unittest.TestCase):
         del files[f"{PREFIX}/odds/original.html"]
         with self.assertRaisesRegex(ValueError, "missing one or more"):
             inspect_stored_files(files, RACE, OBS, auditor=lambda *args: source)
+
+    def test_remote_original_mutated_after_manifest_refused_without_auditor(self):
+        files, source = evidence()
+        files[f"{PREFIX}/odds/original.html"] = b"mutated original"
+        audit = Mock(return_value=source)
+        with self.assertRaisesRegex(ValueError, "manifest SHA256"):
+            inspect_stored_files(files, RACE, OBS, auditor=audit)
+        audit.assert_not_called()
+
+    def test_remote_manifest_claimed_wrong_race_refused_without_auditor(self):
+        files, source = evidence()
+        key = f"{PREFIX}/before/manifest.json"
+        manifest = json.loads(files[key])
+        manifest["race_code"] = "202611030105"
+        files[key] = json.dumps(manifest).encode()
+        audit = Mock(return_value=source)
+        with self.assertRaisesRegex(ValueError, "manifest SHA256"):
+            inspect_stored_files(files, RACE, OBS, auditor=audit)
+        audit.assert_not_called()
+
+    def test_remote_manifest_size_boolean_or_wrong_size_refused(self):
+        files, source = evidence()
+        key = f"{PREFIX}/card/manifest.json"
+        for invalid in (True, 5):
+            altered = dict(files)
+            manifest = json.loads(files[key])
+            manifest["bytes"] = invalid
+            altered[key] = json.dumps(manifest).encode()
+            audit = Mock(return_value=source)
+            with self.assertRaisesRegex(ValueError, "manifest SHA256"):
+                inspect_stored_files(altered, RACE, OBS, auditor=audit)
+            audit.assert_not_called()
 
     def test_exact_commit_github_sha_rechecked(self):
         raw = b"stored original"
