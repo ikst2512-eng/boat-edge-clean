@@ -1,0 +1,42 @@
+name: Hole second-pair evidence diagnosis
+on:
+  pull_request:
+    paths:
+      - hole_second_pair_evidence_research.py
+      - test_hole_second_pair_evidence_research.py
+      - .github/workflows/hole-second-pair-evidence.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_second_pair_evidence_research.py
+      - run: python hole_second_pair_evidence_research.py > hole_second_pair_evidence.json
+      - name: Print observed counts and verify no formal claims
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_second_pair_evidence.json'))
+          assert all(r[key] is False for key in
+                     ("formal","independent_holdout","prospective_validation",
+                      "independent_first_receipt_verified","production_forecast_changed","score_calibrated"))
+          for name in ("reused_prior_dates","nov03_followup"):
+              data=r[name]
+              print("GROUP",name,"COMPARABLE",data["compared"])
+              print("MISSING",data["missing_by_reason"])
+              print("MISSES",data["coverage_classes"])
+              print("DONOR_SUPPORT",data["missing_pair_donor_support"])
+              print("PAIR_SELECTED",data["missing_pair_selected_by_top5_safe_bundle"])
+              print("PAIR_RANK",data["winning_pair_donor_pair_rank"])
+              print("BOAT_RATE",data["national_rate_feature"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-second-pair-evidence
+          path: hole_second_pair_evidence.json
