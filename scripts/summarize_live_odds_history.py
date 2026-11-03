@@ -320,8 +320,8 @@ def main():
             stream.write("Observed JST dates: " + str(sum(row["has_valid_observations"] for row in daily)) +
                          "/14; missing days are N/A, not successes.\n\n")
             stream.write("Today's scheduled trigger observations: " +
-                         json.dumps(schedule_health, ensure_ascii=False) + "\\n\\n")
-            stream.write("Unobserved scheduled triggers are not counted as successful checks.\\n")
+                         json.dumps(schedule_health, ensure_ascii=False) + "\n\n")
+            stream.write("Unobserved scheduled triggers are not counted as successful checks.\n")
 
 
 if __name__ == "__main__":
