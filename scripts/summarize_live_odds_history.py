@@ -142,7 +142,7 @@ def daily_trends(records, *, now=None):
 
 
 
-def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None, earliest_possible=None):
+def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None, earliest_possible=None,\n                            schedule_configured_at=None):
     """Observe today's configured cron slots; missing triggers are not API failures.
 
     A late GitHub scheduled event may arrive after this check, so "not_observed"
@@ -172,6 +172,8 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None, earli
         # Creation time is a lower bound only, not proof the cron was enabled then.
         if earliest_possible is not None and scheduled < earliest_possible:
             state = "before_repository_creation"
+        elif schedule_configured_at is not None and scheduled < schedule_configured_at:
+            state = "before_schedule_enabled"
         else:
             state = "observed" if observed else ("not_observed_after_grace" if utc_now >= deadline else "awaiting_grace")
         slots.append({"scheduled_jst": scheduled.astimezone(jst).isoformat(),
@@ -181,7 +183,7 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None, earli
             "grace_minutes": grace_minutes, "slots": slots}
 
 
-def schedule_history_coverage(runs, *, now=None, days=DAYS, grace_minutes=90, earliest_possible=None):
+def schedule_history_coverage(runs, *, now=None, days=DAYS, grace_minutes=90,\n                              earliest_possible=None, schedule_configured_at=None):
     """Track observed schedule events over calendar days, not API success.
 
     Missing scheduled trigger observations are not evidence that GitHub attempted
@@ -195,18 +197,16 @@ def schedule_history_coverage(runs, *, now=None, days=DAYS, grace_minutes=90, ea
         day = today - timedelta(days=offset)
         slot_status = schedule_trigger_health(runs, now=now, day=day,
                                               grace_minutes=grace_minutes,
-                                              earliest_possible=earliest_possible)
+                                              earliest_possible=earliest_possible,\n                                              schedule_configured_at=schedule_configured_at)
         daily.append({"date_jst": day.isoformat(), **slot_status})
     total = sum(len(row["slots"]) for row in daily)
     observed = sum(row["observed_slots"] for row in daily)
     missing = sum(row["not_observed_after_grace"] for row in daily)
     ineligible = sum(sum(slot["state"] == "before_repository_creation" for slot in row["slots"])
                      for row in daily)
-    return {"calendar_days": days, "slots_configured": total,
-            "slots_before_repository_creation": ineligible,
-            "eligible_slots": total - ineligible,
+    before_enabled = sum(sum(slot["state"] == "before_schedule_enabled" for slot in row["slots"])\n                         for row in daily)\n    return {"calendar_days": days, "slots_configured": total,\n            "slots_before_repository_creation": ineligible,\n            "slots_before_schedule_enabled": before_enabled,\n            "eligible_slots": total - ineligible - before_enabled,
             "observed_slots": observed, "not_observed_after_grace": missing,
-            "awaiting_grace": total - observed - missing - ineligible,
+            "awaiting_grace": total - observed - missing - ineligible - before_enabled,
             "observed_rate_pct": round(100 * observed / (observed + missing), 1)
             if observed + missing else None,
             "daily": daily}
@@ -226,10 +226,9 @@ def fetch_schedule_trigger_health(repository, token, *, now=None):
             raise ValueError("REPOSITORY_CREATED_AT_NAIVE")
     except (KeyError, AttributeError, TypeError, ValueError) as exc:
         raise ValueError("REPOSITORY_CREATED_AT_INVALID") from exc
-    return {**schedule_trigger_health(runs, now=now, earliest_possible=created_at),
+    # The odds workflow did not exist before its initial scheduled-workflow\n    # commit (c111da08a0a1). Repository creation predates this monitor.\n    scheduled_since = datetime.fromisoformat("2026-10-31T06:38:46+00:00")\n    return {**schedule_trigger_health(runs, now=now, earliest_possible=created_at,\n                                      schedule_configured_at=scheduled_since),
             "history_14day": schedule_history_coverage(
-                runs, now=now, earliest_possible=created_at),
-            "repository_created_at": created_at.isoformat()}
+                runs, now=now, earliest_possible=created_at,\n                schedule_configured_at=scheduled_since),\n            "repository_created_at": created_at.isoformat(),\n            "schedule_configured_at": scheduled_since.isoformat()}
 
 
 
@@ -437,7 +436,7 @@ def main():
                 h = schedule_health["history_14day"]
                 stream.write("14-day cron slot coverage: observed " + str(h["observed_slots"]) +
                              "/" + str(h["eligible_slots"]) + " eligible slots; " +
-                             str(h["slots_before_repository_creation"]) + " slots predate repository; not observed after grace: " +
+                             str(h["slots_before_repository_creation"]) + " slots predate repository; " +\n                str(h["slots_before_schedule_enabled"]) + " slots predate the actual workflow schedule; not observed after grace: " +
                              str(h["not_observed_after_grace"]) + "; awaiting grace: " +
                              str(h["awaiting_grace"]) + ". This measures trigger evidence, not API success.\\n\\n")
             stream.write("Unobserved scheduled triggers are not counted as successful checks.\n")
