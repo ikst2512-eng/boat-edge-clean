@@ -20,7 +20,7 @@ class AIReviewGuardTests(unittest.TestCase):
         self.assertIn('p[\'commits\']!=1', workflow)
         self.assertIn("len(parents)!=1 or parents[0].get('sha')!=main", workflow)
         self.assertIn("p['base']['sha']!=main", workflow)
-        self.assertIn('f.write(\'main_sha=\'+main+', workflow)
+        self.assertIn("f.write('main_sha='+main+", workflow)
         self.assertIn('if [[ "${GITHUB_REF}" != "refs/heads/main" ]]', workflow)
 
     def test_final_head_and_main_race_guard(self):
