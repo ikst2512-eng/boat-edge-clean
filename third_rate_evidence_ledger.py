@@ -127,6 +127,18 @@ def prepare(original, root, run_id, attempt):
                 or deadline.strftime("%Y%m%d") != race[:8]
                 or cutoff != deadline - timedelta(minutes=12)):
             raise ValueError("frozen_cutoff_disagrees_with_original")
+        # Bind the frozen baseline tickets to the original immutable forecast
+        # before appending evidence. A valid forecast digest by itself does
+        # not prove that the shadow's baseline ranking came from that file.
+        try:
+            if (original_archive.get("model_version")
+                    != "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
+                    or [ticket["combo"] for ticket in
+                        original_archive["modes"]["hit"]["tickets"]]
+                    != row["baseline_top10"]):
+                raise ValueError("frozen_baseline_disagrees_with_original")
+        except (KeyError, TypeError, AttributeError, IndexError) as exc:
+            raise ValueError("invalid_original_baseline") from exc
     if len(days) != 1:
         raise ValueError("multi_day_capture_not_supported")
     race_day = next(iter(days))
