@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from hole_capture_artifact_inventory import api
+from hole_shadow_stage_verdict import classify
 from hole_future_shadow_audit import audit, POLICIES, TOPS
 from hole_future_locked_eval import verify_locked_selection
 
@@ -131,6 +132,56 @@ def discover_full_days(repo,token,days=2,as_of_jst=None):
             "pages_fetched":pages,"window_start_jst":first_day.isoformat(),
             "window_end_exclusive_jst":end_day.isoformat(),"days":days}
 
+
+def read_evidence_json(folder,name):
+    """Bounded, non-symlink evidence read; absent and malformed remain distinct."""
+    path=folder/name
+    if path.is_symlink() or not path.is_file():
+        return None
+    if path.stat().st_size>2000000:
+        return None
+    try:
+        value=json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value,dict) else None
+    except (OSError,UnicodeError,ValueError):
+        return None
+
+
+def summarize_downloaded_runs(root,run_ids):
+    """Evidence status for every successful download, even without hole-shadow."""
+    root=Path(root)
+    rows=[]
+    for run_id in run_ids:
+        run_dir=root/str(run_id)
+        if run_dir.is_symlink() or not run_dir.is_dir():
+            rows.append({"run_id":run_id,"stage":"download_directory_missing",
+                         "has_hole_shadow":False})
+            continue
+        # GitHub CLI may nest artifacts by artifact name; discover exact one.
+        publication_paths=[p for p in run_dir.rglob("publication.json")
+                           if p.is_file() and not p.is_symlink()]
+        stage_paths=[p for p in run_dir.rglob("stages.json")
+                     if p.is_file() and not p.is_symlink()]
+        shadow_paths=[p for p in run_dir.rglob("hole-shadow.json")
+                      if p.is_file() and not p.is_symlink()]
+        if any(len(x)>1 for x in (publication_paths,stage_paths,shadow_paths)):
+            rows.append({"run_id":run_id,"stage":"ambiguous_multiple_evidence_files",
+                         "has_hole_shadow":False})
+            continue
+        publication=(read_evidence_json(publication_paths[0].parent,"publication.json")
+                     if publication_paths else None)
+        stages=(read_evidence_json(stage_paths[0].parent,"stages.json")
+                if stage_paths else None)
+        shadow=(read_evidence_json(shadow_paths[0].parent,"hole-shadow.json")
+                if shadow_paths else None)
+        rows.append({"run_id":run_id,
+                     "stage":classify(stages,publication,shadow),
+                     "publication_outcome":publication.get("outcome") if publication else None,
+                     "has_hole_shadow":bool(shadow_paths),
+                     "shadow_records":len(shadow["records"]) if shadow and
+                           isinstance(shadow.get("records"),list) else None})
+    return rows
+
 def collect_recent(root,repo,token,days=2,as_of_jst=None):
     if not repo or not token:raise ValueError("credentials_required")
     discovery=discover_full_days(repo,token,days,as_of_jst)
@@ -154,6 +205,10 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
             except (OSError,subprocess.TimeoutExpired):
                 failures.append({"run_id":run_id,"reason":"download_error"})
         result=aggregate(root,dest)
+        run_evidence=summarize_downloaded_runs(dest,downloaded)
+    result["downloaded_run_evidence"]=run_evidence
+    result["downloaded_stage_counts"]=dict(Counter(
+        item["stage"] for item in run_evidence))
     result["runs_in_window"]=len(candidates)
     result["runs_inspected"]=min(len(candidates),MAX_DOWNLOADS)
     result["runs_downloaded"]=len(downloaded)

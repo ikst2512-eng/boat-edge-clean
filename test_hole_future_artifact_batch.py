@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
 from unittest.mock import patch
-from hole_future_artifact_batch import aggregate,discover_full_days,collect_recent
+from hole_future_artifact_batch import aggregate,discover_full_days,collect_recent,summarize_downloaded_runs
 
 CODE1="202611040101"
 CODE2="202611040102"
@@ -111,5 +111,43 @@ class FullDayListingTests(unittest.TestCase):
  def test_days_limit(self):
   with self.assertRaises(ValueError):
    discover_full_days("a/b","token",days=4)
+class DownloadedRunEvidenceTests(unittest.TestCase):
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory()
+  self.addCleanup(self.tmp.cleanup)
+  self.root=Path(self.tmp.name)
+ def put(self,run_id,pub=None,stages=None,shadow=None):
+  folder=self.root/str(run_id)/"four-mode-evidence";folder.mkdir(parents=True)
+  for name,record in (("publication.json",pub),("stages.json",stages),
+                      ("hole-shadow.json",shadow)):
+   if record is not None:
+    (folder/name).write_text(json.dumps(record))
+ def test_no_eligible_not_a_missing_artifact_error(self):
+  self.put(1,{"outcome":"no_eligible_candidates"},{"receipt_staging":"success"},
+           {"status":"not_published","records":[]})
+  x=summarize_downloaded_runs(self.root,[1])
+  self.assertEqual(x[0]["stage"],"no_eligible_forecasts_published")
+  self.assertTrue(x[0]["has_hole_shadow"])
+  self.assertEqual(x[0]["shadow_records"],0)
+ def test_publication_failed_before_shadow(self):
+  self.put(2,{"outcome":"failed"},{"receipt_staging":"failure"})
+  x=summarize_downloaded_runs(self.root,[2])
+  self.assertEqual(x[0]["stage"],"publication_pipeline_failed")
+  self.assertFalse(x[0]["has_hole_shadow"])
+ def test_published_but_missing_hole_shadow_is_visible(self):
+  self.put(3,{"outcome":"pushed_to_main"},{"receipt_staging":"success"})
+  x=summarize_downloaded_runs(self.root,[3])
+  self.assertEqual(x[0]["stage"],"missing_shadow_evidence")
+  self.assertFalse(x[0]["has_hole_shadow"])
+ def test_missing_stage_not_success(self):
+  self.put(4,{"outcome":"pushed_to_main"})
+  x=summarize_downloaded_runs(self.root,[4])
+  self.assertEqual(x[0]["stage"],"missing_stage_evidence")
+ def test_multiple_evidence_files_not_silently_accepted(self):
+  self.put(5,{"outcome":"pushed_to_main"},{"receipt_staging":"success"})
+  folder=self.root/"5"/"duplicate";folder.mkdir()
+  (folder/"publication.json").write_text("{}")
+  x=summarize_downloaded_runs(self.root,[5])
+  self.assertEqual(x[0]["stage"],"ambiguous_multiple_evidence_files")
 if __name__=="__main__":
  unittest.main()
