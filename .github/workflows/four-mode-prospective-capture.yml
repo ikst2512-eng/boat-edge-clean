@@ -225,13 +225,16 @@ jobs:
             fi
             sleep "$attempt"
           done
+      # Capture the locked third-rate candidate independently of the hole
+      # research step's outcome. Even when source/publication fails, write
+      # explicit "no confirmed publication" evidence rather than silently skip.
+      - name: Freeze third-place research shadow from published original before T-12
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        run: python third_rate_same_job_capture.py
       - name: Freeze shadow after confirmed publication (research only)
         if: github.event_name != 'pull_request'
         run: |
           python hole_shadow_same_job_capture.py
-      - name: Freeze third-place research shadow from published original before T-12
-        if: github.event_name != 'pull_request'
-        run: python third_rate_same_job_capture.py
       - name: Record per-stage capture verdict
         if: always()
         env:
