@@ -26,13 +26,16 @@ def _time(value):
         return None
 
 
-def first_add_for_path(path, *, cutoff_at, fetch, repository):
+def first_add_for_path(path, *, cutoff_at, fetch, repository, expected_blob_sha=None):
     if type(path) is not str or not PATH.fullmatch(path):
         raise ValueError("first_add_bad_path")
+    if expected_blob_sha is not None and not SHA.fullmatch(str(expected_blob_sha)):
+        raise ValueError("first_add_invalid_expected_blob_sha")
     cutoff=_time(cutoff_at)
     if cutoff is None:
         raise ValueError("first_add_bad_cutoff")
     oldest=None
+    change_count=0
     pages=0
     for page in range(1,MAX_PAGES+1):
         args=urlencode({"sha":BRANCH,"path":path,"per_page":100,"page":page})
@@ -48,6 +51,7 @@ def first_add_for_path(path, *, cutoff_at, fetch, repository):
                 raise ValueError("first_add_history_sha_invalid")
         if commits:
             oldest=commits[-1]["sha"]
+            change_count+=len(commits)
         pages=page
         if len(commits)<100:
             break
@@ -61,6 +65,15 @@ def first_add_for_path(path, *, cutoff_at, fetch, repository):
     entries=[item for item in detail["files"] if isinstance(item,dict) and item.get("filename")==path]
     if len(entries)!=1 or entries[0].get("status")!="added":
         return {"path":path,"status":"earliest_change_not_addition",
+                "first_add_sha":oldest,"commit_timestamp_before_cutoff":False,
+                "independent_server_first_seen_verified":False}
+    if change_count!=1:
+        return {"path":path,"status":"history_multiple_changes",
+                "first_add_sha":oldest,"change_count":change_count,
+                "commit_timestamp_before_cutoff":False,
+                "independent_server_first_seen_verified":False}
+    if expected_blob_sha is not None and entries[0].get("sha")!=expected_blob_sha:
+        return {"path":path,"status":"first_add_blob_different_from_current",
                 "first_add_sha":oldest,"commit_timestamp_before_cutoff":False,
                 "independent_server_first_seen_verified":False}
     metadata=detail.get("commit")
@@ -92,7 +105,8 @@ def audit_first_add(validated, *, fetch, repository, limit=MAX_FILES):
     for item in selected:
         try:
             outcome=first_add_for_path(item["path"],cutoff_at=item["cutoff_at"],
-                                       fetch=fetch,repository=repository)
+                                       fetch=fetch,repository=repository,
+                                       expected_blob_sha=item.get("blob_sha"))
             records.append(outcome)
         except (OSError,ValueError,TypeError,KeyError) as exc:
             errors.append({"path":item["path"],"error_type":type(exc).__name__})
