@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from scripts.run_external_three_t12 import collected_files, publish_originals, run
+from scripts.run_external_three_t12 import collected_files, publish_originals, run, archival_exit_code
 
 RACE = "202611030104"
 OBS = "externaltest1"
@@ -175,6 +175,35 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                     "token", observer=lambda *args: report(),
                     publisher=lambda *args: "saved-commit",
                     verifier=lambda *args: remote)
+
+    def test_diagnostic_only_archive_exits_nonzero_even_if_git_write_succeeds(self):
+        result = {
+            "race_code": RACE, "status": "t12_preflight_expired",
+            "remote_originals_reaudited": False, "archived_original_count": 0,
+            "research_complete": False, "full_t12_source_certified": False,
+            "forecast_usable": False,
+        }
+        self.assertEqual(archival_exit_code(result), 1)
+
+    def test_valid_originals_archived_with_incomplete_exhibition_exits_zero(self):
+        result = {
+            "race_code": RACE, "status": "research_components_incomplete",
+            "remote_originals_reaudited": True, "archived_original_count": 6,
+            "research_complete": False, "full_t12_source_certified": False,
+            "forecast_usable": False,
+        }
+        self.assertEqual(archival_exit_code(result), 0)
+
+    def test_claimed_original_count_or_forecast_permission_never_passes(self):
+        result = {
+            "remote_originals_reaudited": True, "archived_original_count": 6,
+            "full_t12_source_certified": False, "forecast_usable": False,
+        }
+        for broken in ({"archived_original_count": 5},
+                       {"remote_originals_reaudited": False},
+                       {"full_t12_source_certified": True},
+                       {"forecast_usable": True}):
+            self.assertEqual(archival_exit_code({**result, **broken}), 1)
 
     def test_main_branch_cannot_be_written(self):
         with self.assertRaisesRegex(ValueError, "invalid dedicated evidence branch"):
