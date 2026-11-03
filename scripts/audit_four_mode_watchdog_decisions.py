@@ -8,6 +8,7 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 MARKER = "FOUR_MODE_WATCHDOG="
@@ -86,6 +87,8 @@ def inspect(history, repo, token, fetch=api, limit=6):
                 else:
                     record["decision"] = decision
                     record["evidence_status"] = "watchdog_log_verified"
+        except HTTPError as exc:
+            record["evidence_status"] = "retrieval_http_" + str(exc.code)
         except (OSError, ValueError, TypeError, KeyError) as exc:
             record["evidence_status"] = "retrieval_error:" + type(exc).__name__
         decisions.append(record)
