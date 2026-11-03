@@ -78,7 +78,10 @@ def inspect(run, root):
     return result
 
 
-def report(history, downloader, limit=6):
+# The 09:20 JST inventory follows nine nominal captures (07:07 through 09:07).
+# Six latest runs omit the first three and can hide early publication failures.
+# Inspect twelve by default to retain a small retry margin; remain bounded.
+def report(history, downloader, limit=12):
     if not isinstance(history, dict) or not isinstance(history.get("runs"), list) or not 1 <= limit <= 20:
         raise ValueError("invalid schedule history")
     rows = []
@@ -99,6 +102,8 @@ def report(history, downloader, limit=6):
     claimed = [r["claimed_added_forecasts"] for r in rows if r["claimed_added_forecasts"] is not None]
     return {"schema": "FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE_V1",
             "scheduled_runs_checked": len(rows),
+            "history_runs_available": len(history["runs"]),
+            "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "claimed_added_forecasts_sum": sum(claimed) if claimed else None,
@@ -126,6 +131,7 @@ def main():
     output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print("FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE=" + json.dumps({
         "scheduled_runs_checked": result["scheduled_runs_checked"],
+        "history_runs_omitted": result["history_runs_omitted"],
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
