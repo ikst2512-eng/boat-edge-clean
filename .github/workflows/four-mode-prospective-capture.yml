@@ -231,8 +231,12 @@ jobs:
       - name: Freeze third-place research shadow from published original before T-12
         if: ${{ always() && github.event_name != 'pull_request' }}
         run: python third_rate_same_job_capture.py
+      # The third-rate research freeze can fail on a malformed individual
+      # candidate after main publication. Preserve independent hole-shadow
+      # evidence even when that separate research step fails. Its failure
+      # still makes the job fail; no production-success claim is hidden.
       - name: Freeze shadow after confirmed publication (research only)
-        if: github.event_name != 'pull_request'
+        if: ${{ always() && github.event_name != 'pull_request' }}
         run: |
           python hole_shadow_same_job_capture.py
       - name: Record per-stage capture verdict
