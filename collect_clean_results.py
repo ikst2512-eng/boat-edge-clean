@@ -179,6 +179,38 @@ def collect_recent(now=None, collector=collect):
     return {"status": "checked", "days": [collector(day) for day in dates]}
 
 
+
+def confirmed_record_is_usable(path, code):
+    """Only trustworthy persisted records satisfy overdue coverage.
+
+    A file's mere existence is not a settled result. Do not delete or
+    rewrite invalid records; keep them visible for manual review.
+    """
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 20000:
+            return False
+        record=json.loads(path.read_text(encoding="utf-8"))
+        order=record.get("finish_order")
+        if (record.get("race_code")!=code or record.get("status")!="confirmed"
+                or type(order) is not list or len(order)!=3
+                or any(type(boat) is not int or boat not in range(1,7) for boat in order)
+                or len(set(order))!=3
+                or not isinstance(record.get("source_url"),str)
+                or not record["source_url"].startswith("https://")
+                or not isinstance(record.get("source_sha256"),str)
+                or re.fullmatch(r"[a-f0-9]{64}",record["source_sha256"]) is None):
+            return False
+        for key in ("confirmed_at_jst","collected_at_jst"):
+            value=record.get(key)
+            if not isinstance(value,str):
+                return False
+            if datetime.fromisoformat(value).utcoffset() is None:
+                return False
+        return True
+    except (OSError,ValueError,TypeError,AttributeError,OverflowError):
+        return False
+
+
 def audit_missing_results(root=ROOT, now=None):
     """List only overdue CLEAN frozen races without a confirmed result file.
 
@@ -191,7 +223,7 @@ def audit_missing_results(root=ROOT, now=None):
     if forecasts.exists():
         for file in sorted(forecasts.glob("*.json")):
             code = file.stem
-            if not RACE_RE.fullmatch(code) or (confirmed / (code + ".json")).is_file():
+            if not RACE_RE.fullmatch(code) or confirmed_record_is_usable(confirmed / (code + ".json"),code):
                 continue
             try:
                 record = json.loads(file.read_text(encoding="utf-8"))
