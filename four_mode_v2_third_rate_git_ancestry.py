@@ -38,6 +38,7 @@ def audit(root, *, git=_git):
         "checkout_git_history_complete": False,
         "checked_future_archive_count": 0,
         "future_result_paired": 0,
+        "future_result_paired_race_codes": [],
         "first_add_before_t_minus_12_count": 0,
         "first_add_after_t_minus_12_count": 0,
         "first_add_original_blob_mismatch_count": 0,
@@ -90,6 +91,8 @@ def audit(root, *, git=_git):
             outcome = compare_race(code, root)
             entry["paired_result"] = outcome.get("status") == "historical_comparison_only"
             result["future_result_paired"] += int(entry["paired_result"])
+            if entry["paired_result"]:
+                result["future_result_paired_race_codes"].append(code)
             try:
                 deadline = datetime.fromisoformat(archive["deadline_jst"])
                 cutoff = deadline - timedelta(minutes=12)
@@ -139,17 +142,39 @@ def audit(root, *, git=_git):
         raise ValueError("first_add_status_partition")
     if sum(row["paired_result"] for row in result["rows"]) != result["future_result_paired"]:
         raise ValueError("future_paired_partition")
+    if (result["future_result_paired_race_codes"] != sorted(set(
+            result["future_result_paired_race_codes"])) or
+            len(result["future_result_paired_race_codes"]) != result["future_result_paired"]):
+        raise ValueError("future_paired_roster_partition")
     result["by_day"] = dict(sorted(result["by_day"].items()))
     return result
 
 
 def verify_shadow_cohort(audit_result, shadow_result):
-    """Compare only future result counts; never elevate publication authority."""
+    """Require exact race-code identity, never just equal cohort sizes.
+
+    Local Git archive presence cannot promote independently verified evidence.
+    """
     future = shadow_result["date_separated_forward_reference"]
+    shadow_codes = future.get("paired_race_codes")
+    audit_codes = audit_result.get("future_result_paired_race_codes")
     if (future.get("start_day_jst") != FUTURE_START
             or type(future.get("paired")) is not int
+            or type(audit_result.get("future_result_paired")) is not int
+            or not isinstance(shadow_codes, list)
+            or not isinstance(audit_codes, list)
             or audit_result["future_result_paired"] != future["paired"]):
         raise ValueError("forward_result_cohort_mismatch")
+    for codes, count in ((shadow_codes, future["paired"]),
+                         (audit_codes, audit_result["future_result_paired"])):
+        if (len(codes) != count or
+                any(type(code) is not str or
+                    not re.fullmatch(r"20[0-9]{10}", code) or
+                    code[:8] < FUTURE_START for code in codes) or
+                codes != sorted(set(codes))):
+            raise ValueError("invalid_forward_race_roster")
+    if audit_codes != shadow_codes:
+        raise ValueError("forward_race_identity_mismatch")
     return True
 
 
