@@ -43,7 +43,7 @@ def observe(race_code, root, observation_id, *, now=None,
     report["official_deadline_jst"] = deadline.isoformat()
     report["cutoff_jst"] = cutoff.isoformat()
     if (datetime.fromisoformat(a["received_at_jst"]) > cutoff
-            or now() + timedelta(seconds=40) >= cutoff):
+            or now() + timedelta(seconds=60) >= cutoff):
         report["status"] = "t12_preflight_expired"
         return report
     c = card(race_code, root, "card" + observation_id)
