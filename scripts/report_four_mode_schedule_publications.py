@@ -137,12 +137,26 @@ def report(history, downloader, limit=12):
     with ThreadPoolExecutor(max_workers=min(4, len(selected) or 1)) as pool:
         rows = list(pool.map(inspect_one, selected))
     claimed = [r["claimed_added_forecasts"] for r in rows if r["claimed_added_forecasts"] is not None]
+    # Failure count alone is misleading when prior artifacts do not contain
+    # the new stage verdicts. Report coverage per research step explicitly.
+    research_coverage = {}
+    for field in ("third_rate_shadow", "hole_shadow"):
+        outcomes = [r[field + "_outcome"] for r in rows]
+        research_coverage[field] = {
+            "success": outcomes.count("success"),
+            "failure": outcomes.count("failure"),
+            "skipped": outcomes.count("skipped"),
+            "cancelled": outcomes.count("cancelled"),
+            "unknown": outcomes.count(None),
+            "checked": len(outcomes),
+        }
     return {"schema": "FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE_V1",
             "scheduled_runs_checked": len(rows),
             "history_runs_available": len(history["runs"]),
             "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
+            "research_stage_coverage": research_coverage,
             "third_rate_shadow_failure_runs": [
                 r["run_id"] for r in rows if r["third_rate_shadow_outcome"] == "failure"],
             "hole_shadow_failure_runs": [
@@ -181,6 +195,7 @@ def main():
         ],
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
+        "research_stage_coverage": result["research_stage_coverage"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
         "hole_shadow_failure_runs": result["hole_shadow_failure_runs"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
