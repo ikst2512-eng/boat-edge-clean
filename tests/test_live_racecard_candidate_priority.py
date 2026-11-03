@@ -92,6 +92,24 @@ class LiveRacecardCandidatePriorityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"candidate_deadline_timezone_missing"):
             fresh_candidates_at_selection([(datetime(2026,11,4,17,50),"x")],NOW)
 
+    def test_live_e2e_logs_each_independent_preview_failure(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] /
+                "scripts/verify_live_racecard_e2e.py").read_text()
+        self.assertIn('for kind in ("tkz","stt"):',source)
+        self.assertIn('"outcome":"PREVIEW_SOURCE_UNAVAILABLE","kind":kind',source)
+        self.assertIn('"preview_source_status":preview_source_status',source)
+        self.assertIn('preview_source_codes.get("tkz",set()) & preview_source_codes.get("stt",set())',source)
+
+    def test_live_e2e_resamples_candidates_before_api_calls(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] /
+                "scripts/verify_live_racecard_e2e.py").read_text()
+        refresh=source.index("fresh_candidates_at_selection(candidates,selection_now)")
+        api=source.index("for source_deadline,code in candidates[:3]:")
+        self.assertLess(refresh,api)
+        self.assertIn('"outcome":"RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE"',source)
+
     def test_timezone_missing_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"t12_clock_timezone_missing"):
             t12_window_open(datetime(2026,11,4,17,45),NOW)
