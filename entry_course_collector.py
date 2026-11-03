@@ -434,7 +434,12 @@ def attempt_batch(root, *, now=None, max_per_run=3,
                 if independent is None:
                     continue
                 expected_cutoff=datetime.fromisoformat(independent)-timedelta(minutes=2)
-                if cutoff!=expected_cutoff or base.get("source_deadline_jst")!=independent:
+                try:
+                    archived_deadline=datetime.fromisoformat(
+                        base.get("source_deadline_jst"))
+                except (ValueError,TypeError):
+                    archived_deadline=None
+                if cutoff!=expected_cutoff or archived_deadline!=datetime.fromisoformat(independent):
                     deadline_conflicts.append(code)
             deadline_conflicts=sorted(set(deadline_conflicts))
         except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
