@@ -45,6 +45,33 @@ class WatchdogPolicyTests(unittest.TestCase):
                                         self.now,"render_cron",
                                         recent_minutes=14,cooldown_minutes=14))
 
+    def test_watchdog_cron_checks_each_scheduled_capture_slot(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        self.assertIn("cron: '12,27,42,57 22-23,0-11 * * *'", workflow)
+        self.assertIn("recent_minutes=14, cooldown_minutes=14", workflow)
+
+    def test_fifteen_minute_watchdog_recovers_missed_slot(self):
+        # A successful run 20 minutes ago must not hide a missed 15-minute slot.
+        self.assertTrue(should_dispatch([run(20, conclusion="success")],
+                                        self.now, "schedule",
+                                        recent_minutes=14, cooldown_minutes=14))
+        # A success or accepted fallback inside the current slot still blocks.
+        self.assertFalse(should_dispatch([run(13, conclusion="success")],
+                                         self.now, "schedule",
+                                         recent_minutes=14, cooldown_minutes=14))
+        self.assertFalse(should_dispatch([run(13, event="workflow_dispatch")],
+                                         self.now, "schedule",
+                                         recent_minutes=14, cooldown_minutes=14))
+        self.assertTrue(should_dispatch([run(15, event="workflow_dispatch")],
+                                        self.now, "schedule",
+                                        recent_minutes=14, cooldown_minutes=14))
+        # Even a delayed job is never duplicated.
+        self.assertFalse(should_dispatch([run(20, status="queued", conclusion=None)],
+                                         self.now, "schedule",
+                                         recent_minutes=14, cooldown_minutes=14))
+
     def test_timezone_required(self):
         with self.assertRaises(ValueError):
             should_dispatch([],self.now.replace(tzinfo=None),"schedule")
