@@ -363,7 +363,9 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(result["github_observation_ledger_coverage"]["success"], 1)
         self.assertEqual(result["github_observation_failure_run_ids"], [123])
         self.assertEqual(result["github_observation_ledger_failure_run_ids"], [123])
-        self.assertEqual(result["runs"][1]["github_observation_before_t12"], 0)
+        self.assertIsNone(result["runs"][1]["github_observation_before_t12"])
+        self.assertEqual(result["runs"][1]["github_observation_integrity"]["status"],
+                         "not_applicable")
         self.assertFalse(result["remote_main_verified"])
 
     def test_legacy_server_observation_absent_is_unknown(self):
