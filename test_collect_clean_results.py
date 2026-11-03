@@ -9,6 +9,16 @@ import collect_clean_results as c
 
 
 class ResultCollectorTests(unittest.TestCase):
+    @staticmethod
+    def valid_confirmation(code):
+        return {
+            "race_code":code, "status":"confirmed", "finish_order":[1,2,3],
+            "source_url":"https://boatracecsv.github.io/data/results/realtime/2026/11/03.csv",
+            "source_sha256":"a"*64,
+            "confirmed_at_jst":"2026-11-03T12:01:00+09:00",
+            "collected_at_jst":"2026-11-03T12:02:00+09:00",
+        }
+
     def test_workflow_run_fallback_never_trusts_pr_or_foreign_repo(self):
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/collect-clean-results.yml").read_text()
@@ -68,7 +78,7 @@ class ResultCollectorTests(unittest.TestCase):
                 ("202610280102","2026-10-28T16:00:00+09:00"),
                 ("202610280103","2026-10-28T20:00:00+09:00")]:
                 (forecasts/(code+".json")).write_text(json.dumps({"race_code":code,"deadline_jst":deadline}),encoding="utf-8")
-            (results/"202610280102.json").write_text('{"status":"confirmed"}',encoding="utf-8")
+            (results/"202610280102.json").write_text(json.dumps(self.valid_confirmation("202610280102")),encoding="utf-8")
             now=datetime.fromisoformat("2026-10-28T18:00:00+09:00")
             self.assertEqual(c.audit_missing_results(root,now),["202610280101"])
             report={"days":[{"day":"20261027","source_races":10,"saved":0},{"day":"20261028","source_races":5,"saved":0}]}
@@ -76,6 +86,36 @@ class ResultCollectorTests(unittest.TestCase):
             self.assertEqual(output["overdue_result_count"],1)
             self.assertEqual(output["overdue_race_codes"],["202610280101"])
             self.assertEqual(output["checked_at_jst"],now.isoformat())
+
+    def test_invalid_existing_confirmation_stays_overdue_without_overwriting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            forecasts=root/"four_mode_forecasts"
+            confirmed=root/"confirmed_results"
+            forecasts.mkdir()
+            confirmed.mkdir()
+            code="202611030101"
+            (forecasts/(code+".json")).write_text(json.dumps({
+                "race_code":code,"deadline_jst":"2026-11-03T11:00:00+09:00"}))
+            target=confirmed/(code+".json")
+            now=datetime.fromisoformat("2026-11-03T12:00:00+09:00")
+            valid=self.valid_confirmation(code)
+            for payload in (
+                "{}",
+                "not-json",
+                json.dumps(dict(valid,finish_order=[1,1,2])),
+                json.dumps(dict(valid,race_code="202611030102")),
+                json.dumps(dict(valid,source_sha256="bad")),
+                json.dumps(dict(valid,confirmed_at_jst="2026-11-03T12:01:00")),
+            ):
+                with self.subTest(payload=payload):
+                    target.write_text(payload,encoding="utf-8")
+                    self.assertFalse(c.confirmed_record_is_usable(target,code))
+                    self.assertEqual(c.audit_missing_results(root,now),[code])
+                    self.assertEqual(target.read_text(encoding="utf-8"),payload)
+            target.write_text(json.dumps(valid),encoding="utf-8")
+            self.assertTrue(c.confirmed_record_is_usable(target,code))
+            self.assertEqual(c.audit_missing_results(root,now),[])
 
     def test_missing_source_rows_are_not_declared_losses(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
@@ -150,7 +190,7 @@ class ResultCollectorTests(unittest.TestCase):
                 code=day+"0101"
                 (forecasts/(code+".json")).write_text(json.dumps({
                     "race_code":code,"deadline_jst":day[:4]+"-"+day[4:6]+"-"+day[6:]+"T12:00:00+09:00"}))
-            (confirmed/"202611010101.json").write_text('{"status":"confirmed"}')
+            (confirmed/"202611010101.json").write_text(json.dumps(self.valid_confirmation("202611010101")))
             called=[]
             r=c.collect_overdue_historical(root,datetime.fromisoformat("2026-11-03T05:01:00+09:00"),
                 lambda d: called.append(d))
