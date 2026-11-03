@@ -81,10 +81,16 @@ def audit_artifact(raw, run_id, auditor=audit_three_originals):
                     "cutoff_jst", "racelist_received_jst",
                     "beforeinfo_received_jst", "odds_received_jst"))):
             raise ValueError("report disagrees with independent originals")
+        independently_complete = independently["all_research_components_observed_by_t12"]
+        expected_status = ("research_components_complete_by_t12" if independently_complete
+                           else "research_components_incomplete")
+        if (report["status"] != expected_status
+                or declared.get("all_research_components_observed_by_t12") is not independently_complete):
+            raise ValueError("report completion status disagrees with independent originals")
         return {
             "status": "independent_originals_reaudited",
             "race_code": race,
-            "research_complete": independently["all_research_components_observed_by_t12"],
+            "research_complete": independently_complete,
             "missing_components": independently["missing_components"],
             "received_jst": {
                 "racelist": independently["racelist_received_jst"],
