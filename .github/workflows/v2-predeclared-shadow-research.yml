@@ -9,6 +9,8 @@ on:
       - four_mode_v2_winner_head_miss_profile.py
       - four_mode_v2_national_head_shadow.py
       - four_mode_v2_protected_pair_shadow.py
+      - four_mode_v2_conditional_place_ranks.py
+      - test_four_mode_v2_conditional_place_ranks.py
       - test_four_mode_v2_protected_pair_shadow.py
       - test_four_mode_v2_national_head_shadow.py
       - test_four_mode_v2_winner_head_miss_profile.py
@@ -36,7 +38,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks
       - name: Evaluate read-only V2 shadow on confirmed results
         run: python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
       - name: Validate V2 sample sufficiency and no-production-promotion gate
@@ -53,6 +55,8 @@ jobs:
         run: python four_mode_v2_national_head_shadow.py | tee v2_national_head_shadow.log
       - name: Compare Top5-protected second-pair V2 research shadow
         run: python four_mode_v2_protected_pair_shadow.py | tee v2_protected_pair_shadow.log
+      - name: Audit oracle-conditional second and third place ranks on actual V2 results
+        run: python four_mode_v2_conditional_place_ranks.py | tee v2_conditional_place_ranks.log
       - uses: actions/upload-artifact@v4
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
@@ -67,4 +71,5 @@ jobs:
             v2_winner_head_miss_profile.log
             v2_national_head_shadow.log
             v2_protected_pair_shadow.log
+            v2_conditional_place_ranks.log
           retention-days: 30
