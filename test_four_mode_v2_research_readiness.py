@@ -5,7 +5,7 @@ from four_mode_v2_research_readiness import summarize, paired_one_sided_pvalue
 
 
 def fixture():
-    return {"formal": False, "independent_remote_first_seen_verified": False,
+    report = {"formal": False, "independent_remote_first_seen_verified": False,
             "v2_comparable": 8, "model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
             "protocol": "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1",
             "groups": {"20261103": {
@@ -18,6 +18,19 @@ def fixture():
                 "modes": {m: {"top3": 1, "top5": 2, "top10": (6 if m=="balance" else 5)}
                           for m in ("narrow", "hit", "balance", "hole")}}}}
 
+    modes = report["groups"]["20261103"]["modes"]
+    pairs = {}
+    for left, right in (("hit", "balance"), ("narrow", "hit"), ("balance", "hole")):
+        pairs[f"{left}_vs_{right}"] = {}
+        for n in (3, 5, 10):
+            key = f"top{n}"
+            a, b = modes[left][key], modes[right][key]
+            pairs[f"{left}_vs_{right}"][key] = {
+                "both": min(a, b), "left_only": max(a-b, 0),
+                "right_only": max(b-a, 0), "neither": 8-max(a,b)}
+    report["groups"]["20261103"]["paired_modes"] = pairs
+    return report
+
 
 class V2ReadinessTests(unittest.TestCase):
     def test_rejects_small_sample_and_remains_research_only(self):
@@ -27,6 +40,17 @@ class V2ReadinessTests(unittest.TestCase):
         self.assertEqual(r["comparable_denominator"], 8)
         self.assertEqual(r["total"]["over_60m_after_deadline"], 58)
         self.assertIn("fewer_than_100_paired_races", r["blocking_reasons"])
+
+    def test_rejects_false_paired_mode_counts(self):
+        d = fixture()
+        d["groups"]["20261103"]["paired_modes"]["hit_vs_balance"]["top10"]["right_only"] += 1
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_valid_paired_mode_totals(self):
+        report = summarize(fixture())
+        self.assertEqual(report["total"]["paired_modes"]["hit_vs_balance"]["top10"]["right_only"], 1)
+        self.assertEqual(report["total"]["paired_modes"]["hit_vs_balance"]["top10"]["both"], 5)
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()
