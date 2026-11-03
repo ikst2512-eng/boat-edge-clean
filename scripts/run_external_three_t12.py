@@ -123,6 +123,17 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
         try:
             api(repo, token, "PATCH", endpoint, {
                 "sha": commit["sha"], "force": False})
+            # An immutable Git SHA can be fetched even if no longer reachable
+            # from the dedicated evidence branch. Check that the branch
+            # points at this commit or at a descendant of it.
+            actual = api(repo, token, "GET", "git/ref/heads/" +
+                         quote(branch, safe="/"))["object"]["sha"]
+            if actual != commit["sha"]:
+                compare = api(repo, token, "GET",
+                              "compare/" + commit["sha"] + "..." + actual)
+                if (compare.get("status") != "ahead"
+                        or compare.get("merge_base_commit", {}).get("sha") != commit["sha"]):
+                    raise ValueError("archived evidence commit not reachable from branch")
             return commit["sha"]
         except HTTPError as exc:
             # Only a rejected optimistic ref update is retryable. A 401,
