@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_direct_sources import holding_rows
+from scripts.live_racecard_candidate_priority import rank_candidates, t12_window_open
 JST=ZoneInfo("Asia/Tokyo")
 now=datetime.now(JST)
 hd=now.strftime("%Y%m%d")
@@ -50,8 +51,14 @@ try:
     preview_candidates=matched["tkz"] & matched["stt"]
 except (OSError,ValueError,KeyError,TimeoutError):
     pass
-candidates.sort(key=lambda item:(item[1] not in preview_candidates,item[0]))
-print(json.dumps({"outcome":"PREVIEW_CANDIDATES","eligible":len(preview_candidates)},ensure_ascii=False))
+candidates=rank_candidates(candidates,preview_candidates,now)
+t12_opportunities=sum(t12_window_open(deadline,now) for deadline,code in candidates)
+print(json.dumps({"outcome":"PREVIEW_CANDIDATES","eligible":len(preview_candidates),
+                  "upcoming_candidates":len(candidates),"t12_opportunities":t12_opportunities,
+                  "sampled":[{"race":code,"deadline":deadline.isoformat(),
+                              "t12_window_open":t12_window_open(deadline,now),
+                              "preview_candidate":code in preview_candidates}
+                             for deadline,code in candidates[:3]]},ensure_ascii=False))
 if not candidates:
     raise SystemExit("NO_ELIGIBLE_UPCOMING_RACES: need a real predeadline sample")
 errors=[]
@@ -59,6 +66,11 @@ verified_cards=[]
 verified_previews=[]
 verified_t12=[]
 for source_deadline,code in candidates[:3]:
+    # Early enough at selection is only a *chance* to prove T-12. The
+    # independent live API receipt and both source observations still decide.
+    print(json.dumps({"outcome":"T12_SAMPLE_STARTED","race":code,
+                      "deadline":source_deadline.isoformat(),
+                      "t12_possible_at_selection":t12_window_open(source_deadline,now)},ensure_ascii=False))
     url="https://boat-edge-clean.onrender.com/api/clean-racecard?"+urlencode({"hd":hd,"jcd":str(int(code[8:10])),"rno":str(int(code[10:12]))})
     try:
         with urlopen(Request(url,headers={"User-Agent":"CLEAN-E2E/1.0","Cache-Control":"no-cache"}),timeout=15) as res:
@@ -113,9 +125,21 @@ for source_deadline,code in candidates[:3]:
             t12_limit=deadline-timedelta(minutes=12)
             # Source timestamps alone do not show the full pair was available
             # to CLEAN by T-12; the live API must return it by that moment.
-            if response_received_at<=t12_limit and all(_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])<=t12_limit for kind in ("tkz","stt")):
+            source_times={kind:_datetime.fromisoformat(audit["beforeinfo"]["sources"][kind]["observed_at"])
+                          for kind in ("tkz","stt")}
+            t12_checks={"api_received_by_t12":response_received_at<=t12_limit,
+                        "tkz_observed_by_t12":source_times["tkz"]<=t12_limit,
+                        "stt_observed_by_t12":source_times["stt"]<=t12_limit}
+            if all(t12_checks.values()):
                 verified_t12.append(code)
-                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,"observed_by":t12_limit.isoformat(),"response_received_at":response_received_at.isoformat()},ensure_ascii=False))
+                print(json.dumps({"outcome":"T12_COMPLETE_PAIR_PASS","race":code,
+                                  "observed_by":t12_limit.isoformat(),"response_received_at":response_received_at.isoformat(),
+                                  "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
+            else:
+                print(json.dumps({"outcome":"T12_PAIR_NOT_VERIFIED","race":code,
+                                  "limit":t12_limit.isoformat(),"checks":t12_checks,
+                                  "response_received_at":response_received_at.isoformat(),
+                                  "source_observed_at":{kind:v.isoformat() for kind,v in source_times.items()}},ensure_ascii=False))
             print(json.dumps({"outcome":"EXHIBITION_PASS","race":code,"courses":[entry["course"] for entry in starts],"source":audit["beforeinfo"].get("source")},ensure_ascii=False))
         verified_cards.append(code)
         if before=="ok":verified_previews.append(code)
