@@ -113,6 +113,35 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(status["already_saved"],1)
             self.assertEqual(status["cutoff_skipped"],0)
 
+    def test_malformed_card_row_does_not_discard_other_good_races(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            recv=datetime(2026,11,4,7,30,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([title] if "/title/" in url else [None,card,"corrupt"],recv,"a"*64)
+            result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["race_cards"]["invalid_nonmapping_rows"],2)
+            self.assertFalse((Path(tmp)/"four_mode_forecasts"/"202611040102.json").exists())
+
+    def test_malformed_title_row_does_not_abort_valid_title(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            recv=datetime(2026,11,4,7,30,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([[],title] if "/title/" in url else [card],recv,"a"*64)
+            result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["title"]["invalid_nonmapping_rows"],1)
+
     def test_empty_daily_titles_recover_from_direct_pre_race_holding(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,11,4,8,0,tzinfo=JST)
