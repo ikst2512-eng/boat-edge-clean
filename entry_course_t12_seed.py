@@ -159,7 +159,9 @@ def validate_base(raw, code, *, now, expected_deadline=None):
     if (not all([deadline,cutoff,generated,title,card]) or
             (expected_deadline is not None and deadline!=expected_deadline) or
             cutoff!=deadline-timedelta(minutes=12) or
-            max(generated,title,card)>cutoff or now.utcoffset() is None or now>=cutoff):
+            max(generated,title,card)>=cutoff or
+            now.utcoffset() is None or now>=cutoff or
+            max(generated,title,card)>now):
         raise ValueError("t12_archive_missed_cutoff")
     from research_model import probabilities
     rates=d.get("national_win_rates")

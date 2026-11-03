@@ -238,6 +238,24 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
                          lambda p,d:self.fail("write"),clock=lambda:NOW)
+    def test_source_receipts_and_generated_clock_cannot_be_in_future(self):
+        for field in ("generated_at","source_title_received_jst",
+                      "source_cards_received_jst"):
+            with self.subTest(field=field):
+                payload=base()
+                payload[field]=(NOW+timedelta(seconds=1)).isoformat()
+                with self.assertRaisesRegex(ValueError,"missed_cutoff"):
+                    validate_base(json.dumps(payload).encode(),CODE,now=NOW)
+    def test_source_or_generation_at_exact_cutoff_is_not_prospective(self):
+        cutoff=datetime(2026,11,3,18,21,tzinfo=JST)
+        safe_now=cutoff-timedelta(microseconds=1)
+        for field in ("generated_at","source_title_received_jst",
+                      "source_cards_received_jst"):
+            with self.subTest(field=field):
+                payload=base()
+                payload[field]=cutoff.isoformat()
+                with self.assertRaisesRegex(ValueError,"missed_cutoff"):
+                    validate_base(json.dumps(payload).encode(),CODE,now=safe_now)
     def test_source_receipt_after_cutoff_is_never_frozen(self):
         row=base();row["source_cards_received_jst"]="2026-11-03T18:22:00+09:00"
         with self.assertRaisesRegex(ValueError,"missed_cutoff"):
