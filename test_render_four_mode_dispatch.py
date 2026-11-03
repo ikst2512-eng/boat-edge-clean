@@ -109,6 +109,26 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(run(token="test-only",now=NOW,request=request)["action"],"no_dispatch")
         self.assertEqual(len(calls),2)
 
+    def test_nonmain_manual_success_cannot_block_render_main_recovery(self):
+        calls=[]
+        def request(req, timeout):
+            calls.append(req.get_method())
+            if req.get_method() == "POST":
+                response=Response(b"")
+                response.status=204
+                return response
+            record={
+                "created_at":(NOW-timedelta(minutes=4)).isoformat(),
+                "status":"completed","conclusion":"success",
+                "event":"workflow_dispatch","head_branch":"research/preview",
+            }
+            if "event=workflow_dispatch" in req.full_url:
+                return Response(json.dumps({"workflow_runs":[record]}).encode())
+            return Response(b'{"workflow_runs":[]}')
+        result=run(token="test-only", now=NOW, request=request)
+        self.assertEqual(result["action"],"dispatch_accepted_not_publication_proof")
+        self.assertEqual(calls,["GET","GET","POST"])
+
     def test_github_run_history_http_failure_cannot_dispatch(self):
         from urllib.error import HTTPError
         calls=[]
