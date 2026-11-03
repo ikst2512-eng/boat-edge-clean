@@ -22,6 +22,12 @@ def verdict(record):
         code = sample.get("race_code")
         attempts = sample.get("attempts")
         if (isinstance(code, str) and len(code) == 12 and code.isdigit()
+                # Operational success requires precisely dated HTTP receipts.
+                # Legacy untimestamped artifacts remain available to historical
+                # reports, but cannot certify a current unattended recovery.
+                and all(isinstance(step, dict)
+                        and "started_at_utc" in step
+                        and "finished_at_utc" in step for step in attempts)
                 and consistent_observation_times(attempts, record.get("checked_at_jst"))
                 and attempts[-1]["state"] == "valid_200"
                 and attempts[-1]["http"] == 200):
