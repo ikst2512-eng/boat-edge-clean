@@ -245,7 +245,7 @@ def fetch_history(repository, token, current, *, now=None):
             list_truncated = True
     selected = []
     for run in runs:
-        if run.get("event") not in ("schedule", "workflow_dispatch"):
+        if run.get("event") not in ("schedule", "workflow_dispatch", "workflow_run"):
             continue
         try:
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
@@ -283,6 +283,8 @@ def fetch_history(repository, token, current, *, now=None):
                 evidence = json.loads(archive.read(FILE))
             if not isinstance(evidence, dict) or not isinstance(evidence.get("samples"), list):
                 raise ValueError("METRICS_SCHEMA")
+            if run.get("event") == "workflow_run" and not include_current_event("workflow_run", evidence):
+                raise ValueError("FALLBACK_PROVENANCE_INVALID")
             # Only evidence with the source's actual observation timestamp.
             stamp = datetime.fromisoformat(evidence["checked_at_jst"])
             observed = stamp.astimezone(timezone.utc) if stamp.tzinfo is not None else None
@@ -296,9 +298,20 @@ def fetch_history(repository, token, current, *, now=None):
     return history, len(selected), errors
 
 
-def include_current_event(event):
-    """PR API checks are QA, not scheduled operational reliability samples."""
-    return event in ("schedule", "workflow_dispatch")
+def include_current_event(event, evidence=None):
+    """Only independently verifiable operational events enter reliability rates."""
+    if event in ("schedule", "workflow_dispatch"):
+        return True
+    if event != "workflow_run" or not isinstance(evidence, dict):
+        return False
+    trigger = evidence.get("trigger")
+    return (isinstance(trigger, dict)
+            and trigger.get("event") == "workflow_run"
+            and trigger.get("upstream_event") == "schedule"
+            and trigger.get("upstream_workflow") == "CLEAN prospective pre-cutoff capture"
+            and trigger.get("upstream_branch") == "main"
+            and type(trigger.get("upstream_run_id")) is int
+            and trigger["upstream_run_id"] > 0)
 
 
 def main():
@@ -307,7 +320,7 @@ def main():
         raise SystemExit("CURRENT_METRICS_MISSING")
     current = json.loads(current_file.read_text(encoding="utf-8"))
     event = os.environ.get("GITHUB_EVENT_NAME", "")
-    include_current = include_current_event(event)
+    include_current = include_current_event(event, current)
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     token = os.environ.get("GH_TOKEN", "")
     history = [current] if include_current else []
@@ -335,10 +348,16 @@ def main():
             schedule_health = {"status": "unavailable:" + type(exc).__name__}
     metrics = summarize(history)
     daily = daily_trends(history)
+    event_counts = {}
+    for item in history:
+        trigger = item.get("trigger") if isinstance(item, dict) else None
+        source_event = trigger.get("event") if isinstance(trigger, dict) else "legacy"
+        event_counts[source_event] = event_counts.get(source_event, 0) + 1
     report = {"window_days": DAYS, "status": status, "history_runs_selected": scanned,
               "history_evidence_loaded": max(0, len(history) - (1 if include_current else 0)),
               "history_errors": errors, "includes_current_run": include_current,
-              "source_event": event or "unknown", "metrics": metrics, "daily": daily,
+              "source_event": event or "unknown", "operational_evidence_events": event_counts,
+              "metrics": metrics, "daily": daily,
               "schedule_trigger_health": schedule_health}
     Path("live_odds_14day_trend.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("LIVE_ODDS_14DAY_TREND " + json.dumps(report, ensure_ascii=False), flush=True)
