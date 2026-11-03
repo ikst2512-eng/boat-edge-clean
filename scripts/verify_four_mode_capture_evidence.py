@@ -77,10 +77,26 @@ def verify(root):
             "evidence_required": True, "published": count}
 
 
-if __name__ == "__main__":
+def record_verdict(root):
+    """Persist both successful and failed final gates for next-day audits."""
+    root = Path(root)
+    target = root / "four-mode-evidence" / "final-evidence-verdict.json"
     try:
-        print("FOUR_MODE_EVIDENCE_VERDICT=" + json.dumps(verify("."), sort_keys=True))
+        result = verify(root)
+        verdict = {"schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                   "status": "passed", "detail": result}
     except (ValueError, OSError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        verdict = {"schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                   "status": "failed", "error_type": type(exc).__name__}
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(verdict, sort_keys=True) + "\n", encoding="utf-8")
+    return verdict
+
+
+if __name__ == "__main__":
+    verdict = record_verdict(".")
+    print("FOUR_MODE_EVIDENCE_VERDICT=" + json.dumps(verdict, sort_keys=True))
+    if verdict["status"] == "failed":
         print("::error::Published forecast evidence verification failed: "
-              + type(exc).__name__)
+              + verdict["error_type"])
         raise SystemExit(2)

@@ -381,6 +381,7 @@ jobs:
             four-mode-evidence/third-rate-ledger.json
             four-mode-evidence/github-server-observation.json
             four-mode-evidence/github-server-observation-ledger.json
+            four-mode-evidence/final-evidence-verdict.json
             four_mode_forecasts/capture_status.json
           if-no-files-found: warn
           retention-days: 30

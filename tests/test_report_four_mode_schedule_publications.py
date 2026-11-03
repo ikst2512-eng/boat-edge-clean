@@ -624,6 +624,22 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(row["source_link_status"], "legacy_all_day_archives")
         self.assertEqual(row["source_link_checked"], 149)
 
+    def test_final_gate_verdict_is_visible_without_claiming_remote_proof(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "failed", "error_type": "ValueError"})
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertEqual(row["final_evidence_verdict_status"], "failed")
+        self.assertEqual(row["final_evidence_verdict_error_type"], "ValueError")
+        self.assertFalse(row["remote_main_verified"])
+
+    def test_old_artifacts_have_unknown_final_verdict(self):
+        def download(_, root):
+            pass
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertIsNone(row["final_evidence_verdict_status"])
+
     def test_wrong_day_link_report_does_not_count(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/source-links.json", {
