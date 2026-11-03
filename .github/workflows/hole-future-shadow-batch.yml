@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_future_artifact_batch.py
+      - hole_shadow_stage_verdict.py
+      - test_hole_shadow_stage_verdict.py
       - hole_future_shadow_audit.py
       - test_hole_future_shadow_audit.py
       - hole_future_cumulative_rollup.py
@@ -31,7 +33,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test batch evidence quarantine
-        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py test_hole_future_late_recheck.py
+        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py test_hole_future_late_recheck.py test_hole_shadow_stage_verdict.py
       - name: Audit two completed JST collection days (read only)
         env:
           GH_TOKEN: ${{ github.token }}
