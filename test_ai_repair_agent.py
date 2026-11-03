@@ -159,6 +159,29 @@ class RepairAgentTests(unittest.TestCase):
         self.assertIn('exit 1', workflow)
         self.assertNotIn('gh pr merge', workflow)
 
+    def test_ai_repair_dispatch_ref_guard(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        propose = workflow.split("  propose:\n", 1)[1]
+        guard = propose.split("      - name: Refuse AI repair dispatch outside main\n", 1)[1]
+        self.assertLess(
+            propose.index("      - name: Refuse AI repair dispatch outside main"),
+            propose.index("      - uses: actions/checkout@v4"))
+        script = guard.split("        run: |\n", 1)[1].split("      - uses: actions/checkout@v4", 1)[0]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        self.assertEqual(subprocess.run(["bash", "-n"], input=script,
+                                        text=True, capture_output=True).returncode, 0)
+        for ref, expected in (("refs/heads/main", 0),
+                              ("refs/heads/feature-branch", 1),
+                              ("refs/tags/release", 1)):
+            with self.subTest(ref=ref):
+                result = subprocess.run(["bash", "-c", script],
+                                        env={"DISPATCH_REF": ref, "PATH": "/usr/bin:/bin"},
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, expected)
+                if expected:
+                    self.assertIn("must be dispatched from main", result.stdout)
+
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
