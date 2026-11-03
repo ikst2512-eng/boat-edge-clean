@@ -243,6 +243,20 @@ def read_evidence_json(folder,name):
         return None
 
 
+def usable_shadow_structure(shadow):
+    """File integrity only; never claims candidate replay or first receipt."""
+    if not isinstance(shadow,dict) or not isinstance(shadow.get("records"),list):
+        return False
+    records=shadow["records"]
+    if shadow.get("status")=="not_published":
+        return len(records)==0
+    if shadow.get("status")!="research_only_after_confirmed_push":
+        return False
+    return (all(isinstance(r,dict) and isinstance(r.get("race_code"),str)
+                and re.fullmatch(r"20[0-9]{10}",r["race_code"])
+                and r.get("status")=="shadow_frozen_unverified"
+                for r in records))
+
 def summarize_downloaded_runs(root,run_ids):
     """Evidence status for every successful download, even without hole-shadow."""
     root=Path(root)
@@ -278,7 +292,7 @@ def summarize_downloaded_runs(root,run_ids):
                      "publication_outcome":publication.get("outcome") if publication else None,
                      "has_hole_shadow":bool(shadow_paths),
                      "shadow_file_count":len(shadow_paths),
-                     "shadow_evidence_usable":bool(shadow and isinstance(shadow.get("records"),list)),
+                     "shadow_evidence_usable":usable_shadow_structure(shadow),
                      "shadow_records":len(shadow["records"]) if shadow and
                            isinstance(shadow.get("records"),list) else None})
     return rows
