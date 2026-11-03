@@ -38,6 +38,14 @@ def assess(root=ROOT):
         "sample_by_day": {},
         "venue_sensitivity": {"by_venue": {}, "leave_one_venue_out": {},
                               "all_venue_deltas_negative": None},
+        "leave_one_race_out": {
+            "evaluated_exclusions": 0,
+            "all_brier_deltas_negative": None,
+            "brier_delta_range": None,
+            "log_loss_delta_range": None,
+            "brier_positive_exclusion_race_codes": [],
+            "warning": "Sensitivity of the selected confirmed-only cohort, not external validation.",
+        },
         "observed_boat1_wins": 0,
         "sum_predicted_boat1_wins": 0.0,
         "mean_predicted_boat1": None,
@@ -64,6 +72,7 @@ def assess(root=ROOT):
     brier_sum = 0.0
     wins = 0
     venue_stats = {}
+    paired_race_deltas = []
     prior = [w / sum(WIN) for w in WIN]
     six_model_brier = six_prior_brier = 0.0
     six_model_log = six_prior_log = 0.0
@@ -137,6 +146,8 @@ def assess(root=ROOT):
         v["prior_brier_sum"] += prior_brier
         v["model_log_sum"] -= math.log(heads[head - 1])
         v["prior_log_sum"] -= math.log(prior[head - 1])
+        paired_race_deltas.append((code, model_brier - prior_brier,
+                                   -math.log(heads[head - 1]) + math.log(prior[head - 1])))
         six_model_brier += model_brier
         six_prior_brier += prior_brier
         six_model_log -= math.log(heads[head - 1])
@@ -203,6 +214,26 @@ def assess(root=ROOT):
         )
         if sum(v["n"] for v in venue_stats.values()) != n:
             raise ValueError("venue_partition_mismatch")
+    if n >= 2:
+        brier_diffs = []
+        log_diffs = []
+        total_brier_diff = six_model_brier - six_prior_brier
+        total_log_diff = six_model_log - six_prior_log
+        for code, one_brier, one_log in paired_race_deltas:
+            remainder_brier = (total_brier_diff - one_brier) / (n - 1)
+            remainder_log = (total_log_diff - one_log) / (n - 1)
+            brier_diffs.append(remainder_brier)
+            log_diffs.append(remainder_log)
+            if remainder_brier >= 0:
+                output["leave_one_race_out"]["brier_positive_exclusion_race_codes"].append(code)
+        output["leave_one_race_out"]["evaluated_exclusions"] = n
+        output["leave_one_race_out"]["all_brier_deltas_negative"] = all(x < 0 for x in brier_diffs)
+        output["leave_one_race_out"]["brier_delta_range"] = [
+            round(min(brier_diffs), 6), round(max(brier_diffs), 6)]
+        output["leave_one_race_out"]["log_loss_delta_range"] = [
+            round(min(log_diffs), 6), round(max(log_diffs), 6)]
+    if len(paired_race_deltas) != n:
+        raise ValueError("leave_one_race_cohort_mismatch")
     for row in output["sample_by_day"].values():
         row["sum_predicted_boat1_wins"] = round(row["sum_predicted_boat1_wins"], 6)
     if (output["six_head_brier_model_better_races"] +
