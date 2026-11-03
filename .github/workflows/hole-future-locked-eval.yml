@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_future_locked_eval.py
+      - hole_future_first_add_audit.py
+      - test_hole_future_first_add_audit.py
       - test_hole_future_locked_eval.py
       - test_hole_locked_selector_integrity.py
       - hole_third_choice_research.py
@@ -23,13 +25,37 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Enforce locked future-period safeguards
-        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py
+        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py test_hole_future_first_add_audit.py
       - name: Evaluate only 2026-11-04+ frozen predictions and confirmed results
         run: python hole_future_locked_eval.py > hole_future_locked_results.json
+      - name: Audit first-add Git blob provenance without claiming remote receipt
+        run: python hole_future_first_add_audit.py > hole_future_first_add_results.json
+      - name: Fail closed on inconsistent first-add evidence reporting
+        run: |
+          python - <<'PY'
+          import json
+          proof=json.load(open("hole_future_first_add_results.json"))
+          future=json.load(open("hole_future_locked_results.json"))
+          assert proof["formal"] is False
+          assert proof["independent_remote_first_receipt_verified"] is False
+          assert proof["eligible_for_formal_accuracy"] is False
+          assert proof["locked_selector_changed"] is False
+          assert proof["production_forecast_changed"] is False
+          assert sum(proof["counts"].values())==proof["scanned_forecasts"]
+          assert sum(proof["by_day"].values())==proof["scanned_forecasts"]
+          if future["status"]!="not_yet_eligible":
+              assert set(future["race_codes"]).issubset(
+                  {row["race_code"] for row in proof["records"]})
+          print("FIRST_ADD_AUDIT_COUNTS",proof["counts"])
+          print("FIRST_ADD_EVIDENCE",proof["records"])
+          print("REMOTE_FIRST_RECEIPT_PROVEN",False)
+          PY
       - name: Print honest results and evidence boundary
         run: |
           python - <<'PY'
@@ -66,4 +92,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: hole-future-locked-results
-          path: hole_future_locked_results.json
+          path: |
+            hole_future_locked_results.json
+            hole_future_first_add_results.json
