@@ -146,6 +146,28 @@ def github_observation_integrity(publication, observed):
                 or row.get("first_add_commit") != sha):
             return {"status": "mismatch", "reason": "observation_invalid_row"}
         seen.add(code)
+        if state != "remote_observation_unverified":
+            # The record label alone is not timestamp evidence. Recheck the
+            # UTC GitHub server Date against the same race's JST T-12 cutoff.
+            try:
+                remote_time = datetime.fromisoformat(
+                    row["github_api_server_date_utc"].replace("Z", "+00:00"))
+                cutoff = datetime.fromisoformat(row["deadline_minus_12_jst"])
+                digest = row.get("original_sha256")
+                if (remote_time.utcoffset() != timedelta(0)
+                        or cutoff.utcoffset() != timedelta(hours=9)
+                        or cutoff.strftime("%Y%m%d") != code[:8]
+                        or row.get("first_add_blob_matches_remote") is not True
+                        or not isinstance(digest, str) or len(digest) != 64
+                        or any(c not in "0123456789abcdef" for c in digest)):
+                    return {"status": "mismatch", "reason": "observation_invalid_time_or_blob"}
+                expected = ("github_server_observed_before_t_minus_12"
+                            if remote_time < cutoff
+                            else "github_server_observed_after_t_minus_12")
+                if state != expected:
+                    return {"status": "mismatch", "reason": "observation_false_time_label"}
+            except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
+                return {"status": "mismatch", "reason": "observation_invalid_time_or_blob"}
         states[state] += 1
     fields = (
         ("github_server_observed_before_t_minus_12", "observed_before_t_minus_12"),
