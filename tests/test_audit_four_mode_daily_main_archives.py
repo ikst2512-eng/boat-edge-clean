@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids, missing_new_push_final_evidence_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids, missing_new_push_final_evidence_run_ids, uncertified_new_push_final_evidence_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,46 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_final_gate_passed_label_without_matching_published_detail_fails(self):
+        base = {
+            "run_id": 951, "created_at": "2026-11-03T15:07:00Z",
+            "artifact_present": True, "publication_outcome": "pushed_to_main",
+            "claimed_added_forecasts": 2,
+            "final_evidence_verdict_status": "passed",
+            "final_evidence_verdict_result": "published_with_durable_early_observation",
+            "final_evidence_published_count": 2,
+        }
+        good = dict(base)
+        wrong_count = {**base, "run_id": 952,
+                       "final_evidence_published_count": 1}
+        mislabeled_noop = {**base, "run_id": 953,
+                           "final_evidence_verdict_result": "no_new_forecasts"}
+        missing_detail = {**base, "run_id": 954,
+                          "final_evidence_verdict_result": None}
+        failed = {**base, "run_id": 955, "final_evidence_verdict_status": "failed"}
+        no_op = {**base, "run_id": 956,
+                 "publication_outcome": "no_eligible_candidates"}
+        old = {**wrong_count, "run_id": 957,
+               "created_at": "2026-11-03T14:59:00Z"}
+        report = {"runs": [good, wrong_count, mislabeled_noop,
+                           missing_detail, failed, no_op, old]}
+        self.assertEqual(uncertified_new_push_final_evidence_run_ids(
+            "20261104", [report, {"runs": [dict(wrong_count)]}]),
+            [952, 953, 954])
+        self.assertEqual(uncertified_new_push_final_evidence_run_ids(
+            "20261103", [report]), [])
+        script = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn('and report["uncertified_new_push_final_evidence_run_ids"]',
+                      script)
+
+    def test_uncertified_push_ignores_bad_run_metadata(self):
+        row = {"run_id": 960, "created_at": "invalid",
+               "artifact_present": True, "publication_outcome": "pushed_to_main",
+               "final_evidence_verdict_status": "passed"}
+        self.assertEqual(uncertified_new_push_final_evidence_run_ids(
+            "20261104", [{"runs": [row]}]), [])
+
     def test_new_published_run_missing_final_verdict_is_explicit_unknown_alert(self):
         good = {"run_id": 901, "created_at": "2026-11-04T00:07:00Z",
                 "artifact_present": True, "publication_outcome": "pushed_to_main",
