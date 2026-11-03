@@ -35,7 +35,7 @@ class ThreeOriginalAuditTests(unittest.TestCase):
         before.mkdir(); odds.mkdir()
         source = {"maindata": {"hd": "20261102", "jcd": "19", "rno": "10",
                   "deadline": "21:51",
-                  "teiinfolist": [{"teino": str(i), "extime": "6.75", "tilt": "0"}
+                  "teiinfolist": [{"teino": str(i), "racerno": boats[i-1], "extime": "6.75", "tilt": "0"}
                                   for i in range(1,7)],
                   "sttenjiinfolist": [{"teino": str(i), "cs": 7-i, "st": ".05"}
                                       for i in range(1,7)]}}
