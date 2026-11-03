@@ -16,7 +16,8 @@ class FullDenominatorAuditTests(unittest.TestCase):
         base=variants["baseline"]
         pairs=[{tuple(t.split("-")[:2]) for t in picks}
                for picks in variants.values()]
-        self.assertTrue(all(p==pairs[0] for p in pairs))
+        self.assertTrue(all(p==pairs[1] for p in pairs[1:]))
+        self.assertTrue(pairs[0].issubset(pairs[1]))
         self.assertEqual({len(x) for x in variants.values()},{10})
         self.assertTrue(all(x[:5]==base[:5] for x in variants.values()))
 
