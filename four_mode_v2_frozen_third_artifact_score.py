@@ -181,7 +181,7 @@ def score_evidence(evidence, root):
         out["race_codes_paired"].append(code)
         per_race = {"race_code": code, "topn": {}}
         out["paired_race_scores"].append(per_race)
-        for n in (3, 5, 10):
+        for n in TOPS:
             row = scores[f"top{n}"]
             base_hit = winning in item["baseline_top10"][:n]
             candidate_hit = winning in item["candidate_top10"][:n]
