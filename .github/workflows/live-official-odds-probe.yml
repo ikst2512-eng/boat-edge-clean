@@ -10,6 +10,8 @@ on:
       - 'tests/test_probe_live_odds_health.py'
       - 'scripts/summarize_live_odds_history.py'
       - 'tests/test_summarize_live_odds_history.py'
+      - 'scripts/check_live_odds_probe_verdict.py'
+      - 'tests/test_check_live_odds_probe_verdict.py'
   schedule:
     - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
   workflow_run:
