@@ -218,6 +218,51 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
             self.assertEqual(out["baseline_audit"]["status"],
                              "missing_current_day_research_snapshots")
+    def test_partial_missing_baseline_not_hidden_by_two_successful_captures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            storage={}
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":f"2026110307{i:02d}",
+                      "電話投票締切予定":"18:33"} for i in (8,9,10)],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:bytes_,
+                ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
+            self.assertEqual(out["newly_stored_count"],2)
+            self.assertEqual(out["stored_count"],2)
+            self.assertEqual(out["status"],"t2_batch_missing_expected_t12_baselines")
+            self.assertEqual(out["missing_baseline_race_codes"],["202611030710"])
+            self.assertEqual(len(storage),2)
+    def test_complete_t2_cohort_is_not_reported_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            storage={}
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":f"2026110307{i:02d}",
+                      "電話投票締切予定":"18:33"} for i in (8,9)],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:bytes_,
+                ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
+            self.assertEqual(out["status"],"t2_batch_completed")
+            self.assertEqual(out["missing_baseline_race_codes"],[])
+            self.assertEqual(out["stored_count"],2)
+    def test_schedule_outage_after_successful_captures_still_keeps_captures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,1)
+            storage={}
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(_ for _ in ()).throw(OSError("schedule outage")),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:bytes_,
+                ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
+            self.assertEqual(out["status"],"t2_batch_expected_schedule_unavailable")
+            self.assertEqual(out["schedule_error_type"],"OSError")
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(len(storage),1)
     def test_missing_t12_on_actual_scheduled_t2_window_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
