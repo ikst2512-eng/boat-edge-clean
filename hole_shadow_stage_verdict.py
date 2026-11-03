@@ -9,6 +9,10 @@ def classify(stages,publication,shadow):
     outcome=publication.get("outcome") if isinstance(publication,dict) else None
     if stage=="failure" or outcome=="failed":
         return "publication_pipeline_failed"
+    # A saved publication label cannot override a skipped, cancelled or
+    # unknown staging outcome from the same workflow run.
+    if stage!="success":
+        return "publication_stage_not_successful"
     if outcome=="no_eligible_candidates":
         return "no_eligible_forecasts_published"
     if outcome!="pushed_to_main":
@@ -17,8 +21,15 @@ def classify(stages,publication,shadow):
         return "missing_shadow_evidence"
     if shadow.get("status")=="research_only_after_confirmed_push":
         records=shadow.get("records")
-        if not isinstance(records,list):return "malformed_shadow_records"
-        if any(r.get("status")=="shadow_frozen_unverified" for r in records):
+        if not isinstance(records,list):
+            return "malformed_shadow_records"
+        if any(not isinstance(r,dict) or
+               not isinstance(r.get("race_code"),str) or
+               not r.get("race_code") or
+               r.get("status")!="shadow_frozen_unverified"
+               for r in records):
+            return "malformed_shadow_records"
+        if records:
             return "research_shadow_available_unverified"
         return "published_but_no_eligible_freeze"
     return "published_but_shadow_missing_or_invalid"
