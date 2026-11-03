@@ -19,6 +19,8 @@ on:
       - test_four_mode_v2_third_ledger_reconcile.py
       - test_v2_nightly_diagnostics_independence.py
       - test_v2_nightly_pipeline_exit_propagation.py
+      - four_mode_v2_daily_evidence_summary.py
+      - test_four_mode_v2_daily_evidence_summary.py
       - third_rate_evidence_ledger.py
       - test_four_mode_v2_third_rate_ledger_rollup.py
       - test_third_rate_evidence_ledger.py
@@ -60,7 +62,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence test_v2_nightly_pipeline_exit_propagation
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence test_v2_nightly_pipeline_exit_propagation test_four_mode_v2_daily_evidence_summary
       - name: Evaluate read-only V2 shadow on confirmed results
         run: |
           set -o pipefail
@@ -131,6 +133,11 @@ jobs:
         run: |
           set -o pipefail
           python four_mode_v2_third_ledger_reconcile.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --output v2_third_ledger_reconciliation.json | tee v2_third_ledger_reconciliation.log
+      - name: Summarize verified V2 paired TopN scores and evidence gaps
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        run: |
+          python four_mode_v2_daily_evidence_summary.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --reconciliation v2_third_ledger_reconciliation.json --output v2_third_research_summary.md
+          cat v2_third_research_summary.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -157,4 +164,5 @@ jobs:
             v2_third_rate_durable_ledger.log
             v2_third_ledger_reconciliation.json
             v2_third_ledger_reconciliation.log
+            v2_third_research_summary.md
           retention-days: 30
