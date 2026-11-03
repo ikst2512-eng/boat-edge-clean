@@ -24,6 +24,34 @@ def race(code, states, elapsed=800):
 
 
 class OddsHistoryTests(unittest.TestCase):
+    def test_timestamped_odds_must_belong_to_run_start(self):
+        steps = race("202611030111", ["valid_200"])["attempts"]
+        steps[0].update(started_at_utc="2026-11-03T03:25:05+00:00",
+                        finished_at_utc="2026-11-03T03:25:06+00:00")
+        self.assertTrue(history.consistent_observation_times(
+            steps, "2026-11-03T12:25:00+09:00"))
+        self.assertFalse(history.consistent_observation_times(
+            steps, "2026-11-03T14:25:00+09:00"))
+        self.assertFalse(history.consistent_observation_times(
+            steps, "2026-11-02T12:25:00+09:00"))
+        self.assertFalse(history.consistent_observation_times(steps, None))
+        self.assertFalse(history.consistent_observation_times(
+            steps, "2026-11-03T12:25:00"))
+        # Old artifact remains classifiable but does not prove precise timing.
+        self.assertTrue(history.consistent_observation_times(
+            race("202611030111", ["valid_200"])["attempts"], None))
+
+    def test_history_rejects_timestamped_200_from_different_run(self):
+        sample = race("202611030111", ["valid_200"])
+        sample["attempts"][0].update(
+            started_at_utc="2026-11-03T03:25:05+00:00",
+            finished_at_utc="2026-11-03T03:25:06+00:00")
+        record = {"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                  "samples": [sample]}
+        self.assertEqual(history.summarize([record])["eventual_valid_races"], 0)
+        record["checked_at_jst"] = "2026-11-03T12:25:00+09:00"
+        self.assertEqual(history.summarize([record])["eventual_valid_races"], 1)
+
     def test_legacy_odds_artifacts_without_attempt_timestamps_remain_eligible(self):
         self.assertTrue(history.consistent_attempts(
             race("202611030111", ["pending_202", "valid_200"])["attempts"]))

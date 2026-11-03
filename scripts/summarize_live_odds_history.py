@@ -78,6 +78,31 @@ def consistent_attempts(steps):
     return True
 
 
+
+def consistent_observation_times(steps, checked_at_jst):
+    """Ensure new UTC attempts belong to the run's actual observation period.
+
+    Legacy attempts without timestamps keep their pre-existing classification,
+    but cannot establish exact HTTP timing.
+    """
+    if not consistent_attempts(steps):
+        return False
+    if not any("started_at_utc" in step for step in steps):
+        return True
+    try:
+        checked = datetime.fromisoformat(checked_at_jst).astimezone(timezone.utc)
+        if datetime.fromisoformat(checked_at_jst).tzinfo is None:
+            return False
+        first = datetime.fromisoformat(steps[0]["started_at_utc"].replace("Z", "+00:00"))
+        last = datetime.fromisoformat(steps[-1]["finished_at_utc"].replace("Z", "+00:00"))
+    except (TypeError, AttributeError, ValueError, KeyError):
+        return False
+    # Source discovery runs before HTTP sampling. A valid attempt cannot
+    # precede this run, or be attributed to a different run hours later.
+    return (checked - timedelta(minutes=1) <= first <= checked + timedelta(hours=1)
+            and last <= checked + timedelta(hours=1))
+
+
 def summarize(records):
     """Count observed race requests, never infer success for missing runs."""
     observations = []
@@ -96,7 +121,7 @@ def summarize(records):
             key = (stamp, code)
             if key in seen:
                 continue
-            if not consistent_attempts(steps):
+            if not consistent_observation_times(steps, stamp):
                 continue
             seen.add(key)
             eligible_runs.add(stamp)

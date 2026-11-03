@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from probe_live_odds_health import event_provenance
-from summarize_live_odds_history import consistent_attempts
+from summarize_live_odds_history import consistent_observation_times
 
 UPSTREAM = "CLEAN prospective pre-cutoff capture"
 SECONDARY_UPSTREAM = "Four-mode prospective capture (research only)"
@@ -140,7 +140,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
             code = sample.get("race_code")
             steps = sample.get("attempts")
             if (isinstance(code, str) and len(code) == 12 and code.isdigit()
-                    and consistent_attempts(steps)
+                    and consistent_observation_times(steps, data.get("checked_at_jst"))
                     and steps[-1].get("http") == 200
                     and steps[-1].get("state") == "valid_200"):
                 return "valid"
