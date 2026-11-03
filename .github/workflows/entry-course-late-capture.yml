@@ -1,8 +1,9 @@
 name: Entry course research-only late preview capture
 on:
   schedule:
-    # Twice/hour during 09:00-22:59 JST. Bounded at one race/run.
-    - cron: '0,30 0-13 * * *'
+    # Every 5 minutes during 09:00-22:59 JST; GitHub cron may be delayed.
+    # No eligible race means no historical network requests; max one race/run.
+    - cron: '*/5 0-13 * * *'
   workflow_dispatch:
 permissions:
   contents: write

@@ -56,6 +56,10 @@ def prepare_late_preview_study(base, card, history_batch, *,
     if historical_t12[:10]!=base_tickets:
         raise ValueError("late_study_t12_baseline_drift")
     entry,receipts=_entry_from_preview(card,later_cutoff)
+    # Independently timestamped source data must already exist when this
+    # candidate is frozen, not merely be earlier than the future cutoff.
+    if any(_when(r["received_at"]) > now for r in receipts):
+        raise ValueError("late_preview_not_observed_at_freeze")
     history=compile_asof_course_history(card,history_batch["history"],
                          cutoff_at=later_cutoff.isoformat(),entry=entry,min_starts=min_starts)
     if not history["history_sufficient"]:
@@ -65,6 +69,8 @@ def prepare_late_preview_study(base, card, history_batch, *,
             receipts.append({"received_at":item[typ+"_receipt_at"],
                              "sha256":item[typ+"_sha256"],
                              "source":"third_party_historical_"+typ})
+    if any(_when(r["received_at"]) > now for r in receipts):
+        raise ValueError("late_history_not_observed_at_freeze")
     candidate=challenger_rank(rates,entry,history["boats"],
                     cutoff_at=later_cutoff.isoformat(),include_st=True,min_starts=min_starts)
     # The published T-12 ten tickets are explicitly not used for model comparison.

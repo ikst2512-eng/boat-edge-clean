@@ -73,6 +73,11 @@ class LedgerTests(unittest.TestCase):
         obj=frozen();obj["cutoff_at"]=obj["reference_baseline_cutoff_at"]
         with self.assertRaisesRegex(ValueError,"late_capture_not_before_cutoff"):
             prepare(raw(obj),now=datetime(2026,11,3,18,30,20,tzinfo=JST))
+    def test_receipt_after_frozen_at_rejected_even_before_cutoff(self):
+        obj=frozen()
+        obj["source_receipts"][0]["received_at"]="2026-11-03T18:29:30+09:00"
+        with self.assertRaisesRegex(ValueError,"invalid_late_receipt"):
+            prepare(raw(obj),now=datetime(2026,11,3,18,30,20,tzinfo=JST))
     def test_wrong_label_and_future_receipts_blocked(self):
         obj=frozen();obj["entry_source"]="official_beforeinfo"
         with self.assertRaisesRegex(ValueError,"invalid_late_capture_provenance"):
