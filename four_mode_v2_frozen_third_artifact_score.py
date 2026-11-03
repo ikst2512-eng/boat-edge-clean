@@ -52,8 +52,17 @@ def score_evidence(evidence, root):
             or sum(r.get("status") == "frozen_in_same_job_before_t_minus_12"
                    for r in records) != evidence["frozen_before_t_minus_12"]):
         raise ValueError("artifact_frozen_count_inconsistent")
+    invalid_records = evidence.get("validation_error_count", 0)
+    if (type(invalid_records) is not int or invalid_records < 0
+            or sum(r.get("status") == "validation_error"
+                   for r in records) != invalid_records):
+        raise ValueError("artifact_validation_error_count_inconsistent")
     if (type(evidence.get("ineligible_count")) is not int
-            or evidence["ineligible_count"] != published - evidence["frozen_before_t_minus_12"]):
+            or evidence["ineligible_count"] < 0
+            or sum(r.get("status") == "ineligible"
+                   for r in records) != evidence["ineligible_count"]
+            or (evidence["ineligible_count"] + invalid_records
+                + evidence["frozen_before_t_minus_12"] != published)):
         raise ValueError("artifact_ineligible_count_inconsistent")
     # Explicit no-new-publication evidence is a valid zero denominator.
     if published == 0 and evidence.get("status") not in (
@@ -75,6 +84,7 @@ def score_evidence(evidence, root):
            "race_codes_frozen": [],
            "topn": scores, "warning": "Results scored ONLY from same-job frozen artifact, not independently timestamped publication."}
     seen = set()
+    invalid_unfrozen = 0
     for item in records:
         if type(item) is not dict:
             raise ValueError("malformed_record")
@@ -82,9 +92,17 @@ def score_evidence(evidence, root):
         if type(code) is not str or not RACE.fullmatch(code) or code in seen:
             raise ValueError("invalid_or_duplicate_race")
         seen.add(code)
-        if item.get("status") != "frozen_in_same_job_before_t_minus_12":
+        if item.get("status") == "validation_error":
+            # Producer counts validation errors separately from normal
+            # ineligibility. Preserve good frozen records in the same run.
+            invalid_unfrozen += 1
+            out["invalid"] += 1
+            continue
+        if item.get("status") == "ineligible":
             out["excluded"] += 1
             continue
+        if item.get("status") != "frozen_in_same_job_before_t_minus_12":
+            raise ValueError("unexpected_shadow_record_status")
         out["frozen"] += 1
         out["race_codes_frozen"].append(code)
         try:
@@ -142,9 +160,10 @@ def score_evidence(evidence, root):
                 "gained": int(candidate_hit and not base_hit),
                 "lost": int(base_hit and not candidate_hit),
             }
-    if out["frozen"] != out["paired"] + out["pending_results"] + out["invalid"]:
+    invalid_frozen = out["invalid"] - invalid_unfrozen
+    if out["frozen"] != out["paired"] + out["pending_results"] + invalid_frozen:
         raise ValueError("frozen_partition_mismatch")
-    if out["frozen"] + out["excluded"] != published:
+    if out["frozen"] + out["excluded"] + invalid_unfrozen != published:
         raise ValueError("published_partition_mismatch")
     for row in scores.values():
         if row["candidate"] - row["baseline"] != row["gained"] - row["lost"]:
