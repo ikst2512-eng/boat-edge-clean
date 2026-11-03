@@ -12,8 +12,8 @@ class NearCutoffScheduleTests(unittest.TestCase):
         self.assertIn('|| \'["202611030212"]\'', workflow)
         self.assertIn("format('-{0}', matrix.race_code)", workflow)
         self.assertIn("202611030212", workflow)
-        for race in ("202611030612", "202611030412", "202611030104"):
-            self.assertIn(race, workflow)
+        self.assertIn("202611030104", workflow)
+        self.assertNotIn('["202611030212","202611030612","202611030412","202611030104"]', workflow)
         self.assertIn("github.event_name == 'pull_request'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("matrix.race_code", workflow)

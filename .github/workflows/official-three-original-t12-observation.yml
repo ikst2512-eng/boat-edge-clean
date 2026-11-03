@@ -32,7 +32,7 @@ jobs:
       matrix:
         # Different venues are PR research observations only.
         # Scheduled jobs remain scoped exclusively to Toda 12R.
-        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030212","202611030612","202611030412","202611030104"]' || github.event_name == 'schedule' && github.event.schedule == '8,14,18 7 3 11 *' && '["202611030104"]' || '["202611030212"]') }}
+        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030104"]' || github.event_name == 'schedule' && github.event.schedule == '8,14,18 7 3 11 *' && '["202611030104"]' || '["202611030212"]') }}
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
