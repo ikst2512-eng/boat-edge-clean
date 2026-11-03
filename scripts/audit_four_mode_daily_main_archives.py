@@ -90,6 +90,13 @@ def audit(day, paths, additions, *, main_context):
     }
 
 
+def scheduled_audit_alert(result, event):
+    return (event == "schedule"
+            and result.get("checkout_main_context") is True
+            and result.get("assessment") in (
+                "no_new_day_archives_yet", "git_first_add_incomplete"))
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
@@ -108,6 +115,9 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME")):
+        print("::error::Daily V2 main archive first-add evidence is absent or incomplete")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

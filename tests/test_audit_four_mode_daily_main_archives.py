@@ -1,5 +1,5 @@
 import unittest
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert
 
 A = "a" * 40
 B = "b" * 40
@@ -41,6 +41,20 @@ class DailyMainArchivesTest(unittest.TestCase):
         result = audit("20261104", [P], {P: [A]}, main_context=False)
         self.assertEqual(result["assessment"], "not_main_checkout")
         self.assertFalse(result["main_git_addition_evidence_present"])
+
+    def test_daily_cron_alerts_on_absence_without_affecting_pr_or_push(self):
+        missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
+        self.assertTrue(scheduled_audit_alert(missing, "schedule"))
+        self.assertFalse(scheduled_audit_alert(missing, "push"))
+        self.assertFalse(scheduled_audit_alert(missing, "pull_request"))
+        pr = audit("20261104", [OLD], {OLD: [A]}, main_context=False)
+        self.assertFalse(scheduled_audit_alert(pr, "schedule"))
+
+    def test_daily_cron_alerts_on_incomplete_first_add_only(self):
+        bad = audit("20261104", [P], {}, main_context=True)
+        good = audit("20261104", [P], {P: [A]}, main_context=True)
+        self.assertTrue(scheduled_audit_alert(bad, "schedule"))
+        self.assertFalse(scheduled_audit_alert(good, "schedule"))
 
     def test_reject_malformed_history_and_tree(self):
         with self.assertRaises(ValueError):
