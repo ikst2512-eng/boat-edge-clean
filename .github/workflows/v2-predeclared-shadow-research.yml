@@ -15,6 +15,8 @@ on:
       - four_mode_v2_frozen_third_artifact_score.py
       - four_mode_v2_frozen_third_nightly.py
       - four_mode_v2_third_rate_ledger_rollup.py
+      - four_mode_v2_third_ledger_reconcile.py
+      - test_four_mode_v2_third_ledger_reconcile.py
       - third_rate_evidence_ledger.py
       - test_four_mode_v2_third_rate_ledger_rollup.py
       - test_third_rate_evidence_ledger.py
@@ -52,7 +54,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile
       - name: Evaluate read-only V2 shadow on confirmed results
         run: python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
       - name: Validate V2 sample sufficiency and no-production-promotion gate
@@ -92,7 +94,11 @@ jobs:
           gh auth setup-git
           git fetch origin refs/heads/v2-third-rate-evidence-ledger:refs/remotes/origin/v2-third-rate-evidence-ledger
           python four_mode_v2_third_rate_ledger_rollup.py --output v2_third_rate_durable_ledger.json | tee v2_third_rate_durable_ledger.log
+      - name: Reconcile frozen captured race IDs with durable ledger entries
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        run: python four_mode_v2_third_ledger_reconcile.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --output v2_third_ledger_reconciliation.json | tee v2_third_ledger_reconciliation.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
           path: |
@@ -115,4 +121,6 @@ jobs:
             v2_frozen_third_nightly.log
             v2_third_rate_durable_ledger.json
             v2_third_rate_durable_ledger.log
+            v2_third_ledger_reconciliation.json
+            v2_third_ledger_reconciliation.log
           retention-days: 30

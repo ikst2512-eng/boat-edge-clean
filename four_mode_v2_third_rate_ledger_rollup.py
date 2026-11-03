@@ -35,6 +35,7 @@ def evaluate(root, git=_git):
         "ledger_files": 0, "frozen": 0, "paired": 0,
         "pending_results": 0, "invalid": 0, "excluded": 0,
         "invalid_files": [], "race_codes_paired": [],
+        "race_codes_frozen": [],
         "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                            "gained": 0, "lost": 0} for n in TOPS},
@@ -71,6 +72,7 @@ def evaluate(root, git=_git):
             for field in ("frozen", "paired", "pending_results", "invalid", "excluded"):
                 report[field] += scoring[field]
             report["race_codes_paired"].extend(scoring["race_codes_paired"])
+            report["race_codes_frozen"].extend(scoring["race_codes_frozen"])
             for n in TOPS:
                 for field in ("baseline", "candidate", "gained", "lost"):
                     report["topn"][f"top{n}"][field] += scoring["topn"][f"top{n}"][field]
@@ -93,6 +95,9 @@ def evaluate(root, git=_git):
     for day in report["by_race_day_jst"].values():
         day["race_codes"].sort()
     report["race_codes_paired"].sort()
+    report["race_codes_frozen"].sort()
+    if len(set(report["race_codes_frozen"])) != report["frozen"]:
+        report["invalid_files"].append("duplicate_frozen_roster")
     if (len(report["race_codes_paired"]) != report["paired"]
             or len(set(report["race_codes_paired"])) != report["paired"]
             or sum(d["paired"] for d in report["by_race_day_jst"].values()) != report["paired"]
