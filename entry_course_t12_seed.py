@@ -120,7 +120,7 @@ def _title(now, *, fetch=None, fallback=None):
     return rows,day,archive_digest,"published_daily_title"
 
 
-def near_t12(rows, day, *, now, max_per_run=3):
+def near_t12(rows, day, *, now, max_per_run=4):
     """Do not target races if already at/after the 12-minute cutoff."""
     if now.utcoffset() is None or type(max_per_run) is not int or not 1<=max_per_run<=10:
         raise ValueError("t12_selection_invalid")
@@ -196,7 +196,7 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
 
 
 def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
-              record_path=_record_path, ledger_ops=None, max_per_run=3):
+              record_path=_record_path, ledger_ops=None, max_per_run=4):
     """Use unchanged predict() and its original on-disk T-12 evidence."""
     first=now()
     rows,day,title_digest,title_source=_title(first,fetch=fetch_title,fallback=fallback_title)
