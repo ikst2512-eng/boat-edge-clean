@@ -198,6 +198,38 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertFalse(result["formal"])
         self.assertFalse(result["production_promotion_allowed"])
 
+    def test_empty_frozen_cohort_cannot_have_scored_results(self):
+        self.capture.update({"frozen": 0, "race_codes_frozen": [],
+                             "frozen_ticket_hashes": {}})
+        self.ledger.update({"status": "no_long_lived_frozen_evidence",
+                            "frozen": 0, "paired": 0,
+                            "race_codes_frozen": [], "race_codes_paired": [],
+                            "paired_race_scores": [], "frozen_ticket_hashes": {}})
+        for case in (
+            {"paired": 1},
+            {"race_codes_paired": [A]},
+            {"paired_race_scores": [self.race_score(A)]},
+            {"paired": None},
+        ):
+            with self.subTest(case=case):
+                original = {key: self.capture.get(key) for key in case}
+                self.capture.update(case)
+                self.assertEqual(
+                    reconcile(self.capture, self.ledger)["status"],
+                    "paired_score_evidence_missing_or_invalid")
+                self.capture.update(original)
+
+    def test_empty_frozen_cohort_with_zero_scores_remains_neutral(self):
+        self.capture.update({"frozen": 0, "paired": 0,
+                             "race_codes_frozen": [], "race_codes_paired": [],
+                             "paired_race_scores": [], "frozen_ticket_hashes": {}})
+        self.ledger.update({"status": "no_long_lived_frozen_evidence",
+                            "frozen": 0, "paired": 0,
+                            "race_codes_frozen": [], "race_codes_paired": [],
+                            "paired_race_scores": [], "frozen_ticket_hashes": {}})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "no_frozen_predictions_to_compare")
+
     def test_empty_ledger_status_cannot_hide_missing_frozen_races(self):
         self.ledger.update({"status": "no_long_lived_frozen_evidence",
                             "frozen": 0, "race_codes_frozen": []})

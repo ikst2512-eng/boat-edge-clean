@@ -162,6 +162,14 @@ def reconcile(capture, ledger, *, before_future_start=False):
         out["frozen_ticket_mismatch_codes"] = sorted(
             code for code in left if left_hashes[code] != right_hashes[code])
         out["status"] = "frozen_ticket_digest_mismatch"
+    elif not left and (type(capture.get("paired")) is not int
+                       or capture["paired"] != 0
+                       or capture.get("race_codes_paired") != []
+                       or capture.get("paired_race_scores") != []):
+        # An empty frozen cohort cannot contain result comparisons.
+        # Previously this jumped directly to no_frozen_predictions_to_compare,
+        # potentially masking phantom scored races in a "complete" capture.
+        out["status"] = "paired_score_evidence_missing_or_invalid"
     elif left:
         try:
             capture_scores = paired_scores(capture)
