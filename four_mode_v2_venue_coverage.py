@@ -24,6 +24,9 @@ def venue_audit(root=ROOT, now=None):
         "saved": 0, "confirmed": 0, "mature_confirmed": 0,
         "missing_before_deadline": 0, "missing_within_60m": 0,
         "missing_over_60m": 0,
+        "overdue_example_race_codes": [],
+        "missing_file_absent": 0,
+        "missing_file_present_but_unavailable": 0,
         "topn": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
     })
     rejected = defaultdict(int)
@@ -71,6 +74,17 @@ def venue_audit(root=ROOT, now=None):
                      "within_60m_after_deadline": "missing_within_60m",
                      "over_60m_after_deadline": "missing_over_60m"}[phase]
             stats[field] += 1
+            if phase == "over_60m_after_deadline":
+                examples = stats["overdue_example_race_codes"]
+                if len(examples) < 3:
+                    examples.append(code)
+                result_path = root / "confirmed_results" / (code + ".json")
+                if result_path.is_symlink() or not result_path.is_file():
+                    stats["missing_file_absent"] += 1
+                else:
+                    # compare_race() may reject oversized / inaccessible
+                    # result files as unavailable. Never count as a valid result.
+                    stats["missing_file_present_but_unavailable"] += 1
             continue
         if result.get("status") != "historical_comparison_only":
             rejected["invalid_or_untrusted_result"] += 1
@@ -91,6 +105,8 @@ def venue_audit(root=ROOT, now=None):
             for n in TOPS:
                 stats["topn"][m][f"top{n}"] += int(flags[m][f"top{n}"])
     for venue in by_venue.values():
+        if venue["missing_file_absent"] + venue["missing_file_present_but_unavailable"] != venue["missing_over_60m"]:
+            raise ValueError("overdue_file_accounting_mismatch")
         total_mature = venue["mature_confirmed"] + venue["missing_over_60m"]
         venue["mature_coverage"] = (
             round(venue["mature_confirmed"] / total_mature, 6)
@@ -105,6 +121,9 @@ def venue_audit(root=ROOT, now=None):
             "total_saved": sum(row["saved"] for row in groups.values()),
             "total_confirmed": sum(row["confirmed"] for row in groups.values()),
             "total_overdue_missing": sum(row["missing_over_60m"] for row in groups.values()),
+            "total_missing_file_absent": sum(row["missing_file_absent"] for row in groups.values()),
+            "total_missing_file_present_but_unavailable": sum(
+                row["missing_file_present_but_unavailable"] for row in groups.values()),
             "rejected": dict(rejected),
             "warning": "Missingness may depend on venue; never treat missing results as losses. Research only."}
 
