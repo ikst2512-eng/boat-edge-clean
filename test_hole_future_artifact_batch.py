@@ -27,7 +27,7 @@ class FutureBatchTests(unittest.TestCase):
          "donor_order":{"top3":False,"top5":False,"top10":improved},
          "max_ticket_score":{"top3":False,"top5":False,"top10":improved},
          "third_national_rate":{"top3":False,"top5":False,"top10":improved}}
-  return {"rows":[{"race_code":code,"flags":flags}],"excluded_by_reason":{}}
+  return {"rows":[{"race_code":code,"flags":flags}],"eligible_codes":[code],"excluded_by_reason":{}}
  def test_unique_future_shadows_only_and_delta(self):
   a=self.artifact("run1",CODE1)
   b=self.artifact("run2",CODE2)
@@ -48,7 +48,7 @@ class FutureBatchTests(unittest.TestCase):
   def audit_result(root,path):
    return {"rows":[self.scored(CODE1,False,True)["rows"][0],
                    self.scored(code_other_day,True,False)["rows"][0]],
-           "excluded_by_reason":{}}
+           "eligible_codes":[CODE1,code_other_day],"excluded_by_reason":{}}
   with patch("hole_future_artifact_batch.audit",side_effect=audit_result):
    result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
   self.assertEqual(result["comparable"],1)
@@ -139,6 +139,28 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(output["observed_future_codes"],[CODE1])
   self.assertEqual(output["declared_but_not_replay_verified_codes"],[])
   self.assertEqual(output["comparable"],0)
+ def test_good_copy_does_not_rescue_failed_replay_copy(self):
+  a=self.artifact("run1",CODE1)
+  self.artifact("run2",CODE1)
+  def grader(root,path):
+   if path==a:
+    return self.scored(CODE1,False,True)
+   return {"rows":[],"eligible_codes":[],
+           "excluded_by_reason":{"source_hash_mismatch":1}}
+  with patch("hole_future_artifact_batch.audit",side_effect=grader):
+   result=aggregate(self.root,self.folder)
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["observed_future_codes"],[])
+  self.assertEqual(result["codes_quarantined_for_failed_replay"],[CODE1])
+  self.assertEqual(result["duplicate_codes_quarantined"],[CODE1])
+ def test_single_declared_but_unreplayable_is_not_counted(self):
+  self.artifact("run1",CODE1)
+  with patch("hole_future_artifact_batch.audit",return_value={
+      "rows":[],"eligible_codes":[],"excluded_by_reason":{"local_timing_invalid":1}}):
+   result=aggregate(self.root,self.folder)
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["codes_quarantined_for_failed_replay"],[CODE1])
+  self.assertEqual(result["observed_future_codes"],[])
  def test_no_artifacts_does_not_invent_results(self):
   output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],0)
@@ -240,7 +262,7 @@ class FullDayListingTests(unittest.TestCase):
    with patch("hole_future_artifact_batch.audit",return_value={
      "rows":[{"race_code":CODE1,"flags":self_fake_flags()},
              {"race_code":"202611030101","flags":self_fake_flags()}],
-     "excluded_by_reason":{}}):
+     "eligible_codes":[CODE1,"202611030101"],"excluded_by_reason":{}}):
     scored=aggregate(tmp,directory,"2026-11-04","2026-11-05")
    self.assertEqual(scored["race_codes"],[CODE1])
    self.assertEqual(scored["comparable"],1)
