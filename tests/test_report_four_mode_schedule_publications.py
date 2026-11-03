@@ -135,6 +135,53 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(row["artifact_download_error"], "CalledProcessError")
         self.assertIsNone(result["claimed_added_forecasts_sum"])
 
+    def test_research_roster_matches_exact_same_job_publication(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 2})
+            codes = ["202611040101", "202611040102"]
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": "a" * 40, "published_forecasts": 2,
+                "records": [{"race_code": code} for code in codes]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": "a" * 40, "published_new_count": 2,
+                "records": [{"race_code": code} for code in reversed(codes)]})
+        report_data = report({"runs": [self.RUN]}, download)
+        self.assertEqual(report_data["runs"][0]["research_roster_evidence"]["status"], "matched")
+        self.assertEqual(report_data["research_roster_status_counts"]["matched"], 1)
+        self.assertFalse(report_data["remote_main_verified"])
+
+    def test_research_roster_mismatch_does_not_relabel_push(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": "a" * 40, "published_forecasts": 1,
+                "records": [{"race_code": "202611040101"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": "a" * 40, "published_new_count": 1,
+                "records": [{"race_code": "202611040102"}]})
+        data = report({"runs": [self.RUN]}, download)
+        self.assertEqual(data["research_roster_mismatch_run_ids"], [123])
+        self.assertEqual(data["runs"][0]["research_roster_evidence"]["reason"],
+                         "shadow_race_rosters_disagree")
+        self.assertEqual(data["runs"][0]["publication_outcome"], "pushed_to_main")
+
+    def test_research_roster_absence_is_unknown_not_match(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 1})
+        data = report({"runs": [self.RUN]}, download)
+        self.assertEqual(data["research_roster_status_counts"]["unknown"], 1)
+        self.assertEqual(data["research_roster_status_counts"]["matched"], 0)
+
     def test_research_failure_kept_separate_from_verified_push_claim(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/publication.json", {
