@@ -257,6 +257,38 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(errors, [{"run_id": None, "status": "workflow_run_list_truncated"}])
 
+    def test_pr_run_is_not_an_operational_monitoring_sample(self):
+        self.assertFalse(history.include_current_event("pull_request"))
+        self.assertFalse(history.include_current_event("push"))
+        self.assertFalse(history.include_current_event(""))
+        self.assertTrue(history.include_current_event("schedule"))
+        self.assertTrue(history.include_current_event("workflow_dispatch"))
+
+    def test_pr_current_probe_excluded_from_trend_even_when_api_succeeds(self):
+        import os
+        import tempfile
+        old_dir = os.getcwd()
+        current = {"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                   "samples": [race("202611030111", ["valid_200"])]}
+        prior = {"source_status": "ok", "checked_at_jst": "2026-11-02T14:25:00+09:00",
+                 "samples": [race("202611020111", ["pending_202", "pending_202", "pending_202"])]}
+        with tempfile.TemporaryDirectory() as folder:
+            try:
+                os.chdir(folder)
+                Path(history.FILE).write_text(json.dumps(current), encoding="utf-8")
+                env = {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_REPOSITORY": "test/repo", "GH_TOKEN": "test"}
+                with patch.dict(os.environ, env), patch.object(
+                        history, "fetch_history", return_value=([current, prior], 1, [])):
+                    history.main()
+                result = json.loads(Path("live_odds_14day_trend.json").read_text())
+                self.assertFalse(result["includes_current_run"])
+                self.assertEqual(result["history_evidence_loaded"], 1)
+                self.assertEqual(result["metrics"]["race_observations"], 1)
+                self.assertEqual(result["metrics"]["eventual_valid_races"], 0)
+                self.assertEqual(result["metrics"]["http_202"], 3)
+            finally:
+                os.chdir(old_dir)
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
