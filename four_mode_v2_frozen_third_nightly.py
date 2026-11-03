@@ -98,13 +98,17 @@ def summarize(inventory, root, download, out_dir):
                 raise ValueError("missing_or_unsafe_zip")
             scoring = score_zip(path, root)
             if scoring["published_forecasts"] == 0 and scoring["frozen"] == 0:
-                # "No new candidates" is normal, never a 0-hit race.
+                # An explicitly successful no-new-publication report is normal.
+                # A freeze validation failure must NEVER masquerade as empty.
+                if (scoring.get("publication_evidence_status") != "no_confirmed_publication"
+                        or scoring.get("validation_error_count", 0)):
+                    raise ValueError("invalid_or_failed_empty_publication")
                 row["status"] = "no_new_candidate_publication"
                 report["no_new_candidate_runs"] += 1
                 report["downloaded_artifacts"] += 1
                 report["runs"].append(row)
                 continue
-            if scoring["invalid"]:
+            if scoring["invalid"] or scoring.get("validation_error_count", 0):
                 report["bad_validation_runs"].append(run_id)
         except (OSError, ValueError, KeyError, TypeError,
                 subprocess.SubprocessError, __import__("zipfile").BadZipFile) as exc:
