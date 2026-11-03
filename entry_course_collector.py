@@ -269,7 +269,38 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     return verdict
 
 
-def attempt_batch(root, *, now=None, max_per_run=3, **kwargs):
+def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
+                                 max_minutes=6):
+    """Detect T−2 races with a published pre-race deadline but no T−12 original.
+
+    Read only a pre-race schedule (never results); this deliberately does not
+    invent a forecast or relax any T−12 cutoff. If the schedule is missing,
+    the caller must report a separate source outage, not a zero-race day.
+    """
+    from entry_course_t12_seed import _title
+    rows,day,digest,source=(schedule_fetch or _title)(now)
+    expected=[]
+    for item in rows:
+        if not isinstance(item,dict):
+            continue
+        code=item.get("レースコード")
+        clock=item.get("電話投票締切予定")
+        if (type(code) is not str or CODE.fullmatch(code) is None or
+                code[:8]!=day or type(clock) is not str or
+                re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",clock) is None):
+            continue
+        deadline=datetime.strptime(day+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        remaining=((deadline-timedelta(minutes=2))-now).total_seconds()
+        if 45<=remaining<=max_minutes*60:
+            expected.append(code)
+    return {"expected_race_codes":sorted(set(expected)),
+            "schedule_sha256":digest,"schedule_source":source,
+            "research_only":True}
+
+
+def attempt_batch(root, *, now=None, max_per_run=3,
+                  verify_expected_schedule=False, schedule_fetch=None,
+                  **kwargs):
     """Bounded independent race attempts; never mix the race cohorts."""
     if type(max_per_run) is not int or not 1<=max_per_run<=3:
         raise ValueError("invalid_t2_batch_size")
@@ -277,8 +308,25 @@ def attempt_batch(root, *, now=None, max_per_run=3, **kwargs):
     snapshot_time=now()
     pool=candidates(root,now=snapshot_time)
     if not pool:
-        # Preserve the existing explicit missing-baseline diagnosis.
-        return attempt(root,now=now,**kwargs)
+        # Preserve the baseline diagnostics, but do not silently count a
+        # scheduled T−2 race as a no-op when its T−12 original is absent.
+        report=attempt(root,now=now,**kwargs)
+        if not verify_expected_schedule:
+            return report
+        try:
+            expected=expected_t2_without_baseline(snapshot_time,root,
+                                    schedule_fetch=schedule_fetch)
+        except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
+            report.update(status="t2_expected_schedule_unavailable",
+                          schedule_error_type=type(exc).__name__,
+                          stored=False)
+            return report
+        report["expected_schedule"]=expected
+        if expected["expected_race_codes"]:
+            report.update(status="t2_missing_expected_t12_baselines",
+                          missing_baseline_race_codes=expected["expected_race_codes"],
+                          stored=False)
+        return report
     selected=pool[:max_per_run]
     records=[]
     for chosen in selected:
@@ -334,7 +382,8 @@ def main():
         access=verify_write_access(remote_read,remote_create)
         from entry_course_scheduled_write_probe import from_environment
         scheduled_access=from_environment("t2",remote_read,remote_create)
-        verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create))
+        verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create),
+                              verify_expected_schedule=True)
         verdict['ledger_write_access_probe']=access
         verdict['scheduled_actions_write_probe']=scheduled_access
     except Exception as exc:
@@ -345,7 +394,9 @@ def main():
     out.write_text(json.dumps(verdict,ensure_ascii=False,sort_keys=True)+"\n",encoding="utf-8")
     print("COURSE_LATE_EVIDENCE="+json.dumps(verdict,ensure_ascii=False,sort_keys=True))
     if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error",
-                            "t2_batch_no_capture"):
+                            "t2_batch_no_capture",
+                            "t2_missing_expected_t12_baselines",
+                            "t2_expected_schedule_unavailable"):
         raise SystemExit(2)
 
 if __name__=="__main__":
