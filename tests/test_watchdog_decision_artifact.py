@@ -41,7 +41,7 @@ class WatchdogEvidenceContractTest(unittest.TestCase):
         self.assertIn("< 14*60", self.script)
         self.assertIn("recent_minutes=14, cooldown_minutes=14", self.script)
         self.assertNotIn("27*60", self.script)
-        self.assertNotIn("20*60", self.script)
+        self.assertNotIn("< 20*60]", self.script)
         self.assertIn('"older_active_runs_blocking"', self.script)
         self.assertIn("120*60", self.script)
 
