@@ -3,6 +3,12 @@
 更新日: 2026-11-01 (JST)
 この文書は会話をまたぐ運用上の引き継ぎ。下記の「過去会話による報告」は今この文書を作成した時点での本番再検証を意味しない。実際のGitHub/CI/Render/公開URLの状態を調べ、確認できた証拠で更新する。
 
+## 2026-11-03 オッズ代替起動のPR由来in-progress誤抑止修正
+- PR #1439をmainへsquash統合（`eabadf9520ca543ec16bb2c1c611d3e8a6e8329a`）。`scripts/gate_live_odds_event.py` の prior_fallback_guard が、運用対象と別concurrency groupで実行中のPR由来no-opを無条件に「先行監視あり」としていた問題に対応。既存の #1424 の operational-group直列化を前提に、未完了runを重複成功証拠として扱わず、完了runの有効HTTP200 artifact検証は維持。
+- `tests/test_gate_live_odds_event.py` の回帰ケース更新と、in-progress no-opの後ろにある完了済み有効fallbackを検出する新規テストを追加。PR CI `41635745512` / job `125916357820` success（PRイベントであり無人監視成功には算入しない）。
+- 2026-11-04 12:25/14:25/16:25 JSTの実際のschedule・fallback・有効HTTP200・二重計上は未実証。既存18:00 JST自動監査（ID `6ae9b1a3021481919940f077e05cf620`）は有効。独立Render Cron Jobは未作成、追加料金発生なし。
+- 次の最優先: 11/4実測で3枠の時間内起動、GitHub代替起動、HTTP200、artifact、重複を確認。独立スケジューラの導入は遅延再発や費用判断を踏まえて別途行う。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
