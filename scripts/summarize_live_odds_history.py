@@ -141,6 +141,52 @@ def daily_trends(records, *, now=None):
     return rows
 
 
+
+def schedule_trigger_health(runs, *, now=None, grace_minutes=90):
+    """Observe today's configured cron slots; missing triggers are not API failures.
+
+    A late GitHub scheduled event may arrive after this check, so "not_observed"
+    is an audit warning rather than proof of scheduler failure.
+    """
+    utc_now = now or datetime.now(timezone.utc)
+    jst = timezone(timedelta(hours=9))
+    day = utc_now.astimezone(jst).date()
+    slots = []
+    for hour in (3, 5, 7):  # 12:25, 14:25, 16:25 JST, as configured in workflow
+        scheduled = datetime.combine(day, datetime.min.time(), tzinfo=jst).replace(
+            hour=hour + 9, minute=25).astimezone(timezone.utc)
+        deadline = scheduled + timedelta(minutes=grace_minutes)
+        observed = []
+        for run in runs:
+            if not isinstance(run, dict) or run.get("event") != "schedule":
+                continue
+            try:
+                created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+                if created.tzinfo is not None and scheduled <= created <= deadline:
+                    observed.append({"run_id": run.get("id"), "status": run.get("status"),
+                                     "conclusion": run.get("conclusion"),
+                                     "created_at": run["created_at"]})
+            except (KeyError, TypeError, ValueError):
+                continue
+        state = "observed" if observed else ("not_observed_after_grace" if utc_now >= deadline else "awaiting_grace")
+        slots.append({"scheduled_jst": scheduled.astimezone(jst).isoformat(),
+                      "state": state, "matching_runs": observed})
+    return {"observed_slots": sum(s["state"] == "observed" for s in slots),
+            "not_observed_after_grace": sum(s["state"] == "not_observed_after_grace" for s in slots),
+            "grace_minutes": grace_minutes, "slots": slots}
+
+
+def fetch_schedule_trigger_health(repository, token, *, now=None):
+    root = "https://api.github.com/repos/" + repository
+    url = root + "/actions/workflows/" + WORKFLOW + "/runs?event=schedule&per_page=100"
+    payload = api_json(url, token)
+    runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+    if not isinstance(runs, list):
+        raise ValueError("SCHEDULE_RUN_LIST_INVALID")
+    return schedule_trigger_health(runs, now=now)
+
+
+
 def api_json(url, token):
     with urlopen(Request(url, headers={
         "Authorization": "Bearer " + token,
@@ -243,11 +289,18 @@ def main():
             status = "history_api_unavailable:" + type(exc).__name__
     if status == "ok" and errors:
         status = "partial_history"
+    schedule_health = {"status": "not_checked"}
+    if token and "/" in repo:
+        try:
+            schedule_health = {"status": "ok", **fetch_schedule_trigger_health(repo, token)}
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError) as exc:
+            schedule_health = {"status": "unavailable:" + type(exc).__name__}
     metrics = summarize(history)
     daily = daily_trends(history)
     report = {"window_days": DAYS, "status": status, "history_runs_selected": scanned,
               "history_evidence_loaded": len(history) - 1, "history_errors": errors,
-              "includes_current_run": True, "metrics": metrics, "daily": daily}
+              "includes_current_run": True, "metrics": metrics, "daily": daily,
+              "schedule_trigger_health": schedule_health}
     Path("live_odds_14day_trend.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("LIVE_ODDS_14DAY_TREND " + json.dumps(report, ensure_ascii=False), flush=True)
     path = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -266,7 +319,9 @@ def main():
             stream.write("Median request latency: " + str(metrics["median_request_latency_ms"]) + "ms\n\n")
             stream.write("Observed JST dates: " + str(sum(row["has_valid_observations"] for row in daily)) +
                          "/14; missing days are N/A, not successes.\n\n")
-            stream.write("Missing runs and unavailable history are not counted as successes.\n")
+            stream.write("Today's scheduled trigger observations: " +
+                         json.dumps(schedule_health, ensure_ascii=False) + "\n\n")
+            stream.write("Unobserved scheduled triggers are not counted as successful checks.\n")
 
 
 if __name__ == "__main__":
