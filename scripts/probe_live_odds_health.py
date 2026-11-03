@@ -92,11 +92,22 @@ def summarize(samples):
     final_states = {}
     for item in samples:
         final_states[item["final_state"]] = final_states.get(item["final_state"], 0) + 1
+    initially_pending = [item for item in samples if item["attempts"] and item["attempts"][0]["state"] == "pending_202"]
+    recovered = [item for item in initially_pending if item["final_state"] == "valid_200"]
+    exhausted = [item for item in initially_pending if item["final_state"] == "pending_202"]
+    latencies = [step["latency_ms"] for step in requests]
     return {"races_sampled": len(samples), "requests": len(requests),
             "http_counts": counts, "non_200_202_503": len(requests) - sum(counts.values()),
             "final_states": final_states,
             "valid_200_races": final_states.get("valid_200", 0),
-            "median_race_elapsed_ms": round(statistics.median(timings)) if timings else None}
+            "first_attempt_valid_races": sum(item["attempts"][0]["state"] == "valid_200" for item in samples if item["attempts"]),
+            "initially_pending_races": len(initially_pending),
+            "pending_recovered_to_valid_200": len(recovered),
+            "pending_still_202": len(exhausted),
+            "pending_recovery_rate_pct": round(100 * len(recovered) / len(initially_pending), 1) if initially_pending else None,
+            "median_request_latency_ms": round(statistics.median(latencies)) if latencies else None,
+            "median_race_elapsed_ms": round(statistics.median(timings)) if timings else None,
+            "median_recovered_race_elapsed_ms": round(statistics.median(item["elapsed_ms"] for item in recovered)) if recovered else None}
 
 
 def main():
@@ -129,7 +140,15 @@ def main():
                          "; requests: " + str(summary["requests"]) +
                          "; valid HTTP 200 races: " + str(summary["valid_200_races"]) + "\n\n")
             stream.write("HTTP codes: " + json.dumps(summary["http_counts"]) + "\n\n")
-            stream.write("Median race latency (ms): " + str(summary["median_race_elapsed_ms"]) + "\n\n")
+            stream.write("First-attempt valid: " + str(summary["first_attempt_valid_races"]) +
+                         "; initially HTTP 202: " + str(summary["initially_pending_races"]) +
+                         "; recovered 202→valid 200: " + str(summary["pending_recovered_to_valid_200"]) +
+                         "; exhausted 202: " + str(summary["pending_still_202"]) + "\n\n")
+            stream.write("202 recovery rate (% of initially pending): " +
+                         str(summary["pending_recovery_rate_pct"]) + "\n\n")
+            stream.write("Median request latency (ms): " + str(summary["median_request_latency_ms"]) +
+                         "; median race elapsed (ms): " + str(summary["median_race_elapsed_ms"]) +
+                         "; median recovered race elapsed (ms): " + str(summary["median_recovered_race_elapsed_ms"]) + "\n\n")
             stream.write("No samples is not success. Full per-attempt evidence is in the artifact.\n")
 
 
