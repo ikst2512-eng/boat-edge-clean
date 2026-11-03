@@ -92,6 +92,68 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["not_stored_count"],2)
             self.assertEqual(out["errors"],0)
             self.assertTrue(all(r["status"]=="preview_not_ready" for r in out["results"]))
+    def test_unpublished_preview_can_arrive_within_original_t2_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            clock=[NOW]
+            reads={"count":0}
+            def now():return clock[0]
+            def sleep(seconds):clock[0]+=timedelta(seconds=seconds)
+            def preview(day,venue,race):
+                reads["count"]+=1
+                if clock[0] < NOW+timedelta(seconds=35):
+                    raise ValueError("preview_not_yet_published")
+                return cards[day+venue+race]
+            storage={}
+            out=attempt_batch(tmp,now=now,preview_retry_rounds=3,
+                preview_retry_interval=35,sleep=sleep,
+                card_reader=preview,waku_fetch=lambda url:bytes_,
+                ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
+            self.assertEqual(out["status"],"t2_batch_completed")
+            self.assertEqual(out["newly_stored_count"],2)
+            self.assertEqual(out["preview_retry_sleeps"],1)
+            self.assertEqual(out["preview_retry_attempts"],2)
+            self.assertGreaterEqual(reads["count"],4)
+            self.assertEqual(len(storage),2)
+    def test_retries_stop_before_cutoff_without_faking_late_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,1)
+            clock=[NOW]
+            def now():return clock[0]
+            def sleep(seconds):clock[0]+=timedelta(seconds=seconds)
+            out=attempt_batch(tmp,now=now,preview_retry_rounds=7,
+                preview_retry_interval=35,sleep=sleep,
+                card_reader=lambda *a:(_ for _ in ()).throw(ValueError("no_preview")),
+                waku_fetch=lambda url:self.fail("no preview means no Waku10"),
+                ledger_ops=(lambda p:None,lambda p,b:self.fail("late archive")))
+            self.assertEqual(out["status"],"t2_batch_no_capture")
+            self.assertEqual(out["newly_stored_count"],0)
+            self.assertGreater(out["preview_retry_sleeps"],0)
+            self.assertLess(clock[0],datetime(2026,11,3,18,31,tzinfo=JST))
+    def test_retry_does_not_starve_second_race_on_first_pass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            clock=[NOW];seen=[]
+            def now():return clock[0]
+            def sleep(seconds):clock[0]+=timedelta(seconds=seconds)
+            def preview(day,venue,race):
+                seen.append(race)
+                if race=="08":raise ValueError("no_preview")
+                return cards[day+venue+race]
+            storage={}
+            out=attempt_batch(tmp,now=now,preview_retry_rounds=2,
+                sleep=sleep,card_reader=preview,waku_fetch=lambda url:bytes_,
+                ledger_ops=(storage.get,lambda p,b:storage.setdefault(p,b)))
+            self.assertEqual(seen[:2],["08","09"])
+            self.assertEqual(out["status"],"t2_batch_partial_capture")
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(out["not_stored_count"],1)
+    def test_invalid_retry_configuration_fails_closed(self):
+        for rounds,interval in ((8,35),(0,35),(2,0),(2,61)):
+            with self.assertRaisesRegex(ValueError,"preview_retry_bounds"):
+                attempt_batch(".",now=lambda:NOW,
+                    preview_retry_rounds=rounds,
+                    preview_retry_interval=interval)
     def test_partial_capture_exposes_unstored_races(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,bytes_=setup(tmp,2)
