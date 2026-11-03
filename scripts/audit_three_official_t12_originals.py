@@ -25,6 +25,7 @@ def audit_three_originals(racelist_dir, beforeinfo_dir, odds_dir):
         "racer_registration_ids_match": bool(card["racer_registration_identities_agree"]),
         "racecard_received_by_t12": bool(card["received_by_t12"]),
         "beforeinfo_received_by_t12": bool(card["beforeinfo_received_by_t12"]),
+        "beforeinfo_six_unique_boats": bool(pair["component_checks"]["six_unique_boats"]),
         "exhibition_six_courses": len(card["exhibition_course_to_boat"]) == 6,
         "exhibition_times_six": bool(pair["component_checks"]["exhibition_time_six"]),
         "tilt_six": bool(pair["component_checks"]["tilt_six"]),
