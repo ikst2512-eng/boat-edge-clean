@@ -1,0 +1,42 @@
+name: Hole third-place candidate choice research
+on:
+  pull_request:
+    paths:
+      - hole_third_choice_research.py
+      - test_hole_third_choice_research.py
+      - .github/workflows/hole-third-choice-research.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_third_choice_research.py
+      - run: python hole_third_choice_research.py > hole_third_choice_results.json
+      - name: Verify bounded claims and report observed gains and losses
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_choice_results.json"))
+          assert all(report[key] is False for key in
+             ("formal","independent_holdout","independent_first_receipt_verified",
+              "prospective_validation","production_forecast_changed","score_calibrated"))
+          for group,data in report["groups"].items():
+              print("GROUP",group,"COMPARABLE",data["comparable"],
+                    "UNAVAILABLE",data["unavailable"])
+              print("THIRD_DIAGNOSTIC",data["third_choice_diagnostic"])
+              print("CHANGED",data["changed"])
+              for policy,topn in data["topn"].items():
+                  print("POLICY",policy,topn)
+                  for k in ("top3","top5"):
+                      assert topn[k]["gained"]==topn[k]["lost"]==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-third-choice-research
+          path: hole_third_choice_results.json
