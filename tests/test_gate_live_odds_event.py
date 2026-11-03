@@ -29,6 +29,24 @@ class FallbackGateTests(unittest.TestCase):
         self.assertIn("live-odds-ineligible-", workflow)
         self.assertIn("live-odds-operational-", workflow)
 
+    def test_unattended_sample_precedes_qa_and_history(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        sample = workflow.index("      - name: Sample up to three independently sourced upcoming races")
+        verdict = workflow.index("      - name: Fail unhealthy unattended odds sampling")
+        qa = workflow.index("      - name: Verify fallback event classification")
+        history = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
+        artifact = workflow.index("      - name: Preserve per-race statuses and timings")
+        self.assertTrue(sample < verdict < qa < history < artifact)
+        self.assertIn("if: always()\\n        uses: actions/upload-artifact@v4", workflow)
+        for name in ("Verify fallback event classification",
+                     "Verify read-only live odds metric classification",
+                     "Verify 14-day odds trend aggregation",
+                     "Verify strict operational verdict tests"):
+            line = workflow.split("      - name: " + name + "\\n", 1)[1].split("\\n", 2)[0]
+            self.assertIn("github.event_name == 'pull_request'", line)
+            self.assertIn("github.event_name == 'workflow_dispatch'", line)
+
     def test_primary_cron_has_exactly_three_original_jst_slots(self):
         # Split cron entries must retain the exact original daily times.
         workflow = (Path(__file__).resolve().parents[1] /
