@@ -7,9 +7,9 @@ from hole_locked_two_pair_miss_audit import (
 from test_hole_third_choice_research import archive as archive_fixture
 
 CODES=["202611030101","202611030102","202611030103",
-       "202611030104","202611030105"]
+       "202611030104","202611030105","202611030106"]
 BASE=["1-2-3","1-2-4","1-3-2","1-3-4","1-4-2",
-      "1-4-3","1-4-5","1-2-5","1-3-5","1-2-6"]
+      "2-1-3","1-4-5","1-2-5","1-3-5","1-2-6"]
 LOCKED=BASE[:5]+["1-5-3","1-6-3"]+BASE[5:8]
 
 
@@ -21,7 +21,7 @@ def fixture():
         {"combo":t,"p":1} for t in (
             "1-5-3","1-5-2","1-6-3","1-6-2","1-2-6")]
     a["modes"]["balance"]["tickets"]=[
-        {"combo":t,"p":1} for t in ("1-5-3","1-6-3","1-4-6")]
+        {"combo":t,"p":1} for t in ("1-5-3","1-6-3","1-4-6","2-3-1")]
     return a
 
 
@@ -41,7 +41,7 @@ class LockedTwoPairMissTests(unittest.TestCase):
 
     def test_all_miss_types_reconcile_before_and_after_locked(self):
         a=fixture();events=[]
-        winners=["1-5-3","1-2-6","1-5-2","1-4-6","4-1-3"]
+        winners=["1-5-3","1-2-6","1-5-2","2-3-1","4-1-3","1-4-6"]
         def selected(archive,rates):
             events.append("select")
             return {"baseline":BASE,"third_national_rate":LOCKED}
@@ -55,20 +55,20 @@ class LockedTwoPairMissTests(unittest.TestCase):
              "hole_locked_two_pair_miss_audit.variants",side_effect=selected),patch(
              "hole_locked_two_pair_miss_audit.compare_race",side_effect=result):
             report=inspect(CODES,Path("."))
-        self.assertEqual(events,["select","result"]*5)
-        self.assertEqual(report["comparable"],5)
+        self.assertEqual(events,["select","result"]*6)
+        self.assertEqual(report["comparable"],6)
         self.assertEqual(report["miss_classes"],{
             "hit":1,"first_head_absent":1,
-            "second_pair_absent":1,"third_boat_absent":2})
+            "second_pair_absent":1,"third_boat_absent":3})
         self.assertEqual(report["gain_loss"],{
             "rescued":1,"displaced":1,"net":0})
         self.assertEqual(report["missing_pair_sources"]["balance_only"],1)
         self.assertEqual(
-            report["wrong_third_donor_availability"]["exact_ticket_in_donors"],2)
-        self.assertEqual(sum(report["miss_classes"].values()),5)
+            report["wrong_third_donor_availability"]["exact_ticket_in_donors"],3)
+        self.assertEqual(sum(report["miss_classes"].values()),6)
         self.assertEqual(sum(report["by_date"][CODES[0][:8]][k]
                              for k in ("hit","first_head_absent",
-                                       "second_pair_absent","third_boat_absent")),5)
+                                       "second_pair_absent","third_boat_absent")),6)
 
     def test_unconfirmed_excluded_and_does_not_inflate_misses(self):
         with patch("hole_locked_two_pair_miss_audit.archived_four_modes",
