@@ -76,6 +76,10 @@ class ObservationLedgerTests(unittest.TestCase):
         self.artifact["unverified_count"]=1
         self.assertIsNotNone(prepare(self.payload(),self.root,"1234","1",self.git))
 
+    def test_pre_eligible_observations_are_skipped_not_failed(self):
+        self.row["race_code"]="202611030101"
+        self.assertIsNone(prepare(self.payload(),self.root,"1234","1",self.git))
+
     def test_no_publication_skips(self):
         data={"schema":"FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
               "status":"no_confirmed_publication","records":[],
