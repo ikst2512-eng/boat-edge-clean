@@ -22,11 +22,11 @@ def timestamp(value):
     return date.astimezone(timezone.utc)
 
 
-def inspect(history, downloader, limit=12):
+def inspect(history, downloader, limit=40):
     if (not isinstance(history, dict)
             or not isinstance(history.get("recent_watchdog_runs"), list)
             or not isinstance(history.get("recent_capture_runs"), list)
-            or type(limit) is not int or not 1 <= limit <= 25):
+            or type(limit) is not int or not 1 <= limit <= 40):
         raise ValueError("invalid watchdog evidence history")
     dispatches = []
     for capture in history["recent_capture_runs"]:
