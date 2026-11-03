@@ -283,6 +283,10 @@ def fetch_history(repository, token, current, *, now=None):
                 evidence = json.loads(archive.read(FILE))
             if not isinstance(evidence, dict) or not isinstance(evidence.get("samples"), list):
                 raise ValueError("METRICS_SCHEMA")
+            if run.get("event") == "workflow_run" and evidence.get("source_status") == "fallback_ineligible":
+                # Deliberately skipped upstream PR/push/manual events are neither
+                # operational successes nor missing evidence.
+                continue
             if run.get("event") == "workflow_run" and not include_current_event("workflow_run", evidence):
                 raise ValueError("FALLBACK_PROVENANCE_INVALID")
             # Only evidence with the source's actual observation timestamp.
