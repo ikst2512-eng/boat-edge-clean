@@ -269,14 +269,21 @@ def fetch_history(repository, token, current, *, now=None):
     return history, len(selected), errors
 
 
+def include_current_event(event):
+    """PR API checks are QA, not scheduled operational reliability samples."""
+    return event in ("schedule", "workflow_dispatch")
+
+
 def main():
     current_file = Path(FILE)
     if not current_file.is_file():
         raise SystemExit("CURRENT_METRICS_MISSING")
     current = json.loads(current_file.read_text(encoding="utf-8"))
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    include_current = include_current_event(event)
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     token = os.environ.get("GH_TOKEN", "")
-    history = [current]
+    history = [current] if include_current else []
     scanned = 0
     errors = []
     status = "ok"
@@ -285,10 +292,14 @@ def main():
     else:
         try:
             history, scanned, errors = fetch_history(repo, token, current)
+            if not include_current:
+                history = history[1:]
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
             status = "history_api_unavailable:" + type(exc).__name__
     if status == "ok" and errors:
         status = "partial_history"
+    if status == "ok" and not history:
+        status = "no_eligible_monitoring_evidence"
     schedule_health = {"status": "not_checked"}
     if token and "/" in repo:
         try:
@@ -298,8 +309,9 @@ def main():
     metrics = summarize(history)
     daily = daily_trends(history)
     report = {"window_days": DAYS, "status": status, "history_runs_selected": scanned,
-              "history_evidence_loaded": len(history) - 1, "history_errors": errors,
-              "includes_current_run": True, "metrics": metrics, "daily": daily,
+              "history_evidence_loaded": max(0, len(history) - (1 if include_current else 0)),
+              "history_errors": errors, "includes_current_run": include_current,
+              "source_event": event or "unknown", "metrics": metrics, "daily": daily,
               "schedule_trigger_health": schedule_health}
     Path("live_odds_14day_trend.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("LIVE_ODDS_14DAY_TREND " + json.dumps(report, ensure_ascii=False), flush=True)
@@ -308,7 +320,11 @@ def main():
         with open(path, "a", encoding="utf-8") as stream:
             stream.write("\n### 14-day live odds trend (observations, not formal accuracy)\n\n")
             stream.write("Historical artifact availability: " + status + "; historical runs loaded: " +
-                         str(len(history) - 1) + "/" + str(scanned) + "; errors: " + str(len(errors)) + "\n\n")
+                         str(max(0, len(history) - (1 if include_current else 0))) + "/" + str(scanned) +
+                         "; errors: " + str(len(errors)) + "\n\n")
+            stream.write("Current run: " + (event or "unknown") +
+                         "; included in monitoring rates: " + str(include_current) +
+                         ". PR API checks are QA only.\n\n")
             stream.write("Race observations: " + str(metrics["race_observations"]) +
                          "; eventual valid rate: " + str(metrics["eventual_valid_rate_pct"]) +
                          "%; first-attempt valid: " + str(metrics["first_attempt_valid_races"]) + "\n\n")
