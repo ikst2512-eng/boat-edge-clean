@@ -163,13 +163,13 @@ class ResultCollectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.build_records("20261027",(header+row+row).encode(),datetime.fromisoformat("2026-10-27T17:00:00+09:00"))
     def test_rejects_duplicate_after_invalid_finish_or_timestamp(self):
-        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
-        valid="202610270101,2026-10-27T16:00:00+09:00,1,2,3\\n"
+        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
+        valid="202610270101,2026-10-27T16:00:00+09:00,1,2,3\n"
         invalid_rows=[
-            "202610270101,2026-10-27T16:00:00+09:00,1,1,3\\n",
-            "202610270101,not-a-time,1,2,3\\n",
-            "202610270101,,1,2,3\\n",
-            "202610270101,2026-10-27T19:00:00+09:00,1,2,3\\n",
+            "202610270101,2026-10-27T16:00:00+09:00,1,1,3\n",
+            "202610270101,not-a-time,1,2,3\n",
+            "202610270101,,1,2,3\n",
+            "202610270101,2026-10-27T19:00:00+09:00,1,2,3\n",
         ]
         now=datetime.fromisoformat("2026-10-27T17:00:00+09:00")
         for invalid in invalid_rows:
