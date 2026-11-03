@@ -4,6 +4,7 @@ Never publishes or rewrites existing forecasts. Uses research_model's historical
 boat-index prior; course effects are hypothetical, not empirically calibrated.
 """
 from itertools import permutations
+from datetime import datetime
 from math import exp, isfinite, log
 from research_model import probabilities
 
@@ -19,7 +20,13 @@ def _entry(value):
     return tuple(value)
 
 
-def _records(entry, rows, min_starts):
+def _records(entry, rows, min_starts, cutoff_at):
+    try:
+        cutoff=datetime.fromisoformat(cutoff_at)
+        if cutoff.utcoffset() is None:
+            raise ValueError('invalid_cutoff')
+    except (TypeError,ValueError):
+        raise ValueError('invalid_cutoff')
     if not isinstance(rows, (tuple, list)) or len(rows) != 6:
         raise ValueError("missing_course_records")
     by_boat = {}
@@ -46,13 +53,23 @@ def _records(entry, rows, min_starts):
                 raise ValueError("invalid_course_rate")
         if not (record["courseWinRate"] <= record["courseTop2Rate"] <= record["courseTop3Rate"]):
             raise ValueError("invalid_course_rate_order")
+        try:
+            observed=datetime.fromisoformat(record['observedAt'])
+            if observed.utcoffset() is None or observed >= cutoff:
+                raise ValueError('course_observed_after_cutoff')
+        except (TypeError,KeyError):
+            raise ValueError('course_observed_after_cutoff')
+        except ValueError as exc:
+            if str(exc)=='course_observed_after_cutoff':
+                raise
+            raise ValueError('course_observed_after_cutoff')
         st = record.get("courseAverageST")
         if type(st) not in (float, int) or not isfinite(st) or not 0 <= st <= 0.5:
             raise ValueError("missing_course_average_st")
     return by_boat
 
 
-def challenger_rank(national_rates, entry, course_records, *, include_st=False, min_starts=10):
+def challenger_rank(national_rates, entry, course_records, *, cutoff_at, include_st=False, min_starts=10):
     """Returns three TopN lists in historical *boat numbers*, not course numbers.
 
     Fixed rule (research hypothesis, not trained): shrink observed course
@@ -61,7 +78,7 @@ def challenger_rank(national_rates, entry, course_records, *, include_st=False, 
     applies a modest 0.5 ST-difference multiplier, with all parameters frozen.
     """
     entry = _entry(entry)
-    by_boat = _records(entry, course_records, min_starts)
+    by_boat = _records(entry, course_records, min_starts, cutoff_at)
     # Existing research model assumes the order maps to positions 1..6.
     positional = probabilities([national_rates[boat-1] for boat in entry])
     # position tuple->boat number tuple; confidence is NOT empirical hit probability
@@ -88,17 +105,17 @@ def challenger_rank(national_rates, entry, course_records, *, include_st=False, 
     baseline = sorted(baseline,key=lambda x:(-x[1], x[0]))
     return {"baseline": [("-".join(map(str,t)),p) for t,p in baseline],
             "course": [("-".join(map(str,t)),p) for t,p in
-                       challenger_rank._rank_course_without_st(national_rates,entry,by_boat)] if include_st else
+                       challenger_rank._rank_course_without_st(national_rates,entry,by_boat,cutoff_at)] if include_st else
                       [("-".join(map(str,t)),p) for t,p in candidate],
             "course_plus_st": [("-".join(map(str,t)),p) for t,p in candidate] if include_st else None,
             "research_only": True, "validated": False, "forecast_usable": False,
             "calibration": "unverified_fixed_hypothesis"}
 
 
-def _course_only(national_rates,entry,by_boat):
+def _course_only(national_rates,entry,by_boat,cutoff_at):
     # Reuse the exact pure candidate path without changing the stored records.
     return [(tuple(int(n) for n in ticket.split("-")),p) for ticket,p in
-            challenger_rank(national_rates,entry,list(by_boat.values()),include_st=False)["course"]]
+            challenger_rank(national_rates,entry,list(by_boat.values()),cutoff_at=cutoff_at,include_st=False)["course"]]
 challenger_rank._rank_course_without_st = _course_only
 
 
