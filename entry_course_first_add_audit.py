@@ -91,7 +91,7 @@ def audit_first_add(validated, *, fetch, repository, limit=MAX_FILES):
     selected=sorted(validated,key=lambda item:item["path"])[:limit]
     for item in selected:
         try:
-            outcome=first_add_for_path(item["path"],cutoff_at=item["cutoff_at"].isoformat(),
+            outcome=first_add_for_path(item["path"],cutoff_at=item["cutoff_at"],
                                        fetch=fetch,repository=repository)
             records.append(outcome)
         except (OSError,ValueError,TypeError,KeyError) as exc:
