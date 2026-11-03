@@ -246,14 +246,14 @@ def api_json(url, token):
 def plausible_fallback_run_time(created):
     """Prefilter completed fallback runs, never PR smoke or unrelated upstream hours.
 
-    An upstream started 12:40-12:55, 14:40-14:55, 16:40-16:55 JST.
+    A verified source can start as early as 12:35/14:35/16:35 JST.
     GitHub may delay the corresponding workflow_run by up to 60 minutes, so
     allow a deliberately broad window before verifying its artifact.
     """
     jst = timezone(timedelta(hours=9))
     local = created.astimezone(jst)
     minute_of_day = local.hour * 60 + local.minute
-    return any(hour * 60 + 40 <= minute_of_day <= (hour + 1) * 60 + 55
+    return any(hour * 60 + 35 <= minute_of_day <= (hour + 1) * 60 + 55
                for hour in (12, 14, 16))
 
 
@@ -357,7 +357,8 @@ def include_current_event(event, evidence=None):
     return (isinstance(trigger, dict)
             and trigger.get("event") == "workflow_run"
             and trigger.get("upstream_event") == "schedule"
-            and trigger.get("upstream_workflow") == "CLEAN prospective pre-cutoff capture"
+            and trigger.get("upstream_workflow") in ("CLEAN prospective pre-cutoff capture",
+                                                     "Four-mode prospective capture (research only)")
             and trigger.get("upstream_branch") == "main"
             and type(trigger.get("upstream_run_id")) is int
             and trigger["upstream_run_id"] > 0)
