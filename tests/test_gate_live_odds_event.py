@@ -29,6 +29,17 @@ class FallbackGateTests(unittest.TestCase):
         self.assertIn("live-odds-ineligible-", workflow)
         self.assertIn("live-odds-operational-", workflow)
 
+    def test_primary_cron_has_exactly_three_original_jst_slots(self):
+        # Split cron entries must retain the exact original daily times.
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        import re
+        cron = re.findall(r"^\s+- cron: '([^']+)'", workflow, flags=re.MULTILINE)
+        self.assertEqual(cron, ["25 3 * * *", "25 5 * * *", "25 7 * * *"])
+        # UTC 03:25 / 05:25 / 07:25 are JST 12:25 / 14:25 / 16:25.
+        self.assertEqual({(int(parts.split()[1]) + 9) % 24
+                          for parts in cron}, {12, 14, 16})
+
     def test_only_approved_schedule_upstream_is_operational(self):
         from datetime import datetime, timezone
         allowed = {"event": "workflow_run", "upstream_event": "schedule",
