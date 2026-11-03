@@ -27,6 +27,9 @@ class NearCutoffScheduleTests(unittest.TestCase):
             "scripts/inspect_official_beforeinfo_json.py",
         ):
             self.assertIn(audited_path, workflow)
+        self.assertIn("cron: '8,14,18 7 3 11 *'", workflow)
+        self.assertIn("github.event.schedule", workflow)
+        self.assertIn('202611030104', workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("datetime.now(JST)", observer)
         self.assertIn('if now().strftime("%Y%m%d") != day:', observer)

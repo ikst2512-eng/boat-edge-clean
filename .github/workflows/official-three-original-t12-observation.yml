@@ -4,6 +4,8 @@ on:
   # Scheduled GitHub Actions may start late; all sources remain subject to cutoff.
   schedule:
     - cron: '20,25,30,40,48,50,51 6 3 11 *'
+    # 16:08/14/18 JST: Kiryu 4R has independently observed 16:35 deadline.
+    - cron: '8,14,18 7 3 11 *'
   pull_request:
     paths:
       - '.github/workflows/official-three-original-t12-observation.yml'
@@ -30,7 +32,7 @@ jobs:
       matrix:
         # Different venues are PR research observations only.
         # Scheduled jobs remain scoped exclusively to Toda 12R.
-        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030212","202611030612","202611030412","202611030104"]' || '["202611030212"]') }}
+        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030212","202611030612","202611030412","202611030104"]' || github.event_name == 'schedule' && github.event.schedule == '8,14,18 7 3 11 *' && '["202611030104"]' || '["202611030212"]') }}
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
