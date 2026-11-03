@@ -132,10 +132,15 @@ def freeze_published(root, evidence_path, now=None, git=None, clock=None):
     result["frozen_before_t_minus_12"] = sum(
         row["status"] == "frozen_in_same_job_before_t_minus_12"
         for row in result["records"])
-    result["ineligible_count"] = count - result["frozen_before_t_minus_12"]
+    # These statuses are mutually exclusive. A validation error is not an
+    # eligible decision and must not also be counted as an ineligible race.
+    result["ineligible_count"] = sum(
+        row["status"] == "ineligible" for row in result["records"])
     result["validation_error_count"] = sum(
         row["status"] == "validation_error" for row in result["records"])
-    if len(result["records"]) != count:
+    if (len(result["records"]) != count or
+            result["frozen_before_t_minus_12"] +
+            result["ineligible_count"] + result["validation_error_count"] != count):
         raise ValueError("record_partition")
     return result
 
