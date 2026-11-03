@@ -133,6 +133,7 @@ def event_provenance():
         "upstream_workflow": upstream.get("name") if event == "workflow_run" else None,
         "upstream_branch": upstream.get("head_branch") if event == "workflow_run" else None,
         "upstream_run_id": upstream.get("id") if event == "workflow_run" else None,
+        "upstream_created_at": upstream.get("created_at") if event == "workflow_run" else None,
     }
 
 

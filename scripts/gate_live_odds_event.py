@@ -14,7 +14,34 @@ from probe_live_odds_health import event_provenance
 UPSTREAM = "CLEAN prospective pre-cutoff capture"
 
 
-def eligible(event, trigger):
+def fallback_slot_eligible(trigger, *, now=None):
+    """Allow only the upstream 12:45/14:45/16:45 JST catch-up windows.
+
+    The upstream is scheduled each 15 minutes; counting every completion would
+    flood operational evidence and inflate the success denominator. Fail closed
+    on missing, stale, future, or out-of-window timestamps.
+    """
+    try:
+        source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
+        if source.tzinfo is None:
+            return False
+        source = source.astimezone(timezone.utc)
+    except (KeyError, AttributeError, TypeError, ValueError):
+        return False
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    if not 0 <= (now - source).total_seconds() <= 60 * 60:
+        return False
+    jst = timezone(timedelta(hours=9))
+    source_local = source.astimezone(jst)
+    for hour in (12, 14, 16):
+        cutoff = source_local.replace(hour=hour, minute=25, second=0, microsecond=0)
+        elapsed_minutes = (source_local - cutoff).total_seconds() / 60
+        if 15 <= elapsed_minutes < 30:
+            return True
+    return False
+
+
+def eligible(event, trigger, *, now=None):
     if event in ("schedule", "workflow_dispatch", "pull_request"):
         return True  # PRs are separately excluded by the reliability aggregator.
     if event != "workflow_run" or not isinstance(trigger, dict):
@@ -24,7 +51,8 @@ def eligible(event, trigger):
             and trigger.get("upstream_workflow") == UPSTREAM
             and trigger.get("upstream_branch") == "main"
             and type(trigger.get("upstream_run_id")) is int
-            and trigger["upstream_run_id"] > 0)
+            and trigger["upstream_run_id"] > 0
+            and fallback_slot_eligible(trigger, now=now))
 
 
 def main():
@@ -42,7 +70,7 @@ def main():
             "source_status": "fallback_ineligible",
             "trigger": trigger,
             "samples": [],
-            "reason": "upstream_event_not_verified_as_main_schedule",
+            "reason": "upstream_not_verified_or_outside_bounded_fallback_window",
         }
         Path("live_odds_metrics.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
