@@ -49,6 +49,7 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
     total_start = clock()
     for attempt in range(3):
         start = clock()
+        started_at_utc = datetime.now(timezone.utc).isoformat()
         try:
             with request(Request(url, headers={"User-Agent": USER_AGENT}), timeout=25) as response:
                 status = response.status
@@ -72,7 +73,11 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
         except (URLError, TimeoutError, ValueError, OSError, json.JSONDecodeError, TypeError) as error:
             status = None
             state = "transport_error:" + type(error).__name__
-        attempts.append({"http": status, "state": state, "latency_ms": round((clock() - start) * 1000)})
+        finished_at_utc = datetime.now(timezone.utc).isoformat()
+        attempts.append({"http": status, "state": state,
+                         "latency_ms": round((clock() - start) * 1000),
+                         "started_at_utc": started_at_utc,
+                         "finished_at_utc": finished_at_utc})
         # One bounded retry for an observed transient timeout. HTTP 202
         # retains its existing three-attempt policy; other failures stop.
         if state == "pending_202" and attempt < 2:

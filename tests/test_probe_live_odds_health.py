@@ -36,6 +36,38 @@ def valid_body():
 
 
 class ProbeTests(unittest.TestCase):
+    def test_attempts_save_real_request_and_response_timestamps(self):
+        before = datetime.now(timezone.utc)
+        result = probe.sample_race(
+            CODE, request=lambda req, timeout: Response(valid_body()),
+            now=NOW, pause=lambda _: None)
+        after = datetime.now(timezone.utc)
+        attempt = result["attempts"][0]
+        started = datetime.fromisoformat(attempt["started_at_utc"])
+        finished = datetime.fromisoformat(attempt["finished_at_utc"])
+        self.assertEqual(started.utcoffset(), timedelta(0))
+        self.assertEqual(finished.utcoffset(), timedelta(0))
+        self.assertLessEqual(before, started)
+        self.assertLessEqual(started, finished)
+        self.assertLessEqual(finished, after)
+        self.assertEqual(attempt["state"], "valid_200")
+
+    def test_pending_retry_saves_independent_attempt_timestamps(self):
+        calls = []
+        def request(req, timeout):
+            calls.append(True)
+            if len(calls) == 1:
+                raise HTTPError(req.full_url, 202, "pending", {}, io.BytesIO())
+            return Response(valid_body())
+        result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
+        self.assertEqual(len(result["attempts"]), 2)
+        for attempt in result["attempts"]:
+            self.assertIn("started_at_utc", attempt)
+            self.assertIn("finished_at_utc", attempt)
+        self.assertLessEqual(
+            result["attempts"][0]["finished_at_utc"],
+            result["attempts"][1]["started_at_utc"])
+
     def test_exact_odds_and_timestamp(self):
         self.assertTrue(probe.valid_odds(valid_body(), CODE, NOW))
         bad = valid_body()
