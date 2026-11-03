@@ -72,6 +72,10 @@ def evaluate(root=ROOT, now=None):
     directory = root / "four_mode_forecasts"
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
+        "forecast_only_exposure": {"valid": 0, "eligible": 0,
+                                   "reordered_top10": 0,
+                                   "changed_top3_membership": 0,
+                                   "changed_top5_membership": 0},
         "matured_comparable": 0,
         "matured_modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
         "pending_by_deadline": {"before_deadline": 0,
@@ -120,6 +124,19 @@ def evaluate(root=ROOT, now=None):
         except (KeyError, ValueError, TypeError):
             excluded["invalid_shadow_inputs"] += 1
             continue
+        # Outcome-blind exposure audit across ALL valid frozen V2 forecasts,
+        # including races without a confirmed finish. This does not measure
+        # accuracy or validate first-publication timing.
+        baseline = [item["combo"] for item in archive["modes"]["hit"]["tickets"]]
+        if len(candidate) != len(baseline) or set(candidate) != set(baseline):
+            excluded["membership_changed"] += 1
+            continue
+        exposure = row["forecast_only_exposure"]
+        exposure["valid"] += 1
+        exposure["eligible"] += int(enabled)
+        exposure["reordered_top10"] += int(candidate != baseline)
+        exposure["changed_top3_membership"] += int(set(candidate[:3]) != set(baseline[:3]))
+        exposure["changed_top5_membership"] += int(set(candidate[:5]) != set(baseline[:5]))
         compared = compare_race(path.stem, root)
         if compared.get("status") == "result_unavailable":
             try:
@@ -138,10 +155,6 @@ def evaluate(root=ROOT, now=None):
             excluded["invalid_miss_diagnostics"] += 1
             continue
         winning = compared["winning_ticket"]
-        baseline = [item["combo"] for item in archive["modes"]["hit"]["tickets"]]
-        if set(candidate) != set(baseline):
-            excluded["membership_changed"] += 1
-            continue
         # A mature confirmed result and an overdue missing result share the
         # same denominator. The 60m window is an operational diagnostic,
         # not proof that the upstream result should already exist.
