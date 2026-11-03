@@ -13,7 +13,7 @@ from collections import Counter
 from four_mode_archive_api import archived_four_modes
 from four_mode_frozen_diagnostic import compare_race
 from clean_four_modes import rank_modes
-from research_model import probabilities
+from research_model import probabilities, WIN
 
 ROOT = Path(__file__).resolve().parent
 VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
@@ -41,6 +41,16 @@ def assess(root=ROOT):
         "mean_predicted_boat1": None,
         "observed_boat1_rate": None,
         "boat1_brier_score": None,
+        "six_head_brier_model": None,
+        "six_head_brier_fixed_prior": None,
+        "six_head_log_loss_model": None,
+        "six_head_log_loss_fixed_prior": None,
+        "six_head_model_minus_prior_brier": None,
+        "six_head_model_minus_prior_log_loss": None,
+        "six_head_brier_model_better_races": 0,
+        "six_head_brier_prior_better_races": 0,
+        "six_head_brier_ties": 0,
+        "fixed_prior_head_probabilities": [round(w / sum(WIN), 6) for w in WIN],
         "constant_0_5_brier_on_same_cohort": None,
         "warning": "Descriptive selected-result cohort; not official skill or calibration evidence.",
     }
@@ -51,6 +61,9 @@ def assess(root=ROOT):
     expected_sum = 0.0
     brier_sum = 0.0
     wins = 0
+    prior = [w / sum(WIN) for w in WIN]
+    six_model_brier = six_prior_brier = 0.0
+    six_model_log = six_prior_log = 0.0
     for path in sorted(folder.glob("*.json")):
         code = path.stem
         if not re.fullmatch(r"20[0-9]{10}", code):
@@ -83,9 +96,12 @@ def assess(root=ROOT):
             ):
                 output["not_reproduced"] += 1
                 continue
-            p1 = sum(prob for combo, prob in board if combo[0] == 1)
-            if not math.isfinite(p1) or not 0 <= p1 <= 1:
+            heads = [sum(prob for combo, prob in board if combo[0] == i)
+                     for i in range(1, 7)]
+            if (any(not math.isfinite(prob) or prob <= 0 or prob > 1
+                    for prob in heads) or abs(sum(heads) - 1) > 1e-9):
                 raise ValueError("bad_head_mass")
+            p1 = heads[0]
         except (KeyError, ValueError, TypeError, OverflowError, AssertionError):
             rejected["invalid_model_input"] += 1
             continue
@@ -103,7 +119,17 @@ def assess(root=ROOT):
                 len(set(winning.split("-"))) != 3):
             output["invalid_or_untrusted_finish"] += 1
             continue
-        y = int(winning.startswith("1-"))
+        head = int(winning[0])
+        y = int(head == 1)
+        model_brier = sum((heads[i] - int(i + 1 == head))**2 for i in range(6))
+        prior_brier = sum((prior[i] - int(i + 1 == head))**2 for i in range(6))
+        six_model_brier += model_brier
+        six_prior_brier += prior_brier
+        six_model_log -= math.log(heads[head - 1])
+        six_prior_log -= math.log(prior[head - 1])
+        output["six_head_brier_model_better_races"] += int(model_brier < prior_brier - 1e-12)
+        output["six_head_brier_prior_better_races"] += int(prior_brier < model_brier - 1e-12)
+        output["six_head_brier_ties"] += int(abs(model_brier - prior_brier) <= 1e-12)
         output["matched_valid_finish"] += 1
         wins += y
         expected_sum += p1
@@ -124,10 +150,22 @@ def assess(root=ROOT):
         output["mean_predicted_boat1"] = round(expected_sum / n, 6)
         output["observed_boat1_rate"] = round(wins / n, 6)
         output["boat1_brier_score"] = round(brier_sum / n, 6)
+        output["six_head_brier_model"] = round(six_model_brier / n, 6)
+        output["six_head_brier_fixed_prior"] = round(six_prior_brier / n, 6)
+        output["six_head_log_loss_model"] = round(six_model_log / n, 6)
+        output["six_head_log_loss_fixed_prior"] = round(six_prior_log / n, 6)
+        output["six_head_model_minus_prior_brier"] = round(
+            (six_model_brier - six_prior_brier) / n, 6)
+        output["six_head_model_minus_prior_log_loss"] = round(
+            (six_model_log - six_prior_log) / n, 6)
         output["constant_0_5_brier_on_same_cohort"] = round(
             sum(row["n"] * 0.25 for row in output["sample_by_day"].values()) / n, 6)
     for row in output["sample_by_day"].values():
         row["sum_predicted_boat1_wins"] = round(row["sum_predicted_boat1_wins"], 6)
+    if (output["six_head_brier_model_better_races"] +
+            output["six_head_brier_prior_better_races"] +
+            output["six_head_brier_ties"] != n):
+        raise ValueError("paired_score_partition_mismatch")
     if (output["reproduced_current_model"] !=
             n + output["missing_finish"] + output["invalid_or_untrusted_finish"]):
         raise ValueError("reproduction_cohort_partition_mismatch")
