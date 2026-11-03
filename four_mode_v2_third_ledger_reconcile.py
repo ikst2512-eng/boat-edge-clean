@@ -140,7 +140,8 @@ if __name__ == "__main__":
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                            encoding="utf-8")
     print("V2_THIRD_RATE_LEDGER_RECONCILIATION=" + json.dumps(report, sort_keys=True))
-    if report["status"] in ("frozen_predictions_missing_from_ledger",
+    if report["status"] in ("incomplete_capture_inventory",
+                            "frozen_predictions_missing_from_ledger",
                             "invalid_or_unavailable_ledger",
                             "paired_score_evidence_missing_or_invalid",
                             "paired_result_coverage_mismatch",
