@@ -88,7 +88,7 @@ class NavigationContractTest(unittest.TestCase):
     def test_standalone_navigation_skips_race_history_without_state(self):
         guard = "if(typeof s==='undefined'||typeof activeView==='undefined')return;"
         self.assertIn(guard, self.nav)
-        self.assertLess(self.nav.index("nav.querySelectorAll('a').forEach"), self.nav.index(guard))
+        self.assertLess(self.nav.index("document.querySelectorAll('.site-global-nav a, .site-head .header-candidate-tab').forEach"), self.nav.index(guard))
         self.assertLess(self.nav.index(guard), self.nav.index("const initial=snapshot();"))
 
     def test_navigation_link_click_handles_missing_race_state(self):
