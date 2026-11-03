@@ -17,6 +17,42 @@ class ScheduledEvidenceTest(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value), encoding="utf-8")
 
+    def test_invalid_run_timestamp_with_source_links_is_unknown_not_crash(self):
+        for stamp in (None, 42, "not-a-timestamp",
+                      "2026-11-03T10:00:00", "2026-13-03T10:00:00Z"):
+            with self.subTest(created_at=stamp):
+                run = {**self.RUN, "created_at": stamp}
+                def download(_, root):
+                    self.save(root, "four-mode-evidence/source-links.json", {
+                        "schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2",
+                        "day_jst": "20261103",
+                        "publication_scope_status": "publication_scoped",
+                        "checked": 2, "hashes_present": 2})
+                    self.save(root, "four-mode-evidence/staging.json",
+                              {"staged_valid": 2})
+                    self.save(root, "four-mode-evidence/stages.json",
+                              {"third_rate_ledger": "failure"})
+                result = report({"runs": [run]}, download)
+                row = result["runs"][0]
+                self.assertTrue(row["artifact_present"])
+                self.assertIsNone(row["source_link_status"])
+                self.assertIsNone(row["source_link_checked"])
+                self.assertIsNone(row["source_link_hashes_present"])
+                self.assertEqual(row["staged_valid"], 2)
+                self.assertEqual(row["third_rate_ledger_outcome"], "failure")
+
+    def test_timezone_aware_run_timestamp_matches_source_link_jst_day(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/source-links.json", {
+                "schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2",
+                "day_jst": "20261104",
+                "publication_scope_status": "publication_scoped",
+                "checked": 1, "hashes_present": 1})
+        row = report({"runs": [
+            {**self.RUN, "created_at": "2026-11-03T15:07:00Z"}]}, download)["runs"][0]
+        self.assertEqual(row["source_link_status"], "publication_scoped")
+        self.assertEqual(row["source_link_checked"], 1)
+
     def test_bounded_parallel_downloads_keep_original_run_order(self):
         runs = [
             {"id": 300 + i, "created_at": "2026-11-04T00:07:00Z",
