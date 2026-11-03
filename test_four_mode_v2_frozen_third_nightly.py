@@ -255,6 +255,34 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertFalse(out["cohort_completeness_verified"])
         self.assertEqual(out["status"], "no_future_capture_runs")
 
+    def test_two_event_inventories_over_500_do_not_drop_eligible_runs(self):
+        # Two complete GitHub queries of 300 each are not a truncated
+        # 600-run cohort. All 600 must be scored, not just the newest 500.
+        inventory = [
+            run(20000 + i, "2026-11-04T01:00:00Z", event="schedule")
+            for i in range(300)
+        ] + [
+            run(30000 + i, "2026-11-04T01:00:00Z",
+                event="workflow_dispatch")
+            for i in range(300)
+        ]
+        self.assertEqual(len(choose_runs(inventory)), 600)
+        self.evidence.update({
+            "status": "no_confirmed_publication", "published_forecasts": 0,
+            "frozen_before_t_minus_12": 0, "ineligible_count": 0,
+            "records": [],
+        })
+        self.evidence.pop("publication_commit_sha")
+        out = summarize(inventory, self.root, self.download, self.root)
+        self.assertEqual(out["eligible_runs_in_inventory"], 600)
+        self.assertEqual(out["selected_runs"], 600)
+        self.assertEqual(out["downloaded_artifacts"], 600)
+        self.assertEqual(out["no_new_candidate_runs"], 600)
+        self.assertEqual(out["older_eligible_runs_omitted"], 0)
+        self.assertFalse(out["inventory_limit_reached"])
+        self.assertTrue(out["cohort_completeness_verified"])
+        self.assertEqual(out["status"], "frozen_artifacts_scored_limited_cohort")
+
     def test_dispatch_inventory_event_cap_still_fails_closed(self):
         inventory = [
             run(40000 + i, "2026-11-03T10:00:00Z",
