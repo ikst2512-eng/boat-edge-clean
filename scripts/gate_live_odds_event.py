@@ -4,14 +4,17 @@ The existing CLEAN prospective workflow sometimes receives real schedule events
 when the odds cron has no observed schedule trigger. Only such completed
 scheduled upstream runs are eligible for fallback operational sampling.
 """
+import io
 import json
 import os
+import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from probe_live_odds_health import event_provenance
+from summarize_live_odds_history import consistent_attempts
 
 UPSTREAM = "CLEAN prospective pre-cutoff capture"
 
@@ -58,7 +61,73 @@ def eligible(event, trigger, *, now=None):
 
 
 
-def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=None):
+
+def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_zip=None):
+    """Only a validated saved 200 counts as completed direct monitoring.
+
+    Returns valid, no_valid_odds, or unavailable. Metadata/ZIP network errors
+    are unknown (fail closed); a successful run with no artifact is not valid.
+    """
+    root = "https://api.github.com/repos/" + repository
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0",
+    }
+    try:
+        url = root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100"
+        if fetch_json is None:
+            with urlopen(Request(url, headers=headers), timeout=15) as response:
+                payload = json.load(response)
+        else:
+            payload = fetch_json(url, token)
+        artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
+        if not isinstance(artifacts, list):
+            return "unavailable"
+        artifact = next((x for x in artifacts if isinstance(x, dict)
+                         and x.get("name") == "live-odds-metrics" and not x.get("expired")), None)
+        if artifact is None:
+            return "no_valid_odds"
+        artifact_id = artifact.get("id")
+        if type(artifact_id) is not int or artifact_id <= 0:
+            return "unavailable"
+        archive_url = root + "/actions/artifacts/" + str(artifact_id) + "/zip"
+        if fetch_zip is None:
+            with urlopen(Request(archive_url, headers=headers), timeout=20) as response:
+                raw = response.read(2_000_001)
+        else:
+            raw = fetch_zip(archive_url, token)
+        if not isinstance(raw, bytes) or len(raw) > 2_000_000:
+            return "unavailable"
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            if "live_odds_metrics.json" not in archive.namelist():
+                return "no_valid_odds"
+            if archive.getinfo("live_odds_metrics.json").file_size > 200_000:
+                return "unavailable"
+            data = json.loads(archive.read("live_odds_metrics.json"))
+        if not isinstance(data, dict) or data.get("source_status") != "ok":
+            return "no_valid_odds"
+        samples = data.get("samples")
+        if not isinstance(samples, list):
+            return "no_valid_odds"
+        for sample in samples:
+            if not isinstance(sample, dict):
+                continue
+            code = sample.get("race_code")
+            steps = sample.get("attempts")
+            if (isinstance(code, str) and len(code) == 12 and code.isdigit()
+                    and consistent_attempts(steps)
+                    and steps[-1].get("http") == 200
+                    and steps[-1].get("state") == "valid_200"):
+                return "valid"
+        return "no_valid_odds"
+    except (OSError, TimeoutError, ValueError, TypeError, KeyError,
+            HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError):
+        return "unavailable"
+
+
+def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=None, probe_check=None):
     """Fail closed if normal cron ran or its state cannot be verified.
 
     Only an absent/failed scheduled probe permits the upstream fallback.
@@ -94,9 +163,19 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
             if created.tzinfo is None:
                 return "schedule_lookup_unavailable"
-            if slot <= created <= now and (
-                    run.get("status") != "completed" or run.get("conclusion") == "success"):
+            if not slot <= created <= now:
+                continue
+            if run.get("status") != "completed":
                 return "direct_schedule_observed"
+            if run.get("conclusion") == "success":
+                run_id = run.get("id")
+                if type(run_id) is not int or run_id <= 0:
+                    return "schedule_lookup_unavailable"
+                state = ((probe_check or direct_probe_evidence)(repository, token, run_id))
+                if state == "valid":
+                    return "direct_schedule_observed"
+                if state != "no_valid_odds":
+                    return "schedule_lookup_unavailable"
         return "direct_schedule_absent_or_failed"
     except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
         return "schedule_lookup_unavailable"
