@@ -69,7 +69,7 @@ def build_records(day, raw, collected_at):
 
 
 
-def source_gap_reasons(day, raw, missing_codes):
+def source_gap_reasons(day, raw, missing_codes, *, collected_at=None):
     """Classify source visibility; blank/malformed finish is never a loss."""
     if not DATE_RE.fullmatch(day):raise ValueError("date")
     if len(raw)>2_000_000:raise ValueError("source too large")
@@ -91,7 +91,16 @@ def source_gap_reasons(day, raw, missing_codes):
         elif not row.get("取得日時"):
             matched[code]="missing_source_timestamp"
         else:
-            matched[code]="row_present_requires_review"
+            try:
+                stamp=datetime.fromisoformat(row["取得日時"].replace("Z","+00:00"))
+                if stamp.utcoffset() is None:
+                    raise ValueError("naive_source_timestamp")
+                if collected_at is not None and stamp>collected_at+timedelta(minutes=3):
+                    matched[code]="future_source_timestamp"
+                else:
+                    matched[code]="row_present_requires_review"
+            except (ValueError,TypeError,AttributeError,OverflowError):
+                matched[code]="invalid_source_timestamp"
     return {code:matched.get(code,"not_in_published_csv") for code in sorted(wanted)}
 
 
@@ -107,7 +116,7 @@ def diagnose_source_gaps(day, root=ROOT, download=None):
             with urlopen(Request(target,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESULTS/1.0"}),timeout=15) as response:
                 return response.read(2_000_001)
     try:
-        reasons=source_gap_reasons(day,download(url),pending)
+        reasons=source_gap_reasons(day,download(url),pending, collected_at=datetime.now(JST))
         return {"day":day,"unresolved":len(pending),"reasons":reasons}
     except HTTPError as exc:
         if exc.code==404:
