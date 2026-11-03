@@ -1,0 +1,35 @@
+name: Hole frozen third-choice research gate
+on:
+  pull_request:
+    paths:
+      - hole_shadow_prospective_gate.py
+      - hole_future_shadow_audit.py
+      - test_hole_future_shadow_capture.py
+      - test_hole_future_shadow_audit.py
+      - .github/workflows/hole-frozen-third-choice.yml
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify current and future freeze gates
+        run: |
+          python -m unittest -v test_hole_shadow_prospective_gate.py test_hole_shadow_same_job_capture.py test_hole_future_shadow_capture.py test_hole_future_shadow_audit.py test_hole_locked_selector_integrity.py
+      - name: Missing future shadow must not imply accuracy
+        run: |
+          python hole_future_shadow_audit.py --shadow /tmp/no-hole-shadow-records.json > audit_status.json
+          python - <<'PY'
+          import json
+          x=json.load(open("audit_status.json"))
+          assert x["status"]=="missing_shadow" and x["formal"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-future-shadow-gate-smoke
+          path: audit_status.json
