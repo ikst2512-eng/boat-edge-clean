@@ -146,8 +146,26 @@ def seed_once(*, now, fetch_title=None, predictor=predict,
     states=[]
     for code in eligible:
         try:
-            # Write first, then check immutable payload's original source
-            # receipt times and confirm the remote write precedes T-12.
+            # A GitHub Actions retry starts on a fresh filesystem. Re-running
+            # predict() would produce a *different* generated_at and immutable
+            # bytes for an already archived race. Check readback FIRST.
+            remote_path=f"t12_baselines/{code[:8]}/{code}.json"
+            existing=read(remote_path)
+            if existing is not None:
+                path=validate_base(existing,code,now=now())
+                if path!=remote_path:
+                    raise ValueError("t12_existing_baseline_wrong_path")
+                if read(remote_path)!=existing:
+                    raise ValueError("t12_existing_baseline_readback_changed")
+                states.append({"race_code":code,"status":"existing_identical_t12_baseline",
+                               "path":remote_path,
+                               "sha256":hashlib.sha256(existing).hexdigest(),
+                               "research_only":True,"formal":False,
+                               "forecast_record":True,
+                               "independent_first_seen_verified":False})
+                continue
+            # Only the FIRST invocation may create a fresh original. The
+            # immutable ledger's create-only write rejects concurrent races.
             predictor(code[:8],code[8:10],code[10:12])
             path=record_path(code)
             raw=path.read_bytes()
