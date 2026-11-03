@@ -8,6 +8,11 @@ on:
     paths:
       - '.github/workflows/official-three-original-t12-observation.yml'
       - 'scripts/observe_three_official_t12_originals.py'
+      - 'scripts/audit_official_racelist_receipt.py'
+      - 'scripts/audit_three_official_t12_originals.py'
+      - 'scripts/audit_joint_official_receipts.py'
+      - 'scripts/inspect_official_racelist_registrations.py'
+      - 'scripts/inspect_official_beforeinfo_json.py'
   workflow_dispatch:
     inputs:
       race_code:

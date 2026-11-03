@@ -32,7 +32,8 @@ def audit_racelist(directory, race_code, cutoff_jst):
     cutoff = datetime.fromisoformat(cutoff_jst)
     if any(t.utcoffset() != timedelta(hours=9) for t in (started, received, cutoff)):
         raise ValueError("non-JST timestamps")
-    if received < started or received.strftime("%Y%m%d") != day or cutoff.strftime("%Y%m%d") != day:
+    if (received < started or started.strftime("%Y%m%d") != day
+            or received.strftime("%Y%m%d") != day or cutoff.strftime("%Y%m%d") != day):
         raise ValueError("invalid chronology or day")
     from scripts.diagnose_official_racelist_html import diagnose_racelist_html
     html_diagnostics = diagnose_racelist_html(raw)
