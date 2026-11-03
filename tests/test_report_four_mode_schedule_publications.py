@@ -153,6 +153,8 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(report_data["runs"][0]["research_roster_evidence"]["status"], "matched")
         self.assertEqual(report_data["research_roster_status_counts"]["matched"], 1)
         self.assertFalse(report_data["remote_main_verified"])
+        self.assertEqual(report_data["runs"][0]["research_roster_evidence"]["race_codes"],
+                         ["202611040101", "202611040102"])
 
     def test_research_roster_mismatch_does_not_relabel_push(self):
         def download(_, root):
