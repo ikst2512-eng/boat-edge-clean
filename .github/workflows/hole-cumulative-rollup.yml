@@ -39,7 +39,9 @@ jobs:
           assert x["historical_reporting_coverage_proven"] is False
           print("READ",x["daily_artifacts_read"],"RUNS",x["runs_listed"])
           print("DELAYED_REPORTS",x["late_recheck_reports_read"])
-          print("MISSING_RUNS",x["unavailable_daily_run_ids"])
+          print("MISSING_ARTIFACT_RUNS",x["unavailable_daily_run_ids"])
+          print("NON_SUCCESS_RUNS",x["non_success_run_conclusions"])
+          print("HISTORY_HAS_MISSING_RUNS",x["history_has_missing_runs"])
           print("COMPARABLE",x["comparable"],"CONFLICTS",x["conflicted_codes_quarantined"])
           print("INCOMPLETE_DAILY_WINDOWS",x["incomplete_window_reports"])
           print("HITS",x["hits"],"DELTA",x["delta"])
