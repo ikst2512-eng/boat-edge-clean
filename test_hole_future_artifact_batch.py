@@ -152,6 +152,8 @@ class FullDayListingTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as directory:
    discovery={"candidates":[],"listing_complete":True,"pages_fetched":1,
               "window_start_jst":"2026-10-12",
+              "capture_window_start_jst":"2026-10-11",
+              "capture_lookback_days":1,
               "window_end_exclusive_jst":"2026-10-13"}
    with patch("hole_future_artifact_batch.discover_full_days",return_value=discovery):
     result=collect_recent(directory,"a/b","token",days=1)
