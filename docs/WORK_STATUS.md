@@ -126,6 +126,12 @@
 - 既存`tests/test_live_racecard_candidate_priority.py`は8件へ増強。PR CI `41665568784` のsyntax+8テスト/歴史出走表/結果/オッズ成功。e2e-live-raceはPR由来のためskippedで、**無人実レースT-12の成立を認定しない**。新規scheduleや有料サービス、予想買い目/モデル変更なし。
 - 次は11/4以降の正規schedule発火時刻・runごとのイベント・CSV元2系統のHTTP受信時刻・API受信時刻・T-12可否を照合。時刻外の実行はcoverage失敗として数え、データ不足だけに転嫁しない。
 
+## 2026-11-04 未明 T-12実レース候補の再選別と展示元の部分障害可視化
+- PR #1547 main squash `3699a13e5f50a600eb67739e728e556b5f09d3ff`。既存`scripts/verify_live_racecard_e2e.py`では開始時刻`now`で締切まで2分超の候補を生成し、独立tkz/stt HTTP取得後に優先順位だけを再計算していた。取得中に締切まで2分以下となったレースも上位3件に残るため、実T-12の検証枠を消費する可能性があった。今回`fresh_candidates_at_selection`でHTTP完了後に再度2分超を必須とし、期限切れ候補は`RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE`へ別記録して対象から除外。既存のT-12境界は締切12分前を維持。
+- tkz/sttの取得が一括tryだったため、片方のHTTP/変換エラーが他方の取得を抑止し、異常元が見えなくなる問題にも対応。各元を独立取得し、成功時`PREVIEW_SOURCE_RECEIVED`（受信時刻、件数、SHA256）、失敗時`PREVIEW_SOURCE_UNAVAILABLE`（元、エラー型）を出す。**両方の独立取得が成功して初めて**同一レース候補にする。実API受信時刻・元観測時刻・6艇完全性・締切前時刻の拒否ルールは不変。
+- 回帰テストを6件追加し、従来8件と合計14件。PR CI run `41666855620` syntax job `126024373021` 14/14成功、過去出走表・結果・オッズ成功、実e2e-live-raceはPRなのでskipped。**実無人T-12の成功は未実証**。main統合後の本番RenderデプロイやGitHub schedule成功をPR CI成功と混同しない。
+- 次は11/4の日中無人scheduleで、期限切れ候補数、tkz/sttの独立取得成功・失敗、`T12_SAMPLE_STARTED`と`T12_PAIR_NOT_VERIFIED`の時刻別原因、および実`T12_COMPLETE_PAIR_PASS`件数をチェックする。新規ジョブ・費用・予想ロジック・買い目・画面変更なし。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
