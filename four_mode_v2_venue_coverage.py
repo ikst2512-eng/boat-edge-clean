@@ -2,6 +2,7 @@
 
 Separates result availability from hit rate; no official or production claims.
 """
+import argparse
 import json
 import re
 from collections import defaultdict
@@ -30,6 +31,7 @@ def venue_audit(root=ROOT, now=None):
         "topn": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
     })
     rejected = defaultdict(int)
+    overdue_roster = []
     if not directory.is_dir():
         return {"status": "no_forecast_directory", "formal": False,
                 "venues": {}, "rejected": {}}
@@ -79,7 +81,11 @@ def venue_audit(root=ROOT, now=None):
                 if len(examples) < 3:
                     examples.append(code)
                 result_path = root / "confirmed_results" / (code + ".json")
-                if result_path.is_symlink() or not result_path.is_file():
+                file_exists = not result_path.is_symlink() and result_path.is_file()
+                overdue_roster.append({"race_code": code, "venue_code": code[8:10],
+                                       "date_jst": code[:8],
+                                       "result_file_present": file_exists})
+                if not file_exists:
                     stats["missing_file_absent"] += 1
                 else:
                     # compare_race() may reject oversized / inaccessible
@@ -113,12 +119,15 @@ def venue_audit(root=ROOT, now=None):
             if total_mature else None)
         venue["mature_denominator"] = total_mature
     groups = dict(sorted(by_venue.items()))
+    if len(overdue_roster) != sum(row["missing_over_60m"] for row in groups.values()):
+        raise ValueError("overdue_roster_count_mismatch")
     return {"status": "venue_outcome_coverage_only", "formal": False,
             "verified_first_remote_publication": False,
             "evaluated_at_jst": now.isoformat(), "venues": groups,
             "distinct_venues_with_confirmed": sum(row["confirmed"] > 0 for row in groups.values()),
             "distinct_venues_with_mature_missing": sum(row["missing_over_60m"] > 0 for row in groups.values()),
             "total_saved": sum(row["saved"] for row in groups.values()),
+            "overdue_roster": overdue_roster,
             "total_confirmed": sum(row["confirmed"] for row in groups.values()),
             "total_overdue_missing": sum(row["missing_over_60m"] for row in groups.values()),
             "total_missing_file_absent": sum(row["missing_file_absent"] for row in groups.values()),
@@ -128,4 +137,17 @@ def venue_audit(root=ROOT, now=None):
             "warning": "Missingness may depend on venue; never treat missing results as losses. Research only."}
 
 if __name__ == "__main__":
-    print("V2_VENUE_COVERAGE=" + json.dumps(venue_audit(), sort_keys=True))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--roster-output", type=Path)
+    args = parser.parse_args()
+    report = venue_audit()
+    if args.roster_output:
+        payload = {"schema": "V2_RESEARCH_OVERDUE_ROSTER_V1",
+                   "evaluated_at_jst": report.get("evaluated_at_jst"),
+                   "formal": False, "result_collection_requested": False,
+                   "overdue_race_codes": report.get("overdue_roster", []),
+                   "count": len(report.get("overdue_roster", [])),
+                   "warning": "Research diagnostics only; never treat missing results as losses."}
+        args.roster_output.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n",
+                                      encoding="utf-8")
+    print("V2_VENUE_COVERAGE=" + json.dumps(report, sort_keys=True))
