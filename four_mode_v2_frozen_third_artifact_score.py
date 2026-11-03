@@ -86,7 +86,7 @@ def score_evidence(evidence, root):
            "validation_error_count": evidence.get("validation_error_count", 0),
            "frozen": 0, "paired": 0, "pending_results": 0,
            "excluded": 0, "invalid": 0, "race_codes_paired": [], "paired_race_scores": [],
-           "race_codes_frozen": [],
+           "race_codes_frozen": [], "frozen_ticket_hashes": {},
            "topn": scores, "warning": "Results scored ONLY from same-job frozen artifact, not independently timestamped publication."}
     seen = set()
     invalid_unfrozen = 0
@@ -141,6 +141,13 @@ def score_evidence(evidence, root):
                     or [r.get("combo") for r in archive["modes"]["hit"]["tickets"]]
                     != item["baseline_top10"]):
                 raise ValueError("original_baseline_mismatch")
+            # Hash the exact ordered frozen selections, independent of
+            # result availability and regardless of hit/miss coincidence.
+            ticket_bytes = json.dumps({
+                "baseline_top10": item["baseline_top10"],
+                "candidate_top10": item["candidate_top10"],
+            }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            out["frozen_ticket_hashes"][code] = hashlib.sha256(ticket_bytes).hexdigest()
         except (KeyError, ValueError, TypeError, AttributeError,
                 IndexError, OSError, UnicodeError):
             # Malformed archive substructure (e.g. list ticket rows) must
