@@ -71,6 +71,45 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["paired"], 0)
         self.assertFalse(out["production_promotion_allowed"])
 
+    def test_pending_main_capture_blocks_complete_cohort_with_other_success(self):
+        self.evidence.update({"status":"no_confirmed_publication",
+                              "published_forecasts":0,
+                              "frozen_before_t_minus_12":0,
+                              "ineligible_count":0,"records":[]})
+        self.evidence.pop("publication_commit_sha")
+        inventory=[run(123),run(124,conclusion=None)]
+        report=summarize(inventory,self.root,self.download,self.root)
+        self.assertEqual(report["selected_runs"],1)
+        self.assertEqual(report["pending_or_unknown_run_ids"],[124])
+        self.assertEqual(report["status"],"incomplete_capture_run_outcomes")
+        self.assertFalse(report["cohort_completeness_verified"])
+        self.assertFalse(report["production_promotion_allowed"])
+
+    def test_unknown_main_capture_outcome_also_blocks_completeness(self):
+        self.evidence.update({"status":"no_confirmed_publication",
+                              "published_forecasts":0,
+                              "frozen_before_t_minus_12":0,
+                              "ineligible_count":0,"records":[]})
+        self.evidence.pop("publication_commit_sha")
+        report=summarize([run(125),run(126,conclusion="mystery")],
+                         self.root,self.download,self.root)
+        self.assertEqual(report["pending_or_unknown_run_ids"],[126])
+        self.assertFalse(report["cohort_completeness_verified"])
+
+    def test_old_pr_and_other_branch_pending_runs_do_not_block_main(self):
+        self.evidence.update({"status":"no_confirmed_publication",
+                              "published_forecasts":0,
+                              "frozen_before_t_minus_12":0,
+                              "ineligible_count":0,"records":[]})
+        self.evidence.pop("publication_commit_sha")
+        inventory=[run(123),
+                   run(124,event="pull_request",conclusion=None),
+                   run(125,branch="feature",conclusion=None),
+                   run(126,at="2026-11-03T14:59:59Z",conclusion=None)]
+        report=summarize(inventory,self.root,self.download,self.root)
+        self.assertEqual(report["pending_or_unknown_run_ids"],[])
+        self.assertTrue(report["cohort_completeness_verified"])
+
     def test_only_main_future_capture_not_pr(self):
         inventory = [
             run(10, "2026-11-03T14:59:59Z"),
