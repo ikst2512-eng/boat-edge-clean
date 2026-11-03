@@ -117,6 +117,8 @@ def audit_archive_bytes(day, tree, fetch, *, repository):
             linked.append(item["path"])
     return {
         "blob_sha_and_internal_payload_valid_count":len(decoded),
+        "internally_validated_paths":[{"path":x["path"],"cutoff_at":x["cutoff_at"].isoformat()}
+                                      for x in decoded],
         "t12_payload_valid_count":len(t12),
         "t2_payload_valid_count":sum(x["family"]!="t12" for x in decoded),
         "t2_reference_matched_count":len(linked),
