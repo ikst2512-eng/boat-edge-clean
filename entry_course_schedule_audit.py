@@ -12,6 +12,8 @@ import json
 import re
 import subprocess
 
+from entry_course_archive_integrity_audit import audit_archive_bytes
+
 JST=timezone(timedelta(hours=9))
 REPO="ikst2512-eng/boat-edge-clean"
 BRANCH="entry-course-evidence-ledger"
@@ -86,14 +88,18 @@ def _runs(workflow, day, fetch):
     return collected
 
 
-def _tree_paths(fetch):
+def _tree_entries(fetch):
     data=fetch(f"repos/{REPO}/git/trees/{BRANCH}?recursive=1")
     if not isinstance(data,dict) or data.get("truncated") is True:
         raise ValueError("schedule_audit_ledger_tree_truncated")
     rows=data.get("tree")
     if type(rows) is not list:
         raise ValueError("schedule_audit_ledger_tree_invalid")
-    return [r["path"] for r in rows if isinstance(r,dict)
+    return rows
+
+
+def _tree_paths(fetch):
+    return [r["path"] for r in _tree_entries(fetch) if isinstance(r,dict)
             and r.get("type")=="blob" and isinstance(r.get("path"),str)]
 
 
@@ -108,7 +114,9 @@ def operational_audit(day, *, fetch=_api, today=None):
         today=datetime.now(JST).date()
     if target>=today:
         raise ValueError("schedule_audit_requires_completed_jst_day")
-    paths=_tree_paths(fetch)
+    tree=_tree_entries(fetch)
+    paths=[r["path"] for r in tree if isinstance(r,dict)
+           and r.get("type")=="blob" and isinstance(r.get("path"),str)]
     result={}
     for kind,(workflow,prefixes) in WORKFLOWS.items():
         executions=_runs(workflow,day,fetch)
@@ -139,11 +147,15 @@ def operational_audit(day, *, fetch=_api, today=None):
                 "schedule_runs_and_paths_observed_unverified"
             ),
         }
-    return {"schema":"entry-course-scheduled-ledger-path-audit-v1",
+    integrity=audit_archive_bytes(day,tree,fetch,repository=REPO)
+    path_count=sum(r["archived_candidate_path_count"] for r in result.values())
+    return {"schema":"entry-course-scheduled-ledger-path-audit-v2",
             "date_jst":day,"scope":"completed_jst_day",
             "t12":result["t12"],"t2":result["t2"],
             "no_scheduled_run_assumed_success":True,
-            "archive_paths_not_byte_verified":True,
+            "archive_integrity":integrity,
+            "archive_paths_not_byte_verified":(
+                integrity["blob_sha_and_internal_payload_valid_count"]!=path_count),
             "independent_first_add_commit_verified":False,
             "pre_cutoff_provenance_verified":False,
             "research_only":True,"formal":False,
@@ -159,7 +171,7 @@ def main():
     try:
         result=operational_audit(args.day)
     except Exception as exc:
-        result={"schema":"entry-course-scheduled-ledger-path-audit-v1",
+        result={"schema":"entry-course-scheduled-ledger-path-audit-v2",
                 "date_jst":args.day,"status":"audit_failed",
                 "error_type":type(exc).__name__,
                 "research_only":True,"formal":False}
