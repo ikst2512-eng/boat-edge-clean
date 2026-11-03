@@ -57,6 +57,31 @@ class AuditTests(unittest.TestCase):
             (folder/(code+".json")).write_text(json.dumps(row))
             out=audit_daily_bases(tmp,now=NOW)
             self.assertEqual(out["counts"]["invalid_snapshot"],1)
+    def test_t12_evidence_branch_counts_as_existing_research(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
+            folder.mkdir(parents=True)
+            code="202611030105"
+            (folder/(code+".json")).write_text(json.dumps(
+                snapshot(code,datetime(2026,11,3,20,29,tzinfo=JST))))
+            out=audit_daily_bases(tmp,now=NOW)
+            self.assertEqual(out["status"],"eligible_candidates_present")
+            self.assertEqual(out["counts"]["snapshot_files_today"],1)
+            self.assertEqual(out["counts"]["eligible"],1)
+    def test_duplicate_main_and_branch_baseline_not_double_counted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            original=root/"research_snapshots"
+            archived=root/"entry-course-ledger"/"t12_baselines"/"20261103"
+            original.mkdir(); archived.mkdir(parents=True)
+            code="202611030105"
+            raw=json.dumps(snapshot(code,datetime(2026,11,3,20,29,tzinfo=JST)))
+            (original/(code+".json")).write_text(raw)
+            (archived/(code+".json")).write_text(raw)
+            out=audit_daily_bases(tmp,now=NOW)
+            self.assertEqual(out["counts"]["snapshot_files_today"],1)
+            self.assertEqual(out["counts"]["duplicate_baseline_code"],1)
+            self.assertEqual(out["counts"]["eligible"],1)
     def test_naive_clock_rejected(self):
         with self.assertRaisesRegex(ValueError,"timezone"):
             audit_daily_bases(".",now=datetime(2026,11,3,20,22))
