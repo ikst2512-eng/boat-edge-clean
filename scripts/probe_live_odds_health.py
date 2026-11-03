@@ -73,9 +73,15 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
             status = None
             state = "transport_error:" + type(error).__name__
         attempts.append({"http": status, "state": state, "latency_ms": round((clock() - start) * 1000)})
-        if state != "pending_202" or attempt == 2:
-            break
-        pause(2)
+        # One bounded retry for an observed transient timeout. HTTP 202
+        # retains its existing three-attempt policy; other failures stop.
+        if state == "pending_202" and attempt < 2:
+            pause(2)
+            continue
+        if state == "transport_error:TimeoutError" and attempt == 0:
+            pause(2)
+            continue
+        break
     return {"race_code": code, "attempts": attempts, "final_state": attempts[-1]["state"],
             "elapsed_ms": round((clock() - total_start) * 1000)}
 
@@ -155,7 +161,7 @@ def main():
     now = datetime.now(JST)
     day = now.strftime("%Y%m%d")
     data = {"checked_at_jst": now.isoformat(), "date": day, "scope": "live upcoming read-only odds",
-            "sampling": "up to 3 upcoming races, at most 3 requests per race, 2s pending retry",
+            "sampling": "up to 3 upcoming races; 3 attempts on HTTP 202, 1 retry on first-attempt timeout",
             "source_status": "unknown", "trigger": event_provenance(), "samples": []}
     try:
         titles, _, _, _, _ = load(day, now=now)
