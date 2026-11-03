@@ -23,3 +23,39 @@ def rank_candidates(candidates, preview_candidates, now):
         # last: too-late candidates, with matching previews first for diagnostics.
         return (not possible, not preview, deadline, code)
     return sorted(candidates,key=priority)
+
+
+def live_sampling_window_open(now):
+    """Fail a delayed schedule that arrives after Japanese racing hours.
+
+    This is a diagnostic guard, not proof of the scheduled cron's actual slot.
+    Normal e2e samples are planned for 09:30 through 21:30 JST.
+    """
+    if now.tzinfo is None:
+        raise ValueError("sample_clock_timezone_missing")
+    return 9 <= now.hour < 23
+
+
+def preview_codes_at_receipt(rows, race_day, received_at):
+    """Accept published race-matched preview rows by actual source HTTP receipt.
+
+    Receipt is an independent live observation. A source timestamp after that
+    receipt, or at/after cutoff, can never establish predeadline availability.
+    """
+    if received_at.tzinfo is None:
+        raise ValueError("preview_receipt_timezone_missing")
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    result=set()
+    for row in rows:
+        try:
+            code=row["レースコード"]
+            if not isinstance(code,str) or len(code)!=12 or not code.startswith(race_day):
+                continue
+            observed=datetime.fromisoformat(row["取得日時"])
+            cutoff=datetime.strptime(race_day+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
+            if observed.tzinfo is not None and observed<=received_at and observed<cutoff and received_at<cutoff:
+                result.add(code)
+        except (TypeError,KeyError,ValueError):
+            continue
+    return result
