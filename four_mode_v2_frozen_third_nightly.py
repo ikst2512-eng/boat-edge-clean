@@ -58,6 +58,15 @@ def summarize(inventory, root, download, out_dir):
                    and isinstance(row.get("createdAt"), str)
                    and row["createdAt"] >= CUTOFF_CREATED_UTC
                    and row.get("conclusion") in STATUS)
+    # A still-running or unknown-outcome scheduled/dispatch job may later
+    # publish evidence. Excluding it from scoring is correct, but must never
+    # turn the selected finished jobs into a "complete" capture cohort.
+    unresolved = sorted(row["databaseId"] for row in inventory
+                        if row.get("headBranch") == "main"
+                        and row.get("event") in EVENTS
+                        and isinstance(row.get("createdAt"), str)
+                        and row["createdAt"] >= CUTOFF_CREATED_UTC
+                        and row.get("conclusion") not in STATUS)
     truncated = eligible > RUN_MAX
     inventory_limit_reached = len(inventory) >= INVENTORY_LIMIT
     report = {
@@ -69,6 +78,8 @@ def summarize(inventory, root, download, out_dir):
         "searched_run_limit": RUN_MAX,
         "inventory_limit": INVENTORY_LIMIT,
         "eligible_runs_in_inventory": eligible,
+        "pending_or_unknown_run_ids": unresolved,
+        "pending_or_unknown_runs": len(unresolved),
         "older_eligible_runs_omitted": max(0, eligible - len(selected)),
         "inventory_limit_reached": inventory_limit_reached,
         "cohort_completeness_verified": False,
@@ -183,12 +194,16 @@ def summarize(inventory, root, download, out_dir):
             raise ValueError("paired_gain_loss_mismatch")
     if report["missing_or_failed_artifacts"] or report["bad_validation_runs"]:
         report["status"] = "incomplete_capture_artifact_evidence"
+    if unresolved and report["status"] in ("scored_frozen_artifacts",
+                                            "no_future_capture_runs"):
+        report["status"] = "incomplete_capture_run_outcomes"
     if truncated or inventory_limit_reached:
         report["status"] = "incomplete_run_inventory_coverage"
     if not report["downloaded_artifacts"] and selected and not (truncated or inventory_limit_reached):
         report["status"] = "capture_artifacts_unavailable"
     report["cohort_completeness_verified"] = bool(
         selected and not truncated and not inventory_limit_reached
+        and not unresolved
         and not report["missing_or_failed_artifacts"]
         and not report["bad_validation_runs"])
     if report["cohort_completeness_verified"] and report["status"] == "scored_frozen_artifacts":
