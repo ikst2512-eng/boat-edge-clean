@@ -153,8 +153,8 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90):
     day = utc_now.astimezone(jst).date()
     slots = []
     for hour in (3, 5, 7):  # 12:25, 14:25, 16:25 JST, as configured in workflow
-        scheduled = datetime.combine(day, datetime.min.time(), tzinfo=jst).astimezone(timezone.utc)
-        scheduled = scheduled.replace(hour=hour, minute=25)
+        scheduled = datetime.combine(day, datetime.min.time(), tzinfo=jst).replace(
+            hour=hour + 9, minute=25).astimezone(timezone.utc)
         deadline = scheduled + timedelta(minutes=grace_minutes)
         observed = []
         for run in runs:
