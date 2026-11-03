@@ -173,7 +173,8 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
                            fetch=local_fetch,clock=now)
     if not batch["history"]:
         return {"status":"no_verified_historical_pairs","stored":False,
-                "race_code":code,"source_failures":len(fetch_errors),"research_only":True}
+                "race_code":code,"source_failures":len(fetch_errors),
+                "waku10_pilot_reason":waku_reason,"research_only":True}
     reason="late_preview_unavailable"
     # Preview has been preflighted; use a fresh frozen_at after all source reads.
     # A result or future receipt must never be used to repair this cohort.
