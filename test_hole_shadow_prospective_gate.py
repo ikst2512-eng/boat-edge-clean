@@ -80,6 +80,15 @@ class ProspectiveGateTest(unittest.TestCase):
         self.assertEqual(output["status"], "calculation_crossed_t_minus_12")
         self.assertFalse(output["prospective_verified"])
 
+    def test_completion_exactly_at_t_minus_12_is_not_frozen(self):
+        before = self.cutoff - timedelta(minutes=13)
+        boundary = self.cutoff - timedelta(minutes=12)
+        with patch("hole_shadow_prospective_gate.archived_four_modes",
+                   return_value=(200, self.archive)):
+            output = freeze(self.code, self.root, before, clock=lambda: boundary)
+        self.assertEqual(output["status"], "calculation_crossed_t_minus_12")
+        self.assertFalse(output["prospective_verified"])
+
     def test_missing_archive(self):
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(404, {})):
             self.assertEqual(freeze(self.code, self.root)["status"], "archive_unavailable")
