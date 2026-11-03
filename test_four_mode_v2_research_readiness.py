@@ -44,11 +44,13 @@ def fixture():
         {"race_code": "202611030101", "date_jst": "20261103", "venue_code": "01",
          "baseline_top3": ["1-2-3", "1-3-2", "1-2-4"],
          "candidate_top3": ["1-2-3", "2-1-3", "1-3-2"],
-         "result_status": "confirmed_research_only", "pending_phase": None},
+         "result_status": "confirmed_research_only", "pending_phase": None,
+         "baseline_top3_hit": False, "candidate_top3_hit": False},
         {"race_code": "202611030102", "date_jst": "20261103", "venue_code": "01",
          "baseline_top3": ["1-2-3", "1-3-2", "1-2-4"],
          "candidate_top3": ["1-2-3", "2-1-3", "1-3-2"],
-         "result_status": "missing", "pending_phase": "over_60m_after_deadline"},
+         "result_status": "missing", "pending_phase": "over_60m_after_deadline",
+         "baseline_top3_hit": None, "candidate_top3_hit": None},
     ]
     return report
 
@@ -163,6 +165,23 @@ class V2ReadinessTests(unittest.TestCase):
         self.assertEqual(report["changed_top3_case_status_counts"]["missing"], 1)
         self.assertEqual(report["changed_top3_case_status_counts"]["confirmed_research_only"], 1)
         self.assertEqual(report["changed_top3_missing_race_codes"], ["202611030102"])
+
+    def test_changed_top3_paired_scores_are_reconciled(self):
+        scores = summarize(fixture())["changed_top3_paired_case_scores"]
+        self.assertEqual(scores, {"paired": 1, "baseline_hits": 0,
+                                  "candidate_hits": 0, "gains": 0, "losses": 0})
+
+    def test_rejects_scoring_an_unconfirmed_changed_case(self):
+        d = fixture()
+        d["changed_top3_cases"][1]["candidate_top3_hit"] = True
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_rejects_changed_case_gain_mismatch(self):
+        d = fixture()
+        d["changed_top3_cases"][0]["candidate_top3_hit"] = True
+        with self.assertRaises(ValueError):
+            summarize(d)
 
     def test_rejects_changed_top3_roster_mismatch(self):
         d = fixture()

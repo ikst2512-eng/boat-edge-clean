@@ -206,6 +206,8 @@ def summarize(raw, venue_report=None):
                 "invalid_or_untrusted": 0, "invalid_deadline": 0}
     seen = set()
     per_day = {}
+    case_scores = {"paired": 0, "baseline_hits": 0, "candidate_hits": 0,
+                   "gains": 0, "losses": 0}
     for case in changed_cases:
         code = case["race_code"]
         day = case["date_jst"]
@@ -231,11 +233,26 @@ def summarize(raw, venue_report=None):
                 raise ValueError("invalid_missing_case_phase")
         elif case["pending_phase"] is not None:
             raise ValueError("unexpected_case_phase")
+        baseline_hit = case.get("baseline_top3_hit")
+        candidate_hit = case.get("candidate_top3_hit")
+        if status == "confirmed_research_only":
+            if type(baseline_hit) is not bool or type(candidate_hit) is not bool:
+                raise ValueError("invalid_changed_case_score")
+            case_scores["paired"] += 1
+            case_scores["baseline_hits"] += int(baseline_hit)
+            case_scores["candidate_hits"] += int(candidate_hit)
+            case_scores["gains"] += int(candidate_hit and not baseline_hit)
+            case_scores["losses"] += int(baseline_hit and not candidate_hit)
+        elif baseline_hit is not None or candidate_hit is not None:
+            raise ValueError("unconfirmed_changed_case_scored")
         statuses[status] += 1
     for day, count in per_day.items():
         if count != groups[day]["forecast_only_exposure"]["changed_top3_membership"]:
             raise ValueError("changed_case_date_count_mismatch")
-    if statuses["confirmed_research_only"] != totals["changed_top3_membership"]:
+    if (statuses["confirmed_research_only"] != totals["changed_top3_membership"]
+            or case_scores["paired"] != totals["changed_top3_membership"]
+            or case_scores["gains"] != totals["gained_top3"]
+            or case_scores["losses"] != totals["lost_top3"]):
         raise ValueError("changed_case_confirmed_mismatch")
     top3_concentration = {}
     for mode, patterns in totals["forecast_only_top3_signatures"].items():
@@ -308,6 +325,7 @@ def summarize(raw, venue_report=None):
         "forecast_only_top3_concentration": top3_concentration,
         "venue_coverage": venue_coverage,
         "changed_top3_case_status_counts": statuses,
+        "changed_top3_paired_case_scores": case_scores,
         "changed_top3_missing_race_codes": [
             case["race_code"] for case in changed_cases if case["result_status"] == "missing"
         ],

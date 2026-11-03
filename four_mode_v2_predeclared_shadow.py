@@ -165,7 +165,13 @@ def evaluate(root=ROOT, now=None):
                                       else "missing"
                                       if compared.get("status") == "result_unavailable"
                                       else "invalid_or_untrusted"),
-                    "pending_phase": None}
+                    "pending_phase": None,
+                    "baseline_top3_hit": None, "candidate_top3_hit": None}
+            if case["result_status"] == "confirmed_research_only":
+                winning_ticket = compared.get("winning_ticket")
+                if isinstance(winning_ticket, str):
+                    case["baseline_top3_hit"] = winning_ticket in baseline[:3]
+                    case["candidate_top3_hit"] = winning_ticket in candidate[:3]
             if compared.get("status") == "result_unavailable":
                 try:
                     case["pending_phase"] = missing_result_phase(archive["deadline_jst"], now)
