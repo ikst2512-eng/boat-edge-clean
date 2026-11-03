@@ -113,6 +113,53 @@ class ExternalT12EvidenceTests(unittest.TestCase):
             publisher.assert_called_once()
             verifier.assert_called_once()
 
+    def test_remote_file_count_mismatch_blocks_success(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            remote = {
+                "status": "independent_originals_reaudited",
+                "declared_status": "research_components_incomplete",
+                "research_complete": False, "original_files_found": 5,
+                "full_t12_source_certified": False, "forecast_usable": False,
+            }
+            with self.assertRaisesRegex(ValueError, "does not agree"):
+                run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
+                    "token", observer=lambda *args: report(),
+                    publisher=lambda *args: "saved-commit",
+                    verifier=lambda *args: remote)
+
+    def test_remote_false_completeness_blocks_local_complete_claim(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            local = report("research_components_complete_by_t12")
+            local["audit"] = {"all_research_components_observed_by_t12": True}
+            remote = {
+                "status": "independent_originals_reaudited",
+                "declared_status": local["status"],
+                "research_complete": False, "original_files_found": 6,
+                "full_t12_source_certified": False, "forecast_usable": False,
+            }
+            with self.assertRaisesRegex(ValueError, "does not agree"):
+                run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
+                    "token", observer=lambda *args: local,
+                    publisher=lambda *args: "saved-commit",
+                    verifier=lambda *args: remote)
+
+    def test_remote_unready_status_blocks_complete_fetch_claim(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            remote = {
+                "status": "observation_not_ready",
+                "declared_status": "research_components_incomplete",
+                "research_complete": False, "original_files_found": 6,
+                "full_t12_source_certified": False, "forecast_usable": False,
+            }
+            with self.assertRaisesRegex(ValueError, "does not agree"):
+                run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
+                    "token", observer=lambda *args: report(),
+                    publisher=lambda *args: "saved-commit",
+                    verifier=lambda *args: remote)
+
     def test_main_branch_cannot_be_written(self):
         with self.assertRaisesRegex(ValueError, "invalid dedicated evidence branch"):
             publish_originals("owner/repo", "main", "stub-token",
@@ -126,6 +173,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 "status": "independent_originals_reaudited",
                 "declared_status": "research_components_incomplete",
                 "research_complete": False,
+                "original_files_found": 6,
                 "full_t12_source_certified": False,
                 "forecast_usable": False,
             })
