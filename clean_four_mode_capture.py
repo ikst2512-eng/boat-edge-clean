@@ -41,7 +41,7 @@ def collect(root=ROOT, now=None, read=read_rows):
     # Parsed CSVs may contain malformed non-object rows. Preserve the raw
     # source digest, but never allow one corrupt row to abort the batch while
     # other race entries are still valid.
-    race_code = re.compile(re.escape(hd) + r"(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\\Z")
+    race_code = re.compile(re.escape(hd) + r"(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\Z")
     for kind, (rows, received, digest) in list(datasets.items()):
         mappings=[row for row in rows if type(row) is dict]
         valid=[row for row in mappings
