@@ -5,11 +5,16 @@ on:
     paths:
       - '.github/workflows/live-official-odds-probe.yml'
       - 'scripts/probe_live_odds_health.py'
+      - 'scripts/gate_live_odds_event.py'
+      - 'tests/test_gate_live_odds_event.py'
       - 'tests/test_probe_live_odds_health.py'
       - 'scripts/summarize_live_odds_history.py'
       - 'tests/test_summarize_live_odds_history.py'
   schedule:
     - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
+  workflow_run:
+    workflows: ['CLEAN prospective pre-cutoff capture']
+    types: [completed] # Read-only fallback; upstream schedules actually observed
 permissions:
   contents: read
   actions: read
@@ -22,13 +27,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify parent event and preserve ineligible evidence
+        id: gate
+        run: python scripts/gate_live_odds_event.py
+      - name: Verify fallback event classification
+        if: steps.gate.outputs.collect == 'true'
+        run: python -m unittest discover -s tests -p test_gate_live_odds_event.py -v
       - name: Verify read-only live odds metric classification
+        if: steps.gate.outputs.collect == 'true'
         run: python -m unittest discover -s tests -p test_probe_live_odds_health.py -v
       - name: Verify 14-day odds trend aggregation
+        if: steps.gate.outputs.collect == 'true'
         run: python -m unittest discover -s tests -p test_summarize_live_odds_history.py -v
       - name: Sample up to three independently sourced upcoming races
+        if: steps.gate.outputs.collect == 'true'
         run: python scripts/probe_live_odds_health.py
       - name: Summarize eligible preceding scheduled run artifacts
+        if: steps.gate.outputs.collect == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/summarize_live_odds_history.py

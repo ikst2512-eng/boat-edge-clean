@@ -110,6 +110,32 @@ def summarize(samples):
             "median_recovered_race_elapsed_ms": round(statistics.median(item["elapsed_ms"] for item in recovered)) if recovered else None}
 
 
+
+def event_provenance():
+    """Record actual workflow event and safe upstream identity in saved evidence."""
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    payload = {}
+    try:
+        path = os.environ.get("GITHUB_EVENT_PATH", "")
+        if path:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            payload = {}
+    except (OSError, ValueError, TypeError):
+        payload = {}
+    upstream = payload.get("workflow_run")
+    if not isinstance(upstream, dict):
+        upstream = {}
+    return {
+        "event": event,
+        "cron": payload.get("schedule") if event == "schedule" else None,
+        "upstream_event": upstream.get("event") if event == "workflow_run" else None,
+        "upstream_workflow": upstream.get("name") if event == "workflow_run" else None,
+        "upstream_branch": upstream.get("head_branch") if event == "workflow_run" else None,
+        "upstream_run_id": upstream.get("id") if event == "workflow_run" else None,
+    }
+
+
 def main():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from clean_openapi_sources import load
@@ -118,7 +144,7 @@ def main():
     day = now.strftime("%Y%m%d")
     data = {"checked_at_jst": now.isoformat(), "date": day, "scope": "live upcoming read-only odds",
             "sampling": "up to 3 upcoming races, at most 3 requests per race, 2s pending retry",
-            "source_status": "unknown", "samples": []}
+            "source_status": "unknown", "trigger": event_provenance(), "samples": []}
     try:
         titles, _, _, _, _ = load(day, now=now)
         codes = select_candidates(titles, day, now, JST)
