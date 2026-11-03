@@ -64,7 +64,7 @@ class SameJobTest(unittest.TestCase):
                 return SHA
             return "four_mode_forecasts/" + CODE + ".json"
         with patch("hole_shadow_same_job_capture.freeze", return_value={
-            "status":"shadow_frozen_unverified"}) as f:
+            "race_code": CODE, "status":"shadow_frozen_unverified"}) as f:
             data = capture_published(self.root, self.path,
                    datetime(2026,11,3,tzinfo=timezone.utc), git)
         self.assertEqual(data["frozen_count"], 1)
