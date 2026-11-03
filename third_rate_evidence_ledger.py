@@ -53,6 +53,22 @@ def prepare(original, root, run_id, attempt):
             or type(errors) is not int or not 0 <= errors <= count
             or type(rows) is not list or len(rows) != count):
         raise ValueError("invalid_record_counts")
+    # Reject corrupted evidence before append-only preservation. Three
+    # mutually exclusive statuses must account for every published race.
+    ineligible = data.get("ineligible_count")
+    if type(ineligible) is not int or ineligible < 0:
+        raise ValueError("invalid_ineligible_count")
+    actual = {"frozen_in_same_job_before_t_minus_12": 0,
+              "ineligible": 0, "validation_error": 0}
+    for row in rows:
+        if type(row) is not dict or row.get("status") not in actual:
+            raise ValueError("invalid_research_row_status")
+        actual[row["status"]] += 1
+    if (actual["frozen_in_same_job_before_t_minus_12"] != frozen
+            or actual["ineligible"] != ineligible
+            or actual["validation_error"] != errors
+            or frozen + ineligible + errors != count):
+        raise ValueError("ledger_record_partition_mismatch")
     if frozen == 0:
         return None
     sha = data.get("publication_commit_sha")
