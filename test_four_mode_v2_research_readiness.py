@@ -13,6 +13,9 @@ def fixture():
                 "forecast_only_exposure": {"valid": 149, "eligible": 50,
                                            "reordered_top10": 4, "changed_top3_membership": 2,
                                            "changed_top5_membership": 3},
+                "forecast_only_top3_signatures": {
+                    m: {"1-2-3|1-3-2|1-2-4": 145, "1-2-3|2-1-3|1-2-4": 4}
+                    for m in ("narrow", "hit", "balance", "hole", "hit_shadow")},
                 "matured_comparable": 8,
                 "matured_modes": {m: {"top3": 1, "top5": 2, "top10": (6 if m == "balance" else 5)}
                                   for m in ("narrow", "hit", "balance", "hole")},
@@ -172,6 +175,19 @@ class V2ReadinessTests(unittest.TestCase):
         d["changed_top3_cases"][1]["race_code"] = "202611030101"
         with self.assertRaises(ValueError):
             summarize(d)
+
+    def test_top3_concentration_uses_all_saved_valid_forecasts(self):
+        data = summarize(fixture())["forecast_only_top3_concentration"]
+        self.assertEqual(data["hit"]["forecast_count"], 149)
+        self.assertEqual(data["hit"]["distinct_ordered_top3"], 2)
+        self.assertEqual(data["hit"]["most_common_count"], 145)
+        self.assertEqual(data["hit"]["most_common_top3"], ["1-2-3", "1-3-2", "1-2-4"])
+
+    def test_rejects_incomplete_top3_signature_distribution(self):
+        data = fixture()
+        data["groups"]["20261103"]["forecast_only_top3_signatures"]["hit"]["1-2-3|1-3-2|1-2-4"] -= 1
+        with self.assertRaises(ValueError):
+            summarize(data)
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()

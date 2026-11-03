@@ -52,9 +52,9 @@ class V2ShadowTests(unittest.TestCase):
                 return 200, {"model_version": VERSION,
                     "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
-                              "narrow": {"tickets": [{}]*5},
-                              "balance": {"tickets": [{}]*16},
-                              "hole": {"tickets": [{}]*22}}}
+                              "narrow": {"tickets": [{"combo":"1-2-3"}]*5},
+                              "balance": {"tickets": [{"combo":"1-2-3"}]*16},
+                              "hole": {"tickets": [{"combo":"1-2-3"}]*22}}}
             with patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived), \
                  patch("four_mode_v2_predeclared_shadow.compare_race",
                        return_value={"status": "historical_comparison_only",
@@ -87,9 +87,9 @@ class V2ShadowTests(unittest.TestCase):
                 return 200, {"model_version": VERSION,
                     "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
-                              "narrow": {"tickets": [{}]*5},
-                              "balance": {"tickets": [{}]*16},
-                              "hole": {"tickets": [{}]*22}}}
+                              "narrow": {"tickets": [{"combo":"1-2-3"}]*5},
+                              "balance": {"tickets": [{"combo":"1-2-3"}]*16},
+                              "hole": {"tickets": [{"combo":"1-2-3"}]*22}}}
             def compared(code, root):
                 return {"status": "result_unavailable" if code.endswith("01") else "invalid_result_or_timing"}
             with (patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived),
@@ -128,9 +128,9 @@ class V2ShadowTests(unittest.TestCase):
                 return 200, {"model_version": VERSION,
                     "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
-                              "narrow": {"tickets": [{}]*5},
-                              "balance": {"tickets": [{}]*16},
-                              "hole": {"tickets": [{}]*22}}}
+                              "narrow": {"tickets": [{"combo":"1-2-3"}]*5},
+                              "balance": {"tickets": [{"combo":"1-2-3"}]*16},
+                              "hole": {"tickets": [{"combo":"1-2-3"}]*22}}}
             with (patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archive),
                   patch("four_mode_v2_predeclared_shadow.candidate_order", return_value=(moved, True)),
                   patch("four_mode_v2_predeclared_shadow.compare_race",

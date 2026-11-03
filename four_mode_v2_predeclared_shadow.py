@@ -77,6 +77,7 @@ def evaluate(root=ROOT, now=None):
                                    "reordered_top10": 0,
                                    "changed_top3_membership": 0,
                                    "changed_top5_membership": 0},
+        "forecast_only_top3_signatures": {m: {} for m in (*MODES, "hit_shadow")},
         "matured_comparable": 0,
         "matured_modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
         "pending_by_deadline": {"before_deadline": 0,
@@ -139,6 +140,18 @@ def evaluate(root=ROOT, now=None):
         exposure["reordered_top10"] += int(candidate != baseline)
         exposure["changed_top3_membership"] += int(set(candidate[:3]) != set(baseline[:3]))
         exposure["changed_top5_membership"] += int(set(candidate[:5]) != set(baseline[:5]))
+        # Count ordered Top3 combinations over every valid archived forecast,
+        # even if the finish is not yet available. These are concentration
+        # diagnostics, never hit-rate or prospective timing evidence.
+        for mode in (*MODES, "hit_shadow"):
+            top3 = (candidate[:3] if mode == "hit_shadow" else
+                    [ticket["combo"] for ticket in archive["modes"][mode]["tickets"][:3]])
+            if len(top3) != 3 or any(type(combo) is not str or not re.fullmatch(r"[1-6]-[1-6]-[1-6]", combo)
+                                      or len(set(combo.split("-"))) != 3 for combo in top3):
+                raise ValueError("invalid_forecast_top3_signature")
+            signature = "|".join(top3)
+            bucket = row["forecast_only_top3_signatures"][mode]
+            bucket[signature] = bucket.get(signature, 0) + 1
         compared = compare_race(path.stem, root)
         # Freeze changed-case identity and the original/candidate Top3 before
         # reading any outcome. A separate unresolved cohort is critical:
