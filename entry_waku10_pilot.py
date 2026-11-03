@@ -84,8 +84,8 @@ def prepare_waku10_pilot(base, card, evidence, *, frozen_at, min_course_starts=8
         if total<=0 or not isfinite(total):
             raise ValueError("waku10_pilot_nonnormalizable")
         return [t for t,p in sorted(results,key=lambda x:(-x[1],x[0]))]
-    original_rank=["-".join(map(str,t)) for t,p in baseline]
-    original_rank=sorted(original_rank,key=lambda t:(-dict(("-".join(map(str(x)),p) for x,p in baseline)[t],t))
+    original_rank=["-".join(map(str,t)) for t,p in
+                   sorted(baseline,key=lambda x:(-x[1],x[0]))]
     course=ranking(False)
     course_st=ranking(True)
     if any(len(r)!=120 or set(r)!=EXPECTED for r in (original_rank,course,course_st)):
