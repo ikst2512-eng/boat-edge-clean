@@ -58,6 +58,12 @@ def verify_future_third_rate(root, publication, observation):
             raise ValueError("future_third_rate_unexpected_status")
     if codes != future_codes or frozen != shadow["frozen_before_t_minus_12"]:
         raise ValueError("future_third_rate_frozen_count_mismatch")
+    # Every remotely observed pre-T-12 published forecast must have its
+    # corresponding frozen third-rate comparison. A single valid shadow
+    # cannot certify the completeness of a multi-race publication batch.
+    # The append-only writer still retains any valid siblings for research.
+    if frozen != len(future_codes):
+        raise ValueError("future_third_rate_partial_frozen_roster")
     expected_day = next(iter(future_codes))[:8]
     if (any(code[:8] != expected_day for code in future_codes)
             or durable.get("stored") is not True
