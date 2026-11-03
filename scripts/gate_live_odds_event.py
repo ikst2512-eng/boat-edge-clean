@@ -131,7 +131,11 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
                     return "no_valid_odds"
             except (KeyError, TypeError, ValueError, AttributeError):
                 return "no_valid_odds"
-        # Share the exact operational verdict with the unattended job.\n        # In particular, legacy receipts without UTC HTTP timestamps must\n        # never suppress another valid scheduled-slot fallback attempt.\n        return "valid" if verdict(data) == "valid_200_observed" else "no_valid_odds"\n    except (OSError, TimeoutError, ValueError, TypeError, KeyError,
+        # Share the exact operational verdict with the unattended job.
+        # In particular, legacy receipts without UTC HTTP timestamps must
+        # never suppress another valid scheduled-slot fallback attempt.
+        return "valid" if verdict(data) == "valid_200_observed" else "no_valid_odds"
+    except (OSError, TimeoutError, ValueError, TypeError, KeyError,
             HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError):
         return "unavailable"
 
