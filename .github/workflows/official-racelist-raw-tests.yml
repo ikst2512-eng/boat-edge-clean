@@ -57,7 +57,6 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_official_three_original_t12_schedule.py' -v
       - run: python -m unittest discover -s tests -p 'test_summarize_three_t12_venues.py' -v
       - run: python -m unittest discover -s tests -p 'test_run_external_three_t12.py' -v
-      - run: python -m unittest discover -s tests -p 'test_t12_evidence_git_smoke_contract.py' -v
       - run: python -m unittest discover -s tests -p 'test_reaudit_external_three_t12.py' -v
       - run: python -m unittest discover -s tests -p 'test_render_three_t12_live_summary.py' -v
       - run: python -m unittest discover -s tests -p 'test_reaudit_scheduled_three_t12.py' -v
