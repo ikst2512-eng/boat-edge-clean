@@ -136,6 +136,86 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertEqual(report["status"], "no_frozen_predictions_to_compare")
         self.assertEqual(report["missing_from_ledger"], [])
 
+    def test_prestart_future_zero_cohort_is_neutral_not_accuracy(self):
+        self.capture.update({
+            "status": "no_future_capture_runs",
+            "cohort_completeness_verified": False,
+            "frozen": 0, "paired": 0,
+            "race_codes_frozen": [], "race_codes_paired": [],
+            "eligible_runs_in_inventory": 0, "selected_runs": 0,
+            "pending_or_unknown_runs": 0, "unsuccessful_runs": 0,
+            "inventory_limit_reached": False,
+        })
+        self.ledger.update({
+            "status": "no_long_lived_frozen_evidence",
+            "frozen": 0, "paired": 0,
+            "race_codes_frozen": [], "race_codes_paired": [],
+        })
+        report = reconcile(self.capture, self.ledger, before_future_start=True)
+        self.assertEqual(report["status"], "prestart_no_future_capture_runs")
+        self.assertFalse(report["production_promotion_allowed"])
+        self.assertFalse(report["formal"])
+        self.assertFalse(report["remote_first_seen_independently_verified"])
+        self.assertEqual(reconcile(self.capture, self.ledger,
+                                   before_future_start=False)["status"],
+                         "incomplete_capture_inventory")
+
+    def test_prestart_neutral_exemption_never_hides_missing_or_failed_evidence(self):
+        self.capture.update({
+            "status": "no_future_capture_runs",
+            "cohort_completeness_verified": False,
+            "frozen": 0, "paired": 0,
+            "race_codes_frozen": [], "race_codes_paired": [],
+            "eligible_runs_in_inventory": 0, "selected_runs": 0,
+            "pending_or_unknown_runs": 0, "unsuccessful_runs": 0,
+            "inventory_limit_reached": False,
+        })
+        self.ledger.update({
+            "status": "no_long_lived_frozen_evidence",
+            "frozen": 0, "paired": 0,
+            "race_codes_frozen": [], "race_codes_paired": [],
+        })
+        for field, invalid in (
+            ("inventory_limit_reached", True),
+            ("eligible_runs_in_inventory", 1),
+            ("selected_runs", 1),
+            ("pending_or_unknown_runs", 1),
+            ("unsuccessful_runs", 1),
+            ("missing_or_failed_artifacts", [12]),
+            ("bad_validation_runs", [12]),
+            ("frozen", 1),
+        ):
+            with self.subTest(field=field):
+                previous = self.capture.get(field)
+                self.capture[field] = invalid
+                result = reconcile(self.capture, self.ledger,
+                                   before_future_start=True)
+                self.assertNotEqual(result["status"], "prestart_no_future_capture_runs")
+                if field != "frozen":
+                    self.assertEqual(result["status"], "incomplete_capture_inventory")
+                if previous is None:
+                    self.capture.pop(field, None)
+                else:
+                    self.capture[field] = previous
+
+    def test_prestart_requires_truly_empty_long_term_ledger(self):
+        self.capture.update({
+            "status": "no_future_capture_runs",
+            "frozen": 0, "paired": 0,
+            "race_codes_frozen": [],
+            "eligible_runs_in_inventory": 0, "selected_runs": 0,
+            "pending_or_unknown_runs": 0, "unsuccessful_runs": 0,
+            "inventory_limit_reached": False,
+        })
+        self.ledger.update({
+            "status": "durable_frozen_evidence_scored",
+            "frozen": 0, "race_codes_frozen": [],
+        })
+        self.assertNotEqual(
+            reconcile(self.capture, self.ledger,
+                      before_future_start=True)["status"],
+            "prestart_no_future_capture_runs")
+
     def test_cli_incomplete_capture_fails_ci_but_preserves_diagnostic_json(self):
         self.capture["status"] = "incomplete_capture_run_outcomes"
         self.capture["cohort_completeness_verified"] = False
