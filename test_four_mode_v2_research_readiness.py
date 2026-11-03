@@ -15,7 +15,9 @@ def fixture():
                                   for m in ("narrow", "hit", "balance", "hole")},
                 "pending_by_deadline": {"before_deadline": 67,
                     "within_60m_after_deadline": 16, "over_60m_after_deadline": 58},
-                "applied": 3, "gained_top3": 0, "lost_top3": 0,
+                "applied": 3, "reordered_top10": 2,
+                "changed_top3_membership": 1, "changed_top5_membership": 1,
+                "gained_top3": 0, "lost_top3": 0,
                 "baseline": {"top3": 1, "top5": 2, "top10": 5},
                 "candidate": {"top3": 1, "top5": 2, "top10": 5},
                 "modes": {m: {"top3": 1, "top5": 2, "top10": (6 if m=="balance" else 5)}
@@ -114,6 +116,18 @@ class V2ReadinessTests(unittest.TestCase):
     def test_unvalidated_venue_audit_is_not_promoted(self):
         r = summarize(fixture())
         self.assertIn("venue_representation_not_audited", r["blocking_reasons"])
+
+    def test_rejects_misreported_actual_changes(self):
+        d = fixture()
+        d["groups"]["20261103"]["changed_top3_membership"] = 4
+        with self.assertRaises(ValueError):
+            summarize(d)
+
+    def test_reports_eligibility_separately_from_actual_reorder(self):
+        r = summarize(fixture())
+        self.assertEqual(r["total"]["applied"], 3)
+        self.assertEqual(r["total"]["reordered_top10"], 2)
+        self.assertEqual(r["total"]["changed_top3_membership"], 1)
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()
