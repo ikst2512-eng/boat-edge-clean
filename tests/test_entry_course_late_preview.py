@@ -18,6 +18,8 @@ def inputs():
     base["generated_at"]="2026-11-03T18:00:00+09:00"
     base["cutoff_jst"]=T12
     base["source_deadline_jst"]=DEADLINE
+    card["meta"]["deadline"]="18:33"
+    card["source_audit"]["race_card"]["fetched_at"]=PREVIEW
     card["source_audit"]["beforeinfo"]["sources"]["stt"]["observed_at"]=PREVIEW
     card["source_audit"]["beforeinfo"]["sources"]["tkz"]["observed_at"]=PREVIEW
     batch["cutoff_at"]=T2
@@ -40,6 +42,21 @@ class LatePreviewTests(unittest.TestCase):
             self.assertEqual(len(set(outcome[name])),120)
         self.assertFalse(outcome["formal"])
         self.assertFalse(outcome["independent_remote_first_seen_verified"])
+    def test_wrong_racecard_deadline_rejected(self):
+        base,card,batch=inputs()
+        card["meta"]["deadline"]="18:34"
+        with self.assertRaisesRegex(ValueError,"card_deadline_mismatch"):
+            prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
+    def test_racecard_receipt_after_freeze_rejected(self):
+        base,card,batch=inputs()
+        card["source_audit"]["race_card"]["fetched_at"]="2026-11-03T18:30:00+09:00"
+        with self.assertRaisesRegex(ValueError,"card_provenance_missing_or_after_freeze"):
+            prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
+    def test_missing_racecard_hash_rejected(self):
+        base,card,batch=inputs()
+        card["source_audit"]["race_card"]["sha256"]=None
+        with self.assertRaisesRegex(ValueError,"card_provenance_missing_or_after_freeze"):
+            prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
     def test_future_preview_is_never_admissible(self):
         base,card,batch=inputs()
         card["source_audit"]["beforeinfo"]["sources"]["stt"]["observed_at"]="2026-11-03T18:32:00+09:00"
