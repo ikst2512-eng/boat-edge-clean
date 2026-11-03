@@ -22,6 +22,37 @@ ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
 
 
+
+def consistent_attempts(steps):
+    """Reject internally contradictory HTTP/status claims before computing rates."""
+    if not isinstance(steps, list) or not 1 <= len(steps) <= 3:
+        return False
+    codes = {"valid_200": 200, "invalid_200": 200, "pending_202": 202}
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict) or type(step.get("latency_ms")) is not int or step["latency_ms"] < 0:
+            return False
+        state = step.get("state")
+        http = step.get("http")
+        if state in codes:
+            if type(http) is not int or http != codes[state]:
+                return False
+        elif state == "other_http":
+            if type(http) is not int or http in (200, 202) or not 100 <= http <= 599:
+                return False
+        elif state == "http_error":
+            if type(http) is not int or http in (200, 202) or not 400 <= http <= 599:
+                return False
+        elif isinstance(state, str) and state.startswith("transport_error:"):
+            if http is not None or state == "transport_error:":
+                return False
+        else:
+            return False
+        # The live probe retries only a pending HTTP 202, never a success or failure.
+        if index > 0 and steps[index - 1]["state"] != "pending_202":
+            return False
+    return True
+
+
 def summarize(records):
     """Count observed race requests, never infer success for missing runs."""
     observations = []
@@ -40,10 +71,7 @@ def summarize(records):
             key = (stamp, code)
             if key in seen:
                 continue
-            if any(step.get("state") not in ("valid_200", "invalid_200", "pending_202", "other_http", "http_error") and
-                   not str(step.get("state", "")).startswith("transport_error:") for step in steps if isinstance(step, dict)):
-                continue
-            if any(not isinstance(step, dict) or not isinstance(step.get("latency_ms"), int) or step["latency_ms"] < 0 for step in steps):
+            if not consistent_attempts(steps):
                 continue
             seen.add(key)
             eligible_runs.add(stamp)
