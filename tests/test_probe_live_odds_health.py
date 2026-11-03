@@ -101,6 +101,40 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(result["final_state"], "invalid_200")
         self.assertEqual(len(result["attempts"]), 1)
 
+    def test_initial_timeout_gets_one_bounded_retry(self):
+        calls = []
+        def request(req, timeout):
+            calls.append(timeout)
+            if len(calls) == 1:
+                raise TimeoutError("transient connection timeout")
+            return Response(valid_body())
+        result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual([step["state"] for step in result["attempts"]],
+                         ["transport_error:TimeoutError", "valid_200"])
+        self.assertEqual(result["final_state"], "valid_200")
+
+    def test_repeated_timeout_stops_after_two_attempts(self):
+        calls = []
+        def request(req, timeout):
+            calls.append(timeout)
+            raise TimeoutError("persistent timeout")
+        result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["final_state"], "transport_error:TimeoutError")
+        self.assertEqual(len(result["attempts"]), 2)
+
+    def test_timeout_after_pending_does_not_trigger_unbounded_retries(self):
+        calls = []
+        def request(req, timeout):
+            calls.append(timeout)
+            if len(calls) == 1:
+                raise HTTPError(req.full_url, 202, "pending", {}, io.BytesIO())
+            raise TimeoutError("no response")
+        result = probe.sample_race(CODE, request=request, now=NOW, pause=lambda _: None)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["final_state"], "transport_error:TimeoutError")
+
     def test_repeated_pending_not_success(self):
         def request(req, timeout):
             raise HTTPError(req.full_url, 202, "pending", {}, io.BytesIO())
