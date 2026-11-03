@@ -20,6 +20,11 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertFalse(result["independent_remote_first_seen_verified"])
         self.assertFalse(result["source_predeadline_verified"])
 
+    def test_capture_status_metadata_is_not_an_archive(self):
+        raw = A + "\\n\\n" + "four_mode_forecasts/capture_status.json" + "\\n" + P + "\\n"
+        adds = parse_additions(raw)
+        self.assertEqual(adds, {P: [A]})
+
     def test_no_new_day_is_pending_not_success(self):
         result = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
         self.assertEqual(result["today_archive_count"], 0)
