@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 # New captures must be distinguishable from immutable V1 archives.
 
@@ -112,13 +113,81 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(status["already_saved"],1)
             self.assertEqual(status["cutoff_skipped"],0)
 
+    def test_empty_daily_titles_recover_from_direct_pre_race_holding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            received=datetime(2026,11,4,7,30,tzinfo=JST)
+            def read(url):
+                return ([] if "/title/" in url else [card],received,"a"*64)
+            with patch("clean_direct_sources.holding_rows",
+                       return_value=([title],received,"b"*64)), patch(
+                           "clean_direct_sources.direct_cards") as fetch_cards:
+                result=collect(root=Path(tmp),now=now,read=read)
+            fetch_cards.assert_not_called()
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["title_direct"]["status"],
+                             "available")
+            original=json.loads((Path(tmp)/"four_mode_forecasts"/(code+".json")).read_text())
+            self.assertEqual(original["source_sha256"]["title"],"b"*64)
+            self.assertEqual(original["source_sha256"]["race_cards"],"a"*64)
+
+    def test_empty_daily_cards_recover_from_direct_pre_race_cards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            received=datetime(2026,11,4,7,30,tzinfo=JST)
+            def read(url):
+                return ([title] if "/title/" in url else [],received,"a"*64)
+            with patch("clean_direct_sources.direct_cards",
+                       return_value=([card],received,"b"*64,
+                                     {code:"c"*64},{})):
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["race_cards_direct"]["status"],
+                             "available")
+            saved=json.loads((Path(tmp)/"four_mode_forecasts"/(code+".json")).read_text())
+            self.assertEqual(saved["source_sha256"]["race_cards"],"c"*64)
+
+    def test_empty_daily_sources_recover_only_from_complete_alternate_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            code="202611040101"
+            title={"レースコード":code,"電話投票締切予定":"12:00"}
+            card={"レースコード":code,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            received=datetime(2026,11,4,7,30,tzinfo=JST)
+            def read(url):return ([],received,"a"*64)
+            with patch("clean_direct_sources.holding_rows",
+                       side_effect=ValueError("holding unavailable")), patch(
+                           "clean_openapi_sources.load",
+                           return_value=([title],[card],received,"b"*64,
+                                         {"source":"nonofficial_openapi_v1"})):
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["new_saved"],[code])
+            self.assertEqual(result["source_probes"]["openapi_direct"]["status"],
+                             "available")
+            saved=json.loads((Path(tmp)/"four_mode_forecasts"/(code+".json")).read_text())
+            self.assertEqual(saved["source_sha256"],
+                             {"title":"b"*64,"race_cards":"b"*64})
+
     def test_empty_titles_with_available_cards_are_not_healthy(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,11,3,8,0,tzinfo=JST)
             card={"レースコード":"202611030101",**{f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
             def read(url):
                 return ([] if "/title/" in url else [card],now,"a"*64)
-            result=collect(root=Path(tmp),now=now,read=read)
+            with patch("clean_direct_sources.holding_rows",
+                       side_effect=ValueError("holding unavailable")), patch(
+                           "clean_openapi_sources.load",
+                           side_effect=ValueError("alternate unavailable")):
+                result=collect(root=Path(tmp),now=now,read=read)
             self.assertEqual(result["source_status"],"empty_titles")
             self.assertEqual(result["new_saved"],[])
             self.assertEqual(result["published_card_rows"],1)
