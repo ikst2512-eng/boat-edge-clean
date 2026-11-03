@@ -640,6 +640,53 @@ class ScheduledEvidenceTest(unittest.TestCase):
         row = report({"runs": [self.RUN]}, download)["runs"][0]
         self.assertIsNone(row["final_evidence_verdict_status"])
 
+    def test_final_gate_noop_not_mistaken_for_published_evidence(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "no_eligible_candidates"})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed",
+                "detail": {"status": "no_new_forecasts", "evidence_required": False}})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["final_evidence_verdict_result"], "no_new_forecasts")
+        self.assertEqual(result["final_gate_no_new_run_count"], 1)
+        self.assertEqual(result["final_gate_published_run_count"], 0)
+        self.assertEqual(result["final_gate_published_forecast_count"], 0)
+        self.assertFalse(result["remote_main_verified"])
+
+    def test_final_gate_published_counts_only_matching_publication(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 2,
+                "commit_sha": "a" * 40})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed",
+                "detail": {
+                    "status": "published_with_durable_early_observation",
+                    "evidence_required": True, "published": 2}})
+        result = report({"runs": [self.RUN]}, download)
+        self.assertEqual(result["final_gate_published_run_count"], 1)
+        self.assertEqual(result["final_gate_published_forecast_count"], 2)
+        self.assertEqual(result["final_gate_no_new_run_count"], 0)
+        self.assertFalse(result["remote_main_verified"])
+
+    def test_final_gate_mismatched_count_not_credited_as_published(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed",
+                "detail": {
+                    "status": "published_with_durable_early_observation",
+                    "evidence_required": True, "published": 2}})
+        result = report({"runs": [self.RUN]}, download)
+        self.assertEqual(result["final_gate_unknown_run_count"], 1)
+        self.assertEqual(result["final_gate_published_forecast_count"], 0)
+
     def test_wrong_day_link_report_does_not_count(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/source-links.json", {
