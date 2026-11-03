@@ -8,7 +8,7 @@ class NearCutoffScheduleTests(unittest.TestCase):
         workflow = Path(".github/workflows/official-three-original-t12-observation.yml").read_text()
         observer = Path("scripts/observe_three_official_t12_originals.py").read_text()
         self.assertIn("schedule:", workflow)
-        self.assertIn("cron: '30,40,48,50,51 6 3 11 *'", workflow)
+        self.assertIn("cron: '20,25,30,40,48,50,51 6 3 11 *'", workflow)
         self.assertIn("github.event_name == 'schedule'", workflow)
         self.assertIn("202611030212", workflow)
         self.assertIn("contents: read", workflow)
