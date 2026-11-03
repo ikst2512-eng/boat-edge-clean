@@ -77,15 +77,17 @@ jobs:
         run: python four_mode_v2_third_rate_shadow.py | tee v2_third_rate_shadow.log
       - name: Audit V2 future Git first-add T-12 ancestry against scored same-race cohort
         run: python four_mode_v2_third_rate_git_ancestry.py --shadow-log v2_third_rate_shadow.log --output v2_third_rate_git_ancestry.json | tee v2_third_rate_git_ancestry.log
+      # Preserve capture-run evidence even if an independent research evaluation fails.
       - name: Read actual capture artifact inventory for frozen-only third-rate scoring
-        if: github.event_name != 'pull_request'
+        if: ${{ always() && github.event_name != 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh run list --workflow four-mode-prospective-capture.yml --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
+      # Read the durable ledger independently from earlier model/scoring steps.
       - name: Score preserved third-rate original evidence from durable branch
-        if: github.event_name != 'pull_request'
+        if: ${{ always() && github.event_name != 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
