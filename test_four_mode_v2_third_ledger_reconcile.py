@@ -41,6 +41,29 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertEqual(report["status"], "frozen_predictions_missing_from_ledger")
         self.assertEqual(report["missing_from_ledger"], [B])
 
+    def test_both_empty_complete_capture_and_empty_ledger_are_not_corruption(self):
+        self.capture.update({"frozen": 0, "race_codes_frozen": []})
+        self.ledger.update({"status": "no_long_lived_frozen_evidence",
+                            "frozen": 0, "race_codes_frozen": []})
+        result = reconcile(self.capture, self.ledger)
+        self.assertEqual(result["status"], "no_frozen_predictions_to_compare")
+        self.assertEqual(result["missing_from_ledger"], [])
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["production_promotion_allowed"])
+
+    def test_empty_ledger_status_cannot_hide_missing_frozen_races(self):
+        self.ledger.update({"status": "no_long_lived_frozen_evidence",
+                            "frozen": 0, "race_codes_frozen": []})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "invalid_or_unavailable_ledger")
+        self.assertEqual(report["missing_from_ledger"], [A, B])
+
+    def test_empty_ledger_status_with_positive_ledger_count_is_invalid(self):
+        self.capture.update({"frozen": 0, "race_codes_frozen": []})
+        self.ledger["status"] = "no_long_lived_frozen_evidence"
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "invalid_or_unavailable_ledger")
+
     def test_no_candidate_is_not_hit_or_long_term_success(self):
         self.capture.update({"frozen": 0, "race_codes_frozen": []})
         report = reconcile(self.capture, self.ledger)
