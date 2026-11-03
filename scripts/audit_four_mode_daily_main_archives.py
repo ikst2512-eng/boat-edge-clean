@@ -90,17 +90,45 @@ def audit(day, paths, additions, *, main_context):
     }
 
 
-def scheduled_audit_alert(result, event):
-    return (event == "schedule"
-            and result.get("checkout_main_context") is True
-            and result.get("assessment") in (
-                "no_new_day_archives_yet", "git_first_add_incomplete"))
+def positive_eligible_run_ids(day, evidence_reports):
+    """Only same-JST-day, readable capture artifacts establish eligible races."""
+    confirmed = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if not isinstance(row, dict) or row.get("artifact_present") is not True:
+                continue
+            count = row.get("generated_today")
+            if type(count) is not int or count <= 0:
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None:
+                    continue
+                day_of_run = stamp.astimezone(JST).strftime("%Y%m%d")
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+            if day_of_run == day and type(row.get("run_id")) is int:
+                confirmed.add(row["run_id"])
+    return sorted(confirmed)
+
+
+def scheduled_audit_alert(result, event, evidence_reports=()):
+    if event != "schedule" or result.get("checkout_main_context") is not True:
+        return False
+    if result.get("assessment") == "git_first_add_incomplete":
+        return True
+    if result.get("assessment") == "no_new_day_archives_yet":
+        return bool(positive_eligible_run_ids(result["day_jst"], evidence_reports))
+    return False
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
     p.add_argument("--day-jst", default=None)
+    p.add_argument("--capture-evidence", nargs="*", default=[])
     args = p.parse_args()
     day = args.day_jst or datetime.now(JST).strftime("%Y%m%d")
     def git(*a):
@@ -112,12 +140,28 @@ def main():
                    main_context=os.environ.get("GITHUB_REF") == "refs/heads/main")
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    evidence = []
+    for source in args.capture_evidence:
+        try:
+            evidence.append(json.loads(Path(source).read_text(encoding="utf-8")))
+        except (OSError, UnicodeError, ValueError):
+            evidence.append(None)
+    eligible_ids = positive_eligible_run_ids(day, evidence)
+    report["matching_day_eligible_capture_run_ids"] = eligible_ids
+    report["daily_alert_basis"] = (
+        "incomplete_git_first_add" if report["assessment"] == "git_first_add_incomplete" else
+        "eligible_races_without_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
+        "unverified_or_no_eligible_capture" if report["assessment"] == "no_new_day_archives_yet" else
+        "archives_present_or_pr_checkout")
+    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
-    if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME")):
-        print("::error::Daily V2 main archive first-add evidence is absent or incomplete")
+    if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME"), evidence):
+        print("::error::Daily V2 main first-add archives missing despite eligible capture evidence, or Git history incomplete")
         raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and report["assessment"] == "no_new_day_archives_yet"):
+        print("::warning::Daily V2 archives absent; no positive same-day eligible capture artifact was verified")
 
 
 if __name__ == "__main__":
