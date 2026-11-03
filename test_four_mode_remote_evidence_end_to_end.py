@@ -7,6 +7,7 @@ from pathlib import Path
 from four_mode_github_server_observation import observe
 from four_mode_github_server_observation_ledger import publish
 from hole_future_remote_observation_link import match
+from scripts.verify_four_mode_capture_evidence import verify
 
 CODE="202611040101"
 SHA="a"*40
@@ -46,14 +47,40 @@ class PipelineTests(unittest.TestCase):
         result=observe(self.root,publication,"ikst2512-eng/boat-edge-clean",
                        lambda path:(date_header,json.dumps(record).encode()),self.git)
         original=json.dumps(result).encode()
+        evidence=self.root/"four-mode-evidence"
+        evidence.mkdir(exist_ok=True)
+        (evidence/"publication.json").write_text(json.dumps(publication),encoding="utf-8")
+        (evidence/"github-server-observation.json").write_bytes(original)
         def get(path):return self.store.get(path)
         def put(path,contents,run):self.store[path]=contents
         receipt=publish(original,self.root,"12345","1",get,put,self.git)
+        (evidence/"github-server-observation-ledger.json").write_text(
+            json.dumps(receipt),encoding="utf-8")
         target=self.ledger/receipt["path"]
         target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes(self.store[receipt["path"]])
         self.assertFalse(receipt["formal"])
         return match(self.future,self.first,self.ledger,self.root)
+
+    def test_actual_observation_and_ledger_pass_final_capture_gate(self):
+        self.record("Wed, 04 Nov 2026 02:45:00 GMT")
+        verdict=verify(self.root)
+        self.assertEqual(verdict["status"],"published_with_durable_early_observation")
+        self.assertEqual(verdict["published"],1)
+
+    def test_actual_late_observation_rejected_by_final_capture_gate(self):
+        self.record("Wed, 04 Nov 2026 02:48:00 GMT")
+        with self.assertRaisesRegex(ValueError,"published_observation_not_durable_and_early"):
+            verify(self.root)
+
+    def test_readback_receipt_hash_mismatch_fails_final_capture_gate(self):
+        self.record("Wed, 04 Nov 2026 02:45:00 GMT")
+        p=self.root/"four-mode-evidence"/"github-server-observation-ledger.json"
+        receipt=json.loads(p.read_text(encoding="utf-8"))
+        receipt["sha256"]="0"*64
+        p.write_text(json.dumps(receipt),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"published_observation_not_durable_and_early"):
+            verify(self.root)
 
     def test_early_receipt_and_hole_top10(self):
         r=self.record("Wed, 04 Nov 2026 02:45:00 GMT")
