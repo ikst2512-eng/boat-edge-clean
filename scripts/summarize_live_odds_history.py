@@ -223,6 +223,11 @@ def fetch_history(repository, token, current, *, now=None):
     return history, len(selected), errors
 
 
+def include_current_event(event):
+    """Only operational observations belong in the reliability trend."""
+    return event in ("schedule", "workflow_dispatch")
+
+
 def main():
     current_file = Path(FILE)
     if not current_file.is_file():
@@ -230,7 +235,7 @@ def main():
     current = json.loads(current_file.read_text(encoding="utf-8"))
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     # PR smoke tests must never inflate production reliability metrics.
-    include_current = event in ("schedule", "workflow_dispatch")
+    include_current = include_current_event(event)
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     token = os.environ.get("GH_TOKEN", "")
     history = [current] if include_current else []
