@@ -165,6 +165,34 @@ class T12SeedTests(unittest.TestCase):
         self.assertEqual(output["stored_count"],0)
         self.assertEqual(output["results"][0]["status"],"failed")
         self.assertIn("readback_changed",output["results"][0]["error_code"])
+    def test_different_generation_deadline_rejected_before_archival(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            def saved(code):return root/(code+".json")
+            def predictor(day,venue,race):
+                item=base()
+                # Same race and valid T−12 source receipts, but the predictor
+                # obtained a later deadline from a different pre-race source.
+                item["source_deadline_jst"]="2026-11-03T18:34:00+09:00"
+                item["cutoff_jst"]="2026-11-03T18:22:00+09:00"
+                saved(CODE).write_text(json.dumps(item))
+            out=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+                predictor=predictor,record_path=saved,
+                ledger_ops=(lambda path:None,lambda path,raw:self.fail("deadline mismatch must never publish")))
+            self.assertEqual(out["stored_count"],0)
+            self.assertEqual(out["results"][0]["status"],"failed")
+            self.assertIn("missed_cutoff",out["results"][0]["error_code"])
+    def test_existing_original_with_different_deadline_rejected(self):
+        archived=base()
+        archived["source_deadline_jst"]="2026-11-03T18:34:00+09:00"
+        archived["cutoff_jst"]="2026-11-03T18:22:00+09:00"
+        old=json.dumps(archived).encode()
+        out=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+            predictor=lambda *args:self.fail("cannot generate over conflicting original"),
+            ledger_ops=(lambda path:old,lambda path,data:self.fail("never overwrite")))
+        self.assertEqual(out["stored_count"],0)
+        self.assertEqual(out["results"][0]["status"],"failed")
+        self.assertIn("missed_cutoff",out["results"][0]["error_code"])
     def test_immutable_append_prevents_edited_forecasts(self):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
