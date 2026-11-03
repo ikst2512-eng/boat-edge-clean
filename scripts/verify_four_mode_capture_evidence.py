@@ -36,7 +36,7 @@ def verify(root):
             or ledger.get("formal") is not False
             or ledger.get("sha256") != hashlib.sha256(observation_bytes).hexdigest()
             or not isinstance(ledger.get("path"), str)
-            or not re.fullmatch(r"github_server/20[0-9]{6}/run-[1-9][0-9]*-attempt-[1-9][0-9]*\\.json",
+            or not re.fullmatch(r"github_server/20[0-9]{6}/run-[1-9][0-9]*-attempt-[1-9][0-9]*\.json",
                                 ledger["path"])):
         raise ValueError("published_observation_not_durable_and_early")
     # An aggregate count does not prove every race was observed before T-12.
