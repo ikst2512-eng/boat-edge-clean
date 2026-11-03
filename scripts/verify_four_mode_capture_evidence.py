@@ -147,6 +147,22 @@ def verify(root):
             raise ValueError("invalid_observation_timestamp") from exc
     if len(codes) != count or observation.get("observed_after_t_minus_12") != 0:
         raise ValueError("observation_race_count_mismatch")
+    # Both branch ledger receipts must come from the exact same capture
+    # execution and attempt. Matching SHA256 alone does not bind a pair of
+    # independently archived evidence objects to one original job.
+    first = re.fullmatch(
+        r"github_server/20[0-9]{6}/run-([1-9][0-9]*)-attempt-([1-9][0-9]*)[.]json",
+        ledger["path"])
+    if not first:
+        raise ValueError("github_observation_ledger_run_identity_invalid")
+    if any(code[:8] >= "20261104" for code in codes):
+        third = read("third-rate-ledger.json")
+        path = third.get("path") if type(third) is dict else None
+        second = re.fullmatch(
+            r"third_rate/20[0-9]{6}/run-([1-9][0-9]*)-attempt-([1-9][0-9]*)[.]json",
+            path) if type(path) is str else None
+        if not second or first.groups() != second.groups():
+            raise ValueError("future_evidence_ledger_run_identity_mismatch")
     verify_future_third_rate(root, publication, observation)
     return {"status": "published_with_durable_early_observation",
             "evidence_required": True, "published": count}
