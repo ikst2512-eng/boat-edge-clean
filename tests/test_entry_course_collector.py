@@ -57,6 +57,16 @@ class CollectorTests(unittest.TestCase):
                         ledger_ops=(lambda p:None,lambda p,b:self.fail("no publish")))
             self.assertEqual(out["status"],"no_verified_historical_pairs")
             self.assertFalse(out["stored"])
+    def test_insufficient_history_reports_each_boat_course_starts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,urls=setup(tmp)
+            out=attempt(root,now=lambda:NOW,prefetch=lambda day:(urls,{}),
+                card_reader=lambda *args:card,min_starts=10)
+            self.assertEqual(out["status"],"ineligible_late_study")
+            self.assertEqual(out["reason"],"late_study_insufficient_course_samples")
+            self.assertEqual(len(out["course_start_counts"]),6)
+            self.assertEqual(out["insufficient_boats"],[1,2,3,4,5,6])
+            self.assertFalse(out["stored"])
     def test_missing_preview_must_not_fetch_any_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,card,_=setup(tmp)
