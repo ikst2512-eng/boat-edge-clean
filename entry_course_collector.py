@@ -148,11 +148,28 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
         candidate=prepare_late_preview_study(
             base,card,batch,frozen_at=now().isoformat(),min_starts=min_starts)
     except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
+        reason=str(exc) or type(exc).__name__
+        diagnostics={}
+        if reason=="late_study_insufficient_course_samples":
+            # Inspect the same as-of historical rows, without relaxing the
+            # minimum or generating any prediction, to explain coverage gaps.
+            from entry_course_history import compile_asof_course_history
+            from entry_course_prospective_capture import _entry_from_preview
+            entry,_=_entry_from_preview(card,late)
+            coverage=compile_asof_course_history(
+                card,batch["history"],cutoff_at=late.isoformat(),
+                entry=entry,min_starts=min_starts)
+            diagnostics["course_start_counts"]={
+                str(r["boat"]):r["courseStarts"] for r in coverage["boats"]}
+            diagnostics["insufficient_boats"]=[
+                r["boat"] for r in coverage["boats"] if not r["sufficient_sample"]]
+            diagnostics["historical_exclusions"]=coverage["excluded"]
         return {"status":"ineligible_late_study","stored":False,
-                "race_code":code,"reason":str(exc) or type(exc).__name__,
+                "race_code":code,"reason":reason,
                 "preview_attempts":preview_attempts,
                 "eligible_historical_pairs":len(batch["history"]),
-                "source_failures":len(fetch_errors),"research_only":True}
+                "source_failures":len(fetch_errors),**diagnostics,
+                "research_only":True}
     dest=output_dir or (Path(root)/"entry_course_attempts")
     path=freeze_capture(candidate,dest,clock=now)
     if now()>=late:
