@@ -74,15 +74,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_schedule_publications --repo "${{ github.repository }}" --history reports/four_mode_schedule_history.json --output reports/four_mode_schedule_publications.json
+      # Preserve independent watchdog/fallback evidence when the scheduled
+      # inventory or bounded artifact checks fail. A failed prerequisite
+      # remains a failed audit; these steps only retain additional diagnoses.
       - name: Compare scheduled runs with fallback dispatch and watchdog history
+        if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.inventory_four_mode_watchdog_dispatch --repo "${{ github.repository }}" --output reports/four_mode_watchdog_dispatch.json
       - name: Audit fallback dispatch publication artifacts using existing evidence checks
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_dispatch_publications --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_dispatch_publications.json
       - name: Audit watchdog decision artifacts and subsequent capture timing
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_watchdog_artifact_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_artifact_decisions.json
