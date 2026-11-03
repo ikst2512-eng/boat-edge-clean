@@ -44,7 +44,7 @@ class RepairAgentTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, n):
-                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
+                return json.dumps({"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":"navigation.js","old":"alpha","new":"beta"}],
                         "reason":"test fixture","tests":"navigation contract"})}
                 ]}}]}).encode()
@@ -68,7 +68,7 @@ class RepairAgentTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self,n):
-                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({
+                return json.dumps({"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":json.dumps({
                         "patches":[{"path":".github/workflows/ai-repair-proposal.yml",
                                     "old":"a","new":"b"}]})}
                 ]}}]}).encode()
@@ -77,12 +77,39 @@ class RepairAgentTests(unittest.TestCase):
                 propose("change workflows",directory,"fake-key","gemini-2.5-flash-lite",
                         lambda req,timeout:FakeResponse())
 
+    def test_gemini_incomplete_or_ambiguous_output_never_edits_files(self):
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, n):
+                return json.dumps(self.payload).encode()
+
+        patch = {"patches": [{"path": "navigation.js", "old": "alpha", "new": "beta"}]}
+        for candidates in (
+            [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": json.dumps(patch)}]}}],
+            [{"finishReason": "SAFETY", "content": {"parts": [{"text": json.dumps(patch)}]}}],
+            [{"content": {"parts": [{"text": json.dumps(patch)}]}}],
+            [],
+            [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(patch)}]}}] * 2,
+        ):
+            with self.subTest(candidates=candidates), tempfile.TemporaryDirectory() as directory:
+                target = Path(directory) / "navigation.js"
+                target.write_text("alpha")
+                with self.assertRaisesRegex(ValueError, "invalid_gemini_response"):
+                    propose("navigation repair", directory, "fake-key", "mock",
+                            lambda request, timeout: Response({"candidates": candidates}))
+                self.assertEqual(target.read_text(), "alpha")
+
     def test_large_main_ui_includes_runtime_tail(self):
         class Response:
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, n):
-                return json.dumps({"candidates":[{"content":{"parts":[{"text":json.dumps({"patches":[]})}
+                return json.dumps({"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":json.dumps({"patches":[]})}
                 ]}}]}).encode()
         def fake(req, timeout):
             sent=json.loads(req.data)["contents"][0]["parts"][0]["text"]
@@ -126,7 +153,7 @@ class RepairAgentTests(unittest.TestCase):
                          "old": "const nav=document.querySelector('.site-global-nav');",
                          "new": "const nav=document.querySelector('nav.site-global-nav');"}],
                          "reason": "mocked navigation improvement", "tests": "contract"}
-                return json.dumps({"candidates":[{"content":{"parts":[
+                return json.dumps({"candidates":[{"finishReason":"STOP","content":{"parts":[
                     {"text":json.dumps(patch)}]}}]}).encode()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
