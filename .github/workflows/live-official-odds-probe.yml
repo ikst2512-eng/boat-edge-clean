@@ -18,9 +18,9 @@ on:
     workflows: ['CLEAN prospective pre-cutoff capture', 'Four-mode prospective capture (research only)']
     types: [completed] # Read-only fallback; upstream schedules actually observed
 concurrency:
-  # PR/push-origin upstream completions are ineligible for odds sampling.
-  # Isolate their no-op runs so they cannot evict a pending scheduled probe.
-  group: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event != 'schedule' && format('live-odds-ineligible-{0}', github.run_id) || format('live-odds-operational-{0}', github.ref) }}
+  # Keep non-operational PR, manual and PR/push-origin upstream runs out
+  # of the operational schedule queue, even when their jobs overlap.
+  group: ${{ github.event_name == 'pull_request' && format('live-odds-pr-{0}', github.run_id) || github.event_name == 'workflow_dispatch' && format('live-odds-manual-{0}', github.run_id) || (github.event_name == 'workflow_run' && github.event.workflow_run.event != 'schedule') && format('live-odds-ineligible-{0}', github.run_id) || format('live-odds-operational-{0}', github.ref) }}
   cancel-in-progress: false
   # Keep eligible scheduled probes queued rather than replacing the pending one.
   queue: max
