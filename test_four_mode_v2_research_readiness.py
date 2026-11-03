@@ -11,6 +11,8 @@ def fixture():
             "groups": {"20261103": {
                 "forecast_files": 149, "comparable": 8, "pending_results": 141,
                 "matured_comparable": 8,
+                "matured_modes": {m: {"top3": 1, "top5": 2, "top10": (6 if m == "balance" else 5)}
+                                  for m in ("narrow", "hit", "balance", "hole")},
                 "pending_by_deadline": {"before_deadline": 67,
                     "within_60m_after_deadline": 16, "over_60m_after_deadline": 58},
                 "applied": 3, "gained_top3": 0, "lost_top3": 0,
@@ -70,6 +72,21 @@ class V2ReadinessTests(unittest.TestCase):
         result = summarize(d)
         self.assertIsNone(result["mature_result_coverage"])
         self.assertIn("insufficient_mature_result_coverage", result["blocking_reasons"])
+
+    def test_missing_outcome_extremes_stay_descriptive(self):
+        d = summarize(fixture())
+        result = d["overdue_missingness_sensitivity"]["hit"]["top3"]
+        self.assertEqual(result["scenario_denominator"], 66)
+        self.assertEqual(result["unresolved_overdue"], 58)
+        self.assertAlmostEqual(result["all_missing_miss_rate"], 1/66, places=6)
+        self.assertAlmostEqual(result["all_missing_hit_rate"], 59/66, places=6)
+        self.assertFalse(d["production_promotion_allowed"])
+
+    def test_rejects_mature_hits_exceeding_mature_cohort(self):
+        d = fixture()
+        d["groups"]["20261103"]["matured_modes"]["hit"]["top3"] = 9
+        with self.assertRaises(ValueError):
+            summarize(d)
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()
