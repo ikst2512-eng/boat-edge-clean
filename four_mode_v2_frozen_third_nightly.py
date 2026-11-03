@@ -82,6 +82,7 @@ def summarize(inventory, root, download, out_dir):
         "paired": 0, "frozen": 0, "pending_results": 0,
         "invalid": 0, "excluded": 0,
         "race_codes_paired": [],
+        "race_codes_frozen": [],
         "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                             "gained": 0, "lost": 0} for n in TOPS},
@@ -126,6 +127,7 @@ def summarize(inventory, root, download, out_dir):
             raise ValueError("duplicate_frozen_race_across_capture_runs")
         frozen_seen.update(frozen)
         row.update({"status": "read_only_scored",
+                    "race_codes_frozen": scoring["race_codes_frozen"],
                     "frozen": scoring["frozen"],
                     "paired": scoring["paired"],
                     "invalid": scoring["invalid"]})
@@ -134,6 +136,7 @@ def summarize(inventory, root, download, out_dir):
         for field in ("paired", "frozen", "pending_results", "invalid", "excluded"):
             report[field] += scoring[field]
         report["race_codes_paired"].extend(scoring["race_codes_paired"])
+        report["race_codes_frozen"].extend(scoring["race_codes_frozen"])
         per_race_rows = scoring.get("paired_race_scores", [])
         if len(per_race_rows) != scoring["paired"]:
             raise ValueError("per_race_score_partition_mismatch")
@@ -154,6 +157,9 @@ def summarize(inventory, root, download, out_dir):
             for name in ("baseline", "candidate", "gained", "lost"):
                 report["topn"][f"top{n}"][name] += scoring["topn"][f"top{n}"][name]
     report["race_codes_paired"].sort()
+    report["race_codes_frozen"].sort()
+    if len(set(report["race_codes_frozen"])) != report["frozen"]:
+        raise ValueError("frozen_roster_mismatch")
     report["by_race_day_jst"] = dict(sorted(report["by_race_day_jst"].items()))
     if sum(d["paired"] for d in report["by_race_day_jst"].values()) != report["paired"]:
         raise ValueError("day_partition_mismatch")
