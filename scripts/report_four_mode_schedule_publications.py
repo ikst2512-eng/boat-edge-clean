@@ -68,7 +68,11 @@ def research_roster_evidence(publication, third, hole):
     if rosters[0] != rosters[1]:
         return {"status": "mismatch", "reason": "shadow_race_rosters_disagree"}
     return {"status": "matched", "reason": "same_local_push_claim_and_race_roster",
-            "matched_races": added, "commit_sha": sha}
+            "matched_races": added, "commit_sha": sha,
+            # Exact identities are needed for the later independent Git-tree
+            # reconciliation. This list is bounded by added_forecasts <= 500
+            # in normal capture receipts and contains public race IDs only.
+            "race_codes": sorted(rosters[0])}
 
 
 def inspect(run, root):
