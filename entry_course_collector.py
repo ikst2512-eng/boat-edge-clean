@@ -32,7 +32,13 @@ def candidates(root, *, now=None, max_minutes=6):
     now=now or datetime.now(JST)
     root=Path(root)
     matches=[]
-    for file in sorted((root/"research_snapshots").glob("20*.json")):
+    day=now.strftime("%Y%m%d")
+    # The automatic T−12 seeder writes immutable originals on the dedicated
+    # branch. Actions checks that branch out into entry-course-ledger/.
+    # Existing main snapshots remain valid and retain priority.
+    sources=(root/"research_snapshots",root/"entry-course-ledger"/"t12_baselines"/day)
+    seen=set()
+    for file in [p for folder in sources for p in sorted(folder.glob(day+"*.json"))]:
         if file.is_symlink() or file.stat().st_size>30000:
             continue
         try:
@@ -49,6 +55,9 @@ def candidates(root, *, now=None, max_minutes=6):
             if (base.get("status")!="research" or base.get("validated") is not False
                     or not freeze<=t12<late or not 45 <= (late-now).total_seconds() <= max_minutes*60):
                 continue
+            if code in seen:
+                continue
+            seen.add(code)
             matches.append((late,code,base))
         except (OSError,TypeError,KeyError,ValueError,UnicodeError):
             continue
