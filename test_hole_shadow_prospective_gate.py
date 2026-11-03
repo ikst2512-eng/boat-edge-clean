@@ -42,7 +42,8 @@ class ProspectiveGateTest(unittest.TestCase):
         archive["modes"]["hit"]["tickets"] = [
             {"combo":"1-4-2"}, {"combo":"1-4-3"}]
         with patch("hole_shadow_prospective_gate.archived_four_modes", return_value=(200, archive)):
-            output = freeze(self.code, self.root, self.cutoff - timedelta(minutes=15))
+            moment = self.cutoff - timedelta(minutes=15)
+            output = freeze(self.code, self.root, moment, clock=lambda: moment)
         self.assertEqual(output["shadow_bundle2"][2:4], ["1-4-2", "1-4-3"])
         self.assertEqual(len(output["shadow_bundle2"]), len(output["baseline"]))
         self.assertEqual(len(set(output["shadow_bundle2"])), len(output["baseline"]))
