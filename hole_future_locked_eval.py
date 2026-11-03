@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from four_mode_archive_api import archived_four_modes
@@ -118,7 +118,7 @@ def evaluate(root,as_of,days=14):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--root",default=".")
-    parser.add_argument("--as-of",default=date.today().isoformat())
+    parser.add_argument("--as-of",default=datetime.now(timezone(timedelta(hours=9))).date().isoformat())
     parser.add_argument("--days",type=int,default=14)
     args=parser.parse_args()
     print(json.dumps(evaluate(args.root,date.fromisoformat(args.as_of),args.days),
