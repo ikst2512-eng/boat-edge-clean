@@ -129,7 +129,7 @@ jobs:
                   raise SystemExit("invalid_capture_run_inventory")
               rows.extend(data)
           Path("v2_capture_run_inventory.json").write_text(
-              json.dumps(rows, sort_keys=True) + "\\n", encoding="utf-8")
+              json.dumps(rows, sort_keys=True) + "\n", encoding="utf-8")
           PY
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
       # Read the durable ledger independently from earlier model/scoring steps.
