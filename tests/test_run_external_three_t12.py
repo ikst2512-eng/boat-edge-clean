@@ -75,10 +75,12 @@ class ExternalT12EvidenceTests(unittest.TestCase):
 
     def test_atomic_non_force_git_commit_and_exact_blob_sha(self):
         events = []
+        ref_reads = [0]
         def api(repo, token, method, endpoint, data=None):
             events.append((method, endpoint, data))
             if method == "GET" and endpoint.startswith("git/ref/"):
-                return {"object": {"sha": "parent"}}
+                ref_reads[0] += 1
+                return {"object": {"sha": "parent" if ref_reads[0] == 1 else "new-commit"}}
             if method == "GET" and endpoint.startswith("git/commits"):
                 return {"tree": {"sha": "base-tree"}}
             if endpoint == "git/blobs":
@@ -103,7 +105,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
 
     def test_nonforce_branch_conflict_rebases_and_preserves_other_receipts(self):
         calls = []
-        refs = iter(["parent-A", "parent-B"])
+        refs = iter(["parent-A", "parent-B", "new-commit-from-parent-B"])
         def api(repo, token, method, endpoint, data=None):
             calls.append((method, endpoint, data))
             if method == "GET" and endpoint.startswith("git/ref/"):
@@ -130,6 +132,57 @@ class ExternalT12EvidenceTests(unittest.TestCase):
         self.assertEqual(len([x for x in calls if x[1] == "git/blobs"]), 1)
         self.assertEqual(len([x for x in calls if x[1] == "git/trees"]), 2)
         self.assertEqual(len([x for x in calls if x[0] == "PATCH"]), 2)
+
+    def test_reject_detached_saved_commit_after_ref_update(self):
+        reads = [0]
+        def api(repo, token, method, endpoint, data=None):
+            if method == "GET" and endpoint.startswith("git/ref/"):
+                reads[0] += 1
+                return {"object": {"sha": "initial" if reads[0] == 1 else "unrelated-head"}}
+            if method == "GET" and endpoint.startswith("git/commits/"):
+                return {"tree": {"sha": "base"}}
+            if endpoint == "git/blobs":
+                data_bytes = base64.b64decode(data["content"])
+                return {"sha": hashlib.sha1(f"blob {len(data_bytes)}\0".encode() + data_bytes).hexdigest()}
+            if endpoint == "git/trees":
+                return {"sha": "new-tree"}
+            if endpoint == "git/commits":
+                return {"sha": "new-commit"}
+            if method == "PATCH":
+                return {"object": {"sha": "new-commit"}}
+            if method == "GET" and endpoint.startswith("compare/"):
+                return {"status": "diverged",
+                        "merge_base_commit": {"sha": "other-commit"}}
+            raise AssertionError(endpoint)
+        with self.assertRaisesRegex(ValueError, "not reachable"):
+            publish_originals("owner/repo", "research-t12-external-evidence",
+                "stub-token", {"external_three_t12/x": b"evidence"}, api=api)
+
+    def test_accept_saved_commit_followed_by_another_valid_archive(self):
+        reads = [0]
+        def api(repo, token, method, endpoint, data=None):
+            if method == "GET" and endpoint.startswith("git/ref/"):
+                reads[0] += 1
+                return {"object": {"sha": "initial" if reads[0] == 1 else "descendant-commit"}}
+            if method == "GET" and endpoint.startswith("git/commits/"):
+                return {"tree": {"sha": "base"}}
+            if endpoint == "git/blobs":
+                data_bytes = base64.b64decode(data["content"])
+                return {"sha": hashlib.sha1(f"blob {len(data_bytes)}\0".encode() + data_bytes).hexdigest()}
+            if endpoint == "git/trees":
+                return {"sha": "new-tree"}
+            if endpoint == "git/commits":
+                return {"sha": "new-commit"}
+            if method == "PATCH":
+                return {"object": {"sha": "new-commit"}}
+            if method == "GET" and endpoint.startswith("compare/"):
+                self.assertEqual(endpoint, "compare/new-commit...descendant-commit")
+                return {"status": "ahead",
+                        "merge_base_commit": {"sha": "new-commit"}}
+            raise AssertionError(endpoint)
+        sha = publish_originals("owner/repo", "research-t12-external-evidence",
+                "stub-token", {"external_three_t12/x": b"evidence"}, api=api)
+        self.assertEqual(sha, "new-commit")
 
     def test_permission_denial_never_retried(self):
         requests = []
