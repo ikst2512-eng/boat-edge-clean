@@ -66,6 +66,40 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         self.assertFalse(report["formal"])
         self.assertFalse(report["production_promotion_allowed"])
 
+    def test_one_result_comparison_exception_keeps_valid_sibling_pair(self):
+        second = "202611040102"
+        original = self.path.read_bytes()
+        other = self.path.with_name(second + ".json")
+        other.write_bytes(original.replace(CODE.encode(), second.encode()))
+        row = dict(self.evidence["records"][0])
+        row["race_code"] = second
+        row["source_forecast_sha256"] = hashlib.sha256(other.read_bytes()).hexdigest()
+        self.evidence["records"].append(row)
+        self.evidence["published_forecasts"] = 2
+        self.evidence["frozen_before_t_minus_12"] = 2
+        winning = row["candidate_top10"][0]
+
+        def compare(code, root):
+            if code == CODE:
+                raise OSError("confirmed result file unreadable")
+            return {"status": "historical_comparison_only", "winning_ticket": winning}
+
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   side_effect=compare):
+            report = score_evidence(self.evidence, self.root)
+        self.assertEqual(report["paired"], 1)
+        self.assertEqual(report["invalid"], 1)
+        self.assertEqual(report["race_codes_paired"], [second])
+        self.assertEqual(report["topn"]["top3"]["candidate"], 1)
+        self.assertFalse(report["production_promotion_allowed"])
+
+    def test_malformed_comparison_response_is_invalid_not_accepted(self):
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value=None):
+            report = score_evidence(self.evidence, self.root)
+        self.assertEqual(report["invalid"], 1)
+        self.assertEqual(report["paired"], 0)
+
     def test_missing_result_is_pending_not_loss(self):
         with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
                    return_value={"status": "result_unavailable"}):
