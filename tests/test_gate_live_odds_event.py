@@ -55,17 +55,28 @@ class FallbackGateTests(unittest.TestCase):
         history = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
         artifact = workflow.index("      - name: Preserve per-race statuses and timings")
         self.assertTrue(sample < verdict < history < artifact)
-        self.assertIn(
-            "      - name: Summarize eligible preceding scheduled run artifacts\n"
-            "        # Keep diagnostic history when a real unattended sample failed its\n"
-            "        # strict HTTP-200 verdict; never turn that failure into a green job.\n"
-            "        if: always() && steps.gate.outputs.collect == 'true'\n",
-            workflow)
+        history_block = workflow[history:artifact]
+        self.assertIn("if: always() && steps.gate.outputs.collect == 'true'",
+                      history_block)
         self.assertIn(
             "      - name: Fail unhealthy unattended odds sampling\n"
             "        if: steps.gate.outputs.collect == 'true' && "
             "(github.event_name == 'schedule' || github.event_name == 'workflow_run')\n",
             workflow)
+        self.assertIn("      - name: Preserve per-race statuses and timings\n"
+                      "        if: always()\n", workflow)
+
+    def test_history_scan_is_bounded_before_always_uploaded_evidence(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        start = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
+        end = workflow.index("      - name: Preserve per-race statuses and timings", start)
+        history = workflow[start:end]
+        self.assertIn("if: always() && steps.gate.outputs.collect == 'true'", history)
+        self.assertIn(
+            "run: timeout --signal=TERM --kill-after=5s 60s python "
+            "scripts/summarize_live_odds_history.py", history)
+        self.assertIn("timeout-minutes: 8", workflow)
         self.assertIn("      - name: Preserve per-race statuses and timings\n"
                       "        if: always()\n", workflow)
 

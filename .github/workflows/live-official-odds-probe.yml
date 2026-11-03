@@ -68,10 +68,12 @@ jobs:
       - name: Summarize eligible preceding scheduled run artifacts
         # Keep diagnostic history when a real unattended sample failed its
         # strict HTTP-200 verdict; never turn that failure into a green job.
+        # Bound the optional GitHub archive scan: runner job timeout is eight
+        # minutes, and evidence upload must still have time to execute.
         if: always() && steps.gate.outputs.collect == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/summarize_live_odds_history.py
+        run: timeout --signal=TERM --kill-after=5s 60s python scripts/summarize_live_odds_history.py
       - name: Preserve per-race statuses and timings
         if: always()
         uses: actions/upload-artifact@v4
