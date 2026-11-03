@@ -1106,9 +1106,12 @@ async function loadHeldVenues(force=false){
   // Do not substitute the old repository's today.json for a different date.
   const dayCode=date.replaceAll('-','');
   let data=null;
-  const archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'});
-  if(archive.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
-  else if(archive.status===404||(date<fmt(jst())&&archive.status>=500)){
+  // A failed GitHub Raw request must not block past-date CLEAN/CSV fallback.
+  // Current/future dates retain their strict unpublished/error handling.
+  let archive=null;
+  try{archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'})}catch(_){}
+  if(archive?.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
+  else if(archive?.status===404||(date<fmt(jst())&&(!archive||!archive.ok))){
    let api;
    for(let attempt=0;attempt<3;attempt++){
     try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
