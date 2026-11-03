@@ -57,14 +57,41 @@ class V2ShadowTests(unittest.TestCase):
                  patch("four_mode_v2_predeclared_shadow.compare_race",
                        return_value={"status": "historical_comparison_only",
                                      "winning_ticket": "2-1-3",
-                                     "modes": {m: {f"top{n}": False for n in (3, 5, 10)}
+                                     "modes": {m: dict({f"top{n}": False for n in (3, 5, 10)}, coverage_diagnostic="winner_head_absent")
                                                for m in ("narrow", "hit", "balance", "hole")}}):
                 report = evaluate(root)
             self.assertEqual(report["v2_forecasts_seen"], 1)
             self.assertEqual(report["v2_comparable"], 1)
             self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
+            self.assertEqual(report["groups"]["20261103"]["miss_reasons"]["hit"]["winner_head_absent"], 1)
             self.assertFalse(report["formal"])
             self.assertFalse(report["independent_remote_first_seen_verified"])
+
+
+    def test_missing_result_not_confused_with_invalid_result(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            folder = root / "four_mode_forecasts"
+            folder.mkdir()
+            for code in ("202611030101", "202611030102"):
+                (folder / (code+".json")).write_text(json.dumps({
+                    "race_code": code, "model_version": VERSION,
+                    "input_national_win_rates": [5.0]*6}))
+            def archived(code, root):
+                return 200, {"model_version": VERSION,
+                    "modes": {"hit": {"tickets": tickets()},
+                              "narrow": {"tickets": [{}]*5},
+                              "balance": {"tickets": [{}]*16},
+                              "hole": {"tickets": [{}]*22}}}
+            def compared(code, root):
+                return {"status": "result_unavailable" if code.endswith("01") else "invalid_result_or_timing"}
+            with patch("four_mode_v2_predeclared_shadow.archived_four_modes", side_effect=archived), \\
+                 patch("four_mode_v2_predeclared_shadow.compare_race", side_effect=compared):
+                report = evaluate(root)
+            self.assertEqual(report["v2_forecasts_seen"], 2)
+            self.assertEqual(report["v2_comparable"], 0)
+            self.assertEqual(report["groups"]["20261103"]["pending_results"], 1)
+            self.assertEqual(report["excluded"]["invalid_or_untrusted_result"], 1)
 
     def test_no_v2_is_explicit(self):
         with tempfile.TemporaryDirectory() as td:
