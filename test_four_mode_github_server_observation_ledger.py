@@ -59,6 +59,34 @@ class ObservationLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_observation_collision"):
             publish(self.payload(),self.root,"1234","1",self.read,self.put,self.git)
 
+    def test_later_observation_cannot_use_forged_late_cutoff(self):
+        # GitHub Date 11:55 JST is past the true 11:48 T-12 boundary.
+        # Relabeling T-12 as 13:48 JST must never make it 'before'.
+        self.row["github_api_server_date_utc"]="2026-11-04T02:55:00+00:00"
+        self.row["deadline_minus_12_jst"]="2026-11-04T13:48:00+09:00"
+        with self.assertRaisesRegex(ValueError,"observation_cutoff_disagrees_with_original"):
+            prepare(self.payload(),self.root,"1234","1",self.git)
+        self.assertEqual(self.store,{})
+
+    def test_twelve_minute_cutoff_must_match_first_added_blob(self):
+        self.row["deadline_minus_12_jst"]="2026-11-04T11:47:00+09:00"
+        with self.assertRaisesRegex(ValueError,"observation_cutoff_disagrees_with_original"):
+            prepare(self.payload(),self.root,"1234","1",self.git)
+        self.row["deadline_minus_12_jst"]="2026-11-04T11:48:00+09:00"
+        self.assertIsNotNone(prepare(self.payload(),self.root,"1234","1",self.git))
+
+    def test_original_deadline_wrong_day_rejected_before_preservation(self):
+        altered=json.dumps({"race_code":CODE,
+                            "deadline_jst":"2026-11-05T12:00:00+09:00"}).encode()
+        (self.root/PATH).write_bytes(altered)
+        def git(*args):
+            if args[0]=="diff-tree":return (PATH+"\n").encode()
+            if args[0]=="show":return altered
+            raise AssertionError(args)
+        self.row["original_sha256"]=hashlib.sha256(altered).hexdigest()
+        with self.assertRaisesRegex(ValueError,"observation_cutoff_disagrees_with_original"):
+            prepare(self.payload(),self.root,"1234","1",git)
+
     def test_mislabeled_late_observation_rejected(self):
         self.row["github_api_server_date_utc"]="2026-11-04T02:48:00+00:00"
         with self.assertRaisesRegex(ValueError,"false_early_observation_label"):

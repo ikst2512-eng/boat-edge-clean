@@ -88,6 +88,19 @@ def prepare(original,root,run_id,attempt,git=None):
             raise ValueError("remote_blob_digest_mismatch")
         event=datetime.fromisoformat(row["github_api_server_date_utc"])
         cutoff=datetime.fromisoformat(row["deadline_minus_12_jst"])
+        # A forged cutoff can make a late server observation appear early.
+        # Bind T-12 to the exact first-added Git blob, not the field reported
+        # by the observation artifact itself.
+        original_forecast=json.loads(exact)
+        if (not isinstance(original_forecast,dict) or
+                original_forecast.get("race_code")!=code or
+                not isinstance(original_forecast.get("deadline_jst"),str)):
+            raise ValueError("invalid_original_race_deadline")
+        deadline=datetime.fromisoformat(original_forecast["deadline_jst"])
+        if (deadline.utcoffset()!=timedelta(hours=9) or
+                deadline.strftime("%Y%m%d")!=code[:8] or
+                cutoff!=deadline-timedelta(minutes=12)):
+            raise ValueError("observation_cutoff_disagrees_with_original")
         if (event.utcoffset()!=timedelta(0) or
                 cutoff.utcoffset()!=timedelta(hours=9) or
                 cutoff.strftime("%Y%m%d")!=code[:8]):
