@@ -1271,7 +1271,18 @@ async function loadRaceData(force=false){
   }
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
-  const response=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
+  const cardUrl='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
+  // Only transient transport/429/5xx errors may retry. An absent/invalid
+  // race must never turn into another race or bypass source validation.
+  let response;
+  for(let attempt=0;attempt<3;attempt++){
+   try{response=await fetchTimed(cardUrl,{cache:'no-store'});}
+   catch(error){if(attempt===2)throw error;response=null;}
+   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
+   if(response&&(response.ok||![429,500,502,503,504].includes(response.status)))break;
+   if(attempt<2)await new Promise(resolve=>setTimeout(resolve,400*(attempt+1)));
+  }
+  if(!response)throw Error('RACECARD_TRANSPORT_UNAVAILABLE');
   if(!response.ok)throw Error('HTTP_'+response.status);
   const currentText=await response.text();
   raw=JSON.parse(currentText);

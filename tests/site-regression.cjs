@@ -342,6 +342,17 @@ assert.ok(script.includes('await loadHeldVenues();'),'racecard loading must wait
 assert.ok(script.includes('todayVenueRaces.partial_coverage!==true'),'partial frozen schedules must not prove a race is absent');
 assert.ok(script.includes("scheduledVenue?'このレースは開催されていません':'この場は開催されていません'"),'confirmed non-held selections must stop before the racecard API');
 
+// The published racecard must retry transient server/network errors only,
+// preserving race identity and refusing 404 or 422 as retryable evidence.
+const cardLoader=script.slice(script.indexOf('async function loadRaceData('),script.indexOf('async function loadRaceData(')+3500);
+assert.ok(cardLoader.includes("for(let attempt=0;attempt<3;attempt++)")&&
+          cardLoader.includes("[429,500,502,503,504].includes(response.status)"),
+          'Racecard loader must bound retries to transient HTTP responses');
+assert.ok(cardLoader.includes("if(token!==window.raceDataRequestId||key!==sameRaceKey())return;"),
+          'Retrying racecards must never leak a stale selected race');
+assert.ok(cardLoader.includes("if(!response.ok)throw Error('HTTP_'+response.status)"),
+          'Racecard 404/422 or exhausted transient errors must still fail closed');
+
 // Historical schedule fallback: an unavailable CLEAN API must not hide a past date.
 const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
