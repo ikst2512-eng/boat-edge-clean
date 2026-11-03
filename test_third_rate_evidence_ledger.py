@@ -139,6 +139,29 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "frozen_source_digest_mismatch"):
             prepare(self.original(), self.root, "412345", "1")
 
+    def test_valid_digest_cannot_preserve_wrong_baseline_order(self):
+        # The original archive is unchanged and its SHA matches the shadow.
+        # Previously, a different but well-formed baseline could be saved
+        # and only rejected by next-day read-only scoring.
+        row = self.data["records"][0]
+        row["baseline_top10"] = list(reversed(row["baseline_top10"]))
+        with self.assertRaisesRegex(
+                ValueError, "frozen_baseline_disagrees_with_original"):
+            prepare(self.original(), self.root, "412345", "1")
+        self.assertEqual(self.storage, {})
+
+    def test_wrong_model_version_cannot_be_preserved(self):
+        path = self.root / "four_mode_forecasts" / (CODE + ".json")
+        archive = json.loads(path.read_text(encoding="utf-8"))
+        archive["model_version"] = "OTHER_RESEARCH_MODEL"
+        path.write_text(json.dumps(archive) + "\n", encoding="utf-8")
+        self.data["records"][0]["source_forecast_sha256"] = hashlib.sha256(
+            path.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(
+                ValueError, "frozen_baseline_disagrees_with_original"):
+            prepare(self.original(), self.root, "412345", "1")
+        self.assertEqual(self.storage, {})
+
     def test_forged_late_twelve_minute_cutoff_not_preserved(self):
         self.data["records"][0]["frozen_at_utc"] = "2026-11-04T02:00:00+00:00"
         self.data["records"][0]["t_minus_12_jst"] = "2026-11-04T13:48:00+09:00"
