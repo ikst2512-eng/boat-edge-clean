@@ -91,6 +91,8 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["paired"], 1)
         self.assertEqual(out["topn"]["top3"]["candidate"], 1)
         self.assertEqual(out["race_codes_paired"], [CODE])
+        self.assertEqual(out["by_race_day_jst"]["20261104"]["paired"], 1)
+        self.assertEqual(out["by_race_day_jst"]["20261104"]["topn"]["top3"]["candidate"], 1)
         self.assertFalse(out["remote_first_seen_independently_verified"])
 
     def test_duplicate_race_across_two_artifacts_fails_closed(self):
@@ -120,7 +122,7 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["missing_or_failed_artifacts"], [])
         self.assertTrue(out["cohort_completeness_verified"])
 
-    def test_older_runs_dropped_is_explicit_incomplete(self):
+    def test_older_than_eighty_runs_are_included(self):
         inventory = [run(1000 + i) for i in range(81)]
         # Real runs with no newly published predictions carry zero races,
         # not an impossible duplicated frozen prediction across 80 runs.
@@ -130,10 +132,21 @@ class FrozenNightlyTests(unittest.TestCase):
                               "ineligible_count": 0, "records": []})
         self.evidence.pop("publication_commit_sha")
         out = summarize(inventory, self.root, self.download, self.root)
-        self.assertEqual(out["selected_runs"], 80)
-        self.assertEqual(out["older_eligible_runs_omitted"], 1)
-        self.assertEqual(out["status"], "incomplete_run_inventory_coverage")
-        self.assertFalse(out["cohort_completeness_verified"])
+        self.assertEqual(out["selected_runs"], 81)
+        self.assertEqual(out["older_eligible_runs_omitted"], 0)
+        self.assertEqual(out["no_new_candidate_runs"], 81)
+        self.assertTrue(out["cohort_completeness_verified"])
+
+    def test_daily_frozen_metrics_reconcile_with_total(self):
+        finish = self.evidence["records"][0]["candidate_top10"][0]
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "historical_comparison_only",
+                                 "winning_ticket": finish}):
+            out = summarize([run(200)], self.root, self.download, self.root)
+        day = out["by_race_day_jst"]["20261104"]
+        for key in ("top3", "top5", "top10"):
+            self.assertEqual(day["topn"][key], out["topn"][key])
+        self.assertEqual(day["race_codes"], [CODE])
 
     def test_inventory_api_limit_hit_is_never_claimed_complete(self):
         inventory = [run(10000 + i, "2026-11-03T10:00:00Z")
