@@ -21,7 +21,7 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertFalse(result["source_predeadline_verified"])
 
     def test_capture_status_metadata_is_not_an_archive(self):
-        raw = A + "\\n\\n" + "four_mode_forecasts/capture_status.json" + "\\n" + P + "\\n"
+        raw = A + "\n\n" + "four_mode_forecasts/capture_status.json" + "\n" + P + "\n"
         adds = parse_additions(raw)
         self.assertEqual(adds, {P: [A]})
 
