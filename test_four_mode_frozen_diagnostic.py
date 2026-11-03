@@ -22,7 +22,10 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         (self.root/"four_mode_forecasts"/(CODE+".json")).write_text(json.dumps(archive()))
         self.result = self.root/"confirmed_results"/(CODE+".json")
         self.result.write_text(json.dumps({"race_code":CODE,"status":"confirmed",
-            "finish_order":[1,2,3],"source_url":"https://example.org/results"}))
+            "finish_order":[1,2,3],"source_url":"https://example.org/results",
+            "source_sha256":"a"*64,
+            "confirmed_at_jst":"2026-10-28T14:01:00+09:00",
+            "collected_at_jst":"2026-10-28T14:02:00+09:00"}))
     def tearDown(self):
         self.tmp.cleanup()
     def test_uses_only_frozen_mode_tickets(self):
@@ -55,6 +58,21 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
         self.result.write_text(json.dumps({"race_code":CODE,"status":"confirmed",
             "finish_order":[1,1,3],"source_url":"https://example.org/results"}))
         self.assertEqual(compare_race(CODE,self.root)["status"],"invalid_result_or_timing")
+    def test_corrupt_confirmed_result_is_not_scored(self):
+        good=json.loads(self.result.read_text(encoding="utf-8"))
+        for bad in (
+            dict(good,source_sha256="not-a-hash"),
+            dict(good,confirmed_at_jst="2026-10-28T14:01:00"),
+            dict(good,collected_at_jst="not-a-date"),
+            dict(good,source_url="http://example.org/results"),
+            dict(good,race_code="202610280102"),
+        ):
+            with self.subTest(bad=bad):
+                self.result.write_text(json.dumps(bad),encoding="utf-8")
+                outcome=compare_race(CODE,self.root)
+                self.assertEqual(outcome["status"],"invalid_result_or_timing")
+                self.assertFalse(outcome["formal"])
+
     def test_wrong_date_is_not_formally_promoted(self):
         a=archive()
         a["deadline_jst"]="2026-10-29T14:00:00+09:00"
