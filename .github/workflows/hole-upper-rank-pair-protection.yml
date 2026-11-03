@@ -1,0 +1,39 @@
+name: Hole upper rank pair protection research
+on:
+  pull_request:
+    paths:
+      - hole_upper_rank_pair_protection.py
+      - test_hole_upper_rank_pair_protection.py
+      - .github/workflows/hole-upper-rank-pair-protection.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test safety constraints
+        run: python -m unittest -v test_hole_upper_rank_pair_protection.py
+      - name: Run historical analysis
+        run: python hole_upper_rank_pair_protection.py > hole_upper_rank_pair_protection.json
+      - name: Validate sample and output
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('hole_upper_rank_pair_protection.json'))
+          assert d['status']=='historical_research_only'
+          assert d['formal'] is False
+          assert d['production_forecast_changed'] is False
+          assert d['comparable']==120
+          assert len(d['scenarios'])==6
+          for name, s in d['scenarios'].items():
+              print(name,s)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-upper-rank-pair-protection
+          path: hole_upper_rank_pair_protection.json

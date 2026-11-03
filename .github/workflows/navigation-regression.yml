@@ -6,6 +6,7 @@ on:
       - 'secondary_navigation.js'
       - 'index.html'
       - 'server.py'
+      - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
@@ -20,6 +21,7 @@ on:
       - 'secondary_navigation.js'
       - 'index.html'
       - 'server.py'
+      - 'test_holdout_status_async.py'
       - 'tests/test_navigation_contract.py'
       - 'tests/test_verified_prediction_refresh_contract.py'
       - 'tests/test_forecast_preview_origin.py'
@@ -43,3 +45,87 @@ jobs:
           python -m unittest discover -s tests -p 'test_forecast_preview_origin.py' -v
           python -m unittest discover -s tests -p 'test_saved_prospective_api.py' -v
           python -m unittest discover -s tests -p 'test_preview_completeness.py' -v
+          python -m unittest -v test_holdout_status_async
+          python -m unittest -v test_bulk_first_add
+
+  browser-pr-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium for local UI smoke
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+      - name: Exercise four race tabs on mobile viewport
+        run: |
+          node - <<'JS'
+          const {chromium,webkit}=require('playwright');
+          (async()=>{
+            for(const [engine,launcher] of [['Chromium',chromium],['WebKit',webkit]]){
+            const browser=await launcher.launch({headless:true});
+            try {
+              const page=await browser.newPage({viewport:{width:390,height:844}});
+              const faults=[];
+              page.on('pageerror',error=>faults.push(error.message));
+              await page.route('https://raw.githubusercontent.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.route('https://api.github.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.route('https://boat-edge-clean.onrender.com/**',route=>route.fulfill({status:404,contentType:'application/json',body:'{}'}));
+              await page.goto('file://'+process.cwd()+'/index.html',{waitUntil:'domcontentloaded'});
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
+              if(await page.locator('#races button').count()!==12)throw Error('12 races missing');
+              const tabs=page.locator('.race-detail-shortcuts button');
+              if(await tabs.count()!==4)throw Error('Four race shortcuts missing');
+              await page.locator('#venues button').first().click();
+              for(const view of ['forecast','card','exhibit','result']){
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
+                if(await page.evaluate(()=>activeView)!==view)throw Error('Shortcut failed: '+view);
+                if(await page.locator('[data-home-only]:visible').count())throw Error('Home controls leak into '+view);
+              }
+              if(await page.locator('#forecast>.forecast-detail-tabs:visible').count())throw Error('Duplicate forecast tabs');
+              if(await page.locator('#forecastQuick:visible').count())throw Error('Duplicate race picker');
+              // Verify ticket typography and odds layout at iPhone-sized viewport.
+              const fourModeLayout=await page.evaluate(()=>{
+                const root=document.getElementById('fourModeForecastRows');
+                const card=document.createElement('article');card.className='four-mode-forecast-item';
+                const row=document.createElement('div');row.className='four-mode-forecast-ticket';
+                const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent='1-2-4';
+                const prob=document.createElement('span');prob.className='four-mode-prob';prob.textContent='6.60%';
+                const odds=document.createElement('span');odds.className='four-mode-odds';odds.textContent='オッズ 16倍';
+                row.append(combo,prob,odds);card.append(row);root.append(card);
+                const out={combo:parseFloat(getComputedStyle(combo).fontSize),
+                  prob:parseFloat(getComputedStyle(prob).fontSize),
+                  odds:parseFloat(getComputedStyle(odds).fontSize),
+                  wrap:odds.getBoundingClientRect().top>=combo.getBoundingClientRect().bottom-2,
+                  clipped:row.scrollWidth>row.clientWidth+1};
+                card.remove();return out;
+              });
+              if(!(fourModeLayout.combo>fourModeLayout.prob&&fourModeLayout.prob>fourModeLayout.odds&&fourModeLayout.wrap&&!fourModeLayout.clipped))
+                throw Error('Four-mode mobile layout broken '+JSON.stringify(fourModeLayout));
+              const cutoffLabel=await page.evaluate(()=>{
+                const original=todayVenueRaces;
+                try{
+                  todayVenueRaces={date:s.date,venues:[{jcd:String(s.venue+1).padStart(2,'0'),races:[{race_no:8,deadline:'21:14'}]}]};
+                  updateRacePickerLabels();
+                  return [...document.querySelectorAll('#races button')].find(b=>b.textContent.startsWith('8R'))?.textContent;
+                }finally{todayVenueRaces=original;updateRacePickerLabels();}
+              });
+              if(cutoffLabel!=='8R 締切 21:14')throw Error('Race cutoff missing: '+cutoffLabel);
+
+              const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+              if(overflow>1)throw Error('Horizontal overflow '+overflow);
+              // WebKit denies local file:// access to result fixtures; this is
+              // unrelated to browser layout and not a production HTTP failure.
+              const realFaults=faults.filter(message=>!(
+                message.includes('confirmed_results/')&&message.includes('due to access control checks')
+              ));
+              if(realFaults.length)throw Error('JS errors: '+realFaults.join('; '));
+              console.log('CLEAN_PR_MOBILE_'+engine.toUpperCase()+'_PASS');
+            } finally {await browser.close();}
+            }
+          })().catch(error=>{console.error(error);process.exit(1)});
+          JS

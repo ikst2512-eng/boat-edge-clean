@@ -65,6 +65,7 @@ jobs:
           cp -R confirmed_results public/confirmed_results
           test -s public/confirmed_results/202610270101.json
           test -s public/confirmed_results/202610310708.json
+          test -s public/confirmed_results/202611031911.json
           test -s public/index.html
           test -s public/navigation.js
       - name: Setup Pages
@@ -102,7 +103,7 @@ jobs:
                   continue
                 fi
                 result_ok=1
-                for RESULT_KEY in 202610270101 202610310708; do
+                for RESULT_KEY in 202610270101 202610310708 202611031911; do
                   RESULT_URL="${PAGE_URL%/}/confirmed_results/${RESULT_KEY}.json"
                   if ! curl --fail --silent --show-error --location --max-time 20 "$RESULT_URL" -o "/tmp/clean-deployed-${RESULT_KEY}.json" || ! cmp -s "public/confirmed_results/${RESULT_KEY}.json" "/tmp/clean-deployed-${RESULT_KEY}.json"; then
                     echo "Published confirmed result not yet identical: ${RESULT_KEY} (attempt $attempt)" >&2
@@ -193,16 +194,22 @@ jobs:
             const browser=await chromium.launch({headless:true});
             try{
               const page=await browser.newPage({viewport:{width:390,height:844}});
-              const key='202610310708';
+              for(const race of [
+                {key:'202610280101',date:'2026-10-28',venue:'01',race:'1'},
+                {key:'202610310708',date:'2026-10-31',venue:'07',race:'8'},
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11'}
+              ]){
+              const key=race.key;
               const original=await page.request.get('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/prospective_predictions/'+key+'.json',{timeout:30000});
-              if(!original.ok())throw Error('Oct 31 saved prediction inaccessible: '+original.status());
+              if(!original.ok())throw Error('Archived prediction inaccessible: '+key+' '+original.status());
               const saved=await original.json();
               if(saved.race_code!==key||saved.status!=='prospective_candidate'||saved.validated!==false)throw Error('Original candidate status changed');
               if(Date.parse(saved.source_cards_received_jst)<=Date.parse(saved.generated_at))throw Error('Expected test fixture no longer has receipt-order discrepancy');
               const url=new URL(process.env.PAGE_URL);
-              url.searchParams.set('date','2026-10-31');
-              url.searchParams.set('venue','07');
-              url.searchParams.set('race','8');
+              url.searchParams.set('date',race.date);
+              url.searchParams.set('venue',race.venue);
+              url.searchParams.set('race',race.race);
               url.searchParams.set('view','forecast');
               const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!response||response.status()!==200)throw Error('Published page HTTP '+response?.status());
@@ -211,6 +218,7 @@ jobs:
               const detail=await page.locator('#snapshotMeta').textContent();
               if(!detail.includes('正式採点対象外'))throw Error('Research-only warning lost');
               console.log('CLEAN_ARCHIVED_FORECAST_PROVENANCE_BROWSER_PASS',key);
+              }
             }finally{await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
@@ -225,10 +233,16 @@ jobs:
             const browser=await chromium.launch({headless:true});
             try{
               const page=await browser.newPage({viewport:{width:390,height:844}});
+              for(const race of [
+                {key:'202610280101',date:'2026-10-28',venue:'01',race:'1'},
+                {key:'202610310708',date:'2026-10-31',venue:'07',race:'8'},
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11'}
+              ]){
               const url=new URL(process.env.PAGE_URL);
-              url.searchParams.set('date','2026-10-31');
-              url.searchParams.set('venue','07');
-              url.searchParams.set('race','8');
+              url.searchParams.set('date',race.date);
+              url.searchParams.set('venue',race.venue);
+              url.searchParams.set('race',race.race);
               const response=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
               if(response?.status()!==200)throw Error('PUBLIC_PAGES_HTTP '+response?.status());
               await page.evaluate(async()=>{
@@ -242,14 +256,27 @@ jobs:
               const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
               if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
               if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
-              console.log('CLEAN_HISTORICAL_SIX_RACER_BROWSER_PASS 202610310708',status);
+              if(race.key==='202611031911'){
+                // Read the source actually accepted by the published frontend.
+                // Closed on the same calendar day must be research-only/read-only,
+                // never misrepresented as a verified predeadline source.
+                const card=await page.evaluate(()=>verifiedRaceCache.get(sameRaceKey()));
+                if(card?.meta?.phase!=='HISTORICAL_READ_ONLY'||
+                   card?.meta?.historical_reference_only!==true||
+                   card?.meta?.scoring!==false||
+                   card?.source_audit?.race_card?.predeadline_verified!==false)
+                  throw Error('SAME_DAY_CLOSED_CARD_NOT_READ_ONLY '+JSON.stringify(card?.meta));
+                console.log('CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS',race.key);
+              }
+              console.log('CLEAN_HISTORICAL_SIX_RACER_BROWSER_PASS',race.key,status);
               await page.evaluate(()=>setView('exhibit'));
               if(!(await page.locator('#exhibitionGrid').isVisible()))throw Error('PUBLIC_HISTORICAL_EXHIBITION_TAB_HIDDEN');
               const exhibition=await page.locator('#exhibitionGrid').innerText();
               if(!exhibition.includes('直前データ：未取得／公開待ち／取得記録の検証待ち')&&!exhibition.includes('直前データ：取得記録は締切前・Git初回登録未照合'))throw Error('PUBLIC_HISTORICAL_EXHIBITION_STATE_MISSING');
               const hasData=exhibition.includes('直前データ：取得記録は締切前・Git初回登録未照合');
               if(hasData&&!exhibition.includes('取得 6/6艇'))throw Error('PUBLIC_HISTORICAL_EXHIBITION_INCOMPLETE_VERIFIED_COUNT');
-              console.log('CLEAN_HISTORICAL_EXHIBITION_STATUS_BROWSER_PASS 202610310708',hasData?'verified':'unverified');
+              console.log('CLEAN_HISTORICAL_EXHIBITION_STATUS_BROWSER_PASS',race.key,hasData?'verified':'unverified');
+              }
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
@@ -267,12 +294,22 @@ jobs:
               const page=await browser.newPage({viewport:{width:390,height:844}});
               for(const race of [
                 {key:'202610272301',date:'2026-10-27',venue:'23',race:'1',finish:'1-2-5'},
-                {key:'202610310708',date:'2026-10-31',venue:'07',race:'8',finish:'1-4-6'}
+                {key:'202610280101',date:'2026-10-28',venue:'01',race:'1',finish:'4-1-3'},
+                {key:'202610310708',date:'2026-10-31',venue:'07',race:'8',finish:'1-4-6'},
+                {key:'202611021905',date:'2026-11-02',venue:'19',race:'5',finish:'1-3-4'},
+                {key:'202611031911',date:'2026-11-03',venue:'19',race:'11',finish:'1-5-3'}
               ]){
                 // Compare against the already published, byte-checked Pages archive.
                 // Requiring GitHub Raw here would fail despite a healthy same-origin result.
                 const archive=new URL('confirmed_results/'+race.key+'.json',process.env.PAGE_URL).toString();
-                const archived=await page.request.get(archive,{timeout:30000});
+                // Pages can briefly return a 503 just after deployment. Retry only
+                // transient transport/server statuses, never 404 or bad content.
+                let archived;
+                for(let attempt=0;attempt<4;attempt++){
+                  archived=await page.request.get(archive,{timeout:15000});
+                  if(archived.ok()||![429,500,502,503,504].includes(archived.status()))break;
+                  if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1500*(attempt+1)));
+                }
                 if(!archived.ok())throw Error('CLEAN published result unavailable: '+race.key+' HTTP '+archived.status());
                 const expected=await archived.json();
                 if(expected.race_code!==race.key||expected.status!=='confirmed'||expected.finish_order?.join('-')!==race.finish)throw Error('CLEAN archived result mismatch: '+race.key);
@@ -336,6 +373,18 @@ jobs:
                 if(['card','exhibit','forecast','result'].filter(key=>panels[key]).join(',')!==view)
                   throw Error('Tab visibility not exclusive: '+view+' '+JSON.stringify(panels));
               }
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              const shortcuts=page.locator('.race-detail-shortcuts button');
+              if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
+              if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
+              if(await page.locator('#forecastQuick:visible').count()!==0)throw Error('Duplicate race picker visible');
+              for(const view of ['forecast','card','exhibit','result']){
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
+                const active=await page.evaluate(()=>activeView);
+                if(active!==view)throw Error('Race shortcut did not activate '+view+': '+active);
+              }
+              const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+              if(overflow>1)throw Error('Mobile horizontal overflow: '+overflow+'px');
               // Actual archived-result values are asserted by the dedicated
               // 'Verify published CLEAN confirmed result in browser' step above.
               // Keep this step focused on the four navigation panels.

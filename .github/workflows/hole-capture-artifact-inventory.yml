@@ -1,0 +1,44 @@
+name: Hole capture artifact inventory (research)
+on:
+  pull_request:
+    paths:
+      - hole_capture_artifact_inventory.py
+      - test_hole_capture_artifact_inventory.py
+      - .github/workflows/hole-capture-artifact-inventory.yml
+  workflow_dispatch:
+  schedule:
+    # 16:10 UTC = 01:10 JST next day: read-only artifact monitoring.
+    - cron: "10 16 * * *"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_capture_artifact_inventory.py
+      - name: Inspect real scheduled capture artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python hole_capture_artifact_inventory.py > hole_capture_inventory.json
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_capture_inventory.json'))
+          assert r['formal'] is False and r['independent_first_receipt_verified'] is False
+          print('CAPTURE_RUNS', len(r['runs']))
+          print('FROZEN', r['total_frozen'], 'BUNDLE2', r['total_bundle2'])
+          print('FUTURE_LOCKED_DECLARED', r['total_future_locked_declared'])
+          print('RUN_DETAILS', [(x['run_id'],x['shadow']) for x in r['runs']])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-capture-inventory
+          path: hole_capture_inventory.json

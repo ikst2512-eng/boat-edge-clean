@@ -6,6 +6,10 @@ on:
       - "selection.html"
       - "selection_dual.py"
       - "server.py"
+      - "audit_clean_first_add.py"
+      - "compare_topn_signal70.py"
+      - "compare_topn_signal70_days.py"
+      - "evaluate_clean_prospective.py"
       - ".github/workflows/selection-public-smoke.yml"
   schedule:
     - cron: '50 15 * * *'
@@ -34,7 +38,7 @@ jobs:
             if [[ "$path" == /selection ]]; then
               grep -q '購入候補・並行検証' "$out" || { echo "::error::Selection page missing"; return 1; }
             elif [[ "$path" == /forecast ]]; then
-              grep -q '3連単予想' "$out" || { echo "::error::Forecast page missing"; return 1; }
+              grep -q 'id="predictionRows"' "$out" || { echo "::error::Forecast page missing"; return 1; }
             else
               python -m json.tool "$out" >/dev/null
               python - "$out" <<'PY'
@@ -58,22 +62,81 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --retry 2 --retry-delay 3 --max-time 45 -fLsS \
-            https://boat-edge-clean.onrender.com/api/signal70-holdout-status \
-            -o holdout-status.json
+          # Cold starts may return 503 while the evidence audit initializes.
+          # Retry boundedly; never accept a pending response as verified data.
+          for attempt in $(seq 1 12); do
+            code="$(curl --max-time 15 -sSL -o holdout-status.json -w '%{http_code}' \
+              https://boat-edge-clean.onrender.com/api/signal70-holdout-status)" || code="000"
+            if [[ "$code" == 200 ]]; then
+              break
+            fi
+            echo "holdout status attempt=$attempt http=$code"
+            python - <<'PYLOG'
+          import json
+          from pathlib import Path
+          try:
+              d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
+              print("holdout operational diagnostic:", {k:d.get(k) for k in
+                  ("error","running","elapsed_seconds","last_duration_seconds","last_error_type","worker_pid","process_uptime_seconds")})
+          except (OSError,ValueError,TypeError):
+              print("holdout response not valid diagnostic JSON")
+          PYLOG
+            if [[ "$attempt" == 12 ]]; then
+              echo "::error::holdout status did not become ready"
+              exit 1
+            fi
+            sleep 5
+          done
           python - <<'PY'
           import json
           from pathlib import Path
           d=json.loads(Path("holdout-status.json").read_text(encoding="utf-8"))
           assert d["schema"]=="CLEAN_SIGNAL70_HOLDOUT_STATUS_V1"
+          # The four frozen candidates passed full-history GitHub CI audit.
+          # A production mismatch is a real deployment/evidence defect.
+          probes=d.get("first_add_probes")
+          assert isinstance(probes,dict), "Render has not deployed first-add probes"
+          for code in ("202610301306","202610312412","202611011306","202611022412"):
+              proof=probes.get(code)
+              print("Production first-add probe:",code,proof)
+              assert isinstance(proof,dict) and proof.get("ok") is True, (
+                  "Render first-add audit differs from full-history CI: "+code)
+          # Require currently deployed diagnostic contract, not a stale HTTP 200.
+          assert all(key in d for key in ("archived_candidates","awaiting_result_races",
+                                        "audit_rejected_races","audit_rejection_reasons"))
+          reasons=d["audit_rejection_reasons"]
+          assert isinstance(reasons,dict) and "cutoff_failed" not in reasons, (
+              "Render is serving stale unsplit cutoff diagnostics")
+          assert sum(reasons.values())==d["audit_rejected_races"]
           assert d["discovery_day"]=="20261029"
           assert type(d["independently_validated"]) is bool
           assert type(d["later_holdout_days"]) is int and d["later_holdout_days"]>=0
           assert type(d["evaluated_holdout_races"]) is int and d["evaluated_holdout_races"]>=0
+          # A successful HTTP 200 from an older Render deployment is not
+          # sufficient to validate the newly deployed audit diagnostics.
+          for key in ("archived_candidates", "awaiting_result_races", "audit_rejected_races"):
+              assert type(d.get(key)) is int and d[key]>=0, f"missing {key}"
+          reasons=d.get("audit_rejection_reasons")
+          assert type(reasons) is dict, "missing audit_rejection_reasons (stale deployment)"
+          assert all(type(k) is str and type(v) is int and v>=0 for k,v in reasons.items())
+          assert sum(reasons.values())==d["audit_rejected_races"]
+          assert (d["archived_candidates"]==d["evaluated_holdout_races"]+
+                  d["awaiting_result_races"]+d["audit_rejected_races"])
+          # Archived post-discovery cohort has confirmed historical results.
+          # Prevent the earlier 550 archived / 0 evaluated regression from
+          # passing as a healthy HTTP 200. This is an operational smoke guard,
+          # not an assertion of independently validated forecasting accuracy.
+          if d["archived_candidates"]>=550:
+              assert d["evaluated_holdout_races"]>0, (
+                  "holdout audit regression: archived cohort has zero evaluated races")
           if d["later_holdout_days"]==0:
               assert d["evaluated_holdout_races"]==0
               assert d["independently_validated"] is False
           print("Public holdout schema OK; later days:",
                 d["later_holdout_days"],"evaluated:",d["evaluated_holdout_races"],
-                "independently validated:",d["independently_validated"])
+                "independently validated:",d["independently_validated"],
+                "archived:",d.get("archived_candidates"),
+                "awaiting result:",d.get("awaiting_result_races"),
+                "audit rejected:",d.get("audit_rejected_races"),
+                "rejection reasons:",d.get("audit_rejection_reasons"))
           PY

@@ -38,7 +38,8 @@ class CleanRacecardTests(unittest.TestCase):
                             p+"コース":str(lane),p+"スタート展示":"0.12"})
             return [row],"b"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=source):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertEqual(audit["status"],"ok")
         self.assertEqual(len(preview["racers"]),6)
         self.assertEqual(preview["start_exhibition"][0]["course"],1.0)
@@ -54,7 +55,8 @@ class CleanRacecardTests(unittest.TestCase):
                             prefix+"コース":str(lane),prefix+"スタート展示":""})
             return [row],"f"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=blank):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertIsNone(preview)
         self.assertEqual(audit["status"],"invalid_or_incomplete_exhibition")
 
@@ -70,7 +72,8 @@ class CleanRacecardTests(unittest.TestCase):
                             prefix+"スタート展示":"0.12"})
             return [row],"e"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=partial):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertIsNone(preview)
         self.assertEqual(audit["status"],"invalid_or_incomplete_exhibition")
 
@@ -80,7 +83,8 @@ class CleanRacecardTests(unittest.TestCase):
         with patch.object(clean_racecard,"_preview_rows",return_value=([{
             "レースコード":code,"締切時刻":"15:21",
             "取得日時":"2026-10-30T15:22:00+09:00"}],"c"*64)):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertIsNone(preview)
         self.assertNotEqual(audit["status"],"ok")
 
@@ -96,7 +100,8 @@ class CleanRacecardTests(unittest.TestCase):
                             prefix+"コース":str(lane),prefix+"スタート展示":"0.12"})
             return [row],"9"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=unrelated):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertIsNone(preview)
         self.assertNotEqual(audit["status"],"ok")
 
@@ -144,7 +149,8 @@ class CleanRacecardTests(unittest.TestCase):
             if kind=="stt":return [],"f"*64
             return [{"レースコード":code,"締切時刻":"15:21","取得日時":"2026-10-30T15:22:00+09:00"}],"a"*64
         with patch.object(clean_racecard,"_preview_rows",side_effect=fetch):
-            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline)
+            preview,audit=clean_racecard._fetch_preview(code,"2026/10/30.csv",deadline,
+                clock=lambda:datetime.fromisoformat("2026-10-30T15:19:00+09:00"))
         self.assertIsNone(preview)
         self.assertEqual(audit["source_status"],{
             "tkz":"source_unavailable",

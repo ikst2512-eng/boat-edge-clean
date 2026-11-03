@@ -1,7 +1,161 @@
+## 2026-11-04 JST サイト担当：既存PR #786の競合解消と開催場選択の安全ガード（レビュー中）
+- Render My WorkspaceでCLEAN main `d88fa2e` がlive、HEAD/GETルート200を確認。これはレースAPI全件正常の証拠ではない。
+- 既存draft PR #786は旧mainとの競合があり、そのまま統合できないため、同じPRブランチを元コミットを保存したmerge commitで現行mainへ追随。現行`index.html`で全件確認済み開催日程の場合のみ、非開催場・非開催レースを選べないようにする。日程の一部取得・過去結果からの復元・未公開・取得失敗は選択可能のままとし、存在しないデータを作らない。
+- 対象は`index.html`と既存`tests/site-regression.cjs`のみ。予想モデル、原本、検証、旧リポジトリ、収集ジョブは変更しない。
+- PR CIと公開ブラウザでの同一レース4タブ動作・iPhone Safari実機・旧サイト移行ゲートは完了判定前に確認。PR作成だけを本番修正完了とはしない。
+
 # BOAT EDGE CLEAN — 作業引き継ぎ / WORK STATUS
 
 更新日: 2026-11-01 (JST)
 この文書は会話をまたぐ運用上の引き継ぎ。下記の「過去会話による報告」は今この文書を作成した時点での本番再検証を意味しない。実際のGitHub/CI/Render/公開URLの状態を調べ、確認できた証拠で更新する。
+
+## 2026-11-03 オッズ代替起動のPR由来in-progress誤抑止修正
+- PR #1439をmainへsquash統合（`eabadf9520ca543ec16bb2c1c611d3e8a6e8329a`）。`scripts/gate_live_odds_event.py` の prior_fallback_guard が、運用対象と別concurrency groupで実行中のPR由来no-opを無条件に「先行監視あり」としていた問題に対応。既存の #1424 の operational-group直列化を前提に、未完了runを重複成功証拠として扱わず、完了runの有効HTTP200 artifact検証は維持。
+- `tests/test_gate_live_odds_event.py` の回帰ケース更新と、in-progress no-opの後ろにある完了済み有効fallbackを検出する新規テストを追加。PR CI `41635745512` / job `125916357820` success（PRイベントであり無人監視成功には算入しない）。
+- 2026-11-04 12:25/14:25/16:25 JSTの実際のschedule・fallback・有効HTTP200・二重計上は未実証。既存18:00 JST自動監査（ID `6ae9b1a3021481919940f077e05cf620`）は有効。独立Render Cron Jobは未作成、追加料金発生なし。
+- 次の最優先: 11/4実測で3枠の時間内起動、GitHub代替起動、HTTP200、artifact、重複を確認。独立スケジューラの導入は遅延再発や費用判断を踏まえて別途行う。
+
+## 2026-11-03 オッズ監視の直接PR・手動起動を定時監視キューから分離
+- PR #1444 を main にsquash統合（`0b5a632e468906b038ae35a5934037054ff6c993`）。既存 `.github/workflows/live-official-odds-probe.yml` では、前回 #1424 で上流PR/push-origin workflow_run は分離済みだったが、同workflowの直接 `pull_request` と `workflow_dispatch` は通常schedule/正規fallbackと同じconcurrency groupに残っていた。PRや手動実行の増加による定時監視遅延リスクを低減するため、それぞれ固有run IDの独立groupに分離。
+- 正規 `schedule` と上流schedule由来 `workflow_run` は同じoperational groupを維持し、`queue: max` と `cancel-in-progress: false` を維持。既存 `tests/test_gate_live_odds_event.py` にPR/手動分離アサーションを追加。
+- PR CI `41636820914`, job `125919997271` 結果success。**これはPRイベントの成功であり無人監視成功としては計上しない**。11/4の12:25・14:25・16:25 JST実起動と有効HTTP200/artifact/重複なしの実証は引き続き未完了。Render有料Cron Jobは作成していない。
+- 11/4 18:00 JST既存の自動監査タスクにより実レースで監視する。次の変更は実測エラーに基づく最小修正のみとする。
+
+## 2026-11-03 オッズHTTP試行時刻の原本保存を強化
+- PR #1457をmainへsquash統合（`aa89335932f33bd7da29f55b63b9dec16ba155dc`）。`scripts/probe_live_odds_health.py` の各HTTP試行に、UTCタイムゾーン付きの `started_at_utc` と `finished_at_utc` を追加。HTTP 202/timeoutの再試行も各試行ごとに保持し、実際の取得時刻とワークフロー起動時刻を分けて照合できるようにした。既存 `http` / `state` / `latency_ms` / 判定 / 再試行回数は変更なし。
+- `tests/test_probe_live_odds_health.py` に時刻の範囲・UTC・前後関係と202→200の各試行時刻の回帰検査を追加。PR CI `41639712885` job `125929823560` success（テスト16+14+34+5件。PR実オッズHTTP200は2/2、ただし無人取得成功には計上不可）。
+- 旧artifactは試行単位のUTCタイムスタンプを持たないため、過去の取得時刻を推定・捏造しない。11/4 12:25/14:25/16:25 JSTの新しい無人schedule/正規fallbackだけ、artifact内試行時刻・event・上流created_atを照合して時間内監視と有効HTTP200を別々に監査する。
+- 別系統のRender Cron Jobは作成していない。実運用の定時起動復旧は未実証。
+
+## 2026-11-03 オッズHTTP時刻証拠の整合性監査
+- PR #1460をmainへsquash統合（`27a683b4e5904c90f1ffca90e0fadd06cb2005a9`）。PR #1457で追加した `started_at_utc` / `finished_at_utc` は保存済みだが、監査の共通 `consistent_attempts` では未検証だったため、既存の共通判定処理で全試行の時刻フィールド完全性、UTCタイムゾーン、開始<=終了、再試行間の時間順序を検証するよう変更。不完全・矛盾データを有効HTTP200の監査証拠として採用しない。
+- 旧artifactのタイムスタンプ無し試行はレガシー記録として従来どおり評価対象。ただし精密な時刻を証明する資料ではないことを維持。
+- 回帰試験で時刻欠落、時系列重複、逆転、非UTC、無効形式、旧形式受理を確認。CI run `41640266343` / job `125931722696` success（既存/追加72件のテスト成功、PR実測オッズ2/2 valid_200）。**PR実行は無人起動成功に算入しない。**
+- 11月4日の実schedule/正規fallbackの時刻内成功・artifact原本・二重計上なしの確認は引き続き未完了。費用を伴う独立Render Cronは未作成。
+
+## 2026-11-03 オッズ試行時刻と監視実行開始の照合
+- PR #1464をmainへsquash統合（`ef22fe6f52d08c010c8359aaa9df29623df74f06`）。前回のHTTP試行UTC時刻の整合検証に加え、新形式の試行開始・終了時刻が記録全体の `checked_at_jst` に結びつくことを共通 `consistent_observation_times` で確認する。過去runのHTTP200を別のrunへ取り違えて成功扱いする誤監査を防止。既存の履歴・厳格な運用判定・fallback重複判定の3経路に適用。
+- 監視開始時刻から1分前〜60分後を許容境界とし、日付・タイムゾーン矛盾、別runのHTTP試行は除外。旧保存成果物に時刻項目が完全にない場合は従来どおりのlegacy観測として維持し、正確な時刻内カバレッジには使用しない。
+- PR CI `41640853800` / job `125933713506` success。16+14+39+5件のテスト成功、PR実測HTTP200は2/2。**PR実行は11/4定時監視の証拠に算入しない**。GitHub自身のschedule起動遅延は引き続き未実証・未解消。
+- 11/4 12:25/14:25/16:25 JSTの実運用で、実起動時刻、HTTPの実取得時刻、有効200、各監視枠のcoverage、代替起動の二重計上防止を確認する。新しいRender Cron Jobは作成していない。
+
+## 2026-11-03 22:14 JST オッズ監視cron登録の更新（実行数・時刻は不変）
+- 直近の14日保存監査では、対象の直接schedule監視10枠のうち90分以内の発火確認0枠。PRテストでの有効HTTP200は確認されているが、PR実行は無人監視成功として計上しない。
+- GitHub公式では、定時ワークフローが停止してもworkflow_dispatchは動く場合があり、write権限を持つユーザーによるcron構文の変更コミットがワークフローを再有効化することがあると説明。今回の原因がactor停止だったと確定したわけではない。
+- PR #1469 をmainへsquash統合（`ea405fe7d0d58cdf5955d8339b6b245015456de9`）。`.github/workflows/live-official-odds-probe.yml` の一つのcron `25 3,5,7 * * *` を、同じ3時刻の `25 3 * * *` / `25 5 * * *` / `25 7 * * *` に分割。起動時刻・回数・queue・代替起動条件・API/保存方式は変更していない。既存テストに監視時刻の不変性を明示するチェックを追加。
+- 初回PR CI run `41642430787` は新規テストの正規表現エスケープミスで失敗したため修正。再実行CI `41642522805` / job `125939365698` はsuccess、テスト17+14+39+5件、PR実測HTTP200は1/1。**PRの成功は本番定時復旧の実証ではない**。
+- 次: 2026-11-04 12:25/14:25/16:25 JST の実際のschedule run ID、作成時刻、HTTP試行時刻、artifact、90分以内カバレッジ、fallback・重複を直接監査。失敗継続時はGitHubに依存しない起動経路を検討。Render Cron Jobは毎月最低$1の有料サービスのため、現時点で未作成。
+
+## 2026-11-03 22:21 JST オッズ監視の採取優先化
+- PR #1474 をmainへsquash統合（`2a35e765ca5faea3c6c8a9073250205e13069eb4`）。定時schedule/正規上流fallbackの8分制限で、従来は回帰テスト4群を実行してからHTTP採取、14日履歴収集後に厳格な運用判定を行っていた。この順序では検査やGitHub履歴APIの遅延が締切前のHTTP測定・判定を妨げるため、イベントゲート→HTTPサンプル採取→無人イベント厳格判定を最優先に変更。
+- 回帰テスト4群はPR/手動QAのみ実行し、定時・正規fallbackでは実施しない。既存の履歴集計はその後で実行し、`if: always()`の原本artifact保存は維持。**GitHubのcron発火時刻そのものの問題は本変更では解決できない**。
+- 初回PR CI `41643399710` は追加テストの改行表現誤りにより失敗し、修正後CI `41643529189` / job `125942790872` はsuccess。回帰試験18+14+39+5件、PR HTTP200 1/1を確認。PRは無人監視の分子に含めない。
+- 2026-11-04 12:25/14:25/16:25 JSTの本番検証では、schedule/fallback eventの発火と、起動後HTTP試行が診断テストより先に実施されることを別々に検証。Renderの独立Cron Jobは未作成・追加費用なし。
+
+## 2026-11-03 22:26 JST 無人オッズ監視失敗時の履歴証拠保存修正
+- PR #1481をmainへsquash統合（`d8268ae3138917f4dc834475317315135a8ca84e`）。直前の #1474 によるHTTP採取→厳格判定の先行処理後、厳格判定が失敗するとGitHub Actionsの暗黙の`success()`条件で14日履歴集計がスキップされる不具合を修正。
+- 既存の`.github/workflows/live-official-odds-probe.yml`で履歴集計に`if: always() && steps.gate.outputs.collect == 'true'`を指定し、**無人の無効HTTP/取得失敗でも履歴比較を作成**する。厳格な無人HTTP200判定失敗はそのまま赤（失敗）を維持し、PR/手動QAの実行条件、always raw artifact保存、cron時刻3枠は不変。
+- CI run `41644291458` / job `125945428231` はsuccess。テスト19+14+39+5件成功、PR実測HTTP200 1/1。ただしPRは本番無人監視のカバレッジに算入しない。**実際に失敗した無人ジョブで履歴成果物が残ることは未実証**。
+- 11月4日の無人実測は、schedule run created_at、HTTP開始/終了、厳格な判定、raw odds metricsと14日履歴artifactの有無を、成功・失敗にかかわらず照合する。Cron起動遅延そのものは未解決、独立Render Cronなどの有料ジョブは未作成。
+
+## 2026-11-03 22:35 JST オッズ14日間履歴集計の時間上限を追加
+- PR #1484をmainへsquash統合（`1e652e4295ed6da5a90059e6e77cba12f984f8a8`）。オッズ無人監視のジョブ制限`timeout-minutes: 8`に対し、任意の14日履歴集計は最大250件の過去run成果物をGithub APIで確認し、期限超過すると後続の`if: always()` artifact upload自体がジョブ打ち切りで実行できないリスクがあった。
+- 既存履歴集計コマンドのみ`timeout --signal=TERM --kill-after=5s 60s python scripts/summarize_live_odds_history.py`に変更。履歴集計がタイムアウトした場合は明示的に失敗させ、後続の常時アップロードステップによる`live_odds_metrics.json`原本保存の機会を確保する。履歴監査を成功したことにはしない。監視の先行する厳格HTTP200判定・cron時刻・代替起動・収集APIは不変。**ジョブ全体の8分上限による証拠欠落可能性は完全には排除できない**。
+- PR CI run `41645484616` は従来回帰テストがコメント全文固定チェックを行うため失敗し、コメント変更に依存しないテストへ改善して再実行。`41645584262` job `125949925323` success、20+14+39+5=78件の回帰テスト成功、PR HTTP200は1/1（無人定時起動成功には含めない）。
+- 11/4の実測では無人schedule/正規fallbackの成功・失敗runから、開始時刻、HTTP証拠、履歴ステップの実行時間、タイムアウト失敗時のartifact有無を確認。Render有料Cronは未作成。
+
+## 2026-11-03 22:45 JST 過去日の開催場表示フォールバック拡張（P0）
+- PR #1488 main統合（`2094545487ddf4ce0fda4b400946f4fbdadb9b43`）。`index.html`の`loadHeldVenues`で、GitHub Rawの日付別`schedule_snapshots`取得が通信例外やHTTP 403/429になると、**過去日でも既存のCLEAN日程API→日付一致の結果CSV開催場復元へ進まない**コード分岐を修正。過去日に限り、アーカイブの通信エラーまたは任意の非OK HTTPレスポンスで既存の代替経路を試す。正規アーカイブ200優先、当日/未来の404未公開表示・結果混入防止・予想締切前判定は不変。
+- 既存`tests/site-regression.cjs`を更新し、GitHub Rawの通信障害・403/429・5xxで過去日の代替分岐が存在することを静的に確認。PR CI `41646893137` のcheckとpublish-smoke成功、`41646893036` のnavigation-contractとbrowser-pr-smoke成功。ほかにDaily findings/official odds/cross-model/dual verification/entry-orderのPR checksも成功。CIは**公開本番ブラウザの実測ではない**。
+- RenderでこのPRコミットに対応したデプロイ成功、本番APIとPagesの公開画面実機確認は別に行う。2026-10-31等の過去レースで開催場→出走表→予想→結果が通し表示されるか未実証のため、P0は完了扱いにしない。
+- 旧リポジトリ`boat-edge`削除なし。現在確認されたRender workspace内Webサービスは`boat-edge-clean`1件で、現行フロント主要API・スナップショット通信先はCLEAN系。旧GitHub Pages/外部リンク/古い資産の参照関係が完全に除去済みとはまだ確定しないため、破壊的な整理は保留。
+
+## 2026-11-03 22:56 JST 公開Pages P0過去レース実ブラウザ検証・公開ジョブ修復
+- 10/31蒲郡8R（race `202610310708`）のGitHub main原本に日程 `schedule_snapshots/20261031.json`、研究予想 `prospective_predictions/202610310708.json`、確定結果 `confirmed_results/202610310708.json` が存在。予想は研究・未検証・正式採点不可。確定結果原本は`1-4-6`。
+- Render実リクエストログに2026-11-02 UTC 11:24以降、同日程API、蒲郡8R `/api/clean-racecard`、`/api/four-mode-archive` のHTTP200履歴あり。HTTP200単体は描画証拠ではない。
+- PR #1488のPages本番公開run `41647288225` は、deployと公開ファイルのバイト同一性チェックが成功し、**公開ブラウザ**の10/31研究予想注意、6艇の出走表、展示の未検証状態表示、確定結果`1-4-6`の全検査に成功。しかし最後の`Browser-check deployed page`が`shortcuts.locator(...)`を用いてボタン内に別のボタンを探す誤セレクタで30秒タイムアウトし、ワークフロー全体はfailure。
+- PR #1493をmainへsquash統合（`d579caaf1029035b5a6de48ea59270b97d393d1e`）。既存`.github/workflows/deploy-pages.yml`の公開ブラウザ4タブ操作を`page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]')`に修正し、`tests/site-regression.cjs`に退行防止チェック追加。PR CI run `41648593757` のsite-regression/checkとpublish-smokeが成功。
+- main push後の**実Pages公開run `41648715496` / job `125960842659` がsuccess**。GitHub Pagesへdeploy、公開HTML/JS/確定結果2件のバイト同一性検証、公開Chromiumブラウザ上で10/31蒲郡8R研究予想（時刻証拠未検証表示）、6艇出走表、展示の未検証状態、確定結果`1-4-6`、4タブの実操作、390px幅のナビ検査が全て成功。10/27の確定結果`1-2-5`も公開ブラウザで成功。公開URL `https://ikst2512-eng.github.io/boat-edge-clean/?date=2026-10-31&venue=07&race=8&view=forecast`。
+- **P0の過去レース表示は当該サンプルで本番実証成功**。全過去日・全24場についての可用性や、展示値の独立した事前取得証明は未実証。正式予想の初回Git受信時刻・的中率も引き続き未検証。旧リポジトリの削除は依存調査完了前なので未実施。追加料金・追加Pages workflowはなし。
+
+## 2026-11-03 22:58 JST 旧サイト参照の限定監査（削除なし）
+- 現行`index.html`と`server.py`を検査し、`github.com/ikst2512-eng/boat-edge`（末尾に`-clean`が付かない旧リポジトリ）や旧GitHub Pagesへの実際のURL参照は今回確認した範囲では見つからなかった。`index.html`には旧互換の選択UI DOMに関するコメントがあり、依存・利用状況確認前に削除しない。
+- Render workspace `tea-db8svlcs728c73avi3h0`のサービス一覧で、Webサービス`boat-edge-clean` 1件を再確認。GitHub Pagesの現行公開先は`https://ikst2512-eng.github.io/boat-edge-clean/`で、2026-11-03 main push Pages run `41648715496` が成功。
+- これは**現行フロント/サーバーの限定的な旧URL参照監査**であり、全ブランチ、別サービス、外部ブックマーク・DNS・外部参照元まで旧サイト依存がゼロと証明したものではない。旧リポジトリ`boat-edge`と互換DOMの破壊的削除は引き続き行わない。
+
+## 2026-11-03 23:17 JST 過去日・前日・複数会場の公開Pages実証（P0）
+- PR #1497をmainへsquash統合（`a191f382ab1b4d13fc7f0c6ad1b8ccc41e021ba1`）。既存Pages公開ワークフローの実ブラウザ検証を、2026-10-28 桐生1R `202610280101`、2026-10-31 蒲郡8R `202610310708`、2026-11-02 下関5R `202611021905`に拡張。GitHub本体に日付別の研究予想10点と確定結果原本が存在することを個別確認。結果はそれぞれ4-1-3、1-4-6、1-3-4。研究予想は未検証・正式採点対象外、結果から予想を再生成しない。
+- 初回main Pages run `41651237227` は公開ページ・3レースの研究予想の未検証警告・6艇の過去出走表・展示の未検証状態のブラウザ検査まで成功。しかし結果JSON `202610272301` のPages一時HTTP503で結果チェックが失敗。失敗runの単純な再実行は同名`github-pages` artifactが2個作られ、deploy-pagesが二重artifactを拒否したため不可。
+- PR #1502をmainへsquash統合（`af5098d100b23bfb148598d60c064a2e2d56c4b2`）。既存Pages公開ジョブの**結果JSON配信検証だけ**に429/500/502/503/504対象、最大4リクエストの短い再試行を追加。404・結果相違・取得失敗は不合格とし、別ソースへのすり替えなし。PR CI run `41651731854` の静的チェック・公開ブラウザ相当スモーク双方success。
+- 新規main push Pages run `41651910901` / job `125971983717` は**complete/success**。実際の公開URL `https://ikst2512-eng.github.io/boat-edge-clean/`でHTML/JS/確定結果原本のバイト一致、3レースそれぞれの研究予想未検証表示・6艇出走表・展示の未検証状態・確定3連単4-1-3/1-4-6/1-3-4をChromiumブラウザで検証成功。既存10/27の結果1-2-5の表示と全4タブ操作も成功。PR CIを本番証拠に代用せず、main pushの実Pages検証を正本とする。
+- この3レースは歴史的出走表・研究予想・結果の表示成功実例。**全24場/全日/当日レース、iPhone Safari実機、展示測定値の独立した締切前取得、正式的中率は未実証**。次の最優先は当日/前日の非表示再発例を別途確認し、旧サイト/互換DOMの不要資産は利用箇所を証明してから安全に整理する。旧リポジトリ削除なし、新規ワークフロー/有料サービスなし。
+
+## 2026-11-03 23:37 JST 当日締切済みレースのP0表示修復・公開Pages実証
+- 11/3下関11R（`202611031911`）のGitHub原本に当日日程、研究予想10点 `prospective_predictions/202611031911.json`（`formal=false`, `validated=false`）、確定結果 `confirmed_results/202611031911.json`（1-5-3）が存在することを確認した。当初Pages本番run `41653231507` では研究予想注意文を表示できたが、出走表6艇が0件。Render log `GET /api/clean-racecard?hd=20261103&jcd=19&rno=11` HTTP422。原因は`clean_racecard.py` が過去レースを日付が昨日以前かで判定し、11/3の22:20締切後も23時台に締切前証拠を要求する誤判定だった。
+- PR #1513をmainへsquash統合（`1fc55a544eac01452b15e73c9296f68a219760ee`）。レースの確定締切時刻と現在時刻を比較し、**当日でも締切後は`HISTORICAL_READ_ONLY`、`historical_reference_only=true`、`scoring=false`** とする。取得した出走表を締切前に取得済みと偽装しない。`tests/test_preview_completeness.py` に締切直前/同時/直後/翌日/タイムゾーンなしの境界テストを追加。ナビ契約、6艇パーサー、代替feed等のPR CI成功。Renderデプロイ `1fc55a54` live確認。
+- 公開判定を強化したPR #1516をmainへsquash統合（`227472997352b27ac221e9451ab36203c8e8396f`）。Pages公開ブラウザの11/3下関11R出走表テストで`verifiedRaceCache`に受理された現物を読み、HISTORICAL_READ_ONLY/正式採点不可/締切前取得未証明を必須確認。最初の本番run `41654514126` は10/31蒲郡8Rの出走表が一時取得失敗し、下関11R確認前に終了。
+- PR #1520をmainへsquash統合（`9a8d343c34791ca198fd35ed9f327c78edbebf26`）。既存`index.html`の`loadRaceData`でRender出走表APIの通信例外/HTTP429/500/502/503/504のみ最大3回の短い再試行を導入し、非同期レース切替のtoken/同一race keyを毎回チェック。404/422・証拠不正・6艇不完全は許容しない。PR初回CIは静的テスト抽出範囲ミスで失敗、修正後CI run `41655232585` のcheck/publish-smoke成功。
+- **main push Pages本番run `41655377223` / job `125984145558` complete/success**。GitHub Pages公開URLのChromium 390px幅実ブラウザで、11/3下関11Rの研究用予想注意表示、6艇出走表、`CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS`、展示の未検証状態表示、確定結果`1-5-3`を確認。以前の10/28桐生1R・10/31蒲郡8R・11/2下関5Rの3実レースも予想注意文/6艇出走表/結果全て成功。10/27の確定結果も表示成功。公開HTML/JS/保存済み確定結果のバイト一致と4タブ操作も成功。
+- P0の**当日締切済みレースと複数過去日**で公開ブラウザ表示成功の証拠を確保。ただし当日締切前の実表示・全24場・iPhone Safari実機・展示タイムの真正な締切前証明・正式Top3/5/10的中率は未実証。研究予想は未検証のままで採点しない。旧リポジトリ削除なし。新規有料サービス・重複ワークフローなし。
+
+## 2026-11-03 23:48 JST 締切前展示の予定実行でゼロ証拠を誤成功扱いしない
+- GitHub Actions実行原本を再確認：`Check real live predeadline racecard` の2026-11-03 JST16:04頃の予定実行 `41593838820` / job `125776466301` は `CARD_PASS` 3レース、`EXHIBITION_PASS` 1レース（`202611030103`）だが、締切12分前のAPI受領・2元展示がそろった証拠がなく`T12_UNVERIFIED`でfailure。2026-11-02のrun `41400724125` も正規締切前展示は未実証。2026-10-31のrun `41190323532` は一度PASSしたが、その1件だけで継続安定稼働とは認めない。
+- 別系統 `CLEAN today's predeadline exhibition source probe` の11/3無人schedule run `41631033275` / job `125900347136` は、実CSV tkz/stt/sui の各151行を読めたが、すべて `eligible_future 0`、アダプタの検証も0件なのにジョブがsuccess。これは**実HTTP CSV取得成功と、締切前の6艇展示データ取得成功を混同する誤った緑判定**。
+- PR #1528をmainへsquash統合（`3a6c794acca6885bebaa941b6895eb2b79ec0b22`）。既存 `scripts/probe_today_beforeinfo.py` をHTTP実行せずimportできる`run(now,event_name)`に整理。**schedule実行では**「全情報源不通」「締切前のtkz/stt同一レース一致ゼロ」「アダプタで6艇検証ゼロ」を別々のRuntimeErrorで失敗扱いにし、6艇検証>=1でのみ `SCHEDULED_PREVIEW_VERIFIED` を出す。手動workflow_dispatchとPRは診断専用で従来どおり0件でも診断結果を返す。T-12基準は緩和していない。
+- 新設 `tests/test_today_beforeinfo_probe.py` で、0件、アダプタ不完全、全情報源不通、6艇証明成功、手動0件の5パターンを独立時計/モックで検証。既存 `.github/workflows/today-beforeinfo-probe.yml` のPR実行にテストを追加。PR CI run `41657163439` job `125990433208` success、5テストPASS。PR上の実CSV取得は23:47頃JSTですでに締切前レース0件であり、**PR成功を当日締切前の運用証拠とは呼ばない**。
+- 既存 schedule は 13:15 / 15:15 / 17:15 / 19:15 JST のまま。GitHub cron遅延により締切後に起動する可能性は引き続き未解決。次は11/4の実schedule run ID・開始時刻・同一レースの両展示ソース時刻・6艇完全性・T-12成立可否を実観測する。新しいジョブや有料サービス、予想ロジック変更なし。
+
+## 2026-11-04 JST 締切前展示の実検証完了時刻を再チェック
+- 2026-11-03 schedule実行の独立検証で、`CLEAN today's predeadline exhibition source probe` は実行開始時点`now`で今後の同一レースtkz/sttを抽出してから`_fetch_preview`を実行していた。取得処理がレース締切をまたいだ場合、実データの検証完了時刻と締切時刻を再比較せず`SCHEDULED_PREVIEW_VERIFIED`に昇格する経路があった。発生頻度は未実測だが、ロジック上の誤証明可能性がある。
+- PR #1534 main squash `a6c80d5f2ffe6d3ba333dda3fd7fde83e5d4f7ce`。`scripts/probe_today_beforeinfo.py`でアダプタ戻り直後のタイムゾーン付き実時刻を再取得し、締切以上・タイムゾーンなしを`cutoff_passed_before_receipt`として6艇の締切前成功に数えない。成功時は`received_at_jst`をログに残す。既存ソース照合、6艇完全性、T-12判定ロジックを緩めない。時計を注入可能にし、締切直前成功・締切同時拒否の境界回帰を追加。
+- PR CI run `41661183224` job `126004484149` success。7回帰テストPASS、実CSVのPR診断は夜間のため締切前レースが無く、**本番scheduleやT-12実証ではない**。
+- 次の実運用監査は11/4予定13:15/15:15/17:15/19:15 JSTのschedule run ID、起動時刻、6艇検証完了ログ`received_at_jst`、同レースの期限、tkz/stt原本、T-12取得・API返却の各時刻を照合する。旧リポジトリ、予想、UI、スケジュール回数は変更なし。
+
+## 2026-11-04 JST 締切前展示CSVの情報源別HTTP受信時刻を採用
+- PR #1538をmainへsquash統合（`2b886487aabd3a3982af0324d49a525c4ada3418`）。`scripts/probe_today_beforeinfo.py`では、対象日を決めたスキャン開始時点の`now`に対して、後で逐次取得した`tkz/stt/sui`CSV行の独立取得時刻`取得日時`を比較していたため、ネットワーク取得中に新しく公開された正規の締切前スナップショットを未来時刻として誤除外する可能性があった。
+- 各`_preview_rows` HTTP完了の直後に時計を再読込し、情報源ごとに`source_received_at_jst`を記録。スナップショットの公開時刻 <= 実HTTP受信完了時刻、公開時刻 < レース締切時刻、HTTP受信完了時刻 < レース締切時刻を同時に必要とする。締切をまたいだアダプタ検証の事後時刻拒否（PR #1534）、同一レースtkz/stt・6艇完全性・予定実行ゼロ成功拒否（PR #1528）は維持。T-12判定の緩和なし。
+- 既存`tests/test_today_beforeinfo_probe.py`へ「取得中に公開された正しい新データ」「HTTP受信後に公開されたように見える未来データ」「締切ちょうどの受信」の3パターンを追加し、もともとの7件を含め計10件。初回PR CI run `41662839171`は時刻注入テストが取得元も締切後の設定になっていたため1件失敗。正しく取得元3件だけ締切前・アダプタ後締切後に直し、再CI run `41662956963` / job `126010681112` success、10件全成功。PRで実CSVを取得した成功は無人運用T-12成功に含めない。
+- 最新GitHub APIのevent=schedule上位実行履歴では、確認時点で11月4日分の`CLEAN today's predeadline exhibition source probe`および`Check real live predeadline racecard`実runを発見できず、**11/4の実行が発火しなかったと断定できる時刻・十分な検索範囲とは限らない**。11月4日の本番T-12成立は未実証。既存の22:00 JST自動監査で対象run、受信時刻・期限・GitHub起動遅延を独立照合する。
+- 既存スケジュール・予想ロジック・買い目・4タブ・ソースURLを変更せず、追加費用なし。
+
+## 2026-11-04 00:30 JST 実レースT-12検証対象の選択順と不成立理由の可視化
+- PR #1541をmainへsquash統合（`5cfaa9a935d065da6085379bf48df964d86f8561`）。既存`scripts/verify_live_racecard_e2e.py`は、候補に「締切まで2分超」のみ要求し、プレビュー一致→早い締切順で最大3件を選ぶため、まだT-12実測可能なレースを他候補が押し出す問題があった。T-12のAPI受信には**検証時点で締切まで12分超**が必要であり、標本選択による機会損失の修正。
+- 新しい純粋選択ヘルパー`scripts/live_racecard_candidate_priority.py`で、T-12時刻枠が残る候補を最優先、次にtkz/stt一致プレビュー、次に締切時刻で並べる。T-12不可能な候補も出走表・展示診断用に保持し、成功の偽装なし。
+- 選択した最大3レースについて`T12_SAMPLE_STARTED`を出し、締切・候補時点のT-12機会有無を記録。6艇展示がそろってもT-12不成立の場合、`T12_PAIR_NOT_VERIFIED`に各tkz/stt公開時刻、API応答受信時刻、T-12境界、どの時刻条件が不成立だったかを記録。`T12_COMPLETE_PAIR_PASS`には従来通り両元時刻とAPI受信時刻の実際の条件を必須とする。
+- 既存`.github/workflows/live-racecard-e2e.yml`のPR syntaxジョブに4件の決定的な回帰テストを追加。PR run `41664174030` はsyntax/過去出走表/確定結果/オッズの4ジョブsuccess、**e2e-live-raceはPRのためskipped**。CIが成功しても無人実レースT-12取得成功とは扱わない。GitHubの予定実行が予定時刻から遅れる問題と情報源の公開遅延は未解決。
+- 既存ジョブの予定時刻09:30/12:30/14:30/16:30/18:30/21:30 JST、買い目、予想ロジック、画面、有料サービスは不変更。次は11月4日の実scheduleで選択対象・受信証拠・T-12成立数を独立監査する。
+
+## 2026-11-04 JST 実schedule深夜起動とT-12展示候補の受信時刻整合性
+- GitHub Actionsのschedule event実行 `41663438908`（run start 2026-11-03 15:23:45 UTC = 11/4 00:23:45 JST、head `9cd5cd9e7aab4be5137a848422189c584201a004`）では、11/4の出走表3レース `202611042101`、`202611041001`、`202611042102` はCARD_PASSだが、tkz/stt/suiはいずれも`source_unavailable`、展示/進入0レースで`NO_SIX_BOAT_PREDEADLINE_EXHIBITION_VERIFIED`のfailure。予定cronは09:30/12:30/14:30/16:30/18:30/21:30 JSTだが、このrunがどの予定枠に対応するかの原本は未特定。前日21:30 JST予定からの遅延である**可能性**は高いが、遅延時間の確定値にはしない。
+- PR #1543 main squash `ca041863997ecaf5c70bb88962fdff18cf9265fa`。`scripts/verify_live_racecard_e2e.py`は無人scheduleの日本時間09:00〜22:59以外で`SCHEDULED_LIVE_SAMPLE_OUTSIDE_JST_RACING_WINDOW`を出し、適格性なしとして失敗。日付が変わった後の翌日未公開展示を通常の展示ソース障害成功/失敗と混同しない。手動診断での時間帯制約は追加しない。
+- 以前の`PREVIEW_CANDIDATES`評価では独立したtkz/sttの各HTTP読込後の`取得日時`を開始時刻とではなく最新の評価時刻で複数回比較していた。これを各情報源のHTTP読込完了直後の`source_received_at_jst`で固定し、取得日時<=受信完了時刻、両時刻が締切より前かつ当日レース一致の場合だけ候補にする。受信後時刻や締切後のデータを成功扱いしない。ソース取得終了後`selection_at_jst`で候補を再順位付けしてT-12残余時間を確認する。API側の締切12分前受領、tkz/stt両観測が締切12分前である実証条件は維持。
+- 既存`tests/test_live_racecard_candidate_priority.py`は8件へ増強。PR CI `41665568784` のsyntax+8テスト/歴史出走表/結果/オッズ成功。e2e-live-raceはPR由来のためskippedで、**無人実レースT-12の成立を認定しない**。新規scheduleや有料サービス、予想買い目/モデル変更なし。
+- 次は11/4以降の正規schedule発火時刻・runごとのイベント・CSV元2系統のHTTP受信時刻・API受信時刻・T-12可否を照合。時刻外の実行はcoverage失敗として数え、データ不足だけに転嫁しない。
+
+## 2026-11-04 未明 T-12実レース候補の再選別と展示元の部分障害可視化
+- PR #1547 main squash `3699a13e5f50a600eb67739e728e556b5f09d3ff`。既存`scripts/verify_live_racecard_e2e.py`では開始時刻`now`で締切まで2分超の候補を生成し、独立tkz/stt HTTP取得後に優先順位だけを再計算していた。取得中に締切まで2分以下となったレースも上位3件に残るため、実T-12の検証枠を消費する可能性があった。今回`fresh_candidates_at_selection`でHTTP完了後に再度2分超を必須とし、期限切れ候補は`RACECARD_CANDIDATES_EXPIRED_DURING_SOURCE_PROBE`へ別記録して対象から除外。既存のT-12境界は締切12分前を維持。
+- tkz/sttの取得が一括tryだったため、片方のHTTP/変換エラーが他方の取得を抑止し、異常元が見えなくなる問題にも対応。各元を独立取得し、成功時`PREVIEW_SOURCE_RECEIVED`（受信時刻、件数、SHA256）、失敗時`PREVIEW_SOURCE_UNAVAILABLE`（元、エラー型）を出す。**両方の独立取得が成功して初めて**同一レース候補にする。実API受信時刻・元観測時刻・6艇完全性・締切前時刻の拒否ルールは不変。
+- 回帰テストを6件追加し、従来8件と合計14件。PR CI run `41666855620` syntax job `126024373021` 14/14成功、過去出走表・結果・オッズ成功、実e2e-live-raceはPRなのでskipped。**実無人T-12の成功は未実証**。main統合後の本番RenderデプロイやGitHub schedule成功をPR CI成功と混同しない。
+- 次は11/4の日中無人scheduleで、期限切れ候補数、tkz/sttの独立取得成功・失敗、`T12_SAMPLE_STARTED`と`T12_PAIR_NOT_VERIFIED`の時刻別原因、および実`T12_COMPLETE_PAIR_PASS`件数をチェックする。新規ジョブ・費用・予想ロジック・買い目・画面変更なし。
+
+## 2026-11-04 未明 本番Render展示アダプタの各ソース受信時計を修正（P1）
+- PR #1550 main squash `9bbc2a3f07ce5e6e9e0de43bb3fe3e4d5fec16c8`。`clean_racecard._fetch_preview`でtkz/stt/suiを並列HTTP取得**する前**の`observed_now`だけを使い、HTTP通信中に公開された締切前CSV行の観測時刻を未来扱いで拒否する実装が残っていた。PR #1538/#1543は別の監視ジョブ側のみの修正だったため、Render実API側の取りこぼし可能性を解消。
+- 各ソースの`_preview_rows`が実際に返った直後の`received_at`を独立取得し、元CSV行の`取得日時` <= 実HTTP受信完了時刻、CSV時刻 < 該当レース締切、HTTP受信完了 < 該当締切をすべて必要とする。妥当な6艇・6コース・ST/展示タイムの完全性条件は不変更。`source_audit.beforeinfo.sources[kind].received_at_jst`を独立観測時刻として追加し、従来の`observed_at`とSHA256を保持。履歴レース用`not_verified_historical`分岐も不変更。T-12の成立閾値は緩和なし。
+- `tests/test_preview_completeness.py`に通信中公開の正常データ、締切同時受信拒否、HTTP受信より未来の記録拒否の3テストを追加。過去日時の合成原本の`test_clean_racecard.py`も、仮想HTTP受信時計を対象レース締切前に固定してテスト条件を維持。PR初回run `41668148759`等は既存の歴史合成テストが受信時刻条件未対応で失敗。修正後PR CI run `41668409248` fixtures成功、`41668409271` V236処理成功、`41668409327` syntax+過去出走表/結果/オッズ成功、`41668409358` ナビ/ブラウザ両ジョブ成功。
+- 同PRの`Verify REAL beforeinfo source` run `41668409466` は `REAL_BEFOREINFO_NO_VERIFIED_RACE` でfailure。これは実ソースから6艇一致サンプルを確認できなかったという正しい未実証で、他CI成功を根拠に上書きしない。締切12分前の実観測成功、実行元GitHub schedule、Render新コードliveも引き続き独立検証が必要。
+- 新しいジョブ、有料サービス、4モード、予想ロジック、買い目、公開画面骨格の変更なし。ロールバックはPR #1550のsquash差分revert。次回は実日中レースで各元`observed_at` / `received_at_jst`、API受信、締切時刻を突き合わせ、T-12成立を判定する。
+
+## 2026-11-04 未明 T-12無人運用4実行の独立集計と実障害切り分け
+- 新規監査文書`docs/T12_SCHEDULE_EVIDENCE_AUDIT_20261104.md`（main直接記録 `716d8a263170885a438d975d0e535561558c5c80`）にGitHub `event=schedule`の`Check real live predeadline racecard`実run `41400724125`、`41489725625`、`41593838820`、`41663438908`のジョブ原本を個別照合して記録。
+- **4無人実行 / success 0 / failure 4、出走表10/12試行、完全6艇展示1件、T-12成立0件**。出走表2件の失敗はRender API HTTP502とタイムアウト各1件。実開始JSTは11/02 15:34、11/03 02:17、11/03 16:03、11/04 00:23。4件中2件が夜間の予定外調査時間帯。個々のrunの元cron予定枠は未特定で遅延時間の数値は推定しない。
+- 実run `41593838820` は11/03 16:03に6艇展示1件`202611030103`を取得済みだが`T12_UNVERIFIED`。ほかの3runでは元CSV不在/翌日未公開/HTTP502/タイムアウト等。これらは修正PR #1541/#1543/#1547/#1550の全改修を同時に使っていないため、**改修後の本番性能評価へ流用しない**。
+- 再発防止策を増やす前に、11/4の日中実scheduleのID・実head SHA・開始時刻、tkz/stt元HTTP受信、Render APIレスポンス/各元監査フィールド、T-12ゲートごとの実失敗数を記録する。ジョブ予定枠の欠落・深夜遅延はデータ源障害と分ける。取得がないものを予想・的中率に算入しない。T-12無人実証は依然**未完了**。本監査はドキュメントのみ、追加ジョブ・課金・モデル・4タブ・買い目変更なし。
+
+## 2026-11-04 JST T-12失敗の収集経路別切り分け（実ログ監査・コード変更なし）
+- `Check real live predeadline racecard`で最新mainの11/4日中実scheduleの成功は、調査時点のGitHub APIには存在せず未実証。前回の実schedule4件（`41400724125`, `41489725625`, `41593838820`, `41663438908`）では出走表10/12、6艇展示1件、T-12=0。最新修正コードの成功率とは混同しない。
+- 独立した`Preview capture (schedule)`の実原本も追加照合：`41574478481`（11/03 12:49 JST）はstt/tkz各59行、完全6艇ペア1件`202611030906`、両方の実受信は12:49:41頃で`t12_gap_counts.both_too_late=1`、T-12=0。`41627186144`（11/03 20:23 JST）は5ソース各148行取得、`too_late`各148・締切前該当0、完全ペア0、T-12=0。`41647178739`（11/03 22:45 JST）の独立遅延研究では完全ペア0/T-12 0。
+- `late_preview_capture.py`の保存処理は`margin_minutes=2`と`before_deadline_minus_2min_buffer`を正式に採用する「締切2分前バッファの後半展示証拠」用。これは`scripts/collect_late_preview_evidence.py`にある通り12分前研究スナップショットへ統合しない。後半展示取得成功は正式T-12成功へ算入しない。現行T-12は`scripts/preview_timing_integrity.py`にある通り元スナップショット時刻とHTTP受信時刻の両方が締切12分前以前である必要あり。
+- 追加監査記録は`docs/T12_SCHEDULE_EVIDENCE_AUDIT_20261104.md`へ追記（`f8d1f5c4bfc4cce777edbd705f6d0498a4b0a884`）。この回は**コード・監視時刻・予想ロジックの変更なし**。次は最新mainの11/4日中`event=schedule`実runで、予定枠の欠落、元CSV公開の早遅、API受信、T-12成立を別のKPIとして監査する。ソースが根本的に遅ければ既存の別公式JSON取得実証の独立結果を評価し、改修や新規課金を先に増やさない。
 
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
@@ -13,7 +167,7 @@
 | 優先 | 作業 | 状態 | 完了条件 |
 | --- | --- | --- | --- |
 | P0 | 旧サイト・不要コード・旧導線の参照/依存を調査し安全に撤去 | 未完了・要調査 | 現行本番への参照とデプロイ依存を確認し、不要物の削除後も回帰テスト成功。旧リポジトリは無断削除しない |
-| P0 | 当日/昨日/過去日の出走表・予想の非表示不具合 | 未完了・要再現 | 実レースで該当データが公開画面に表示されるか、データ欠落理由が明確 |
+| P0 | 当日/昨日/過去日の出走表・予想の非表示不具合 | 過去3日付＋当日締切済み下関11RのPages本番Chromium実証成功（run 41655377223）。当日締切前と全場網羅は未完了 | 未締切実レースと追加会場で出走表/展示/予想を検証、正式予想/研究用と欠損理由を区別 |
 | P1 | 4タブのみ・概要なし・トップ出走表なし・戻る導線 | 部分実施と報告あり・要本番実機確認 | iPhone Safariを含む公開画面で重複なし、タブ切替・戻る操作正常 |
 | P1 | 締切前の6艇展示・進入・オッズ | 一部取得例あり・時刻条件未証明 | 取得時刻と締切を検証し、事前予想への安全利用可否を確認 |
 | P2 | 保存済み予想Top3/5/10の的中率検証 | 未完了 | 初回保存証拠を満たすレースのみで集計し、後付け評価しない |
@@ -772,3 +926,298 @@
 - 公式HTML独立取得原本に `request_started_at_jst` を追加し、従来の `received_at_jst` と別に記録。両時刻のJST +09:00および受信時刻が開始時刻以上であることを取得時に確認。保存済み原本をラベル解析する際にも開始時刻の存在と順序を再監査し、逆転・欠損を拒否。
 - 時刻逆転の取得失敗、保存manifestの改ざん検出の回帰テスト追加。PR #784 head `863abc53056aaec15b1cb02736ac4ed4927982fd` のLate preview evidence integrity run `41330162864` はsuccess。main squash `5e12bbd8454561e6b8015a6530acd4869c6b6c4d`。
 - これは取得時刻の原本証拠準備であり、**実際の公式HTTP受信・T-12時刻・6艇値の完全性は未検証**。予想モデルと旧repo/旧Pagesは未変更。
+
+
+## 2026-11-02 公式HTMLラベルの周辺テキスト診断
+- `scripts/inspect_official_beforeinfo_html.py` に `label_context` を追加し、保全HTML原本にある展示・進入・ST等のラベル前後の短い実テキストを診断JSONへ含める。周辺断片の長さ/件数を制限し、script/styleは除外。main `0fc11e693d1949098bb0b863a23fe41e0805013c`、テスト `3e9ec1fb6ae526b9c680117604db23b579eaa70e`。
+- GitHubで同ファイルとテストの現存を再取得して確認。別担当PR #784 のLate preview evidence integrity run `41330162864` はcompleted/successだが、**今回追加した周辺テキストの実レース診断・公式HTTP取得・T-12完全6艇の実証とはしない**。
+- 正式予想と旧サイトは変更しない。次は手動probeの実行・artifactからHTML構造を検証する。
+
+## 2026-11-02 PR #785 公式HTML診断artifactにHTTP実観測時間を出力
+- 既存 `inspect_official_beforeinfo_html.py` は保存manifestの開始・受信時刻を検証しても診断出力から省略していたため、ラベル調査結果と観測時刻の照合が難しかった。`request_started_at_jst` / `received_at_jst` / `http_elapsed_seconds` を出力し、既存テストでJST・実経過秒数を確認。
+- PR head `0193e2398e38d13d01607bb25346f446c99236ab` の Late preview evidence integrity run `41330415655` はsuccess。main squash `53c5cfe54e4db1b86372645b79bc2db7dbcd6e41`。
+- **ライブ公式取得は未実行・実証なし。診断artifactに時刻が出ても6艇完全STT+TKZ/T-12成立の証明ではない。** 予想モデル・旧サイトの変更なし。
+
+## 2026-11-02 旧予想原本79件の保全（PR #787）
+- 既存71件へ旧repoの実在JSON原本を8件追加、保全manifest計79件。新規8件は保存先から再取得し元Git blob SHAと8/8一致。
+- 既存ハッシュ検証の保全下限を79件へ更新。PR head `cec3fc43b84950f297826755f2e0f92eb0f4add0` のResearch forecast checks `41330509281` はcompleted/success。main squash `3edbe38dc18e093dbeb03598bdc9c7859f94e260`。
+- 旧予想全件・初回Git追加時刻・オッズ/Fresh証拠・独立した期限なし保存の復元は未証明。旧サイトは停止しない。
+
+
+## 2026-11-02 4モード研究比較の競合解消・main統合
+- main `aa29ce431c53146b890896eff0725632c982a7df` に対し旧PR #851は111コミット遅延・競合。変更差分を確認し、現行mainからPR #954を新設して研究比較コード・テスト・既存研究CIのみ移植。
+- #954 Research forecast checks run 41431766333 は completed / success。4モードごとに保存券の確定結果との一致、的中順位、Top3/5/10を読み取り専用で比較。予想生成・オッズ順位・モード仕様は不変更。
+- #954 squash merge `826abf1e77d2295de79c61be4452c14e2a7d9336`。重複・競合した旧PR #851は後継PRへの置き換えとしてクローズ。
+- 注意: この比較はGit初回公開時刻を独立検証していない研究用であり、正式的中率・ROI・精度向上の証明ではない。Render公開の実動作、Geminiの実データ実行も未検証。
+- 次: 保存証拠を持つ4モードの真正性監査→レース別外れ原因分類→Geminiへの読み取り専用入力→実測比較。運用予想の自動書換禁止。
+
+
+## 2026-11-02 4モード買い目取りこぼし分類（PR #956）
+- 最新mainから分岐し、`four_mode_frozen_diagnostic.py` に `coverage_diagnostic` を追加。`covered` / `winner_head_absent` / `winner_second_pair_absent` / `winner_third_absent` の4分類を保存券と確定3連単のみに基づいて計算。
+- `race_dynamics_cause=not_determined` を明示。逃げ/差し/まくり・展示・STの物理的原因を、結果のみで断定しない。予想券、予測値、4モード、オッズ順位、正式実測集計を変更しない。
+- 回帰テストで1着欠落、1-2着ペア欠落、3着欠落、的中、結果欠損を検査。Research forecast checks run `41432055746` completed/success。
+- PR #956 main squash `3edcde5de2b56964dc9db881ad48d645239f9820`。これは履歴研究用（formal=false、remote_first_seen_verified=false）であり、正式的中率・精度向上の実証ではない。本番公開ブラウザ・Gemini実データ実行は未検証。
+- 次: 外れ分類の実レース例照合と、独立検証された締切前展示/進入/STの結合。Geminiへは読み取り専用で渡し、採用前に時系列holdout/正式prospective評価を行う。
+
+
+## 2026-11-02 手動Gemini・4モードレース別研究ケース連携（PR #962）
+- 既存 `ai_diagnostics.py` に任意 `--race-code` を追加し、`four_mode_frozen_diagnostic.compare_race` が `historical_comparison_only` と判定した保存原本だけを既存監査JSONに添付。結果欠損/不信頼/原本欠損なら Gemini HTTP以前にfail closed。
+- 手動 `ai-operations-diagnostics.yml` に任意レース入力追加。入力は環境変数で安全に渡し、PR CIではAPIキーを渡さず模擬テスト実施。既存の手動未指定動作・APIの自動実行無効を維持。
+- Geminiへの指示で、券種の構造的取りこぼし分類と実際の逃げ/差し/ST/展示要因を区別。未検証のまま正式的中率や予想ロジックを変更しない。
+- PR #962 の AI operations optional diagnostics Actions run `41433384008` completed/success、main squash `475e6d51eaac8b28e247b76b36adac472c705026`。
+- Gemini実APIへの手動送信、実レース1件の分析結果とRender動作、予想精度向上は未検証。次は実保存例の監査・公開前原本時刻証拠と照合し、手動解析結果の妥当性を評価。
+
+
+## 2026-11-02 実保存レースを用いたGemini研究入力の検証（PR #964）
+- 既存原本 `four_mode_forecasts/202610280101.json` と `confirmed_results/202610280101.json` を確認。確定結果は `4-1-3`。保存原本の `generated_at_jst` はファイル内の自己申告日時であり、独立したリモート初回保存証拠とは扱わない。
+- `test_ai_diagnostics.py` に実保存レース固定テストを追加。本命/バランス/穴/絞り4モード、予想の取りこぼし分類、`formal_hit_rate_allowed=false`、`remote_first_seen_verified=false` を検査。
+- 手動 `--race-code` 指定時にGeminiへ渡す研究比較部分を `ai_frozen_race_case.json` として出力。既存手動GitHub Actionsの90日間artifactにこのファイルを追加。自動API実行や予想ロジック書き換えは行わない。
+- PR #964 の AI operations optional diagnostics CI run `41434090900` は completed/success。main squash `55c34045e53036e10026b3eb3aa4b1ca3128560d`。
+- 本CIは模擬Gemini応答と実保存原本のオフライン検証。Gemini実APIによる分析成功・出力内容の妥当性・精度改善・Render本番挙動の証明ではない。
+- 次: 手動Gemini runの実証と保存artifactの再監査、予想時点の独立初回保存証拠との結合、外れ原因仮説の時系列holdout検証。
+
+
+## 2026-11-02 Gemini分析出力の証拠審査ゲート（PR #969）
+- `ai_diagnostics.py` に `review_analysis_output` を追加。実AI出力を受領しても `improvement_proven=false`, `production_change_allowed=false`, `formal_hit_rate_allowed=false`, `independent_predeadline_receipt_verified=false` を固定し、`manual_evidence_review_required` として次の人手・時系列検証を要請。キー欠落・空出力・未検証レースは別状態へ分類。
+- 実保存レース `202610280101` の研究比較を用いた回帰テストで、「的中率が改善する」というAI出力文字列でも自動昇格されないことを検証。PR #969 CI run `41434612141` completed/success。
+- PR #969 main squash merge `10c28accc8719a8826e73816b868c27ef9ff3c7e`。予想券・4モード・予想ロジック・自動API実行を変更せず。
+- Gemini実APIから返った実分析は今回実行していない。CI成功と分析内容の信頼性・精度改善・Render本番を混同しない。次: 手動Gemini実行のAPI可否と分析artifactを取得して人手証拠審査、独立締切前初回保存時刻と時系列holdoutの接続。
+
+
+## 2026-11-02 手動Gemini分析の誤成功判定を防止（PR #972）
+- 手動 `workflow_dispatch` でAPIキーがなく `status=disabled` となっても成功終了し得た問題を修正。`--require-analysis` により、結果JSON保存後に失敗として終了させる。通常PR検証は従来のオフライン模擬実行を維持。
+- `test_ai_diagnostics.py` にAPIキー欠落時、手動必須分析が失敗しても `disabled` レポートを保存する回帰テストを追加。
+- PR #972 AI operations optional diagnostics run `41434975368` completed/success、main squash `603b148676e1f3828617b83024937d4cbe02089b`。
+- GitHubの手動Gemini実API run一覧は本ターンの接続では取得できず、API呼出実績・AI回答・分析効果・Render本番はいずれも未検証。モデル・4モード・原本は不変更。
+- 次: 実手動runのアーティファクトを取得して、Gemini `status=analysis_proposed` と証拠審査の内容を照合する。
+
+
+## 2026-11-02 Gemini実API/CI結果の分離表示（PR #976）
+- GitHub Actions最新100件（確認時点）にある `AI operations optional diagnostics` 7件はすべて `pull_request` トリガー。手動実API解析の完了証拠はこの範囲で未発見。100件より古い履歴も含む完全な不在証明ではない。
+- 手動診断失敗時も既存JSONを基に Actions summary で `API analysis status` と `Evidence review status` を明示するステップを追加。CI成功とGemini実API実行を混同しない。
+- PR #976 Actions run `41435415754` completed/success、main squash `0f1dfa4b5660113a792c15980725175b015b9464`。自動API実行なし、予想原本・モデル・4モード変更なし。
+- Gemini手動実APIの分析と結果内容、的中率向上、本番Render表示は未検証。次は手動dispatchの実行とartifactの取得・検査。
+
+
+## 2026-11-02 Gemini手動実API検証の接続制約と失敗証拠保全（PR #978）
+- GitHub接続はActionsの読み取り・一部再実行は可能だがworkflow_dispatch新規起動アクションを提供していない。実APIの新規手動実行を本ターンで開始したとは主張しない。
+- 取得した直近100件のActionsにはGemini診断のPR検証はあったが手動 `workflow_dispatch` は見つからなかった。過去全件を網羅する不在証明ではない。
+- `ai_diagnostics.py` でGemini HTTP失敗・レスポンス不正等の例外時、機密情報や生のエラー文字列を保存せず `status=api_error` と例外種類、証拠審査禁止状態を診断JSONへ保存してから手動実行を失敗扱いする。
+- PR #978 CI run `41435673089` completed/success、main squash `ecf11c81ad455e33a8f348c1cd5bfbb457f3e4e6`。4モード・予想原本・モデル・API自動実行設定は不変更。
+- Gemini実API分析成功・分析の正確性・正式的中率向上は未検証。次: GitHub Actionsから `AI operations optional diagnostics` を手動で `race_code=202610280101` で起動し、artifact の `ai_diagnostics_report.json` と実行summaryを確認（APIキー設定済みであることが前提）。
+
+
+## 2026-11-02 Gemini研究入力ダイジェスト（PR #983）
+- GitHub直近100件のGemini診断ワークフローを再確認。含まれていた実行はPRテストのみで、手動Gemini実API実行の成功証拠は未取得。利用可能GitHub連携に新規workflow_dispatch操作はない。
+- Google公式ドキュメントに `gemini-3.5-flash-lite` モデルIDの存在を確認。モデル名は変更しない。
+- `ai_diagnostics.py` に研究入力のJSONをキーソート・固定区切りで正規化してSHA-256記録（`research_input_sha256`）する処理を追加。これにより診断レポートと研究入力の一致を再照合しやすくする。入力ハッシュは独立した締切前Git保存証明ではない。
+- PR #983 Gemini関連 Actions run `41436489755` completed/success、main squash `258eeef95e5c9ee92211f91308f5ab52153b4e61`。同じheadで別用途のfour-mode-capture-watchdog run `41436481351` はfailure（別件、未調査）。
+- Gemini実APIの成功、実分析内容の妥当性、正式的中率改善、Render本番反映は未検証。4モード・予想原本・モデルは未変更。
+
+
+## 2026-11-02 four-mode watchdogゼロジョブ失敗の追加切り分け
+- GitHub Actions run `41436481351` は `push` イベント、workflow表示はパス名 `.github/workflows/four-mode-capture-watchdog.yml`、結論 failure。`/jobs` APIは `total_count=0`。監視スクリプト内の例外が原因と断定不可。
+- 同一監視ワークフローのPR run `41436662291` は `Four-mode capture schedule watchdog`、`watchdog` ジョブ success。少なくともPRイベント上の監視チェック経路は動作した。
+- 直近100実行の調査範囲では同監視の schedule 成功runを確認できず、**定期実行とfallback dispatchが実際に運用できている証明は未完了**。
+- 不具合原因を確証できない状態で監視ジョブを重複新設・削除・再設計する変更は実施しない。次はschedule実行IDとActions実行時刻・fallback dispatch実行ログを照合して稼働証拠を取得する。正式予想、Gemini API、4モードのロジックは不変更。
+
+
+## 2026-11-02 schedule実行の保存証拠・artifact実点検
+- Actions `event=schedule` を用いた専用検索で、4モードprospective capture run `41396587415`（2026-11-02T05:53:05Z）completed/successを確認。test・captureの両ジョブ成功。PR実行と異なり実scheduleイベント。
+- artifact `four-mode-capture-41396587415` を取得して解凍。`capture.log` は `new_saved` 48件、`eligible_forecasts_today` 48、`excluded={invalid six national win rates: 2}`、title/race_cards各156行 `available`。`capture_status.json` は `last_run_new_count=48` だが `production_success_proven=false`。
+- 48件のうち `four_mode_forecasts/202611020211.json` は後続GitHub main取得で存在を確認。48件全件の独立Git初回追加・受信時刻監査や正式予想成立の証明ではない。capture artifactにはstaging/publish結果の記録がなく、48件全部の公開成否は未確定。
+- 以前のwatchdog `push` failure/ゼロjobsと区別。定期captureが少なくとも1回起動し収集候補が生成された事実は実証済み。次は該当48件の初回Git追加タイムスタンプ・締切・公開証拠を一括照合し、正式合格件数を別計上する。
+
+
+## 2026-11-02 4モード収集のschedule実行証拠を実ジョブログで確認
+- Actions `event=schedule` に絞り調査。run `41396587415`（2026-11-02T05:53:05Z）は test/capture 両ジョブ success。capture logに `Immutable four-mode candidates pushed` と新規 `four_mode_forecasts/202611021505.json` 等の作成記録あり。main上でも原本の現存を取得確認。
+- 失敗run `41377556221`（2026-11-02T02:24:27Z）では test success / capture failure。失敗ステップ `Stage only immutable new forecasts and check receipt window`、ログの具体エラーは `ValueError: source_receipt_out_of_order`。原因不明のままデータ採用基準を緩和しない。
+- watchdogの別系列push失敗runはジョブ0件で、その原因をcapture失敗と混同しない。watchdogのschedule動作・Gemini手動実API実行の成功は依然未検証。
+- 注意: 新規Git追加・pushのログは正式な締切前remote-first-seen監査および的中率改善の証明ではない。既存4モード・予想ロジックは不変更。
+
+
+## 2026-11-02 4モード収集受信時刻JST厳格化（PR #995）
+- 過去schedule run `41377556221` の `source_receipt_out_of_order` と成功run `41396587415` を調査。現行収集器は生成時刻が取得時刻より古い候補を明示的に拒否済みで、基準の緩和は不要。
+- 検証器 `scripts/verify_four_mode_new_receipts.py` の元データ受信・生成・締切時刻について、時差ありであれば可としていた点をJST +09:00必須に厳格化。UTC表記の等価時刻を拒否する回帰テスト追加。
+- PR #995 Four-mode prospective capture CI `41439460878` completed/success、main squash `8559c075799365f5a40544cd4697918f6a283c58`。
+- これは入力時刻の検証強化。締切前の遠隔初回保存証明、監視scheduleの継続稼働、予想精度向上、Gemini実API稼働を意味しない。4モードと買い目は不変更。
+
+
+## 2026-11-02 4モードGit初回追加の元データSHA256監査強化（PR #1000）
+- `audit_four_mode_first_add.py` が初回Git追加を調べる際、`source_sha256.title` と `source_sha256.race_cards` の64桁16進数を必須化。既存の新規保存受信検証と歴史監査の証拠条件を統一。欠損・不正ハッシュを拒否するテストを追加。
+- PR #1000 Research forecast checks run `41439837038` と Four-mode historical chronology cohort run `41439837041` はいずれも completed/success。main squash `0443d1d65fc15c616a12e187a27ee86153775f29`。
+- ファイル記載のハッシュ形式の検証であり、外部ソース実体との内容一致・remote-first-seen・正式的中率の証明ではない。今後独立取得ハッシュとの照合とprospective評価が必要。Gemini実APIおよびRender本番は今回未検証。買い目・4モード変更なし。
+
+
+## 2026-11-02 4モード元データSHA256と生バイト照合（PR #1002）
+- 既存の予想JSONには `source_sha256.title` と `source_sha256.race_cards` があるが、元のCSV/HTTP応答の生バイトは同じJSONに保存されておらず、ハッシュ形式だけで出典真正性や締切前取得を証明できないと確認。
+- `four_mode_raw_source_match.py` を追加。別途確保したタイトル/出走表の元バイトファイルを与えたときにSHA256を比較し、一致・不一致・未入手を区別。改変、欠損、シンボリックリンク、巨大ファイルをfail closed。元の予想原本と4モードは読み取り専用。
+- ハッシュ一致でも `formal=false`、`remote_first_seen_verified=false`、取得時刻独立検証falseを維持。テスト `test_four_mode_raw_source_match.py` を既存研究CIに追加。
+- PR #1002 Research forecast checks run `41440230086` / `41440221185` とも completed/success、main squash `34a47e7bbe3c1b69192dddd42ff1b03f59c0bc1e`。
+- このPRは実際の元バイトが既に保全・照合されたという証明ではない。次は各取得方式（CSV全体hash、直接レース別HTTP hash、OpenAPI共通JSON hash）に対応した取得時の原本保存・時刻署名/受信証拠を安全に整備し、独立照合する。Gemini実API・予想精度向上・Render本番未検証。
+
+
+## 2026-11-02 4モード取得元のHTTP生バイト保全（PR #1006）
+- スケジュール収集時のみ `FOUR_MODE_RAW_RECEIPT_DIR=four-mode-evidence/raw-sources` を設定。公開前CSV / Boatcast直接HTTP / 代替OpenAPIの取得応答バイトを、出典URL・ローカルJST受信時刻・SHA256とともにwrite-onceのアーティファクトへ保全する処理を追加。30日保持、既存予想モデルと順位は不変更。
+- `four_mode_raw_receipt.py` とテストを追加。許可HTTPSホスト、改変・衝突、保存省略時の無副作用を検査。実際の過去原本は後付け保全できず、この追加は「今後の収集」用。ローカル受信時刻は独立remote first-seen証明ではない。
+- 他CIの夜間失敗を調査した結果、`tests/test_daily_research_written_mass.py` が現在時刻＋5時間を同じ日として扱う日時越えテスト不具合を修正。予想ロジックは変更しない。
+- PR #1006 head `5b84c7640f24d1f92088decc7f1502c0b08ead8a` の6系統CI（Four-mode prospective capture、Research TopN batch audit、Research forecast checks、Cross-model content audit、CLEAN alternate feed、CLEAN six-boat parser）がすべてsuccess。main squash `d7860353702c81fcedfd8b9f421f4506baf44b66`。
+- 生バイト保全の実運用artifact・元データとの実ハッシュ一致・取得時刻の独立証明、Gemini実API分析、予想精度改善、Render本番は未検証。次は次回実収集artifactのraw-sourcesと予想原本のSHA256比較、取得方式ごとの対応確認。
+
+
+## 2026-11-02 原本取得artifactのローカル整合性監査（PR #1010）
+- PR #1006後の実定期schedule runは今回調査可能なschedule履歴にまだないため、元HTTP原本の実運用保全と予想JSONとの実照合は未実証。
+- `audit_four_mode_raw_receipts.py` に保存artifact内の各 `.json` / `.bin` ペアを監査する機能を追加。URL許可リスト・受信JST・byte_count・SHA256・原本IDとファイル名の一致、欠損・余分なバイトファイルを検査。検証成功でも正式的中率や独立remote-first-seen証明は許可しない。
+- テスト `test_audit_four_mode_raw_receipts.py` を収集ワークフローに接続。最初のPRテストはID区切りバイトの取り違えで失敗したため修正し、再実行の Four-mode prospective capture run `41441590188` は completed/success。PR #1010 main squash `74fae3a033027f3f3bf5600d28c872321b60034c`。
+- 次はPR #1006/#1010以後の実schedule runの raw-sources artifactを取得して整合性監査し、予想原本のtitle/cardsハッシュと対応確認する。Gemini実APIとRender、精度向上も未検証。
+
+
+## 2026-11-02 4モード予想ハッシュとHTTP原本の対応照合（PR #1011）
+- PR #1006/#1010統合後の新しいschedule収集runは今回取得できた履歴で未確認。実運用のraw-sources artifactと実ハッシュ一致は未実証。
+- `link_four_mode_raw_forecast.py` を追加。既存 `audit_four_mode_raw_receipts.audit` でローカル原本ペアの整合性を合格判定した後、予想JSONに記録された `source_sha256.title/race_cards` が原本マニフェスト群に含まれるか照合する。欠損・不一致・原本未確認を分離。研究専用で `formal=false`、`remote_first_seen_verified=false` を固定。
+- 保存・収集経路、予想ロジック、4モードは変更せず、収集ワークフローのPRテストに対応テストを追加。PR #1011 Four-mode prospective capture run `41442022996` completed/success。main squash `eba9d780cf1e65c9b86c99a84e641a44ca2155b9`。
+- 次は実scheduleで保全された原本artifactを取得して、実予想の対応、タイトル/出走表の取得方式、受信時刻の安全性を検査する。Gemini実API、Render本番、予想精度改善も未証明。
+
+
+## 2026-11-02 4モード実収集の原本照合レポート追加（PR #1016/#1019）
+- 直近確認可能なschedule runは旧SHA `01d5cda7...` の #41396587415 が最新。#1006以降の新しい原本保全を使ったschedule runは未確認。手動run #41440004104 は成功・artifactありだが #1006以前のコードのため、新保全機能の証拠にならない。
+- PR #1016: 各収集runの当日4モード予想について保全されたHTTP原本のハッシュ照合結果を `four-mode-evidence/source-links.json` に記録してartifactに追加。欠損・不一致を合格としない。CI #41442522181 success、main `c12b41bc0194dc6e2db7bf5813f062cb18f9c907`。
+- PR #1019: source-links.jsonの末尾改行にリテラルバックスラッシュが混入する問題を修正。CI #41442668543 success、main `0876cc37bb4580826789afe7e2de19e708e7428e`。
+- この時点で実運用の照合成功件数・独立締切前remote-first-seen証明・正式的中率・Gemini実API・Render本番は未検証。予想ロジックと4モード、買い目は不変更。
+
+
+## 2026-11-02 実原本連動の収集時刻ゲート（PR #1021）
+- PR #1016は本ターン開始時点で既にmain統合済み（squash `c12b41bc0194dc6e2db7bf5813f062cb18f9c907`）。同PRのCIは成功済み。
+- 取得できた定期schedule履歴ではPR #1006以後のraw-sources実運用artifactは未確認。手動収集 run `41440004104` は成功したがPR #1006より前のコードだったため実証に利用しない。
+- `link_four_mode_raw_forecast.py` が、予想生成後に取得した元データでも同ハッシュなら一致扱いにし得る点を修正。JST受信時刻 <= JST予想生成時刻を必須にし、遅い証拠を照合対象から除外。テスト追加。
+- PR #1021 Four-mode prospective capture run `41443079562` completed/success、main squash `02b7387d95c76bf6152fce6e53604b96f5d5c3f0`。一度main更新競合したが再確認の上正常統合。
+- 実生データの保全・ハッシュ照合、独立remote-first-seen、Gemini実API、的中率改善は未確認。予想原本・モデル・4モード不変更。
+
+
+## 2026-11-02 Gemini予想研究向け4モード複数レース比較（PR #1027）
+- 手動workflow_dispatch履歴を確認。`AI operations optional diagnostics` の手動Gemini実API実行成功は今回も見つからず、`AI repair proposal` の実行とは混同しない。
+- `four_mode_research_batch.py` を追加。最大30件の履歴4モード固定買い目と確定結果を比較し、モード別の外れ分類、Top3/Top5/Top10、結果待ち・不正記録を分離。欠場・水面展開などの原因を結果だけから捏造しない。
+- 出力は必ず `formal=false`、`model_improvement_proven=false`、`remote_first_seen_verified=false`。この履歴率は正式な前向き的中率ではない。既存モード順・買い目・予想ロジック変更なし。
+- PR #1027 AI operations optional diagnostics run `41444434450` completed/success、main squash `fb87d710b0ddb9784a7f4e090903ac08b3120891`。
+- 次は実レース履歴複数件で一括研究レポートを生成し、Geminiを手動実行した際の監査用入力に利用する。実API成功・予想改善・Render本番は未検証。
+
+
+## 2026-11-02 Gemini予想研究AIの応答安全性（PR #1031）
+- 実コード `ai_diagnostics.py` と既存回帰テストを確認。手動AIサイト修正 run `41387313853` は処理successだが実際の応答は `no_safe_patch` で変更提案なし。予想研究Gemini実API成功、正式的中率向上は引き続き未確認。
+- Gemini予想研究のレスポンスが候補/partの不正型、空白テキスト、16KB超のテキストを含む際に黙認や未処理例外にならず `ValueError` で拒否する検証を追加。API権限、モデルや買い目、4モードは不変更。
+- PR #1031 AI operations optional diagnostics run `41449745427` completed/success。main squash `a1cc4586e71a30afd7499de733aacc87a6770639`。モックによるCIであり、Gemini研究分析APIの実サービス成功は意味しない。
+
+
+## 2026-11-02 Gemini予想研究実行可視化（PR #1033）
+- AI operations optional diagnostics run のPRテスト成功は Gemini実API分析を意味しない。取得可能な最新実行履歴では当該workflowの手動API成功は確認できず、AIによるTop3/5/10的中率改善は未実証。
+- `.github/workflows/ai-operations-diagnostics.yml` のGITHUB_STEP_SUMMARY出力が改行ではなく文字列 `\\n` を表示していた点を修正。API分析statusとevidence_reviewを別行で表示する。PR #1033 AI operations optional diagnostics run `41450364220` completed/success、main squash `e5215a585f9ae3ec491b110d8b1f93afd0c68fc7`。
+- PR上のCIはオフライン検証。Gemini実APIは手動workflow_dispatchが必要で、この回は未実行。4モード、買い目、研究モデル、正式実績の区別を維持。
+
+
+## 2026-11-02 Gemini保存済み実レースのCLI統合回帰（PR #1035）
+- 取得できるworkflow_dispatch履歴には `AI operations optional diagnostics` の実API成功runがなく、Gemini実サービスによる予想分析の成功は未確認。CI上のモック成功と明確に区別。
+- 保存済み桐生1R `202610280101` を対象に `ai_diagnostics.main` のCLI全経路をモックGeminiレスポンスで通し、比較ケース保存・入力SHA256・AI診断レポート生成・手動監査必須・正式的中率および本番自動変更禁止を回帰テストに追加。
+- PR #1035 AI operations optional diagnostics run `41450912465` completed/success、main squash `28c00f5021312af578047ebc03414ab09fad8ebf`。予想ロジック・4モード変更なし。次は実API手動runと出力証拠の検査が必要。
+
+
+## 2026-11-02 Gemini実レース診断の手動API実行待ちと表示修正（PR #1038）
+- GitHub Actions `event=workflow_dispatch` の取得可能履歴に `AI operations optional diagnostics` の実行は0件。実API分析成功は依然未検証。利用可能なGitHub連携には新規workflow_dispatch起動操作がなく、この作業ではAPI実行していない。
+- `.github/workflows/ai-operations-diagnostics.yml` の実行サマリーでstatus/reviewを表示するMarkdownバッククォートがバックスラッシュ付きで表示され得る点を修正。PR #1038 CI `41452441009` completed/success、main `872e6aec6fdb25e1a6a5f9465aada7e67c88216f`。
+- 実APIを確認するにはGitHub Actions `AI operations optional diagnostics` のRun workflowから `race_code=202610280101` を指定して手動起動し、`ai_diagnostics_report.json` のstatus/evidence_reviewを確認する必要がある。4モードや予想ロジックは不変更、正式的中率改善の証拠にはしない。
+
+
+## 2026-11-02 Gemini生成終了状態の監査強化（PR #1041）
+- GitHub Actions `workflow_dispatch` 履歴では `AI operations optional diagnostics` の実API分析runは引き続き0件。既存モデル名 `gemini-3.5-flash-lite` はGoogle公式モデル資料で有効なモデル名と確認したが、当該キーでのAPIアクセス成功は未確認。
+- `ai_diagnostics.extract_text` で Gemini `finishReason=STOP` を必須化。テキストがあっても MAX_TOKENS、SAFETY、finishReason欠損は分析成功扱いしない。模擬レスポンスと回帰テスト更新。
+- PR #1041 AI operations optional diagnostics CI `41453095723` completed/success、main squash `04e10368827bae073a0681e4c5065ff8cabf02de`。実Gemini APIはこのCIで呼んでいない。4モード・買い目・正式的中率を不変更。
+
+
+## 2026-11-02 Gemini研究AIの複数候補混同対策（PR #1044）
+- Gemini応答の `finishReason` がSTOP以外の打ち切り・ブロックを拒否する仕組みは、別作業のPR #1041で既にmain統合されていることを確認し、重複変更を回避。
+- 今回は `ai_diagnostics.extract_text` が複数候補の内容を連結して単一の分析案と誤認し得る点を修正。候補はちょうど1件のみ受理し、複数候補は `ambiguous_candidate_count` でfail closed。回帰テスト追加。
+- PR #1044 AI operations optional diagnostics CI `41453379722` completed/success、main squash `9eb6eb926ea56fb7147ec11b70b78b453a29785c`。モックCIでありGemini実API分析の成功ではない。4モード・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini研究API応答の実モデル・token監査（PR #1047）
+- `workflow_dispatch` 履歴では AI operations optional diagnostics の実API実行は引き続き未確認。Gemini実レース分析の成功・精度改善は主張しない。
+- Google公式ドキュメントで `gemini-3.5-flash-lite` が有効なモデルコードと確認。
+- `ai_diagnostics.py` にレスポンス由来の `modelVersion` と `usageMetadata`（prompt/candidates/total tokens）を任意項目として保存。異常な型・負数などを拒否。使用量は診断監査でありAI精度の実測ではない。
+- PR #1047 AI operations optional diagnostics run `41454646320` completed/success、main squash `84735936f5ab551571e4e338311afd50be3597bd`。API模擬テストであり実課金APIは未実行。4モード、買い目、予想ロジックは維持。
+
+
+## 2026-11-02 Gemini分析入出力の実改行修正（PR #1051）
+- 最新 `workflow_dispatch` 履歴に AI operations optional diagnostics の実API成功はまだ見当たらない。今回のCIもAPIモック検証であり、Gemini実レース分析・的中率改善を意味しない。
+- `ai_diagnostics.py` の分析プロンプト区切りと複数part出力の結合にリテラル `\\n` が混入していたため、実改行（LF）へ変更。実改行の回帰テスト追加。
+- PR #1051 AI operations optional diagnostics CI `41455070801` completed/success、main squash `81ddc90acbd7f1724e541e76106effb4877b3de2`。4モード・買い目・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini手動実レース分析の初期設定修正（PR #1057）
+- 当時のGitHub Actionsのworkflow_dispatch履歴で `AI operations optional diagnostics` は0件。Geminiの実APIレース分析・予想的中率改善は未実証。
+- 手動Run workflow入力が空の場合、既存ワークフローはレース比較を省略して一般監査だけをGeminiに送っていたため、`race_code` を必須・保存済み `202610280101` を初期値に変更。手動実行では形式を検査して `--race-code` の実レース研究経路を必ず使う。
+- PR #1057 AI operations optional diagnostics CI `41456093913` completed/success。main squash `b92cd29428f5117384309cab12e3222e306045d6`。このPRのCIはモック・オフラインであり、手動Gemini実API実行ではない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 Gemini手動分析の課金前レース証拠チェック（PR #1061）
+- GitHub Actionsのworkflow_dispatch履歴に Gemini AI operations optional diagnostics の実API実行は0件であり、実Gemini研究分析・的中率改善は未検証。
+- 手動Gemini分析の前に `four_mode_frozen_diagnostic.compare_race` で保存予想と確定結果を検証し、不足ならAPI要求前に停止するようワークフローを修正。`ai_frozen_race_preflight.json` を収集artifactに加え、比較可能かをread-onlyで記録。先行PR #1057の初期レースコードを維持。
+- PR #1061 CI `41456856034` completed/success、main競合を再確認し統合 `b6fa9fe87d7ab08ea391d223e27e64c6af71d50d`。CIはPRオフラインテストのため、手動Gemini実API成功は意味しない。買い目・4モード・予想ロジック不変更。
+
+
+## 2026-11-02 Gemini API事前検証の実行可能テスト化（PR #1065）
+- `AI operations optional diagnostics` の手動workflow_dispatch実行履歴は確認時点で0件。実Gemini分析成功・予想精度向上は未実証。
+- 従来workflow内に埋め込まれていた保存済みレース/確定結果の事前検査を `ai_frozen_race_preflight.py` に分離し、CIで実際に同じ判定関数をテスト。既存桐生1R `202610280101` に対する比較可能判定、正式扱い・独立証拠欠如ケースのfail-closed、入力不正拒否を検証。
+- PR #1065 AI operations optional diagnostics #41457311378 completed/success、main squash `b73bc29d87d4745d2847f31e1d59f73697438f2f`。手動Gemini API呼出しは行っていない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 4モード同一レース比較 Top10 研究（PR #1068）
+- `AI operations optional diagnostics` の新規 workflow_dispatch 実API実行は確認できず、Gemini実分析・改善実証は引き続き未達成。
+- `four_mode_research_batch.py` に「絞り vs 本命、本命 vs バランス、バランス vs 穴」の同一研究レース Top10 被覆比較（両方・左のみ・右のみ・両方なし）を追加。確定結果なしを分母に混入しない。研究専用 `formal=false`、予想ロジックと買い目は不変更。
+- PR #1068 AI operations optional diagnostics CI #41458557108 completed/success、main squash `69e0903d8e370d4095b8204fde822911bb46232a`。この比較は過去アーカイブ研究であり、独立締切前証明やAIによる的中率改善ではない。
+
+
+## 2026-11-02 4モード追加買い目のTop3/5/10増分研究（PR #1073）
+- 同一レースでの隣接モード（絞り→本命→バランス→穴）ペア比較をTop10だけからTop3/Top5/Top10に拡張。双方的中、左だけ、右だけ、両方不的中、右の純増的中件数と増減率（パーセントポイント）を算出。既存の `paired_top10` キーも互換保持。
+- 確定結果のないレースは分母に含めず、比較対象0件の場合の増減率はnull。研究用で `formal=false`。実AI分析、Gemini API実行、正式的中率改善とは別。
+- PR #1073 AI operations optional diagnostics #41459680799 completed/success、main squash `59cdce83a7836eebb6597d9cfd95dd0c3aff8d04`。予想原本、4モード構成、買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 4モードTopN入力検証強化（PR #1075）
+- `four_mode_research_batch.summarize` に事前整合性検証を追加。研究用Top3/Top5/Top10の欠損・非boolean、Top3⇒Top5⇒Top10の包含関係違反、カバレッジとTop10矛盾、未検証の展開原因を拒否。不完全フラグを不的中として計上しない。
+- 回帰テストを追加しPR #1075 AI operations optional diagnostics CI #41460287758 completed/success、main squash `4e780150536d2748d1286194efc4018c68edd0cf`。研究比較の検証強化であり、実的中率/AI精度の改善実証ではない。4モード・買い目・予想ロジック変更なし。
+
+
+## 2026-11-02 保存済み実レース30件の4モードTopN研究（PR #1078）
+- `four_mode_historical_cohort.py` で保存予想と確定結果が存在する先頭30件を実集計、JSON artifactを出力。
+- 初回CIは買い目全体の的中がTop10外にある場合の誤制約 `covered_without_top10` で失敗。修正して再CI #41461094176 success。
+- 30件の歴史研究比較：絞りTop3/5/10=5/5/5、本命5/5/9、バランス4/6/9、穴1/1/3。Top10純増は絞り→本命+4、本命→バランス0、バランス→穴-6。正式的中率やAI改善の証拠ではない。
+- PR #1078 main squash `2498d7fec67b146bb8f1b3d97df8c966a1e76f0d`。4モードと予想ロジック不変更。
+
+
+## 2026-11-02 保存済み120レースの日付・場コード別TopN研究（PR #1083）
+- 既存30件上限を維持して小分けに集計し、同一保存レースから最大120件までTop3/5/10を日付・場コード別に算出。PR #1083 CI #41461677641 completed/success、main squash `11f574bd1d440e155421fe9293b54de5abe05834`。
+- 実集計120件は全て20261028の1日。Top3/5/10: 絞り19/24/24、本命19/24/41、バランス18/25/39、穴1/2/6。穴Top10=6/120=5.0%、本命=41/120=34.17%。場別は母数5〜12件程度で評価に不足。
+- この集計は歴史的アーカイブの買い目カバレッジであり独立した締切前保存証明・正式的中率やGeminiによる改善を示さない。予想ロジック、モード、買い目変更なし。次は複数日の前向きデータと場別標本数拡大。
+
+
+## 2026-11-02 複数日分散の4モード120件研究（PR #1086）
+- PR #1083の120件集計は全件2026-10-28だった。日別検証に不適切な偏りを解消するため、保存済み予想と確定結果の共通レースを日付ごとにラウンドロビン抽出するよう変更。
+- CI #41463768144 success。対象120件は10/28・10/29・10/30・10/31・11/02各24件。Top3/5/10的中カバー件数：絞り21/26/26、本命21/26/46、バランス20/24/48、穴1/2/4。いずれも過去アーカイブ研究値、締切前独立確認のない正式的中率ではない。
+- PR #1086 main squash `8dad84c652ecab5b9ec17c167ea63475ebcee86f`。予想原本、4モード、買い目、予想ロジック変更なし。
+
+
+## 2026-11-02 日付×競艇場分散の実アーカイブ120件研究（PR #1091）
+- PR #1086の1日24件の抽出は日付分散されていたが競艇場ごとの先頭レースに偏る余地があったため、日付内で場コードをラウンドロビンし、日付間も均等に抽出するよう研究抽出法を改善。
+- CI #41464365817 successful。5日×24レース（計120件）、19場を対象。研究用Top3/Top5/Top10件数：絞り15/27/27、本命15/27/49、バランス17/27/47、穴1/2/7。抽出方法が違うので以前の120件と数字が変わるのは妥当。正式的中率・AI改善証明ではない。
+- PR #1091 main squash `a26fe3ea4d41c6edbce69e723fda5822736439cf`、予想ロジック・買い目・4モード不変更。
+
+
+## 2026-11-02 穴モード不的中構造・順位内訳研究（PR #1093）
+- 日付×場分散の研究120件から、各モードの的中順位帯と不的中パターン、総買い目数をCIで集計する機能を追加。競走展開の原因は断定しない。
+- 穴モード：Top3=1、Top5=2、Top10=7、11位以下的中=2、全買い目不的中=111。全買い目不的中の内訳：1着艇頭なし18件、1着艇頭は含むが1・2着ペアなし84件、1・2着ペアあり3着なし9件。買い目総数1440件（120レース分）。保存済み過去研究であり正式精度や改善実証ではない。
+- PR #1093 CI #41464957828 success、main squash `25847d116796095b272c2d2506f231d774ae2c47`。4モード、予想コード、公開買い目不変更。
+
+
+## 2026-11-02 穴モード2着候補の実アーカイブ照合（PR #1097）
+- 日付・場分散120件のうち、穴モードで1着艇を買い目に含むが正しい1-2着ペアがない84件を再照合。1着固定時の2着候補数1艇64件・2艇11件・3艇8件・4艇1件。本命には正しいペアが67件、バランスには61件存在。勝ち艇の2着分布は1号艇23、2号艇21、3号艇18、4号艇12、5号艇10。
+- `four_mode_historical_cohort.py` にアーカイブ再読込によるfail-closed照合、件数と限定的なレース事例を追加。CI #41465608023 success、PR #1097 main squash `f516fd07c186095fc0e6a17d0cc2a75b3302f718`。
+- 過去の研究値であり、2着増設による精度改善は未実証。予想ロジックと公開買い目不変更。

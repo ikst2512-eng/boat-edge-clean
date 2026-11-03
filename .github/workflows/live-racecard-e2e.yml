@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - scripts/verify_live_racecard_e2e.py
+      - scripts/live_racecard_candidate_priority.py
+      - tests/test_live_racecard_candidate_priority.py
       - .github/workflows/live-racecard-e2e.yml
       - clean_racecard.py
   workflow_dispatch:
@@ -20,6 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python -m py_compile scripts/verify_live_racecard_e2e.py
+      - name: Validate T-12 candidate prioritization and timing boundaries
+        run: python -m unittest discover -s tests -p test_live_racecard_candidate_priority.py -v
   historical-production-smoke:
     # Unlike the time-dependent live-race job, this performs a real HTTP check
     # on pull requests even when no upcoming race is available.

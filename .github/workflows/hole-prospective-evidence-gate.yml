@@ -1,0 +1,27 @@
+name: Hole prospective evidence gate
+on:
+  pull_request:
+    paths:
+      - hole_shadow_prospective_gate.py
+      - test_hole_shadow_prospective_gate.py
+      - .github/workflows/hole-prospective-evidence-gate.yml
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test prospective freeze safeguards
+        run: python -m unittest -v test_hole_shadow_prospective_gate.py
+      - name: Verify research-only flag
+        run: |
+          python - <<'PY'
+          from hole_shadow_prospective_gate import evaluate
+          assert evaluate({"status":"shadow_frozen_unverified"}, {}, {"verified_by_independent_process":True})["formal"] is False
+          print("Production untouched; independent receipt verification remains required.")
+          PY

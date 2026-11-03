@@ -1,0 +1,324 @@
+name: Hole third-place candidate choice research
+on:
+  pull_request:
+    paths:
+      - hole_third_choice_research.py
+      - hole_rate_score_conflict_research.py
+      - test_hole_rate_score_conflict_research.py
+      - hole_third_feature_gap_audit.py
+      - test_hole_third_feature_gap_audit.py
+      - hole_third_full_denominator_audit.py
+      - test_hole_third_full_denominator_audit.py
+      - hole_locked_two_pair_miss_audit.py
+      - test_hole_locked_two_pair_miss_audit.py
+      - hole_new_head_coverage_research.py
+      - test_hole_new_head_coverage_research.py
+      - hole_pair_third_budget_research.py
+      - test_hole_pair_third_budget_research.py
+      - hole_second_pair_source_audit.py
+      - test_hole_second_pair_source_audit.py
+      - hole_second_pair_priority_research.py
+      - test_hole_second_pair_priority_research.py
+      - hole_error_attribution_research.py
+      - hole_third_donor_ranking_research.py
+      - hole_third_consensus_guard_research.py
+      - test_hole_third_consensus_guard_research.py
+      - test_hole_third_donor_ranking_research.py
+      - test_hole_error_attribution_research.py
+      - test_hole_third_choice_research.py
+      - .github/workflows/hole-third-choice-research.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py test_hole_third_full_denominator_audit.py test_hole_third_feature_gap_audit.py test_hole_rate_score_conflict_research.py
+      - run: python hole_rate_score_conflict_research.py > hole_rate_score_conflict_results.json
+      - name: Verify national-vs-score decisions across every confirmed race
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_rate_score_conflict_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,s in r["groups"].items():
+              print("GROUP",name,"N",s["comparable"])
+              print("TOP10",s["top10"])
+              print("CONFLICT_STRATA",s["pre_result_conflict_strata_on_actual_pair"])
+              print("BY_DATE",s["by_date"])
+              assert sum(d["races"] for d in s["by_date"].values())==s["comparable"]
+              assert sum(d.get("races",0) for d in s["pre_result_conflict_strata_on_actual_pair"].values())==s["comparable"]
+              for p in ("score","score_guard_1pt","score_guard_2pt"):
+                  x=s["top10"][p]
+                  assert x.get("hits",0)-s["top10"]["national"].get("hits",0)==x["net"]
+                  assert x["only_new"]-x["only_national"]==x["net"]
+          PY
+      - run: python hole_third_feature_gap_audit.py > hole_third_feature_gap_results.json
+      - name: Validate third-ticket feature gaps with full denominator
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_feature_gap_results.json"))
+          assert all(report[x] is False for x in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,g in report["groups"].items():
+              print("GROUP",name,"COMPARABLE",g["comparable"])
+              print("OUTCOMES",g["outcomes"])
+              print("FEATURE_GAP_SIGNS",g["feature_gap_signs"])
+              assert sum(g["outcomes"].values())==g["comparable"]
+              misses=g["outcomes"]["selected_pair_wrong_third_donor_exact"]
+              for key,values in g["feature_gap_signs"].items():
+                  assert sum(values.values())==misses
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+          PY
+      - run: python hole_third_full_denominator_audit.py > hole_third_full_denominator_results.json
+      - name: Validate same-race Top10 policy differences and correct-pair conditioning
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_third_full_denominator_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for label,s in r["groups"].items():
+              print("GROUP",label,"COMPARABLE",s["comparable"])
+              print("TOP10_ALL_RACES",s["top10_all_races"])
+              print("CONDITIONAL_PAIR_CLASSES",s["correct_pair_condition"])
+              print("PAIRED_VS_NATIONAL",s["paired_against_national"])
+              print("NATIONAL_WRONG_THIRD_DONOR_STATUS",s["national_wrong_third_donor_status"])
+              assert sum(d["races"] for d in s["by_date"].values())==s["comparable"]
+              for mode,overall in s["top10_all_races"].items():
+                  classes=s["correct_pair_condition"]
+                  assert sum(g[mode].get("races",0) for g in classes.values())==s["comparable"]
+                  assert sum(g[mode].get("hits",0) for g in classes.values())==overall.get("hits",0)
+              for mode,paired in s["paired_against_national"].items():
+                  assert paired["net"]==paired["only_new"]-paired["only_locked"]
+                  assert paired["net"]==(
+                      s["top10_all_races"][mode].get("hits",0)-
+                      s["top10_all_races"]["third_national_rate"].get("hits",0))
+          PY
+      - run: python hole_locked_two_pair_miss_audit.py > hole_locked_two_pair_miss_results.json
+      - name: Verify locked two-pair miss categories and saved donor evidence
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_locked_two_pair_miss_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for group,s in r["groups"].items():
+              print("GROUP",group,"N",s["comparable"])
+              print("LOCKED_MISS_CLASSES",s["miss_classes"])
+              print("PAIR_SOURCES",s["missing_pair_sources"])
+              print("THIRD_DONOR_SOURCES",s["wrong_third_donor_availability"])
+              print("BASELINE_LOCKED_TRANSITIONS",s["baseline_to_locked"])
+              print("GAIN_LOSS",s["gain_loss"])
+              assert sum(s["miss_classes"].values())==s["comparable"]
+              assert sum(s["missing_pair_sources"].values())==s["miss_classes"]["second_pair_absent"]
+              assert sum(s["wrong_third_donor_availability"].values())==s["miss_classes"]["third_boat_absent"]
+              assert sum(d["races"] for d in s["by_date"].values())==s["comparable"]
+              assert s["gain_loss"]["net"]==s["gain_loss"]["rescued"]-s["gain_loss"]["displaced"]
+          PY
+      - run: python hole_new_head_coverage_research.py > hole_new_head_coverage_results.json
+      - name: Explain new 1st-head coverage and compare paired Top10 changes
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_new_head_coverage_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for group,stats in r["groups"].items():
+              print("GROUP",group,"N",stats["comparable"])
+              print("BASELINE_MISS",stats["baseline_miss_reason"])
+              print("PAIRED_VS_LOCKED",stats["paired_vs_locked"])
+              print("TOPN",stats["topn"])
+              print("DATES",stats["by_date"])
+              assert sum(d["races"] for d in stats["by_date"].values())==stats["comparable"]
+              for name,pair in stats["paired_vs_locked"].items():
+                  assert pair["net"]==pair["gained"]-pair["lost"]
+                  assert pair["net"]==(stats["topn"][name]["top10"]["hits"]-
+                                       stats["topn"]["locked_two_pairs"]["top10"]["hits"])
+              for policy,metrics in stats["topn"].items():
+                  for k in (3,5):
+                      assert metrics[f"top{k}"]["gained"]==metrics[f"top{k}"]["lost"]==0
+          PY
+      - run: python hole_pair_third_budget_research.py > hole_pair_third_budget_results.json
+      - name: Compare fixed-budget one-pair/two-thirds against two-pair allocation
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_pair_third_budget_results.json"))
+          assert all(report[x] is False for x in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,g in report["groups"].items():
+              print("GROUP",name,"N",g["comparable"])
+              print("PAIR_THIRD_TRADEOFF",g["one_pair_vs_two_pairs"])
+              print("TOPN",g["topn"])
+              print("DATE_BREAKDOWN",g["by_date"])
+              paired=g["one_pair_vs_two_pairs"]
+              assert paired["net"]==paired["only_one_pair"]-paired["only_two_pairs"]
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+              for mode in g["topn"].values():
+                  for k in (3,5):
+                      assert mode[f"top{k}"]["gained"]==mode[f"top{k}"]["lost"]==0
+          PY
+      - run: python hole_second_pair_source_audit.py > hole_second_pair_source_report.json
+      - name: Validate source coverage without claiming missing inputs caused misses
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_second_pair_source_report.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for name,group in r["groups"].items():
+              miss=group["miss_classes"]
+              places=group["missing_pair_location"]
+              assert sum(miss.values())==group["comparable"]
+              assert sum(places.values())==miss["pair_missing"]
+              assert sum(day.get("comparable",0) for day in group["by_day"].values())==group["comparable"]
+              print("GROUP",name,"N",group["comparable"])
+              print("MISS_CLASSES",miss)
+              print("MISSING_PAIR_LOCATION",places)
+              print("DONOR_RANK_BINS",group["donor_first_pair_rank"])
+              print("SOURCE_FEATURE_COVERAGE",group["source_feature_coverage"])
+          PY
+      - run: python hole_second_pair_priority_research.py > hole_second_pair_priority_results.json
+      - name: Verify paired second-place forecasts against locked third-choice result
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_second_pair_priority_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for name,g in r["groups"].items():
+              print("GROUP",name,"N",g["comparable"],"CHANGED",g["changed"])
+              print("PAIRED_PAIR_PRIORITY",g["paired_vs_locked"])
+              print("BY_DATE",g["by_date"])
+              print("TOPN",g["topn"])
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+              for policy,pair in g["paired_vs_locked"].items():
+                  assert pair["net"]==(
+                      g["topn"][policy]["top10"]["hits"]-
+                      g["topn"]["third_national_rate"]["top10"]["hits"])
+          PY
+      - run: python hole_third_consensus_guard_research.py > hole_third_consensus_guard_results.json
+      - name: Report exploratory guard versus locked national-rate choice
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_consensus_guard_results.json"))
+          assert all(report[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for label,group in report["groups"].items():
+              pair=group["paired_guard_vs_national"]
+              assert pair["sample"]==group["comparable"]
+              assert pair["net"]==(
+                  group["topn"]["consensus_guard"]["top10"]["hits"]-
+                  group["topn"]["third_national_rate"]["top10"]["hits"])
+              assert sum(day["races"] for day in pair["by_date"].values())==pair["sample"]
+              print("GROUP",label,"N",group["comparable"],"CHANGED",group["guard_changed_races"])
+              print("PAIRED_GUARD_VS_NATIONAL",pair)
+              print("TOPN",group["topn"])
+          PY
+      - run: python hole_third_donor_ranking_research.py > hole_third_donor_ranking_results.json
+      - name: Compare donor ranks across prior inspected date blocks (not holdout)
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_third_donor_ranking_results.json"))
+          assert all(r[key] is False for key in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for cohort,report in r["groups"].items():
+              print("GROUP",cohort,"N",report["comparable"],"MISSING",report["unavailable"])
+              print("TOPN",report["topn"])
+              print("PAIRED_TOP10",report["paired_top10"])
+              print("DISAGREEMENT_CASES",report["disagreement_cases"])
+              pair=report["paired_top10"]["donor_consensus"]
+              cases=report["disagreement_cases"]
+              assert len(cases)==pair["only_challenger"]+pair["only_comparator"]
+              assert sum(c["category"]=="consensus_only" for c in cases)==pair["only_comparator"]
+              assert sum(c["category"]=="national_only" for c in cases)==pair["only_challenger"]
+              for comparison,paired in report["paired_top10"].items():
+                  assert paired["sample"]==report["comparable"]
+                  assert paired["net"]==(report["topn"]["third_national_rate"]["top10"]["hits"]-
+                                         report["topn"][comparison]["top10"]["hits"])
+                  assert sum(day["races"] for day in paired["dates"].values())==paired["sample"]
+              for method,data in report["topn"].items():
+                  for k in (3,5):
+                      assert data[f"top{k}"]["gained"]==data[f"top{k}"]["lost"]==0
+          PY
+      - run: python hole_error_attribution_research.py > hole_error_attribution_results.json
+      - name: Report why hole tickets miss (retrospective diagnostic only)
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_error_attribution_results.json"))
+          assert all(r[k] is False for k in ("formal","independent_holdout",
+                     "prospective_validation","independent_first_receipt_verified",
+                     "production_forecast_changed","selector_changed"))
+          for group,stats in r["groups"].items():
+              print("GROUP",group,"SAMPLE",stats["comparable"])
+              print("MISS_REASONS",stats["miss_reasons"])
+              print("SECOND_PAIR_THIRD_ATTRIBUTION",stats["missing_pair_recovery"])
+              print("THIRD_DONOR_AVAILABILITY",stats["third_choice_gaps"])
+              print("TOPN",stats["topn"])
+          PY
+      - run: python hole_third_choice_research.py > hole_third_choice_results.json
+      - name: Verify bounded claims and report observed gains and losses
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_choice_results.json"))
+          assert all(report[key] is False for key in
+             ("formal","independent_holdout","independent_first_receipt_verified",
+              "prospective_validation","production_forecast_changed","score_calibrated"))
+          for group,data in report["groups"].items():
+              print("GROUP",group,"COMPARABLE",data["comparable"],
+                    "UNAVAILABLE",data["unavailable"])
+              print("THIRD_DIAGNOSTIC",data["third_choice_diagnostic"])
+              print("CHANGED",data["changed"])
+              for policy,topn in data["topn"].items():
+                  print("POLICY",policy,topn)
+                  for k in ("top3","top5"):
+                      assert topn[k]["gained"]==topn[k]["lost"]==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-third-choice-research
+          path: |
+            hole_third_choice_results.json
+            hole_error_attribution_results.json
+            hole_third_donor_ranking_results.json
+            hole_third_consensus_guard_results.json
+            hole_second_pair_priority_results.json
+            hole_second_pair_source_report.json
+            hole_pair_third_budget_results.json
+            hole_new_head_coverage_results.json
+            hole_locked_two_pair_miss_results.json
+            hole_third_full_denominator_results.json
+            hole_third_feature_gap_results.json
+            hole_rate_score_conflict_results.json

@@ -342,15 +342,61 @@ assert.ok(script.includes('await loadHeldVenues();'),'racecard loading must wait
 assert.ok(script.includes('todayVenueRaces.partial_coverage!==true'),'partial frozen schedules must not prove a race is absent');
 assert.ok(script.includes("scheduledVenue?'このレースは開催されていません':'この場は開催されていません'"),'confirmed non-held selections must stop before the racecard API');
 
+// The published racecard must retry transient server/network errors only,
+// preserving race identity and refusing 404 or 422 as retryable evidence.
+const cardLoader=script.slice(script.indexOf('async function loadRaceData('),script.indexOf('async function loadRaceData(')+3500);
+assert.ok(cardLoader.includes("for(let attempt=0;attempt<3;attempt++)")&&
+          cardLoader.includes("[429,500,502,503,504].includes(response.status)"),
+          'Racecard loader must bound retries to transient HTTP responses');
+assert.ok(cardLoader.includes("if(token!==window.raceDataRequestId||key!==sameRaceKey())return;"),
+          'Retrying racecards must never leak a stale selected race');
+assert.ok(cardLoader.includes("if(!response.ok)throw Error('HTTP_'+response.status)"),
+          'Racecard 404/422 or exhausted transient errors must still fail closed');
+
 // Historical schedule fallback: an unavailable CLEAN API must not hide a past date.
 const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
-assert.ok(scheduleLoader.includes("archive.status===404||(date<fmt(jst())&&archive.status>=500)"),'historical archive 5xx must try CLEAN schedule API and results CSV fallback');
+assert.ok(scheduleLoader.includes("try{archive=await fetchTimed(")&&scheduleLoader.includes("}catch(_){}"),'historical archive transport failures must reach alternate sources');
+assert.ok(scheduleLoader.includes("archive?.status===404||(date<fmt(jst())&&(!archive||!archive.ok))"),'historical archive 403/429/5xx/network failures must reach CLEAN API and results CSV');
+assert.ok(scheduleLoader.includes("if(archive?.ok){data=await archive.json()"),'valid archived schedule remains preferred');
 assert.ok(scheduleLoader.includes('partial_coverage:feed.partial_coverage===true'),'partial fallback coverage must survive the API-to-UI transform');
 assert.ok(scheduleLoader.includes("else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status)"),'current date must still reject unexpected archive errors');
 assert.ok(scheduleLoader.indexOf("if(api?.status===404&&date>=fmt(jst()))")<scheduleLoader.indexOf("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical fallback ordering must be preserved');
 console.log('PASS: historical schedule 404/503 fallback regression');
+
+// Pages smoke must target each shortcut button itself, not a nested descendant.
+const pagesPublishingWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(pagesPublishingWorkflow.includes("await page.locator('.race-detail-shortcuts button[data-race-view="),
+  'Pages smoke must target the shortcut button directly');
+assert.ok(!pagesPublishingWorkflow.includes("await shortcuts.locator("),
+  'Pages smoke must never search for a nested button');
+
+// Historical P0 browser coverage must span separate dates and venues with stored
+// forecast, card, and result evidence; these are research-only, never formal scores.
+const historicalPagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+for(const key of ['202610280101','202610310708','202611021905','202611031911']){
+  assert.ok(historicalPagesWorkflow.split(key).length>=4,
+    'Pages must inspect forecast, racecard and confirmed result for '+key);
+}
+assert.ok(historicalPagesWorkflow.includes("if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())"),
+  'P0 historical browser check must reject unverified scoring');
+
+// A same-day race after its deadline must render as read-only and must not
+// be relabeled as a verified predeadline forecast input.
+assert.ok(historicalPagesWorkflow.includes("CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS"),
+  'Public browser must assert the Nov 3 completed-race read-only state');
+assert.ok(historicalPagesWorkflow.includes("card?.source_audit?.race_card?.predeadline_verified!==false"),
+  'Public browser must reject false predeadline evidence on closed racecards');
+
+// Pages result verification must retry only transient delivery errors without
+// treating a missing or mismatched historical result as proof.
+assert.ok(historicalPagesWorkflow.includes("attempt<4;attempt++"),
+  'Published-result HTTP 503 handling must have a bounded retry budget');
+assert.ok(historicalPagesWorkflow.includes("[429,500,502,503,504].includes(archived.status())"),
+  'Published-result delivery retries must be limited to transient HTTP errors');
+assert.ok(historicalPagesWorkflow.includes("if(!archived.ok())throw Error('CLEAN published result unavailable:"),
+  'Published-result checker must fail closed after retry exhaustion');
 
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
@@ -480,3 +526,38 @@ async function assertArchiveFetchOrder(host, statuses, expectedCalls, expectedSt
  await assertArchiveFetchOrder('boat-edge-clean.onrender.com',[404,200],['raw','local'],200);
  await assertArchiveFetchOrder('ikst2512-eng.github.io',[404,404],['local','raw'],404);
 })().catch(error=>{console.error(error);process.exitCode=1});
+
+// Narrow iPhone four-mode ticket hierarchy regression.
+const narrowTicketCss=html.match(/\/\* Narrow iPhone: readable picks outrank secondary odds without changing forecast data \*\/([\s\S]*?)<\/style>/)?.[1];
+assert.ok(narrowTicketCss,'narrow iPhone ticket hierarchy must exist');
+assert.match(narrowTicketCss,/@media\(max-width:420px\)/,'narrow mobile breakpoint');
+assert.match(narrowTicketCss,/\.four-mode-forecast-grid\{grid-template-columns:minmax\(0,1fr\)/,'one forecast mode per row on narrow iPhones');
+assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-combo\{font-size:24px/,'ticket combination must be prominent');
+assert.match(narrowTicketCss,/\.four-mode-forecast-ticket \.four-mode-odds\{font-size:11px/,'odds must remain secondary');
+
+// Async race-switch regression: revalidate identity after every awaited parsing stage.
+const fourModeSource=script.slice(script.indexOf('async function loadFourModeArchives('),script.indexOf('async function loadPredictions('));
+assert.match(fourModeSource,/const data=await response\.json\(\);\s*if\(token!==window\.predictionRequestId\|\|sameRaceKey\(\)!==key\)return;/,'stale archived JSON must not paint a new race');
+const cleanResultSource=script.slice(script.indexOf('async function loadResult(quiet=false)'),script.indexOf('async function loadResult(quiet=false)')+7000);
+assert.match(cleanResultSource,/catch\(e\)\{if\(token===resultRequestId&&key===sameRaceKey\(\)\)payout\.textContent='3連単払戻金：未確認';\}\s*if\(token!==resultRequestId\|\|key!==sameRaceKey\(\)\)return;\s*comparison\.replaceChildren\(\);/,'stale payout must not replace another race comparison');
+
+// Selected race cutoff must update once asynchronous schedule is verified.
+assert.ok(script.includes('function syncActiveRaceDeadline()'),'selected cutoff sync helper exists');
+assert.ok(script.includes('todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();'),'schedule resolution updates active race cutoff');
+assert.ok(script.includes('syncActiveRaceDeadline();document.getElementById(\'previousRace\')'),'race selection updates active cutoff');
+
+// HTTP 202 odds must retry only for the currently selected race and stop after a finite budget.
+assert.match(script,/for\(let attempt=0;attempt<3;attempt\+\+\)/,'odds pending retries must be bounded');
+assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*res=await fetch\(oddsUrl/,'pending odds must abort for another race');
+assert.match(script,/if\(res.status!==202\)break;/,'retry only pending HTTP 202');
+assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*if\(!res.ok\)/,'recheck race before applying completed odds');
+
+// Confirmed full schedule excludes absent choices; partial/unpublished sources leave picker usable.
+assert.ok(script.includes('function completeHeldSchedule()'),'full CLEAN schedule gate must be explicit');
+assert.ok(script.includes('todayVenueRaces.partial_coverage!==true&&todayVenueRaces.historical_result_only!==true'),'partial or archive-derived schedule must not disable a real race');
+assert.ok(script.includes('button.disabled=!hasConfirmedVenue(i+1)'),'confirmed absent venue must be visibly disabled');
+assert.ok(script.includes('b.disabled=!hasConfirmedRace(s.venue+1,i)'),'confirmed absent race must be visibly disabled');
+assert.ok(script.includes("if(!hasConfirmedVenue(i+1))return;venueTouched=true"),'confirmed venue guard on click');
+assert.ok(script.includes("if(!hasConfirmedRace(s.venue+1,i))return;venueTouched=true"),'confirmed race guard on click');
+assert.ok(script.includes("next>12||!hasConfirmedRace(s.venue+1,next)"),'previous/next navigation cannot bypass held-race gate');
+assert.ok(script.includes("button.disabled=false;button.classList.remove('held')"),'failed or unpublished schedule must restore navigation');

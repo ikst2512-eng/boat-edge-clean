@@ -26,8 +26,11 @@ def read_rows(url):
         if response.status!=200:raise ValueError("source unavailable")
         raw=response.read(2_000_001)
         if len(raw)>2_000_000:raise ValueError("source too large")
-    return (list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),
-            datetime.now(JST), hashlib.sha256(raw).hexdigest())
+    received = datetime.now(JST)
+    rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+    from four_mode_raw_receipt import preserve
+    preserve(url, raw, received)
+    return rows, received, hashlib.sha256(raw).hexdigest()
 STORE=Path(__file__).resolve().parent/"research_snapshots"
 def model_provenance():
     root=Path(__file__).resolve().parent
@@ -75,14 +78,82 @@ def predict(hd,jcd,rno):
     except (OSError, TimeoutError, ValueError) as exc:
         if isinstance(exc, ValueError) and str(exc) != 'source unavailable':
             raise
-        from clean_openapi_sources import load
-        titles,cards,observed,digest,source=load(hd)
-        t1=t2=observed
-        title_sha256=cards_sha256=digest
-        source_kind=source["source"]
+        # The public daily title/card CSV often does not yet exist for a
+        # live race. Prefer the exact race-specific, pre-result holding-list
+        # and six-racer upstream; do not depend solely on a daily OpenAPI.
+        from clean_direct_sources import holding_rows,fetch_bytes,parse_card,ROOT
+        try:
+            direct_titles,direct_at,direct_digest=holding_rows(hd)
+            matches=[row for row in direct_titles if row.get("レースコード")==code]
+            if len(matches)!=1:
+                raise ValueError("direct_pre_race_title_missing")
+            raw=fetch_bytes(
+                f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt")
+            card=parse_card(raw,code)
+            titles,cards=[matches[0]],[card]
+            t1=direct_at
+            t2=datetime.now(JST)
+            title_sha256=direct_digest
+            cards_sha256=hashlib.sha256(raw).hexdigest()
+            source_kind="direct_race_specific_pre_race"
+        except (OSError, TimeoutError, ValueError, UnicodeError) as direct_error:
+            from clean_openapi_sources import load
+            titles,cards,observed,digest,source=load(hd)
+            t1=t2=observed
+            title_sha256=cards_sha256=digest
+            source_kind=source["source"]
     matching_t=[r for r in titles if r.get("レースコード")==code]
     matching_c=[r for r in cards if r.get("レースコード")==code]
-    if len(matching_t)!=1 or len(matching_c)!=1:raise ValueError("race missing")
+    if len(matching_t)!=1 or len(matching_c)!=1:
+        # The published daily archives are sometimes partial. Candidate
+        # discovery already checks the live holding list, but the predictor
+        # itself must resolve this exact race before it can freeze the T−12
+        # original. Never build a card from another race or read results.
+        published_title=matching_t[0] if len(matching_t)==1 else None
+        from clean_direct_sources import holding_rows,fetch_bytes,parse_card,ROOT
+        from urllib.error import HTTPError,URLError
+        try:
+            direct_titles,direct_title_at,direct_title_sha=holding_rows(hd)
+            direct_match=[r for r in direct_titles if r.get("レースコード")==code]
+            if len(direct_match)!=1:
+                raise ValueError("direct_pre_race_title_missing")
+            if (published_title and
+                    published_title.get("電話投票締切予定")!=
+                        direct_match[0].get("電話投票締切予定")):
+                raise ValueError("race_deadline_source_conflict")
+            raw=fetch_bytes(
+                f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt")
+            direct_card=parse_card(raw,code)
+            t1=direct_title_at
+            t2=datetime.now(JST)
+            title_sha256=direct_title_sha
+            cards_sha256=hashlib.sha256(raw).hexdigest()
+            titles=[direct_match[0]]
+            cards=[direct_card]
+            source_kind="direct_race_specific_pre_race"
+        except (HTTPError,URLError,TimeoutError,OSError,UnicodeError,ValueError) as exc:
+            if isinstance(exc,ValueError) and str(exc)=="race_deadline_source_conflict":
+                raise
+            # Independent pre-race schedule/card fallback, same source for
+            # both title and six racers. A missing race remains an error.
+            from clean_openapi_sources import load
+            alt_titles,alt_cards,observed,digest,source=load(hd)
+            alt_match_t=[r for r in alt_titles if r.get("レースコード")==code]
+            alt_match_c=[r for r in alt_cards if r.get("レースコード")==code]
+            if len(alt_match_t)!=1 or len(alt_match_c)!=1:
+                raise ValueError("race_missing_from_all_pre_race_sources") from exc
+            if (published_title and
+                    published_title.get("電話投票締切予定")!=
+                        alt_match_t[0].get("電話投票締切予定")):
+                raise ValueError("race_deadline_source_conflict") from exc
+            titles,cards=[alt_match_t[0]],[alt_match_c[0]]
+            t1=t2=observed
+            title_sha256=cards_sha256=digest
+            source_kind=source["source"]
+        matching_t=[r for r in titles if r.get("レースコード")==code]
+        matching_c=[r for r in cards if r.get("レースコード")==code]
+        if len(matching_t)!=1 or len(matching_c)!=1:
+            raise ValueError("race_missing_from_all_pre_race_sources")
     deadline=datetime.strptime(hd+matching_t[0]["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
     cutoff=deadline-timedelta(minutes=12)
     now=datetime.now(JST)

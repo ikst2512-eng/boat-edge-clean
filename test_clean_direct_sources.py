@@ -38,6 +38,46 @@ class DirectSourceTests(unittest.TestCase):
         self.assertEqual(rows[0]["艇6_登録番号"],"4106")
         self.assertIn(DAY+"0101",hashes)
         self.assertEqual(failures,{})
+    def test_live_direct_receipt_is_after_actual_fetch(self):
+        holding=[{"レースコード":DAY+"0101","電話投票締切予定":"15:50"}]
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            status=200
+            def read(self, n): return card_bytes()
+        with patch("clean_direct_sources.urlopen", return_value=Response()):
+            rows,received,_,_,_=direct_cards(DAY,holding,now=NOW)
+        self.assertEqual(len(rows),1)
+        self.assertGreater(received,NOW)
+
+    def test_malformed_title_does_not_block_valid_pre_race_card(self):
+        titles=[
+            {"レースコード":DAY+"0102","電話投票締切予定":"bad-clock"},
+            {"レースコード":DAY+"0101","電話投票締切予定":"15:50"}]
+        called=[]
+        def fetch(url):
+            called.append(url)
+            return card_bytes()
+        cards,received,_,hashes,failed=direct_cards(
+            DAY,titles,now=NOW,fetch=fetch)
+        self.assertEqual([x["レースコード"] for x in cards],[DAY+"0101"])
+        self.assertEqual(set(hashes),{DAY+"0101"})
+        self.assertEqual(failed,{"ValueError":1})
+        self.assertEqual(len(called),1)
+        self.assertIn("bc_j_str3_"+DAY+"_01_01.txt",called[0])
+
+    def test_invalid_race_code_cannot_generate_direct_source_url(self):
+        titles=[
+            {"レースコード":DAY+"9901","電話投票締切予定":"15:50"},
+            {"レースコード":DAY+"0101","電話投票締切予定":"15:50"}]
+        called=[]
+        cards,_,_,_,failed=direct_cards(DAY,titles,now=NOW,
+                                         fetch=lambda url:(called.append(url),card_bytes())[1])
+        self.assertEqual(len(cards),1)
+        self.assertEqual(failed,{"ValueError":1})
+        self.assertEqual(len(called),1)
+        self.assertNotIn("/99/",called[0])
+
     def test_no_result_backfill_after_cutoff(self):
         titles=[{"レースコード":DAY+"0101","電話投票締切予定":"08:05"}]
         called=[]

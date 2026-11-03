@@ -1,0 +1,152 @@
+name: AI repair proposal (manual and review-gated)
+on:
+  pull_request:
+    paths:
+      - ai_repair_agent.py
+      - test_ai_repair_agent.py
+      - .github/workflows/ai-repair-proposal.yml
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: '具体的なUI/ナビゲーション不具合。予想ロジック変更は禁止'
+        required: true
+        default: 'Inspect navigation.js for a demonstrable UI/navigation issue. Only propose an exact safe fix if evidence supports it. Do not change prediction logic, data capture or tests.'
+        type: string
+permissions:
+  contents: read
+# Prevent concurrent manual AI calls from spending quota or racing on PR branches.
+concurrency:
+  group: gemini-ai-repair-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_ai_repair_agent
+  propose:
+    needs: tests
+    if: github.event_name == 'workflow_dispatch' # Manual only; no scheduled paid calls
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test patch guardrails
+        run: python -m unittest -v test_ai_repair_agent
+      - name: Require configured AI credential
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY is not configured in GitHub Actions secrets. No AI request was made."
+            exit 1
+          fi
+          echo "Gemini API credential is present (value is never printed)."
+      - name: Request a small AI UI repair (optional API)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-3.5-flash-lite
+          AI_ISSUE: ${{ inputs.issue }}
+        run: python ai_repair_agent.py --issue "$AI_ISSUE"
+      - name: Summarize Gemini response without exposing source
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path("ai_repair_proposal.json").read_text(encoding="utf-8"))
+          status=report.get("status","unknown")
+          files=report.get("changed_files",[])
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as summary:
+              summary.write("### Gemini UI repair proposal\n")
+              summary.write(f"- Status: `{status}`\n")
+              summary.write(f"- Changed files: {len(files)}\n")
+              summary.write("- Automatic merge: disabled\n")
+              if status=="no_safe_patch":
+                  summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\n")
+          print("Gemini proposal status:",status,"changed files:",len(files))
+          PY
+      - name: Validate untrusted AI patch without write token
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          report=json.load(open('ai_repair_proposal.json'))
+          if report['status'] == 'disabled':
+              print('API key absent: no repair attempted')
+          PY
+          if git diff --quiet; then
+            echo 'No safe patch proposed'
+            exit 0
+          fi
+          # AI has no permission to modify CI, workflow, model or data files.
+          git diff --name-only > /tmp/ai_changed_files
+          while IFS= read -r path; do
+            case "$path" in
+              index.html|navigation.js|secondary_navigation.js) ;;
+              *) echo "Unexpected changed file $path" >&2; exit 1 ;;
+            esac
+          done < /tmp/ai_changed_files
+          python -m unittest -v tests.test_navigation_contract
+          node tests/site-regression.cjs
+          git diff --check
+      - name: Publish reviewed-by-CI patch as draft PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_ISSUE: ${{ inputs.issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then echo 'No repair to publish'; exit 0; fi
+          branch="ai/repair-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- index.html navigation.js secondary_navigation.js
+          git commit -m "AI: propose narrow UI repair for review"
+          # checkout uses persist-credentials:false; explicitly authorize only this publish step.
+          gh auth setup-git
+          git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
+          # Some repositories disable PR creation by GitHub Actions even with
+          # pull-requests:write. Keep the reviewed patch branch available.
+          # A repository policy rejection has a manual-review fallback.
+          # Do not hide API failures or network errors as successful publication.
+          pr_error="$(mktemp)"
+          if gh pr create --draft --base main --head "$branch" --title "AI proposed UI repair (manual review required)" --body "AI-generated, untrusted code suggestion. Issue: ${AI_ISSUE}. Tests executed: navigation contract and site regression. **No automatic merge, deploy, or model changes.** Review patch and CI before approval." 2>"$pr_error"; then
+            echo "AI draft PR created"
+            echo "### Review-ready draft PR created" >> "$GITHUB_STEP_SUMMARY"
+          elif grep -Fq 'GitHub Actions is not permitted to create or approve pull requests' "$pr_error"; then
+            echo "::warning::Repository policy prohibits Actions from creating PRs; reviewed patch branch is preserved."
+            echo "### AI patch created; manual draft PR needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "AI patch branch: $branch" >> "$GITHUB_STEP_SUMMARY"
+            echo "Open a draft PR: https://github.com/${GITHUB_REPOSITORY}/pull/new/$branch" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Draft PR publication failed for a reason other than repository Actions policy."
+            echo "Patch branch remains available: $branch"
+            exit 1
+          fi
+      - name: Archive proposal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-repair-proposal-${{ github.run_id }}
+          path: ai_repair_proposal.json
+          if-no-files-found: warn
+          retention-days: 30

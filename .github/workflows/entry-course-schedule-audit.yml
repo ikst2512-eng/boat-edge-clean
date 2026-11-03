@@ -1,0 +1,35 @@
+name: Entry research independent schedule evidence audit
+on:
+  schedule:
+    # 00:35 JST: audit ONLY the fully completed previous Japan day.
+    - cron: '35 15 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: entry-course-independent-schedule-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'ikst2512-eng/boat-edge-clean' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit actual schedule event runs and research-ledger paths
+        run: python entry_course_schedule_audit.py --output entry-course-evidence/operational-audit.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Retain read-only report even if API fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-course-independent-schedule-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entry-course-evidence/operational-audit.json
+          if-no-files-found: warn
+          retention-days: 14

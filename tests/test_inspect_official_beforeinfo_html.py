@@ -15,6 +15,9 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"manifest.json").write_text(json.dumps({"source":"official_beforeinfo_html","race_code":"202611010708","forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),"request_started_at_jst":"2026-11-01T11:59:59+09:00","received_at_jst":"2026-11-01T12:00:00+09:00","http_status":200,"status":"raw_http_observed_not_t12_certified","t12_eligible":False,"complete_six_lanes":"unverified","url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8","response_url":"https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"}))
             result=inspect(d)
             self.assertTrue(result["label_positions"]["展示タイム"])
+            self.assertEqual(result["request_started_at_jst"],"2026-11-01T11:59:59+09:00")
+            self.assertEqual(result["received_at_jst"],"2026-11-01T12:00:00+09:00")
+            self.assertEqual(result["http_elapsed_seconds"],1.0)
             self.assertTrue(result["label_context"]["展示タイム"])
             self.assertIn("展示タイム 6.89", result["label_context"]["展示タイム"][0]["nearby"][0])
             self.assertNotIn("ST fake", str(result["label_context"]))
@@ -48,5 +51,74 @@ class OfficialHTMLInventoryTests(unittest.TestCase):
             (d/"manifest.json").write_text(json.dumps(manifest))
             (d/"beforeinfo.html").write_bytes(b"tampered")
             with self.assertRaises(ValueError):inspect(d)
+
+    def test_empty_client_rendered_beforeinfo_shell_is_not_race_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d=Path(tmp)/"20261101"/"202611010708"
+            d.mkdir(parents=True)
+            raw=(b'<?xml version="1.0"?><html><body>'
+                 b'<div id="content_beforeInfo"></div>'
+                 b'<script src="/owsp/js/beforeinfo/beforeinfo_v.js"></script>'
+                 b'</body></html>')
+            (d/"beforeinfo.html").write_bytes(raw)
+            url="https://www.boatrace.jp/owsp/sp/race/beforeinfo?hd=20261101&jcd=07&rno=8"
+            (d/"manifest.json").write_text(json.dumps({
+                "source":"official_beforeinfo_html","race_code":"202611010708",
+                "forecast_usable":False,"sha256":hashlib.sha256(raw).hexdigest(),
+                "request_started_at_jst":"2026-11-01T11:59:59+09:00",
+                "received_at_jst":"2026-11-01T12:00:00+09:00",
+                "http_status":200,"status":"raw_http_observed_not_t12_certified",
+                "t12_eligible":False,"complete_six_lanes":"unverified",
+                "url":url,"response_url":url
+            }))
+            result=inspect(d)
+            self.assertEqual(result["body_evidence_class"],"client_rendered_shell_no_boat_values")
+            self.assertFalse(result["t12_eligible"])
+            self.assertEqual(result["six_lane_values"],"unverified")
+
+    def test_hidden_html_does_not_create_display_evidence(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText
+        parser=VisibleText()
+        parser.feed('<table><tr hidden><td>展示タイム fake</td></tr>'
+                    '<tr><td aria-hidden="true">ST fake</td><td>展示タイム 6.89</td></tr>'
+                    '<tr style="display:none"><td>チルト fake</td></tr>'
+                    '<tr><td style="visibility: hidden">進入 fake</td><td>ST 0.11</td></tr></table>')
+        self.assertNotIn("fake", " ".join(parser.fragments))
+        self.assertEqual(parser.table_rows,[["展示タイム 6.89"],["ST 0.11"]])
+
+    def test_labeled_table_rows_are_diagnostic_not_six_lane_proof(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText, matches_label
+        parser=VisibleText()
+        parser.feed('<table><tr><th>展示タイム</th><td>6.89</td></tr>'
+                    '<tr><td><script>ST fake</script>ST</td><td>0.11</td></tr>'
+                    '<tr><td>TEST</td><td>note</td></tr></table>')
+        self.assertEqual(parser.table_rows,[["展示タイム","6.89"],["ST","0.11"],["TEST","note"]])
+        self.assertEqual([row for row in parser.table_rows if any(
+            matches_label(label,cell) for label in ("展示タイム","ST") for cell in row)],
+            [["展示タイム","6.89"],["ST","0.11"]])
+
+    def test_st_label_excludes_english_substrings(self):
+        from scripts.inspect_official_beforeinfo_html import matches_label
+        for value in ("TEST", "LAST", "STATS", "FASTEST", "START"):
+            with self.subTest(value=value):
+                self.assertFalse(matches_label("ST", value))
+        for value in ("ST", "展示ST 0.12", "ST: 0.08", "ST 0.09"):
+            with self.subTest(value=value):
+                self.assertTrue(matches_label("ST", value))
+        self.assertTrue(matches_label("展示タイム", "展示タイム 6.89"))
+
+    def test_inert_markup_cannot_forge_official_labels(self):
+        from scripts.inspect_official_beforeinfo_html import VisibleText, LABELS
+        html = """<html><head><title>展示タイム fake</title></head>
+        <body><template>進入 fake</template><noscript>ST fake</noscript>
+        <svg><text>風速 fake</text></svg><iframe>波高 fake</iframe>
+        <style>チルト fake</style><script>スタート展示 fake</script>
+        <p>展示タイム 6.89</p></body></html>"""
+        parser = VisibleText()
+        parser.feed(html)
+        text = " ".join(parser.fragments)
+        self.assertIn("展示タイム 6.89", text)
+        self.assertNotIn("fake", text)
+        self.assertEqual(sum("展示タイム" in item for item in parser.fragments), 1)
 
 if __name__=="__main__":unittest.main()

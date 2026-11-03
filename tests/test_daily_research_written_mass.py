@@ -12,9 +12,9 @@ from research_model import JST
 class DailyResearchWriteContract(unittest.TestCase):
     def test_new_snapshot_has_raw_topn_mass_and_never_overwrites(self):
         now = datetime.now(JST)
-        day = now.strftime("%Y%m%d")
+        day = (now + timedelta(days=1)).strftime("%Y%m%d")
         code = day + "2401"
-        deadline = (now + timedelta(hours=5)).strftime("%H:%M")
+        deadline = "23:00"  # Future test-day cutoff, never wraps past midnight.
         titles = [{"レースコード": code, "電話投票締切予定": deadline}]
         card = {"レースコード": code}
         card.update({f"艇{i}_全国勝率": str(4 + i / 10) for i in range(1, 7)})

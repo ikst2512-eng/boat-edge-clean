@@ -1,0 +1,28 @@
+name: Research paired all-version TopN
+on:
+  pull_request:
+    paths:
+      - four_mode_paired_all_version_topn.py
+      - test_four_mode_paired_all_version_topn.py
+      - .github/workflows/paired-all-version-topn.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tests
+        run: python -m unittest -v test_four_mode_paired_all_version_topn
+      - name: Same-race actual archived comparisons
+        run: python four_mode_paired_all_version_topn.py | tee paired_all_version_topn.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paired-all-version-topn-${{ github.run_id }}
+          path: paired_all_version_topn.log
+          retention-days: 30

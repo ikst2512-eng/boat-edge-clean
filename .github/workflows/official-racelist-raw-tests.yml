@@ -1,0 +1,69 @@
+name: Official racecard raw receipt research tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/capture_official_racelist_receipt.py'
+      - 'tests/test_capture_official_racelist_receipt.py'
+      - 'scripts/audit_official_racelist_receipt.py'
+      - 'scripts/audit_three_official_t12_originals.py'
+      - 'scripts/audit_joint_official_receipts.py'
+      - 'tests/test_audit_joint_official_receipts.py'
+      - 'scripts/observe_three_official_t12_originals.py'
+      - 'tests/test_observe_three_official_t12_originals.py'
+      - '.github/workflows/official-three-original-t12-observation.yml'
+      - 'tests/test_official_three_original_t12_schedule.py'
+      - 'scripts/summarize_three_t12_venues.py'
+      - 'scripts/run_external_three_t12.py'
+      - '.github/workflows/t12-kiryu12-upstream-recovery-20261103.yml'
+      - 'tests/test_t12_kiryu12_upstream_recovery_contract.py'
+      - 'scripts/gate_kiryu12_upstream_recovery.py'
+      - 'tests/test_gate_kiryu12_upstream_recovery.py'
+      - 'scripts/reaudit_external_three_t12.py'
+      - 'tests/test_reaudit_external_three_t12.py'
+      - 'tests/test_run_external_three_t12.py'
+      - 'tests/test_summarize_three_t12_venues.py'
+      - 'scripts/render_three_t12_live_summary.py'
+      - 'tests/test_render_three_t12_live_summary.py'
+      - 'scripts/reaudit_scheduled_three_t12.py'
+      - 'tests/test_reaudit_scheduled_three_t12.py'
+      - '.github/workflows/official-three-original-t12-reinspect.yml'
+      - 'tests/test_audit_three_official_t12_originals.py'
+      - 'scripts/diagnose_official_racelist_html.py'
+      - 'scripts/inspect_official_racelist_registrations.py'
+      - 'tests/test_inspect_official_racelist_registrations.py'
+      - 'scripts/inspect_official_beforeinfo_json.py'
+      - 'tests/test_inspect_official_beforeinfo_json.py'
+      - 'tests/test_audit_official_racelist_receipt.py'
+      - '.github/workflows/official-racelist-raw-tests.yml'
+      - '.github/workflows/official-racelist-live-dispatch.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture_official_racelist_receipt.py'
+      - 'tests/test_capture_official_racelist_receipt.py'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_capture_official_racelist_receipt.py' -v
+      - run: python -m unittest discover -s tests -p 'test_audit_official_racelist_receipt.py' -v
+      - run: python -m unittest discover -s tests -p 'test_audit_three_official_t12_originals.py' -v
+      - run: python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
+      - run: python -m unittest discover -s tests -p 'test_observe_three_official_t12_originals.py' -v
+      - run: python -m unittest discover -s tests -p 'test_official_three_original_t12_schedule.py' -v
+      - run: python -m unittest discover -s tests -p 'test_summarize_three_t12_venues.py' -v
+      - run: python -m unittest discover -s tests -p 'test_run_external_three_t12.py' -v
+      - run: python -m unittest discover -s tests -p 'test_t12_kiryu12_upstream_recovery_contract.py' -v
+      - run: python -m unittest discover -s tests -p 'test_gate_kiryu12_upstream_recovery.py' -v
+      - run: python -m unittest discover -s tests -p 'test_reaudit_external_three_t12.py' -v
+      - run: python -m unittest discover -s tests -p 'test_render_three_t12_live_summary.py' -v
+      - run: python -m unittest discover -s tests -p 'test_reaudit_scheduled_three_t12.py' -v
+      - run: python -m unittest discover -s tests -p 'test_inspect_official_racelist_registrations.py' -v
+      - run: python -m unittest discover -s tests -p 'test_inspect_official_beforeinfo_json.py' -v
+      - run: python -m unittest discover -s tests -p 'test_official_racelist_dispatch_contract.py' -v

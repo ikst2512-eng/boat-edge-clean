@@ -19,6 +19,22 @@ class NavigationContractTest(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
+    def test_navigation_initialization_waits_for_nav_element(self):
+        probe = self.nav.index("const nav=document.querySelector('.site-global-nav');")
+        guard = self.nav.index("if(!nav)return;", probe)
+        initialized = self.nav.index("document.documentElement.dataset.cleanNavigationInit='1';")
+        self.assertLess(probe, guard)
+        self.assertLess(guard, initialized)
+
+    def test_nested_forecast_nav_is_hidden_not_deleted(self):
+        self.assertIn('#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}', self.index)
+        self.assertIn('function setForecastPane(pane)', self.index)
+        self.assertIn('class="forecast-combined-race"', self.index)
+
+    def test_duplicate_forecast_picker_never_reappears(self):
+        self.assertIn("document.getElementById('forecastQuick').hidden=true", self.index)
+        self.assertNotIn("document.getElementById('forecastQuick').hidden=view!=='forecast'", self.index)
+
     def test_main_navigation_keeps_only_requested_pages(self):
         match = re.search(r'<nav class="site-global-nav[^"]*"[^>]*>(.*?)</nav>', self.index)
         self.assertIsNotNone(match)
@@ -47,12 +63,34 @@ class NavigationContractTest(unittest.TestCase):
 
     def test_navigation_files_are_served_and_injected(self):
         for snippet in ('"/navigation.js"', '"/secondary_navigation.js"',
-                        'script src="/navigation.js"',
                         'script src="/secondary_navigation.js"'):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, self.server)
+        # The HTML bootstrap owns the main navigation loader. Injecting it
+        # again server-side would double-load the same script on Render.
+        self.assertIn("navScript.src='navigation.js'", self.index)
+        self.assertNotIn('script src="/navigation.js"', self.server)
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
+
+    def test_pages_candidate_route_is_render_and_keeps_origin(self):
+        self.assertIn("selection.href='https://boat-edge-clean.onrender.com/selection'",self.nav)
+        self.assertIn("destination.origin===location.origin?destination.pathname+destination.search:destination.href",self.nav)
+
+    def test_github_pages_logo_does_not_leave_clean_site(self):
+        self.assertIn("location.hostname.endsWith('.github.io')", self.nav)
+        self.assertIn("?'/boat-edge-clean/':'/'", self.nav)
+
+    def test_standalone_navigation_skips_race_history_without_state(self):
+        guard = "if(typeof s==='undefined'||typeof activeView==='undefined')return;"
+        self.assertIn(guard, self.nav)
+        self.assertLess(self.nav.index("nav.querySelectorAll('a').forEach"), self.nav.index(guard))
+        self.assertLess(self.nav.index(guard), self.nav.index("const initial=snapshot();"))
+
+    def test_navigation_link_click_handles_missing_race_state(self):
+        self.assertIn("typeof s==='undefined'?null:s", self.nav)
+        self.assertIn("const date=state?.date,venue=state?.venue,race=state?.race;", self.nav)
+        self.assertNotIn("const date=s?.date,venue=s?.venue,race=s?.race;", self.nav)
 
     def test_race_context_passes_to_review_and_candidate_pages(self):
         for snippet in ("destination.searchParams.set('date'",

@@ -61,16 +61,23 @@ jobs:
               if(await page.locator('#races button').count()!==12)throw Error('12 races not rendered');
               await page.evaluate(()=>setView('forecast'));
               if(!await page.locator('#forecast').isVisible())throw Error('Forecast tab not visible');
-              if(!await page.locator('#predictionStatus').isVisible())throw Error('Prediction status not visible');
-              const state=await page.evaluate(()=>({mode:selectedPredictionMode,rows:document.querySelectorAll('#predictionRows .prediction-row').length}));
-              if(state.mode!=='research')throw Error('Current research forecast is not the default: '+JSON.stringify(state));
-              if(await page.locator('#forecast [data-mode="balance"], #forecast [data-mode="hole"], #forecast [data-mode="narrow"]').count())throw Error('Retired mode controls reappeared');
+              // The current forecast prioritizes the four-mode panel; legacy TopN
+              // research is intentionally collapsed and must not be treated as
+              // the primary visible prediction status.
+              if(!await page.locator('#fourModeForecastPanel').isVisible())throw Error('Four-mode forecast panel not visible');
+              if(!await page.locator('#fourModeForecastStatus').isVisible())throw Error('Four-mode forecast status not visible');
+              const state=await page.evaluate(()=>({
+                fourModeStatus:document.querySelector('#fourModeForecastStatus')?.textContent?.trim() || '',
+                hasFourModeRows:!!document.querySelector('#fourModeForecastRows'),
+                legacyCollapsed:!document.querySelector('#legacyTopnResearch')?.open
+              }));
+              if(!state.hasFourModeRows || !state.legacyCollapsed)throw Error('Four-mode/legacy forecast hierarchy broken: '+JSON.stringify(state));
               const leaked=await page.evaluate(()=>['if(item.state!==','verifiedFourModeRace(key)','predictionModes=confirmed.modes','if(token!==resultListRequestId'].some(t=>document.body.innerText.includes(t)));
               if(leaked)throw Error('Raw JavaScript is visible in forecast page');
-              console.log('CURRENT_RESEARCH_FORECAST_UI_PASS',JSON.stringify(state));
+              console.log('CURRENT_FOUR_MODE_FORECAST_UI_PASS',JSON.stringify(state));
               const bodyOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
               if(bodyOverflow)throw Error('Unexpected horizontal page overflow');
-              console.log('PASS: current CLEAN mobile research forecast and navigation');
+              console.log('PASS: current CLEAN mobile four-mode forecast and navigation');
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS

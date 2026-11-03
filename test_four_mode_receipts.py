@@ -1,0 +1,117 @@
+import json
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+from scripts.verify_four_mode_new_receipts import verify, seconds_until_unambiguous_commit
+
+JST = timezone(timedelta(hours=9))
+
+class FourModeReceiptTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.previous = Path.cwd()
+        import os
+        os.chdir(self.temp.name)
+        Path("four_mode_forecasts").mkdir()
+        self.path = Path("four_mode_forecasts/202611020101.json")
+        self.now = datetime(2026,11,2,7,0,tzinfo=JST)
+        self.deadline = self.now + timedelta(minutes=60)
+        self.record = {
+            "schema":"CLEAN_FOUR_MODES_PREDEADLINE_V1",
+            "race_code":self.path.stem,
+            "generated_at_jst":self.now.isoformat(),
+            "deadline_jst":self.deadline.isoformat(),
+            "source_title_received_jst":(self.now-timedelta(minutes=1)).isoformat(),
+            "source_cards_received_jst":(self.now-timedelta(minutes=1)).isoformat(),
+            "source_sha256":{"title":"a"*64,"race_cards":"b"*64},
+            "validated":False,"target_rates_not_proven":True,
+            "modes":{key:{"tickets":[{"combo":"1-2-3","p":2.0}]} for key in ("hit","balance","hole","narrow")}
+        }
+    def tearDown(self):
+        import os
+        os.chdir(self.previous)
+        self.temp.cleanup()
+    def write(self):
+        self.path.write_text(json.dumps(self.record), encoding="utf-8")
+    def test_commit_second_delay_is_unambiguous(self):
+        generated = ["2026-11-02T14:53:20.144877+09:00",
+                     "2026-11-02T14:53:20.900000+09:00"]
+        epoch = datetime.fromisoformat(generated[0]).timestamp()
+        delay = seconds_until_unambiguous_commit(generated, epoch)
+        self.assertGreater(delay, 0.85)
+        self.assertLess(delay, 1.0)
+        self.assertEqual(seconds_until_unambiguous_commit(generated, epoch + 2), 0)
+
+    def test_valid_immutable_candidate(self):
+        self.write()
+        self.assertEqual(verify([str(self.path)], now=self.now+timedelta(minutes=1)),1)
+    def test_refuses_after_cutoff(self):
+        self.write()
+        with self.assertRaisesRegex(ValueError,"receipt"):
+            verify([str(self.path)],now=self.deadline-timedelta(seconds=60))
+    def test_refuses_post_deadline_generation(self):
+        self.record["generated_at_jst"]=(self.deadline-timedelta(minutes=3)).isoformat()
+        self.write()
+        with self.assertRaises(ValueError):
+            verify([str(self.path)],now=self.now)
+    def test_refuses_future_generated_timestamp(self):
+        self.record["generated_at_jst"]=(self.now+timedelta(seconds=1)).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "deadline_or_receipt_expired"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_missing_mode(self):
+        self.record["modes"].pop("hole")
+        self.write()
+        with self.assertRaisesRegex(ValueError,"missing_four_modes"):
+            verify([str(self.path)],now=self.now)
+    def test_refuses_source_observed_after_generation(self):
+        self.record["source_cards_received_jst"]=(self.now+timedelta(minutes=1)).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_receipt_out_of_order"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_non_jst_source_receipts(self):
+        self.record["source_cards_received_jst"] = (self.now-timedelta(minutes=1)).astimezone(timezone.utc).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "source_receipt_out_of_order"):
+            verify([str(self.path)], now=self.now)
+
+    def test_refuses_non_jst_generation(self):
+        self.record["generated_at_jst"] = self.now.astimezone(timezone.utc).isoformat()
+        self.write()
+        with self.assertRaisesRegex(ValueError, "deadline_or_receipt_expired"):
+            verify([str(self.path)], now=self.now)
+
+    def test_refuses_missing_source_receipt(self):
+        self.record.pop("source_title_received_jst")
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_receipt_missing"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_missing_source_digest(self):
+        self.record["source_sha256"].pop("race_cards")
+        self.write()
+        with self.assertRaisesRegex(ValueError,"source_digest_missing"):
+            verify([str(self.path)],now=self.now)
+
+    def test_refuses_nonfinite_or_out_of_range_probability(self):
+        for bad in (float("nan"), float("inf"), -0.1, 100.1, True, "5"):
+            with self.subTest(probability=repr(bad)):
+                self.record["modes"]["hit"]["tickets"][0]["p"] = bad
+                self.write()
+                with self.assertRaisesRegex(ValueError, "invalid_probability"):
+                    verify([str(self.path)], now=self.now)
+        self.record["modes"]["hit"]["tickets"][0]["p"] = 2.0
+
+    def test_refuses_invalid_ticket(self):
+        self.record["modes"]["hit"]["tickets"]=[{"combo":"1-1-2","p":2.0}]
+        self.write()
+        with self.assertRaises(ValueError):
+            verify([str(self.path)],now=self.now)
+
+if __name__=="__main__":
+    unittest.main()

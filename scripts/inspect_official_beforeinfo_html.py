@@ -10,19 +10,42 @@ import json
 import re
 
 LABELS=("展示タイム","チルト","スタート展示","進入","ST","風向","風速","波高")
+# ST is a short abbreviation. A substring match also mistakes TEST, LAST,
+# STATS and HTML diagnostic prose for actual start-timing label evidence.
+ST_LABEL=re.compile(r"(?<![A-Za-z])ST(?![A-Za-z])")
+def matches_label(label, text):
+    return bool(ST_LABEL.search(text)) if label=="ST" else label in text
+# Inert HTML must never be mistaken for six-lane evidence. The inventory is
+# diagnostic only and intentionally does not certify publication or completeness.
+INERT_TAGS=frozenset(("script","style","template","noscript","head","svg","iframe"))
 class VisibleText(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.fragments=[]
-        self.hidden=0
+        self.inert_stack=[]
+        self.table_rows=[]
+        self.current_row=None
     def handle_starttag(self,tag,attrs):
-        if tag in ("script","style"):self.hidden+=1
+        attrs=dict(attrs)
+        style=(attrs.get("style") or "").lower().replace(" ","")
+        hidden=("hidden" in attrs or attrs.get("aria-hidden","").lower()=="true"
+                or "display:none" in style or "visibility:hidden" in style)
+        if tag=="tr" and not self.inert_stack and not hidden:
+            self.current_row=[]
+        if tag in INERT_TAGS or hidden:
+            self.inert_stack.append(tag)
     def handle_endtag(self,tag):
-        if tag in ("script","style") and self.hidden:self.hidden-=1
+        if tag=="tr" and not self.inert_stack and self.current_row is not None:
+            if self.current_row:self.table_rows.append(self.current_row)
+            self.current_row=None
+        if self.inert_stack and self.inert_stack[-1]==tag:
+            self.inert_stack.pop()
     def handle_data(self,data):
-        if not self.hidden:
+        if not self.inert_stack:
             t=" ".join(data.split())
-            if t:self.fragments.append(t)
+            if t:
+                self.fragments.append(t)
+                if self.current_row is not None:self.current_row.append(t)
 
 def inspect(saved_dir):
     base=Path(saved_dir)
@@ -68,16 +91,31 @@ def inspect(saved_dir):
     parser=VisibleText()
     parser.feed(raw.decode("utf-8",errors="replace"))
     tokens=parser.fragments
-    matched={label:[i for i,t in enumerate(tokens) if label in t][:15] for label in LABELS}
+    # Source-backed row context assists manual lane mapping. Row count alone
+    # never certifies six lanes: official pages contain unrelated tables.
+    labeled_rows=[{"row_index":i,"tokens":[s[:120] for s in row[:32]],
+                   "labels":[label for label in LABELS if any(matches_label(label,s) for s in row)]}
+                  for i,row in enumerate(parser.table_rows)
+                  if any(matches_label(label,s) for label in LABELS for s in row)][:24]
+    matched={label:[i for i,t in enumerate(tokens) if matches_label(label,t)][:15] for label in LABELS}
     # Preserve bounded, source-backed neighboring text to design a lane parser
     # from actual official pages; do not classify boat counts from labels.
     context={label:[{"index":i,"nearby":tokens[max(0,i-2):min(len(tokens),i+5)]}
                     for i in positions] for label,positions in matched.items()}
     context={label:[{"index":row["index"],"nearby":[item[:120] for item in row["nearby"]]}
                     for row in rows] for label,rows in context.items()}
+    # The official smartphone beforeinfo endpoint may serve a dynamic page shell;
+    # an empty target div contains no actual boat observations.
+    shell_target=re.search(r"<div\s+id=['\"]content_beforeInfo['\"]\s*>\s*</div>",raw.decode("utf-8",errors="replace"),re.I)
+    evidence_kind="client_rendered_shell_no_boat_values" if shell_target and not any(matched.values()) else "unclassified_html"
     return {"race_code":manifest.get("race_code"),"sha256_verified":True,
+            "request_started_at_jst":started.isoformat(),
+            "received_at_jst":receipt.isoformat(),
+            "http_elapsed_seconds":(receipt-started).total_seconds(),
             "visible_text_fragments":len(tokens),"label_positions":matched,
+            "diagnostic_labeled_table_rows":labeled_rows,
             "label_context":context,
+            "body_evidence_class":evidence_kind,
             "six_lane_values":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":

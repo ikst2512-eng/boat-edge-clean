@@ -1,0 +1,19 @@
+name: Hole frozen shadow comparison audit
+on:
+  pull_request:
+    paths:
+      - hole_shadow_bundle_audit.py
+      - test_hole_shadow_bundle_audit.py
+      - .github/workflows/hole-shadow-bundle-audit.yml
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_shadow_bundle_audit.py

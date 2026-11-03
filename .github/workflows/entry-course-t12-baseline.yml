@@ -1,0 +1,36 @@
+name: Entry research T-minus-12 baseline archival
+on:
+  schedule:
+    # Every 5 minutes 09:00-22:59 JST; targets 2–14 min before T−12.
+    # Broader retry availability; prospective cutoff itself is unchanged.
+    - cron: '*/5 0-13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: entry-course-t12-baseline-research
+  cancel-in-progress: false
+jobs:
+  freeze:
+    if: github.repository == 'ikst2512-eng/boat-edge-clean' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Freeze original unchanged research-model T-minus-12 predictions
+        run: python entry_course_t12_seed.py --output entry-course-evidence/t12-seed.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Retain T-minus-12 research seeding diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-t12-seed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entry-course-evidence/t12-seed.json
+          if-no-files-found: warn
+          retention-days: 5

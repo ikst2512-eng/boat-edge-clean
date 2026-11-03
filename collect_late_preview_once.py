@@ -22,6 +22,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
     report={"date":day,"status":"read_only_local_capture","kinds":{}}
     for kind in KINDS:
         url=f"{BASE}{kind}/{day[:4]}/{day[4:6]}/{day[6:]}.csv"
+        started=now()
         try:
             if fetch:
                 raw=fetch(url)
@@ -29,6 +30,7 @@ def collect(day=None, root=None, fetch=None, clock=None):
                 with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESEARCH/1.0"}),timeout=8) as response:
                     raw=response.read(3_000_001)
             received=now()
+            elapsed_ms=max(0,round((received-started).total_seconds()*1000))
             rows=list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
             gate={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
             early={"pre_cutoff_observed":0,"too_late":0,"unknown_time":0}
@@ -38,7 +40,9 @@ def collect(day=None, root=None, fetch=None, clock=None):
                 early[classify(row,received,margin_minutes=12)]+=1
                 six_lanes[six_lane_status(kind,row)]+=1
             written=save_preview(raw,kind,day,received,root)
-            report["kinds"][kind]={"status":"retrieved","received_at_jst":received.isoformat(),"saved":len(written),
+            report["kinds"][kind]={"status":"retrieved","request_started_at_jst":started.isoformat(),
+                                   "fetch_elapsed_ms":elapsed_ms,
+                                   "received_at_jst":received.isoformat(),"saved":len(written),
                                    "race_codes":written[:5],"source_rows":len(rows),
                                    "pre_deadline_2min":gate,"pre_deadline_12min":early,"six_lane_validation":six_lanes}
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError,FileExistsError) as err:
@@ -55,6 +59,8 @@ def collect(day=None, root=None, fetch=None, clock=None):
             report["kinds"][kind]={"status":status,"error":type(err).__name__,"reason":reason,
                                    "availability_interpretation":interpretation,
                                    "http_status":err.code if isinstance(err,HTTPError) else None,
+                                   "request_started_at_jst":started.isoformat(),
+                                   "fetch_elapsed_ms":max(0,round((checked_at-started).total_seconds()*1000)),
                                    "received_at_jst":checked_at.isoformat(),"saved":0,
                                    "source_rows":None,"pre_deadline_2min":None,"pre_deadline_12min":None,
                                    "six_lane_validation":None}

@@ -13,6 +13,41 @@ def csv_row(received="2026-10-31 11:00:00", deadline="11:20"):
 
 
 class LatePreviewEvidenceTests(unittest.TestCase):
+    def test_ragged_csv_rows_fail_without_archiving(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt=datetime(2026,10,31,11,2,tzinfo=JST)
+            header="レースコード,締切時刻,取得日時,艇1_展示タイム"
+            for values in (
+                "202610310101,11:20,2026-10-31 11:00:00",
+                "202610310101,11:20,2026-10-31 11:00:00,6.65,6.99",
+            ):
+                with self.subTest(values=values):
+                    raw=(header+"\n"+values+"\n").encode()
+                    with self.assertRaisesRegex(ValueError,"ragged preview CSV row"):
+                        save_preview(raw,"tkz","20261031",receipt,directory)
+            self.assertFalse(list(Path(directory).rglob("*.json")))
+
+    def test_duplicate_csv_headers_fail_before_any_evidence_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt=datetime(2026,10,31,11,2,tzinfo=JST)
+            raw=("レースコード,締切時刻,取得日時,艇1_展示タイム,艇1_展示タイム\n"
+                 "202610310101,11:20,2026-10-31 11:00:00,6.50,6.90\n").encode()
+            with self.assertRaisesRegex(ValueError,"duplicate preview CSV headers"):
+                save_preview(raw,"tkz","20261031",receipt,directory)
+            self.assertFalse(list(Path(directory).rglob("*.json")))
+
+    def test_six_lane_st_requires_plausible_start_values(self):
+        from late_preview_capture import six_lane_status
+        row={f"艇{i}_コース":str(i) for i in range(1,7)}
+        row.update({f"艇{i}_スタート展示":"0.12" for i in range(1,7)})
+        self.assertEqual(six_lane_status("stt",row),"complete")
+        for invalid in ("999","-2.0","1.50","NaN","inf","F1.00","ST"):
+            with self.subTest(invalid=invalid):
+                row["艇6_スタート展示"]=invalid
+                self.assertEqual(six_lane_status("stt",row),"incomplete")
+        row["艇6_スタート展示"]="F.02"
+        self.assertEqual(six_lane_status("stt",row),"complete")
+
     def test_predeadline_append_only_receipt_and_hash(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

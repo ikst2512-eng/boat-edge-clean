@@ -10,6 +10,87 @@ from research_model import JST
 from scripts.capture_official_beforeinfo_probe import capture
 
 class OfficialProbeTests(unittest.TestCase):
+    def test_multiple_attempts_preserve_immutable_official_html(self):
+        from scripts.inspect_official_beforeinfo_html import inspect
+        with tempfile.TemporaryDirectory() as root:
+            code="202611010708"
+            now=datetime(2026,11,1,12,0,tzinfo=JST)
+            for attempt,body in (("first",b"<html>first</html>"),("second",b"<html>second</html>")):
+                result=capture(code,root,fetch=lambda url,content=body:content,
+                               clock=lambda:now,observation_id=attempt)
+                self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+                saved=Path(root)/"observations"/attempt/"20261101"/code
+                self.assertEqual((saved/"beforeinfo.html").read_bytes(),body)
+                self.assertFalse(inspect(saved)["t12_eligible"])
+            first=Path(root)/"observations"/"first"/"20261101"/code
+            self.assertEqual((first/"beforeinfo.html").read_bytes(),b"<html>first</html>")
+            self.assertEqual(capture(code,root,fetch=lambda url:b"<html>overwrite</html>",
+                                     clock=lambda:now,observation_id="first")["status"],"official_probe_failed")
+            for unsafe in ("../escape","bad/id","", " "):
+                with self.assertRaises(ValueError):
+                    capture(code,root,observation_id=unsafe)
+
+    def test_official_timeout_exceeds_observed_eight_second_latency(self):
+        from unittest.mock import patch
+        from scripts.capture_official_beforeinfo_probe import HTTP_TIMEOUT_SECONDS
+        self.assertGreater(HTTP_TIMEOUT_SECONDS, 8.2)
+        self.assertLessEqual(HTTP_TIMEOUT_SECONDS, 20)
+        with tempfile.TemporaryDirectory() as root:
+            with patch("scripts.capture_official_beforeinfo_probe.urlopen",
+                       side_effect=TimeoutError("simulated")) as mocked:
+                outcome=capture("202611010708",root)
+            self.assertEqual(mocked.call_args.kwargs["timeout"],HTTP_TIMEOUT_SECONDS)
+            self.assertEqual(outcome["status"],"official_probe_failed")
+            self.assertFalse(outcome["forecast_usable"])
+
+    def test_failure_stage_distinguishes_invalid_html_from_transport(self):
+        with tempfile.TemporaryDirectory() as root:
+            invalid=capture("202611010708",root,fetch=lambda url:b'{"error":"not yet"}')
+            self.assertEqual(invalid["status"],"official_probe_failed")
+            self.assertEqual(invalid["failure_stage"],"html_signature")
+            self.assertNotIn("not yet",str(invalid))
+            def unavailable(url): raise TimeoutError("offline")
+            failed=capture("202611010708",root,fetch=unavailable)
+            self.assertEqual(failed["failure_stage"],"transport")
+            self.assertFalse(failed["forecast_usable"])
+
+    def test_rejected_response_classification_contains_no_payload(self):
+        samples=((b'{"token":"hidden"}',"json_like"),
+                 (b"<?xml version='1.0'?>","xml_like"),
+                 (bytes.fromhex("1f8b0800"),"gzip_encoded"),
+                 (b"unexpected private body","other"))
+        for raw,expected in samples:
+            with self.subTest(expected=expected),tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:raw)
+                self.assertEqual(result["failure_stage"],"html_signature")
+                self.assertEqual(result["response_format_category"],expected)
+                self.assertFalse(result["forecast_usable"])
+                self.assertFalse(list(Path(root).rglob("beforeinfo.html")))
+                self.assertNotIn("hidden",str(result))
+
+    def test_xhtml_with_xml_prolog_is_preserved_but_not_t12_certified(self):
+        bodies=(b'<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><body>ok</body></html>',
+                b'<?xml version="1.0"?>\n<!DOCTYPE html><html><body>ok</body></html>')
+        for body in bodies:
+            with self.subTest(body=body[:40]), tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:body)
+                self.assertEqual(result["status"],"raw_http_observed_not_t12_certified")
+                self.assertEqual((Path(root)/"20261101/202611010708/beforeinfo.html").read_bytes(),body)
+                self.assertFalse(result["t12_eligible"])
+                self.assertFalse(result["forecast_usable"])
+
+    def test_xml_error_and_large_prolog_still_rejected(self):
+        bodies=(b'<?xml version="1.0"?><error>not ready</error>',
+                b'<?xml version="1.0"?><root><html>not official</html></root>',
+                b'<?xml '+b'a'*300+b'?><html>bad</html>')
+        for body in bodies:
+            with self.subTest(body=body[:35]), tempfile.TemporaryDirectory() as root:
+                result=capture("202611010708",root,fetch=lambda url:body)
+                self.assertEqual(result["status"],"official_probe_failed")
+                self.assertEqual(result["failure_stage"],"html_signature")
+                self.assertFalse(list(Path(root).rglob("beforeinfo.html")))
+                self.assertFalse(result["forecast_usable"])
+
     def test_http_receipt_is_not_t12_proof(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,11,1,12,0,tzinfo=JST)
@@ -82,6 +163,7 @@ class OfficialProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             result=capture("202611010708",d,fetch=lambda url:b"<html></html>",clock=lambda:next(ticks))
             self.assertEqual(result["status"],"official_probe_failed")
+            self.assertFalse(result["observation_chronology_valid"])
             self.assertFalse(list(Path(d).rglob("manifest.json")))
 
     def test_http_200_non_html_is_not_saved_as_evidence(self):
@@ -100,6 +182,9 @@ class OfficialProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             r=capture("202611010708",d,fetch=missing)
             self.assertEqual(r["status"],"official_probe_failed")
+            self.assertIn("request_started_at_jst",r)
+            self.assertIn("received_at_jst",r)
+            self.assertTrue(r["observation_chronology_valid"])
             self.assertFalse(r["t12_eligible"])
             self.assertEqual(list(Path(d).rglob("*.html")),[])
     def test_partial_manifest_write_cleans_evidence_directory(self):

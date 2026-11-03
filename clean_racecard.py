@@ -27,16 +27,20 @@ def _preview_rows(kind,path):
     return list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))),hashlib.sha256(raw).hexdigest()
 
 
-def _fetch_preview(code,path,deadline):
-    """Only use race-matched and independently time-stamped predeadline data."""
-    # Concurrent independent source reads keep server response bounded when
-    # one published preview CSV is unavailable or slow.
-    observed_now=datetime.now(JST)
+def _fetch_preview(code,path,deadline,clock=None):
+    """Use race-matched six-lane snapshots actually received before cutoff."""
+    # Record each source's real HTTP completion time; a scan-start timestamp
+    # would discard snapshots published while the network call was in flight.
+    # A source delivered after the race cutoff can never be predeadline proof.
+    clock=clock or (lambda: datetime.now(JST))
     def select(kind):
         try:
             rows,sha=_preview_rows(kind,path)
+            received_at=clock()
         except (OSError,ValueError,KeyError,UnicodeError):
             return kind,None,"source_unavailable"
+        if received_at.tzinfo is None or received_at>=deadline:
+            return kind,None,"deadline_or_receipt_unverified"
         candidates=[]
         matching=0
         incomplete=0
@@ -48,7 +52,7 @@ def _fetch_preview(code,path,deadline):
                 observed=datetime.fromisoformat(row.get("取得日時",""))
             except (ValueError,TypeError):
                 continue
-            if observed.tzinfo is not None and observed<=observed_now and observed<deadline:
+            if observed.tzinfo is not None and observed<=received_at and observed<deadline:
                 # A newer partial snapshot must not hide earlier, complete,
                 # independently time-stamped measurements for this same race.
                 if kind=="tkz":
@@ -70,7 +74,7 @@ def _fetch_preview(code,path,deadline):
                 else:incomplete+=1
         if candidates:
             observed,row=max(candidates,key=lambda x:x[0])
-            return kind,(observed,row,sha),"ok"
+            return kind,(observed,row,sha,received_at),"ok"
         return kind,None,("race_not_published" if not matching else "incomplete_exhibition" if incomplete else "deadline_or_timestamp_unverified")
     with ThreadPoolExecutor(max_workers=3) as pool:
         found=list(pool.map(select,("tkz","stt","sui")))
@@ -100,7 +104,8 @@ def _fetch_preview(code,path,deadline):
         return None,{"status":"invalid_or_incomplete_exhibition","source_status":availability}
     audit={"status":"ok","source_status":availability,"fetched_at":max(sources["tkz"][0],sources["stt"][0]).isoformat(),
            "source":"BoatraceCSV predeadline snapshots",
-           "sources":{k:{"observed_at":v[0].isoformat(),"sha256":v[2]} for k,v in sources.items()}}
+           "sources":{k:{"observed_at":v[0].isoformat(),"sha256":v[2],
+                         "received_at_jst":v[3].isoformat()} for k,v in sources.items()}}
     preview={"racers":racers,"start_exhibition":starts}
     if "sui" in sources:
         row=sources["sui"][1]
@@ -108,12 +113,19 @@ def _fetch_preview(code,path,deadline):
     return preview,audit
 
 
+def _race_read_only(deadline, now=None):
+    """Completed races are historical even if they closed earlier today."""
+    observed=now or datetime.now(JST)
+    if deadline.tzinfo is None or observed.tzinfo is None:
+        raise ValueError("race_cutoff_timezone_missing")
+    return observed >= deadline
+
+
 def racecard(hd,jcd,rno):
     if not re.fullmatch(r"20\d{6}",str(hd)) or not re.fullmatch(r"(?:0?[1-9]|1[0-9]|2[0-4])",str(jcd)) or not re.fullmatch(r"[1-9]|1[0-2]",str(rno)):
         raise ValueError("invalid_race_key")
     datetime.strptime(hd,"%Y%m%d")
     code=f"{hd}{int(jcd):02d}{int(rno):02d}"
-    historical=datetime.strptime(hd,"%Y%m%d").date()<datetime.now(JST).date()
     path=f"{hd[:4]}/{hd[4:6]}/{hd[6:8]}.csv"
     # Daily generated CSV can be absent before racing closes. Read primary first,
     # then obtain exactly this race from the independent documented live origin.
@@ -162,6 +174,9 @@ def racecard(hd,jcd,rno):
     if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]",deadline_text):
         raise ValueError("deadline_not_available")
     deadline=datetime.strptime(hd+deadline_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+    # A race closed earlier today is also read-only. Calendar-day comparison
+    # would reject its card because the source was fetched after cutoff.
+    historical=_race_read_only(deadline)
     if title_fetched>=deadline and not historical:raise ValueError("race_already_closed")
     try:
         cards,card_fetched,card_sha=read_rows(BASE+"race_cards/"+path)

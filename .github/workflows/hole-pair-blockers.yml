@@ -1,0 +1,33 @@
+name: Hole pair blocker research
+on:
+  pull_request:
+    paths:
+      - hole_pair_blocker_diagnostic.py
+      - test_hole_pair_blocker_diagnostic.py
+      - .github/workflows/hole-pair-blockers.yml
+  workflow_dispatch:
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_pair_blocker_diagnostic.py
+      - run: python hole_pair_blocker_diagnostic.py > hole_pair_blockers.json
+      - name: Verify research boundary
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_pair_blockers.json"))
+          assert r["formal"] is False and r["production_forecast_changed"] is False
+          assert sum(r["blockers"].values())==r["cases"]
+          print("CASES",r["cases"],"BLOCKERS",r["blockers"],"CROSS_TAB",r["winning_pair_cross_tab"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-blockers
+          path: hole_pair_blockers.json

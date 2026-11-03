@@ -1,0 +1,25 @@
+name: Four-mode archive API regression
+on:
+  pull_request:
+    paths:
+      - four_mode_archive_api.py
+      - test_four_mode_archive_api.py
+      - server.py
+      - .github/workflows/four-mode-archive-api-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - four_mode_archive_api.py
+      - test_four_mode_archive_api.py
+      - server.py
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_four_mode_archive_api

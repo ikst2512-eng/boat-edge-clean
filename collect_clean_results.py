@@ -33,12 +33,17 @@ def build_records(day, raw, collected_at):
         raise ValueError("unrecognized result schema")
     digest = hashlib.sha256(raw).hexdigest()
     records = {}
+    seen_codes = set()
     for row in reader:
         code = row.get("レースコード", "")
         if not isinstance(code, str) or not RACE_RE.fullmatch(code) or not code.startswith(day):
             continue
-        if code in records:
+        # Reject duplicate race IDs even when an earlier row was ineligible.
+        # Otherwise a malformed first row can be silently ignored while a
+        # second row is admitted, disagreeing with source-gap diagnostics.
+        if code in seen_codes:
             raise ValueError("duplicate source result")
+        seen_codes.add(code)
         tokens = [str(row.get(f"{i}着_艇番", "")).strip() for i in (1, 2, 3)]
         # Canceled races, disqualifications, unfinished or joint finish must
         # not be converted into an ordinary trifecta.
@@ -69,7 +74,7 @@ def build_records(day, raw, collected_at):
 
 
 
-def source_gap_reasons(day, raw, missing_codes):
+def source_gap_reasons(day, raw, missing_codes, *, collected_at=None):
     """Classify source visibility; blank/malformed finish is never a loss."""
     if not DATE_RE.fullmatch(day):raise ValueError("date")
     if len(raw)>2_000_000:raise ValueError("source too large")
@@ -91,7 +96,16 @@ def source_gap_reasons(day, raw, missing_codes):
         elif not row.get("取得日時"):
             matched[code]="missing_source_timestamp"
         else:
-            matched[code]="row_present_requires_review"
+            try:
+                stamp=datetime.fromisoformat(row["取得日時"].replace("Z","+00:00"))
+                if stamp.utcoffset() is None:
+                    raise ValueError("naive_source_timestamp")
+                if collected_at is not None and stamp>collected_at+timedelta(minutes=3):
+                    matched[code]="future_source_timestamp"
+                else:
+                    matched[code]="row_present_requires_review"
+            except (ValueError,TypeError,AttributeError,OverflowError):
+                matched[code]="invalid_source_timestamp"
     return {code:matched.get(code,"not_in_published_csv") for code in sorted(wanted)}
 
 
@@ -107,7 +121,7 @@ def diagnose_source_gaps(day, root=ROOT, download=None):
             with urlopen(Request(target,headers={"User-Agent":"BOAT-EDGE-CLEAN-RESULTS/1.0"}),timeout=15) as response:
                 return response.read(2_000_001)
     try:
-        reasons=source_gap_reasons(day,download(url),pending)
+        reasons=source_gap_reasons(day,download(url),pending, collected_at=datetime.now(JST))
         return {"day":day,"unresolved":len(pending),"reasons":reasons}
     except HTTPError as exc:
         if exc.code==404:
@@ -141,9 +155,11 @@ def collect(day=None):
         if file.is_symlink():
             raise ValueError("symlink record refused")
         if file.exists():
+            # Never silently accept a record that the overdue audit and
+            # four-mode scorer correctly reject as invalid.
+            if not confirmed_record_is_usable(file, code):
+                raise ValueError("existing archive invalid; manual review required")
             existing = json.loads(file.read_text(encoding="utf-8"))
-            if existing.get("race_code") != code or existing.get("status") != "confirmed":
-                raise ValueError("existing archive invalid")
             if existing.get("finish_order") != record["finish_order"]:
                 raise ValueError("published finish order changed; manual review required")
             continue
@@ -165,6 +181,46 @@ def collect_recent(now=None, collector=collect):
     return {"status": "checked", "days": [collector(day) for day in dates]}
 
 
+
+def confirmed_record_is_usable(path, code):
+    """Only trustworthy persisted records satisfy overdue coverage.
+
+    A file's mere existence is not a settled result. Do not delete or
+    rewrite invalid records; keep them visible for manual review.
+    """
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 20000:
+            return False
+        record=json.loads(path.read_text(encoding="utf-8"))
+        order=record.get("finish_order")
+        if (record.get("race_code")!=code or record.get("status")!="confirmed"
+                or type(order) is not list or len(order)!=3
+                or any(type(boat) is not int or boat not in range(1,7) for boat in order)
+                or len(set(order))!=3
+                or not isinstance(record.get("source_url"),str)
+                or record["source_url"] != (BASE + code[:4] + "/" + code[4:6]
+                                            + "/" + code[6:8] + ".csv")
+                or not isinstance(record.get("source_sha256"),str)
+                or re.fullmatch(r"[a-f0-9]{64}",record["source_sha256"]) is None):
+            return False
+        timestamps = {}
+        for key in ("confirmed_at_jst","collected_at_jst"):
+            value=record.get(key)
+            if not isinstance(value,str):
+                return False
+            timestamp=datetime.fromisoformat(value)
+            if timestamp.utcoffset() is None:
+                return False
+            timestamps[key]=timestamp
+        # Match the source collector's future-time rejection. A persisted
+        # result cannot claim a source acquisition >3 minutes after collection.
+        if timestamps["confirmed_at_jst"] > timestamps["collected_at_jst"] + timedelta(minutes=3):
+            return False
+        return True
+    except (OSError,ValueError,TypeError,AttributeError,OverflowError):
+        return False
+
+
 def audit_missing_results(root=ROOT, now=None):
     """List only overdue CLEAN frozen races without a confirmed result file.
 
@@ -177,7 +233,7 @@ def audit_missing_results(root=ROOT, now=None):
     if forecasts.exists():
         for file in sorted(forecasts.glob("*.json")):
             code = file.stem
-            if not RACE_RE.fullmatch(code) or (confirmed / (code + ".json")).is_file():
+            if not RACE_RE.fullmatch(code) or confirmed_record_is_usable(confirmed / (code + ".json"),code):
                 continue
             try:
                 record = json.loads(file.read_text(encoding="utf-8"))
@@ -199,7 +255,7 @@ def publish_collection_status(report, root=ROOT, now=None):
     now = now or datetime.now(JST)
     overdue = audit_missing_results(root, now)
     payload={"schema":"CLEAN_RESULT_COLLECTION_STATUS_V1","checked_at_jst":now.isoformat(),
-             "overdue_result_count":len(overdue),"overdue_race_codes":overdue,"days":[{
+             "overdue_result_count":len(overdue),"overdue_race_codes":overdue,"historical_retries":report.get("historical_retries"),"days":[{
         "day":x.get("day"),"status":x.get("status","available"),
         "source_races":x.get("source_races",0),"newly_saved":x.get("saved",0),
         "http_status":x.get("http_status"),"source_url":x.get("source_url")
@@ -213,7 +269,28 @@ def publish_collection_status(report, root=ROOT, now=None):
     return payload
 
 
+def collect_overdue_historical(root=ROOT, now=None, collector=collect, *, max_days=3):
+    """At most once per hour retry bounded historical days with frozen forecasts.
+
+    Missing result is never converted to a loss. Existing archives retain the
+    collector's immutable, conflict-failing semantics. Only yesterday/today
+    are handled by regular collection, so do not re-request those here.
+    """
+    now = now or datetime.now(JST)
+    if now.astimezone(JST).minute >= 10:
+        return {"status": "not_hourly_window", "days": []}
+    dates = set()
+    for code in audit_missing_results(root, now):
+        day = datetime.strptime(code[:8], "%Y%m%d").date()
+        age = (now.astimezone(JST).date() - day).days
+        if 2 <= age <= 30:
+            dates.add(code[:8])
+    selected = sorted(dates)[:max_days]
+    return {"status": "checked", "days": [collector(day) for day in selected]}
+
+
 if __name__ == "__main__":
     report=collect_recent()
+    report["historical_retries"]=collect_overdue_historical()
     publish_collection_status(report)
     print(json.dumps(report, ensure_ascii=False))

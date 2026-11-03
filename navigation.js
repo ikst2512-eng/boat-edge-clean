@@ -1,30 +1,36 @@
 (()=>{'use strict';
 if(document.documentElement.dataset.cleanNavigationInit==='1')return;
-document.documentElement.dataset.cleanNavigationInit='1';
 const nav=document.querySelector('.site-global-nav');
 if(!nav)return;
-const params=location.search;
+document.documentElement.dataset.cleanNavigationInit='1';
 // GitHub Pages project sites cannot serve Render's /review route directly.
 // Use the existing single-page screen query without changing Render routes.
 if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')){
  const review=nav.querySelector('a[href="/review"]');
  if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
+ // The candidate list is a Render route, not a GitHub Pages file.
+ const selection=nav.querySelector('a[href="/selection"]');
+ if(selection)selection.href='https://boat-edge-clean.onrender.com/selection';
 }
 nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
- const date=s?.date,venue=s?.venue,race=s?.race;
+ const state=typeof s==='undefined'?null:s;
+ const date=state?.date,venue=state?.venue,race=state?.race;
  if(/^\d{4}-\d{2}-\d{2}$/.test(date||'')&&Number.isInteger(venue)&&venue>=0&&venue<24&&Number.isInteger(race)&&race>=1&&race<=12){
   destination.searchParams.set('date',date);
   destination.searchParams.set('venue',String(venue+1));
   destination.searchParams.set('race',String(race));
  }
- link.href=destination.pathname+destination.search;
+ link.href=destination.origin===location.origin?destination.pathname+destination.search:destination.href;
 }));
 const logo=document.querySelector('.site-head .logo');
-if(logo){const a=document.createElement('a');a.href='/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
+if(logo){const a=document.createElement('a');a.href=location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')?'/boat-edge-clean/':'/';a.className=logo.className+' logo-link';a.textContent=logo.textContent;a.setAttribute('aria-label','開催場を選ぶ画面に戻る');logo.replaceWith(a);}
 const css=document.createElement('style');
-css.textContent='.logo-link{color:inherit;text-decoration:none}.logo-link:focus-visible, .logo-link:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}.site-global-nav.compact-nav{display:flex;justify-content:flex-end;gap:10px;padding:8px 16px;overflow:visible}.site-global-nav.compact-nav a{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border:1px solid #cbd9e8;border-radius:9px;text-decoration:none;font-weight:800}@media(max-width:420px){.site-global-nav.compact-nav{justify-content:center}.site-global-nav.compact-nav a{flex:1;text-align:center}}';
+css.textContent='.logo-link{color:inherit;text-decoration:none}.logo-link:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}.site-global-nav.compact-nav{display:flex;justify-content:flex-end;gap:10px;padding:8px 16px;overflow:visible}.site-global-nav.compact-nav a{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border:1px solid #cbd9e8;border-radius:9px;text-decoration:none;font-weight:800}@media(max-width:420px){.site-global-nav.compact-nav{justify-content:center}.site-global-nav.compact-nav a{flex:1;text-align:center}}';
 document.head.append(css);
+
+// Standalone navigation pages may not bootstrap race state; keep global links usable.
+if(typeof s==='undefined'||typeof activeView==='undefined')return;
 
 // Navigation history for in-page race/detail changes. Browser back/forward restore both
 // selected race and active panel without resetting to the home screen.
@@ -56,9 +62,8 @@ const sync=()=>{
  u.searchParams.set('race',String(next.race));
  u.searchParams.set('screen',next.view);
  history.pushState({boatEdgeNav:true,position,snapshot:next},'',u);
- refresh();
+
 };
-const refresh=()=>{};
 if(originalSetView){
  setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
@@ -75,7 +80,7 @@ window.addEventListener('popstate',event=>{
  if(originalSetView)originalSetView(v.view);
  if(originalRender)originalRender();
  history.replaceState(state,'',location.href);
- restoring=false;refresh();
+ restoring=false;
 });
 // The only back control is in index.html; browser history takes precedence.
 back?.addEventListener('click',event=>{

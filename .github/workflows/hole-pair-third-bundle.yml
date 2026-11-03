@@ -1,0 +1,34 @@
+name: Hole pair-third bundle research
+on:
+  pull_request:
+    paths:
+      - hole_pair_third_bundle_research.py
+      - test_hole_pair_third_bundle_research.py
+      - .github/workflows/hole-pair-third-bundle.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_pair_third_bundle_research.py
+      - run: python hole_pair_third_bundle_research.py > hole_pair_third_bundle.json
+      - name: Check boundaries and show comparisons
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_pair_third_bundle.json'))
+          assert r['formal'] is False and r['independent_holdout'] is False
+          assert r['prospective_validation'] is False and r['production_forecast_changed'] is False
+          print('EARLIER',r['earlier'])
+          print('LATER',r['later'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-third-bundle
+          path: hole_pair_third_bundle.json

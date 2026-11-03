@@ -1,0 +1,40 @@
+name: Hole Top5 protected pair ranking research
+on:
+  pull_request:
+    paths:
+      - hole_safe_top10_pair_rank_research.py
+      - test_hole_safe_top10_pair_rank_research.py
+      - .github/workflows/hole-safe-top10-pair-rank.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_safe_top10_pair_rank_research.py
+      - run: python hole_safe_top10_pair_rank_research.py > hole_safe_top10_pair_rank.json
+      - name: Show separated cohorts and score limitations
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_safe_top10_pair_rank.json"))
+          assert r["formal"] is False and r["independent_holdout"] is False
+          assert r["prospective_validation"] is False and r["production_forecast_changed"] is False
+          assert r["score_calibrated"] is False and r["independent_first_receipt_verified"] is False
+          print("HISTORICAL_DATE_COUNTS",r["historical_date_counts"])
+          print("HISTORICAL_COHORT_HASH",r["historical_cohort_hash"])
+          for group,data in r["groups"].items():
+              print("GROUP",group,"COMPARABLE",data["comparable"],"UNAVAILABLE",data["unavailable"],"CHANGED",data["changed"])
+              for policy,metric in data["topn"].items():
+                  print("POLICY",policy,{k:(v["hits"],v["gained"],v["lost"],v["net"]) for k,v in metric.items()})
+                  assert metric["top5"]["gained"]==metric["top5"]["lost"]==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-safe-top10-pair-ranking
+          path: hole_safe_top10_pair_rank.json

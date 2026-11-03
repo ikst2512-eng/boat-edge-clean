@@ -1,0 +1,122 @@
+name: Four-mode scheduled run inventory (read only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/inventory_four_mode_capture_runs.py'
+      - 'scripts/report_four_mode_schedule_publications.py'
+      - 'scripts/report_four_mode_dispatch_publications.py'
+      - 'scripts/audit_four_mode_daily_main_archives.py'
+      - 'scripts/audit_four_mode_daily_schedule_runs.py'
+      - 'tests/test_audit_four_mode_daily_schedule_runs.py'
+      - 'scripts/audit_four_mode_daily_capture_liveness.py'
+      - 'scripts/inventory_four_mode_watchdog_dispatch.py'
+      - 'scripts/report_four_mode_watchdog_artifact_decisions.py'
+      - 'tests/test_inventory_four_mode_capture_runs.py'
+      - 'tests/test_report_four_mode_schedule_publications.py'
+      - 'tests/test_report_four_mode_dispatch_publications.py'
+      - 'tests/test_audit_four_mode_daily_main_archives.py'
+      - 'tests/test_audit_four_mode_daily_capture_liveness.py'
+      - 'tests/test_inventory_four_mode_watchdog_dispatch.py'
+      - 'tests/test_report_four_mode_watchdog_artifact_decisions.py'
+      - '.github/workflows/four-mode-schedule-inventory.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/inventory_four_mode_capture_runs.py'
+      - 'scripts/report_four_mode_schedule_publications.py'
+      - 'scripts/inventory_four_mode_watchdog_dispatch.py'
+      - 'scripts/report_four_mode_source_links.py'
+      - 'scripts/audit_four_mode_daily_main_archives.py'
+      - 'scripts/audit_four_mode_daily_schedule_runs.py'
+      - '.github/workflows/four-mode-prospective-capture.yml'
+      - '.github/workflows/four-mode-capture-watchdog.yml'
+      - '.github/workflows/four-mode-schedule-inventory.yml'
+  # Morning checkpoint at 09:20 JST, plus end-of-day checkout audit at
+  # 22:20 JST after the final planned 20:52 JST prospective capture.
+  # UTC cron: 00:20 = 09:20 JST; 13:20 = 22:20 JST.
+  # Run listings inspect bounded recent capture artifacts; this is not
+  # exhaustive per-run evidence for all 56 scheduled captures.
+  # Both audits are read-only and never dispatch captures.
+  schedule:
+    - cron: '20 0 * * *'
+    - cron: '20 13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs tests.test_v2_archive_refresh_after_failure
+      - name: Check real scheduled run history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.inventory_four_mode_capture_runs --repo "${{ github.repository }}" --output reports/four_mode_schedule_history.json
+      # Independent metadata-only full-day coverage; detailed capture
+      # artifacts stay bounded to avoid exceeding the 12-minute audit job.
+      - name: Check complete JST-day scheduled capture execution metadata
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.audit_four_mode_daily_schedule_runs --repo "${{ github.repository }}" --output reports/four_mode_daily_schedule_metadata.json
+      # Day-wide metadata failures must NOT suppress independent per-run
+      # artifact checks. Preserve both diagnoses in the uploaded report.
+      - name: Inspect recent capture artifacts without inferring remote push proof
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m scripts.report_four_mode_schedule_publications --repo "${{ github.repository }}" --history reports/four_mode_schedule_history.json --output reports/four_mode_schedule_publications.json
+      # Preserve independent watchdog/fallback evidence when the scheduled
+      # inventory or bounded artifact checks fail. A failed prerequisite
+      # remains a failed audit; these steps only retain additional diagnoses.
+      - name: Compare scheduled runs with fallback dispatch and watchdog history
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.inventory_four_mode_watchdog_dispatch --repo "${{ github.repository }}" --output reports/four_mode_watchdog_dispatch.json
+      - name: Audit fallback dispatch publication artifacts using existing evidence checks
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m scripts.report_four_mode_dispatch_publications --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_dispatch_publications.json
+      - name: Audit watchdog decision artifacts and subsequent capture timing
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m scripts.report_four_mode_watchdog_artifact_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_artifact_decisions.json
+      - name: Audit today's actual capture execution separately from Git archives
+        if: always()
+        run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json
+      # Capture may push after checkout while this audit downloads artifacts.
+      # Read the freshest remote main only for the daily scheduled evidence audit.
+      # A fetch failure is an audit failure, not proof that no capture published.
+      - name: Refresh remote main before final Git publication audit
+        if: always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        run: |
+          git fetch --no-tags origin main
+          git checkout --detach FETCH_HEAD
+      - name: Confirm today's first-add archive presence in checked-out Git main
+        if: always()
+        run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: four-mode-schedule-history
+          path: |
+            reports/four_mode_schedule_history.json
+            reports/four_mode_daily_schedule_metadata.json
+            reports/four_mode_schedule_publications.json
+            reports/four_mode_watchdog_dispatch.json
+            reports/four_mode_dispatch_publications.json
+            reports/four_mode_watchdog_artifact_decisions.json
+            reports/four_mode_daily_main_archives.json
+            reports/four_mode_daily_capture_liveness.json
+          if-no-files-found: warn

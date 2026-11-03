@@ -1,0 +1,178 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from clean_four_modes import rank_modes
+from research_model import probabilities, WIN
+from four_mode_v2_head_calibration import assess, VERSION
+
+RATES = [6.2, 5.1, 4.5, 5.4, 3.8, 4.9]
+
+
+def saved(root, code, tamper=False):
+    directory = root / "four_mode_forecasts"
+    directory.mkdir(exist_ok=True)
+    modes = rank_modes(probabilities(RATES))
+    if tamper:
+        modes["hit"]["tickets"][0]["p"] += 0.01
+    record = {
+        "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
+        "race_code": code, "model_version": VERSION,
+        "generated_at_jst": "2026-11-03T09:00:00+09:00",
+        "deadline_jst": "2026-11-03T11:00:00+09:00",
+        "input_national_win_rates": RATES, "modes": modes,
+    }
+    (directory / (code + ".json")).write_text(json.dumps(record))
+
+
+class HeadCalibrationTests(unittest.TestCase):
+    def test_two_confirmed_one_missing_kept_separate(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for code in ("202611030101", "202611030102", "202611030103"):
+                saved(root, code)
+            def compared(code, root):
+                if code.endswith("03"):
+                    return {"status": "result_unavailable"}
+                return {"status": "historical_comparison_only",
+                        "winning_ticket": "1-2-3" if code.endswith("01") else "2-1-3"}
+            with patch("four_mode_v2_head_calibration.compare_race", side_effect=compared):
+                report = assess(root)
+            p1 = sum(p for combo, p in probabilities(RATES) if combo[0] == 1)
+            self.assertEqual(report["matched_valid_finish"], 2)
+            self.assertEqual(report["missing_finish"], 1)
+            sensitivity = report["unresolved_head_sensitivity"]
+            self.assertEqual(sensitivity["missing_reproduced_races"], 1)
+            self.assertLessEqual(
+                sensitivity["counterfactual_full_cohort_brier_delta_range"][0],
+                sensitivity["counterfactual_full_cohort_brier_delta_range"][1])
+            self.assertLessEqual(sensitivity["counterfactual_all_missing_best_case_brier_delta"],
+                                 sensitivity["counterfactual_all_missing_worst_case_brier_delta"])
+            self.assertEqual(report["observed_boat1_wins"], 1)
+            self.assertAlmostEqual(report["mean_predicted_boat1"], p1, places=6)
+            self.assertAlmostEqual(report["boat1_brier_score"],
+                                   ((p1-1)**2 + p1**2)/2, places=6)
+            self.assertEqual(report["constant_0_5_brier_on_same_cohort"], 0.25)
+            board = probabilities(RATES)
+            heads = [sum(prob for combo, prob in board if combo[0] == i) for i in range(1, 7)]
+            prior = [w / sum(WIN) for w in WIN]
+            expected_model_brier = sum(sum((head[i]-int(i+1==winner))**2 for i in range(6))
+                                       for head, winner in ((heads,1),(heads,2))) / 2
+            expected_prior_brier = sum(sum((prior[i]-int(i+1==winner))**2 for i in range(6))
+                                       for winner in (1,2)) / 2
+            self.assertAlmostEqual(report["six_head_brier_model"], expected_model_brier, places=6)
+            self.assertAlmostEqual(report["six_head_brier_fixed_prior"], expected_prior_brier, places=6)
+            self.assertAlmostEqual(report["six_head_log_loss_model"],
+                                   (-__import__("math").log(heads[0])-__import__("math").log(heads[1]))/2, places=6)
+            self.assertEqual(sum(report[k] for k in (
+                "six_head_brier_model_better_races",
+                "six_head_brier_prior_better_races",
+                "six_head_brier_ties")), 2)
+            self.assertAlmostEqual(report["six_head_model_minus_prior_brier"],
+                                   expected_model_brier-expected_prior_brier, places=6)
+            self.assertEqual(report["sample_by_day"]["20261103"]["n"], 2)
+            leave_one = report["leave_one_race_out"]
+            self.assertEqual(leave_one["evaluated_exclusions"], 2)
+            self.assertEqual(len(leave_one["brier_delta_range"]), 2)
+            self.assertEqual(len(leave_one["log_loss_delta_range"]), 2)
+            self.assertEqual(report["venue_sensitivity"]["by_venue"]["01"]["n"], 2)
+            self.assertIsNone(report["venue_sensitivity"]["leave_one_venue_out"]["01"]["model_minus_prior_brier"])
+            self.assertFalse(report["venue_sensitivity"]["all_venue_deltas_negative"])
+            self.assertFalse(report["formal"])
+
+    def test_leave_one_venue_out_uses_same_paired_results(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for code in ("202611030101", "202611030201", "202611030301"):
+                saved(root, code)
+            results = {
+                "202611030101": "1-2-3",
+                "202611030201": "2-1-3",
+                "202611030301": "1-3-2",
+            }
+            def compared(code, root):
+                return {"status": "historical_comparison_only",
+                        "winning_ticket": results[code]}
+            with patch("four_mode_v2_head_calibration.compare_race", side_effect=compared):
+                report = assess(root)
+            summary = report["venue_sensitivity"]
+            self.assertEqual(report["matched_valid_finish"], 3)
+            self.assertEqual(set(summary["by_venue"]), {"01", "02", "03"})
+            for venue in ("01", "02", "03"):
+                self.assertEqual(summary["by_venue"][venue]["n"], 1)
+                self.assertEqual(summary["leave_one_venue_out"][venue]["n"], 2)
+            self.assertAlmostEqual(
+                summary["leave_one_venue_out"]["02"]["model_minus_prior_brier"],
+                (summary["by_venue"]["01"]["model_minus_prior_brier"] +
+                 summary["by_venue"]["03"]["model_minus_prior_brier"]) / 2,
+                places=5)
+
+    def test_invalid_result_not_counted_as_loss(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            saved(root, "202611030101")
+            with patch("four_mode_v2_head_calibration.compare_race",
+                       return_value={"status": "invalid_result_or_timing"}):
+                report = assess(root)
+            self.assertEqual(report["invalid_or_untrusted_finish"], 1)
+            self.assertEqual(report["unresolved_head_sensitivity"]["missing_reproduced_races"], 0)
+            self.assertIsNone(report["unresolved_head_sensitivity"]["counterfactual_full_cohort_brier_delta_range"])
+            self.assertEqual(report["matched_valid_finish"], 0)
+            self.assertIsNone(report["boat1_brier_score"])
+            self.assertIsNone(report["six_head_brier_model"])
+            self.assertIsNone(report["leave_one_race_out"]["all_brier_deltas_negative"])
+            self.assertEqual(report["leave_one_race_out"]["evaluated_exclusions"], 0)
+            self.assertIsNone(report["six_head_log_loss_model"])
+            self.assertIsNone(report["observed_boat1_rate"])
+
+    def test_nonreproducible_archive_excluded_from_calibration(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            saved(root, "202611030101", tamper=True)
+            with patch("four_mode_v2_head_calibration.compare_race") as compared:
+                report = assess(root)
+            compared.assert_not_called()
+            self.assertEqual(report["not_reproduced"], 1)
+            self.assertEqual(report["matched_valid_finish"], 0)
+
+    def test_single_confirmed_venue_has_no_leave_one_race_denominator(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            saved(root, "202611030101")
+            with patch("four_mode_v2_head_calibration.compare_race",
+                       return_value={"status":"historical_comparison_only",
+                                     "winning_ticket":"1-2-3"}):
+                report = assess(root)
+            self.assertEqual(report["matched_valid_finish"], 1)
+            self.assertEqual(report["leave_one_race_out"]["evaluated_exclusions"], 0)
+            self.assertIsNone(report["leave_one_race_out"]["brier_delta_range"])
+
+    def test_all_missing_bound_does_not_invent_observed_score(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for code in ("202611030101", "202611030102"):
+                saved(root, code)
+            with patch("four_mode_v2_head_calibration.compare_race",
+                       return_value={"status": "result_unavailable"}):
+                report = assess(root)
+            self.assertEqual(report["matched_valid_finish"], 0)
+            self.assertIsNone(report["six_head_brier_model"])
+            bounds = report["unresolved_head_sensitivity"]
+            self.assertEqual(bounds["missing_reproduced_races"], 2)
+            self.assertEqual(bounds["counterfactual_full_cohort_brier_delta_range"], [
+                bounds["counterfactual_all_missing_best_case_brier_delta"],
+                bounds["counterfactual_all_missing_worst_case_brier_delta"],
+            ])
+            self.assertIsNone(bounds["minimum_adverse_missing_outcomes_to_reverse_observed_brier"])
+
+    def test_no_archive_is_not_zero_calibration(self):
+        with tempfile.TemporaryDirectory() as td:
+            report = assess(td)
+            self.assertEqual(report["status"], "no_forecast_directory")
+            self.assertIsNone(report["boat1_brier_score"])
+
+
+if __name__ == "__main__":
+    unittest.main()

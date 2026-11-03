@@ -1,0 +1,127 @@
+name: Entry-order forecast scenario regression
+on:
+  pull_request:
+    paths:
+      - entry_scenario.js
+      - entry_evidence_gate.js
+      - entry_racecard_evidence.js
+      - entry_course_history.py
+      - entry_course_history_source.py
+      - entry_course_candidate.py
+      - entry_course_prospective_audit.py
+      - entry_course_prospective_capture.py
+      - entry_course_write_once.py
+      - entry_course_timing_audit.py
+      - entry_course_late_preview.py
+      - entry_course_durable_ledger.py
+      - entry_course_collector.py
+      - scripts/entry_course_activation_watchdog.py
+      - .github/workflows/entry-course-activation-watchdog.yml
+      - tests/test_entry_course_activation_watchdog.py
+      - research_model.py
+      - tests/test_research_model_partial_live.py
+      - entry_course_baseline_audit.py
+      - entry_course_t12_seed.py
+      - entry_course_schedule_audit.py
+      - entry_course_archive_integrity_audit.py
+      - entry_course_first_add_audit.py
+      - entry_course_scheduled_write_probe.py
+      - entry_course_schedule_write_audit.py
+      - .github/workflows/entry-course-schedule-audit.yml
+      - .github/workflows/entry-course-t12-baseline.yml
+      - entry_waku10_source.py
+      - entry_waku10_pilot.py
+      - entry_waku10_durable_ledger.py
+      - entry_waku10_score.py
+      - entry_waku10_score_recent.py
+      - .github/workflows/entry-waku10-score.yml
+      - .github/workflows/entry-course-late-capture.yml
+      - index.html
+      - server.py
+      - tests/test_entry_scenario.cjs
+      - tests/test_entry_evidence_gate.cjs
+      - tests/test_entry_racecard_evidence.cjs
+      - tests/test_entry_course_history.py
+      - tests/test_entry_course_history_source.py
+      - tests/test_entry_course_candidate.py
+      - tests/test_entry_course_prospective_audit.py
+      - tests/test_entry_course_prospective_capture.py
+      - tests/test_entry_course_timing_audit.py
+      - tests/test_entry_course_late_preview.py
+      - tests/test_entry_course_durable_ledger.py
+      - tests/test_entry_course_collector.py
+      - tests/test_entry_t2_batch.py
+      - tests/test_entry_course_baseline_audit.py
+      - tests/test_entry_course_t12_seed.py
+      - tests/test_entry_course_schedule_audit.py
+      - tests/test_entry_course_archive_integrity_audit.py
+      - tests/test_entry_course_first_add_audit.py
+      - tests/test_entry_course_scheduled_write_probe.py
+      - tests/test_entry_course_schedule_write_audit.py
+      - tests/test_entry_waku10_source.py
+      - tests/test_entry_waku10_pilot.py
+      - tests/test_entry_waku10_durable_ledger.py
+      - tests/test_entry_waku10_collector.py
+      - tests/test_entry_waku10_score.py
+      - tests/test_entry_waku10_score_recent.py
+      - .github/workflows/entry-scenario-tests.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  entry-scenario:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify client simulator JavaScript
+        run: node --check entry_scenario.js && node --check entry_evidence_gate.js && node --check entry_racecard_evidence.js
+      - name: Test entry permutation calculations and front-end integration
+        run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs tests/test_entry_racecard_evidence.cjs
+      - name: Check Python web route and course history syntax
+        run: python -m py_compile server.py entry_course_history.py entry_course_history_source.py entry_course_candidate.py entry_course_prospective_audit.py entry_course_prospective_capture.py entry_course_write_once.py entry_course_timing_audit.py entry_course_late_preview.py entry_course_durable_ledger.py entry_course_collector.py entry_course_baseline_audit.py entry_course_t12_seed.py entry_course_schedule_audit.py entry_course_archive_integrity_audit.py entry_course_first_add_audit.py entry_course_scheduled_write_probe.py entry_course_schedule_write_audit.py entry_waku10_source.py entry_waku10_pilot.py entry_waku10_durable_ledger.py entry_waku10_score.py entry_waku10_score_recent.py
+      - name: Check as-of course history integrity
+        run: python -m unittest discover -s tests -p 'test_entry_course_history*.py' -v
+      - name: Check challenger ranking and matched TopN audit
+        run: python -m unittest discover -s tests -p test_entry_course_candidate.py -v
+      - name: Reject reconstructed post-hoc comparison and unfrozen challengers
+        run: python -m unittest discover -s tests -p test_entry_course_prospective_audit.py -v
+      - name: Validate real source mapping and write-once prospective capture
+        run: python -m unittest discover -s tests -p test_entry_course_prospective_capture.py -v
+      - name: Check T−12 versus T−5 timing isolation
+        run: python -m unittest discover -s tests -p test_entry_course_timing_audit.py -v
+      - name: Check independent later-window study and append-only ledger
+        run: python -m unittest discover -s tests -p 'test_entry_course_late_preview.py' -v && python -m unittest discover -s tests -p 'test_entry_course_durable_ledger.py' -v
+      - name: Verify bounded scheduled collector without target results
+        run: python -m unittest discover -s tests -p test_entry_course_collector.py -v
+      - name: Verify three overlapping T−2 race captures and isolated errors
+        run: python -m unittest discover -s tests -p test_entry_t2_batch.py -v
+      - name: Verify missing/late baseline readiness diagnostics
+        run: python -m unittest discover -s tests -p test_entry_course_baseline_audit.py -v
+      - name: Verify archived T−12 seeding and T−2 branch readback
+        run: python -m unittest discover -s tests -p test_entry_course_t12_seed.py -v
+      - name: Verify independent scheduled-run vs immutable-path audit
+        run: python -m unittest discover -s tests -p test_entry_course_schedule_audit.py -v
+      - name: Verify immutable archive Git blob and cross-reference integrity
+        run: python -m unittest discover -s tests -p test_entry_course_archive_integrity_audit.py -v
+      - name: Verify first-add Git commits without miscertifying server reception time
+        run: python -m unittest discover -s tests -p test_entry_course_first_add_audit.py -v
+      - name: Verify Actions schedule token witness without counting any forecasts
+        run: python -m unittest discover -s tests -p test_entry_course_scheduled_write_probe.py -v
+      - name: Verify missed-cron fallback never creates false scheduled proof
+        run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
+      - name: Verify archived daily write proof against actual schedule-run IDs
+        run: python -m unittest discover -s tests -p test_entry_course_schedule_write_audit.py -v
+      - name: Verify actual research-model partial daily CSV recovery
+        run: python -m unittest discover -s tests -p test_research_model_partial_live.py -v
+      - name: Verify Waku10 source, entry history and independent pilot
+        run: python -m unittest discover -s tests -p test_entry_waku10_source.py -v && python -m unittest discover -s tests -p test_entry_waku10_pilot.py -v
+      - name: Verify Waku10 ledger and scheduled collector integration
+        run: python -m unittest discover -s tests -p test_entry_waku10_durable_ledger.py -v && python -m unittest discover -s tests -p test_entry_waku10_collector.py -v
+      - name: Verify matched frozen Waku10 Top3/5/10 scoring without hindsight
+        run: python -m unittest discover -s tests -p test_entry_waku10_score.py -v
+      - name: Verify delayed-result scoring retries independently by JST day
+        run: python -m unittest discover -s tests -p test_entry_waku10_score_recent.py -v

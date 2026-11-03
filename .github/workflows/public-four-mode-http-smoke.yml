@@ -1,0 +1,28 @@
+name: Public four-mode HTTP smoke
+on:
+  pull_request:
+    paths:
+      - 'scripts/smoke_four_mode_public_http.py'
+      - '.github/workflows/public-four-mode-http-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'server.py'
+      - 'four_mode_archive_api.py'
+      - 'scripts/smoke_four_mode_public_http.py'
+      - '.github/workflows/public-four-mode-http-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify public Render four-mode page and read-only archive
+        run: python scripts/smoke_four_mode_public_http.py

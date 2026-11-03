@@ -253,8 +253,35 @@ body:has([data-home-only]:not([hidden])) .race-nav-actions{display:none!importan
 /* Each forecast detail pane is visible only when selected. */
 #forecast>.forecast-race-list:not([hidden]),#forecast>.forecast-inline-preview:not([hidden]){display:block}
 #forecast>.forecast-result-tab:not([hidden]) .forecast-result-preview{display:block}
-.forecast-statistics{margin-top:20px;border-top:1px solid #d8e0e8;padding-top:16px}.forecast-statistics h3{margin:18px 0 10px}.forecast-scenario-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.forecast-scenario{display:flex;flex-direction:column;gap:8px;border:1px solid #d9e1ea;border-radius:12px;padding:12px;background:#f7f9fc}.forecast-scenario span{font-weight:800;font-size:19px}.forecast-scenario small{color:#66768b}.forecast-leader-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:12px 0}.forecast-leader-picker button{min-width:38px;padding:9px;border:1px solid #c6d1dc;border-radius:8px;background:white}.forecast-leader-picker button.on{background:#18283b;color:#fff}.forecast-result-first{padding:14px;background:#f5f8fc;border:1px solid #d7e1eb;border-radius:12px;margin-bottom:18px}.forecast-statistics .race-data-scroll{overflow-x:auto}.forecast-statistics table{min-width:540px;border-collapse:collapse;width:100%}.forecast-statistics th,.forecast-statistics td{padding:10px 8px;border-bottom:1px solid #dce3ed;text-align:center;white-space:nowrap}.forecast-ai-shares{display:grid;gap:7px}.forecast-ai-share{display:grid;grid-template-columns:48px minmax(80px,1fr) 68px;align-items:center;gap:10px}.forecast-ai-share progress{width:100%;height:15px}</style></head><body data-clean-forecast-ui="research-only-20261030"><header><div class="site-head"><div class="logo">BOAT EDGE</div><a href="/daily-findings" class="daily-head-tab" aria-label="日々の検証ノート">検証ノート</a></div></header><nav class="site-global-nav compact-nav" aria-label="検証と購入候補"><a href="/review">検証</a><a href="/selection">購入候補</a></nav><main><section class="box" data-home-only><h1>レースを選ぶ</h1><div class="row"><button id="prev">前日</button><input type="date" id="day" aria-label="開催日"><button id="today">今日</button><button id="next">翌日</button></div><p id="venueState" aria-live="polite">開催情報を確認中…</p><section class="box" id="deadlineSection" hidden><h2>締切前の次の3レース</h2><p class="muted" id="deadlineStatus">締切情報を確認中…</p><div class="deadline-list" id="deadlineList"></div></section><section id="venueChooser" aria-label="全国24場の一覧"><h2 class="venue-list-heading">本日のレース <span class="venue-list-subtitle">全国24場</span></h2><div class="grid" id="venues"></div></section><div class="race-picker"><h2>1〜12R</h2><div class="races" id="races"></div></div></section><div class="race-browser-toolbar" id="raceBrowserToolbar" hidden><button type="button" id="raceViewBack" aria-label="前の画面に戻る">◀ 戻る</button></div><div class="active-race-strip" aria-live="polite"><span>選択中</span><strong id="activeRaceLabel">レースを選択してください</strong><div class="race-nav-actions"><button type="button" id="previousRace" aria-label="前のレースへ">◀ 前R</button><button type="button" id="followingRace" aria-label="次のレースへ">次R ▶</button><button type="button" id="retryPrediction" aria-label="選択中のレースを更新">更新</button></div></div><section class="box" id="raceDataSection"><h2 id="raceDataHeading">出走表・選手成績</h2><p id="raceDataStatus" class="muted" role="status">出走表を確認中…</p><div id="exhibitionGrid" class="exhibition-grid" hidden aria-label="6艇の展示比較"></div><div id="mobileRaceMatrix" class="mobile-race-matrix" aria-label="6艇の主要成績比較・横スクロール不要"></div><details id="mobileRacerDetails" class="mobile-racer-expand"><summary>6艇の詳しい選手データを見る</summary><div id="mobileRaceCards" class="mobile-race-cards" aria-label="6艇の選手詳細"></div></details><div id="courseDataNotice" class="course-data-notice" role="status"></div><div class="race-data-scroll"><table class="race-data-table"><thead><tr><th>枠</th><th>選手・級別</th><th>全国<br>勝率 / 2連率 / 3連率</th><th>当地<br>勝率 / 2連率 / 3連率</th><th>平均ST<br>F / L</th><th>モーター<br>番号 / 2連率 / 3連率</th><th>ボート<br>番号 / 2連率 / 3連率</th><th>展示<br>タイム / チルト</th><th>展示ST</th></tr></thead><tbody id="raceDataRows"></tbody></table></div><p id="raceDataSource" class="muted"></p></section><section class="box forecast-quick" id="forecastQuick" hidden><div class="forecast-select"><label for="forecastVenue">開催場</label><select id="forecastVenue" aria-label="予想する競艇場を選択"></select><label for="forecastRace">レース</label><select id="forecastRace" aria-label="予想するレース番号"></select></div></section>
-<section class="box" id="forecast"><div class="forecast-detail-tabs" role="tablist" aria-label="予想の関連情報"><button type="button" class="on" data-forecast-pane="prediction" role="tab" aria-selected="true">選択Rの予想</button><button type="button" data-forecast-pane="result" role="tab" aria-selected="false">結果</button><button type="button" data-forecast-pane="exhibition" role="tab" aria-selected="false">展示</button><button type="button" id="forecastOpenRacecard" aria-label="選択レースの出走表を開く">出走表</button><button type="button" data-forecast-pane="races" role="tab" aria-selected="false">1〜12R一覧</button></div><section class="forecast-combined-race" aria-label="選択レースの予想と確定結果"><section class="forecast-result-first" aria-label="予想の上に確定結果を表示"><h2>確定結果</h2><p id="forecastResultFirstStatus" class="muted" role="status">結果を確認中…</p><div id="forecastResultFirstDetail"></div></section><h2>AI予想｜確率上位の買い目</h2><h3>3連単研究予想｜確率上位10点（未検証）</h3><div class="prediction-topn-controls" role="group" aria-label="表示する予想点数"><button type="button" data-prediction-top="3">上位3点</button><button type="button" data-prediction-top="5">上位5点</button><button type="button" data-prediction-top="10" aria-pressed="true">上位10点</button></div><p id="snapshotMeta" class="muted"></p><div id="sourceMeta" class="source-meta" aria-live="polite"></div><p id="predictionStatus" class="muted" role="status">保存済みの研究予想を確認中…</p><div id="predictionRows" class="prediction-rows"></div><section class="forecast-statistics" aria-label="AI展開と選手別の成績比較">
+.forecast-statistics{margin-top:20px;border-top:1px solid #d8e0e8;padding-top:16px}.forecast-statistics h3{margin:18px 0 10px}.forecast-scenario-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.forecast-scenario{display:flex;flex-direction:column;gap:8px;border:1px solid #d9e1ea;border-radius:12px;padding:12px;background:#f7f9fc}.forecast-scenario span{font-weight:800;font-size:19px}.forecast-scenario small{color:#66768b}.forecast-leader-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:12px 0}.forecast-leader-picker button{min-width:38px;padding:9px;border:1px solid #c6d1dc;border-radius:8px;background:white}.forecast-leader-picker button.on{background:#18283b;color:#fff}.forecast-result-first{padding:14px;background:#f5f8fc;border:1px solid #d7e1eb;border-radius:12px;margin-bottom:18px}.forecast-statistics .race-data-scroll{overflow-x:auto}.forecast-statistics table{min-width:540px;border-collapse:collapse;width:100%}.forecast-statistics th,.forecast-statistics td{padding:10px 8px;border-bottom:1px solid #dce3ed;text-align:center;white-space:nowrap}.forecast-ai-shares{display:grid;gap:7px}.forecast-ai-share{display:grid;grid-template-columns:48px minmax(80px,1fr) 68px;align-items:center;gap:10px}.forecast-ai-share progress{width:100%;height:15px}
+/* The top-level race shortcuts own navigation; nested forecast tabs are legacy controls. */
+#forecast>.forecast-detail-tabs,#forecast .forecast-result-first{display:none!important}
+/* Main UI consolidation: readable iPhone controls, historical-date context, no legacy header shortcut. */
+@media(max-width:699px){
+ body{font-size:15px;line-height:1.55}
+ .box{padding:14px 12px}
+ .box h1,.box h2,.venue-list-heading{font-size:17px}
+ .grid button,.races button,.view-tabs button,.forecast-detail-tabs button{font-size:14px;min-height:44px}
+ .muted,.source-chip,.venue-next,.prediction-rank{font-size:13px}
+ .deadline-item .deadline-label,.comparison-row{font-size:14px}
+ .race-data-table{font-size:13px}
+ .race-data-table th,.race-data-table td{padding-top:11px;padding-bottom:11px}
+ .active-race-strip{overflow-wrap:anywhere}
+}
+#day,#dailyReviewDate{max-width:100%;min-height:44px}
+#day:focus-visible,#dailyReviewDate:focus-visible{outline:3px solid #7ab8ff;outline-offset:2px}
+.four-mode-forecast-panel{border:1px solid #b8cce2;border-radius:10px;padding:12px;margin:12px 0;background:#f6faff}.four-mode-forecast-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.four-mode-forecast-grid>p{grid-column:1/-1;margin:2px 0;overflow-wrap:anywhere}.four-mode-forecast-item{border:1px solid #d4e0ec;border-radius:9px;padding:10px;background:white}.four-mode-forecast-item strong{display:block;margin-bottom:7px}.four-mode-forecast-ticket{font-variant-numeric:tabular-nums;margin:0;padding:5px 0;border-bottom:1px solid #e7edf4;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:5px;row-gap:2px;overflow-wrap:anywhere}.four-mode-forecast-ticket .four-mode-combo{font-size:18px;line-height:1.3;font-weight:900;margin:0;white-space:nowrap;letter-spacing:.02em}.four-mode-forecast-ticket .four-mode-prob{font-size:12px;font-weight:700;text-align:right;white-space:nowrap}.four-mode-forecast-ticket .four-mode-odds{grid-column:1/-1;color:#667a8f;font-size:11px;font-weight:450;line-height:1.25}.four-mode-forecast-ticket>strong:not(.four-mode-combo){font-size:11px;color:#087f54;margin:0}.four-mode-forecast-item small{display:none}.four-mode-forecast-panel{padding:7px;margin:5px 0}.four-mode-forecast-panel h3{display:none}.four-mode-forecast-grid{gap:5px}.four-mode-forecast-item{padding:6px;border-radius:6px}.four-mode-forecast-item strong{margin-bottom:3px;font-size:13px}.four-mode-forecast-panel #fourModeForecastStatus[data-loaded="true"]:not([data-order-warning="true"]){display:none}.four-mode-forecast-panel #fourModeForecastStatus[data-order-warning="true"]{display:block;color:#8c280d;font-weight:700}@media(max-width:560px){.four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.four-mode-forecast-item{min-width:0}.four-mode-forecast-ticket{font-size:11px;letter-spacing:-.02em}.forecast-combined-race{padding:7px;margin:4px 0}.forecast-combined-race h2{font-size:15px;margin:4px 0}.forecast-result-first{padding:6px;margin-bottom:6px}.forecast-statistics{margin-top:8px;padding-top:8px}.forecast-statistics h3{font-size:13px;margin:8px 0 5px}#legacyTopnResearch{margin:4px 0;padding:5px}#forecast .box{padding:7px}}.four-mode-match-summary{padding:14px;margin:8px 0 12px;border:2px solid #a8bcd1;border-radius:12px;background:#f4f8fd}.four-mode-match-summary>strong{display:block;font-size:19px;margin-bottom:10px}.four-mode-match-summary small{display:block;font-size:12px;line-height:1.55;margin-top:10px;color:#40556a}.four-mode-match-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.four-mode-match-badge{border:1px solid #ccd7e2;border-radius:9px;padding:10px 8px;display:flex;flex-direction:column;gap:4px}.four-mode-match-badge strong{font-size:15px}.four-mode-match-badge span{font-size:17px;font-weight:800}.four-mode-match-yes{background:#e2f6ec;color:#086136;border-color:#6dc596}.four-mode-match-no{background:#f5f6f8;color:#49596a}.four-mode-match-total{font-size:18px;font-weight:800;margin:0 0 12px;color:#173b64}.four-mode-winning-combo{display:block;font-size:16px;letter-spacing:.03em;margin-top:4px}.four-mode-match-ticket{background:#e2f6ec!important;border:2px solid #1b9456!important;border-radius:8px}@media(min-width:650px){.four-mode-match-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}/* Narrow iPhone: readable picks outrank secondary odds without changing forecast data */
+@media(max-width:420px){
+.four-mode-forecast-grid{grid-template-columns:minmax(0,1fr);gap:8px}
+.four-mode-forecast-item{padding:10px 12px}
+.four-mode-forecast-ticket{grid-template-columns:minmax(0,1fr) auto;column-gap:10px;padding:8px 0}
+.four-mode-forecast-ticket .four-mode-combo{font-size:24px;line-height:1.25;letter-spacing:.04em}
+.four-mode-forecast-ticket .four-mode-prob{font-size:12px}
+.four-mode-forecast-ticket .four-mode-odds{font-size:11px;overflow-wrap:anywhere}
+}
+.entry-scenario{border:1px solid #becddd;border-radius:9px;background:#f7faff;padding:13px;margin:12px 0}.entry-scenario h3{margin:0 0 8px;font-size:16px}.entry-scenario-order{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.entry-scenario-order label{font-size:12px;font-weight:750;display:grid;gap:4px}.entry-scenario-order select{width:100%;min-height:44px;border:1px solid #adbed5;border-radius:6px;padding:8px;background:#fff;color:#152946;font-size:17px;font-weight:850}.entry-scenario-buttons{display:flex;flex-wrap:wrap;gap:8px}.entry-scenario-buttons button{min-height:42px;border-radius:7px;padding:8px 12px}.entry-scenario-tickets{display:grid;gap:5px;margin-top:12px}.entry-scenario-ticket{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #d8e4f1;border-radius:6px}.entry-scenario-ticket strong{font-size:22px;letter-spacing:.06em}.entry-scenario-ticket span{font-size:12px;color:#50617a}@media(min-width:620px){.entry-scenario-order{grid-template-columns:repeat(6,minmax(0,1fr))}}
+</style></head><body data-clean-forecast-ui="research-only-20261030"><header><div class="site-head"><div class="logo">BOAT EDGE CLEAN</div></div></header><nav class="site-global-nav compact-nav" aria-label="検証と購入候補"><a href="/review">検証</a><a href="/selection">購入候補</a></nav><main><section class="box" data-home-only><h1>レースを選ぶ</h1><div class="row"><button id="prev">前日</button><input type="date" id="day" aria-label="開催日"><button id="today">今日</button><button id="next">翌日</button></div><p id="venueState" aria-live="polite">開催情報を確認中…</p><section class="box" id="deadlineSection" hidden><h2>締切前の次の3レース</h2><p class="muted" id="deadlineStatus">締切情報を確認中…</p><div class="deadline-list" id="deadlineList"></div></section><section id="venueChooser" aria-label="全国24場の一覧"><h2 class="venue-list-heading">本日のレース <span class="venue-list-subtitle">全国24場</span></h2><div class="grid" id="venues"></div></section><div class="race-picker"><h2>1〜12R</h2><div class="races" id="races"></div></div></section><div class="race-browser-toolbar" id="raceBrowserToolbar" hidden><button type="button" id="raceViewBack" aria-label="前の画面に戻る">◀ 戻る</button></div><div class="active-race-strip" aria-live="polite"><span>選択中</span><strong id="activeRaceLabel">レースを選択してください</strong><div class="race-nav-actions"><button type="button" id="previousRace" aria-label="前のレースへ">◀ 前R</button><button type="button" id="followingRace" aria-label="次のレースへ">次R ▶</button><button type="button" id="retryPrediction" aria-label="選択中のレースを更新">更新</button></div></div><section class="box" id="raceDataSection"><h2 id="raceDataHeading">出走表・選手成績</h2><p id="raceDataStatus" class="muted" role="status">出走表を確認中…</p><div id="exhibitionGrid" class="exhibition-grid" hidden aria-label="6艇の展示比較"></div><div id="mobileRaceMatrix" class="mobile-race-matrix" aria-label="6艇の主要成績比較・横スクロール不要"></div><details id="mobileRacerDetails" class="mobile-racer-expand"><summary>6艇の詳しい選手データを見る</summary><div id="mobileRaceCards" class="mobile-race-cards" aria-label="6艇の選手詳細"></div></details><div id="courseDataNotice" class="course-data-notice" role="status"></div><div class="race-data-scroll"><table class="race-data-table"><thead><tr><th>枠</th><th>選手・級別</th><th>全国<br>勝率 / 2連率 / 3連率</th><th>当地<br>勝率 / 2連率 / 3連率</th><th>平均ST<br>F / L</th><th>モーター<br>番号 / 2連率 / 3連率</th><th>ボート<br>番号 / 2連率 / 3連率</th><th>展示<br>タイム / チルト</th><th>展示ST</th></tr></thead><tbody id="raceDataRows"></tbody></table></div><p id="raceDataSource" class="muted"></p></section><section class="box forecast-quick" id="forecastQuick" hidden><div class="forecast-select"><label for="forecastVenue">開催場</label><select id="forecastVenue" aria-label="予想する競艇場を選択"></select><label for="forecastRace">レース</label><select id="forecastRace" aria-label="予想するレース番号"></select></div></section>
+<section class="box" id="forecast"><div class="forecast-detail-tabs" role="tablist" aria-label="予想の関連情報"><button type="button" class="on" data-forecast-pane="prediction" role="tab" aria-selected="true">選択Rの予想</button><button type="button" data-forecast-pane="result" role="tab" aria-selected="false">結果</button><button type="button" data-forecast-pane="exhibition" role="tab" aria-selected="false">展示</button><button type="button" id="forecastOpenRacecard" aria-label="選択レースの出走表を開く">出走表</button><button type="button" data-forecast-pane="races" role="tab" aria-selected="false">1〜12R一覧</button></div><section class="forecast-combined-race" aria-label="選択レースの予想と確定結果"><section class="forecast-result-first" aria-label="予想の上に確定結果を表示"><h2>確定結果</h2><p id="forecastResultFirstStatus" class="muted" role="status">結果を確認中…</p><div id="forecastResultFirstDetail"></div></section><h2>AI予想｜4モード</h2><section id="fourModeForecastPanel" class="four-mode-forecast-panel" aria-label="本命・バランス・穴・絞りの4モード予想"><h3>4モード予想｜本命・バランス・穴・絞り</h3><p id="fourModeForecastStatus" class="muted" role="status">4モードの保存予想を確認中…</p><div id="fourModeForecastRows" class="four-mode-forecast-grid"></div></section><section id="entryScenarioPanel" class="entry-scenario" aria-label="進入変更シミュレーション"><h3>進入を変更して買い目を見る</h3><p class="muted">公式・保存済み4モード予想は変更しません。選択した進入順による未検証の参考計算です。予想精度や購入推奨を保証しません。</p><p id="entryScenarioStatus" class="muted" role="status">選択レースの事前出走表を確認中…</p><div id="entryScenarioControls" hidden><div id="entryScenarioOrder" class="entry-scenario-order" role="group" aria-label="進入コース順の号艇を選択"></div><div class="entry-scenario-buttons"><button type="button" id="entryScenarioApply">変更した進入で再計算</button><button type="button" id="entryScenarioReset">初期進入に戻す</button></div><div id="entryScenarioTickets" class="entry-scenario-tickets" aria-live="polite"></div></div><p class="muted">※号艇は着順の番号のまま。進入コースと枠番を区別して計算します。過去結果・オッズ・確定着順は計算に使いません。</p></section><details id="legacyTopnResearch" class="box"><summary>旧TopN研究を見る（補助・未検証）</summary><h3>確率上位Top3・Top5・Top10（補助研究・未検証）</h3><div class="prediction-topn-controls" role="group" aria-label="表示する予想点数"><button type="button" data-prediction-top="3">上位3点</button><button type="button" data-prediction-top="5">上位5点</button><button type="button" data-prediction-top="10" aria-pressed="true">上位10点</button></div><p id="snapshotMeta" class="muted"></p><div id="sourceMeta" class="source-meta" aria-live="polite"></div><p id="predictionStatus" class="muted" role="status">保存済みの研究予想を確認中…</p><div id="predictionRows" class="prediction-rows"></div></details><section class="forecast-statistics" aria-label="AI展開と選手別の成績比較">
 <h3>AI展開予想・コース比較</h3>
 <p class="muted">確率の出典と対象期間を確認できた数値だけを表示します。以下は未取得時の状態です。</p>
 <div class="forecast-scenario-grid">
@@ -270,16 +297,148 @@ body:has([data-home-only]:not([hidden])) .race-nav-actions{display:none!importan
 <h3>6艇の実コース別成績</h3><p id="forecastCourseStatsSource" class="muted" role="status">取得期間・出典を確認中（決まり手率は別途検証）</p>
 <div class="race-data-scroll"><table aria-label="コース成績と決まり手"><thead><tr><th>枠</th><th>イン逃げ率</th><th>3連対率</th><th>逃げ／差し／まくり／まくり差し</th></tr></thead><tbody><tr><th>1</th><td>未取得</td><td>未取得</td><td>未取得</td></tr><tr><th>2</th><td>対象外</td><td>未取得</td><td>未取得</td></tr><tr><th>3</th><td>対象外</td><td>未取得</td><td>未取得</td></tr><tr><th>4</th><td>対象外</td><td>未取得</td><td>未取得</td></tr><tr><th>5</th><td>対象外</td><td>未取得</td><td>未取得</td></tr><tr><th>6</th><td>対象外</td><td>未取得</td><td>未取得</td></tr></tbody></table></div>
 </section><section class="forecast-inline-evidence" aria-label="展示・進入・水面情報"><h3>展示・進入・ST・水面情報</h3><p id="forecastEvidenceStatus" class="muted" role="status">直前情報を確認中…</p><div id="forecastEvidenceRows" class="exhibition-grid"></div></section></section><section class="forecast-result-tab" hidden><h2>選択レース｜確定結果</h2><div class="forecast-result-preview" aria-label="同じレースの確定結果"><p id="forecastResultStatus" class="muted" role="status">結果を確認中…</p><div id="forecastResultDetail"></div></div></section><section class="forecast-inline-preview" hidden aria-label="選択中レースの直前情報"><h3>選択中レース｜展示・直前</h3><p id="forecastPreviewStatus" class="muted" role="status">直前情報を確認中…</p><div id="forecastPreviewRows" class="exhibition-grid"></div></section><section class="forecast-race-list" hidden><h2>選択場の1〜12R｜出走表・予想・結果</h2><div class="result-venue-picker"><label for="resultVenue">競艇場</label><select id="resultVenue" aria-label="予想一覧の競艇場"></select></div><p id="resultListStatus" class="muted" role="status">レース一覧を確認中…</p><div id="resultList" class="result-list" aria-label="選択場1〜12Rの予想一覧"></div></section></section><section class="box" id="resultSection" hidden><h3>選択中のレース詳細</h3><p id="resultStatus" class="muted" role="status">結果を確認中…</p><div id="resultDetail"></div><div id="resultComparison" class="result-comparison" aria-live="polite"></div></section><section class="box" id="reviewSection" hidden><h2>予想実績・検証</h2><section class="box" id="dailyReview"><h3>日付別・全開催場の検証一覧</h3><label for="dailyReviewDate">検証する日</label> <input type="date" id="dailyReviewDate"><button type="button" id="dailyReviewReload">この日の全レースを表示</button><p id="dailyReviewSummary" role="status" class="muted">日付を選ぶと全レースを照合します。</p><div id="dailyReviewRows" class="daily-review-rows"></div><p class="muted">研究予想との一致は参考照合です。締切前保存などの正式監査が完了していないレースは、正式的中率・回収率に含めません。</p></section><section class="topn-research"><h3>選択日の検証結果・一括比較</h3><p id="topnResearchStatus" class="muted" role="status">研究予想の保存証拠と確定結果を確認中…</p><p id="holdoutResearchStatus" class="muted" role="status">将来日付での独立検証の進捗を確認中…</p><div id="topnResearchMetrics" class="verification-modes"></div><p class="muted">※ 研究予想のみ。締切前Git初回追加と確定結果を照合できたレースだけを分母にします。正式Freshの実績や実購入の収支ではありません。</p></section><details class="box" id="historicalModeArchive"><summary>過去の検証記録（現行予想とは別）</summary><div id="fourModePerformance"><h2>過去4方式の実績（想定購入・参考資料）</h2><label for="performanceBudget">1レースの予算</label> <select id="performanceBudget" aria-label="想定購入予算"><option value="5000">5,000円</option><option value="6000">6,000円</option><option value="7000">7,000円</option><option value="8000">8,000円</option><option value="9000">9,000円</option><option value="10000">10,000円</option></select><div id="verificationProgress" class="verification-progress" role="status">確定結果の集計中…</div><p id="fourModeStatus" class="muted">確認中…</p><details class="overdue-audit"><summary>結果未取得のレースを確認</summary><p id="overdueAuditStatus" class="muted">取得状況を確認中…</p><div id="overdueAuditRows" class="overdue-audit-rows"></div></details><div id="fourModeMetrics" class="verification-modes"></div><p id="recent30Metrics" class="muted" role="status">直近30レースの実績を確認中…</p><p class="muted verification-disclaimer">※ 買い目を締切前に保存でき、結果・払戻・Git記録まで照合できたレースのみ集計。実購入ではなく想定購入です。</p><h3>どのレースが的中した？</h3><p class="muted">開催場・レース・確定3連単・的中した予想と払戻を表示。未検証レースは的中扱いしません。</p><label for="hitHistoryFilter">表示する予想</label> <select id="hitHistoryFilter" aria-label="的中レース絞り込み"><option value="all">すべての的中</option><option value="hit">本命</option><option value="balance">バランス</option><option value="hole">穴</option><option value="narrow">絞り</option></select><p id="hitHistoryStatus" class="muted" role="status">的中レースを確認中…</p><div id="hitHistory" class="hit-history"></div></div></details><h2>選択中のレースの答え合わせ</h2><button type="button" id="reviewOpenRace">このレースの予想・結果を見る</button><div id="reviewMetrics" class="grid"></div><p id="reviewStatus" class="muted" role="status">検証中…</p><div id="reviewReason"></div></section></main><script>
-const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];const s={date:'',venue:0,race:1};const p=x=>String(x).padStart(2,'0'),fmt=d=>[d.getFullYear(),p(d.getMonth()+1),p(d.getDate())].join('-');function jst(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'}))}s.date=fmt(jst());let venueTouched=false;let todayVenueRaces=null;let pendingVenuePick=null;function updateVenueNextLabels(){if(todayVenueRaces?.date!==s.date)return;const now=Date.now();for(let i=0;i<24;i++){const venue=todayVenueRaces.venues.find(v=>Number(v.jcd)===i+1),races=venue?.races||[],next=races.filter(r=>/^\d{2}:\d{2}$/.test(r.deadline||'')&&Date.parse(s.date+'T'+r.deadline+':00+09:00')>now).sort((a,b)=>a.deadline.localeCompare(b.deadline))[0],info=next?Number(next.race_no)+'R　'+next.deadline:races.length?(s.date<fmt(jst())?'開催あり・終了':'全R締切済'):'開催なし',button=vb.children[i];if(button){button.querySelector('.venue-next').textContent=info;button.setAttribute('aria-label',names[i]+'（'+info+'）')}}}
-function updateRacePickerLabels(){const venue=todayVenueRaces?.date===s.date?todayVenueRaces.venues.find(v=>Number(v.jcd)===s.venue+1):null,now=Date.now();for(let i=1;i<=12;i++){const b=rb.children[i-1],r=venue?.races?.find(r=>Number(r.race_no)===i),time=/^\d{2}:\d{2}$/.test(r?.deadline||'')?r.deadline:null,closed=!!time&&Date.parse(s.date+'T'+time+':00+09:00')<=now;if(!b)continue;b.disabled=!!todayVenueRaces&&todayVenueRaces.date===s.date&&!r;b.textContent=i+'R'+(time?' '+time:'');b.classList.toggle('closed',closed);b.setAttribute('aria-label',names[s.venue]+' '+i+'R'+(time?' 締切'+time+(closed?' 締切済':''):''))}} 
-function nextRaceForVenue(venue){if(!todayVenueRaces||todayVenueRaces.date!==s.date)return 1;const now=Date.now();const venueData=todayVenueRaces.venues.find(v=>Number(v.jcd)===venue);const next=(venueData?.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&Number(r.race_no)>=1&&Number(r.race_no)<=12&&/^\d{2}:\d{2}$/.test(r.deadline||'')&&Date.parse(s.date+'T'+r.deadline+':00+09:00')>now).sort((a,b)=>a.deadline.localeCompare(b.deadline))[0];const races=(venueData?.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&Number(r.race_no)>=1&&Number(r.race_no)<=12);return next?Number(next.race_no):races.length?Math.max(...races.map(r=>Number(r.race_no))):1}const params=new URLSearchParams(location.search);const autoFollow=params.get('follow')==='1';let venueSpecified=params.has('venue')&&!autoFollow;let datePinned=params.has('date')&&!autoFollow;const qday=params.get('date'),qvenue=Number(params.get('venue')),qrace=Number(params.get('race'));if(!autoFollow&&qday&&/^\d{4}-\d{2}-\d{2}$/.test(qday)&&Number.isFinite(Date.parse(qday+'T12:00:00')))s.date=qday;if(!autoFollow&&params.has('venue')&&Number.isInteger(qvenue)&&qvenue>=1&&qvenue<=24)s.venue=qvenue-1;if(!autoFollow&&params.has('race')&&Number.isInteger(qrace)&&qrace>=1&&qrace<=12)s.race=qrace;const day=document.getElementById('day'),vb=document.getElementById('venues'),rb=document.getElementById('races');names.forEach((n,i)=>{let b=document.createElement('button');const title=document.createElement('span');title.className='venue-name';title.textContent=p(i+1)+'　'+n;const info=document.createElement('span');info.className='venue-next';info.textContent='確認中';b.append(title,info);b.addEventListener('click',()=>{if(todayVenueRaces?.date===s.date&&!todayVenueRaces.venues.some(v=>Number(v.jcd)===i+1&&Array.isArray(v.races)&&v.races.length))return;venueTouched=true;s.venue=i;s.race=nextRaceForVenue(i+1);pendingVenuePick=todayVenueRaces?.date===s.date?null:{date:s.date,venue:i,race:s.race};setView('forecast');render();document.querySelector('.race-picker').scrollIntoView({behavior:'smooth',block:'start'})});vb.append(b)});for(let i=1;i<=12;i++){let b=document.createElement('button');b.textContent=i+'R';b.addEventListener('click',()=>{if(todayVenueRaces?.date===s.date&&!todayVenueRaces.venues.some(v=>Number(v.jcd)===s.venue+1&&v.races?.some(r=>Number(r.race_no)===i)))return;venueTouched=true;s.race=i;setView('forecast');render();document.getElementById('forecast')?.scrollIntoView({behavior:'smooth',block:'start'})});rb.append(b)}for(const [id,offset] of [['previousRace',-1],['followingRace',1]])document.getElementById(id).addEventListener('click',()=>{const next=s.race+offset;if(next<1||next>12)return;venueTouched=true;s.race=next;render()});
+/* Read-only, exploratory scenario re-rank. NEVER a formal/frozen forecast.
+ * Uses the same static 1,000-race lane priors and beta 0.4 weighting
+ * as research_model.py, but remaps position priors to user-chosen boat entry.
+ * This positional transfer has NOT been calibrated against course changes.
+ */
+(function(root, factory){
+  const api=factory();
+  if(typeof module==='object'&&module.exports)module.exports=api;
+  else root.BoatEntryScenario=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const COUNTS="59,60,36,28,51,31,48,24,34,29,21,15,24,19,19,12,3,4,10,9,21,17,11,8,12,11,9,3,9,5,4,7,4,5,1,4,1,1,1,2,13,19,12,12,11,8,2,2,8,4,4,3,6,7,4,2,2,2,2,1,7,8,8,6,2,10,1,5,7,4,5,5,7,3,6,4,6,4,2,6,4,1,6,7,6,3,2,1,6,1,0,5,7,5,3,1,4,5,1,0,2,4,1,2,3,1,1,0,2,0,1,2,1,3,1,2,3,0,1,0".split(',').map(Number);
+  const ROWS=[];
+  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
+    if(a!==b&&a!==c&&b!==c)ROWS.push([a,b,c]);
+  }
+  const WINS=Array.from({length:6},()=>0);
+  ROWS.forEach((row,i)=>WINS[row[0]-1]+=COUNTS[i]);
+  if(ROWS.length!==120||COUNTS.length!==120||COUNTS.reduce((a,b)=>a+b,0)!==1000)throw Error('scenario_prior_invalid');
+  function validateEntry(entry){
+    if(!Array.isArray(entry)||entry.length!==6||entry.some(n=>!Number.isInteger(n)||n<1||n>6)||new Set(entry).size!==6)throw Error('entry_must_be_six_unique_boats');
+    return entry.slice();
+  }
+  function rank(rates,entry){
+    const order=validateEntry(entry);
+    if(!Array.isArray(rates)||rates.length!==6||rates.some(n=>typeof n!=='number'||!Number.isFinite(n)||n<=0||n>=20))throw Error('invalid_six_national_rates');
+    const mean=rates.reduce((a,b)=>a+b,0)/6;
+    const weights=order.map((boat,i)=>(WINS[i]+12)*Math.exp(0.4*(rates[boat-1]-mean)));
+    const total=weights.reduce((a,b)=>a+b,0);
+    const ranked=ROWS.map((courses,i)=>{
+      const first=courses[0]-1;
+      const p=(weights[first]/total)*(COUNTS[i]+0.5)/(WINS[first]+10);
+      return {combo:courses.map(course=>order[course-1]).join('-'),p:p*100};
+    });
+    const mass=ranked.reduce((v,row)=>v+row.p,0);
+    if(!Number.isFinite(mass)||Math.abs(mass-100)>1e-8)throw Error('scenario_mass_invalid');
+    ranked.sort((a,b)=>b.p-a.p||a.combo.localeCompare(b.combo,'en'));
+    return {tickets:ranked.slice(0,10),entry:order,model:'entry-position-transfer-beta0.4-research',
+      validated:false,formal:false,forecast_usable:false,confidence_calibrated:false,
+      assumptions:'1,000-race boat-index prior remapped by course; not experimentally verified'};
+  }
+  return Object.freeze({rank,validateEntry});
+});
+const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];const s={date:'',venue:0,race:1};const p=x=>String(x).padStart(2,'0'),fmt=d=>[d.getFullYear(),p(d.getMonth()+1),p(d.getDate())].join('-');function jst(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'}))}s.date=fmt(jst());let venueTouched=false;let todayVenueRaces=null;let pendingVenuePick=null;function updateVenueNextLabels(){if(todayVenueRaces?.date!==s.date)return;const now=Date.now();for(let i=0;i<24;i++){const venue=todayVenueRaces.venues.find(v=>Number(v.jcd)===i+1),races=venue?.races||[],next=races.filter(r=>/^\d{2}:\d{2}$/.test(r.deadline||'')&&Date.parse(s.date+'T'+r.deadline+':00+09:00')>now).sort((a,b)=>a.deadline.localeCompare(b.deadline))[0],info=next?Number(next.race_no)+'R　'+next.deadline:races.length?(s.date<fmt(jst())?'開催あり・終了':'全R締切済'):'開催なし',button=vb.children[i];if(button){button.disabled=!hasConfirmedVenue(i+1);button.querySelector('.venue-next').textContent=info;button.setAttribute('aria-label',names[i]+'（'+info+'）')}}}
+function syncActiveRaceDeadline(){const selected=todayVenueRaces?.date===s.date?todayVenueRaces.venues.find(v=>Number(v.jcd)===s.venue+1)?.races?.find(r=>Number(r.race_no)===s.race)?.deadline:null;document.getElementById('activeRaceLabel').textContent=s.date+'　'+names[s.venue]+'　'+s.race+'R'+(/^\d{2}:\d{2}$/.test(selected||'')?'　締切 '+selected:'');}
+// Restrict navigation only when a complete, date-matched CLEAN schedule is confirmed.
+// Partial/archived result-derived coverage must not falsely mark races as absent.
+function completeHeldSchedule(){return todayVenueRaces?.date===s.date&&todayVenueRaces.partial_coverage!==true&&todayVenueRaces.historical_result_only!==true?todayVenueRaces:null}
+function hasConfirmedVenue(venue){const schedule=completeHeldSchedule();return !schedule||schedule.venues.some(v=>Number(v.jcd)===venue&&Array.isArray(v.races)&&v.races.length>0)}
+function hasConfirmedRace(venue,race){const schedule=completeHeldSchedule();return !schedule||schedule.venues.some(v=>Number(v.jcd)===venue&&v.races?.some(r=>Number(r.race_no)===race))}
+function updateRacePickerLabels(){const venue=todayVenueRaces?.date===s.date?todayVenueRaces.venues.find(v=>Number(v.jcd)===s.venue+1):null,now=Date.now();for(let i=1;i<=12;i++){const b=rb.children[i-1],r=venue?.races?.find(r=>Number(r.race_no)===i),time=/^\d{2}:\d{2}$/.test(r?.deadline||'')?r.deadline:null,closed=!!time&&Date.parse(s.date+'T'+time+':00+09:00')<=now;if(!b)continue;b.disabled=!hasConfirmedRace(s.venue+1,i);b.textContent=i+'R'+(time?' 締切 '+time:'');b.classList.toggle('closed',closed);b.setAttribute('aria-label',names[s.venue]+' '+i+'R'+(time?' 締切'+time+(closed?' 締切済':''):''))}} 
+function nextRaceForVenue(venue){if(!todayVenueRaces||todayVenueRaces.date!==s.date)return 1;const now=Date.now();const venueData=todayVenueRaces.venues.find(v=>Number(v.jcd)===venue);const next=(venueData?.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&Number(r.race_no)>=1&&Number(r.race_no)<=12&&/^\d{2}:\d{2}$/.test(r.deadline||'')&&Date.parse(s.date+'T'+r.deadline+':00+09:00')>now).sort((a,b)=>a.deadline.localeCompare(b.deadline))[0];const races=(venueData?.races||[]).filter(r=>Number.isInteger(Number(r.race_no))&&Number(r.race_no)>=1&&Number(r.race_no)<=12);return next?Number(next.race_no):races.length?Math.max(...races.map(r=>Number(r.race_no))):1}const params=new URLSearchParams(location.search);const autoFollow=params.get('follow')==='1';let venueSpecified=params.has('venue')&&!autoFollow;let datePinned=params.has('date')&&!autoFollow;const qday=params.get('date'),qvenue=Number(params.get('venue')),qrace=Number(params.get('race'));if(!autoFollow&&qday&&/^\d{4}-\d{2}-\d{2}$/.test(qday)&&Number.isFinite(Date.parse(qday+'T12:00:00')))s.date=qday;if(!autoFollow&&params.has('venue')&&Number.isInteger(qvenue)&&qvenue>=1&&qvenue<=24)s.venue=qvenue-1;if(!autoFollow&&params.has('race')&&Number.isInteger(qrace)&&qrace>=1&&qrace<=12)s.race=qrace;const day=document.getElementById('day'),vb=document.getElementById('venues'),rb=document.getElementById('races');names.forEach((n,i)=>{let b=document.createElement('button');const title=document.createElement('span');title.className='venue-name';title.textContent=p(i+1)+'　'+n;const info=document.createElement('span');info.className='venue-next';info.textContent='確認中';b.append(title,info);b.addEventListener('click',()=>{if(!hasConfirmedVenue(i+1))return;venueTouched=true;s.venue=i;s.race=nextRaceForVenue(i+1);pendingVenuePick=todayVenueRaces?.date===s.date?null:{date:s.date,venue:i,race:s.race};setView('forecast');render();document.querySelector('.race-picker').scrollIntoView({behavior:'smooth',block:'start'})});vb.append(b)});for(let i=1;i<=12;i++){let b=document.createElement('button');b.textContent=i+'R';b.addEventListener('click',()=>{if(!hasConfirmedRace(s.venue+1,i))return;venueTouched=true;s.race=i;setView('forecast');render();document.getElementById('forecast')?.scrollIntoView({behavior:'smooth',block:'start'})});rb.append(b)}for(const [id,offset] of [['previousRace',-1],['followingRace',1]])document.getElementById(id).addEventListener('click',()=>{const next=s.race+offset;if(next<1||next>12||!hasConfirmedRace(s.venue+1,next))return;venueTouched=true;s.race=next;render()});
 const forecastVenue=document.getElementById('forecastVenue'),forecastRace=document.getElementById('forecastRace');
 names.forEach((name,i)=>{const option=document.createElement('option');option.value=String(i+1);option.textContent=name;forecastVenue.append(option)});
 for(let i=1;i<=12;i++){const option=document.createElement('option');option.value=String(i);option.textContent=i+'R';forecastRace.append(option)}
 const resultVenue=document.getElementById('resultVenue');for(let i=0;i<names.length;i++){const option=document.createElement('option');option.value=String(i+1);option.textContent=names[i];resultVenue.append(option)}resultVenue.addEventListener('change',()=>{venueTouched=true;s.venue=Number(resultVenue.value)-1;s.race=1;render()});
 forecastVenue.addEventListener('change',()=>{venueTouched=true;s.venue=Number(forecastVenue.value)-1;s.race=1;render()});
 forecastRace.addEventListener('change',()=>{venueTouched=true;s.race=Number(forecastRace.value);render()});
-function render(){document.getElementById('forecastVenue').value=String(s.venue+1);document.getElementById('resultVenue').value=String(s.venue+1);document.getElementById('forecastRace').value=String(s.race);if(pendingVenuePick&&(pendingVenuePick.date!==s.date||pendingVenuePick.venue!==s.venue||pendingVenuePick.race!==s.race))pendingVenuePick=null;day.value=s.date;document.querySelector('.venue-list-heading').firstChild.textContent=s.date===fmt(jst())?'本日のレース ':' '+s.date+' の開催場 ';loadHeldVenues();updateRacePickerLabels();document.querySelectorAll('#deadlineList .deadline-item').forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));[...vb.children].forEach((b,i)=>{b.classList.toggle('on',s.venue===i);b.setAttribute('aria-pressed',s.venue===i)});[...rb.children].forEach((b,i)=>{b.classList.toggle('on',s.race===i+1);b.setAttribute('aria-pressed',s.race===i+1)});document.getElementById('activeRaceLabel').textContent=s.date+'　'+names[s.venue]+'　'+s.race+'R';document.getElementById('previousRace').disabled=s.race===1;document.getElementById('followingRace').disabled=s.race===12;const url=new URL(location.href);url.searchParams.set('date',s.date);url.searchParams.set('venue',String(s.venue+1));url.searchParams.set('race',String(s.race));if(!datePinned&&!venueTouched&&!venueSpecified)url.searchParams.set('follow','1');else url.searchParams.delete('follow');history.replaceState(null,'',url);if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast'){loadPredictions();loadResult();loadForecastResult();loadResultList();loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}else if(activeView==='result'){loadPredictions();loadResult();loadResultList()}else if(activeView==='review')loadReview()}day.addEventListener('change',()=>{if(/^\d{4}-\d{2}-\d{2}$/.test(day.value)){datePinned=true;venueTouched=true;s.date=day.value;render()}});for(let [id,n] of [['prev',-1],['next',1]])document.getElementById(id).addEventListener('click',()=>{let d=new Date(s.date+'T12:00:00');d.setDate(d.getDate()+n);datePinned=true;venueTouched=true;s.date=fmt(d);render()});document.getElementById('today').addEventListener('click',()=>{datePinned=false;venueTouched=false;venueSpecified=false;s.date=fmt(jst());venueDateChecked='';render()});let predictionTickets=[],selectedTop=10,predictionOdds={},predictionProbabilities={},predictionModes={},selectedPredictionMode='research',verifiedForecastWinner=null,confirmedForecastResult=null,confirmedForecastResultKey='';document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{selectedPredictionMode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('on',b===button);b.setAttribute('aria-pressed',String(b===button))});applyPredictionMode();}));function applyPredictionMode(){const chosen=predictionModes[selectedPredictionMode];predictionTickets=(chosen?.tickets||[]).slice(0,selectedPredictionMode==='research'?10:30);predictionOdds=chosen?.odds||{};predictionProbabilities=chosen?.probabilities||{};drawPredictions();}document.querySelectorAll('[data-prediction-top]').forEach(button=>button.addEventListener('click',()=>{selectedTop=Number(button.dataset.predictionTop);document.querySelectorAll('[data-prediction-top]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));drawPredictions();}));function renderForecastAiLeaderShares(){
+let entryScenarioRequestId=0,entryScenarioState=null;
+function entryScenarioSetStatus(message){document.getElementById('entryScenarioStatus').textContent=message;}
+function entryScenarioDrawControls(){
+ const state=entryScenarioState,root=document.getElementById('entryScenarioOrder');root.replaceChildren();
+ if(!state)return;
+ state.order.forEach((boat,i)=>{
+  const label=document.createElement('label');label.textContent=(i+1)+'コース';
+  const select=document.createElement('select');select.setAttribute('aria-label',(i+1)+'コースの号艇');
+  for(let n=1;n<=6;n++){const opt=document.createElement('option');opt.value=String(n);opt.textContent=n+'号艇';select.append(opt)}
+  select.value=String(boat);
+  select.addEventListener('change',()=>{
+   if(!entryScenarioState||entryScenarioState!==state||sameRaceKey()!==state.key)return;
+   const target=Number(select.value),other=state.order.indexOf(target);
+   if(other<0||other===i)return;
+   state.order[other]=boat;state.order[i]=target;
+   entryScenarioDrawControls();
+   document.getElementById('entryScenarioTickets').textContent='進入を変更しました。「変更した進入で再計算」を押してください。';
+  });
+  label.append(select);root.append(label);
+ });
+}
+function entryScenarioRecalculate(){
+ const state=entryScenarioState,root=document.getElementById('entryScenarioTickets');
+ if(!state||state.key!==sameRaceKey()||activeView!=='forecast')return;
+ root.replaceChildren();
+ if(Date.now()>=state.deadline){
+  entryScenarioSetStatus('このレースは締切済み。結果を使った後付けシミュレーションを防ぐため、再計算を停止しました。');return;
+ }
+ try{
+  const result=BoatEntryScenario.rank(state.rates,state.order);
+  const order=document.createElement('p');order.className='muted';
+  order.textContent='仮定した進入：'+result.entry.map((boat,i)=>(i+1)+'コース '+boat+'号艇').join(' ／ ');
+  root.append(order);
+  for(const item of result.tickets){
+   const line=document.createElement('div');line.className='entry-scenario-ticket';
+   const ticket=document.createElement('strong');ticket.textContent=item.combo;
+   const value=document.createElement('span');value.textContent='参考モデル値 '+item.p.toFixed(2)+'%';
+   line.append(ticket,value);root.append(line);
+  }
+  entryScenarioSetStatus(state.source+'｜進入変更後の参考上位10点（確率未校正・正式予想ではありません）');
+ }catch(_){entryScenarioSetStatus('入力した進入または勝率を検証できません。');root.replaceChildren()}
+}
+async function loadEntryScenario(){
+ const key=sameRaceKey(),request=++entryScenarioRequestId;
+ const controls=document.getElementById('entryScenarioControls');
+ controls.hidden=true;entryScenarioState=null;entryScenarioSetStatus('事前出走表・進入データを検証中…');
+ try{
+  const res=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
+  if(request!==entryScenarioRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
+  if(!res.ok)throw Error('RACECARD_UNAVAILABLE');
+  const raw=await res.json();
+  if(request!==entryScenarioRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
+  const audit=raw.source_audit?.race_card,deadline=Date.parse(raw.meta?.date+'T'+raw.meta?.deadline+':00+09:00');
+  const cardAt=Date.parse(audit?.fetched_at);
+  if(raw.schema_version!=='boat-edge-race-v5'||raw.race_key!==key||raw.meta?.phase!=='PRE_RESULT'||raw.meta?.results_seen!==false||
+     audit?.status!=='ok'||!Number.isFinite(deadline)||Date.now()>=deadline||
+     !Number.isFinite(cardAt)||cardAt>=deadline||cardAt>Date.now()+300000)throw Error('UNVERIFIED_OR_CLOSED');
+  const racers=raw.racers;
+  if(!Array.isArray(racers)||racers.length!==6||new Set(racers.map(r=>r.lane)).size!==6||
+     racers.some(r=>!Number.isInteger(r.lane)||r.lane<1||r.lane>6||!/^[0-9]{4}$/.test(String(r.registration_no||''))))throw Error('INVALID_SIX_RACERS');
+  const rates=Array.from({length:6},(_,i)=>Number(racers.find(r=>r.lane===i+1)?.national?.win_rate));
+  const original=[1,2,3,4,5,6];
+  let entry=original,source='実進入未確認：枠なりを仮定（手動変更可）';
+  const entryAt=Date.parse(raw.source_audit?.actual_entry?.fetched_at);
+  if(Array.isArray(raw.actual_entry)&&raw.source_audit?.actual_entry?.status==='ok'&&
+     Number.isFinite(entryAt)&&entryAt<deadline&&entryAt<=Date.now()+300000){
+   try{entry=BoatEntryScenario.validateEntry(raw.actual_entry);source='実進入の取得記録を初期値に使用（最終進入の確定証明ではありません）'}
+   catch(_){entry=original;}
+  }
+  BoatEntryScenario.rank(rates,entry);
+  entryScenarioState={key,rates,order:entry.slice(),baseline:entry.slice(),source,deadline};
+  controls.hidden=false;entryScenarioDrawControls();entryScenarioRecalculate();
+ }catch(_){
+  if(request!==entryScenarioRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
+  entryScenarioSetStatus('締切前の出走表・全国勝率を検証できないため、進入変更の計算は表示しません。');
+ }
+}
+document.getElementById('entryScenarioApply').addEventListener('click',entryScenarioRecalculate);
+document.getElementById('entryScenarioReset').addEventListener('click',()=>{
+ if(!entryScenarioState)return;
+ entryScenarioState.order=entryScenarioState.baseline.slice();
+ entryScenarioDrawControls();entryScenarioRecalculate();
+});
+function render(){document.getElementById('forecastVenue').value=String(s.venue+1);document.getElementById('resultVenue').value=String(s.venue+1);document.getElementById('forecastRace').value=String(s.race);if(pendingVenuePick&&(pendingVenuePick.date!==s.date||pendingVenuePick.venue!==s.venue||pendingVenuePick.race!==s.race))pendingVenuePick=null;day.value=s.date;document.querySelector('.venue-list-heading').firstChild.textContent=s.date===fmt(jst())?'本日のレース ':' '+s.date+' の開催場 ';loadHeldVenues();updateRacePickerLabels();document.querySelectorAll('#deadlineList .deadline-item').forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));[...vb.children].forEach((b,i)=>{b.classList.toggle('on',s.venue===i);b.setAttribute('aria-pressed',s.venue===i)});[...rb.children].forEach((b,i)=>{b.classList.toggle('on',s.race===i+1);b.setAttribute('aria-pressed',s.race===i+1)});syncActiveRaceDeadline();document.getElementById('previousRace').disabled=s.race===1;document.getElementById('followingRace').disabled=s.race===12;const url=new URL(location.href);url.searchParams.set('date',s.date);url.searchParams.set('venue',String(s.venue+1));url.searchParams.set('race',String(s.race));if(!datePinned&&!venueTouched&&!venueSpecified)url.searchParams.set('follow','1');else url.searchParams.delete('follow');history.replaceState(null,'',url);if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast'){loadEntryScenario();loadPredictions();loadResult();loadForecastResult();loadResultList();loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}else if(activeView==='result'){loadPredictions();loadResult();loadResultList()}else if(activeView==='review')loadReview()}day.addEventListener('change',()=>{if(/^\d{4}-\d{2}-\d{2}$/.test(day.value)){datePinned=true;venueTouched=true;s.date=day.value;render()}});for(let [id,n] of [['prev',-1],['next',1]])document.getElementById(id).addEventListener('click',()=>{let d=new Date(s.date+'T12:00:00');d.setDate(d.getDate()+n);datePinned=true;venueTouched=true;s.date=fmt(d);render()});document.getElementById('today').addEventListener('click',()=>{datePinned=false;venueTouched=false;venueSpecified=false;s.date=fmt(jst());venueDateChecked='';render()});let predictionTickets=[],selectedTop=10,predictionOdds={},predictionProbabilities={},predictionModes={},selectedPredictionMode='research',verifiedForecastWinner=null,confirmedForecastResult=null,confirmedForecastResultKey='';document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{selectedPredictionMode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('on',b===button);b.setAttribute('aria-pressed',String(b===button))});applyPredictionMode();}));function applyPredictionMode(){const chosen=predictionModes[selectedPredictionMode];predictionTickets=(chosen?.tickets||[]).slice(0,selectedPredictionMode==='research'?10:30);predictionOdds=chosen?.odds||{};predictionProbabilities=chosen?.probabilities||{};drawPredictions();}document.querySelectorAll('[data-prediction-top]').forEach(button=>button.addEventListener('click',()=>{selectedTop=Number(button.dataset.predictionTop);document.querySelectorAll('[data-prediction-top]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));drawPredictions();}));function renderForecastAiLeaderShares(){
  const root=document.getElementById('forecastAiLeaderShares');if(!root)return;
  root.replaceChildren();
  const eligible=selectedPredictionMode==='research'?predictionTickets.slice(0,10):[];
@@ -293,7 +452,7 @@ function render(){document.getElementById('forecastVenue').value=String(s.venue+
 }
 function drawPredictions(){renderForecastAiLeaderShares();renderForecastAiLeaderDetail(Number(document.querySelector('[data-forecast-leader][aria-pressed="true"]')?.dataset.forecastLeader||1));const root=document.getElementById('predictionRows');root.replaceChildren();predictionTickets.slice(0,selectedTop).forEach((ticket,index)=>{const row=document.createElement('div');row.className='prediction-row '+(index===0?'prediction-primary':index<3?'prediction-strong':'prediction-standard');if(selectedPredictionMode!=='research'&&verifiedForecastWinner===ticket)row.classList.add('verified-win');else if(confirmedForecastResultKey===sameRaceKey()&&confirmedForecastResult===ticket)row.classList.add('result-matched-reference');const left=document.createElement('div');const rank=document.createElement('div');rank.className='prediction-rank';rank.textContent='予想 '+(index+1)+'位';const combo=document.createElement('div');combo.className='prediction-ticket';combo.textContent=ticket;const colored=document.createElement('div');colored.className='ticket-boats';ticket.split('-').forEach((num,i)=>{if(i){const arrow=document.createElement('span');arrow.className='ticket-arrow';arrow.textContent='›';colored.append(arrow)}const boat=document.createElement('span');boat.className='boat-num boat-'+num;boat.textContent=num;colored.append(boat)});const tier=document.createElement('span');tier.className='prediction-tier';tier.textContent=index===0?'第1候補':index<3?'上位':'候補';rank.append(' ',tier);if(selectedPredictionMode!=='research'&&verifiedForecastWinner===ticket){const badge=document.createElement('span');badge.className='prediction-hit-mark';badge.textContent='◎ 的中確定！ 締切前予想と照合済み';rank.append(' ',badge)}else if(confirmedForecastResultKey===sameRaceKey()&&confirmedForecastResult===ticket){const badge=document.createElement('span');badge.className='prediction-reference-mark';badge.textContent='◎ 結果一致！ ※締切前保存未確認';rank.append(' ',badge)}left.append(rank,combo,colored);const odds=document.createElement('div');odds.className='prediction-odds';const p=predictionProbabilities[ticket];const o=predictionOdds[ticket];const count=Math.min(selectedTop,predictionTickets.length);const unit=Math.floor(5000/count/100)*100;const extra=(5000-unit*count)/100;const allocation=count?unit+(index<extra?100:0):0;if(Number.isFinite(p)){const allValid=Object.values(predictionProbabilities).filter(Number.isFinite);const peak=Math.max(0,...allValid);odds.classList.add(peak>0&&p>=peak*0.8?'probability-high':peak>0&&p>=peak*0.45?'probability-mid':'probability-low');const value=document.createElement('strong');value.className='prediction-value';value.textContent=p.toFixed(2)+'%';const label=document.createElement('small');label.textContent='保存モデル値';odds.append(label,value)}else{const label=document.createElement('small');label.textContent='確率値未取得';odds.append(label)}if(Number.isFinite(o)&&o>0){const text=document.createElement('small');text.textContent='取得済オッズ '+o.toLocaleString('ja-JP')+'倍';odds.append(text)}else{const text=document.createElement('small');text.textContent='オッズ未取得';odds.append(text)}const stake=document.createElement('strong');stake.textContent=allocation.toLocaleString('ja-JP')+'円';odds.append(stake);row.append(left,odds);root.append(row)})}const validTicket=t=>typeof t==='string'&&/^[1-6]-[1-6]-[1-6]$/.test(t)&&new Set(t.split('-')).size===3;
 function verifiedTicketArray(a){return Array.isArray(a)&&a.length===10&&a.every(validTicket)&&new Set(a).size===10}
-document.getElementById('retryPrediction').addEventListener('click',()=>{loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'){loadPredictions(true);loadForecastResult()}else if(activeView==='result'){loadPredictions();loadResult()}});
+document.getElementById('retryPrediction').addEventListener('click',()=>{loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);else if(activeView==='forecast'){loadEntryScenario();loadPredictions(true);loadForecastResult()}else if(activeView==='result'){loadPredictions();loadResult()}});
 const routes={'/forecast':'forecast','/exhibition':'exhibit','/card':'card','/results':'result','/review':'review'};let activeView=routes[location.pathname]||'home';
 
 let topnResearchRequest=0;
@@ -378,7 +537,8 @@ function setView(view,fromBack=false){
  document.getElementById('raceBrowserToolbar').hidden=view==='home';
  document.querySelectorAll('[data-home-only]').forEach(el=>{el.hidden=view!=='home';});
  document.body.classList.toggle('review-focused',view==='review');
- document.getElementById('forecastQuick').hidden=view!=='forecast';
+ // Race selection lives on the home page; keep legacy picker DOM for compatibility only.
+ document.getElementById('forecastQuick').hidden=true;
  document.getElementById('deadlineSection').hidden=view!=='home';
 
  document.getElementById('raceDataSection').hidden=view==='forecast'||view==='result'||view==='review'||view==='home';
@@ -855,7 +1015,7 @@ function isVerifiedResult(raw,key,now=Date.now(),knownDeadline=null){const cutof
 async function loadResult(quiet=false){
  const token=++resultRequestId,key=sameRaceKey(),status=document.getElementById('resultStatus'),detail=document.getElementById('resultDetail'),comparison=document.getElementById('resultComparison');
  const retainVerified=displayedResultKey===key&&detail.children.length>0;
- if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo=''}
+ if(!retainVerified){detail.replaceChildren();comparison.replaceChildren();displayedResultKey=key;displayedResultCombo='';updateFourModeHitPreview(key)}
  status.textContent=retainVerified?'CLEAN確定結果を再確認中…':'CLEAN確定結果を確認中…';
  try{
   // This result feed is entirely owned by CLEAN; no old boat-edge fallback.
@@ -878,6 +1038,10 @@ async function loadResult(quiet=false){
   const provenance=document.createElement('p');provenance.className='muted';provenance.textContent='CLEAN保存済み結果・取得 '+raw.collected_at_jst+'（公開結果CSVに基づく）';
   const payout=document.createElement('p');payout.className='result-payout';payout.textContent='3連単払戻金：確認中…';
   panel.append(combo,payout,provenance);detail.replaceChildren(panel);
+  // Confirmed order is already validated: show ticket matches without waiting for payout CSV.
+  displayedResultCombo=order.join('-');
+  updateFourModeHitPreview(key);
+  status.textContent='CLEAN保存済み結果';
   // The official result CSV has finish order; payouts are in a separate published CSV.
   // Never infer the cash amount from the predicted odds or the finish order.
   try{
@@ -897,8 +1061,7 @@ async function loadResult(quiet=false){
    if(!/^\d{1,8}$/.test(amount)||Number(amount)<=0)throw Error('PAYOUT_AMOUNT_INVALID');
    if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：'+Number(amount).toLocaleString('ja-JP')+'円（100円あたり）';
   }catch(e){if(token===resultRequestId&&key===sameRaceKey())payout.textContent='3連単払戻金：未確認';}
-  displayedResultCombo=order.join('-');
-  status.textContent='CLEAN保存済み結果';
+  if(token!==resultRequestId||key!==sameRaceKey())return;
   comparison.replaceChildren();
   const notice=document.createElement('p');notice.className='muted';notice.textContent='正式予想の締切前保存証拠がCLEANへ移行するまで、的中・不的中の判定は行いません。';
   comparison.append(notice);
@@ -942,15 +1105,18 @@ async function loadHeldVenues(force=false){
  const status=document.getElementById('venueState');
  const retaining=force&&todayVenueRaces?.date===date;
  status.textContent=retaining?'開催情報を更新中（前回表示を維持）…':'開催情報を確認中…';
- if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach((b,i)=>{b.classList.remove('held');b.removeAttribute('data-held');b.setAttribute('aria-label',names[i]+'（開催状況を確認中）');b.querySelector('.venue-next').textContent='確認中'})}
+ if(!retaining){clearDeadlines('締切情報を確認中…');[...vb.children].forEach((b,i)=>{b.disabled=false;b.classList.remove('held');b.removeAttribute('data-held');b.setAttribute('aria-label',names[i]+'（開催状況を確認中）');b.querySelector('.venue-next').textContent='確認中'})}
  try{
   // Per-day independent source. Archive is preferred, with a CLEAN-only API for past dates.
   // Do not substitute the old repository's today.json for a different date.
   const dayCode=date.replaceAll('-','');
   let data=null;
-  const archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'});
-  if(archive.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
-  else if(archive.status===404||(date<fmt(jst())&&archive.status>=500)){
+  // A failed GitHub Raw request must not block past-date CLEAN/CSV fallback.
+  // Current/future dates retain their strict unpublished/error handling.
+  let archive=null;
+  try{archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'})}catch(_){}
+  if(archive?.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
+  else if(archive?.status===404||(date<fmt(jst())&&(!archive||!archive.ok))){
    let api;
    for(let attempt=0;attempt<3;attempt++){
     try{api=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode,{cache:'no-store'})}catch(e){if(attempt===2)break;continue}
@@ -978,13 +1144,13 @@ async function loadHeldVenues(force=false){
   if(token!==venueRequest||date!==s.date)return;
   if(data.date!==date||data.phase!=='PRE_RESULT'||data.results_seen!==false||data.unlock!==false||data.scoring!==false||!Array.isArray(data.venues)){
    venueDateChecked=date;todayVenueRaces=null;updateRacePickerLabels();
-   [...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='未確認';button.setAttribute('aria-label',names[i]+'（開催情報未確認）')});
+   [...vb.children].forEach((button,i)=>{button.disabled=false;button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='未確認';button.setAttribute('aria-label',names[i]+'（開催情報未確認）')});
    // today.json only describes its own date: avoid refetching the same mismatch on every race click.
    clearDeadlines('この日付の締切データは未確認です');
    status.textContent='この日付の開催情報は確認できません（全24場から選択可能）';
    return;
   }
-  todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();if(activeView==='home')loadHomeRaceCards();
+  todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();if(activeView==='home')loadHomeRaceCards();
   if(pendingVenuePick?.date===date&&pendingVenuePick.venue===s.venue&&pendingVenuePick.race===s.race){pendingVenuePick=null;const choice=nextRaceForVenue(s.venue+1);if(choice!==s.race){s.race=choice;render()}}
   const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
   [...vb.children].forEach((b,i)=>{const held=available.has(i+1);b.classList.toggle('held',held);if(held)b.dataset.held='true';else b.removeAttribute('data-held')});
@@ -1008,11 +1174,11 @@ async function loadHeldVenues(force=false){
   if(retaining){renderDeadlines(todayVenueRaces);status.textContent='開催情報の再取得に失敗しました。前回取得した開催データを表示中です。締切は現在時刻で判定しています。';}
   else if(e?.message==='SCHEDULE_NOT_PUBLISHED'){
    todayVenueRaces=null;updateRacePickerLabels();
-   [...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='開催未確認';button.setAttribute('aria-label',names[i]+'（開催情報は未公開・選択可能）')});
+   [...vb.children].forEach((button,i)=>{button.disabled=false;button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='開催未確認';button.setAttribute('aria-label',names[i]+'（開催情報は未公開・選択可能）')});
    clearDeadlines('開催日程の原本は未公開です');
    status.textContent='開催情報はまだ公開されていません。全24場から選択して出走表を確認できます。';
   }
-  else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
+  else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.disabled=false;button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
 function mergeVerifiedRaceSnapshots(previous,raw){
@@ -1110,7 +1276,18 @@ async function loadRaceData(force=false){
   }
   let raw=force?undefined:verifiedRaceCache.get(key);
   if(!raw){
-  const response=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
+  const cardUrl='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
+  // Only transient transport/429/5xx errors may retry. An absent/invalid
+  // race must never turn into another race or bypass source validation.
+  let response;
+  for(let attempt=0;attempt<3;attempt++){
+   try{response=await fetchTimed(cardUrl,{cache:'no-store'});}
+   catch(error){if(attempt===2)throw error;response=null;}
+   if(token!==window.raceDataRequestId||key!==sameRaceKey())return;
+   if(response&&(response.ok||![429,500,502,503,504].includes(response.status)))break;
+   if(attempt<2)await new Promise(resolve=>setTimeout(resolve,400*(attempt+1)));
+  }
+  if(!response)throw Error('RACECARD_TRANSPORT_UNAVAILABLE');
   if(!response.ok)throw Error('HTTP_'+response.status);
   const currentText=await response.text();
   raw=JSON.parse(currentText);
@@ -1285,9 +1462,144 @@ async function loadTicketOdds(key, token){
   drawPredictions();
  }catch(_){/* The prediction remains available when official odds are unavailable. */}
 }
+function updateFourModeHitPreview(key){
+ const root=document.getElementById('fourModeForecastRows');
+ if(!root)return;
+ root.querySelectorAll('.four-mode-match-summary').forEach(el=>el.remove());
+ root.querySelectorAll('.four-mode-forecast-ticket').forEach(row=>row.classList.remove('four-mode-match-ticket'));
+ if(!root.querySelector('.four-mode-forecast-item'))return;
+ if(displayedResultKey!==key||!displayedResultCombo||sameRaceKey()!==key||root.dataset.raceKey!==key)return;
+ const summary=document.createElement('section');
+ summary.className='four-mode-match-summary';
+ summary.setAttribute('aria-label','確定着順と保存済み4モード予想の参考照合');
+ const title=document.createElement('strong');
+ title.textContent='確定結果 '+displayedResultCombo+'｜買い目一致チェック';
+ const note=document.createElement('small');
+ note.textContent='過去の研究保存予想との参考照合です。締切前の初回保存が未検証のため、正式的中・的中率には含めません。';
+ const row=document.createElement('div');row.className='four-mode-match-grid';
+ let matchedModes=0;
+ root.querySelectorAll('.four-mode-forecast-item').forEach(card=>{
+  const label=card.querySelector('strong')?.textContent?.split('（')[0]||'予想';
+  const tickets=Array.from(card.querySelectorAll('.four-mode-forecast-ticket'));
+  const matching=tickets.filter(ticket=>ticket.dataset.fourModeCombo===displayedResultCombo);
+  const matchRank=matching.length?tickets.indexOf(matching[0])+1:null;
+  if(matching.length)matchedModes++;
+  matching.forEach(ticket=>ticket.classList.add('four-mode-match-ticket'));
+  const badge=document.createElement('div');badge.className='four-mode-match-badge '+(matching.length?'four-mode-match-yes':'four-mode-match-no');
+  const head=document.createElement('strong');head.textContent=label;
+  const answer=document.createElement('span');answer.textContent=matching.length?'✓ 買い目一致':'— 一致なし';
+  badge.append(head,answer);
+  if(matching.length){const ticket=document.createElement('strong');ticket.className='four-mode-winning-combo';ticket.textContent='一致した買い目 '+displayedResultCombo+'（'+matchRank+'点目）';badge.append(ticket)}
+  row.append(badge);
+ });
+ const total=document.createElement('p');total.className='four-mode-match-total';
+ total.textContent='参考一致：4モード中 '+matchedModes+'モード';
+ summary.append(title,total,row,note);root.prepend(summary);
+}
+async function loadFourModeArchives(key,token){
+ const status=document.getElementById('fourModeForecastStatus'),root=document.getElementById('fourModeForecastRows');
+ if(!status||!root)return;
+ status.dataset.loaded='false';status.textContent='4モードの保存予想を照合中…';root.replaceChildren();delete root.dataset.raceKey;
+ try{
+  const code=key.replaceAll('-','');
+  // Read only saved source. No browser-side or retrospective model generation.
+  const response=await fetchTimed('https://boat-edge-clean.onrender.com/api/four-mode-archive?code='+encodeURIComponent(code),{cache:'no-store'});
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+  if(response.status===404){status.textContent='このレースの4モード保存予想はありません。後付け生成はしません。';return}
+  if(!response.ok)throw Error('FOUR_MODE_ARCHIVE_HTTP_'+response.status);
+  const data=await response.json();
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+  if(data.status!=='historical_research_only'||data.race_code!==code||data.production_forecast!==false||data.verified_first_git_add!==false)throw Error('FOUR_MODE_ARCHIVE_INVALID');
+  const modes=[['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']];
+  if(!data.modes||!modes.every(([id])=>Array.isArray(data.modes[id]?.tickets)))throw Error('FOUR_MODE_ARCHIVE_INVALID');
+  for(const [id,label] of modes){
+   const tickets=data.modes[id].tickets;
+   if(!tickets.length||!tickets.every(x=>validTicket(x.combo)&&typeof x.p==='number'&&Number.isFinite(x.p)))throw Error('FOUR_MODE_ARCHIVE_INVALID');
+   const card=document.createElement('article');card.className='four-mode-forecast-item';
+   const heading=document.createElement('strong');heading.textContent=label+'（保存 '+tickets.length+'点）';card.append(heading);
+   tickets.forEach(x=>{const row=document.createElement('div');row.className='four-mode-forecast-ticket';row.dataset.fourModeCombo=x.combo;const combo=document.createElement('strong');combo.className='four-mode-combo';combo.textContent=x.combo;const prob=document.createElement('span');prob.className='four-mode-prob';prob.textContent=x.p.toFixed(2)+'%';row.append(combo,prob);card.append(row)});
+   const note=document.createElement('small');note.textContent='過去の研究保存記録・正式な的中率ではありません';card.append(note);root.append(card);
+  }
+  const counts=modes.map(([id])=>data.modes[id].tickets.length);
+  const orderValid=counts.every((count,i)=>i===0||counts[i-1]<count);
+  status.textContent=orderValid
+    ?'4モードの過去保存予想。Git初回保存証拠は未検証で、現在の正式予想とは区別しています。'
+    :'点数順が合意仕様（絞り＜本命＜バランス＜穴）と異なる保存データです。過去の記録は変更せず表示しています。正式予想として使用しないでください。';
+  root.dataset.raceKey=key;
+  status.dataset.loaded='true';
+  updateFourModeHitPreview(key);
+  status.dataset.orderWarning=orderValid?'false':'true';
+  // Display-only enrichment. Never reorder, regenerate, or modify archived tickets.
+  // Latest odds are NOT proof of the historical pre-race odds.
+  const enrichCurrent=()=>token===window.predictionRequestId&&sameRaceKey()===key&&activeView==='forecast';
+  const oddsState=document.createElement('p');oddsState.className='muted';
+  oddsState.textContent='オッズ取得中（未取得の場合、数値は表示しません）';root.prepend(oddsState);
+  const oddsUrl='https://boat-edge-clean.onrender.com/api/odds?hd='+key.slice(0,8)+'&jcd='+key.slice(9,11)+'&rno='+Number(key.slice(12,14));
+  void (async()=>{
+   try{
+    let res;
+    for(let attempt=0;attempt<3;attempt++){
+     if(!enrichCurrent())return;
+     res=await fetch(oddsUrl,{cache:'no-store',signal:AbortSignal.timeout(30000)});
+     if(res.status!==202)break;
+     if(attempt===2){if(enrichCurrent())oddsState.textContent='オッズ取得中（再試行後も未完了・画面更新で再確認できます）';return;}
+     oddsState.textContent='オッズ取得中（再確認 '+(attempt+1)+'/2）…';
+     await new Promise(resolve=>setTimeout(resolve,2000));
+    }
+    if(!enrichCurrent())return;
+    if(!res.ok){oddsState.textContent='オッズ未取得（通信先から有効な応答なし）';return;}
+    const feed=await res.json(),received=Date.parse(feed.fetched_at);
+    if(!enrichCurrent()||feed.ok!==true||feed.hd!==key.slice(0,8)||String(feed.jcd).padStart(2,'0')!==key.slice(9,11)||Number(feed.rno)!==Number(key.slice(12,14))||!Number.isFinite(received)||received>Date.now()+300000||received<Date.now()-1800000||
+      !feed.odds||typeof feed.odds!=='object'||Array.isArray(feed.odds)||Object.keys(feed.odds).length!==120){if(enrichCurrent())oddsState.textContent='オッズ未取得（検証可能なデータなし）';return;}
+    if(!Object.entries(feed.odds).every(([combo,value])=>validTicket(combo)&&typeof value==='number'&&Number.isFinite(value)&&value>=1&&value<=1000000)){oddsState.textContent='オッズ未取得（不正な値を除外）';return;}
+    root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
+     const combo=row.dataset.fourModeCombo;
+     if(!Object.hasOwn(feed.odds,combo))return;
+     const extra=document.createElement('span');extra.className='muted';
+     extra.className='four-mode-odds';extra.textContent='オッズ '+feed.odds[combo].toLocaleString('ja-JP')+'倍';
+     row.append(extra);
+    });
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='オッズ取得 '+new Date(received).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'})+' JST（最新取得値・予想保存時のオッズではありません）';
+    oddsState.replaceWith(note);
+   }catch(_){if(enrichCurrent())oddsState.textContent='オッズ未取得（保存予想は表示できます）';}
+  })();
+  const resultState=document.createElement('p');resultState.className='muted';
+  resultState.textContent='確定結果を確認中…';root.prepend(resultState);
+  void (async()=>{
+   try{
+    const res=await fetchCleanResultArchive(code);
+    if(!enrichCurrent())return;
+    if(res.status===404){resultState.textContent='結果未取得（的中・不的中は未判定）';return;}
+    if(!res.ok){resultState.textContent='確定結果を取得できません';return;}
+    const result=await res.json(),order=result.finish_order;
+    const stamp=Date.parse(result.collected_at_jst),confirmed=Date.parse(result.confirmed_at_jst);
+    const source='https://boatracecsv.github.io/data/results/realtime/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
+    if(!enrichCurrent()||result.status!=='confirmed'||result.race_code!==code||
+       result.source_url!==source||!Number.isFinite(stamp)||!Number.isFinite(confirmed)||
+       stamp<confirmed||stamp>Date.now()+300000||
+       !Array.isArray(order)||order.length!==3||new Set(order).size!==3||
+       !order.every(n=>Number.isInteger(n)&&n>=1&&n<=6)){if(enrichCurrent())resultState.textContent='確定結果の検証待ち（的中判定なし）';return;}
+    const winning=order.join('-');
+    root.querySelectorAll('[data-four-mode-combo]').forEach(row=>{
+     if(row.dataset.fourModeCombo===winning){
+      const mark=document.createElement('strong');mark.textContent=' 的中';row.append(mark);
+     }
+    });
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='確定結果 '+order.join(' - ')+'（保存済み結果との照合。正式的中率の集計とは別）';
+    resultState.replaceWith(note);
+   }catch(_){if(enrichCurrent())resultState.textContent='確定結果を検証できません（的中判定なし）';}
+  })();
+ }catch(_){
+  if(token!==window.predictionRequestId||sameRaceKey()!==key)return;
+  status.textContent='4モード保存データを検証できません。未確認の買い目は表示しません。';root.replaceChildren();
+ }
+}
 async function loadPredictions(force=false){
  const token=(window.predictionRequestId||0)+1;window.predictionRequestId=token;verifiedForecastWinner=null;
  const raceKey=sameRaceKey();
+ void loadFourModeArchives(raceKey,token);
  if(confirmedForecastResultKey!==raceKey){confirmedForecastResult=null;confirmedForecastResultKey=''}
  if(!force&&!verifiedCache.has(raceKey)&&predictionRetryAt.has(raceKey)&&Date.now()<predictionRetryAt.get(raceKey)){const keep=displayedPredictionKey===raceKey&&predictionTickets.length>0;if(!keep){predictionTickets=[];predictionModes={};predictionOdds={};predictionProbabilities={};displayedPredictionKey='';drawPredictions();document.getElementById('snapshotMeta').textContent='';document.getElementById('sourceMeta').replaceChildren();}document.getElementById('predictionStatus').textContent=keep?'再照合待ちです。前回検証済みの買い目を保持中（最新データではありません）。「再読み込み」で今すぐ確認できます。':'予想原本の再確認待ちです。未公開・アクセス制限の場合は5分、通信障害の場合は2分後に自動再確認します。「再読み込み」で今すぐ試せます。';return;}
  if(force)predictionRetryAt.delete(raceKey);
@@ -1484,8 +1796,17 @@ async function loadDailyReview(){
  const base='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/';
  try{
   const response=await fetchTimed(base+'schedule_snapshots/'+day+'.json',{cache:'no-store'});
-  if(!response.ok)throw Error('SCHEDULE_'+response.status);
-  const data=await response.json();
+  let data, historicalResultFallback=false;
+  if(response.ok){
+   data=await response.json();
+   if(data.date&&String(data.date).replaceAll('-','')!==day)throw Error('SCHEDULE_DATE_MISMATCH');
+  }
+  else if(response.status===404&&day<fmt(jst()).replaceAll('-','')){
+   // Show known past races when CLEAN's independent schedule archive is missing.
+   // Result-derived race existence is NOT evidence of a pre-race schedule.
+   data=await historicalHeldVenues(day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8));
+   historicalResultFallback=true;
+  }else throw Error('SCHEDULE_'+response.status);
   if(token!==dailyReviewToken)return;
   const races=(data.venues||[]).flatMap(v=>(v.races||[]).map(r=>({venue:Number(v.jcd),race:Number(r.race_no)})))
    .filter(r=>r.venue>=1&&r.venue<=24&&r.race>=1&&r.race<=12).sort((a,b)=>a.venue-b.venue||a.race-b.race);
@@ -1495,7 +1816,7 @@ async function loadDailyReview(){
   for(const r of races){
    if(venues.has(r.venue))continue;
    const group=document.createElement('details');group.className='daily-review-venue';group.open=r.venue===s.venue+1;
-   const header=document.createElement('summary');header.textContent=names[r.venue-1]+'｜12R・照合中';group.append(header);
+   const header=document.createElement('summary');header.textContent=names[r.venue-1]+'｜照合中';group.append(header);
    const body=document.createElement('div');body.className='daily-review-venue-races';group.append(body);root.append(group);
    group.addEventListener('toggle',()=>{if(group.open)for(const [code,item] of venues){if(code!==r.venue)item.group.open=false}});
    venues.set(r.venue,{group,header,body,hits:0,misses:0,pending:0,checked:0,total:races.filter(x=>x.venue===r.venue).length});
@@ -1508,7 +1829,7 @@ async function loadDailyReview(){
    venues.get(r.venue).body.append(row);return {code,row,venue:r.venue}
   });
   let finished=0,matched=0,missed=0,pending=0;
-  function update(){summary.textContent=day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8)+'｜対象 '+rows.length+'R｜確認 '+finished+'/'+rows.length+'R｜研究予想一致 '+matched+'R｜不一致 '+missed+'R｜未照合 '+pending+'R'}
+  function update(){summary.textContent=(historicalResultFallback?'結果記録由来の参考一覧（事前開催証拠ではありません）｜':'')+day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8)+'｜対象 '+rows.length+'R｜確認 '+finished+'/'+rows.length+'R｜研究予想一致 '+matched+'R｜不一致 '+missed+'R｜未照合 '+pending+'R'}
   update();
   let index=0;
   async function worker(){

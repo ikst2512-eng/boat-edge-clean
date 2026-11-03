@@ -19,6 +19,115 @@ class CleanFourModeTests(unittest.TestCase):
         self.assertNotEqual(result["hit"]["tickets"],result["hole"]["tickets"])
         self.assertLessEqual(len(result["narrow"]["tickets"]),5)
 
+    def test_agreed_ticket_count_order_is_reported_not_fabricated(self):
+        modes={"narrow":{"tickets":[1,2,3]},
+               "hit":{"tickets":[1,2,3,4]},
+               "balance":{"tickets":[1,2,3,4,5]},
+               "hole":{"tickets":[1,2,3,4,5,6]}}
+        self.assertEqual(model.ticket_order_audit(modes)["status"],"pass")
+        modes["hit"]["tickets"] = list(range(30))
+        self.assertEqual(model.ticket_order_audit(modes)["status"],"mismatch")
+        self.assertEqual(model.ticket_order_audit({"narrow":{}})["status"],"unknown")
+
+    def test_current_generated_mode_must_not_be_claimed_compliant(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.rank_modes(p)
+        audit=model.ticket_order_audit(result)
+        self.assertEqual(audit["status"],"pass")
+        self.assertEqual([len(result[n]["tickets"]) for n in ("narrow","hit","balance","hole")],[5,10,16,22])
+
+    def test_new_hole_avoids_extreme_tail(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.rank_modes(p)
+        ranked=sorted(p,key=lambda row:(-row[1],row[0]))
+        expected={"-".join(map(str,t)) for t,_ in ranked[10:32]}
+        self.assertEqual({x["combo"] for x in result["hole"]["tickets"]},expected)
+        self.assertEqual(result["hole"]["count_policy"],"provisional_new_generation_v2")
+
+    def test_midrange_hole_research_does_not_change_live_modes(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        before=model.rank_modes(p)
+        candidate=model.research_hole_candidates(p)
+        after=model.rank_modes(p)
+        self.assertEqual(before,after)
+        self.assertTrue(candidate["research_only"])
+        self.assertFalse(candidate["official_odds_verified"])
+        self.assertEqual(len(candidate["tickets"]),12)
+        self.assertEqual(len(set(row["combo"] for row in candidate["tickets"])),12)
+        ranked=sorted(p,key=lambda row:-row[1])
+        self.assertEqual(candidate["tickets"][0]["combo"],"-".join(map(str,ranked[10][0])))
+        old={row["combo"]:row["p"] for row in before["hole"]["tickets"]}
+        new=[row["p"] for row in candidate["tickets"]]
+        self.assertGreater(sum(new)/len(new),sum(old.values())/len(old))
+
+    def test_hole_comparison_never_invents_actual_odds_or_results(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        result=model.compare_hole_candidates(p)
+        self.assertFalse(result["odds_verified"])
+        self.assertFalse(result["result_verified"])
+        self.assertIsNone(result["legacy_extreme"]["official_odds_range"])
+        self.assertIsNone(result["moderate_candidate"]["hit"])
+        combos={"-".join(map(str,t)) for t,_ in p}
+        board={combo:50.0 for combo in combos}
+        finish=model.research_hole_candidates(p)["tickets"][0]["combo"]
+        checked=model.compare_hole_candidates(p,board,finish)
+        self.assertTrue(checked["odds_supplied"])
+        self.assertTrue(checked["result_supplied"])
+        self.assertFalse(checked["odds_verified"])
+        self.assertFalse(checked["result_verified"])
+        self.assertEqual(checked["moderate_candidate"]["official_odds_range"],[50.0,50.0])
+        self.assertTrue(checked["moderate_candidate"]["hit"])
+        self.assertFalse(checked["historical_formal_evidence"])
+        with self.assertRaises(ValueError):
+            model.compare_hole_candidates(p,{"1-2-3":40.0},finish)
+
+    def test_hole_comparison_normalizes_order_and_rejects_incomplete_boards(self):
+        p=probabilities([6.2,5.1,4.2,4.5,3.1,2.9])
+        original=model.compare_hole_candidates(p)
+        shuffled=model.compare_hole_candidates(list(reversed(p)))
+        self.assertEqual(original,shuffled)
+        invalid=list(p)
+        invalid[0]=invalid[1]
+        with self.assertRaises(ValueError):
+            model.compare_hole_candidates(invalid)
+
+    def test_frontend_four_mode_display_contract(self):
+        from pathlib import Path
+        html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
+        self.assertIn("const modes=[['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']]",html)
+        self.assertIn("status.dataset.orderWarning=orderValid?'false':'true'",html)
+        self.assertIn('#fourModeForecastStatus[data-order-warning="true"]{display:block',html)
+        self.assertIn("overflow-wrap:anywhere",html)
+        self.assertIn("オッズ未取得（検証可能なデータなし）",html)
+        self.assertIn("結果未取得（的中・不的中は未判定）",html)
+        self.assertIn("result.source_url!==source",html)
+        self.assertIn("stamp<confirmed",html)
+
+    def test_four_mode_odds_race_identity_is_verified_on_both_sides(self):
+        from pathlib import Path
+        root=Path(__file__).resolve().parent
+        server=(root/"server.py").read_text(encoding="utf-8")
+        html=(root/"index.html").read_text(encoding="utf-8")
+        self.assertIn('"hd": hd, "jcd": jcd, "rno": int(rno)',server)
+        self.assertIn("feed.hd!==key.slice(0,8)",html)
+        self.assertIn("String(feed.jcd).padStart(2,'0')!==key.slice(9,11)",html)
+        self.assertIn("Number(feed.rno)!==Number(key.slice(12,14))",html)
+        self.assertIn("Object.keys(feed.odds).length!==120",html)
+        self.assertIn("oddsState.textContent='オッズ未取得（検証可能なデータなし）'",html)
+
+    def test_mobile_ticket_hierarchy_and_cutoff_labels(self):
+        from pathlib import Path
+        html=(Path(__file__).resolve().parent/"index.html").read_text(encoding="utf-8")
+        self.assertIn("combo.className='four-mode-combo'",html)
+        self.assertIn("prob.className='four-mode-prob'",html)
+        self.assertIn("extra.className='four-mode-odds'",html)
+        self.assertIn(".four-mode-combo{font-size:18px",html)
+        self.assertIn(".four-mode-prob{font-size:12px",html)
+        self.assertIn(".four-mode-odds{grid-column:1/-1",html)
+        self.assertIn("font-size:11px",html)
+        self.assertIn("i+'R'+(time?' 締切 '+time:'')",html)
+        self.assertIn("time=/^\\d{2}:\\d{2}$/.test(r?.deadline||'')",html)
+
     def test_retired_live_api_generator_not_available(self):
         self.assertFalse(hasattr(model,"forecast"))
 

@@ -1,0 +1,80 @@
+"""Read-only official beforeinfo JSON readiness inspection.
+
+Six listed racers are NOT proof that exhibition readings exist. No formal
+T-12 eligibility is inferred from an undated archived JSON response.
+"""
+import argparse
+import json
+import math
+import re
+from pathlib import Path
+
+
+def inspect(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("official JSON root must be an object")
+    main = payload.get("maindata")
+    if not isinstance(main, dict):
+        raise ValueError("missing official maindata")
+    racers = main.get("teiinfolist")
+    if not isinstance(racers, list):
+        raise ValueError("missing official teiinfolist")
+    ids = [v.get("teino") if isinstance(v, dict) else None for v in racers]
+    unique_six = len(ids) == 6 and set(ids) == set("123456")
+    def present(v, field):
+        if not isinstance(v, dict):
+            return False
+        value = v.get(field)
+        # JSON booleans, NaN/Infinity, and arbitrary strings are not readings.
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            return False
+        try:
+            number = float(value)
+        except (ValueError, OverflowError):
+            return False
+        return math.isfinite(number) and (field != "extime" or number > 0)
+    exhibition_time_count = sum(present(v, "extime") for v in racers)
+    tilt_count = sum(present(v, "tilt") for v in racers)
+    exhibition = unique_six and exhibition_time_count == 6
+    start = main.get("sttenjiinfolist")
+    start_valid = False
+    exhibition_course_to_boat = {}
+    if isinstance(start, list) and len(start) == 6:
+        boat_ids = [str(row.get("teino")) for row in start if isinstance(row, dict)]
+        courses = [str(row.get("cs")) for row in start if isinstance(row, dict)]
+        st_values_valid = all(
+            isinstance(row, dict) and isinstance(row.get("st"), str)
+            and re.fullmatch(r"(?:F|L)?\.\d{1,2}|\d?\.\d{1,2}", row["st"].strip())
+            for row in start
+        )
+        start_valid = (len(boat_ids) == 6 and set(boat_ids) == set("123456")
+                       and len(courses) == 6 and set(courses) == set("123456")
+                       and st_values_valid)
+        if start_valid:
+            exhibition_course_to_boat = {str(row["cs"]): str(row["teino"]) for row in start}
+            exhibition_course_to_boat = dict(sorted(exhibition_course_to_boat.items(), key=lambda item: int(item[0])))
+    return {
+        "race_number": str(main.get("rno", "")),
+        "deadline_display": main.get("deadline"),
+        "racers_listed": len(racers),
+        "six_unique_boats": unique_six,
+        "exhibition_time_nonempty_six": bool(exhibition),
+        "exhibition_time_observed_boats": exhibition_time_count,
+        "tilt_observed_boats": tilt_count,
+        "start_exhibition_rows": len(start) if isinstance(start, list) else None,
+        "start_exhibition_six_rows_observed": isinstance(start, list) and len(start) == 6,
+        "start_exhibition_six_valid_rows": start_valid,
+        "exhibition_course_to_boat": exhibition_course_to_boat,
+        "status": "six_exhibition_values_observed_not_time_certified" if exhibition
+                  else "official_racecard_without_complete_exhibition_values",
+        "t12_eligible": False,
+        "forecast_usable": False,
+    }
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file")
+    args = parser.parse_args()
+    print(json.dumps(inspect(json.loads(Path(args.file).read_text(encoding="utf-8"))),
+                     ensure_ascii=False, indent=2))

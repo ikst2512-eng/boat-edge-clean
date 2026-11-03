@@ -1,0 +1,38 @@
+name: Waku10 forward matched research scoring
+on:
+  schedule:
+    # 23:30 JST; independently recheck today and previous two days for late results.
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: waku10-research-matched-score
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    if: github.repository == 'ikst2512-eng/boat-edge-clean' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: entry-course-evidence-ledger
+          path: entry-course-ledger
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Score only archived Waku10 research snapshots using later results
+        run: python entry_waku10_score_recent.py --ledger-root entry-course-ledger --days-back 2 --output entry-course-evidence/waku10-catchup.json
+      - name: Retain nonformal matched comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waku10-matched-score-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entry-course-evidence/waku10-catchup.json
+          if-no-files-found: warn
+          retention-days: 14

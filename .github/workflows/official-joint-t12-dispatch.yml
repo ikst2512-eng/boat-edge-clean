@@ -1,0 +1,164 @@
+name: Reusable official joint T12 evidence (research only)
+on:
+  pull_request:
+    paths: ['.github/workflows/official-joint-t12-dispatch.yml', 'scripts/joint_t12_decision.py', 'tests/test_joint_t12_decision.py', 'tests/test_joint_t12_workflow_exception.py', 'tests/test_joint_t12_workflow_concurrency.py', 'scripts/publish_official_receipt.py', 'tests/test_publish_official_receipt.py', 'tests/test_receipt_sigkill_recovery.py', 'tests/test_receipt_failure_matrix.py', 'scripts/joint_t12_failure_reason.py', 'tests/test_joint_t12_failure_reason.py', 'tests/test_joint_t12_workflow_syntax.py', 'scripts/summarize_joint_t12_reports.py', 'tests/test_summarize_joint_t12_reports.py', 'scripts/inventory_joint_t12_history.py', 'tests/test_inventory_joint_t12_history.py', '.github/workflows/official-t12-history-inventory.yml', 'scripts/capture_official_beforeinfo_json.py', 'scripts/capture_official_odds_receipt.py']
+  workflow_dispatch:
+    inputs:
+      race_code:
+        description: 'YYYYMMDDJJRR (official race identity)'
+        required: true
+        type: string
+      attempts:
+        description: '1-6 independent source pairs'
+        required: true
+        default: '2'
+        type: choice
+        options: ['1','2','3','4','5','6']
+permissions:
+  contents: read
+# One running workflow per race; PR checks use their own PR-specific group.
+# Queueing a second dispatch does not certify either run's evidence.
+concurrency:
+  group: joint-t12-${{ github.event_name == 'workflow_dispatch' && inputs.race_code || format('pr-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Observe and audit immutable source pairs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          RACE_CODE: ${{ inputs.race_code }}
+          ATTEMPTS: ${{ inputs.attempts }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,re,time
+          from pathlib import Path
+          from scripts.capture_official_beforeinfo_json import capture as before
+          from scripts.capture_official_odds_receipt import capture as odds
+          from scripts.audit_joint_official_receipts import audit_pair
+          from scripts.joint_t12_decision import decision,can_retry
+          from scripts.joint_t12_failure_reason import classify
+          race=os.environ['RACE_CODE']
+          jst=datetime.timezone(datetime.timedelta(hours=9))
+          if not re.fullmatch(r'20\d{10}',race) or race[:8]!=datetime.datetime.now(jst).strftime('%Y%m%d'):
+              raise SystemExit('Only an actual race on the current JST date is permitted')
+          attempts=int(os.environ['ATTEMPTS'])
+          if attempts not in (1,2,3,4,5,6):
+              raise SystemExit('Invalid attempt count')
+          Path('reports').mkdir()
+          last_deadline=None
+          for i in range(1,attempts+1):
+              # Recheck after the 30-second sleep. Never launch a fresh source
+              # request solely because the previous iteration allowed retry.
+              if i>1 and last_deadline is not None:
+                  cutoff=last_deadline-datetime.timedelta(minutes=12)
+                  if datetime.datetime.now(jst)+datetime.timedelta(seconds=20)>=cutoff:
+                      failure={'attempt':i,'race_code':race,'status':'retry_preflight_cutoff',
+                               'failure_category':'cutoff','both_complete_before_t12':False,
+                               'forecast_usable':False,'t12_eligible':False}
+                      Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                      print('RETRY_PREFLIGHT',json.dumps(failure,ensure_ascii=False))
+                      break
+              identifier=os.environ['GITHUB_RUN_ID']+'_'+str(i)
+              try:
+                  a=before(race,'evidence','before'+identifier)
+              except (OSError,ValueError,KeyError,TypeError,UnicodeError,TimeoutError) as exc:
+                  # Preserve a fail-closed report even if validation or I/O raises
+                  # before the collector returns its normal failure dictionary.
+                  a={'status':'official_beforeinfo_capture_exception',
+                     'error_type':type(exc).__name__,
+                     'forecast_usable':False,'t12_eligible':False}
+              Path(f'reports/before_{i}.json').write_text(json.dumps(a,ensure_ascii=False,indent=2))
+              if a.get('status')!='official_json_observed_not_t12_certified' or not re.fullmatch(r'\d{2}:\d{2}',str(a.get('deadline_display'))):
+                  failure={'attempt':i,'race_code':race,'status':'beforeinfo_failed_or_deadline_missing',
+                           'beforeinfo_status':a.get('status'),'error':a.get('error'),
+                           'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
+                  failure['failure_category']=classify(failure['status'],a.get('error') or a.get('error_type'))
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                  print('BEFORE_FAILED',json.dumps(failure,ensure_ascii=False))
+                  # No independently verified cutoff: stop; never guess a race deadline.
+                  break
+              deadline=datetime.datetime.fromisoformat(race[:4]+'-'+race[4:6]+'-'+race[6:8]+'T'+a['deadline_display']+':00+09:00')
+              last_deadline=deadline
+              cutoff=deadline-datetime.timedelta(minutes=12)
+              gate=decision(a['received_at_jst'],deadline.isoformat(),datetime.datetime.now(jst).isoformat())
+              if gate['status']!='fetch_odds':
+                  gate.update(attempt=i,race_code=race,failure_category=classify(gate['status']))
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(gate,ensure_ascii=False,indent=2))
+                  print('T12_GATE',json.dumps(gate,ensure_ascii=False))
+                  break
+              try:
+                  b=odds(race,deadline.isoformat(),'evidence','odds'+identifier)
+              except (OSError,ValueError,KeyError,TypeError,UnicodeError,TimeoutError) as exc:
+                  # Preserve a failed attempt even when the collector raises.
+                  # Never treat a missing source receipt as auditable evidence.
+                  b={'status':'official_odds_capture_exception',
+                     'error_type':type(exc).__name__,
+                     'forecast_usable':False,'t12_eligible':False}
+              Path(f'reports/odds_{i}.json').write_text(json.dumps(b,ensure_ascii=False,indent=2))
+              if b.get('status')!='official_odds_observed_research_only':
+                  failure={'attempt':i,'race_code':race,'status':'odds_failed',
+                           'odds_status':b.get('status'),'error':b.get('error'),
+                           'error_type':b.get('error_type'),
+                           'failure_category':classify('odds_failed',b.get('error') or b.get('error_type')),
+                           'both_complete_before_t12':False,'forecast_usable':False,'t12_eligible':False}
+                  Path(f'reports/joint_{i}.json').write_text(json.dumps(failure,ensure_ascii=False,indent=2))
+                  print('ODDS_FAILED',json.dumps({'attempt':i,'status':b.get('status'),'error':b.get('error'),'forecast_usable':False},ensure_ascii=False))
+                  if can_retry(datetime.datetime.now(jst).isoformat(),deadline.isoformat(),i,attempts):
+                      time.sleep(30)
+                      continue
+                  break
+              pa=Path('evidence/observations')/('before'+identifier)/race[:8]/race
+              pb=Path('evidence/observations')/('odds'+identifier)/race[:8]/race
+              try:
+                  result=audit_pair(pa,pb)
+              except (ValueError,KeyError,TypeError,UnicodeError,OSError) as exc:
+                  result={'race_code':race,'status':'joint_original_audit_failed',
+                          'error_type':type(exc).__name__,
+                          'both_complete_before_t12':False,'forecast_usable':False,
+                          't12_eligible':False}
+              result['attempt']=i
+              if not result.get('both_complete_before_t12'):
+                  result['failure_category']=classify(result.get('status'),result.get('error_type'))
+              Path(f'reports/joint_{i}.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+              print('JOINT',json.dumps(result,ensure_ascii=False))
+              if result['both_complete_before_t12']:
+                  break
+              if can_retry(datetime.datetime.now(jst).isoformat(),deadline.isoformat(),i,attempts):
+                  time.sleep(30)
+              else:
+                  break
+          PY
+      - name: Summarize observed T12 attempts
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        run: python -m scripts.summarize_joint_t12_reports --reports reports --output reports/t12_summary.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        with:
+          name: official-joint-${{ github.run_id }}
+          path: |
+            evidence/
+            reports/
+          retention-days: 14
+      - name: Regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_joint_t12_decision.py' -v
+          python -m unittest discover -s tests -p 'test_joint_t12_failure_reason.py' -v
+          python -m unittest discover -s tests -p 'test_joint_t12_workflow_syntax.py' -v
+          python -m unittest discover -s tests -p 'test_summarize_joint_t12_reports.py' -v
+          python -m unittest discover -s tests -p 'test_inventory_joint_t12_history.py' -v
+          python -m unittest discover -s tests -p 'test_joint_t12_workflow_exception.py' -v
+          python -m unittest discover -s tests -p 'test_joint_t12_workflow_concurrency.py' -v
+          python -m unittest discover -s tests -p 'test_audit_joint_official_receipts.py' -v
+          python -m unittest discover -s tests -p 'test_t12_component_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_capture_official_odds_receipt.py' -v
+          python -m unittest discover -s tests -p 'test_capture_official_beforeinfo_json.py' -v
+          python -m unittest discover -s tests -p 'test_publish_official_receipt.py' -v
+          python -m unittest discover -s tests -p 'test_receipt_sigkill_recovery.py' -v
+          python -m unittest discover -s tests -p 'test_receipt_failure_matrix.py' -v

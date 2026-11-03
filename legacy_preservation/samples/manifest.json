@@ -498,6 +498,62 @@
       "archive_path": "legacy_preservation/samples/20261008-23-06.json",
       "race_key": "20261008-23-06",
       "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261008-08-04.json",
+      "source_blob_sha": "1df9555d4cb0b419ade69bcc15c45cbe08fb2bc3",
+      "archive_path": "legacy_preservation/samples/20261008-08-04.json",
+      "race_key": "20261008-08-04",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261014-13-04.json",
+      "source_blob_sha": "9d04cbedf2a948edd06fa363cd2c916594ba38de",
+      "archive_path": "legacy_preservation/samples/20261014-13-04.json",
+      "race_key": "20261014-13-04",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261011-15-12.json",
+      "source_blob_sha": "71b1923c1fe2bd44c99ae51f5daa13b6cffde8d9",
+      "archive_path": "legacy_preservation/samples/20261011-15-12.json",
+      "race_key": "20261011-15-12",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261015-24-12.json",
+      "source_blob_sha": "33817f8cf3fd7cea19f8a114895ad4db76b50403",
+      "archive_path": "legacy_preservation/samples/20261015-24-12.json",
+      "race_key": "20261015-24-12",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261016-24-09.json",
+      "source_blob_sha": "157c1b819bba8be16b3309a261d5a42f322f9ab6",
+      "archive_path": "legacy_preservation/samples/20261016-24-09.json",
+      "race_key": "20261016-24-09",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261022-11-01.json",
+      "source_blob_sha": "11947bbb21c44b9d3bab3f18ff3fc7c461f51119",
+      "archive_path": "legacy_preservation/samples/20261022-11-01.json",
+      "race_key": "20261022-11-01",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261008-08-07.json",
+      "source_blob_sha": "af44c4f1346229bbc37f341b03d467f9a4182c05",
+      "archive_path": "legacy_preservation/samples/20261008-08-07.json",
+      "race_key": "20261008-08-07",
+      "archive_content_verified": true
+    },
+    {
+      "original_path": "data/site_prediction_snapshots/20261008-24-02.json",
+      "source_blob_sha": "2eed33f1d4c549479f62cf1d2613101f90fc25bb",
+      "archive_path": "legacy_preservation/samples/20261008-24-02.json",
+      "race_key": "20261008-24-02",
+      "archive_content_verified": true
     }
   ]
 }

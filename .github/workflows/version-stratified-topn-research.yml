@@ -1,0 +1,28 @@
+name: Historical version-stratified TopN research
+on:
+  pull_request:
+    paths:
+      - four_mode_version_topn_audit.py
+      - test_four_mode_version_topn_audit.py
+      - .github/workflows/version-stratified-topn-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate audit logic
+        run: python -m unittest -v test_four_mode_version_topn_audit
+      - name: Audit real frozen historical archives by version and day
+        run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: historical-version-topn-${{ github.run_id }}
+          path: version_stratified_topn_report.log
+          retention-days: 30

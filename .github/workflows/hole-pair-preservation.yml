@@ -1,0 +1,36 @@
+name: Hole second-pair preservation research
+on:
+  pull_request:
+    paths:
+      - 'hole_second_pair_preservation.py'
+      - 'test_hole_second_pair_preservation.py'
+      - '.github/workflows/hole-pair-preservation.yml'
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run tests
+        run: python -m unittest -v test_hole_second_pair_preservation.py
+      - name: Compare historical forecasts
+        run: python hole_second_pair_preservation.py > hole_second_pair_preservation.json
+      - name: Summarize
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('hole_second_pair_preservation.json'))
+          assert d["comparable"]==120 and d["formal"] is False
+          assert d["production_forecast_changed"] is False
+          for name,record in d["scenarios"].items():
+              print(name,record)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-preservation-analysis
+          path: hole_second_pair_preservation.json

@@ -1,0 +1,40 @@
+name: Hole diversified pair coverage research
+on:
+  pull_request:
+    paths:
+      - hole_pair_diversification_research.py
+      - test_hole_pair_diversification_research.py
+      - .github/workflows/hole-pair-diversification.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_pair_diversification_research.py
+      - run: python hole_pair_diversification_research.py > hole_pair_diversification.json
+      - name: Print all TopN gain/loss and pair choice diagnostics
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_pair_diversification.json'))
+          assert not any(r[x] for x in ('formal','independent_holdout',
+              'independent_first_receipt_verified','prospective_validation','production_forecast_changed'))
+          for key,group in r["groups"].items():
+              print("GROUP",key,"COUNT",group["compared"],"MISSING",group["missing"])
+              print("CHANGED",group["changed"])
+              print("PAIR_SELECTION",group["pair_selection"])
+              for mode,topn in group["topn"].items():
+                  print("TOPN",mode,topn)
+                  for k in ("top3","top5"):
+                      assert topn[k]["gained"]==topn[k]["lost"]==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-diversification
+          path: hole_pair_diversification.json

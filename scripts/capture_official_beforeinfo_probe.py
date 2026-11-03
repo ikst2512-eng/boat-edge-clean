@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -9,42 +10,71 @@ from urllib.parse import urlparse, parse_qs
 from research_model import JST
 
 MAX_BYTES=2_000_000
+# Live Actions probe saw a valid HTTP 200 at 8.2s; the old 8s read budget could time out first.
+HTTP_TIMEOUT_SECONDS=18
 BASE="https://www.boatrace.jp/owsp/sp/race/beforeinfo"
 
-def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
+def capture(race_code, root="official_preview_probe", fetch=None, clock=None, observation_id=None):
     if not isinstance(race_code,str) or len(race_code)!=12 or not race_code.isascii() or not race_code.isdigit():
         raise ValueError("race code must be 12 ASCII digits")
     day, venue, race = race_code[:8],int(race_code[8:10]),int(race_code[10:])
     datetime.strptime(day,"%Y%m%d")
     if not 1<=venue<=24 or not 1<=race<=12:
         raise ValueError("invalid venue or race")
+    if observation_id is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}",observation_id):
+        raise ValueError("invalid observation ID")
     now=clock or (lambda: datetime.now(JST))
     url=f"{BASE}?hd={day}&jcd={venue:02d}&rno={race}"
     started=now()
     received=None
+    stage="transport"
+    response_format="unobserved"
     try:
         if fetch is not None:
             raw=fetch(url)
             final_url=url
             status=200
         else:
-            with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-EVIDENCE/1.0"}),timeout=8) as response:
+            with urlopen(Request(url,headers={"User-Agent":"BOAT-EDGE-CLEAN-EVIDENCE/1.0"}),timeout=HTTP_TIMEOUT_SECONDS) as response:
                 final_url=response.geturl()
                 status=response.status
                 raw=response.read(MAX_BYTES+1)
         received=now()
+        stage="chronology"
         if started.utcoffset()!=timedelta(hours=9) or received.utcoffset()!=timedelta(hours=9) or received<started:
             raise ValueError("invalid HTTP observation chronology")
+        stage="response_url"
         parsed=urlparse(final_url)
         if (parsed.scheme!="https" or parsed.hostname not in ("www.boatrace.jp","boatrace.jp")
                 or parsed.path!="/owsp/sp/race/beforeinfo"
                 or parse_qs(parsed.query)!={"hd":[day],"jcd":[f"{venue:02d}"],"rno":[str(race)]}):
             raise ValueError("unexpected official response URL")
+        stage="response_payload"
         if status!=200 or not isinstance(raw,bytes) or not raw or len(raw)>MAX_BYTES:
             raise ValueError("invalid official HTTP response")
         # A 200 response can still be a JSON/API error or plain text, not HTML evidence.
+        stage="html_signature"
         prefix=raw.removeprefix(bytes.fromhex("efbbbf")).lstrip(b" \t\r\n").lower()
-        if not (prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html")):
+        # The official site may prefix an XHTML document with an XML declaration.
+        # Accept that declaration ONLY when immediately followed by an HTML root/
+        # HTML doctype. XML error responses remain rejected.
+        xml_header=re.match(rb"<\?xml[ \t\r\n][^<>]{0,256}\?>",prefix)
+        after_xml=prefix[xml_header.end():].lstrip(b" \t\r\n") if xml_header else b""
+        is_html=prefix.startswith((b"<!doctype html",b"<html"))
+        is_xhtml=bool(xml_header) and after_xml.startswith((b"<!doctype html",b"<html"))
+        if is_html or is_xhtml:
+            response_format="html"
+        elif prefix.startswith((b"{",b"[")):
+            response_format="json_like"
+        elif prefix.startswith(b"<?xml"):
+            response_format="xml_like"
+        elif prefix.startswith(bytes.fromhex("1f8b")):
+            response_format="gzip_encoded"
+        elif prefix.startswith(b"\\x1f\\x8b"):
+            response_format="gzip_encoded"
+        else:
+            response_format="other"
+        if response_format!="html":
             raise ValueError("official response is not an HTML document")
         # Never infer publication time or 6-lane completeness from a valid HTTP response.
         result={"race_code":race_code,"source":"official_beforeinfo_html",
@@ -53,7 +83,10 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
                 "status":"raw_http_observed_not_t12_certified",
                 "complete_six_lanes":"unverified","deadline_jst":None,
                 "t12_eligible":False,"forecast_usable":False}
+        stage="evidence_write"
         root=Path(root)
+        if observation_id is not None:
+            root=root/"observations"/observation_id
         dest=root/day/race_code
         if dest.exists():
             raise FileExistsError("append-only official observation already exists")
@@ -76,17 +109,28 @@ def capture(race_code, root="official_preview_probe", fetch=None, clock=None):
         # A missing/invalid page cannot be treated as evidence of six boats.
         if isinstance(exc,(KeyboardInterrupt,SystemExit)):
             raise
+        # Failed captures are diagnostic only. Explicitly flag invalid or reversed
+        # clocks instead of allowing an apparently valid observation window.
+        ended=received or now()
+        chronology_valid=(started.utcoffset()==timedelta(hours=9)
+                          and ended.utcoffset()==timedelta(hours=9)
+                          and ended>=started)
         return {"race_code":race_code,"source":"official_beforeinfo_html","url":url,
-                "received_at_jst":(received or now()).isoformat(),
+                "request_started_at_jst":started.isoformat(),
+                "received_at_jst":ended.isoformat(),
+                "observation_chronology_valid":chronology_valid,
                 "status":"official_probe_failed","error":type(exc).__name__,
+                "failure_stage":stage,
+                "response_format_category":response_format,
                 "complete_six_lanes":"unverified","t12_eligible":False,"forecast_usable":False}
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("race_code")
     parser.add_argument("--root",default="official_preview_probe")
+    parser.add_argument("--observation-id",default=None,help="Distinct collection attempt; preserves earlier immutable observations")
     args=parser.parse_args()
-    report=capture(args.race_code,args.root)
+    report=capture(args.race_code,args.root,observation_id=args.observation_id)
     print(json.dumps(report,ensure_ascii=False,indent=2))
     if report["status"]!="raw_http_observed_not_t12_certified":
         raise SystemExit(1)

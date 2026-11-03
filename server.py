@@ -133,7 +133,7 @@ def get_odds(params):
                 raise ValueError("HTML too large")
         html = raw.decode("utf-8", errors="replace")
         odds = parse_official_odds_table(html)
-        result = 200, {"ok": True, "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
+        result = 200, {"ok": True, "hd": hd, "jcd": jcd, "rno": int(rno), "odds": odds, "fetched_at": datetime.now(timezone.utc).isoformat()}
     except Exception as exc:
         logging.warning("odds_refresh_failed race=%s-%s-%s reason=%s: %s", hd, jcd, rno, type(exc).__name__, str(exc)[:160])
         result = 503, {"ok": False, "message": "このレースのオッズをまだ取得できません。開催状況を確認し、少ししてから更新してください。"}
@@ -234,6 +234,125 @@ def get_predictions(params):
         logging.warning("prediction_feed_invalid %s", type(exc).__name__)
         return 503, {"ok": False, "status": "error", "predictions": [], "message": "予想データを検証できません。予想の掲載を停止しています。"}
 
+# The historical holdout evaluator reads and validates many saved races.
+# Never perform that computation inside a public request handler.
+_HOLDOUT_LOCK = threading.Lock()
+_HOLDOUT_STATE = {"value": None, "expires": 0.0, "running": False,
+                  "started": None, "last_duration": None, "last_error": None}
+_HOLDOUT_TTL_SECONDS = 900
+_HOLDOUT_PROCESS_BOOT = time.monotonic()
+_HOLDOUT_PROCESS_ID = os.getpid()
+
+def _compute_holdout_status():
+    from compare_topn_signal70_days import report
+    dates = sorted({p.stem[:8] for p in (ROOT / "prospective_predictions").glob("20??????????.json")})
+    # This endpoint reports *later* holdouts only; auditing discovery and
+    # earlier exploratory races cannot affect its response.
+    holdout_dates = [day for day in dates if day > "20261029"]
+    first_add_probes = {}
+    if holdout_dates:
+        from audit_clean_first_add import bulk_first_add, inspect
+        with bulk_first_add(ROOT):
+            # Compare the exact production Git audit against frozen examples
+            # independently verified using full Git history on CI.
+            for code in ("202610301306", "202610312412",
+                         "202611011306", "202611022412"):
+                try:
+                    proof = inspect("prospective_predictions/" + code + ".json", ROOT)
+                    first_add_probes[code] = {"ok": True,
+                        "sha": proof["first_add_sha"],
+                        "first_committer_at": proof["first_committer_at"]}
+                except (ValueError, KeyError, TypeError, OSError) as exc:
+                    late = str(exc) == "first Git commit not before prospective cutoff"
+                    first_add_probes[code] = {"ok": False,
+                        "reason": type(exc).__name__,
+                        "cutoff_rejected": late}
+                    if late:
+                        # Diagnostic only: preserve inspect() rejection while
+                        # identifying the *actual* first-add commit used by Render.
+                        try:
+                            from audit_clean_first_add import first_add
+                            import json as _json
+                            raw, sha, when = first_add(
+                                "prospective_predictions/" + code + ".json", ROOT)
+                            cutoff = datetime.fromisoformat(_json.loads(raw)["cutoff_jst"])
+                            first_add_probes[code].update(
+                                sha=sha, first_committer_at=when.isoformat(),
+                                minutes_before_cutoff=round(
+                                    (cutoff - when).total_seconds()/60, 2))
+                        except (ValueError, KeyError, TypeError, OSError):
+                            first_add_probes[code]["commit_details_unavailable"] = True
+            data = report(holdout_dates)
+    else:
+        data = {"later_holdout_days": 0, "later_holdout_evaluated_races": 0}
+    # Keep rejected audits separate from races with unavailable confirmed results.
+    # Neither may enter a Top-N hit-rate denominator.
+    days = data.get("days", [])
+    awaiting = sum(g["awaiting_result"] for d in days for g in d["groups"].values())
+    rejected = sum(g["rejected"] for d in days for g in d["groups"].values())
+    archived = sum(d["archived"] for d in days)
+    rejection_reasons = {}
+    for day in days:
+        for group in day["groups"].values():
+            for reason, count in group.get("rejection_reasons", {}).items():
+                rejection_reasons[reason] = rejection_reasons.get(reason, 0) + count
+    return {"schema": "CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
+            "later_holdout_days": data["later_holdout_days"],
+            "evaluated_holdout_races": data["later_holdout_evaluated_races"],
+            "awaiting_result_races": awaiting,
+            "audit_rejected_races": rejected,
+            "audit_rejection_reasons": rejection_reasons,
+            "archived_candidates": archived,
+            "first_add_probes": first_add_probes,
+            "discovery_day": "20261029", "independently_validated": False}
+
+def _refresh_holdout_status():
+    with _HOLDOUT_LOCK:
+        started = _HOLDOUT_STATE["started"] or time.monotonic()
+    error = None
+    try:
+        result = _compute_holdout_status()
+    except Exception as exc:
+        logging.exception("holdout_status_unavailable")
+        error = type(exc).__name__
+        result = None
+    elapsed = time.monotonic() - started
+    with _HOLDOUT_LOCK:
+        _HOLDOUT_STATE["value"] = result
+        _HOLDOUT_STATE["expires"] = time.monotonic() + _HOLDOUT_TTL_SECONDS
+        _HOLDOUT_STATE["running"] = False
+        _HOLDOUT_STATE["last_duration"] = round(elapsed, 2)
+        _HOLDOUT_STATE["last_error"] = error
+    logging.info("holdout_refresh_finished duration_seconds=%.2f outcome=%s",
+                 elapsed, "ready" if result is not None else error)
+
+def holdout_status():
+    now = time.monotonic()
+    with _HOLDOUT_LOCK:
+        if now >= _HOLDOUT_STATE["expires"] and not _HOLDOUT_STATE["running"]:
+            _HOLDOUT_STATE["running"] = True
+            _HOLDOUT_STATE["started"] = now
+            _HOLDOUT_STATE["last_error"] = None
+            threading.Thread(target=_refresh_holdout_status, daemon=True, name="holdout-refresh").start()
+        value = _HOLDOUT_STATE["value"]
+        fresh = value is not None and now < _HOLDOUT_STATE["expires"]
+        running = _HOLDOUT_STATE["running"]
+        started = _HOLDOUT_STATE["started"]
+        last_duration = _HOLDOUT_STATE["last_duration"]
+        last_error = _HOLDOUT_STATE["last_error"]
+    if fresh:
+        return 200, value
+    # Report operational status only. Never fabricate research evidence.
+    return 503, {"ok": False,
+                 "error": "HOLDOUT_PENDING" if running else "HOLDOUT_UNAVAILABLE",
+                 "retryable": True,
+                 "running": running,
+                 "elapsed_seconds": round(max(0, now - started), 1) if running and started is not None else None,
+                 "last_duration_seconds": last_duration,
+                 "last_error_type": last_error,
+                 "worker_pid": _HOLDOUT_PROCESS_ID,
+                 "process_uptime_seconds": round(time.monotonic() - _HOLDOUT_PROCESS_BOOT, 1)}
+
 class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
@@ -252,10 +371,13 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlsplit(self.path)
         path = parsed.path.rstrip("/") or "/"
         if path in ("/", "/index.html", "/forecast", "/exhibition", "/card", "/results", "/review"):
-            body = (ROOT / "index.html").read_bytes().replace(b"</body>", b'<script src="/navigation.js" defer></script></body>')
+            body = (ROOT / "index.html").read_bytes()
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/navigation.js":
             body = (ROOT / "navigation.js").read_bytes()
+            status, kind = 200, "application/javascript; charset=utf-8"
+        elif path == "/entry_scenario.js":
+            body = (ROOT / "entry_scenario.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
         elif path == "/secondary_navigation.js":
             body = (ROOT / "secondary_navigation.js").read_bytes()
@@ -276,21 +398,15 @@ class Handler(BaseHTTPRequestHandler):
             body = (ROOT / "selection.html").read_bytes().replace(b"</body>", b'<script src="/secondary_navigation.js" defer></script></body>')
             status, kind = 200, "text/html; charset=utf-8"
         elif path == "/api/signal70-holdout-status":
-            from compare_topn_signal70_days import report
-            try:
-                dates=sorted({p.stem[:8] for p in (ROOT/"prospective_predictions").glob("20??????????.json")})
-                data=report(dates) if dates else {"schema":"CLEAN_SIGNAL70_DAYWISE_V1","later_holdout_days":0,"days":[]}
-                response={"schema":"CLEAN_SIGNAL70_HOLDOUT_STATUS_V1",
-                          "later_holdout_days":data["later_holdout_days"],
-                          "evaluated_holdout_races":sum(sum(g["evaluated"] for g in d["groups"].values())
-                                                         for d in data["days"] if d["role"]=="later_holdout"),
-                          "discovery_day":"20261029","independently_validated":False}
-                status=200
-            except (ValueError,KeyError,OSError,TypeError):
-                logging.exception("holdout_status_unavailable")
-                status,response=503,{"ok":False,"error":"HOLDOUT_UNAVAILABLE"}
+            status, response = holdout_status()
             body=json.dumps(response,ensure_ascii=False).encode("utf-8")
             kind="application/json; charset=utf-8"
+        elif path == "/api/four-mode-archive":
+            from four_mode_archive_api import archived_four_modes
+            params = parse_qs(parsed.query)
+            status, data = archived_four_modes(params.get("code", [""])[0])
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/prospective-topn":
             from evaluate_clean_prospective_cohort import cohort
             params = parse_qs(parsed.query)

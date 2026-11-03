@@ -4,11 +4,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 from research_model import JST
+from collect_clean_results import confirmed_record_is_usable
 
 def audit(root,day,now=None):
     now=now or datetime.now(JST)
     root=Path(root)
-    rows={"saved_forecasts":0,"confirmed_result_file_present":0,"before_deadline":0,"awaiting_result_overdue":0,"invalid_archive":0}
+    rows={"saved_forecasts":0,"confirmed_result_file_present":0,"confirmed_result_usable":0,"invalid_result_file_present":0,"before_deadline":0,"awaiting_result_overdue":0,"invalid_archive":0}
     pending=[]
     for path in sorted((root/"four_mode_forecasts").glob(day+"????.json")):
         rows["saved_forecasts"]+=1
@@ -20,13 +21,19 @@ def audit(root,day,now=None):
         except (ValueError,KeyError,TypeError,OSError):
             rows["invalid_archive"]+=1
             continue
-        if (root/"confirmed_results"/(path.stem+".json")).is_file():
+        result_path=root/"confirmed_results"/(path.stem+".json")
+        if result_path.is_file() or result_path.is_symlink():
             rows["confirmed_result_file_present"]+=1
-        elif now<deadline:
-            rows["before_deadline"]+=1
+        if confirmed_record_is_usable(result_path,path.stem):
+            rows["confirmed_result_usable"]+=1
         else:
-            rows["awaiting_result_overdue"]+=1
-            pending.append(path.stem)
+            if result_path.is_file() or result_path.is_symlink():
+                rows["invalid_result_file_present"]+=1
+            if now<deadline:
+                rows["before_deadline"]+=1
+            else:
+                rows["awaiting_result_overdue"]+=1
+                pending.append(path.stem)
     return {"schema":"CLEAN_PENDING_RESULT_COVERAGE_V1","day_jst":day,**rows,
             "overdue_race_codes":pending,"no_result_is_not_a_miss":True,
             "official_results_validated":False,"hit_rate_calculated":False}

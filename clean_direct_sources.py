@@ -22,6 +22,8 @@ def fetch_bytes(url,limit=2_000_000):
         if res.status!=200:raise ValueError("upstream_http_status")
         raw=res.read(limit+1)
         if len(raw)>limit:raise ValueError("upstream_too_large")
+        from four_mode_raw_receipt import preserve
+        preserve(url, raw, datetime.now(JST))
         return raw
 
 
@@ -87,17 +89,36 @@ def parse_card(raw,code):
 
 def direct_cards(day,titles,existing_codes=(),now=None,fetch=fetch_bytes,limit=MAX_RACES_PER_RUN):
     now=now or datetime.now(JST)
+    live_fetch=fetch is fetch_bytes
     existing=set(existing_codes)
     pending=[]
+    failed={}
+    seen=set()
     for title in titles:
-        code=title["レースコード"]
-        if code in existing:continue
-        cutoff=datetime.strptime(day+title["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
-        if now+timedelta(minutes=20)<cutoff:pending.append((cutoff,code))
+        # A single malformed title must not cancel the entire bounded
+        # pre-race supplement. Reject its race ID before constructing a URL.
+        try:
+            if type(title) is not dict:
+                raise ValueError("invalid_title_row")
+            code=title["レースコード"]
+            if (type(code) is not str or not re.fullmatch(day+r"(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])",code)
+                    or code in seen):
+                raise ValueError("invalid_or_duplicate_title_code")
+            seen.add(code)
+            if code in existing:
+                continue
+            clock=title["電話投票締切予定"]
+            if type(clock) is not str:
+                raise ValueError("invalid_title_deadline")
+            cutoff=datetime.strptime(day+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
+            if now+timedelta(minutes=20)<cutoff:
+                pending.append((cutoff,code))
+        except (KeyError,ValueError,TypeError) as exc:
+            key=type(exc).__name__
+            failed[key]=failed.get(key,0)+1
     pending.sort()
     cards=[]
     source_hashes={}
-    failed={}
     for _,code in pending[:limit]:
         jo,rr=code[8:10],code[10:12]
         url=f"{ROOT}/hp_txt/{jo}/bc_j_str3_{day}_{jo}_{rr}.txt"
@@ -108,6 +129,8 @@ def direct_cards(day,titles,existing_codes=(),now=None,fetch=fetch_bytes,limit=M
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,UnicodeError) as exc:
             key=type(exc).__name__
             failed[key]=failed.get(key,0)+1
-    if not cards:return [],now,"",source_hashes,failed
+    # Timestamp the completed source acquisition, not the capture-start clock.
+    received_at=datetime.now(JST) if live_fetch else now
+    if not cards:return [],received_at,"",source_hashes,failed
     combined=hashlib.sha256("".join(source_hashes[c] for c in sorted(source_hashes)).encode("ascii")).hexdigest()
-    return cards,now,combined,source_hashes,failed
+    return cards,received_at,combined,source_hashes,failed

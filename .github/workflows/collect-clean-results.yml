@@ -2,7 +2,18 @@ name: CLEAN independent confirmed result collection
 on:
   schedule:
     - cron: '*/10 * * * *'
+  # GitHub may delay/skip cron. Reuse the EXISTING result collector after
+  # independently scheduled or watchdog-dispatched capture, regardless of whether capture succeeded.
+  # A failed capture does not imply the result CSV is unavailable.
+  workflow_run:
+    workflows: ['Four-mode prospective capture (research only)']
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      backfill_day:
+        description: 'Optional historical JST date YYYYMMDD (last 30 days only)'
+        required: false
+        type: string
   push:
     branches: [main]
     paths:
@@ -10,6 +21,8 @@ on:
       - clean_results.py
       - server.py
       - test_collect_clean_results.py
+      - scripts/backfill_clean_result_day.py
+      - test_backfill_clean_result_day.py
       - .github/workflows/collect-clean-results.yml
   pull_request:
     paths:
@@ -25,6 +38,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
+    # Only same-repository main schedule or fallback-dispatch completions can trigger
+    # this writer; reject PR/foreign-repository workflow_run events.
+    if: >-
+      ${{ github.event_name != 'workflow_run' ||
+          (contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event.workflow_run.event) &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -35,12 +55,20 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate collector and archive reader without network
-        run: python -m unittest -v test_collect_clean_results test_clean_results
+        run: python -m unittest -v test_collect_clean_results test_clean_results test_backfill_clean_result_day
       - name: Collect published results (main only)
         if: github.event_name != 'pull_request'
+        env:
+          BACKFILL_DAY: ${{ github.event.inputs.backfill_day || '' }}
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p test-results
-          python collect_clean_results.py 2>&1 | tee test-results/collection-run.log
+          if [[ -n "${BACKFILL_DAY:-}" ]]; then
+            python -m scripts.backfill_clean_result_day "$BACKFILL_DAY" 2>&1 | tee test-results/collection-run.log
+          else
+            python collect_clean_results.py 2>&1 | tee test-results/collection-run.log
+          fi
           test ${PIPESTATUS[0]} -eq 0
       - name: Commit new result archives (main only)
         if: github.event_name != 'pull_request'

@@ -1,0 +1,143 @@
+name: Production API evidence smoke
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/production-api-evidence.yml'
+  workflow_dispatch:
+jobs:
+  read-only-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check live production endpoint identities without assuming odds availability
+        env:
+          BASE_URL: https://boat-edge-clean.onrender.com
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error, datetime
+          base=os.environ['BASE_URL']
+          def fetch(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'CLEAN-API-PROOF/1.0','Accept':'application/json'})
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as response:
+                      return response.status,response.read(300000)
+              except urllib.error.HTTPError as e:
+                  return e.code,e.read(300000)
+          def report(msg):
+              print(msg,flush=True)
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write(msg+'\n')
+          status,raw=fetch('/healthz')
+          if status!=200 or raw.strip()!=b'ok':raise AssertionError('healthz not healthy: '+str(status))
+          report('Health: HTTP 200, ok')
+          day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
+          status,raw=fetch('/api/clean-schedule?date='+day)
+          report('Schedule '+day+': HTTP '+str(status))
+          if status!=200:
+              report('Schedule not verifiable now; no race or cutoff invented.')
+          else:
+              data=json.loads(raw)
+              assert data.get('ok') is True or (isinstance(data.get('venues'),list) and data.get('date')==day), 'invalid schedule response'
+              races=[(r.get('venue_code'),r.get('race_no'),r.get('deadline_jst')) for r in data.get('races',[]) if isinstance(r,dict)]
+              report('Schedule dated entries: '+str(len(races)))
+              candidate=next(((v,n,t) for v,n,t in races if isinstance(t,str) and len(t)>=16 and t.startswith(day[:4]+'-'+day[4:6]+'-'+day[6:8]) and isinstance(n,int)),None)
+              if candidate:
+                  v,n,t=candidate
+                  report('Sample sourced cutoff: venue '+str(v)+' '+str(n)+'R '+t)
+                  p='/api/odds?hd='+day+'&jcd='+str(v).zfill(2)+'&rno='+str(n)
+                  code,body=fetch(p)
+                  report('Same-race odds: HTTP '+str(code))
+                  if code==200:
+                      odds=json.loads(body)
+                      assert odds.get('ok') is True and odds.get('hd')==day and str(odds.get('jcd')).zfill(2)==str(v).zfill(2) and odds.get('rno')==n
+                      assert isinstance(odds.get('odds'),dict) and len(odds['odds'])==120
+                      report('Odds identity and 120 combos: PASS')
+                  else:report('Odds not available; not marked verified.')
+                  code,body=fetch('/api/clean-result?hd='+day+'&jcd='+str(v).zfill(2)+'&rno='+str(n))
+                  report('Same-race result: HTTP '+str(code))
+                  if code==200:
+                      result=json.loads(body)
+                      race_code=day+str(v).zfill(2)+str(n).zfill(2)
+                      source='https://boatracecsv.github.io/data/results/realtime/'+day[:4]+'/'+day[4:6]+'/'+day[6:8]+'.csv'
+                      finish=result.get('finish_order')
+                      valid=(result.get('ok') is True and result.get('status')=='confirmed'
+                             and result.get('race_code')==race_code and result.get('source_url')==source
+                             and isinstance(finish,list) and len(finish)==3
+                             and all(type(x) is int and 1<=x<=6 for x in finish)
+                             and len(set(finish))==3)
+                      def parsed(name):
+                          value=result.get(name)
+                          dt=datetime.datetime.fromisoformat(value) if isinstance(value,str) else None
+                          return dt if dt and dt.utcoffset() is not None else None
+                      try: confirmed=parsed('confirmed_at_jst');collected=parsed('collected_at_jst')
+                      except ValueError: confirmed=collected=None
+                      valid=valid and confirmed is not None and collected is not None and collected>=confirmed
+                      if not valid:raise AssertionError('Result HTTP 200 but confirmed identity/source/finish/time invalid')
+                      report('Confirmed result identity/source/timestamps and finish: PASS '+ '-'.join(map(str,finish)))
+                      report('Official payout independently checked: NO (not included in this result API)')
+                      archive_status,archive_raw=fetch('/api/four-mode-archive?code='+race_code)
+                      report('Same-race four-mode archive: HTTP '+str(archive_status))
+                      if archive_status==200:
+                          archived=json.loads(archive_raw)
+                          assert archived.get('race_code')==race_code and archived.get('status')=='historical_research_only' and archived.get('production_forecast') is False
+                          modes=archived.get('modes')
+                          assert isinstance(modes,dict), 'missing archived modes'
+                          winner='-'.join(map(str,finish))
+                          for mode in ('narrow','hit','balance','hole'):
+                              tickets=modes.get(mode,{}).get('tickets')
+                              assert isinstance(tickets,list) and tickets, 'missing archived tickets: '+mode
+                              combos=[x.get('combo') for x in tickets]
+                              assert len(combos)==len(set(combos)), 'duplicate archived ticket: '+mode
+                              positions=[i+1 for i,combo in enumerate(combos) if combo==winner]
+                              report('Archived '+mode+': '+('HIT ticket #'+str(positions[0]) if positions else 'MISS')+' / '+str(len(combos))+' tickets')
+                          report('Archive hit comparison: research only; first Git add not authenticated')
+                      else:
+                          report('Archived forecast not available; hit status not inferred')
+
+                  else:report('Confirmed result unavailable; not marked verified.')
+          # Historical examples are pre-existing, never generated by this job.
+          for race_code in ('202610280101','202610280102'):
+              status,raw=fetch('/api/four-mode-archive?code='+race_code)
+              report('Frozen example '+race_code+' archive HTTP '+str(status))
+              if status!=200:
+                  raise AssertionError('frozen fixture unavailable '+race_code)
+              archive=json.loads(raw)
+              assert archive.get('status')=='historical_research_only' and archive.get('race_code')==race_code
+              assert archive.get('model_version')=='CLEAN_FOUR_MODES_V1_UNCALIBRATED', 'legacy V1 model identity missing from live API'
+              report('Live archive model_version V1: PASS '+race_code)
+              assert archive.get('production_forecast') is False
+              code,body=fetch('/api/clean-result?hd='+race_code[:8]+'&jcd='+race_code[8:10]+'&rno='+str(int(race_code[10:])))
+              if code!=200:raise AssertionError('confirmed fixture unavailable '+race_code)
+              result=json.loads(body)
+              assert result.get('race_code')==race_code and result.get('status')=='confirmed'
+              finish=result.get('finish_order')
+              assert isinstance(finish,list) and len(finish)==3 and len(set(finish))==3
+              winning='-'.join(map(str,finish))
+              report('Frozen example '+race_code+' result '+winning)
+              for mode in ('narrow','hit','balance','hole'):
+                  rows=archive.get('modes',{}).get(mode,{}).get('tickets',[])
+                  assert rows and len({row['combo'] for row in rows})==len(rows)
+                  hits=[i+1 for i,row in enumerate(rows) if row['combo']==winning]
+                  report('Frozen '+mode+' '+race_code+': '+('HIT #'+str(hits[0]) if hits else 'MISS')+' / '+str(len(rows))+' tickets (research only)')
+          report('Historical archive matches are NOT independently first-seen verified')
+          # V2 is counted only when a real immutable saved archive carries V2 provenance.
+          # Probe a bounded handful of published races, without generating any predictions.
+          checked=0;v2=[]
+          for entry in data.get('races',[])[:36] if status==200 else []:
+              if not isinstance(entry,dict):continue
+              try:race_code=day+str(int(entry['venue_code'])).zfill(2)+str(int(entry['race_no'])).zfill(2)
+              except (KeyError,TypeError,ValueError):continue
+              http,raw=fetch('/api/four-mode-archive?code='+race_code)
+              checked+=1
+              if http!=200:continue
+              archived=json.loads(raw)
+              if archived.get('model_version')!='CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED':continue
+              assert archived.get('race_code')==race_code and archived.get('status')=='historical_research_only'
+              modes=archived.get('modes',{})
+              actual=[len(modes.get(m,{}).get('tickets',[])) for m in ('narrow','hit','balance','hole')]
+              assert actual==[5,10,16,22], 'V2 ticket count mismatch '+race_code
+              v2.append(race_code)
+          report('V2 production archive scan: '+str(len(v2))+' V2 / '+str(checked)+' scheduled samples')
+          if not v2:report('No V2 sample found in bounded scan; prospective V2 accuracy NOT evaluated')
+          else:report('V2 archived sample codes: '+', '.join(v2))
+
+          PY

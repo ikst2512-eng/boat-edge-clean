@@ -12,6 +12,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.preview_timing_integrity import classify, parse_jst
 from late_preview_capture import six_lane_status
 
+def normalized_deadline(row):
+    """Require both source feeds to describe the same race deadline."""
+    from datetime import datetime
+    from research_model import JST
+    source=row["source_row"]
+    raw=source.get("締切時刻")
+    parsed=parse_jst(raw)
+    if parsed is None and isinstance(raw,str):
+        try:
+            parsed=datetime.strptime(row["race_code"][:8]+raw,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        except ValueError:
+            return None
+    return parsed
+
 def audit(root="late_preview_evidence"):
     pairs=defaultdict(dict)
     duplicate_kinds=set()
@@ -69,6 +83,17 @@ def audit(root="late_preview_evidence"):
     t12_evidence=[]
     paired_not_t12=[]
     for code, entries in sorted(pairs.items()):
+        # Independent valid source rows can still disagree on the scheduled
+        # cutoff. A mixed pair must never qualify as complete or T-12 observed.
+        if "stt" in entries and "tkz" in entries:
+            a=normalized_deadline(entries["stt"])
+            b=normalized_deadline(entries["tkz"])
+            if a is None or b is None or a!=b:
+                missing.append(code)
+                incomplete_reasons.append({"race_code":code,
+                                           "stt":"deadline_mismatch",
+                                           "tkz":"deadline_mismatch"})
+                continue
         if ("stt" in entries and "tkz" in entries
             and entries["stt"].get("six_lane_validation")=="complete"
             and entries["tkz"].get("six_lane_validation")=="complete"):
@@ -92,7 +117,37 @@ def audit(root="late_preview_evidence"):
             incomplete_reasons.append({"race_code":code,
                 "stt":("missing" if "stt" not in entries else entries["stt"]["six_lane_validation"]),
                 "tkz":("missing" if "tkz" not in entries else entries["tkz"]["six_lane_validation"])})
+    # Aggregate mutually exclusive obstacles to verified T-12 paired coverage.
+    # These counts are derived only from independently revalidated source rows.
+    from collections import Counter
+    pair_gap_counts=Counter()
+    for item in incomplete_reasons:
+        stt=item["stt"]
+        tkz=item["tkz"]
+        if stt=="missing" and tkz=="missing":
+            pair_gap_counts["both_missing"]+=1
+        elif stt=="missing":
+            pair_gap_counts["stt_missing"]+=1
+        elif tkz=="missing":
+            pair_gap_counts["tkz_missing"]+=1
+        elif stt=="deadline_mismatch" and tkz=="deadline_mismatch":
+            pair_gap_counts["deadline_mismatch"]+=1
+        else:
+            pair_gap_counts["six_lane_incomplete"]+=1
+    t12_gap_counts=Counter()
+    for item in paired_not_t12:
+        status=(item["stt_t12"],item["tkz_t12"])
+        if status==("too_late","too_late"):
+            t12_gap_counts["both_too_late"]+=1
+        elif status[0]=="too_late":
+            t12_gap_counts["stt_too_late"]+=1
+        elif status[1]=="too_late":
+            t12_gap_counts["tkz_too_late"]+=1
+        else:
+            t12_gap_counts["time_unverified"]+=1
     return {"records":total,"invalid":invalid,"races":len(pairs),
+            "pair_gap_counts":dict(sorted(pair_gap_counts.items())),
+            "t12_gap_counts":dict(sorted(t12_gap_counts.items())),
             "paired_complete_6boat_stt_tkz":complete,
             "paired_complete_12min_observable":complete_t12,
             "not_paired_complete":len(missing),
