@@ -59,6 +59,9 @@ def inspect_dispatches(capture_inventory, downloader, limit=12):
                             "cancelled": 0, "unknown": 0, "checked": 0}
                     for field in ("third_rate_shadow", "hole_shadow")},
                 "third_rate_shadow_failure_runs": [], "hole_shadow_failure_runs": [],
+                "research_roster_status_counts": {
+                    "matched": 0, "mismatch": 0, "unknown": 0, "not_applicable": 0},
+                "research_roster_mismatch_run_ids": [],
                 "remote_main_verified": False, "runs": [],
                 "note": "No dispatch runs in bounded listing; no publication conclusion."}
     result = report(history, downloader, limit=limit)
@@ -98,6 +101,8 @@ def main():
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "research_stage_coverage": result["research_stage_coverage"],
+        "research_roster_status_counts": result["research_roster_status_counts"],
+        "research_roster_mismatch_run_ids": result["research_roster_mismatch_run_ids"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
         "hole_shadow_failure_runs": result["hole_shadow_failure_runs"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
@@ -106,6 +111,7 @@ def main():
                       "publication_outcome": row["publication_outcome"],
                       "third_rate_shadow_outcome": row["third_rate_shadow_outcome"],
                       "hole_shadow_outcome": row["hole_shadow_outcome"],
+                      "research_roster_evidence": row["research_roster_evidence"],
                       "source_link_status": row["source_link_status"],
                       "staged_valid": row["staged_valid"],
                       "source_title_rows": row["source_title_rows"],
