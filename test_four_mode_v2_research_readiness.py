@@ -91,6 +91,30 @@ class V2ReadinessTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summarize(d)
 
+    def test_venue_gap_blocks_interpretation_even_if_global_stats_exist(self):
+        d = fixture()
+        venues = {"20261103:02": {"mature_confirmed": 0, "missing_over_60m": 58},
+                  "20261103:10": {"mature_confirmed": 8, "missing_over_60m": 0}}
+        audit = {"formal": False, "verified_first_remote_publication": False,
+                 "total_saved": 149, "total_confirmed": 8,
+                 "total_overdue_missing": 58, "venues": venues}
+        r = summarize(d, venue_report=audit)
+        self.assertIn("uneven_venue_result_coverage", r["blocking_reasons"])
+        self.assertEqual(r["venue_coverage"]["zero_confirmed_venues"], ["20261103:02"])
+        self.assertEqual(r["venue_coverage"]["mature_venues"], 2)
+        self.assertFalse(r["production_promotion_allowed"])
+
+    def test_mismatched_venue_denominator_fails_closed(self):
+        audit = {"formal": False, "verified_first_remote_publication": False,
+                 "total_saved": 149, "total_confirmed": 9,
+                 "total_overdue_missing": 58, "venues": {}}
+        with self.assertRaises(ValueError):
+            summarize(fixture(), venue_report=audit)
+
+    def test_unvalidated_venue_audit_is_not_promoted(self):
+        r = summarize(fixture())
+        self.assertIn("venue_representation_not_audited", r["blocking_reasons"])
+
     def test_rejects_false_formal_promotion(self):
         d = fixture()
         d["formal"] = True
