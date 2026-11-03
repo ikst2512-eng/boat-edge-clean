@@ -78,6 +78,7 @@ def aggregate(root,artifacts):
             "artifact_files":examined,"distinct_future_codes_seen":len(all_rows)+len(duplicates),
             "duplicate_codes_quarantined":sorted(duplicates),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
+            "per_race_flags":{r["race_code"]:r["flags"] for r in rows},
             "observed_future_codes":sorted(set(all_rows)|duplicates),
             "excluded_by_reason":dict(excluded),"invalid_artifacts":dict(nonusable),
             "shadow_status_counts":dict(shadow_statuses),
