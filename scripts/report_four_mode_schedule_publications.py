@@ -133,6 +133,13 @@ def inspect(run, root):
               "failure_stage": None, "third_rate_shadow_outcome": None,
               "hole_shadow_outcome": None, "third_rate_ledger_outcome": None,
               "third_rate_ledger_status": None, "third_rate_ledger_probe_status": None,
+              "github_server_observation_outcome": None,
+              "github_observation_ledger_outcome": None,
+              "github_observation_status": None,
+              "github_observation_before_t12": None,
+              "github_observation_after_t12": None,
+              "github_observation_unverified": None,
+              "github_observation_ledger_status": None,
               "research_roster_evidence": None,
               "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
@@ -144,6 +151,18 @@ def inspect(run, root):
     third = safe_json(root, "four-mode-evidence/third-rate-shadow.json")
     hole = safe_json(root, "four-mode-evidence/hole-shadow.json")
     ledger = safe_json(root, "four-mode-evidence/third-rate-ledger.json")
+    observed = safe_json(root, "four-mode-evidence/github-server-observation.json")
+    observed_ledger = safe_json(root, "four-mode-evidence/github-server-observation-ledger.json")
+    if observed is not None and observed.get("schema") == "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1":
+        result["github_observation_status"] = observed.get("status")
+        result["github_observation_before_t12"] = count(observed, "observed_before_t_minus_12")
+        result["github_observation_after_t12"] = count(observed, "observed_after_t_minus_12")
+        result["github_observation_unverified"] = count(observed, "unverified_count")
+    if observed_ledger is not None:
+        if observed_ledger.get("status") in (
+                "new_append_only_observation", "already_preserved_identical",
+                "no_published_forecast", "observation_preservation_failed"):
+            result["github_observation_ledger_status"] = observed_ledger["status"]
     if ledger is not None:
         status_value = ledger.get("status")
         if status_value in ("new_immutable_ledger_entry",
@@ -157,7 +176,10 @@ def inspect(run, root):
             result["third_rate_ledger_probe_status"] = probe["status"]
     result["research_roster_evidence"] = research_roster_evidence(publication, third, hole)
     source_links = safe_json(root, "four-mode-evidence/source-links.json")
-    result["artifact_present"] = any(x is not None for x in (status, staging, publication, stages, source_links))
+    result["artifact_present"] = any(
+        x is not None for x in (
+            status, staging, publication, stages, source_links, third, hole,
+            ledger, observed, observed_ledger))
     # A malformed or timezone-naive run timestamp cannot anchor a source
     # report to a JST day. Preserve independent artifact/step verdicts.
     day = safe_run_day_jst(run)
@@ -211,7 +233,8 @@ def inspect(run, root):
     # Research step outcomes are separate from immutable V2 publication.
     # Old artifacts may lack these fields: unknown is not success.
     if isinstance(stages, dict):
-        for field in ("third_rate_shadow", "hole_shadow", "third_rate_ledger"):
+        for field in ("third_rate_shadow", "hole_shadow", "third_rate_ledger",
+                      "github_server_observation", "github_observation_ledger"):
             value = stages.get(field)
             if value in ("success", "failure", "skipped", "cancelled"):
                 result[field + "_outcome"] = value
@@ -266,6 +289,13 @@ def report(history, downloader, limit=12):
             "checked": len(outcomes),
         }
     ledger_outcomes = [r["third_rate_ledger_outcome"] for r in rows]
+    github_observation_outcomes = [
+        r["github_server_observation_outcome"] for r in rows]
+    github_ledger_outcomes = [r["github_observation_ledger_outcome"] for r in rows]
+    def coverage(outcomes):
+        return {key: outcomes.count(key) for key in
+                ("success", "failure", "skipped", "cancelled")} | {
+                    "unknown": outcomes.count(None), "checked": len(outcomes)}
     return {"schema": "FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE_V1",
             "scheduled_runs_checked": len(rows),
             "history_runs_available": len(history["runs"]),
@@ -273,13 +303,20 @@ def report(history, downloader, limit=12):
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "research_stage_coverage": research_coverage,
-            "third_rate_ledger_coverage": {
-                "success": ledger_outcomes.count("success"),
-                "failure": ledger_outcomes.count("failure"),
-                "skipped": ledger_outcomes.count("skipped"),
-                "cancelled": ledger_outcomes.count("cancelled"),
-                "unknown": ledger_outcomes.count(None),
-                "checked": len(ledger_outcomes)},
+            "third_rate_ledger_coverage": coverage(ledger_outcomes),
+            "github_observation_coverage": coverage(github_observation_outcomes),
+            "github_observation_ledger_coverage": coverage(github_ledger_outcomes),
+            "github_observation_failure_run_ids": [
+                r["run_id"] for r in rows
+                if r["github_server_observation_outcome"] == "failure"],
+            "github_observation_ledger_failure_run_ids": [
+                r["run_id"] for r in rows
+                if r["github_observation_ledger_outcome"] == "failure"
+                or r["github_observation_ledger_status"] == "observation_preservation_failed"],
+            "github_observation_before_t12_total": sum(
+                r["github_observation_before_t12"] or 0 for r in rows),
+            "github_observation_after_t12_total": sum(
+                r["github_observation_after_t12"] or 0 for r in rows),
             "third_rate_ledger_failure_run_ids": [
                 r["run_id"] for r in rows
                 if r["third_rate_ledger_outcome"] == "failure"
@@ -335,6 +372,12 @@ def main():
         "runs_claiming_push": result["runs_claiming_push"],
         "research_stage_coverage": result["research_stage_coverage"],
         "third_rate_ledger_coverage": result["third_rate_ledger_coverage"],
+        "github_observation_coverage": result["github_observation_coverage"],
+        "github_observation_ledger_coverage": result["github_observation_ledger_coverage"],
+        "github_observation_failure_run_ids": result["github_observation_failure_run_ids"],
+        "github_observation_ledger_failure_run_ids": result["github_observation_ledger_failure_run_ids"],
+        "github_observation_before_t12_total": result["github_observation_before_t12_total"],
+        "github_observation_after_t12_total": result["github_observation_after_t12_total"],
         "third_rate_ledger_failure_run_ids": result["third_rate_ledger_failure_run_ids"],
         "third_rate_ledger_probe_verified_run_ids": result["third_rate_ledger_probe_verified_run_ids"],
         "research_roster_status_counts": result["research_roster_status_counts"],
