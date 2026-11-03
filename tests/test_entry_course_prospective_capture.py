@@ -22,10 +22,12 @@ def fixture():
           "source_cards_sha256":"a"*64,"source_title_sha256":"b"*64,
           "input_sha256":"c"*64,"model_source_sha256":"d"*64}
     card={"race_key":"20261103-07-08",
-          "meta":{"phase":"PRE_RESULT","results_seen":False},
+          "meta":{"phase":"PRE_RESULT","results_seen":False,"date":"2026-11-03","deadline":"19:20"},
           "racers":[{"lane":i,"registration_no":str(4000+i)} for i in range(1,7)],
           "beforeinfo":{"start_exhibition":[{"lane":i,"course":float(i),"st":"0.15"} for i in range(1,7)]},
-          "source_audit":{"beforeinfo":{"status":"ok","sources":{
+          "source_audit":{"race_card":{"status":"ok","fetched_at":BEFORE,
+                "sha256":"7"*64,"predeadline_verified":True},
+                "beforeinfo":{"status":"ok","sources":{
               "stt":{"observed_at":BEFORE,"sha256":"e"*64},
               "tkz":{"observed_at":BEFORE,"sha256":"f"*64}}}}}
     code="202611020701"
