@@ -105,17 +105,17 @@ def challenger_rank(national_rates, entry, course_records, *, cutoff_at, include
     baseline = sorted(baseline,key=lambda x:(-x[1], x[0]))
     return {"baseline": [("-".join(map(str,t)),p) for t,p in baseline],
             "course": [("-".join(map(str,t)),p) for t,p in
-                       challenger_rank._rank_course_without_st(national_rates,entry,by_boat,cutoff_at)] if include_st else
+                       challenger_rank._rank_course_without_st(national_rates,entry,by_boat,cutoff_at,min_starts)] if include_st else
                       [("-".join(map(str,t)),p) for t,p in candidate],
             "course_plus_st": [("-".join(map(str,t)),p) for t,p in candidate] if include_st else None,
             "research_only": True, "validated": False, "forecast_usable": False,
             "calibration": "unverified_fixed_hypothesis"}
 
 
-def _course_only(national_rates,entry,by_boat,cutoff_at):
+def _course_only(national_rates,entry,by_boat,cutoff_at,min_starts):
     # Reuse the exact pure candidate path without changing the stored records.
     return [(tuple(int(n) for n in ticket.split("-")),p) for ticket,p in
-            challenger_rank(national_rates,entry,list(by_boat.values()),cutoff_at=cutoff_at,include_st=False)["course"]]
+            challenger_rank(national_rates,entry,list(by_boat.values()),cutoff_at=cutoff_at,include_st=False,min_starts=min_starts)["course"]]
 challenger_rank._rank_course_without_st = _course_only
 
 
