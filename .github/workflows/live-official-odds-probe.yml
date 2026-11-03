@@ -66,7 +66,9 @@ jobs:
         if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
         run: python -m unittest discover -s tests -p test_check_live_odds_probe_verdict.py -v
       - name: Summarize eligible preceding scheduled run artifacts
-        if: steps.gate.outputs.collect == 'true'
+        # Keep diagnostic history when a real unattended sample failed its
+        # strict HTTP-200 verdict; never turn that failure into a green job.
+        if: always() && steps.gate.outputs.collect == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/summarize_live_odds_history.py
