@@ -436,6 +436,38 @@ def final_evidence_failure_run_ids(day, evidence_reports):
     return sorted(failures)
 
 
+def missing_new_push_final_evidence_run_ids(day, evidence_reports):
+    """Missing final gate for explicitly published Nov-4+ runs, not old records.
+
+    An absent download/artifact is not a confirmed failed gate, but it means
+    the new publication cannot be certified and must be flagged separately.
+    """
+    if day < "20261104":
+        return []
+    unknown = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if (not isinstance(row, dict)
+                    or row.get("artifact_present") is not True
+                    or row.get("publication_outcome") != "pushed_to_main"
+                    or row.get("final_evidence_verdict_status") is not None):
+                continue
+            try:
+                moment = datetime.fromisoformat(
+                    row["created_at"].replace("Z", "+00:00"))
+                if (moment.tzinfo is None
+                        or moment.astimezone(JST).strftime("%Y%m%d") != day):
+                    continue
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+            run_id = row.get("run_id")
+            if type(run_id) is int and run_id > 0:
+                unknown.add(run_id)
+    return sorted(unknown)
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -495,6 +527,7 @@ def main():
     report["unpublished_new_candidate_runs"] = unpublished_new_candidate_runs(day, evidence)
     report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
     report["final_evidence_failure_run_ids"] = final_evidence_failure_run_ids(day, evidence)
+    report["missing_new_push_final_evidence_run_ids"] = missing_new_push_final_evidence_run_ids(day, evidence)
     report["github_observation_failure_run_ids"] = github_observation_failure_run_ids(day, evidence)
     verified_claims, mismatched_claims = reconcile_claimed_pushes(
         day, paths, additions, evidence)
@@ -520,6 +553,11 @@ def main():
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["unpublished_new_candidate_runs"]):
         print("::error::Same-day V2 capture staged or generated new races without a complete publication claim")
+        raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["missing_new_push_final_evidence_run_ids"]):
+        print("::error::Newly published V2 forecasts lack a final evidence verdict artifact")
         raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
