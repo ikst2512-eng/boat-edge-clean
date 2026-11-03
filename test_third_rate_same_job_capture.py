@@ -79,6 +79,34 @@ class CaptureThirdRateTests(unittest.TestCase):
         self.assertEqual(out["frozen_before_t_minus_12"], 0)
         self.assertEqual(out["records"][0]["reason"], "after_t_minus_12")
 
+    def test_cutoff_crossed_during_prediction_is_ineligible(self):
+        self.publish()
+        after = datetime(2026, 11, 4, 2, 48, 1, tzinfo=timezone.utc)
+        out = freeze_published(self.root, self.publication, NOW, self.git,
+                               clock=lambda: after)
+        self.assertEqual(out["frozen_before_t_minus_12"], 0)
+        self.assertEqual(out["ineligible_count"], 1)
+        self.assertEqual(out["records"][0]["reason"],
+                         "calculation_crossed_t_minus_12")
+
+    def test_freeze_end_time_is_used_not_only_start_time(self):
+        self.publish()
+        end = datetime(2026, 11, 4, 2, 47, 59, tzinfo=timezone.utc)
+        out = freeze_published(self.root, self.publication, NOW, self.git,
+                               clock=lambda: end)
+        self.assertEqual(out["frozen_before_t_minus_12"], 1)
+        self.assertEqual(out["records"][0]["frozen_at_utc"], end.isoformat())
+
+    def test_capture_workflow_runs_third_freeze_before_hole_independently(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/four-mode-prospective-capture.yml").read_text()
+        third = workflow.index("      - name: Freeze third-place research shadow")
+        hole = workflow.index("      - name: Freeze shadow after confirmed publication")
+        self.assertLess(third, hole)
+        self.assertIn("if: ${{ always() && github.event_name != 'pull_request' }}",
+                      workflow[third:hole])
+        self.assertIn("four-mode-evidence/third-rate-shadow.json", workflow)
+
     def test_invalid_commit_count_and_head_fail_closed(self):
         self.publish(added_forecasts=2)
         with self.assertRaises(ValueError):

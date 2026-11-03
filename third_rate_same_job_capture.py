@@ -23,7 +23,7 @@ FILE = re.compile(r"four_mode_forecasts/(20[0-9]{10})\.json\Z")
 JST = timezone(timedelta(hours=9))
 
 
-def freeze_published(root, evidence_path, now=None, git=None):
+def freeze_published(root, evidence_path, now=None, git=None, clock=None):
     root = Path(root)
     evidence_path = Path(evidence_path)
     result = {
@@ -51,9 +51,11 @@ def freeze_published(root, evidence_path, now=None, git=None):
     if not isinstance(sha, str) or not SHA.fullmatch(sha) or (
             type(count) is not int or not 1 <= count <= 500):
         raise ValueError("invalid_publication_claim")
+    fixed_test_clock = now is not None
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("naive_capture_time")
+    clock = clock or (lambda: now if fixed_test_clock else datetime.now(timezone.utc))
     git = git or (lambda args: subprocess.check_output(
         ["git", *args], cwd=root, text=True, timeout=30))
     if git(["rev-parse", "HEAD"]).strip() != sha:
@@ -105,11 +107,20 @@ def freeze_published(root, evidence_path, now=None, git=None):
                         raise ValueError("saved_forecast_not_reproducible")
                     baseline = [x["combo"] for x in archive["modes"]["hit"]["tickets"]]
                     picks, _ = candidate(baseline, rates, board)
+                    # Recheck at the end of modeling. A start-time check alone
+                    # can falsely pass if processing crosses the cutoff.
+                    finished_at = clock()
+                    if finished_at.tzinfo is None:
+                        raise ValueError("naive_finished_time")
+                    if finished_at >= cutoff:
+                        record["reason"] = "calculation_crossed_t_minus_12"
+                        result["records"].append(record)
+                        continue
                     record.update({
                         "status": "frozen_in_same_job_before_t_minus_12",
                         "baseline_top10": baseline,
                         "candidate_top10": picks,
-                        "frozen_at_utc": now.astimezone(timezone.utc).isoformat(),
+                        "frozen_at_utc": finished_at.astimezone(timezone.utc).isoformat(),
                         "source_commit_sha": sha,
                         "protocol": PROTOCOL,
                         "formal": False,
