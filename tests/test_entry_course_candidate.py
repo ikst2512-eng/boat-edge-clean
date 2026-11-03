@@ -25,6 +25,13 @@ class CourseCandidateTests(unittest.TestCase):
             self.assertAlmostEqual(sum(p for t,p in ranking),1,places=9)
         self.assertFalse(result["forecast_usable"])
         self.assertFalse(result["validated"])
+    def test_min_starts_applies_equally_to_course_and_st_variants(self):
+        rs=rows()
+        for row in rs:
+            row['courseStarts']=1
+        value=challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF,include_st=True,min_starts=1)
+        self.assertEqual(len(value['course']),120)
+        self.assertEqual(len(value['course_plus_st']),120)
     def test_missing_course_sample_rejected_not_replaced_with_national_rate(self):
         rs=rows();rs[0]["courseStarts"]=3
         with self.assertRaisesRegex(ValueError,"course_sample"):
