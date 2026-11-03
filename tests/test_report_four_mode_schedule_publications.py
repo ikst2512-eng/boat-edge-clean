@@ -264,6 +264,32 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(data["research_roster_status_counts"]["unknown"], 1)
         self.assertEqual(data["research_roster_status_counts"]["matched"], 0)
 
+    def test_ledger_probe_and_failure_are_distinguished_from_capture_success(self):
+        def download(run_id, root):
+            self.save(root, "four-mode-evidence/publication.json",
+                      {"outcome": "no_eligible_candidates"})
+            self.save(root, "four-mode-evidence/stages.json",
+                      {"third_rate_ledger": "failure" if run_id == 123 else "success"})
+            self.save(root, "four-mode-evidence/third-rate-ledger.json",
+                      {"status": "ledger_preservation_failed"} if run_id == 123
+                       else {"status": "no_eligible_frozen_predictions",
+                             "write_access_probe": {
+                                 "status": "new_write_permission_probe"}})
+        rows = [self.RUN, {**self.RUN, "id": 124}]
+        result = report({"runs": rows}, download)
+        self.assertEqual(result["third_rate_ledger_failure_run_ids"], [123])
+        self.assertEqual(result["third_rate_ledger_probe_verified_run_ids"], [124])
+        self.assertEqual(result["third_rate_ledger_coverage"]["success"], 1)
+        self.assertEqual(result["third_rate_ledger_coverage"]["failure"], 1)
+        self.assertEqual(result["runs"][1]["third_rate_ledger_status"],
+                         "no_eligible_frozen_predictions")
+
+    def test_legacy_ledger_absence_stays_unknown(self):
+        result = report({"runs": [self.RUN]}, lambda *_: None)
+        self.assertEqual(result["third_rate_ledger_coverage"]["unknown"], 1)
+        self.assertEqual(result["third_rate_ledger_failure_run_ids"], [])
+        self.assertEqual(result["third_rate_ledger_probe_verified_run_ids"], [])
+
     def test_research_failure_kept_separate_from_verified_push_claim(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/publication.json", {
