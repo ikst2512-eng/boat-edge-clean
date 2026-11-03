@@ -13,6 +13,11 @@ on:
     branches: [main]
     paths:
       - 'scripts/inventory_four_mode_capture_runs.py'
+      - 'scripts/report_four_mode_schedule_publications.py'
+      - 'scripts/inventory_four_mode_watchdog_dispatch.py'
+      - 'scripts/report_four_mode_source_links.py'
+      - '.github/workflows/four-mode-prospective-capture.yml'
+      - '.github/workflows/four-mode-capture-watchdog.yml'
       - '.github/workflows/four-mode-schedule-inventory.yml'
   workflow_dispatch:
 permissions:
