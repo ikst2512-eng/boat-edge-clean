@@ -21,6 +21,7 @@ on:
       - entry_course_t12_seed.py
       - entry_course_schedule_audit.py
       - entry_course_archive_integrity_audit.py
+      - entry_course_first_add_audit.py
       - .github/workflows/entry-course-schedule-audit.yml
       - .github/workflows/entry-course-t12-baseline.yml
       - entry_waku10_source.py
@@ -49,6 +50,7 @@ on:
       - tests/test_entry_course_t12_seed.py
       - tests/test_entry_course_schedule_audit.py
       - tests/test_entry_course_archive_integrity_audit.py
+      - tests/test_entry_course_first_add_audit.py
       - tests/test_entry_waku10_source.py
       - tests/test_entry_waku10_pilot.py
       - tests/test_entry_waku10_durable_ledger.py
@@ -73,7 +75,7 @@ jobs:
       - name: Test entry permutation calculations and front-end integration
         run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs tests/test_entry_racecard_evidence.cjs
       - name: Check Python web route and course history syntax
-        run: python -m py_compile server.py entry_course_history.py entry_course_history_source.py entry_course_candidate.py entry_course_prospective_audit.py entry_course_prospective_capture.py entry_course_write_once.py entry_course_timing_audit.py entry_course_late_preview.py entry_course_durable_ledger.py entry_course_collector.py entry_course_baseline_audit.py entry_course_t12_seed.py entry_course_schedule_audit.py entry_course_archive_integrity_audit.py entry_waku10_source.py entry_waku10_pilot.py entry_waku10_durable_ledger.py entry_waku10_score.py entry_waku10_score_recent.py
+        run: python -m py_compile server.py entry_course_history.py entry_course_history_source.py entry_course_candidate.py entry_course_prospective_audit.py entry_course_prospective_capture.py entry_course_write_once.py entry_course_timing_audit.py entry_course_late_preview.py entry_course_durable_ledger.py entry_course_collector.py entry_course_baseline_audit.py entry_course_t12_seed.py entry_course_schedule_audit.py entry_course_archive_integrity_audit.py entry_course_first_add_audit.py entry_waku10_source.py entry_waku10_pilot.py entry_waku10_durable_ledger.py entry_waku10_score.py entry_waku10_score_recent.py
       - name: Check as-of course history integrity
         run: python -m unittest discover -s tests -p 'test_entry_course_history*.py' -v
       - name: Check challenger ranking and matched TopN audit
@@ -98,6 +100,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_entry_course_schedule_audit.py -v
       - name: Verify immutable archive Git blob and cross-reference integrity
         run: python -m unittest discover -s tests -p test_entry_course_archive_integrity_audit.py -v
+      - name: Verify first-add Git commits without miscertifying server reception time
+        run: python -m unittest discover -s tests -p test_entry_course_first_add_audit.py -v
       - name: Verify actual research-model partial daily CSV recovery
         run: python -m unittest discover -s tests -p test_research_model_partial_live.py -v
       - name: Verify Waku10 source, entry history and independent pilot
