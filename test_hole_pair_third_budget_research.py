@@ -24,7 +24,7 @@ class BudgetResearchTests(unittest.TestCase):
         self.assertTrue({first_second(t) for t in old}.issubset(
             {first_second(t) for t in out}))
         self.assertEqual({t for t in out if t not in old},
-                         {"1-5-2","1-5-3"})
+                         {"1-5-3","1-5-4"})
 
     def test_no_candidate_pair_with_two_thirds_keeps_baseline(self):
         a=fixture()
@@ -42,7 +42,7 @@ class BudgetResearchTests(unittest.TestCase):
         def result(code,root):
             events.append("result")
             return {"status":"historical_comparison_only",
-                    "winning_ticket":"1-5-2"}
+                    "winning_ticket":"1-5-4"}
         with patch("hole_pair_third_budget_research.archived_four_modes",
                    side_effect=original),patch(
              "hole_pair_third_budget_research.national_rates",
