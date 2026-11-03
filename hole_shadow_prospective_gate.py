@@ -74,7 +74,7 @@ def freeze(code, root, now=None, clock=None):
     # The already-locked 2026-11-04+ research method is frozen at the same
     # publication-job timestamp. Never reconstruct an alleged frozen pick
     # using a settled result. Old-period files retain the original V1 schema.
-    if cutoff.date() >= FIRST_ELIGIBLE_DAY:
+    if deadline.date() >= FIRST_ELIGIBLE_DAY:
         locked=verify_locked_selection()
         choices=variants(archived,national_rates(code,root))
         expected=("baseline","donor_order","max_ticket_score","third_national_rate")
