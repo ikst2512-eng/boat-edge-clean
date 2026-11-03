@@ -13,7 +13,7 @@ on:
   schedule:
     - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
   workflow_run:
-    workflows: ['CLEAN prospective pre-cutoff capture']
+    workflows: ['CLEAN prospective pre-cutoff capture', 'Four-mode prospective capture (research only)']
     types: [completed] # Read-only fallback; upstream schedules actually observed
 permissions:
   contents: read
