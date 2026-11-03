@@ -279,7 +279,13 @@ def main():
     p.add_argument("--output",default="entry-course-evidence/t12-seed.json")
     args=p.parse_args()
     try:
-        report=seed_once(now=lambda:datetime.now(JST))
+        from entry_course_scheduled_write_probe import from_environment
+        import os
+        remote_read,remote_create=github_ops(os.environ["GITHUB_REPOSITORY"])
+        access=from_environment("t12",remote_read,remote_create)
+        report=seed_once(now=lambda:datetime.now(JST),
+                         ledger_ops=(remote_read,remote_create))
+        report["scheduled_actions_write_probe"]=access
     except Exception as exc:
         report={"status":"t12_seed_failed","error_type":type(exc).__name__,
                 "error_code":str(exc)[:120] if isinstance(exc,ValueError) else None,
