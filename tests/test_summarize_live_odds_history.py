@@ -1,6 +1,11 @@
 """Unit tests for 14-day live odds trend: exact denominators and no fabricated history."""
 import importlib.util
+import io
+import json
 import unittest
+import zipfile
+from datetime import datetime, timezone
+from unittest.mock import patch
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location(
@@ -58,6 +63,28 @@ class OddsHistoryTests(unittest.TestCase):
                                 "samples": [race("bad", ["valid_200"]),
                                             race("202611030111", ["fake_success"])]}])
         self.assertEqual(m["race_observations"], 0)
+
+    def test_load_prior_scheduled_artifact_from_zip(self):
+        record = {"checked_at_jst": "2026-11-03T13:00:00+09:00", "source_status": "ok",
+                  "samples": [race("202611030111", ["valid_200"])]}
+        archive_bytes = io.BytesIO()
+        with zipfile.ZipFile(archive_bytes, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(record))
+        fake_run = {"id": 42, "event": "schedule", "conclusion": "success",
+                    "created_at": "2026-11-03T04:00:00Z"}
+        def fake_api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run]}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 7, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(archive_bytes.getvalue())):
+            rows, selected, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(history.summarize(rows)["eventual_valid_races"], 1)
 
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
