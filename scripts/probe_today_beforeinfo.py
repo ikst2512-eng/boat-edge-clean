@@ -15,6 +15,11 @@ def run(now=None,event_name=None,clock=None):
     for kind in ("tkz","stt","sui"):
         try:
             rows,digest=_preview_rows(kind,day)
+            # Timestamp at each source's actual HTTP return, not the fixed
+            # scan-start time: new snapshots can appear during network I/O.
+            source_received_at=clock()
+            if source_received_at.tzinfo is None:
+                raise ValueError("source_receipt_timezone_missing")
             rows_by_kind[kind]=rows
             before=[]
             for row in rows:
@@ -22,11 +27,13 @@ def run(now=None,event_name=None,clock=None):
                     if not row.get("レースコード","").startswith(now.strftime("%Y%m%d")):continue
                     observed=datetime.fromisoformat(row.get("取得日時",""))
                     deadline=datetime.strptime(row["レースコード"][:8]+row["締切時刻"],"%Y%m%d%H:%M").replace(tzinfo=ZoneInfo("Asia/Tokyo"))
-                    if observed.tzinfo and observed<=now and observed<deadline and now<deadline:
+                    if (observed.tzinfo is not None and observed<=source_received_at
+                            and observed<deadline and source_received_at<deadline):
                         before.append(row["レースコード"])
                 except (ValueError,KeyError,TypeError):pass
             sources[kind]=set(before)
-            print("PREVIEW",kind,"rows",len(rows),"eligible_future",len(before),"sha256",digest,flush=True)
+            print("PREVIEW",kind,"rows",len(rows),"eligible_future",len(before),
+                  "source_received_at_jst",source_received_at.isoformat(),"sha256",digest,flush=True)
         except (HTTPError,URLError,OSError,ValueError,TimeoutError) as exc:
             print("PREVIEW",kind,"unavailable",type(exc).__name__,str(exc)[:120],flush=True)
     print("MATCHED_CURRENT_PREDEADLINE",len(sources.get("tkz",set())&sources.get("stt",set())),flush=True)
