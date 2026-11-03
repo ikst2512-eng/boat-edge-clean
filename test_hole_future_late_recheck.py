@@ -111,6 +111,49 @@ class LateResultTests(unittest.TestCase):
                          {"schedule":1,"workflow_dispatch":1})
         self.assertEqual(result["comparable"],1)
         self.assertEqual(result["hits"]["third_national_rate"]["top10"],1)
+    def test_failed_and_cancelled_runs_are_visible_not_counted_as_zero_hits(self):
+        def invoke(args,**kwargs):
+            if args[1:3]==["run","list"]:
+                event=args[args.index("--event")+1]
+                if event=="schedule":
+                    listed=[{"databaseId":123,"event":event,"conclusion":"success"},
+                            {"databaseId":124,"event":event,"conclusion":"failure"},
+                            {"databaseId":125,"event":event,"conclusion":"cancelled"}]
+                else:
+                    listed=[{"databaseId":126,"event":event,"conclusion":None}]
+                return SimpleNamespace(returncode=0,stdout=json.dumps(listed))
+            self.assertEqual(args[1:3],["run","download"])
+            self.assertEqual(int(args[3]),123)
+            target=Path(args[args.index("--dir")+1])
+            target.mkdir(parents=True,exist_ok=True)
+            (target/"hole_future_batch.json").write_text(json.dumps(
+                report([CODE],0,"2026-11-04","2026-11-06")))
+            return SimpleNamespace(returncode=0,stdout="")
+        with patch("hole_future_cumulative_rollup.subprocess.run",side_effect=invoke):
+            out=fetch_previous("owner/repo",limit=5)
+        self.assertEqual(out["runs_discovered_total"],4)
+        self.assertEqual(out["runs_listed"],1)
+        self.assertEqual(out["non_success_run_ids"],[124,125,126])
+        self.assertEqual(out["non_success_run_counts"],
+                         {"failure":1,"cancelled":1,"not_completed":1})
+        self.assertTrue(out["history_has_missing_runs"])
+        self.assertEqual(out["comparable"],1)
+        self.assertFalse(out["historical_reporting_coverage_proven"])
+    def test_download_failure_counts_as_missing_history(self):
+        def invoke(args,**kwargs):
+            if args[1:3]==["run","list"]:
+                event=args[args.index("--event")+1]
+                entries=([{"databaseId":456,"event":event,"conclusion":"success"}]
+                         if event=="schedule" else [])
+                return SimpleNamespace(returncode=0,stdout=json.dumps(entries))
+            self.assertEqual(args[1:3],["run","download"])
+            return SimpleNamespace(returncode=1,stdout="")
+        with patch("hole_future_cumulative_rollup.subprocess.run",side_effect=invoke):
+            out=fetch_previous("owner/repo",limit=2)
+        self.assertEqual(out["non_success_run_ids"],[])
+        self.assertEqual(out["unavailable_daily_run_ids"],[456])
+        self.assertTrue(out["history_has_missing_runs"])
+        self.assertEqual(out["comparable"],0)
     def test_mismatched_age_invalidates_entire_run(self):
         with patch("hole_future_cumulative_rollup.subprocess.run",
                    side_effect=self.fake_gh("tampered")):

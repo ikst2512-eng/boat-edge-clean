@@ -140,6 +140,7 @@ def fetch_previous(repo,limit=40):
     # Filter BEFORE limiting: many PR CI runs can otherwise push all daily
     # scheduled reports beyond the latest N results and hide the cohort.
     ids=[];seen=set();runs_by_event={}
+    non_success_runs={};all_discovered_ids=set()
     for event in ("schedule","workflow_dispatch"):
         command=["gh","run","list","--repo",repo,"--workflow",
                  "hole-future-shadow-batch.yml","--event",event,
@@ -151,11 +152,17 @@ def fetch_previous(repo,limit=40):
             raise ValueError("invalid_event_run_listing")
         runs_by_event[event]=len(listed)
         for item in listed:
-            if not isinstance(item,dict) or item.get("event")!=event or (
-                    item.get("conclusion")!="success"):
+            if not isinstance(item,dict) or item.get("event")!=event:
                 continue
             run_id=item.get("databaseId")
             if type(run_id) is not int or run_id<=0:
+                continue
+            all_discovered_ids.add(run_id)
+            conclusion=item.get("conclusion")
+            if conclusion!="success":
+                # Keep failures, cancellations and incomplete runs visible.
+                # They are missing cohorts, never zero-hit or successful races.
+                non_success_runs[run_id]=conclusion if isinstance(conclusion,str) else "not_completed"
                 continue
             if run_id not in seen:
                 seen.add(run_id)
@@ -198,6 +205,11 @@ def fetch_previous(repo,limit=40):
             reports.extend(batch)
     result=rollup(reports)
     result["runs_listed"]=len(ids)
+    result["runs_discovered_total"]=len(all_discovered_ids)
+    result["non_success_run_ids"]=sorted(non_success_runs)
+    result["non_success_run_conclusions"]={str(k):non_success_runs[k] for k in sorted(non_success_runs)}
+    result["non_success_run_counts"]=dict(Counter(non_success_runs.values()))
+    result["history_has_missing_runs"]=bool(non_success_runs or failed)
     result["event_runs_returned"]=runs_by_event
     result["daily_artifacts_read"]=len(reports)
     result["late_recheck_reports_read"]=sum(
