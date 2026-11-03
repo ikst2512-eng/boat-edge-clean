@@ -75,4 +75,15 @@ class ActivationTests(unittest.TestCase):
             dispatch_decision(NOW,[event(minutes=-2)])
         with self.assertRaisesRegex(ValueError,"run_invalid"):
             dispatch_decision(NOW,[None])
+        # Missing or unknown GitHub status must not allow recovery dispatch.
+        for bad_status in (None, "", "mystery", 123):
+            with self.subTest(bad_status=bad_status):
+                malformed=event(minutes=40)
+                malformed["status"]=bad_status
+                with self.assertRaisesRegex(ValueError,"run_status_invalid"):
+                    dispatch_decision(NOW,[malformed])
+                with self.assertRaisesRegex(ValueError,"run_status_invalid"):
+                    run_once(now=NOW,
+                        fetch_runs=lambda f,e:[malformed],
+                        dispatch=lambda _:self.fail("malformed run triggered dispatch"))
 if __name__=="__main__":unittest.main()
