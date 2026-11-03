@@ -32,9 +32,11 @@ def candidates(archive,rates):
     base=chosen["baseline"]
     locked=chosen["third_national_rate"]
     pairs_locked={first_second(t) for t in locked}
-    if any(
+    original_pairs={first_second(t) for t in base}
+    if not original_pairs.issubset(pairs_locked) or any(
         len(t)!=10 or len(set(t))!=10 or t[:5]!=base[:5] or
-        {first_second(x) for x in t}!=pairs_locked for t in chosen.values()
+        (name!="baseline" and {first_second(x) for x in t}!=pairs_locked)
+        for name,t in chosen.items()
     ):
         raise ValueError("invalid_frozen_pair_or_budget")
     return chosen
