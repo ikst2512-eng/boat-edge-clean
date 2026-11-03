@@ -93,6 +93,8 @@ class EvidenceSummaryTests(unittest.TestCase):
                      self.capture["topn"]):
             topn["top1"] = {"baseline":0, "candidate":1,
                              "gained":1, "lost":0}
+            topn["top3"] = {"baseline":0, "candidate":0,
+                             "gained":0, "lost":0}
         md = summarize(self.capture, self.ledger, self.reconciliation)
         self.assertIn("TopN accuracy withheld", md)
         self.assertNotIn("| TOP1 |", md)
