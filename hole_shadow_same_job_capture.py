@@ -29,13 +29,18 @@ def capture_published(root, evidence_path, now=None, git=None):
         raise ValueError("invalid_publication_commit")
     if type(evidence.get("added_forecasts")) is not int or not 0 < evidence["added_forecasts"] <= 500:
         raise ValueError("invalid_added_count")
-    git = git or (lambda args: subprocess.check_output(["git", *args], text=True).strip())
-    head = git(["rev-parse", "HEAD"])
+    # Preserve exact Git blob bytes; stripped text is not a content proof.
+    git = git or (lambda args: subprocess.check_output(
+        ["git", *args], cwd=root, timeout=30))
+    def as_text(value):
+        return value.decode("utf-8") if isinstance(value, bytes) else value
+    head = as_text(git(["rev-parse", "HEAD"])).strip()
     if head != commit:
         raise ValueError("publication_head_mismatch")
-    added = git(["diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A",
-                 "-r", commit, "--", "four_mode_forecasts/"]).splitlines()
-    if len(added) != evidence["added_forecasts"] or not added:
+    added = as_text(git(["diff-tree", "--no-commit-id", "--name-only", "--diff-filter=A",
+                         "-r", commit, "--", "four_mode_forecasts/"])).splitlines()
+    if (len(added) != evidence["added_forecasts"] or not added
+            or len(set(added)) != len(added)):
         raise ValueError("publication_addition_mismatch")
     if any(PATH.fullmatch(name) is None for name in added):
         raise ValueError("invalid_added_forecast_path")
@@ -46,6 +51,17 @@ def capture_published(root, evidence_path, now=None, git=None):
     for name in added:
         code = PATH.fullmatch(name).group(1)
         try:
+            local_path = root / name
+            if (local_path.is_symlink() or not local_path.is_file()
+                    or local_path.stat().st_size > 30000):
+                raise ValueError("missing_or_unsafe_source_archive")
+            published = git(["show", commit + ":" + name])
+            if not isinstance(published, (bytes, str)):
+                raise ValueError("invalid_git_blob")
+            first_add_bytes = (published.encode("utf-8")
+                               if isinstance(published, str) else published)
+            if local_path.read_bytes() != first_add_bytes:
+                raise ValueError("first_add_blob_changed")
             item = freeze(code, root, now)
             if not isinstance(item, dict) or item.get("race_code") != code:
                 raise ValueError("invalid_shadow_race_identity")

@@ -57,11 +57,20 @@ class SameJobTest(unittest.TestCase):
         self.put(outcome="no_eligible_candidates")
         self.assertEqual(capture_published(self.root, self.path)["status"], "not_published")
 
+    def write_archive(self, code, content=b'{"v2":true}\\n'):
+        file = self.root / "four_mode_forecasts" / (code + ".json")
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(content)
+        return content
+
     def test_exact_publication_head_and_additions(self):
         self.put()
+        raw = self.write_archive(CODE)
         def git(args):
             if args[0] == "rev-parse":
                 return SHA
+            if args[0] == "show":
+                return raw
             return "four_mode_forecasts/" + CODE + ".json"
         with patch("hole_shadow_same_job_capture.freeze", return_value={
             "race_code": CODE, "status":"shadow_frozen_unverified"}) as f:
@@ -75,9 +84,13 @@ class SameJobTest(unittest.TestCase):
     def test_failed_one_race_preserves_another_valid_shadow(self):
         self.put(added_forecasts=2)
         code2 = "202611030102"
+        raw = self.write_archive(CODE)
+        self.write_archive(code2, raw)
         def git(args):
             if args[0] == "rev-parse":
                 return SHA
+            if args[0] == "show":
+                return raw
             return "\n".join([
                 "four_mode_forecasts/" + CODE + ".json",
                 "four_mode_forecasts/" + code2 + ".json",
@@ -99,8 +112,13 @@ class SameJobTest(unittest.TestCase):
 
     def test_shadow_cannot_return_wrong_race_identity(self):
         self.put()
+        raw = self.write_archive(CODE)
         def git(args):
-            return SHA if args[0] == "rev-parse" else "four_mode_forecasts/" + CODE + ".json"
+            if args[0] == "rev-parse":
+                return SHA
+            if args[0] == "show":
+                return raw
+            return "four_mode_forecasts/" + CODE + ".json"
         with patch("hole_shadow_same_job_capture.freeze", return_value={
                 "race_code": "202611030102", "status": "shadow_frozen_unverified"}):
             result = capture_published(
@@ -108,6 +126,43 @@ class SameJobTest(unittest.TestCase):
         self.assertEqual(result["validation_error_count"], 1)
         self.assertEqual(result["frozen_count"], 0)
         self.assertEqual(result["records"][0]["status"], "validation_error")
+
+    def test_modified_one_archive_isolated_without_erasing_other(self):
+        self.put(added_forecasts=2)
+        code2 = "202611030102"
+        self.write_archive(CODE, b'{"altered":true}\\n')
+        self.write_archive(code2, b'{"published":true}\\n')
+        def git(args):
+            if args[0] == "rev-parse":
+                return SHA
+            if args[0] == "show":
+                return b'{"published":true}\\n'
+            return ("four_mode_forecasts/" + CODE + ".json\n"
+                    + "four_mode_forecasts/" + code2 + ".json")
+        def freeze_valid(code, root, now):
+            return {"race_code": code, "status": "shadow_frozen_unverified"}
+        with patch("hole_shadow_same_job_capture.freeze", side_effect=freeze_valid) as f:
+            result = capture_published(
+                self.root, self.path, datetime(2026, 11, 3, tzinfo=timezone.utc), git)
+        self.assertEqual(result["validation_error_count"], 1)
+        self.assertEqual(result["frozen_count"], 1)
+        self.assertEqual(result["records"][0]["status"], "validation_error")
+        f.assert_called_once()
+
+    def test_git_blob_comparison_keeps_trailing_newline(self):
+        self.put()
+        self.write_archive(CODE, b'{"published":true}\\n')
+        def git(args):
+            if args[0] == "rev-parse":
+                return SHA
+            if args[0] == "show":
+                return b'{"published":true}'  # Not the same first-add bytes.
+            return "four_mode_forecasts/" + CODE + ".json"
+        with patch("hole_shadow_same_job_capture.freeze") as f:
+            result = capture_published(
+                self.root, self.path, datetime(2026, 11, 3, tzinfo=timezone.utc), git)
+        self.assertEqual(result["validation_error_count"], 1)
+        f.assert_not_called()
 
     def test_capture_cli_retains_nonzero_status_on_validation_errors(self):
         script = (Path(__file__).parent / "hole_shadow_same_job_capture.py").read_text()
