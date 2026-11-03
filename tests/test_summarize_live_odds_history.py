@@ -239,7 +239,7 @@ class OddsHistoryTests(unittest.TestCase):
                 "ikst2512-eng/boat-edge-clean", "fake",
                 {"source_status": "no_upcoming_race", "samples": []},
                 now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
-        self.assertEqual(len(requested), 6)
+        self.assertEqual(len(requested), 4)
         self.assertEqual(selected, 1)
         self.assertEqual(errors, [])
         self.assertEqual(history.summarize(records)["eventual_valid_races"], 1)
@@ -403,10 +403,27 @@ class OddsHistoryTests(unittest.TestCase):
                           "not_observed_after_grace"])
 
     def test_operational_event_eligibility_excludes_pr(self):
-        for event in ("pull_request", "push", "", "unknown"):
+        for event in ("pull_request", "workflow_dispatch", "push", "", "unknown"):
             self.assertFalse(history.include_current_event(event))
-        for event in ("schedule", "workflow_dispatch"):
-            self.assertTrue(history.include_current_event(event))
+        self.assertTrue(history.include_current_event("schedule"))
+
+    def test_manual_dispatch_is_neither_current_nor_historical_unattended_evidence(self):
+        now = datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc)
+        seen = []
+        def fake_api(url, token):
+            seen.append(url)
+            return {"workflow_runs": []}
+        with patch.object(history, "api_json", side_effect=fake_api):
+            rows, count, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake",
+                {"source_status": "no_upcoming_race", "samples": []}, now=now)
+        self.assertEqual(count, 0)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(history.include_current_event("workflow_dispatch"))
+        self.assertFalse(any("&event=workflow_dispatch&" in url for url in seen))
+        self.assertTrue(any("&event=schedule&" in url for url in seen))
+        self.assertTrue(any("&event=workflow_run&" in url for url in seen))
 
     def test_pr_current_200_not_part_of_trend(self):
         import os
