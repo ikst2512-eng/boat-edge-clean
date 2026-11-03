@@ -46,6 +46,8 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
     files=sorted(p for p in artifacts.rglob("hole-shadow.json") if p.is_file() and not p.is_symlink())
     examined=0;all_rows={};duplicates=set();excluded=Counter();nonusable=Counter();shadow_statuses=Counter()
     outside_window=set()
+    source_snapshots={}
+    identical_repeated_codes=set()
     for path in files:
         examined+=1
         try:
@@ -58,7 +60,17 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             for record in records:
                 code=record.get("race_code") if isinstance(record,dict) else None
                 if in_window(code):
-                    if code in all_rows:duplicates.add(code)
+                    # Byte-equivalent source records from repeated Actions runs
+                    # are one frozen prediction, not two independent races.
+                    # Any different snapshot for the same race is ambiguous.
+                    snapshot=json.dumps(record,sort_keys=True,separators=(",",":"))
+                    if code in source_snapshots:
+                        if source_snapshots[code]!=snapshot:
+                            duplicates.add(code)
+                        else:
+                            identical_repeated_codes.add(code)
+                    else:
+                        source_snapshots[code]=snapshot
                     all_rows.setdefault(code,None)
                 elif first is not None and isinstance(code,str) and re.fullmatch(r"20[0-9]{10}",code):
                     outside_window.add(code)
@@ -74,8 +86,10 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
                     outside_window.add(code)
                 continue
             if code in all_rows and all_rows[code] is not None:
-                duplicates.add(code)
-            all_rows[code]=row
+                if all_rows[code]!=row:
+                    duplicates.add(code)
+            else:
+                all_rows[code]=row
     # Quarantine any repeated race entirely. Different artifact runs must not inflate n.
     for code in duplicates:all_rows.pop(code,None)
     rows=[x for x in all_rows.values() if x is not None]
@@ -101,6 +115,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             "prospective_validation":False,"production_forecast_changed":False,
             "artifact_files":examined,"distinct_future_codes_seen":len(all_rows)+len(duplicates),
             "duplicate_codes_quarantined":sorted(duplicates),
+            "identical_snapshot_codes_deduplicated":sorted(identical_repeated_codes-duplicates),
             "excluded_outside_race_day_window":len(outside_window),
             "outside_race_day_codes":sorted(outside_window),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
