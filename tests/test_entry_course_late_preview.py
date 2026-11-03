@@ -26,7 +26,7 @@ def inputs():
 class LatePreviewTests(unittest.TestCase):
     def test_t5_preview_blocked_from_t12_but_late_study_is_distinct(self):
         base,card,batch=inputs()
-        with self.assertRaisesRegex(ValueError,"history_window_mismatch"):
+        with self.assertRaisesRegex(ValueError,"capture_not_pre_cutoff"):
             prepare_prospective_capture(base,card,batch,frozen_at=FROZEN,min_starts=1)
         outcome=prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
         self.assertTrue(outcome["not_equivalent_to_t12"])
