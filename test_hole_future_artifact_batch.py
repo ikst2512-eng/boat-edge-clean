@@ -35,6 +35,7 @@ class FutureBatchTests(unittest.TestCase):
   with patch("hole_future_artifact_batch.audit",side_effect=scorer):
    output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],2)
+  self.assertEqual(output["shadow_status_counts"],{"research_only_after_confirmed_push":2})
   self.assertEqual(output["hits"]["baseline"]["top10"],1)
   self.assertEqual(output["hits"]["third_national_rate"]["top10"],1)
   self.assertEqual(output["delta"]["third_national_rate"]["top10"],{"gained":1,"lost":1,"net":0})
@@ -58,6 +59,13 @@ class FutureBatchTests(unittest.TestCase):
   result=aggregate(self.root,self.folder)
   self.assertEqual(result["comparable"],0)
   self.assertEqual(result["invalid_artifacts"]["JSONDecodeError"],1)
+ def test_no_publish_shadow_reported_separately(self):
+  dest=self.folder/"run1"/"four-mode-evidence";dest.mkdir(parents=True)
+  (dest/"hole-shadow.json").write_text(json.dumps({"status":"not_published","records":[]}))
+  with patch("hole_future_artifact_batch.audit",return_value={"rows":[],"excluded_by_reason":{}}):
+   result=aggregate(self.root,self.folder)
+  self.assertEqual(result["shadow_status_counts"],{"not_published":1})
+  self.assertEqual(result["comparable"],0)
  def test_prior_date_not_scored(self):
   self.artifact("run1","202611030101")
   with patch("hole_future_artifact_batch.audit",return_value={"rows":[],"excluded_by_reason":{"not_future_eligible":1}}):
