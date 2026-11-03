@@ -60,6 +60,8 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         self.assertEqual(report["paired"], 1)
         self.assertEqual(report["topn"]["top3"]["candidate"], 1)
         self.assertEqual(report["race_codes_paired"], [CODE])
+        self.assertEqual(report["paired_race_scores"][0]["race_code"], CODE)
+        self.assertEqual(report["paired_race_scores"][0]["topn"]["top3"]["candidate"], 1)
         self.assertFalse(report["formal"])
         self.assertFalse(report["production_promotion_allowed"])
 
