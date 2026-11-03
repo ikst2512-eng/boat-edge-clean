@@ -449,6 +449,7 @@ class BatchTests(unittest.TestCase):
     def test_conflicting_independent_schedule_rows_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,raw_csv=setup(tmp,1)
+            archived={}
             verdict=attempt_batch(tmp,now=lambda:NOW,
                 verify_expected_schedule=True,
                 schedule_fetch=lambda snapshot:(
@@ -457,7 +458,7 @@ class BatchTests(unittest.TestCase):
                     "20261103","a"*64,"published_daily_title"),
                 card_reader=lambda d,v,r:cards[d+v+r],
                 waku_fetch=lambda url:raw_csv,
-                ledger_ops=(lambda path:None,lambda path,raw:None))
+                ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
             self.assertEqual(verdict["status"],"t2_batch_expected_schedule_unavailable")
             self.assertEqual(verdict["schedule_error_type"],"ValueError")
             self.assertTrue(t2_cli_failure(verdict))
