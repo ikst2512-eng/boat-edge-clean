@@ -6,6 +6,9 @@ on:
       - test_hole_capture_artifact_inventory.py
       - .github/workflows/hole-capture-artifact-inventory.yml
   workflow_dispatch:
+  schedule:
+    # 16:10 UTC = 01:10 JST next day: read-only artifact monitoring.
+    - cron: "10 16 * * *"
 permissions:
   contents: read
   actions: read
@@ -32,6 +35,7 @@ jobs:
           assert r['formal'] is False and r['independent_first_receipt_verified'] is False
           print('CAPTURE_RUNS', len(r['runs']))
           print('FROZEN', r['total_frozen'], 'BUNDLE2', r['total_bundle2'])
+          print('FUTURE_LOCKED_DECLARED', r['total_future_locked_declared'])
           print('RUN_DETAILS', [(x['run_id'],x['shadow']) for x in r['runs']])
           PY
       - uses: actions/upload-artifact@v4
