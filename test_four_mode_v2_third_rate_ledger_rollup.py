@@ -72,6 +72,7 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
         self.assertEqual(report["by_race_day_jst"]["20261104"]["paired"], 1)
         self.assertEqual(report["topn"]["top3"]["candidate"], 1)
         self.assertEqual(report["race_codes_paired"], [CODE])
+        self.assertEqual(report["paired_race_scores"][0]["race_code"], CODE)
         self.assertFalse(report["remote_first_seen_independently_verified"])
         self.assertFalse(report["production_promotion_allowed"])
 
