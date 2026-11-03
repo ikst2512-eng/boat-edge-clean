@@ -81,6 +81,7 @@ class V2ShadowTests(unittest.TestCase):
                     "input_national_win_rates": [5.0]*6}))
             def archived(code, root):
                 return 200, {"model_version": VERSION,
+                    "deadline_jst": "2026-11-03T14:00:00+09:00",
                     "modes": {"hit": {"tickets": tickets()},
                               "narrow": {"tickets": [{}]*5},
                               "balance": {"tickets": [{}]*16},
