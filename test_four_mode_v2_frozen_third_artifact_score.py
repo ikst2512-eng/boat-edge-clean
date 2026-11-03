@@ -138,6 +138,13 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         self.assertEqual(report["paired"], 0)
         self.assertEqual(report["published_forecasts"], 0)
 
+    def test_malformed_row_rejected_before_status_accounting(self):
+        for malformed in (None, [], "invalid", 42):
+            with self.subTest(malformed=malformed):
+                self.evidence["records"][0] = malformed
+                with self.assertRaisesRegex(ValueError, "malformed_record"):
+                    score_evidence(self.evidence, self.root)
+
     def test_reject_duplicate_record_or_wrong_count(self):
         self.evidence["records"].append(dict(self.evidence["records"][0]))
         self.evidence["published_forecasts"] = 2
