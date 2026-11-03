@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from hole_third_donor_ranking_research import select,rank_candidates,inspect,paired_outcomes
+from hole_third_donor_ranking_research import select,rank_candidates,inspect,paired_outcomes,describe_disagreement
 from test_hole_third_choice_research import archive as source_archive
 
 
@@ -121,6 +121,57 @@ class DonorRankingResearchTests(unittest.TestCase):
         self.assertEqual(paired["net"],
                          output["topn"]["third_national_rate"]["top10"]["hits"]-
                          output["topn"]["donor_consensus"]["top10"]["hits"])
+
+    def test_disagreement_explains_both_directions_without_touching_selector(self):
+        archive=archive_with_consensus()
+        picks=select(archive,[5,3,8,7,6,1])
+        national=describe_disagreement(CODE,"1-5-3",archive,
+                                      [5,3,8,7,6,1],picks)
+        self.assertIsNone(national)  # Both national and consensus picked 1-5-3.
+        consensus_only=describe_disagreement(CODE,"1-5-2",archive,
+                                            [5,3,8,7,6,1],picks)
+        self.assertEqual(consensus_only["category"],"consensus_only") if (
+            "1-5-2" in picks["donor_consensus"] and
+            "1-5-2" not in picks["third_national_rate"]) else self.assertIsNone(consensus_only)
+
+    def test_features_preserve_frozen_rank_and_score(self):
+        archive=archive_with_consensus()
+        picks=select(archive,[5,3,8,7,6,1])
+        # Modify selected candidates without deriving them from any result,
+        # so each side wins one synthetic race under identical frozen inputs.
+        altered={**picks,"third_national_rate":picks["donor_order"]}
+        disagreement=describe_disagreement(CODE,"1-5-3",archive,
+                                           [5,3,8,7,6,1],altered)
+        self.assertEqual(disagreement["category"],"consensus_only")
+        self.assertEqual(disagreement["winning_third_national_win_rate"],8)
+        self.assertEqual(disagreement["winning_ticket_donor"]["donor_rank_1based"]["hit"],2)
+        self.assertEqual(disagreement["winning_ticket_donor"]["donor_rank_1based"]["balance"],1)
+        self.assertTrue(disagreement["winning_ticket_donor"]["present_in_both_donors"])
+        self.assertEqual(disagreement["national_same_pair"][0]["ticket"],"1-5-2")
+        self.assertEqual(disagreement["consensus_same_pair"][0]["ticket"],"1-5-3")
+        inverse={**picks,"donor_consensus":picks["donor_order"]}
+        other=describe_disagreement(CODE,"1-5-3",archive,
+                                    [5,3,8,7,6,1],inverse)
+        self.assertEqual(other["category"],"national_only")
+
+    def test_inspection_disagreement_cases_equal_paired_discordance(self):
+        archive=archive_with_consensus()
+        picks=select(archive,[5,3,8,7,6,1])
+        with patch("hole_third_donor_ranking_research.archived_four_modes",
+                   return_value=(200,archive)),patch(
+             "hole_third_donor_ranking_research.national_rates",
+             return_value=[5,3,8,7,6,1]),patch(
+             "hole_third_donor_ranking_research.select",
+             return_value={**picks,"third_national_rate":picks["donor_order"]}),patch(
+             "hole_third_donor_ranking_research.compare_race",
+             return_value={"status":"historical_comparison_only",
+                           "winning_ticket":"1-5-3"}):
+            out=inspect([CODE],Path("."))
+        self.assertEqual(len(out["disagreement_cases"]),1)
+        self.assertEqual(out["disagreement_cases"][0]["category"],"consensus_only")
+        paired=out["paired_top10"]["donor_consensus"]
+        self.assertEqual(len(out["disagreement_cases"]),
+                         paired["only_challenger"]+paired["only_comparator"])
 
     def test_methods_reject_unknown_names(self):
         with self.assertRaisesRegex(ValueError,"unknown_research_method"):
