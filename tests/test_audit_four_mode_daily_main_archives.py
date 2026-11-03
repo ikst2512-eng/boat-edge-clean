@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main, ledger_failure_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,16 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_server_observation_failure_checked_only_on_matching_day(self):
+        current = {"run_id": 801, "created_at": "2026-11-04T00:07:00Z",
+                   "github_observation_ledger_status": "observation_preservation_failed"}
+        old = {"run_id": 800, "created_at": "2026-11-03T00:07:00Z",
+               "github_server_observation_outcome": "failure"}
+        self.assertEqual(github_observation_failure_run_ids(
+            "20261104", [{"runs": [current, old]}]), [801])
+        self.assertEqual(github_observation_failure_run_ids(
+            "20261105", [{"runs": [current]}]), [])
+
     def test_scheduled_ledger_failure_is_day_scoped_and_not_hidden(self):
         day = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
                "third_rate_ledger_outcome": "failure"}
