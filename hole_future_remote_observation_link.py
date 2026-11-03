@@ -23,6 +23,13 @@ KNOWN=("observed_before_t12","observed_after_t12",
 
 
 def match(future,first_add,ledger_root,forecast_root):
+    # The 2026-11-03 job runs before the locked cohort's first eligible day.
+    # An empty not-yet-eligible verdict has no prospective proof fields.
+    if future.get("status")=="not_yet_eligible":
+        if future.get("formal") is not False or future.get("comparable")!=0:
+            raise ValueError("invalid_pre_eligible_verdict")
+        future={**future,"independent_first_receipt_verified":False,
+                "race_codes":[]}
     if (future.get("formal") is not False or
             future.get("independent_first_receipt_verified") is not False or
             first_add.get("formal") is not False or
