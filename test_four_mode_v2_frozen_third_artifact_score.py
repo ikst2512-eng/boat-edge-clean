@@ -94,6 +94,41 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         compare.assert_not_called()
         self.assertEqual(report["invalid"], 1)
 
+    def test_one_validation_error_does_not_erase_valid_frozen_race(self):
+        # Match the producer's real mutually-exclusive status partition:
+        # one valid freeze and one validation_error, never two exclusions.
+        second = "202611040102"
+        self.evidence["published_forecasts"] = 2
+        self.evidence["validation_error_count"] = 1
+        self.evidence["records"].append({
+            "race_code": second, "status": "validation_error",
+            "error_type": "ValueError"})
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "result_unavailable"}):
+            result = score_evidence(self.evidence, self.root)
+        self.assertEqual(result["frozen"], 1)
+        self.assertEqual(result["pending_results"], 1)
+        self.assertEqual(result["invalid"], 1)
+        self.assertEqual(result["excluded"], 0)
+        self.assertEqual(result["race_codes_frozen"], [CODE])
+        self.assertEqual(result["validation_error_count"], 1)
+
+    def test_validation_error_count_must_equal_exact_records(self):
+        self.evidence["validation_error_count"] = 1
+        with self.assertRaisesRegex(ValueError,
+                                    "artifact_validation_error_count_inconsistent"):
+            score_evidence(self.evidence, self.root)
+
+    def test_ineligible_record_is_not_a_validation_error(self):
+        self.evidence["records"][0] = {
+            "race_code": CODE, "status": "ineligible", "reason": "after_t_minus_12"}
+        self.evidence["frozen_before_t_minus_12"] = 0
+        self.evidence["ineligible_count"] = 1
+        result = score_evidence(self.evidence, self.root)
+        self.assertEqual(result["excluded"], 1)
+        self.assertEqual(result["invalid"], 0)
+        self.assertEqual(result["frozen"], 0)
+
     def test_no_publication_yields_zero_denominator(self):
         self.evidence.update({"status": "no_confirmed_publication",
                               "published_forecasts": 0,
