@@ -257,6 +257,35 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(errors, [{"run_id": None, "status": "workflow_run_list_truncated"}])
 
+    def test_missing_scheduled_trigger_after_grace_is_not_success(self):
+        from datetime import timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 15, 2, tzinfo=jst)
+        old = {"id": 19, "event": "schedule", "status": "completed",
+               "conclusion": "success", "created_at": "2026-11-02T11:25:39Z"}
+        data = history.schedule_trigger_health([old], now=now)
+        self.assertEqual([x["scheduled_jst"] for x in data["slots"]],
+                         ["2026-11-03T12:25:00+09:00",
+                          "2026-11-03T14:25:00+09:00",
+                          "2026-11-03T16:25:00+09:00"])
+        self.assertEqual([x["state"] for x in data["slots"]],
+                         ["not_observed_after_grace", "awaiting_grace", "awaiting_grace"])
+        self.assertEqual(data["not_observed_after_grace"], 1)
+        self.assertEqual(data["observed_slots"], 0)
+
+    def test_observed_schedule_event_requires_correct_slot(self):
+        jst = timezone(__import__("datetime").timedelta(hours=9))
+        now = datetime(2026, 11, 3, 15, 2, tzinfo=jst)
+        observed = {"id": 28, "event": "schedule", "status": "completed",
+                    "conclusion": "success", "created_at": "2026-11-03T03:41:00Z"}
+        not_schedule = {"id": 29, "event": "pull_request", "status": "completed",
+                        "conclusion": "success", "created_at": "2026-11-03T05:25:00Z"}
+        data = history.schedule_trigger_health([observed, not_schedule], now=now)
+        self.assertEqual(data["observed_slots"], 1)
+        self.assertEqual(data["not_observed_after_grace"], 0)
+        self.assertEqual(len(data["slots"][0]["matching_runs"]), 1)
+        self.assertEqual(data["slots"][1]["state"], "awaiting_grace")
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
