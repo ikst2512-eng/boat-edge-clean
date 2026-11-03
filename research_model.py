@@ -78,11 +78,30 @@ def predict(hd,jcd,rno):
     except (OSError, TimeoutError, ValueError) as exc:
         if isinstance(exc, ValueError) and str(exc) != 'source unavailable':
             raise
-        from clean_openapi_sources import load
-        titles,cards,observed,digest,source=load(hd)
-        t1=t2=observed
-        title_sha256=cards_sha256=digest
-        source_kind=source["source"]
+        # The public daily title/card CSV often does not yet exist for a
+        # live race. Prefer the exact race-specific, pre-result holding-list
+        # and six-racer upstream; do not depend solely on a daily OpenAPI.
+        from clean_direct_sources import holding_rows,fetch_bytes,parse_card,ROOT
+        try:
+            direct_titles,direct_at,direct_digest=holding_rows(hd)
+            matches=[row for row in direct_titles if row.get("レースコード")==code]
+            if len(matches)!=1:
+                raise ValueError("direct_pre_race_title_missing")
+            raw=fetch_bytes(
+                f"{ROOT}/hp_txt/{int(jcd):02d}/bc_j_str3_{hd}_{int(jcd):02d}_{int(rno):02d}.txt")
+            card=parse_card(raw,code)
+            titles,cards=[matches[0]],[card]
+            t1=direct_at
+            t2=datetime.now(JST)
+            title_sha256=direct_digest
+            cards_sha256=hashlib.sha256(raw).hexdigest()
+            source_kind="direct_race_specific_pre_race"
+        except (OSError, TimeoutError, ValueError, UnicodeError) as direct_error:
+            from clean_openapi_sources import load
+            titles,cards,observed,digest,source=load(hd)
+            t1=t2=observed
+            title_sha256=cards_sha256=digest
+            source_kind=source["source"]
     matching_t=[r for r in titles if r.get("レースコード")==code]
     matching_c=[r for r in cards if r.get("レースコード")==code]
     if len(matching_t)!=1 or len(matching_c)!=1:

@@ -50,6 +50,47 @@ class PartialPredictorTests(unittest.TestCase):
                                  __import__("hashlib").sha256(b"race-specific-six-racers").hexdigest())
                 self.assertLessEqual(datetime.fromisoformat(saved["generated_at"]),
                                      datetime.fromisoformat(saved["cutoff_jst"]))
+    def test_unpublished_daily_csv_uses_exact_direct_race_and_avoids_openapi(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(model,"STORE",Path(tmp)),\
+                 patch.object(model,"read_rows",side_effect=OSError("daily CSV not yet available")),\
+                 patch.object(model,"model_provenance",return_value={
+                     "model_git_sha":"1"*40,"model_source_sha256":"2"*64,
+                     "model_dependency_scope":"research_model.py_only_not_complete_environment"}),\
+                 patch("clean_direct_sources.holding_rows",return_value=(
+                     [TITLE],mocked_receipt(),DIGEST)),\
+                 patch("clean_direct_sources.fetch_bytes",return_value=b"correct-race-card"),\
+                 patch("clean_direct_sources.parse_card",return_value=CARD),\
+                 patch("clean_openapi_sources.load",side_effect=AssertionError("direct was complete")):
+                response=model.predict(DAY,"07","08")
+                self.assertEqual(response["status"],"research")
+                record=json.loads((Path(tmp)/(CODE+".json")).read_text())
+                self.assertEqual(record["input_source_kind"],"direct_race_specific_pre_race")
+                self.assertEqual(record["race_code"],CODE)
+    def test_public_missing_and_direct_unavailable_uses_same_race_openapi(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(model,"STORE",Path(tmp)),\
+                 patch.object(model,"read_rows",side_effect=OSError("daily missing")),\
+                 patch.object(model,"model_provenance",return_value={
+                     "model_git_sha":"1"*40,"model_source_sha256":"2"*64,
+                     "model_dependency_scope":"research_model.py_only_not_complete_environment"}),\
+                 patch("clean_direct_sources.holding_rows",side_effect=OSError("holding unavailable")),\
+                 patch("clean_openapi_sources.load",return_value=(
+                     [TITLE],[CARD],mocked_receipt(),"f"*64,
+                     {"source":"nonofficial_openapi_v1"})):
+                model.predict(DAY,"07","08")
+                record=json.loads((Path(tmp)/(CODE+".json")).read_text())
+                self.assertEqual(record["input_source_kind"],"nonofficial_openapi_v1")
+                self.assertEqual(record["source_cards_sha256"],"f"*64)
+    def test_all_unavailable_sources_never_create_prediction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(model,"STORE",Path(tmp)),\
+                 patch.object(model,"read_rows",side_effect=OSError("daily missing")),\
+                 patch("clean_direct_sources.holding_rows",side_effect=OSError("direct missing")),\
+                 patch("clean_openapi_sources.load",side_effect=OSError("alternative missing")):
+                with self.assertRaises(OSError):
+                    model.predict(DAY,"07","08")
+                self.assertFalse((Path(tmp)/(CODE+".json")).exists())
     def test_published_title_vs_direct_deadline_conflict_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(model,"STORE",Path(tmp)),\
