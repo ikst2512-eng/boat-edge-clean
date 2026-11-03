@@ -153,7 +153,7 @@ def main():
         "eligible_races_without_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
         "unverified_or_no_eligible_capture" if report["assessment"] == "no_new_day_archives_yet" else
         "archives_present_or_pr_checkout")
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\\n",
+    output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
     if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME"), evidence):
