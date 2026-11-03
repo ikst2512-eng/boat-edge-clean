@@ -1,5 +1,5 @@
 import unittest
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -44,7 +44,8 @@ class DailyMainArchivesTest(unittest.TestCase):
 
     def test_daily_cron_alerts_on_absence_without_affecting_pr_or_push(self):
         missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
-        self.assertTrue(scheduled_audit_alert(missing, "schedule"))
+        self.assertFalse(scheduled_audit_alert(missing, "schedule"))
+        self.assertTrue(scheduled_audit_alert(missing, "schedule", [self.positive_capture()]))
         self.assertFalse(scheduled_audit_alert(missing, "push"))
         self.assertFalse(scheduled_audit_alert(missing, "pull_request"))
         pr = audit("20261104", [OLD], {OLD: [A]}, main_context=False)
@@ -55,6 +56,28 @@ class DailyMainArchivesTest(unittest.TestCase):
         good = audit("20261104", [P], {P: [A]}, main_context=True)
         self.assertTrue(scheduled_audit_alert(bad, "schedule"))
         self.assertFalse(scheduled_audit_alert(good, "schedule"))
+
+
+    @staticmethod
+    def positive_capture(at="2026-11-04T00:07:00Z", eligible=3, present=True):
+        return {"runs": [{"run_id": 415, "created_at": at,
+                          "artifact_present": present, "generated_today": eligible}]}
+
+    def test_cross_day_or_missing_artifact_not_positive(self):
+        missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
+        self.assertFalse(scheduled_audit_alert(missing, "schedule",
+                                               [self.positive_capture("2026-11-03T14:00:00Z")]))
+        self.assertFalse(scheduled_audit_alert(missing, "schedule",
+                                               [self.positive_capture(present=False)]))
+        self.assertFalse(scheduled_audit_alert(missing, "schedule",
+                                               [self.positive_capture(eligible=0)]))
+        self.assertEqual(positive_eligible_run_ids("20261104", [self.positive_capture()]), [415])
+
+    def test_positive_same_day_from_dispatch_evidence(self):
+        missing = audit("20261104", [OLD], {OLD: [A]}, main_context=True)
+        report = {"schema": "FOUR_MODE_DISPATCH_PUBLICATION_EVIDENCE_V1", **self.positive_capture()}
+        self.assertTrue(scheduled_audit_alert(missing, "schedule", [report]))
+        self.assertFalse(scheduled_audit_alert(missing, "push", [report]))
 
     def test_reject_malformed_history_and_tree(self):
         with self.assertRaises(ValueError):
