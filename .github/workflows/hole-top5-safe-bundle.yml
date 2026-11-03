@@ -1,0 +1,44 @@
+name: Hole protected Top5 bundle research
+on:
+  pull_request:
+    paths:
+      - hole_top5_safe_bundle_research.py
+      - test_hole_top5_safe_bundle_research.py
+      - .github/workflows/hole-top5-safe-bundle.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python -m unittest -v test_hole_top5_safe_bundle_research.py
+      - name: Historical and later-date comparisons
+        run: python hole_top5_safe_bundle_research.py > hole_top5_safe_bundle.json
+      - name: Verify evidence boundaries and inspect results
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_top5_safe_bundle.json'))
+          assert r["formal"] is False
+          assert r["independent_holdout"] is False
+          assert r["prospective_validation"] is False
+          assert r["independent_first_receipt_verified"] is False
+          assert r["production_forecast_changed"] is False
+          assert r["top5_prefix_unchanged_by_design"] is True
+          for name,data in r["groups"].items():
+              print("GROUP",name,"COUNT",data["compared"],"CHANGED",data["changed"])
+              for mode,buckets in data["topn"].items():
+                  print(" ",mode,{k:{"hits":v["hits"],"gained":v["gained"],"lost":v["lost"]} for k,v in buckets.items()})
+              assert data["topn"]["bundle_protect_top5"]["top5"]["lost"]==0
+              assert data["topn"]["bundle_protect_top5"]["top5"]["gained"]==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-top5-safe-bundle-research
+          path: hole_top5_safe_bundle.json
