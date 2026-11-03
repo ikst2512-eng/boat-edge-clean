@@ -62,7 +62,8 @@ def report(day, inventory):
 
 def should_fail(result, event, ref):
     return (event == "schedule" and ref == "refs/heads/main"
-            and result.get("status") in ("no_capture_runs_observed", "all_observed_captures_failed"))
+            and result.get("status") in ("no_capture_runs_observed", "all_observed_captures_failed",
+                                        "capture_inventory_unavailable"))
 
 
 def main():
@@ -72,8 +73,23 @@ def main():
     parser.add_argument("--day-jst", default=None)
     args = parser.parse_args()
     day = args.day_jst or datetime.now(JST).strftime("%Y%m%d")
-    evidence = json.loads(Path(args.inventory).read_text(encoding="utf-8"))
-    result = report(day, evidence)
+    try:
+        evidence = json.loads(Path(args.inventory).read_text(encoding="utf-8"))
+        result = report(day, evidence)
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+        result = {
+            "schema": "FOUR_MODE_DAILY_CAPTURE_LIVENESS_V1",
+            "day_jst": day,
+            "status": "capture_inventory_unavailable",
+            "error_type": type(exc).__name__,
+            "same_day_run_ids": [],
+            "completed_success_count": 0,
+            "completed_failure_count": 0,
+            "pending_count": 0,
+            "publication_verified": False,
+            "predeadline_source_verified": False,
+            "note": "Capture run inventory could not be verified; counts are unknown, not zero.",
+        }
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
