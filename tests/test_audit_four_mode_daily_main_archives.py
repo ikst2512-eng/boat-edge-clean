@@ -344,7 +344,7 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertIn("- cron: '7,22,37,52 0-11 * * *'", capture)
         self.assertIn("git fetch --no-tags origin main", workflow)
         self.assertIn("reports/four_mode_daily_main_archives.json", workflow)
-        self.assertIn("not exhaustive per-run evidence", workflow)
+        self.assertIn("exhaustive per-run evidence for all 56 scheduled captures", workflow)
 
     def test_scheduled_git_audit_refreshes_main_after_artifact_downloads(self):
         workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
