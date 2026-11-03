@@ -16,6 +16,8 @@ on:
       - 'scripts/run_external_three_t12.py'
       - '.github/workflows/t12-kiryu12-upstream-recovery-20261103.yml'
       - 'tests/test_t12_kiryu12_upstream_recovery_contract.py'
+      - 'scripts/gate_kiryu12_upstream_recovery.py'
+      - 'tests/test_gate_kiryu12_upstream_recovery.py'
       - '.github/workflows/t12-evidence-git-smoke-20261103.yml'
       - 'tests/test_t12_evidence_git_smoke_contract.py'
       - 'scripts/reaudit_external_three_t12.py'
@@ -60,6 +62,7 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_summarize_three_t12_venues.py' -v
       - run: python -m unittest discover -s tests -p 'test_run_external_three_t12.py' -v
       - run: python -m unittest discover -s tests -p 'test_t12_kiryu12_upstream_recovery_contract.py' -v
+      - run: python -m unittest discover -s tests -p 'test_gate_kiryu12_upstream_recovery.py' -v
       - run: python -m unittest discover -s tests -p 'test_reaudit_external_three_t12.py' -v
       - run: python -m unittest discover -s tests -p 'test_render_three_t12_live_summary.py' -v
       - run: python -m unittest discover -s tests -p 'test_reaudit_scheduled_three_t12.py' -v
