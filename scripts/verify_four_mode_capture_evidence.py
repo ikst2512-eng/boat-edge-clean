@@ -69,7 +69,7 @@ def verify_future_third_rate(root, publication, observation):
             or not isinstance(durable.get("path"), str)
             or not re.fullmatch(
                 r"third_rate/" + expected_day +
-                r"/run-[1-9][0-9]*-attempt-[1-9][0-9]*\\.json",
+                r"/run-[1-9][0-9]*-attempt-[1-9][0-9]*[.]json",
                 durable["path"])):
         raise ValueError("future_third_rate_not_durable")
 
