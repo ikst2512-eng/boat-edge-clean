@@ -1,0 +1,13 @@
+{
+  "race_code": "202611030112",
+  "official_url": "https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261103&jcd=01&rno=12",
+  "request_started_at_jst": "2026-11-03T17:00:41.190350+09:00",
+  "racecard_content_verified": false,
+  "entry_verified": false,
+  "t12_eligible": false,
+  "forecast_usable": false,
+  "received_at_jst": "2026-11-03T17:00:50.595356+09:00",
+  "status": "official_racelist_html_observed_research_only",
+  "sha256": "76bb6fc5dd4363ed1709df01c739f8a7366de8961874d22f2dcf9407c8c4edec",
+  "bytes": 67948
+}

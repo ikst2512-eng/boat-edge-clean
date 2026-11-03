@@ -1,0 +1,18 @@
+{
+  "race_code": "202611030112",
+  "official_url": "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=20261103&jcd=01&rno=12",
+  "request_started_at_jst": "2026-11-03T17:00:50.596143+09:00",
+  "deadline_at_jst": "2026-11-03T20:31:00+09:00",
+  "forecast_usable": false,
+  "t12_eligible": false,
+  "received_at_jst": "2026-11-03T17:00:59.946462+09:00",
+  "observed_at_jst": "2026-11-03T17:00:59.946462+09:00",
+  "odds_entries": 120,
+  "valid_120_combinations": true,
+  "observed_before_t12": true,
+  "complete_odds_observed_before_t12": true,
+  "source_immutability_verified": false,
+  "status": "official_odds_observed_research_only",
+  "sha256": "7fac7380f6bd8894968920893755ac3174161e69ce9bfe398847182620160262",
+  "bytes": 46121
+}

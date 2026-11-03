@@ -1,0 +1,22 @@
+{
+  "race_code": "202611030112",
+  "url": "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261103&jcd=01&rno=12",
+  "request_started_at_jst": "2026-11-03T17:00:32.669652+09:00",
+  "t12_eligible": false,
+  "forecast_usable": false,
+  "received_at_jst": "2026-11-03T17:00:41.188945+09:00",
+  "race_number": "12",
+  "deadline_display": "20:31",
+  "racers_listed": 6,
+  "six_unique_boats": true,
+  "exhibition_time_nonempty_six": false,
+  "exhibition_time_observed_boats": 0,
+  "tilt_observed_boats": 0,
+  "start_exhibition_rows": 0,
+  "start_exhibition_six_rows_observed": false,
+  "start_exhibition_six_valid_rows": false,
+  "exhibition_course_to_boat": {},
+  "status": "official_json_observed_not_t12_certified",
+  "sha256": "011ed548064770e8b0a802b396171ecf12b70bb8890b87ab0ecdc41ee3accc05",
+  "bytes": 4056
+}

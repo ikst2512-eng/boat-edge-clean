@@ -1,0 +1,57 @@
+{
+  "race_code": "202611030112",
+  "status": "research_components_incomplete",
+  "t12_eligible": false,
+  "forecast_usable": false,
+  "full_t12_source_certified": false,
+  "beforeinfo_status": "official_json_observed_not_t12_certified",
+  "official_deadline_jst": "2026-11-03T20:31:00+09:00",
+  "cutoff_jst": "2026-11-03T20:19:00+09:00",
+  "racecard_status": "official_racelist_html_observed_research_only",
+  "odds_status": "official_odds_observed_research_only",
+  "audit": {
+    "race_code": "202611030112",
+    "official_deadline_jst": "2026-11-03T20:31:00+09:00",
+    "cutoff_jst": "2026-11-03T20:19:00+09:00",
+    "racelist_received_jst": "2026-11-03T17:00:50.595356+09:00",
+    "beforeinfo_received_jst": "2026-11-03T17:00:41.188945+09:00",
+    "odds_received_jst": "2026-11-03T17:00:59.946462+09:00",
+    "latest_original_received_jst": "2026-11-03T17:00:59.946462+09:00",
+    "t12_receipt_margin_seconds": 11880.053538,
+    "registrations_by_lane": {
+      "1": "3744",
+      "2": "4545",
+      "3": "3898",
+      "4": "4543",
+      "5": "3909",
+      "6": "4384"
+    },
+    "exhibition_course_to_boat": {},
+    "three_originals_hash_verified": true,
+    "component_checks": {
+      "racecard_original_hash_verified": true,
+      "racecard_six_registrations": true,
+      "racer_registration_ids_match": true,
+      "racecard_received_by_t12": true,
+      "beforeinfo_received_by_t12": true,
+      "beforeinfo_six_unique_boats": true,
+      "exhibition_six_courses": false,
+      "exhibition_times_six": false,
+      "tilt_six": false,
+      "start_exhibition_six": false,
+      "odds_120": true,
+      "odds_received_by_t12": true
+    },
+    "missing_components": [
+      "exhibition_six_courses",
+      "exhibition_times_six",
+      "tilt_six",
+      "start_exhibition_six"
+    ],
+    "all_research_components_observed_by_t12": false,
+    "final_race_entry_verified": false,
+    "full_t12_source_certified": false,
+    "t12_eligible": false,
+    "forecast_usable": false
+  }
+}
