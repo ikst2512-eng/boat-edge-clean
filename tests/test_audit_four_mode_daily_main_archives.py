@@ -332,6 +332,20 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertEqual(result, {"same_day": 0, "other_day": 0, "unknown": 2})
         self.assertEqual(late, [])
 
+    def test_evening_archive_audit_runs_after_last_planned_capture(self):
+        workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
+            encoding="utf-8")
+        capture = Path(".github/workflows/four-mode-prospective-capture.yml").read_text(
+            encoding="utf-8")
+        # 09:20 and 22:20 JST must both remain configured.
+        self.assertIn("- cron: '20 0 * * *'", workflow)
+        self.assertIn("- cron: '20 13 * * *'", workflow)
+        # Latest planned capture: 11:52 UTC = 20:52 JST.
+        self.assertIn("- cron: '7,22,37,52 0-11 * * *'", capture)
+        self.assertIn("git fetch --no-tags origin main", workflow)
+        self.assertIn("reports/four_mode_daily_main_archives.json", workflow)
+        self.assertIn("not exhaustive per-run evidence", workflow)
+
     def test_scheduled_git_audit_refreshes_main_after_artifact_downloads(self):
         workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
             encoding="utf-8")
