@@ -45,8 +45,8 @@ def prepare_late_preview_study(base, card, history_batch, *,
     day=meta.get("date")
     deadline_clock=meta.get("deadline")
     if (not isinstance(day,str) or not isinstance(deadline_clock,str)
-            or not re.fullmatch(r"20\\d{2}-\\d{2}-\\d{2}",day)
-            or not re.fullmatch(r"(?:[01]\\d|2[0-3]):[0-5]\\d",deadline_clock)
+            or not re.fullmatch(r"20\d{2}-\d{2}-\d{2}",day)
+            or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d",deadline_clock)
             or _when(day+"T"+deadline_clock+":00+09:00")!=deadline):
         raise ValueError("late_study_card_deadline_mismatch")
     card_audit=card.get("source_audit",{}).get("race_card",{})
