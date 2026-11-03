@@ -13,6 +13,7 @@ import re
 import subprocess
 
 from entry_course_archive_integrity_audit import audit_archive_bytes
+from entry_course_first_add_audit import audit_first_add
 
 JST=timezone(timedelta(hours=9))
 REPO="ikst2512-eng/boat-edge-clean"
@@ -148,12 +149,15 @@ def operational_audit(day, *, fetch=_api, today=None):
             ),
         }
     integrity=audit_archive_bytes(day,tree,fetch,repository=REPO)
+    first_add=audit_first_add(integrity["internally_validated_paths"],
+                              fetch=fetch,repository=REPO)
     path_count=sum(r["archived_candidate_path_count"] for r in result.values())
     return {"schema":"entry-course-scheduled-ledger-path-audit-v2",
             "date_jst":day,"scope":"completed_jst_day",
             "t12":result["t12"],"t2":result["t2"],
             "no_scheduled_run_assumed_success":True,
             "archive_integrity":integrity,
+            "first_add_commit_audit":first_add,
             "archive_paths_not_byte_verified":(
                 integrity["blob_sha_and_internal_payload_valid_count"]!=path_count),
             "independent_first_add_commit_verified":False,
