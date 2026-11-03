@@ -100,6 +100,19 @@ class ExternalT12EvidenceTests(unittest.TestCase):
         self.assertEqual(sha, "new-commit")
         self.assertEqual(len([event for event in events if event[0] == "PATCH"]), 1)
 
+    def test_remote_reinspection_failure_prevents_success_result(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            publisher = Mock(return_value="fake-commit")
+            verifier = Mock(side_effect=ValueError("remote originals disagreed"))
+            with self.assertRaisesRegex(ValueError, "remote originals disagreed"):
+                run(RACE, root, OBS, "owner/repo",
+                    "research-t12-external-evidence", "token",
+                    observer=lambda *a: report(), publisher=publisher,
+                    verifier=verifier)
+            publisher.assert_called_once()
+            verifier.assert_called_once()
+
     def test_main_branch_cannot_be_written(self):
         with self.assertRaisesRegex(ValueError, "invalid dedicated evidence branch"):
             publish_originals("owner/repo", "main", "stub-token",
@@ -109,8 +122,16 @@ class ExternalT12EvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             self.populate(root)
             publisher = Mock(return_value="verified-commit")
+            verifier = Mock(return_value={
+                "status": "independent_originals_reaudited",
+                "declared_status": "research_components_incomplete",
+                "research_complete": False,
+                "full_t12_source_certified": False,
+                "forecast_usable": False,
+            })
             outcome = run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
-                          "token", observer=lambda *a: report(), publisher=publisher)
+                          "token", observer=lambda *a: report(), publisher=publisher,
+                          verifier=verifier)
             self.assertEqual(outcome["archived_original_count"], 6)
             self.assertFalse(outcome["forecast_usable"])
             publisher.assert_called_once()
@@ -118,7 +139,8 @@ class ExternalT12EvidenceTests(unittest.TestCase):
             publisher.side_effect = OSError("GitHub refused evidence commit")
             with self.assertRaises(OSError):
                 run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
-                    "token", observer=lambda *a: report(), publisher=publisher)
+                    "token", observer=lambda *a: report(), publisher=publisher,
+                    verifier=verifier)
 
 if __name__ == "__main__":
     unittest.main()
