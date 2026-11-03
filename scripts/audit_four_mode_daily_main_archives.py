@@ -29,6 +29,8 @@ def parse_additions(raw):
         if SHA.fullmatch(line):
             current = line
             continue
+        if line == "four_mode_forecasts/capture_status.json":
+            continue
         if line.startswith("four_mode_forecasts/"):
             if current is None or not ARCHIVE.fullmatch(line):
                 raise ValueError("invalid archive addition in history")
