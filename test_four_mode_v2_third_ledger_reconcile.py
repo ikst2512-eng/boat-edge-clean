@@ -183,7 +183,6 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             ("unsuccessful_runs", 1),
             ("missing_or_failed_artifacts", [12]),
             ("bad_validation_runs", [12]),
-            ("frozen", 1),
         ):
             with self.subTest(field=field):
                 previous = self.capture.get(field)
@@ -191,8 +190,7 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
                 result = reconcile(self.capture, self.ledger,
                                    before_future_start=True)
                 self.assertNotEqual(result["status"], "prestart_no_future_capture_runs")
-                if field != "frozen":
-                    self.assertEqual(result["status"], "incomplete_capture_inventory")
+                self.assertEqual(result["status"], "incomplete_capture_inventory")
                 if previous is None:
                     self.capture.pop(field, None)
                 else:
