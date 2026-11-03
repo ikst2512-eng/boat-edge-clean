@@ -68,6 +68,7 @@ class ThirdRateGitAncestryTests(unittest.TestCase):
                        side_effect=confirmed):
                 report = audit(root, git=fake_git())
             self.assertEqual(report["future_result_paired"], 1)
+            self.assertEqual(report["future_result_paired_race_codes"], [CODE])
             self.assertEqual(report["first_add_before_t_minus_12_count"], 1)
             self.assertEqual(report["rows"][0]["status"],
                              "git_first_add_before_t_minus_12")
@@ -117,10 +118,42 @@ class ThirdRateGitAncestryTests(unittest.TestCase):
             self.assertEqual(report["unverifiable_count"], 1)
             self.assertFalse(report["checkout_git_history_complete"])
 
-    def test_future_shadow_result_cohort_must_reconcile(self):
-        stub = {"future_result_paired": 1}
+    def test_equal_counts_different_race_codes_rejected(self):
+        audit_report = {"future_result_paired": 1,
+                        "future_result_paired_race_codes": [CODE]}
         shadow = {"date_separated_forward_reference": {
-            "start_day_jst": FUTURE_START, "paired": 1}}
+            "start_day_jst": FUTURE_START, "paired": 1,
+            "paired_race_codes": ["202611040102"]}}
+        with self.assertRaisesRegex(ValueError, "forward_race_identity_mismatch"):
+            verify_shadow_cohort(audit_report, shadow)
+
+    def test_duplicate_or_missing_race_ids_rejected(self):
+        result = {"future_result_paired": 2,
+                  "future_result_paired_race_codes": [CODE, CODE]}
+        shadow = {"date_separated_forward_reference": {
+            "start_day_jst": FUTURE_START, "paired": 2,
+            "paired_race_codes": [CODE, "202611040102"]}}
+        with self.assertRaisesRegex(ValueError, "invalid_forward_race_roster"):
+            verify_shadow_cohort(result, shadow)
+        result["future_result_paired_race_codes"] = [CODE]
+        with self.assertRaisesRegex(ValueError, "invalid_forward_race_roster"):
+            verify_shadow_cohort(result, shadow)
+
+    def test_development_day_race_in_forward_roster_rejected(self):
+        result = {"future_result_paired": 1,
+                  "future_result_paired_race_codes": ["202611030101"]}
+        shadow = {"date_separated_forward_reference": {
+            "start_day_jst": FUTURE_START, "paired": 1,
+            "paired_race_codes": ["202611030101"]}}
+        with self.assertRaisesRegex(ValueError, "invalid_forward_race_roster"):
+            verify_shadow_cohort(result, shadow)
+
+    def test_future_shadow_result_cohort_must_reconcile(self):
+        stub = {"future_result_paired": 1,
+                "future_result_paired_race_codes": [CODE]}
+        shadow = {"date_separated_forward_reference": {
+            "start_day_jst": FUTURE_START, "paired": 1,
+            "paired_race_codes": [CODE]}}
         self.assertTrue(verify_shadow_cohort(stub, shadow))
         shadow["date_separated_forward_reference"]["paired"] = 2
         with self.assertRaises(ValueError):
