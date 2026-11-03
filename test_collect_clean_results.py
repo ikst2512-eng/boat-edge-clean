@@ -142,8 +142,8 @@ class ResultCollectorTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self,*args): return False
             def read(self,*args): return (
-                "レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
-                "202610270101,2026-10-27T16:00:00+09:00,1,2,3\\n").encode()
+                "レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
+                "202610270101,2026-10-27T16:00:00+09:00,1,2,3\n").encode()
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
             confirmed=root/"confirmed_results"
