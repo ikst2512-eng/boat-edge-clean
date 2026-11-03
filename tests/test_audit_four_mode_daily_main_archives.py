@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,40 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_research_roster_exactly_matches_git_first_add_ids(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2,
+               "research_roster_evidence": {
+                   "status": "matched", "commit_sha": A,
+                   "race_codes": ["202611040102", "202611040101"]}}
+        matched, bad, unknown = reconcile_research_rosters_with_main(
+            "20261104", [P, P2], {P: [A], P2: [A]}, [{"runs": [row]}])
+        self.assertEqual([x["run_id"] for x in matched], [415])
+        self.assertEqual((bad, unknown), ([], []))
+
+    def test_research_roster_wrong_ids_cannot_pass_equal_git_count(self):
+        other = "four_mode_forecasts/202611040103.json"
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2,
+               "research_roster_evidence": {
+                   "status": "matched", "commit_sha": A,
+                   "race_codes": ["202611040101", "202611040103"]}}
+        matched, bad, unknown = reconcile_research_rosters_with_main(
+            "20261104", [P, P2], {P: [A], P2: [A]}, [{"runs": [row]}])
+        self.assertEqual((matched, unknown), ([], []))
+        self.assertEqual(bad[0]["research_only"], ["202611040103"])
+        self.assertEqual(bad[0]["git_only"], ["202611040102"])
+
+    def test_legacy_missing_research_roster_is_unknown_not_error(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 1}
+        matched, bad, unknown = reconcile_research_rosters_with_main(
+            "20261104", [P], {P: [A]}, [{"runs": [row]}])
+        self.assertEqual((matched, bad, unknown), ([], [], [415]))
+
     def test_claimed_push_matches_actual_first_add_commit_and_count(self):
         row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
                "artifact_present": True, "publication_outcome": "pushed_to_main",
