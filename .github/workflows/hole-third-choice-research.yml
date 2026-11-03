@@ -34,6 +34,12 @@ jobs:
           for cohort,report in r["groups"].items():
               print("GROUP",cohort,"N",report["comparable"],"MISSING",report["unavailable"])
               print("TOPN",report["topn"])
+              print("PAIRED_TOP10",report["paired_top10"])
+              for comparison,paired in report["paired_top10"].items():
+                  assert paired["sample"]==report["comparable"]
+                  assert paired["net"]==(report["topn"]["third_national_rate"]["top10"]["hits"]-
+                                         report["topn"][comparison]["top10"]["hits"])
+                  assert sum(day["races"] for day in paired["dates"].values())==paired["sample"]
               for method,data in report["topn"].items():
                   for k in (3,5):
                       assert data[f"top{k}"]["gained"]==data[f"top{k}"]["lost"]==0
