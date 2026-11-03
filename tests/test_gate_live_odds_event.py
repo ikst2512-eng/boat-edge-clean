@@ -23,6 +23,10 @@ class FallbackGateTests(unittest.TestCase):
                    "upstream_run_id": 123, "upstream_created_at": "2026-11-03T03:45:00Z"}
         now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
         self.assertTrue(gate.eligible("workflow_run", allowed, now=now))
+        secondary = {**allowed, "upstream_workflow": gate.SECONDARY_UPSTREAM,
+                     "upstream_created_at": "2026-11-03T07:38:00Z"}
+        self.assertTrue(gate.eligible("workflow_run", secondary,
+                                     now=datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)))
         self.assertTrue(gate.eligible("schedule", {"event": "schedule"}))
         self.assertTrue(gate.eligible("workflow_dispatch", {"event": "workflow_dispatch"}))
         self.assertTrue(gate.eligible("pull_request", {"event": "pull_request"}))
@@ -33,6 +37,9 @@ class FallbackGateTests(unittest.TestCase):
             bad[key] = val
             self.assertFalse(gate.eligible("workflow_run", bad, now=now))
         self.assertFalse(gate.eligible("workflow_run", {}))
+        secondary["upstream_created_at"] = "2026-11-03T07:34:00Z"
+        self.assertFalse(gate.eligible("workflow_run", secondary,
+                                      now=datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)))
 
     def test_fallback_only_in_three_jst_catchup_windows(self):
         from datetime import datetime, timezone, timedelta
@@ -185,6 +192,82 @@ class FallbackGateTests(unittest.TestCase):
                 self.assertIn("collect=false", Path("output").read_text())
             finally:
                 os.chdir(old)
+
+
+    def test_secondary_fallback_does_not_duplicate_verified_first_fallback(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:45:00Z"}
+        now = datetime(2026, 11, 3, 7, 50, tzinfo=timezone.utc)
+        first = {"id": 10, "event": "workflow_run", "created_at": "2026-11-03T07:38:00Z",
+                 "status": "completed", "conclusion": "success"}
+        def fetch(url, token):
+            self.assertIn("event=workflow_run", url)
+            return {"workflow_runs": [first, {**first, "id": 11}]}
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "valid"), "prior_fallback_observed")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "no_valid_odds"), "prior_fallback_absent_or_failed")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "unavailable"), "fallback_lookup_unavailable")
+        first["status"], first["conclusion"] = "in_progress", None
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_observed")
+        first["status"], first["conclusion"] = "completed", "failure"
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
+
+
+    def test_prior_valid_200_requires_matching_scheduled_upstream_and_slot(self):
+        from datetime import datetime, timezone
+        import io
+        import zipfile
+        slot = datetime(2026, 11, 3, 7, 25, tzinfo=timezone.utc)
+        run_created = datetime(2026, 11, 3, 7, 41, tzinfo=timezone.utc)
+        trigger = {"event": "workflow_run", "upstream_event": "schedule",
+                   "upstream_workflow": gate.SECONDARY_UPSTREAM,
+                   "upstream_branch": "main", "upstream_run_id": 42,
+                   "upstream_created_at": "2026-11-03T07:38:00Z"}
+        evidence = {"source_status": "ok", "trigger": trigger,
+                    "samples": [{"race_code": "202611030111",
+                                 "attempts": [{"http": 200, "state": "valid_200",
+                                               "latency_ms": 80}]}]}
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 7, "expired": False}]}
+        def probe(record):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w") as archive:
+                archive.writestr("live_odds_metrics.json", json.dumps(record))
+            return gate.direct_probe_evidence(
+                "a/b", "token", 10, fetch_json=artifacts,
+                fetch_zip=lambda *_: buffer.getvalue(),
+                expected_slot=slot, run_created_at=run_created)
+        self.assertEqual(probe(evidence), "valid")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_event": "push"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_branch": "dev"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_run_id": None}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": {**trigger,
+                          "upstream_created_at": "2026-11-03T05:38:00Z"}}),
+                         "no_valid_odds")
+        self.assertEqual(probe({**evidence, "trigger": None}), "no_valid_odds")
+        self.assertEqual(probe({**evidence, "source_status": "fallback_ineligible"}),
+                         "no_valid_odds")
+
+    def test_secondary_fallback_fails_closed_on_missing_history(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:38:00Z"}
+        now = datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 12, now=now,
+            fetch_json=lambda *_: {"workflow_runs": None}), "fallback_lookup_unavailable")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 12, now=now,
+            fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
 
 
 if __name__ == "__main__":

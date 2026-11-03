@@ -376,8 +376,31 @@ class OddsHistoryTests(unittest.TestCase):
         with patch.object(history, "api_json", side_effect=fake_api):
             report = history.fetch_schedule_trigger_health("a/b", "token", now=now)
         self.assertEqual(report["history_14day"]["slots_before_repository_creation"], 6)
+        self.assertEqual(report["history_14day"]["slots_before_schedule_enabled"], 26)
+        self.assertEqual(report["history_14day"]["eligible_slots"], 10)
+        self.assertEqual(report["history_14day"]["not_observed_after_grace"], 9)
         self.assertEqual(report["not_observed_after_grace"], 2)
         self.assertEqual(report["history_14day"]["awaiting_grace"], 1)
+        self.assertEqual(report["schedule_configured_at"], "2026-10-31T06:38:46+00:00")
+
+    def test_schedule_coverage_excludes_slots_before_workflow_existed(self):
+        from datetime import timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 17, 40, tzinfo=jst)
+        configured = datetime(2026, 10, 31, 15, 38, 46, tzinfo=jst)
+        created = datetime(2026, 10, 22, 18, 24, tzinfo=jst)
+        coverage = history.schedule_history_coverage(
+            [], now=now, earliest_possible=created, schedule_configured_at=configured)
+        self.assertEqual(coverage["slots_configured"], 42)
+        self.assertEqual(coverage["slots_before_repository_creation"], 6)
+        self.assertEqual(coverage["slots_before_schedule_enabled"], 26)
+        self.assertEqual(coverage["eligible_slots"], 10)
+        self.assertEqual(coverage["not_observed_after_grace"], 9)
+        self.assertEqual(coverage["awaiting_grace"], 1)
+        oct31 = next(row for row in coverage["daily"] if row["date_jst"] == "2026-10-31")
+        self.assertEqual([slot["state"] for slot in oct31["slots"]],
+                         ["before_schedule_enabled", "before_schedule_enabled",
+                          "not_observed_after_grace"])
 
     def test_operational_event_eligibility_excludes_pr(self):
         for event in ("pull_request", "push", "", "unknown"):
@@ -419,6 +442,8 @@ class OddsHistoryTests(unittest.TestCase):
                 "upstream_branch": "main", "upstream_run_id": 42}
         record = {"trigger": base}
         self.assertTrue(history.include_current_event("workflow_run", record))
+        secondary = {**base, "upstream_workflow": "Four-mode prospective capture (research only)"}
+        self.assertTrue(history.include_current_event("workflow_run", {"trigger": secondary}))
         self.assertFalse(history.include_current_event("pull_request", record))
         for key, value in (("upstream_event", "pull_request"),
                            ("upstream_workflow", "Some other workflow"),
