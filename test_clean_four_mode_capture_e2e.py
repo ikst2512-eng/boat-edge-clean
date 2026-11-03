@@ -126,8 +126,7 @@ class CaptureEndToEndTests(unittest.TestCase):
             result=collect(root=Path(tmp),now=now,read=read)
             self.assertEqual(result["new_saved"],[code])
             self.assertEqual(result["source_probes"]["race_cards"]["invalid_nonmapping_rows"],2)
-            self.assertFalse(result["production_success_proven"] if
-                             "production_success_proven" in result else False)
+            self.assertFalse((Path(tmp)/"four_mode_forecasts"/"202611040102.json").exists())
 
     def test_malformed_title_row_does_not_abort_valid_title(self):
         with tempfile.TemporaryDirectory() as tmp:
