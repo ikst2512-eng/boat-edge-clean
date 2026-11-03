@@ -1,0 +1,32 @@
+name: V2 predeclared shadow research
+on:
+  pull_request:
+    paths:
+      - four_mode_v2_predeclared_shadow.py
+      - test_four_mode_v2_predeclared_shadow.py
+      - .github/workflows/v2-predeclared-shadow-research.yml
+  schedule:
+    - cron: '30 12 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate fixed shadow research protocol
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow
+      - name: Evaluate read-only V2 shadow on confirmed results
+        run: python four_mode_v2_predeclared_shadow.py | tee v2_predeclared_shadow.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v2-predeclared-shadow-${{ github.run_id }}
+          path: v2_predeclared_shadow.log
+          retention-days: 30
