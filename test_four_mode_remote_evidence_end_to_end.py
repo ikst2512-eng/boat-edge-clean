@@ -60,6 +60,30 @@ class PipelineTests(unittest.TestCase):
         target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes(self.store[receipt["path"]])
         self.assertFalse(receipt["formal"])
+        # The final gate now also requires the independently preserved
+        # same-job frozen third-rate candidate for a Nov 4+ publication.
+        shadow = {
+            "schema":"V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+            "status":"captured_local_after_push_not_remote_proven",
+            "formal":False, "publication_commit_sha":SHA,
+            "published_forecasts":1, "frozen_before_t_minus_12":1,
+            "validation_error_count":0,
+            "records":[{
+                "race_code":CODE,
+                "status":"frozen_in_same_job_before_t_minus_12",
+                "source_commit_sha":SHA,
+                "frozen_at_utc":"2026-11-04T02:40:00+00:00",
+                "t_minus_12_jst":"2026-11-04T11:48:00+09:00",
+            }],
+        }
+        original_shadow=json.dumps(shadow).encode("utf-8")
+        (evidence/"third-rate-shadow.json").write_bytes(original_shadow)
+        (evidence/"third-rate-ledger.json").write_text(json.dumps({
+            "status":"new_immutable_ledger_entry", "stored":True,
+            "formal":False, "branch":"v2-third-rate-evidence-ledger",
+            "path":"third_rate/20261104/run-12345-attempt-1.json",
+            "original_sha256":hashlib.sha256(original_shadow).hexdigest(),
+        }),encoding="utf-8")
         return match(self.future,self.first,self.ledger,self.root)
 
     def test_actual_observation_and_ledger_pass_final_capture_gate(self):
