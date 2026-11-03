@@ -6,7 +6,7 @@ from html import unescape
 ROW = re.compile(
     r'<tr\b[^>]*>\s*<td\b(?=[^>]*class="is-boatColor([1-6])\s+is-fs14")'
     r'(?=[^>]*rowspan="4")[^>]*>\s*([１２３４５６])\s*</td>'
-    r'(?P<cells>.{0,1800}?)</tr>',
+    r'(?P<cells>.{0,4096}?)</tr>',
     re.S,
 )
 REG = re.compile(r'/owpc/pc/data/racersearch/profile\?toban=([0-9]{4})')
