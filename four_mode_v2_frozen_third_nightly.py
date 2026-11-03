@@ -252,9 +252,32 @@ if __name__ == "__main__":
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    data = json.loads(args.run_inventory.read_text(encoding="utf-8"))
-    report = summarize(data, args.root, _gh_download, args.out_dir)
-    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    failed = False
+    try:
+        data = json.loads(args.run_inventory.read_text(encoding="utf-8"))
+        report = summarize(data, args.root, _gh_download, args.out_dir)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError,
+            UnicodeError, subprocess.SubprocessError) as exc:
+        # Structural errors such as duplicate frozen races / duplicate run
+        # identities are fatal for the research cohort. Retain an explicit
+        # machine-readable failure record even when no scored report exists.
+        # A fatal audit is never a zero-hit or verified-completeness event.
+        failed = True
+        report = {
+            "schema": "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1",
+            "status": "fatal_capture_audit_error",
+            "formal": False,
+            "remote_first_seen_independently_verified": False,
+            "production_promotion_allowed": False,
+            "cohort_completeness_verified": False,
+            "error_type": type(exc).__name__,
+            "error_reason": str(exc)[:160],
+            "warning": "Fatal capture audit; no accuracy denominator certified.",
+        }
+    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
+                           encoding="utf-8")
     print("V2_FROZEN_THIRD_NIGHTLY=" + json.dumps(report, sort_keys=True))
-    # An incomplete run inventory is an evidence gap; visible diagnostic.
-    # Do not fail unrelated research CI, but never claim successful holdout.
+    if failed:
+        raise SystemExit(2)
+    # Nonfatal incomplete evidence is diagnosed by the downstream
+    # reconciliation gate, which fails closed without losing this report.
