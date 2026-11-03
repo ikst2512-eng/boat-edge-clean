@@ -301,6 +301,7 @@ def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
     from entry_course_t12_seed import _title
     rows,day,digest,source=(schedule_fetch or _title)(now)
     expected=[]
+    expected_deadlines={}
     for item in rows:
         if not isinstance(item,dict):
             continue
@@ -313,8 +314,14 @@ def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
         deadline=datetime.strptime(day+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
         remaining=((deadline-timedelta(minutes=2))-now).total_seconds()
         if 45<=remaining<=max_minutes*60:
+            previous=expected_deadlines.get(code)
+            if previous is not None and previous!=deadline:
+                raise ValueError("t2_conflicting_live_schedule_deadlines")
+            expected_deadlines[code]=deadline
             expected.append(code)
     return {"expected_race_codes":sorted(set(expected)),
+            "expected_deadline_jst_by_race":{
+                code:at.isoformat() for code,at in sorted(expected_deadlines.items())},
             "schedule_sha256":digest,"schedule_source":source,
             "research_only":True}
 
@@ -412,6 +419,7 @@ def attempt_batch(root, *, now=None, max_per_run=3,
     # one successful Waku10 capture. This check happens AFTER each available
     # forecast has been attempted, so a source outage cannot starve captures.
     missing_bases=[]
+    deadline_conflicts=[]
     expected_schedule=None
     schedule_error_type=None
     if verify_expected_schedule:
@@ -420,6 +428,15 @@ def attempt_batch(root, *, now=None, max_per_run=3,
                 snapshot_time,root,schedule_fetch=schedule_fetch)
             known={entry[1] for entry in pool}
             missing_bases=sorted(set(expected_schedule["expected_race_codes"])-known)
+            expected_deadlines=expected_schedule["expected_deadline_jst_by_race"]
+            for cutoff,code,base in pool:
+                independent=expected_deadlines.get(code)
+                if independent is None:
+                    continue
+                expected_cutoff=datetime.fromisoformat(independent)-timedelta(minutes=2)
+                if cutoff!=expected_cutoff or base.get("source_deadline_jst")!=independent:
+                    deadline_conflicts.append(code)
+            deadline_conflicts=sorted(set(deadline_conflicts))
         except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
             schedule_error_type=type(exc).__name__
     # A successful workflow with actual eligible races but zero verified
@@ -431,6 +448,8 @@ def attempt_batch(root, *, now=None, max_per_run=3,
         status="t2_batch_expected_schedule_unavailable"
     elif missing_bases:
         status="t2_batch_missing_expected_t12_baselines"
+    elif deadline_conflicts:
+        status="t2_batch_t12_deadline_conflict"
     elif stored==0:
         status="t2_batch_no_capture"
     elif skipped:
@@ -447,6 +466,7 @@ def attempt_batch(root, *, now=None, max_per_run=3,
             "preview_retry_attempts":retry_attempts,
             "expected_schedule":expected_schedule,
             "missing_baseline_race_codes":missing_bases,
+            "baseline_deadline_conflict_race_codes":deadline_conflicts,
             "schedule_error_type":schedule_error_type,
             "results":records,"research_only":True}
 
@@ -460,6 +480,7 @@ def t2_cli_failure(verdict):
            "t2_missing_expected_t12_baselines",
            "t2_expected_schedule_unavailable",
            "t2_batch_missing_expected_t12_baselines",
+           "t2_batch_t12_deadline_conflict",
            "t2_batch_expected_schedule_unavailable"}
     return verdict.get("status") in fatal
 
