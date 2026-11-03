@@ -72,6 +72,14 @@ jobs:
       - name: Audit today's actual capture execution separately from Git archives
         if: always()
         run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json
+      # Capture may push after checkout while this audit downloads artifacts.
+      # Read the freshest remote main only for the daily scheduled evidence audit.
+      # A fetch failure is an audit failure, not proof that no capture published.
+      - name: Refresh remote main before final Git publication audit
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        run: |
+          git fetch --no-tags origin main
+          git checkout --detach FETCH_HEAD
       - name: Confirm today's first-add archive presence in checked-out Git main
         if: always()
         run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
