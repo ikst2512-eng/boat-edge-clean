@@ -73,6 +73,7 @@ jobs:
         if: always()
         run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json
       - name: Confirm today's first-add archive presence in checked-out Git main
+        if: always()
         run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
       - uses: actions/upload-artifact@v4
         if: always()
