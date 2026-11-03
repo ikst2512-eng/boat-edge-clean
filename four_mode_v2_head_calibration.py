@@ -36,6 +36,8 @@ def assess(root=ROOT):
         "not_reproduced": 0,
         "rejected": {},
         "sample_by_day": {},
+        "venue_sensitivity": {"by_venue": {}, "leave_one_venue_out": {},
+                              "all_venue_deltas_negative": None},
         "observed_boat1_wins": 0,
         "sum_predicted_boat1_wins": 0.0,
         "mean_predicted_boat1": None,
@@ -61,6 +63,7 @@ def assess(root=ROOT):
     expected_sum = 0.0
     brier_sum = 0.0
     wins = 0
+    venue_stats = {}
     prior = [w / sum(WIN) for w in WIN]
     six_model_brier = six_prior_brier = 0.0
     six_model_log = six_prior_log = 0.0
@@ -123,6 +126,17 @@ def assess(root=ROOT):
         y = int(head == 1)
         model_brier = sum((heads[i] - int(i + 1 == head))**2 for i in range(6))
         prior_brier = sum((prior[i] - int(i + 1 == head))**2 for i in range(6))
+        venue = code[8:10]
+        if venue not in venue_stats:
+            venue_stats[venue] = {"n": 0, "model_brier_sum": 0.0,
+                                  "prior_brier_sum": 0.0,
+                                  "model_log_sum": 0.0, "prior_log_sum": 0.0}
+        v = venue_stats[venue]
+        v["n"] += 1
+        v["model_brier_sum"] += model_brier
+        v["prior_brier_sum"] += prior_brier
+        v["model_log_sum"] -= math.log(heads[head - 1])
+        v["prior_log_sum"] -= math.log(prior[head - 1])
         six_model_brier += model_brier
         six_prior_brier += prior_brier
         six_model_log -= math.log(heads[head - 1])
@@ -160,6 +174,35 @@ def assess(root=ROOT):
             (six_model_log - six_prior_log) / n, 6)
         output["constant_0_5_brier_on_same_cohort"] = round(
             sum(row["n"] * 0.25 for row in output["sample_by_day"].values()) / n, 6)
+    if n:
+        for venue, values in sorted(venue_stats.items()):
+            count = values["n"]
+            model_delta = values["model_brier_sum"] - values["prior_brier_sum"]
+            log_delta = values["model_log_sum"] - values["prior_log_sum"]
+            output["venue_sensitivity"]["by_venue"][venue] = {
+                "n": count,
+                "model_minus_prior_brier": round(model_delta / count, 6),
+                "model_minus_prior_log_loss": round(log_delta / count, 6),
+            }
+            remainder_n = n - count
+            output["venue_sensitivity"]["leave_one_venue_out"][venue] = {
+                "n": remainder_n,
+                "model_minus_prior_brier": round(
+                    (six_model_brier - six_prior_brier - model_delta) / remainder_n, 6
+                ) if remainder_n else None,
+                "model_minus_prior_log_loss": round(
+                    (six_model_log - six_prior_log - log_delta) / remainder_n, 6
+                ) if remainder_n else None,
+            }
+        valid_loo = [v["model_minus_prior_brier"] for v in
+                     output["venue_sensitivity"]["leave_one_venue_out"].values()
+                     if v["model_minus_prior_brier"] is not None]
+        output["venue_sensitivity"]["all_venue_deltas_negative"] = (
+            len(venue_stats) >= 2 and len(valid_loo) == len(venue_stats)
+            and all(delta < 0 for delta in valid_loo)
+        )
+        if sum(v["n"] for v in venue_stats.values()) != n:
+            raise ValueError("venue_partition_mismatch")
     for row in output["sample_by_day"].values():
         row["sum_predicted_boat1_wins"] = round(row["sum_predicted_boat1_wins"], 6)
     if (output["six_head_brier_model_better_races"] +
