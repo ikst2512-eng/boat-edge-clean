@@ -104,6 +104,7 @@ def main():
         "watchdog_schedule": data["watchdog_schedule"],
         "watchdog_push": data["watchdog_push"],
         "latest_capture": data["latest_capture"],
+        "recent_capture_runs": data["recent_capture_runs"][:10],
         "minutes_since_latest_capture": data["minutes_since_latest_capture"]}, sort_keys=True))
 
 
