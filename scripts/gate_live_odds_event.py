@@ -17,6 +17,7 @@ from probe_live_odds_health import event_provenance
 from summarize_live_odds_history import consistent_attempts
 
 UPSTREAM = "CLEAN prospective pre-cutoff capture"
+SECONDARY_UPSTREAM = "Four-mode prospective capture (research only)"
 
 
 def fallback_slot_eligible(trigger, *, now=None):
@@ -38,10 +39,11 @@ def fallback_slot_eligible(trigger, *, now=None):
         return False
     jst = timezone(timedelta(hours=9))
     source_local = source.astimezone(jst)
+    minimum_delay = 10 if trigger.get('upstream_workflow') == SECONDARY_UPSTREAM else 15
     for hour in (12, 14, 16):
         cutoff = source_local.replace(hour=hour, minute=25, second=0, microsecond=0)
         elapsed_minutes = (source_local - cutoff).total_seconds() / 60
-        if 15 <= elapsed_minutes < 30:
+        if minimum_delay <= elapsed_minutes < 30:
             return True
     return False
 
@@ -53,7 +55,7 @@ def eligible(event, trigger, *, now=None):
         return False
     return (trigger.get("event") == "workflow_run"
             and trigger.get("upstream_event") == "schedule"
-            and trigger.get("upstream_workflow") == UPSTREAM
+            and trigger.get("upstream_workflow") in (UPSTREAM, SECONDARY_UPSTREAM)
             and trigger.get("upstream_branch") == "main"
             and type(trigger.get("upstream_run_id")) is int
             and trigger["upstream_run_id"] > 0
