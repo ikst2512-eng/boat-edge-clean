@@ -10,6 +10,9 @@ def fixture():
             "protocol": "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1",
             "groups": {"20261103": {
                 "forecast_files": 149, "comparable": 8, "pending_results": 141,
+                "forecast_only_exposure": {"valid": 149, "eligible": 50,
+                                           "reordered_top10": 4, "changed_top3_membership": 2,
+                                           "changed_top5_membership": 3},
                 "matured_comparable": 8,
                 "matured_modes": {m: {"top3": 1, "top5": 2, "top10": (6 if m == "balance" else 5)}
                                   for m in ("narrow", "hit", "balance", "hole")},
@@ -128,6 +131,19 @@ class V2ReadinessTests(unittest.TestCase):
         self.assertEqual(r["total"]["applied"], 3)
         self.assertEqual(r["total"]["reordered_top10"], 2)
         self.assertEqual(r["total"]["changed_top3_membership"], 1)
+
+    def test_forecast_exposure_denominator_separated(self):
+        result = summarize(fixture())
+        self.assertEqual(result["total"]["forecast_only_exposure"]["valid"],149)
+        self.assertEqual(result["total"]["forecast_only_exposure"]["eligible"],50)
+        self.assertEqual(result["total"]["forecast_only_exposure"]["reordered_top10"],4)
+        self.assertEqual(result["comparable_denominator"],8)
+
+    def test_rejects_impossible_forecast_exposure(self):
+        d = fixture()
+        d["groups"]["20261103"]["forecast_only_exposure"]["changed_top3_membership"] = 5
+        with self.assertRaises(ValueError):
+            summarize(d)
 
     def test_rejects_false_formal_promotion(self):
         d = fixture()
