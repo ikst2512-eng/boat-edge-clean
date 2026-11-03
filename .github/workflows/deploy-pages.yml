@@ -379,8 +379,11 @@ jobs:
               if(!publicPage||publicPage.status()!==200)throw Error('published_page_http_'+publicPage?.status());
               // Exercise the same user click that invokes render/loadRaceData.
               // setView('card') alone only toggles visibility; it does not fetch racers.
+              // Deep-linked Pages may initially show the home view with race tabs hidden.
+              // Transition to the selected race with the same setView+render sequence
+              // that navigation.js runs after a real user selects a race tab.
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
-              await page.locator('.race-detail-shortcuts button[data-race-view="card"]').click();
+              await page.evaluate(()=>{setView('card');render()});
               try{
                 await page.waitForFunction(()=>document.querySelectorAll('#mobileRaceCards .mobile-racer').length===6,null,{timeout:30000});
               }catch(error){
