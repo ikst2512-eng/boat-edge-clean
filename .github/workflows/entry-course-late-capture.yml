@@ -19,6 +19,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Read prospectively archived T-minus-12 research baselines
+        uses: actions/checkout@v4
+        with:
+          ref: entry-course-evidence-ledger
+          path: entry-course-ledger
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
