@@ -419,6 +419,8 @@ class OddsHistoryTests(unittest.TestCase):
                 "upstream_branch": "main", "upstream_run_id": 42}
         record = {"trigger": base}
         self.assertTrue(history.include_current_event("workflow_run", record))
+        secondary = {**base, "upstream_workflow": "Four-mode prospective capture (research only)"}
+        self.assertTrue(history.include_current_event("workflow_run", {"trigger": secondary}))
         self.assertFalse(history.include_current_event("pull_request", record))
         for key, value in (("upstream_event", "pull_request"),
                            ("upstream_workflow", "Some other workflow"),
