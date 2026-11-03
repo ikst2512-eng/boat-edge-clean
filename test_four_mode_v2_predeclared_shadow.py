@@ -66,6 +66,7 @@ class V2ShadowTests(unittest.TestCase):
             self.assertEqual(report["groups"]["20261103"]["matured_comparable"], 0)
             self.assertEqual(report["groups"]["20261103"]["matured_modes"]["hit"]["top3"], 0)
             self.assertEqual(report["v2_comparable"], 1)
+            self.assertLessEqual(report["groups"]["20261103"]["changed_top3_membership"], report["groups"]["20261103"]["reordered_top10"])
             self.assertEqual(report["groups"]["20261103"]["modes"]["hit"]["top10"], 0)
             self.assertEqual(report["groups"]["20261103"]["paired_modes"]["hit_vs_balance"]["top3"]["neither"], 1)
             self.assertEqual(report["groups"]["20261103"]["miss_reasons"]["hit"]["winner_head_absent"], 1)
