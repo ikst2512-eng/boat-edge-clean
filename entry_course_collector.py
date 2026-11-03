@@ -111,6 +111,9 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             card=card_reader(code[:8],code[8:10],code[10:12])
             candidate=prepare_late_preview_study(
                 base,card,batch,frozen_at=now().isoformat(),min_starts=min_starts)
+        except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
+            reason=str(exc) if str(exc) else type(exc).__name__
+        else:
             dest=output_dir or (Path(root)/"entry_course_attempts")
             path=freeze_capture(candidate,dest,clock=now)
             if now()>=late:
@@ -122,14 +125,6 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
             verdict["race_code"]=code
             verdict["source_failures"]=len(fetch_errors)
             return verdict
-        except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
-            reason=str(exc) if str(exc) else type(exc).__name__
-            # If local freeze exists but remote write fails, never rerun to
-            # regenerate the candidate or overwrite its evidence.
-            if reason.startswith(("course_ledger_","late_capture_remote_",
-                                  "remote_published_after_","immutable_late_",
-                                  "late_study_remote_publish_")):
-                raise
         if attempt_number<2 and now()+timedelta(seconds=35)<late:
             sleep(35)
         else:
