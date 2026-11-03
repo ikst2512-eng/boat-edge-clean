@@ -45,7 +45,9 @@ jobs:
           assert type(d["capture_window_complete"]) is bool
           assert type(d["run_listing_complete"]) is bool
           assert d["window_start_jst"] < d["window_end_exclusive_jst"]
-          print("WINDOW",d["window_start_jst"],d["window_end_exclusive_jst"])
+          print("RACE_WINDOW",d["window_start_jst"],d["window_end_exclusive_jst"])
+          print("RUN_SEARCH_FROM",d["capture_window_start_jst"],"LOOKBACK_DAYS",d["capture_lookback_days"])
+          assert d["capture_lookback_days"]==1
           print("PAGES",d["pages_fetched"],"LISTING_COMPLETE",d["run_listing_complete"])
           print("RUNS",d["runs_in_window"],"INSPECTED",d["runs_inspected"],"DOWNLOADED",d["runs_downloaded"])
           print("ARTIFACT_WINDOW_COMPLETE",d["capture_window_complete"])
@@ -75,6 +77,7 @@ jobs:
           assert r["prospective_validation"] is False
           assert r["independent_first_receipt_verified"] is False
           assert r["recheck_lag_days"]==int(os.environ["AGE"])
+          assert r["capture_lookback_days"]==1
           assert r["window_start_jst"]<r["window_end_exclusive_jst"]
           # On/after the first eligible period, audit exactly the race day
           # N calendar days before the report time; not N+1 days ago.
