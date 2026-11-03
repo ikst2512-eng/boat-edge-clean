@@ -188,6 +188,7 @@ def evaluate(root,as_of,days=14):
             "comparable":len(rows),"excluded_by_reason":dict(skips),
             "hits":counts,"changed":dict(changes),"delta":delta,
             "race_codes":[r["race_code"] for r in rows],
+            "race_flags":{r["race_code"]:r["flags"] for r in rows},
             "formal":False,"independent_first_receipt_verified":False,
             "prospective_validation":False,"production_forecast_changed":False,
             "candidate_scores_calibrated":False,
