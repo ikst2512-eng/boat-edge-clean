@@ -181,7 +181,10 @@ if __name__ == "__main__":
         }
     else:
         try:
-            report = reconcile(\n                values["capture"], values["ledger"],\n                before_future_start=datetime.now(timezone.utc) < datetime(\n                    2026, 11, 3, 15, 0, tzinfo=timezone.utc))
+            report = reconcile(
+                values["capture"], values["ledger"],
+                before_future_start=datetime.now(timezone.utc) < datetime(
+                    2026, 11, 3, 15, 0, tzinfo=timezone.utc))
         except (ValueError, TypeError, KeyError):
             report = {
                 "schema": "V2_THIRD_RATE_CAPTURE_LEDGER_RECONCILIATION_V1",
