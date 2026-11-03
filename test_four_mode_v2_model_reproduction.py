@@ -36,6 +36,10 @@ class ReproductionTests(unittest.TestCase):
             report = audit(root)
             self.assertEqual(report["valid_v2_archives"], 1)
             self.assertEqual(report["exact_ticket_and_probability_matches"], 1)
+            self.assertEqual(report["verified_reproductions_for_bias"], 1)
+            self.assertEqual(sum(report["boat1_rate_rank_distribution"].values()), 1)
+            self.assertGreater(report["boat1_mean_head_probability"], 0)
+            self.assertEqual(sum(report["head_prior_1000_counts"]), 1000)
             self.assertEqual(report["mismatch_count"], 0)
             self.assertEqual(sum(report["hit_top3_signatures"].values()), 1)
             self.assertFalse(report["formal"])
@@ -48,6 +52,25 @@ class ReproductionTests(unittest.TestCase):
             self.assertEqual(report["valid_v2_archives"], 1)
             self.assertEqual(report["mismatch_count"], 1)
             self.assertEqual(report["mismatch_examples"], ["202611030101"])
+
+    def test_rate_nonmax_and_exactly_reproduced_counts_as_model_bias_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fixture(root)
+            report = audit(root)
+            self.assertEqual(report["boat1_rate_not_max"], 1)
+            self.assertEqual(report["boat1_rate_not_max_but_top1_head1"],
+                             int(rank_modes(probabilities(RATES))["hit"]["tickets"][0]["combo"][0] == "1"))
+
+    def test_mismatch_is_excluded_from_structural_attribution(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fixture(root, tamper=True)
+            report = audit(root)
+            self.assertEqual(report["valid_v2_archives"], 1)
+            self.assertEqual(report["verified_reproductions_for_bias"], 0)
+            self.assertEqual(report["boat1_rate_not_max"], 0)
+            self.assertIsNone(report["boat1_mean_head_probability"])
 
     def test_same_first_place_conditional_ratios_independent_of_rates(self):
         # The 6 input rates can change the HEAD mass, not the relative
