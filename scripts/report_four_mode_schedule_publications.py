@@ -219,6 +219,8 @@ def inspect(run, root):
               "github_observation_unverified": None,
               "github_observation_ledger_status": None,
               "github_observation_integrity": None,
+              "final_evidence_verdict_status": None,
+              "final_evidence_verdict_error_type": None,
               "research_roster_evidence": None,
               "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
@@ -232,6 +234,13 @@ def inspect(run, root):
     ledger = safe_json(root, "four-mode-evidence/third-rate-ledger.json")
     observed = safe_json(root, "four-mode-evidence/github-server-observation.json")
     observed_ledger = safe_json(root, "four-mode-evidence/github-server-observation-ledger.json")
+    final = safe_json(root, "four-mode-evidence/final-evidence-verdict.json")
+    if (isinstance(final, dict)
+            and final.get("schema") == "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1"
+            and final.get("status") in ("passed", "failed")):
+        result["final_evidence_verdict_status"] = final["status"]
+        if final["status"] == "failed" and isinstance(final.get("error_type"), str):
+            result["final_evidence_verdict_error_type"] = final["error_type"]
     integrity = github_observation_integrity(publication, observed)
     result["github_observation_integrity"] = integrity
     if observed is not None and observed.get("schema") == "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1":
@@ -278,7 +287,7 @@ def inspect(run, root):
     result["artifact_present"] = any(
         x is not None for x in (
             status, staging, publication, stages, source_links, third, hole,
-            ledger, observed, observed_ledger))
+            ledger, observed, observed_ledger, final))
     # A malformed or timezone-naive run timestamp cannot anchor a source
     # report to a JST day. Preserve independent artifact/step verdicts.
     day = safe_run_day_jst(run)
