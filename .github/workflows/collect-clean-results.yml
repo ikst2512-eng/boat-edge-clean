@@ -2,6 +2,12 @@ name: CLEAN independent confirmed result collection
 on:
   schedule:
     - cron: '*/10 * * * *'
+  # GitHub may delay/skip cron. Reuse the EXISTING result collector after
+  # independently scheduled capture, regardless of whether capture succeeded.
+  # A failed capture does not imply the result CSV is unavailable.
+  workflow_run:
+    workflows: ['Four-mode prospective capture (research only)']
+    types: [completed]
   workflow_dispatch:
     inputs:
       backfill_day:
@@ -32,6 +38,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
+    # Only same-repository main scheduled upstream completions can trigger
+    # this writer; reject PR/foreign-repository workflow_run events.
+    if: >-
+      ${{ github.event_name != 'workflow_run' ||
+          (github.event.workflow_run.event == 'schedule' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
