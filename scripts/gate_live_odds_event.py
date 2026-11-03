@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from probe_live_odds_health import event_provenance
-from summarize_live_odds_history import consistent_observation_times
+from check_live_odds_probe_verdict import verdict
 
 UPSTREAM = "CLEAN prospective pre-cutoff capture"
 SECONDARY_UPSTREAM = "Four-mode prospective capture (research only)"
@@ -131,20 +131,10 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
                     return "no_valid_odds"
             except (KeyError, TypeError, ValueError, AttributeError):
                 return "no_valid_odds"
-        samples = data.get("samples")
-        if not isinstance(samples, list):
-            return "no_valid_odds"
-        for sample in samples:
-            if not isinstance(sample, dict):
-                continue
-            code = sample.get("race_code")
-            steps = sample.get("attempts")
-            if (isinstance(code, str) and len(code) == 12 and code.isdigit()
-                    and consistent_observation_times(steps, data.get("checked_at_jst"))
-                    and steps[-1].get("http") == 200
-                    and steps[-1].get("state") == "valid_200"):
-                return "valid"
-        return "no_valid_odds"
+        # Share the exact operational verdict with the unattended job.
+        # In particular, legacy receipts without UTC HTTP timestamps must
+        # never suppress another valid scheduled-slot fallback attempt.
+        return "valid" if verdict(data) == "valid_200_observed" else "no_valid_odds"
     except (OSError, TimeoutError, ValueError, TypeError, KeyError,
             HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError):
         return "unavailable"
