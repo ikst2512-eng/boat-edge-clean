@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,22 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_archive_commit_jst_day_separate_from_filename_day(self):
+        paths = [P, P2, OLD]
+        commits = {A: "2026-11-03T15:05:00+00:00",
+                   B: "2026-11-03T14:55:00+00:00"}
+        result, late = inspect_first_add_commit_days(
+            "20261104", {P: [A], P2: [B]}, paths, lambda sha: commits[sha])
+        self.assertEqual(result, {"same_day": 1, "other_day": 1, "unknown": 0})
+        self.assertEqual(late, [P2])
+
+    def test_malformed_or_missing_commit_date_is_unknown(self):
+        paths = [P, P2]
+        result, late = inspect_first_add_commit_days(
+            "20261104", {P: [A], P2: []}, paths, lambda sha: "invalid timestamp")
+        self.assertEqual(result, {"same_day": 0, "other_day": 0, "unknown": 2})
+        self.assertEqual(late, [])
+
     def test_main_archive_audit_runs_independently_of_liveness_failure(self):
         workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
             encoding="utf-8")
