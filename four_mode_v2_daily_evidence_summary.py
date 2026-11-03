@@ -24,6 +24,52 @@ def _read(path):
         return None
 
 
+def _valid_daily_partition(capture):
+    """Confirm every reported day is a valid partition of all paired results.
+
+    The original nightly scorer already checks these invariants. Recheck at
+    the display boundary so a truncated/edited JSON never shows partial
+    improvements under a success label.
+    """
+    if type(capture.get("paired")) is not int or capture["paired"] <= 0:
+        return False
+    days = capture.get("by_race_day_jst")
+    if type(days) is not dict or not days:
+        return False
+    paired_total = 0
+    totals = {key: {field: 0 for field in FIELDS} for key in TOPS}
+    for day, group in days.items():
+        if (type(day) is not str or len(day) != 8 or not day.isdecimal()
+                or day < "20261104" or type(group) is not dict
+                or type(group.get("paired")) is not int or group["paired"] <= 0):
+            return False
+        paired_total += group["paired"]
+        topn = group.get("topn")
+        if type(topn) is not dict or set(topn) != set(TOPS):
+            return False
+        for n in TOPS:
+            values = topn[n]
+            if (type(values) is not dict or set(values) != set(FIELDS)
+                    or any(type(values[k]) is not int or
+                           not 0 <= values[k] <= group["paired"] for k in FIELDS)
+                    or values["candidate"] - values["baseline"]
+                       != values["gained"] - values["lost"]):
+                return False
+            for field in FIELDS:
+                totals[n][field] += values[field]
+    if paired_total != capture["paired"]:
+        return False
+    reported = capture.get("topn")
+    if reported is not None and (
+            type(reported) is not dict or set(reported) != set(TOPS)
+            or any(type(reported[n]) is not dict or
+                   any(type(reported[n].get(k)) is not int or
+                       reported[n][k] != totals[n][k] for k in FIELDS)
+                   for n in TOPS)):
+        return False
+    return True
+
+
 def summarize(capture, ledger, reconciliation):
     capture = capture if type(capture) is dict and capture.get("schema") == CAPTURE_SCHEMA else None
     ledger = ledger if type(ledger) is dict and ledger.get("schema") == LEDGER_SCHEMA else None
@@ -37,7 +83,8 @@ def summarize(capture, ledger, reconciliation):
         and ledger.get("status") == "durable_frozen_evidence_scored"
         and not capture.get("missing_or_failed_artifacts")
         and not capture.get("bad_validation_runs")
-        and not ledger.get("invalid_files"))
+        and not ledger.get("invalid_files")
+        and _valid_daily_partition(capture))
     title = "## V2 third-rate prospective evidence (research only)"
     lines = [title, "",
              f"- Capture audit: {capture.get('status', 'unavailable') if capture else 'unavailable'}",
@@ -55,34 +102,16 @@ def summarize(capture, ledger, reconciliation):
         lines.extend(["**TopN accuracy withheld:** capture, ledger, or same-race verification is incomplete.",
                       "No zero-hit assumption or accuracy claim may be made from missing evidence.", ""])
     else:
-        daily = capture.get("by_race_day_jst")
-        if type(daily) is not dict:
-            lines.extend(["**TopN accuracy withheld:** daily score partition is missing.", ""])
-        else:
-            displayed = 0
-            for day in sorted(daily):
-                if day < "20261104":
-                    continue
-                group = daily[day]
-                if type(group) is not dict or type(group.get("paired")) is not int:
-                    continue
-                topn = group.get("topn")
-                if type(topn) is not dict or any(
-                        type(topn.get(n)) is not dict or
-                        any(type(topn[n].get(field)) is not int for field in FIELDS)
-                        for n in TOPS):
-                    continue
-                displayed += 1
-                lines.extend([f"### {day} / confirmed paired races: {group['paired']}",
-                              "| TopN | Original hits | Candidate hits | Difference |",
-                              "|---|---:|---:|---:|"])
-                for n in TOPS:
-                    orig = topn[n]["baseline"]
-                    new = topn[n]["candidate"]
-                    lines.append(f"| {n.upper()} | {orig} | {new} | {new-orig:+d} |")
-                lines.append("")
-            if displayed == 0:
-                lines.extend(["No future-day confirmed pairs available for comparison.", ""])
+        for day, group in sorted(capture["by_race_day_jst"].items()):
+            topn = group["topn"]
+            lines.extend([f"### {day} / confirmed paired races: {group['paired']}",
+                          "| TopN | Original hits | Candidate hits | Difference |",
+                          "|---|---:|---:|---:|"])
+            for n in TOPS:
+                orig = topn[n]["baseline"]
+                new = topn[n]["candidate"]
+                lines.append(f"| {n.upper()} | {orig} | {new} | {new-orig:+d} |")
+            lines.append("")
     lines.append("**Not certified:** independent GitHub remote first-seen before cutoff, untouched holdout, or production accuracy. No model promotion.")
     return "\n".join(lines) + "\n"
 
