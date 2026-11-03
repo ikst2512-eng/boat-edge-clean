@@ -381,7 +381,7 @@ class DailyMainArchivesTest(unittest.TestCase):
         refresh = "name: Refresh remote main before final Git publication audit"
         audit = "name: Confirm today's first-add archive presence in checked-out Git main"
         self.assertIn(refresh, workflow)
-        self.assertIn("if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("if: always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main'", workflow)
         self.assertIn("git fetch --no-tags origin main", workflow)
         self.assertIn("git checkout --detach FETCH_HEAD", workflow)
         self.assertLess(workflow.index("name: Audit watchdog decision artifacts"),
