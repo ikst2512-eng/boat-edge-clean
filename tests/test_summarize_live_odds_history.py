@@ -14,7 +14,7 @@ def race(code, states, elapsed=800):
     codes = {"valid_200": 200, "pending_202": 202, "http_error": 503,
              "invalid_200": 200, "transport_error:TimeoutError": None}
     return {"race_code": code, "attempts": [
-        {"http": codes[state], "state": state, "latency_ms": 100 * (i+1)}
+        {"http": codes.get(state), "state": state, "latency_ms": 100 * (i+1)}
         for i, state in enumerate(states)], "elapsed_ms": elapsed}
 
 
@@ -37,7 +37,7 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(m["runs_with_eligible_observations"], 2)
         self.assertEqual(m["requests"], 8)
         self.assertEqual(m["http_200"], 3)
-        self.assertEqual(m["http_202"], 5)
+        self.assertEqual(m["http_202"], 4)
         self.assertEqual(m["http_503"], 1)
         self.assertEqual(m["first_attempt_valid_races"], 1)
         self.assertEqual(m["eventual_valid_races"], 2)
