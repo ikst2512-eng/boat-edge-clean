@@ -14,6 +14,7 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             "status": "frozen_artifacts_scored_limited_cohort",
             "cohort_completeness_verified": True,
             "frozen": 2,
+            "paired": 0, "paired_race_scores": [], "race_codes_paired": [],
             "race_codes_frozen": [A, B],
             "missing_or_failed_artifacts": [],
             "bad_validation_runs": [],
@@ -22,9 +23,51 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             "schema": "V2_THIRD_RATE_DURABLE_LEDGER_SCORE_V1",
             "status": "durable_frozen_evidence_scored",
             "frozen": 3,
+            "paired": 0, "paired_race_scores": [], "race_codes_paired": [],
             "race_codes_frozen": [A, B, C],
             "invalid_files": [],
         }
+
+
+    @staticmethod
+    def race_score(code, baseline=0, candidate=0):
+        gain = int(candidate > baseline)
+        lost = int(baseline > candidate)
+        return {"race_code": code, "topn": {
+            name: {"baseline": baseline, "candidate": candidate,
+                   "gained": gain, "lost": lost}
+            for name in ("top3", "top5", "top10")}}
+
+    def test_same_race_equal_frozen_roster_but_different_hits_fails(self):
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [self.race_score(A, 0, 1)]})
+        self.ledger.update({"paired": 1, "race_codes_paired": [A],
+                            "paired_race_scores": [self.race_score(A, 1, 0)]})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "paired_topn_score_mismatch")
+        self.assertEqual(report["paired_score_mismatch_codes"], [A])
+
+    def test_matching_per_race_hits_allow_older_ledger_races(self):
+        row = self.race_score(A, 0, 1)
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [row]})
+        self.ledger.update({"paired": 2, "race_codes_paired": [A, C],
+                            "paired_race_scores": [row, self.race_score(C, 1, 1)]})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "bounded_frozen_roster_matched")
+        self.assertEqual(report["paired_score_mismatch_codes"], [])
+
+    def test_capture_paired_result_absent_from_ledger_is_not_match(self):
+        self.capture.update({"paired": 1, "race_codes_paired": [A],
+                             "paired_race_scores": [self.race_score(A, 1, 1)]})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "paired_result_coverage_mismatch")
+        self.assertEqual(report["paired_result_coverage_mismatch_codes"], [A])
+
+    def test_missing_per_race_score_refuses_matched_status(self):
+        self.capture.update({"paired": 1, "race_codes_paired": [A]})
+        self.assertEqual(reconcile(self.capture, self.ledger)["status"],
+                         "paired_score_evidence_missing_or_invalid")
 
     def test_matching_bounded_capture_subset_does_not_require_older_ledger_entries(self):
         report = reconcile(self.capture, self.ledger)
