@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 
-from entry_course_collector import attempt_batch
+from entry_course_collector import attempt_batch,expected_t2_without_baseline
 from test_entry_waku10_pilot import fixture
 from test_entry_waku10_source import waku
 
@@ -156,6 +156,47 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
             self.assertEqual(out["baseline_audit"]["status"],
                              "missing_current_day_research_snapshots")
+    def test_missing_t12_on_actual_scheduled_t2_window_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda now:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:33"}],
+                    "20261103","a"*64,"published_daily_title"))
+            self.assertEqual(out["status"],"t2_missing_expected_t12_baselines")
+            self.assertEqual(out["missing_baseline_race_codes"],["202611030708"])
+            self.assertEqual(out["baseline_audit"]["status"],
+                             "missing_current_day_research_snapshots")
+            self.assertIs(out["stored"],False)
+    def test_no_expected_t2_race_is_normal_empty_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda now:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"20:33"}],
+                    "20261103","a"*64,"published_daily_title"))
+            self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
+            self.assertEqual(out["expected_schedule"]["expected_race_codes"],[])
+    def test_schedule_outage_not_mislabeled_zero_races(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=attempt_batch(tmp,now=lambda:NOW,verify_expected_schedule=True,
+                schedule_fetch=lambda now:(_ for _ in ()).throw(
+                    OSError("unpublished")),)
+            self.assertEqual(out["status"],"t2_expected_schedule_unavailable")
+            self.assertEqual(out["schedule_error_type"],"OSError")
+    def test_malformed_and_wrong_day_schedule_rows_not_used(self):
+        result=expected_t2_without_baseline(NOW,".",schedule_fetch=lambda now:(
+            [{"レースコード":"202611030708","電話投票締切予定":"bad"},
+             {"レースコード":"202611020708","電話投票締切予定":"18:33"},
+             {"レースコード":"202611030709","電話投票締切予定":"18:33"}],
+            "20261103","c"*64,"live_holding_schedule"))
+        self.assertEqual(result["expected_race_codes"],["202611030709"])
+        self.assertEqual(result["schedule_source"],"live_holding_schedule")
+    def test_missing_baseline_check_is_opt_in_for_test_injection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=attempt_batch(tmp,now=lambda:NOW,
+                schedule_fetch=lambda now:self.fail("do not call schedule by default"))
+            self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
     def test_batch_size_guard(self):
         with self.assertRaisesRegex(ValueError,"batch_size"):
             attempt_batch(".",now=lambda:NOW,max_per_run=100)
