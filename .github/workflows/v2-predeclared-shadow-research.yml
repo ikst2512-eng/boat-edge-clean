@@ -114,7 +114,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
-          gh run list --workflow four-mode-prospective-capture.yml --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
+          # Query capture event classes independently: PR runs must not evict
+          # scheduled/dispatch publication evidence from a shared 500-row cap.
+          gh run list --workflow four-mode-prospective-capture.yml --event schedule --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_scheduled.json
+          gh run list --workflow four-mode-prospective-capture.yml --event workflow_dispatch --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_dispatched.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          sources = ("v2_capture_scheduled.json", "v2_capture_dispatched.json")
+          rows = []
+          for name in sources:
+              data = json.loads(Path(name).read_text(encoding="utf-8"))
+              if not isinstance(data, list):
+                  raise SystemExit("invalid_capture_run_inventory")
+              rows.extend(data)
+          Path("v2_capture_run_inventory.json").write_text(
+              json.dumps(rows, sort_keys=True) + "\\n", encoding="utf-8")
+          PY
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
       # Read the durable ledger independently from earlier model/scoring steps.
       - name: Score preserved third-rate original evidence from durable branch
@@ -158,6 +174,8 @@ jobs:
             v2_third_rate_git_ancestry.json
             v2_third_rate_git_ancestry.log
             v2_capture_run_inventory.json
+            v2_capture_scheduled.json
+            v2_capture_dispatched.json
             v2_frozen_third_nightly.json
             v2_frozen_third_nightly.log
             v2_third_rate_durable_ledger.json
