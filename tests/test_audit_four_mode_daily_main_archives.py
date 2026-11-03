@@ -12,6 +12,17 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_server_observation_false_count_mismatch_triggers_daily_failure(self):
+        evidence = {"runs": [{
+            "run_id": 801, "created_at": "2026-11-04T00:07:00Z",
+            "github_observation_integrity": {
+                "status": "mismatch",
+                "reason": "observation_count_disagrees_with_rows"}}]}
+        self.assertEqual(github_observation_failure_run_ids(
+            "20261104", [evidence]), [801])
+        self.assertEqual(github_observation_failure_run_ids(
+            "20261105", [evidence]), [])
+
     def test_server_observation_failure_checked_only_on_matching_day(self):
         current = {"run_id": 801, "created_at": "2026-11-04T00:07:00Z",
                    "github_observation_ledger_status": "observation_preservation_failed"}
