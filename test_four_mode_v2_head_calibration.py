@@ -66,6 +66,10 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertAlmostEqual(report["six_head_model_minus_prior_brier"],
                                    expected_model_brier-expected_prior_brier, places=6)
             self.assertEqual(report["sample_by_day"]["20261103"]["n"], 2)
+            leave_one = report["leave_one_race_out"]
+            self.assertEqual(leave_one["evaluated_exclusions"], 2)
+            self.assertEqual(len(leave_one["brier_delta_range"]), 2)
+            self.assertEqual(len(leave_one["log_loss_delta_range"]), 2)
             self.assertEqual(report["venue_sensitivity"]["by_venue"]["01"]["n"], 2)
             self.assertIsNone(report["venue_sensitivity"]["leave_one_venue_out"]["01"]["model_minus_prior_brier"])
             self.assertFalse(report["venue_sensitivity"]["all_venue_deltas_negative"])
@@ -109,6 +113,8 @@ class HeadCalibrationTests(unittest.TestCase):
             self.assertEqual(report["matched_valid_finish"], 0)
             self.assertIsNone(report["boat1_brier_score"])
             self.assertIsNone(report["six_head_brier_model"])
+            self.assertIsNone(report["leave_one_race_out"]["all_brier_deltas_negative"])
+            self.assertEqual(report["leave_one_race_out"]["evaluated_exclusions"], 0)
             self.assertIsNone(report["six_head_log_loss_model"])
             self.assertIsNone(report["observed_boat1_rate"])
 
@@ -121,6 +127,18 @@ class HeadCalibrationTests(unittest.TestCase):
             compared.assert_not_called()
             self.assertEqual(report["not_reproduced"], 1)
             self.assertEqual(report["matched_valid_finish"], 0)
+
+    def test_single_confirmed_venue_has_no_leave_one_race_denominator(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            saved(root, "202611030101")
+            with patch("four_mode_v2_head_calibration.compare_race",
+                       return_value={"status":"historical_comparison_only",
+                                     "winning_ticket":"1-2-3"}):
+                report = assess(root)
+            self.assertEqual(report["matched_valid_finish"], 1)
+            self.assertEqual(report["leave_one_race_out"]["evaluated_exclusions"], 0)
+            self.assertIsNone(report["leave_one_race_out"]["brier_delta_range"])
 
     def test_no_archive_is_not_zero_calibration(self):
         with tempfile.TemporaryDirectory() as td:
