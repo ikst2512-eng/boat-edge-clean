@@ -377,8 +377,23 @@ jobs:
               const failures=[];page.on('pageerror',e=>failures.push(e.message));
               const publicPage=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!publicPage||publicPage.status()!==200)throw Error('published_page_http_'+publicPage?.status());
-              await page.evaluate(()=>setView('card'));
-              await page.waitForFunction(()=>document.querySelectorAll('#mobileRaceCards .mobile-racer').length===6,null,{timeout:30000});
+              // Exercise the same user click that invokes render/loadRaceData.
+              // setView('card') alone only toggles visibility; it does not fetch racers.
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              await page.locator('.race-detail-shortcuts button[data-race-view="card"]').click();
+              try{
+                await page.waitForFunction(()=>document.querySelectorAll('#mobileRaceCards .mobile-racer').length===6,null,{timeout:30000});
+              }catch(error){
+                const state=await page.evaluate(()=>({
+                  race:typeof sameRaceKey==='function'?sameRaceKey():null,
+                  active:typeof activeView==='string'?activeView:null,
+                  dataStatus:document.getElementById('raceDataStatus')?.textContent,
+                  source:document.getElementById('raceDataSource')?.textContent,
+                  venueState:document.getElementById('venueState')?.textContent,
+                  cardCount:document.querySelectorAll('#mobileRaceCards .mobile-racer').length
+                }));
+                throw Error('six_racer_browser_unverified '+JSON.stringify(state)+' '+error.message);
+              }
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
               if(await page.evaluate(()=>sameRaceKey())!==selected.key)throw Error('race_changed_during_display');
               for(const view of ['card','exhibit','forecast','result']){
