@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from urllib.error import HTTPError, URLError
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -40,11 +41,17 @@ def collect(root=ROOT, now=None, read=read_rows):
     # Parsed CSVs may contain malformed non-object rows. Preserve the raw
     # source digest, but never allow one corrupt row to abort the batch while
     # other race entries are still valid.
+    race_code = re.compile(re.escape(hd) + r"(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\\Z")
     for kind, (rows, received, digest) in list(datasets.items()):
-        valid=[row for row in rows if type(row) is dict]
-        rejected=len(rows)-len(valid)
-        if rejected:
-            outcomes[kind]["invalid_nonmapping_rows"]=rejected
+        mappings=[row for row in rows if type(row) is dict]
+        valid=[row for row in mappings
+               if type(row.get("レースコード")) is str
+               and race_code.fullmatch(row["レースコード"])]
+        if len(mappings)!=len(rows):
+            outcomes[kind]["invalid_nonmapping_rows"]=len(rows)-len(mappings)
+        if len(valid)!=len(mappings):
+            outcomes[kind]["invalid_race_code_rows"]=len(mappings)-len(valid)
+        if len(valid)!=len(rows):
             datasets[kind]=(valid,received,digest)
     direct_meta={}
     if len(datasets)!=2 or any(not datasets[kind][0] for kind in ("title", "race_cards")):
