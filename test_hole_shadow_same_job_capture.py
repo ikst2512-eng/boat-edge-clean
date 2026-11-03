@@ -23,6 +23,22 @@ class SameJobTest(unittest.TestCase):
         data.update(kwargs)
         self.path.write_text(json.dumps(data))
 
+    def test_research_stage_outcomes_separate_from_v2_publication(self):
+        workflow = (Path(__file__).parent /
+                    ".github/workflows/four-mode-prospective-capture.yml").read_text(
+                        encoding="utf-8")
+        self.assertIn("id: third_rate_shadow", workflow)
+        self.assertIn("id: hole_shadow", workflow)
+        self.assertIn("THIRD_RATE_SHADOW_OUTCOME: ${{ steps.third_rate_shadow.outcome }}",
+                      workflow)
+        self.assertIn("HOLE_SHADOW_OUTCOME: ${{ steps.hole_shadow.outcome }}",
+                      workflow)
+        self.assertIn('"third_rate_shadow": os.environ["THIRD_RATE_SHADOW_OUTCOME"]',
+                      workflow)
+        self.assertIn('"hole_shadow": os.environ["HOLE_SHADOW_OUTCOME"]',
+                      workflow)
+        self.assertIn('states["publication"] = payload["outcome"]', workflow)
+
     def test_hole_shadow_step_is_independent_of_third_rate_step_failure(self):
         workflow = (Path(__file__).parent /
                     ".github/workflows/four-mode-prospective-capture.yml").read_text(
