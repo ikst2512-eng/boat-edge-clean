@@ -14,7 +14,9 @@ from scripts.report_four_mode_schedule_publications import report
 CAPTURE_WORKFLOW = "four-mode-prospective-capture.yml"
 
 
-def dispatch_history(capture_inventory, *, limit=6):
+# Retain the early morning fallback run when later no-op dispatches accumulate.
+# Download inspection stays bounded and uses the shared four-worker inspector.
+def dispatch_history(capture_inventory, *, limit=12):
     if (not isinstance(capture_inventory, dict)
             or not isinstance(capture_inventory.get("recent_capture_runs"), list)
             or type(limit) is not int or not 1 <= limit <= 20):
@@ -43,7 +45,7 @@ def dispatch_history(capture_inventory, *, limit=6):
     return {"schema": "FOUR_MODE_DISPATCH_CAPTURE_HISTORY_V1", "runs": runs}
 
 
-def inspect_dispatches(capture_inventory, downloader, limit=6):
+def inspect_dispatches(capture_inventory, downloader, limit=12):
     history = dispatch_history(capture_inventory, limit=limit)
     # Empty discovery is unknown, not a claim of success.
     if not history["runs"]:
