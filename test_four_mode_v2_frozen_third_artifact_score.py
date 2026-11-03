@@ -59,6 +59,7 @@ class FrozenArtifactScoreTests(unittest.TestCase):
                                  "winning_ticket": ticket}):
             report = score_evidence(self.evidence, self.root)
         self.assertEqual(report["paired"], 1)
+        self.assertEqual(report["topn"]["top1"]["candidate"], 1)
         self.assertEqual(report["topn"]["top3"]["candidate"], 1)
         self.assertEqual(report["race_codes_paired"], [CODE])
         self.assertEqual(report["paired_race_scores"][0]["race_code"], CODE)
