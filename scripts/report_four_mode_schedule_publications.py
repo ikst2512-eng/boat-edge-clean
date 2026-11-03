@@ -105,6 +105,61 @@ def research_roster_evidence(publication, third, hole):
             "race_codes": sorted(rosters[0])}
 
 
+def github_observation_integrity(publication, observed):
+    """Verify claimed server-observation counts from per-race records.
+
+    This verifies local artifact consistency, never independent first receipt.
+    """
+    if not isinstance(publication, dict):
+        return {"status": "unknown", "reason": "publication_missing"}
+    if publication.get("outcome") != "pushed_to_main":
+        return {"status": "not_applicable", "reason": "no_confirmed_publication"}
+    if not isinstance(observed, dict):
+        return {"status": "unknown", "reason": "observation_missing"}
+    if observed.get("schema") != "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1":
+        return {"status": "mismatch", "reason": "observation_schema"}
+    count_added = count(publication, "added_forecasts")
+    sha = publication.get("commit_sha")
+    rows = observed.get("records")
+    if (count_added is None or count_added <= 0
+            or not isinstance(sha, str) or len(sha) != 40
+            or any(c not in "0123456789abcdef" for c in sha)
+            or observed.get("publication_commit_sha") != sha
+            or observed.get("publication_count") != count_added
+            or observed.get("status") != "remote_observation_audited_nonformal"
+            or not isinstance(rows, list) or len(rows) != count_added):
+        return {"status": "mismatch", "reason": "observation_publication_identity"}
+    states = {
+        "github_server_observed_before_t_minus_12": 0,
+        "github_server_observed_after_t_minus_12": 0,
+        "remote_observation_unverified": 0,
+    }
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            return {"status": "mismatch", "reason": "observation_invalid_row"}
+        code = row.get("race_code")
+        state = row.get("status")
+        if (not isinstance(code, str) or len(code) != 12
+                or not code.startswith("20") or not code.isdigit()
+                or code in seen or state not in states
+                or row.get("first_add_commit") != sha):
+            return {"status": "mismatch", "reason": "observation_invalid_row"}
+        seen.add(code)
+        states[state] += 1
+    fields = (
+        ("github_server_observed_before_t_minus_12", "observed_before_t_minus_12"),
+        ("github_server_observed_after_t_minus_12", "observed_after_t_minus_12"),
+        ("remote_observation_unverified", "unverified_count"),
+    )
+    if any(count(observed, key) != states[state] for state, key in fields):
+        return {"status": "mismatch", "reason": "observation_count_disagrees_with_rows"}
+    return {"status": "matched",
+            "before_t12": states["github_server_observed_before_t_minus_12"],
+            "after_t12": states["github_server_observed_after_t_minus_12"],
+            "unverified": states["remote_observation_unverified"]}
+
+
 def safe_run_day_jst(run):
     """Derive a day only from a valid timezone-aware GitHub run timestamp."""
     created = run.get("created_at") if isinstance(run, dict) else None
@@ -140,6 +195,7 @@ def inspect(run, root):
               "github_observation_after_t12": None,
               "github_observation_unverified": None,
               "github_observation_ledger_status": None,
+              "github_observation_integrity": None,
               "research_roster_evidence": None,
               "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
@@ -153,11 +209,14 @@ def inspect(run, root):
     ledger = safe_json(root, "four-mode-evidence/third-rate-ledger.json")
     observed = safe_json(root, "four-mode-evidence/github-server-observation.json")
     observed_ledger = safe_json(root, "four-mode-evidence/github-server-observation-ledger.json")
+    integrity = github_observation_integrity(publication, observed)
+    result["github_observation_integrity"] = integrity
     if observed is not None and observed.get("schema") == "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1":
         result["github_observation_status"] = observed.get("status")
-        result["github_observation_before_t12"] = count(observed, "observed_before_t_minus_12")
-        result["github_observation_after_t12"] = count(observed, "observed_after_t_minus_12")
-        result["github_observation_unverified"] = count(observed, "unverified_count")
+    if integrity["status"] == "matched":
+        result["github_observation_before_t12"] = integrity["before_t12"]
+        result["github_observation_after_t12"] = integrity["after_t12"]
+        result["github_observation_unverified"] = integrity["unverified"]
     if observed_ledger is not None:
         if observed_ledger.get("status") in (
                 "new_append_only_observation", "already_preserved_identical",
@@ -305,6 +364,9 @@ def report(history, downloader, limit=12):
             "research_stage_coverage": research_coverage,
             "third_rate_ledger_coverage": coverage(ledger_outcomes),
             "github_observation_coverage": coverage(github_observation_outcomes),
+            "github_observation_integrity_mismatch_run_ids": [
+                r["run_id"] for r in rows
+                if r["github_observation_integrity"]["status"] == "mismatch"],
             "github_observation_ledger_coverage": coverage(github_ledger_outcomes),
             "github_observation_failure_run_ids": [
                 r["run_id"] for r in rows
@@ -373,6 +435,7 @@ def main():
         "research_stage_coverage": result["research_stage_coverage"],
         "third_rate_ledger_coverage": result["third_rate_ledger_coverage"],
         "github_observation_coverage": result["github_observation_coverage"],
+        "github_observation_integrity_mismatch_run_ids": result["github_observation_integrity_mismatch_run_ids"],
         "github_observation_ledger_coverage": result["github_observation_ledger_coverage"],
         "github_observation_failure_run_ids": result["github_observation_failure_run_ids"],
         "github_observation_ledger_failure_run_ids": result["github_observation_ledger_failure_run_ids"],
