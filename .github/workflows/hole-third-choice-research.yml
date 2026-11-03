@@ -5,6 +5,8 @@ on:
       - hole_third_choice_research.py
       - hole_error_attribution_research.py
       - hole_third_donor_ranking_research.py
+      - hole_third_consensus_guard_research.py
+      - test_hole_third_consensus_guard_research.py
       - test_hole_third_donor_ranking_research.py
       - test_hole_error_attribution_research.py
       - test_hole_third_choice_research.py
@@ -20,7 +22,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py
+      - run: python hole_third_consensus_guard_research.py > hole_third_consensus_guard_results.json
+      - name: Report exploratory guard versus locked national-rate choice
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_third_consensus_guard_results.json"))
+          assert all(report[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","production_forecast_changed",
+              "locked_selector_changed"))
+          for label,group in report["groups"].items():
+              pair=group["paired_guard_vs_national"]
+              assert pair["sample"]==group["comparable"]
+              assert pair["net"]==(
+                  group["topn"]["consensus_guard"]["top10"]["hits"]-
+                  group["topn"]["third_national_rate"]["top10"]["hits"])
+              assert sum(day["races"] for day in pair["by_date"].values())==pair["sample"]
+              print("GROUP",label,"N",group["comparable"],"CHANGED",group["guard_changed_races"])
+              print("PAIRED_GUARD_VS_NATIONAL",pair)
+              print("TOPN",group["topn"])
+          PY
       - run: python hole_third_donor_ranking_research.py > hole_third_donor_ranking_results.json
       - name: Compare donor ranks across prior inspected date blocks (not holdout)
         run: |
@@ -92,3 +115,4 @@ jobs:
             hole_third_choice_results.json
             hole_error_attribution_results.json
             hole_third_donor_ranking_results.json
+            hole_third_consensus_guard_results.json
