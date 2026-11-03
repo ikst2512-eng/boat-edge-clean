@@ -21,6 +21,8 @@ def inputs():
     card["source_audit"]["beforeinfo"]["sources"]["stt"]["observed_at"]=PREVIEW
     card["source_audit"]["beforeinfo"]["sources"]["tkz"]["observed_at"]=PREVIEW
     batch["cutoff_at"]=T2
+    batch["history"][0]["card_receipt_at"]=PREVIEW
+    batch["history"][0]["result_receipt_at"]=PREVIEW
     return base,card,batch
 
 class LatePreviewTests(unittest.TestCase):
@@ -42,6 +44,17 @@ class LatePreviewTests(unittest.TestCase):
         base,card,batch=inputs()
         card["source_audit"]["beforeinfo"]["sources"]["stt"]["observed_at"]="2026-11-03T18:32:00+09:00"
         with self.assertRaisesRegex(ValueError,"late_preview_missing"):
+            prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
+    def test_preview_receipt_after_candidate_freeze_rejected(self):
+        base,card,batch=inputs()
+        late="2026-11-03T18:30:00+09:00"
+        card["source_audit"]["beforeinfo"]["sources"]["stt"]["observed_at"]=late
+        with self.assertRaisesRegex(ValueError,"late_preview_not_observed_at_freeze"):
+            prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
+    def test_historical_source_receipt_after_candidate_freeze_rejected(self):
+        base,card,batch=inputs()
+        batch["history"][0]["result_receipt_at"]="2026-11-03T18:30:00+09:00"
+        with self.assertRaisesRegex(ValueError,"late_history_not_observed_at_freeze"):
             prepare_late_preview_study(base,card,batch,frozen_at=FROZEN,min_starts=1)
     def test_late_history_cutoff_is_not_t12_cutoff(self):
         base,card,batch=inputs()
