@@ -300,10 +300,15 @@ def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
 
 def attempt_batch(root, *, now=None, max_per_run=3,
                   verify_expected_schedule=False, schedule_fetch=None,
+                  preview_retry_rounds=1, preview_retry_interval=35,
                   **kwargs):
     """Bounded independent race attempts; never mix the race cohorts."""
     if type(max_per_run) is not int or not 1<=max_per_run<=3:
         raise ValueError("invalid_t2_batch_size")
+    if (type(preview_retry_rounds) is not int or not 1<=preview_retry_rounds<=7 or
+            type(preview_retry_interval) not in (int,float) or
+            not 1<=preview_retry_interval<=60):
+        raise ValueError("invalid_t2_batch_preview_retry_bounds")
     now=now or (lambda:datetime.now(JST))
     snapshot_time=now()
     pool=candidates(root,now=snapshot_time)
@@ -329,18 +334,44 @@ def attempt_batch(root, *, now=None, max_per_run=3,
         return report
     selected=pool[:max_per_run]
     records=[]
-    for chosen in selected:
+    def capture_one(chosen):
         code=chosen[1]
         try:
-            result=attempt(root,now=now,_selected=chosen,
+            return attempt(root,now=now,_selected=chosen,
                            preview_poll_limit=1,
                            skip_historical_fallback=True,**kwargs)
         except Exception as exc:
-            records.append({"race_code":code,"status":"collector_error",
-                            "stored":False,"error_type":type(exc).__name__,
-                            "research_only":True})
-        else:
-            records.append(result)
+            return {"race_code":code,"status":"collector_error",
+                    "stored":False,"error_type":type(exc).__name__,
+                    "research_only":True}
+    # Always attempt EVERY race before waiting on any unpublished preview.
+    for chosen in selected:
+        records.append(capture_one(chosen))
+    # The preview is often published around T−5, which is only 3 minutes
+    # before the separate T−2 cutoff. Five-minute cron alone can miss this
+    # narrow interval. One running job may therefore recheck missing previews
+    # at most six times, while respecting each race's original cutoff.
+    retry_attempts=0
+    retry_sleeps=0
+    sleeper=kwargs.get("sleep",time.sleep)
+    for round_no in range(1,preview_retry_rounds):
+        pending=[i for i,chosen in enumerate(selected)
+                 if records[i].get("status")=="preview_not_ready"
+                 and (chosen[0]-now()).total_seconds()>45]
+        if not pending:
+            break
+        safe_wait=min((selected[i][0]-now()).total_seconds()-45
+                      for i in pending)
+        seconds=min(preview_retry_interval,safe_wait)
+        if seconds<1:
+            break
+        sleeper(seconds)
+        retry_sleeps+=1
+        for i in pending:
+            if (selected[i][0]-now()).total_seconds()<=45:
+                continue
+            records[i]=capture_one(selected[i])
+            retry_attempts+=1
     stored=sum(r.get("stored") is True for r in records)
     newly_stored=sum(r.get("status") in (
         "new_append_only_waku10_pilot","new_append_only_late_capture")
@@ -368,6 +399,9 @@ def attempt_batch(root, *, now=None, max_per_run=3,
             "newly_stored_count":newly_stored,"reused_count":reused,
             "not_stored_count":skipped,
             "errors":failed,"deferred_count":max(0,len(pool)-max_per_run),
+            "preview_retry_rounds_configured":preview_retry_rounds,
+            "preview_retry_sleeps":retry_sleeps,
+            "preview_retry_attempts":retry_attempts,
             "results":records,"research_only":True}
 
 
@@ -383,7 +417,8 @@ def main():
         from entry_course_scheduled_write_probe import from_environment
         scheduled_access=from_environment("t2",remote_read,remote_create)
         verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create),
-                              verify_expected_schedule=True)
+                              verify_expected_schedule=True,
+                              preview_retry_rounds=7)
         verdict['ledger_write_access_probe']=access
         verdict['scheduled_actions_write_probe']=scheduled_access
     except Exception as exc:
