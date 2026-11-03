@@ -7,7 +7,7 @@ shadow candidate, so this is not a preregistered independent holdout.
 import json
 from datetime import datetime, timedelta, timezone
 from math import comb
-from four_mode_v2_predeclared_shadow import evaluate, PAIRS, PAIR_OUTCOMES
+from four_mode_v2_predeclared_shadow import evaluate, PAIRS, PAIR_OUTCOMES, MISS_REASONS
 from four_mode_v2_venue_coverage import venue_audit
 
 MIN_PAIRED = 100
@@ -51,6 +51,8 @@ def summarize(raw, venue_report=None):
         "candidate": {f"top{n}": 0 for n in (3, 5, 10)},
         "modes": {m: {f"top{n}": 0 for n in (3, 5, 10)}
                   for m in ("narrow", "hit", "balance", "hole")},
+        "miss_reasons": {m: {reason: 0 for reason in MISS_REASONS}
+                         for m in ("narrow", "hit", "balance", "hole")},
         "paired_modes": {f"{a}_vs_{b}": {f"top{n}": {o: 0 for o in PAIR_OUTCOMES}
                          for n in (3, 5, 10)} for a,b in PAIRS},
     }
@@ -154,6 +156,20 @@ def summarize(raw, venue_report=None):
                 if mature_hits > val:
                     raise ValueError("mature_hits_exceed_all_hits")
                 totals["matured_modes"][mode][k] += mature_hits
+        for mode in totals["miss_reasons"]:
+            reasons = row["miss_reasons"][mode]
+            if (not isinstance(reasons, dict) or set(reasons) != set(MISS_REASONS)
+                    or any(type(v) is not int or v < 0 for v in reasons.values())
+                    or sum(reasons.values()) != c):
+                raise ValueError("invalid_mode_miss_partition")
+            covered = reasons["covered"]
+            if ((mode == "narrow" and covered != row["modes"][mode]["top5"])
+                    or (mode == "hit" and covered != row["modes"][mode]["top10"])
+                    or (mode in ("balance", "hole")
+                        and covered < row["modes"][mode]["top10"])):
+                raise ValueError("mode_miss_vs_ticket_coverage_mismatch")
+            for reason, count in reasons.items():
+                totals["miss_reasons"][mode][reason] += count
         for left, right in PAIRS:
             key = f"{left}_vs_{right}"
             for n in (3, 5, 10):
@@ -265,6 +281,28 @@ def summarize(raw, venue_report=None):
             "most_common_count": most_common[0][1] if most_common else 0,
             "most_common_share": round(most_common[0][1] / samples, 6) if samples else None,
         }
+    miss_funnel = {}
+    for mode, reasons in totals["miss_reasons"].items():
+        n_total = totals["paired_results"]
+        hit = reasons["covered"]
+        head_absent = reasons["winner_head_absent"]
+        second_absent = reasons["winner_second_pair_absent"]
+        third_absent = reasons["winner_third_absent"]
+        miss_funnel[mode] = {
+            "paired_races": n_total,
+            "ticket_count": {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}[mode],
+            "covered_full_ticket_list": hit,
+            "head_absent": head_absent,
+            "head_present_but_second_pair_absent": second_absent,
+            "head_and_second_present_but_third_absent": third_absent,
+            "head_represented_in_any_ticket": n_total - head_absent,
+            "head_and_second_pair_represented": hit + third_absent,
+            "covered_share": round(hit / n_total, 6) if n_total else None,
+            "head_absent_share_among_misses": (
+                round(head_absent / (n_total - hit), 6)
+                if n_total > hit else None),
+            "warning": "Ticket list inclusion diagnostic, not causal explanation of race dynamics.",
+        }
     n = totals["paired_results"]
     gains = totals["gained_top3"]
     losses = totals["lost_top3"]
@@ -323,6 +361,7 @@ def summarize(raw, venue_report=None):
         "total": totals, "evaluation_days": completed_days,
         "top3_net_gain": gains - losses,
         "forecast_only_top3_concentration": top3_concentration,
+        "mode_miss_funnel": miss_funnel,
         "venue_coverage": venue_coverage,
         "changed_top3_case_status_counts": statuses,
         "changed_top3_paired_case_scores": case_scores,
