@@ -122,6 +122,23 @@ class EvidenceVerdictTests(unittest.TestCase):
             verify(self.root)
         self.assertEqual(record_verdict(self.root)["status"], "failed")
 
+    def test_third_rate_cutoff_must_equal_remote_observed_same_race_cutoff(self):
+        self.published(); self.good(); self.good_third()
+        folder = self.root / "four-mode-evidence"
+        # Shadow pretends the race deadline is an hour later than the
+        # independently observed forecast's original race deadline.
+        original = json.loads((folder/"third-rate-shadow.json").read_text())
+        original["records"][0]["t_minus_12_jst"] = "2026-11-04T12:48:00+09:00"
+        self.write("third-rate-shadow.json", original)
+        ledger = json.loads((folder/"third-rate-ledger.json").read_text())
+        ledger["original_sha256"] = hashlib.sha256(
+            (folder/"third-rate-shadow.json").read_bytes()).hexdigest()
+        self.write("third-rate-ledger.json", ledger)
+        with self.assertRaisesRegex(ValueError,
+                                    "future_third_rate_remote_cutoff_mismatch"):
+            verify(self.root)
+        self.assertEqual(record_verdict(self.root)["status"], "failed")
+
     def test_cross_run_receipt_substitution_is_not_same_job_proof(self):
         self.published(); self.good(); self.good_third()
         ledger = self.root / "four-mode-evidence" / "third-rate-ledger.json"
