@@ -49,6 +49,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
     source_snapshots={}
     identical_repeated_codes=set()
     replay_verified_codes=set()
+    declared_failed_replay_codes=set()
     for path in files:
         examined+=1
         file_codes=set()
@@ -83,9 +84,12 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             # duplicate from another run without proving which is canonical.
             duplicates.update(file_codes)
             nonusable[type(exc).__name__]+=1;continue
-        for code in scored.get("eligible_codes",[]):
-            if in_window(code):
-                replay_verified_codes.add(code)
+        eligible_this_file={code for code in scored.get("eligible_codes",[])
+                            if in_window(code)}
+        replay_verified_codes.update(eligible_this_file)
+        # A good copy cannot rescue a second copy which was never replay
+        # validated (bad hash, late timestamp, missing candidate, wrong method).
+        declared_failed_replay_codes.update(file_codes-eligible_this_file)
         for name,n in scored.get("excluded_by_reason",{}).items():
             excluded[name]+=n
         for row in scored.get("rows",[]):
@@ -99,7 +103,9 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
                     duplicates.add(code)
             else:
                 all_rows[code]=row
-    # Quarantine any repeated race entirely. Different artifact runs must not inflate n.
+    # Every declared copy must pass candidate replay. A valid earlier copy
+    # cannot make another invalid same-race record appear independently valid.
+    duplicates.update(declared_failed_replay_codes)
     for code in duplicates:all_rows.pop(code,None)
     rows=[x for x in all_rows.values() if x is not None]
     rows.sort(key=lambda x:x["race_code"])
@@ -125,6 +131,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             "artifact_files":examined,"distinct_future_codes_seen":len(all_rows)+len(duplicates),
             "duplicate_codes_quarantined":sorted(duplicates),
             "identical_snapshot_codes_deduplicated":sorted(identical_repeated_codes-duplicates),
+            "codes_quarantined_for_failed_replay":sorted(declared_failed_replay_codes),
             "excluded_outside_race_day_window":len(outside_window),
             "outside_race_day_codes":sorted(outside_window),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
