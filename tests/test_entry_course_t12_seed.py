@@ -194,8 +194,8 @@ class T12SeedTests(unittest.TestCase):
                 predictor=predictor,record_path=saved,
                 ledger_ops=(lambda path:None,lambda path,raw:self.fail("deadline mismatch must never publish")))
             self.assertEqual(out["stored_count"],0)
-        self.assertEqual(out["newly_stored_count"],0)
-        self.assertEqual(out["reused_count"],0)
+            self.assertEqual(out["newly_stored_count"],0)
+            self.assertEqual(out["reused_count"],0)
             self.assertEqual(out["results"][0]["status"],"failed")
             self.assertIn("missed_cutoff",out["results"][0]["error_code"])
     def test_existing_original_with_different_deadline_rejected(self):
