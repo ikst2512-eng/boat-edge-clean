@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,29 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_explicit_final_gate_failure_alerts_only_matching_jst_day(self):
+        failed = {"run_id": 501, "created_at": "2026-11-03T15:05:00Z",
+                  "final_evidence_verdict_status": "failed",
+                  "final_evidence_verdict_error_type": "ValueError"}
+        prior = {"run_id": 502, "created_at": "2026-11-03T14:59:00Z",
+                 "final_evidence_verdict_status": "failed"}
+        passed = {"run_id": 503, "created_at": "2026-11-03T15:09:00Z",
+                  "final_evidence_verdict_status": "passed"}
+        legacy = {"run_id": 504, "created_at": "2026-11-03T15:10:00Z"}
+        evidence = [{"runs": [failed, prior, passed, legacy]},
+                    {"runs": [{**failed}]}]
+        self.assertEqual(final_evidence_failure_run_ids("20261104", evidence), [501])
+        self.assertEqual(final_evidence_failure_run_ids("20261103", evidence), [502])
+
+    def test_explicit_final_gate_failure_cannot_be_hidden_by_older_good_push(self):
+        row = {"run_id": 510, "created_at": "2026-11-04T00:22:00Z",
+               "publication_outcome": "pushed_to_main",
+               "final_evidence_verdict_status": "failed"}
+        self.assertEqual(final_evidence_failure_run_ids("20261104", [{"runs": [row]}]), [510])
+        source = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn('and report["final_evidence_failure_run_ids"]', source)
+
     def test_server_observation_false_count_mismatch_triggers_daily_failure(self):
         evidence = {"runs": [{
             "run_id": 801, "created_at": "2026-11-04T00:07:00Z",
