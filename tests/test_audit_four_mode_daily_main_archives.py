@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main, ledger_failure_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,17 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_scheduled_ledger_failure_is_day_scoped_and_not_hidden(self):
+        day = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "third_rate_ledger_outcome": "failure"}
+        older = {"run_id": 414, "created_at": "2026-11-03T00:07:00Z",
+                 "third_rate_ledger_status": "ledger_preservation_failed"}
+        duplicated = {**day}
+        self.assertEqual(ledger_failure_run_ids(
+            "20261104", [{"runs": [day, older]},
+                         {"runs": [duplicated]}]), [415])
+        self.assertEqual(ledger_failure_run_ids("20261105", [{"runs": [day]}]), [])
+
     def test_research_roster_exactly_matches_git_first_add_ids(self):
         row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
                "publication_outcome": "pushed_to_main",
