@@ -61,7 +61,7 @@ class ExternalT12EvidenceTests(unittest.TestCase):
                 return {"tree": {"sha": "base-tree"}}
             if endpoint == "git/blobs":
                 original = base64.b64decode(data["content"])
-                return {"sha": hashlib.sha1(f"blob {len(original)}\\0".encode() + original).hexdigest()}
+                return {"sha": hashlib.sha1(f"blob {len(original)}\0".encode() + original).hexdigest()}
             if endpoint == "git/trees":
                 self.assertEqual(data["base_tree"], "base-tree")
                 return {"sha": "new-tree"}
