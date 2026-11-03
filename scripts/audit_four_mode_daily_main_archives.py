@@ -207,21 +207,34 @@ def unpublished_new_candidate_runs(day, evidence_reports):
             generated = row.get("newly_generated")
             staged = row.get("staged_valid")
             published = row.get("claimed_added_forecasts")
-            positive = [v for v in (generated, staged)
-                        if type(v) is int and v > 0]
-            if not positive:
-                continue
             outcome = row.get("publication_outcome")
+            # Generation is upstream of the cutoff-safe staging gate. A race
+            # can be generated and then correctly excluded when its receipt
+            # expires; it must not be counted as an unpublished candidate.
+            safe_staged = staged if type(staged) is int and staged >= 0 else None
             if outcome == "pushed_to_main":
-                # The push claim is separately reconciled against main first-
-                # add history. Here detect partial intra-run publication.
-                if type(published) is int and published >= max(positive):
+                if safe_staged is None or safe_staged == 0:
+                    # Incomplete/legacy staging evidence is not a proven loss.
+                    continue
+                # A push must cover the cutoff-safe staged roster, not every
+                # earlier generated race (some may have expired at staging).
+                if type(published) is int and published >= safe_staged:
                     continue
                 reason = "candidate_count_exceeds_push_claim"
-            elif outcome in ("failed", "no_eligible_candidates"):
+            elif outcome == "no_eligible_candidates":
+                # An explicit zero safe-staging count makes this a valid no-op.
+                # Missing staging data remains unknown, not a fabricated loss.
+                if safe_staged is None or safe_staged == 0:
+                    continue
+                reason = "new_candidates_without_successful_push"
+            elif outcome == "failed":
+                # A failed stage/publication with new generated work is still
+                # actionable even if the staging diagnostic was never written.
+                if not (safe_staged and safe_staged > 0) and not (
+                        type(generated) is int and generated > 0):
+                    continue
                 reason = "new_candidates_without_successful_push"
             else:
-                # Missing/legacy receipt cannot establish a failure.
                 continue
             problems.setdefault(rid, {
                 "run_id": rid, "reason": reason,
