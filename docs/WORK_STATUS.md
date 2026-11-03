@@ -132,6 +132,13 @@
 - 回帰テストを6件追加し、従来8件と合計14件。PR CI run `41666855620` syntax job `126024373021` 14/14成功、過去出走表・結果・オッズ成功、実e2e-live-raceはPRなのでskipped。**実無人T-12の成功は未実証**。main統合後の本番RenderデプロイやGitHub schedule成功をPR CI成功と混同しない。
 - 次は11/4の日中無人scheduleで、期限切れ候補数、tkz/sttの独立取得成功・失敗、`T12_SAMPLE_STARTED`と`T12_PAIR_NOT_VERIFIED`の時刻別原因、および実`T12_COMPLETE_PAIR_PASS`件数をチェックする。新規ジョブ・費用・予想ロジック・買い目・画面変更なし。
 
+## 2026-11-04 未明 本番Render展示アダプタの各ソース受信時計を修正（P1）
+- PR #1550 main squash `9bbc2a3f07ce5e6e9e0de43bb3fe3e4d5fec16c8`。`clean_racecard._fetch_preview`でtkz/stt/suiを並列HTTP取得**する前**の`observed_now`だけを使い、HTTP通信中に公開された締切前CSV行の観測時刻を未来扱いで拒否する実装が残っていた。PR #1538/#1543は別の監視ジョブ側のみの修正だったため、Render実API側の取りこぼし可能性を解消。
+- 各ソースの`_preview_rows`が実際に返った直後の`received_at`を独立取得し、元CSV行の`取得日時` <= 実HTTP受信完了時刻、CSV時刻 < 該当レース締切、HTTP受信完了 < 該当締切をすべて必要とする。妥当な6艇・6コース・ST/展示タイムの完全性条件は不変更。`source_audit.beforeinfo.sources[kind].received_at_jst`を独立観測時刻として追加し、従来の`observed_at`とSHA256を保持。履歴レース用`not_verified_historical`分岐も不変更。T-12の成立閾値は緩和なし。
+- `tests/test_preview_completeness.py`に通信中公開の正常データ、締切同時受信拒否、HTTP受信より未来の記録拒否の3テストを追加。過去日時の合成原本の`test_clean_racecard.py`も、仮想HTTP受信時計を対象レース締切前に固定してテスト条件を維持。PR初回run `41668148759`等は既存の歴史合成テストが受信時刻条件未対応で失敗。修正後PR CI run `41668409248` fixtures成功、`41668409271` V236処理成功、`41668409327` syntax+過去出走表/結果/オッズ成功、`41668409358` ナビ/ブラウザ両ジョブ成功。
+- 同PRの`Verify REAL beforeinfo source` run `41668409466` は `REAL_BEFOREINFO_NO_VERIFIED_RACE` でfailure。これは実ソースから6艇一致サンプルを確認できなかったという正しい未実証で、他CI成功を根拠に上書きしない。締切12分前の実観測成功、実行元GitHub schedule、Render新コードliveも引き続き独立検証が必要。
+- 新しいジョブ、有料サービス、4モード、予想ロジック、買い目、公開画面骨格の変更なし。ロールバックはPR #1550のsquash差分revert。次回は実日中レースで各元`observed_at` / `received_at_jst`、API受信、締切時刻を突き合わせ、T-12成立を判定する。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
