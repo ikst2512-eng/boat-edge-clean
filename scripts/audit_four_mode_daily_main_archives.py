@@ -90,6 +90,31 @@ def audit(day, paths, additions, *, main_context):
     }
 
 
+
+def inspect_day_archive_versions(day, paths, root=Path(".")):
+    """Inspect checked-out archive payloads; this does not prove remote timing."""
+    counts = {"v2": 0, "other_model": 0, "invalid": 0}
+    invalid_paths = []
+    for name in paths:
+        if not ARCHIVE.fullmatch(name) or not Path(name).name.startswith(day):
+            continue
+        try:
+            path = root / name
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 2_000_000:
+                raise ValueError("invalid archive file")
+            record = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(record, dict) or not isinstance(record.get("model_version"), str):
+                raise ValueError("missing model version")
+            if record["model_version"].startswith("CLEAN_FOUR_MODES_V2_"):
+                counts["v2"] += 1
+            else:
+                counts["other_model"] += 1
+        except (OSError, UnicodeError, ValueError):
+            counts["invalid"] += 1
+            invalid_paths.append(name)
+    return counts, invalid_paths
+
+
 def positive_eligible_run_ids(day, evidence_reports):
     """Use same-day newly generated/staged candidate evidence, never local archive totals."""
     confirmed = set()
@@ -145,6 +170,18 @@ def main():
                   "HEAD", "--", "four_mode_forecasts/")
     report = audit(day, paths, parse_additions(history),
                    main_context=os.environ.get("GITHUB_REF") == "refs/heads/main")
+    versions, invalid_paths = inspect_day_archive_versions(day, paths)
+    report["today_v2_archive_count"] = versions["v2"]
+    report["today_other_model_archive_count"] = versions["other_model"]
+    report["today_invalid_archive_count"] = versions["invalid"]
+    report["today_invalid_archive_paths"] = invalid_paths[:20]
+    report["v2_archive_payloads_verified"] = (
+        report["today_archive_count"] > 0
+        and versions["v2"] == report["today_archive_count"]
+        and versions["invalid"] == 0
+    )
+    # Version assertions are about checkout contents only, not independent
+    # receipt timestamps or source acquisition.
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     evidence = []
@@ -163,6 +200,12 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["today_archive_count"] > 0
+            and not report["v2_archive_payloads_verified"]):
+        print("::error::Today's saved research archives are not all readable V2 payloads")
+        raise SystemExit(2)
     if scheduled_audit_alert(report, os.environ.get("GITHUB_EVENT_NAME"), evidence):
         print("::error::Daily V2 main archives missing despite new local candidate or staged evidence, or Git first-add history incomplete")
         raise SystemExit(2)

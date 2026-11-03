@@ -1,5 +1,8 @@
+import json
+import tempfile
 import unittest
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids
+from pathlib import Path
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions
 
 A = "a" * 40
 B = "b" * 40
@@ -19,6 +22,28 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertEqual(result["assessment"], "new_day_git_archives_found")
         self.assertFalse(result["independent_remote_first_seen_verified"])
         self.assertFalse(result["source_predeadline_verified"])
+
+    def test_day_archive_payload_versions_are_counted_separately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "four_mode_forecasts").mkdir()
+            (root / P).write_text(json.dumps({"model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"}))
+            (root / P2).write_text(json.dumps({"model_version": "CLEAN_FOUR_MODES_V1_UNCALIBRATED"}))
+            bad = "four_mode_forecasts/202611040103.json"
+            (root / bad).write_text("{invalid")
+            counts, invalid = inspect_day_archive_versions("20261104", [P, P2, bad, OLD], root)
+            self.assertEqual(counts, {"v2": 1, "other_model": 1, "invalid": 1})
+            self.assertEqual(invalid, [bad])
+
+    def test_all_v2_archives_accepted_as_content_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "four_mode_forecasts").mkdir()
+            for name in [P, P2]:
+                (root / name).write_text(json.dumps({"model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"}))
+            counts, invalid = inspect_day_archive_versions("20261104", [P, P2, OLD], root)
+            self.assertEqual(counts["v2"], 2)
+            self.assertEqual(invalid, [])
 
     def test_capture_status_metadata_is_not_an_archive(self):
         raw = A + "\n\n" + "four_mode_forecasts/capture_status.json" + "\n" + P + "\n"
