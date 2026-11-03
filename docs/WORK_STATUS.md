@@ -64,6 +64,14 @@
 - RenderでこのPRコミットに対応したデプロイ成功、本番APIとPagesの公開画面実機確認は別に行う。2026-10-31等の過去レースで開催場→出走表→予想→結果が通し表示されるか未実証のため、P0は完了扱いにしない。
 - 旧リポジトリ`boat-edge`削除なし。現在確認されたRender workspace内Webサービスは`boat-edge-clean`1件で、現行フロント主要API・スナップショット通信先はCLEAN系。旧GitHub Pages/外部リンク/古い資産の参照関係が完全に除去済みとはまだ確定しないため、破壊的な整理は保留。
 
+## 2026-11-03 22:56 JST 公開Pages P0過去レース実ブラウザ検証・公開ジョブ修復
+- 10/31蒲郡8R（race `202610310708`）のGitHub main原本に日程 `schedule_snapshots/20261031.json`、研究予想 `prospective_predictions/202610310708.json`、確定結果 `confirmed_results/202610310708.json` が存在。予想は研究・未検証・正式採点不可。確定結果原本は`1-4-6`。
+- Render実リクエストログに2026-11-02 UTC 11:24以降、同日程API、蒲郡8R `/api/clean-racecard`、`/api/four-mode-archive` のHTTP200履歴あり。HTTP200単体は描画証拠ではない。
+- PR #1488のPages本番公開run `41647288225` は、deployと公開ファイルのバイト同一性チェックが成功し、**公開ブラウザ**の10/31研究予想注意、6艇の出走表、展示の未検証状態表示、確定結果`1-4-6`の全検査に成功。しかし最後の`Browser-check deployed page`が`shortcuts.locator(...)`を用いてボタン内に別のボタンを探す誤セレクタで30秒タイムアウトし、ワークフロー全体はfailure。
+- PR #1493をmainへsquash統合（`d579caaf1029035b5a6de48ea59270b97d393d1e`）。既存`.github/workflows/deploy-pages.yml`の公開ブラウザ4タブ操作を`page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]')`に修正し、`tests/site-regression.cjs`に退行防止チェック追加。PR CI run `41648593757` のsite-regression/checkとpublish-smokeが成功。
+- main push後の**実Pages公開run `41648715496` / job `125960842659` がsuccess**。GitHub Pagesへdeploy、公開HTML/JS/確定結果2件のバイト同一性検証、公開Chromiumブラウザ上で10/31蒲郡8R研究予想（時刻証拠未検証表示）、6艇出走表、展示の未検証状態、確定結果`1-4-6`、4タブの実操作、390px幅のナビ検査が全て成功。10/27の確定結果`1-2-5`も公開ブラウザで成功。公開URL `https://ikst2512-eng.github.io/boat-edge-clean/?date=2026-10-31&venue=07&race=8&view=forecast`。
+- **P0の過去レース表示は当該サンプルで本番実証成功**。全過去日・全24場についての可用性や、展示値の独立した事前取得証明は未実証。正式予想の初回Git受信時刻・的中率も引き続き未検証。旧リポジトリの削除は依存調査完了前なので未実施。追加料金・追加Pages workflowはなし。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
