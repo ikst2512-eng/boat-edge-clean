@@ -61,9 +61,10 @@ jobs:
           publication.sort(key=lambda r:r["created_at"],reverse=True)
           now=datetime.now(timezone.utc)
           recent=[r for r in publication
-                  if (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds()<27*60]
-          # A recent failed capture must not suppress recovery for 27 minutes.
-          # Any successful, running or queued capture suppresses dispatch.
+                  if 0 <= (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds()<14*60]
+          # A recent failed capture must not suppress recovery for the 14-minute slot.
+          # Report the 14-minute outcome subset separately from the 120-minute
+          # running/queued protection enforced by the policy.
           healthy=[r for r in recent if r["status"]!="completed" or r["conclusion"]=="success"]
           # Throttle retries: multiple watchdog invocations must not create a
           # dispatch storm when the upstream consistently fails. One retry per
@@ -71,7 +72,7 @@ jobs:
           # the existing T-20 admission gate holds.
           recent_fallback=[r for r in publication
                            if r["event"]=="workflow_dispatch" and
-                           0 <= (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds() < 20*60]
+                           0 <= (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds() < 14*60]
           jst_now=now.astimezone(timezone(timedelta(hours=9)))
           in_capture_hours=7 <= jst_now.hour <= 20
           report={"capture_hours_jst":in_capture_hours,
@@ -79,6 +80,9 @@ jobs:
                   "fallback_retry_cooldown":bool(recent_fallback),
                   "recent_failed_runs":len(recent)-len(healthy),
                   "recent_healthy_or_active_runs":len(healthy),
+                  "older_active_runs_blocking":len([r for r in publication if
+                      r["status"]!="completed" and 14*60 <=
+                      (now-datetime.fromisoformat(r["created_at"].replace("Z","+00:00"))).total_seconds() < 120*60]),
                   "newest":publication[0]["created_at"] if publication else None,
                   "dry_run":os.environ["EVENT_NAME"]=="pull_request"}
           if should_dispatch(publication, now, os.environ["EVENT_NAME"],

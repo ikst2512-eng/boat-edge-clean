@@ -34,6 +34,17 @@ class WatchdogEvidenceContractTest(unittest.TestCase):
         self.assertNotIn('"token":', self.script)
         self.assertNotIn('"headers":', self.script)
 
+    def test_report_uses_the_same_fourteen_minute_window_as_dispatch(self):
+        # Prevent an audit from reporting obsolete 27/20-minute suppression
+        # even while the live dispatch uses the new 14-minute windows.
+        self.assertIn("<14*60", self.script)
+        self.assertIn("< 14*60", self.script)
+        self.assertIn("recent_minutes=14, cooldown_minutes=14", self.script)
+        self.assertNotIn("27*60", self.script)
+        self.assertNotIn("< 20*60]", self.script)
+        self.assertIn('"older_active_runs_blocking"', self.script)
+        self.assertIn("120*60", self.script)
+
     def test_upload_occurs_even_when_watchdog_fails(self):
         self.assertIn('if: always()', self.text)
         self.assertIn('name: four-mode-watchdog-decision-${{ github.run_id }}', self.text)
