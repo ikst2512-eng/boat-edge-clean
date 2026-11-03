@@ -122,6 +122,13 @@ class FrozenNightlyTests(unittest.TestCase):
 
     def test_older_runs_dropped_is_explicit_incomplete(self):
         inventory = [run(1000 + i) for i in range(81)]
+        # Real runs with no newly published predictions carry zero races,
+        # not an impossible duplicated frozen prediction across 80 runs.
+        self.evidence.update({"status": "no_confirmed_publication",
+                              "published_forecasts": 0,
+                              "frozen_before_t_minus_12": 0,
+                              "ineligible_count": 0, "records": []})
+        self.evidence.pop("publication_commit_sha")
         out = summarize(inventory, self.root, self.download, self.root)
         self.assertEqual(out["selected_runs"], 80)
         self.assertEqual(out["older_eligible_runs_omitted"], 1)
