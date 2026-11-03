@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from hole_third_donor_ranking_research import select,rank_candidates,inspect
+from hole_third_donor_ranking_research import select,rank_candidates,inspect,paired_outcomes
 from test_hole_third_choice_research import archive as source_archive
 
 
@@ -73,6 +73,54 @@ class DonorRankingResearchTests(unittest.TestCase):
         self.assertEqual(output["comparable"],0)
         self.assertEqual(output["unavailable"],{"unconfirmed_result":1})
         self.assertEqual(output["topn"]["donor_consensus"]["top10"]["hits"],0)
+
+    def test_paired_results_preserve_race_denominator_and_date_partition(self):
+        def row(code,national,consensus):
+            return {"race_code":code,"flags":{
+                "third_national_rate":{"top10":national},
+                "donor_consensus":{"top10":consensus}}}
+        data=[
+            row("202611040101",True,True),
+            row("202611040102",True,False),
+            row("202611040103",False,True),
+            row("202611050101",True,False),
+            row("202611050102",False,False)]
+        paired=paired_outcomes(data)
+        self.assertEqual(paired["sample"],5)
+        self.assertEqual(paired["both_hit"],1)
+        self.assertEqual(paired["only_challenger"],2)
+        self.assertEqual(paired["only_comparator"],1)
+        self.assertEqual(paired["neither_hit"],1)
+        self.assertEqual(paired["net"],1)
+        self.assertEqual(paired["dates"]["20261104"]["races"],3)
+        self.assertEqual(paired["dates"]["20261105"]["races"],2)
+        self.assertEqual(paired["disagreement_race_codes"],
+                         ["202611040102","202611040103","202611050101"])
+
+    def test_paired_comparison_rejects_invalid_hit_booleans(self):
+        data=[{"race_code":CODE,"flags":{
+            "third_national_rate":{"top10":1},
+            "donor_consensus":{"top10":False}}}]
+        with self.assertRaisesRegex(ValueError,"invalid_hit_boolean"):
+            paired_outcomes(data)
+        with self.assertRaisesRegex(ValueError,"unknown_comparison"):
+            paired_outcomes([],challenger="outcome_oracle")
+
+    def test_actual_inspection_emits_paired_audit_consistent_with_hits(self):
+        archive=archive_with_consensus()
+        with patch("hole_third_donor_ranking_research.archived_four_modes",
+                   return_value=(200,archive)),patch(
+             "hole_third_donor_ranking_research.national_rates",
+             return_value=[5,3,8,7,6,1]),patch(
+             "hole_third_donor_ranking_research.compare_race",
+             return_value={"status":"historical_comparison_only",
+                           "winning_ticket":"1-5-3"}):
+            output=inspect([CODE],Path("."))
+        paired=output["paired_top10"]["donor_consensus"]
+        self.assertEqual(paired["sample"],output["comparable"])
+        self.assertEqual(paired["net"],
+                         output["topn"]["third_national_rate"]["top10"]["hits"]-
+                         output["topn"]["donor_consensus"]["top10"]["hits"])
 
     def test_methods_reject_unknown_names(self):
         with self.assertRaisesRegex(ValueError,"unknown_research_method"):
