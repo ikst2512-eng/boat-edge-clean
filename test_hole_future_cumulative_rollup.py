@@ -124,6 +124,30 @@ class CumulativeEvidenceTests(unittest.TestCase):
         out=rollup([report({})])
         self.assertEqual(out["comparable"],0)
         self.assertEqual(out["invalid_report_counts"],{})
+    def test_nonmonotonic_race_quarantines_entire_report(self):
+        good=report({"202611040101":flags(False,True)})
+        mixed=report({"202611050101":flags(False,True),
+                      "202611050102":flags(False,True)},
+                     "2026-11-05","2026-11-06")
+        mixed["per_race_flags"]["202611050102"]["third_national_rate"]["top5"]=True
+        # The bad Top5 violates Top5 => Top10 only after making Top10 false.
+        mixed["per_race_flags"]["202611050102"]["third_national_rate"]["top10"]=False
+        # Keep the daily totals aligned so only per-race validity is tested.
+        mixed=report(mixed["per_race_flags"],"2026-11-05","2026-11-06")
+        out=rollup([good,mixed])
+        self.assertEqual(out["comparable"],1)
+        self.assertEqual(out["race_codes"],["202611040101"])
+        self.assertEqual(out["invalid_report_counts"]["nonmonotonic_hit_flags"],1)
+    def test_top5_shift_quarantines_entire_report(self):
+        valid=report({"202611040101":flags(False,True)})
+        shifted=flags(False,True)
+        shifted["third_national_rate"]["top5"]=True
+        mixed=report({"202611050101":flags(False,True),
+                      "202611050102":shifted},"2026-11-05","2026-11-06")
+        out=rollup([valid,mixed])
+        self.assertEqual(out["comparable"],1)
+        self.assertEqual(out["race_codes"],["202611040101"])
+        self.assertEqual(out["invalid_report_counts"]["top5_shift"],1)
     def test_empty_reports_not_formal_proof(self):
         out=rollup([])
         self.assertEqual(out["comparable"],0)
