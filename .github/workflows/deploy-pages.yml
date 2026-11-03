@@ -342,7 +342,7 @@ jobs:
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
               if(await page.locator('#forecastQuick:visible').count()!==0)throw Error('Duplicate race picker visible');
               for(const view of ['forecast','card','exhibit','result']){
-                await shortcuts.locator('[data-race-view="'+view+'"]').click();
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
                 const active=await page.evaluate(()=>activeView);
                 if(active!==view)throw Error('Race shortcut did not activate '+view+': '+active);
               }
