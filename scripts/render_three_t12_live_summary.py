@@ -44,6 +44,8 @@ def summarize(data):
         raise ValueError("audit identity or certification mismatch")
     result += [f"- 公式締切: `{audit.get('official_deadline_jst', '未確認')}`",
                f"- T−12基準: `{audit.get('cutoff_jst', '未確認')}`",
+               f"- 最終原本受信: `{audit.get('latest_original_received_jst', '未確認')}`",
+               f"- T−12までの最終受信余裕: `{audit.get('t12_receipt_margin_seconds', '未確認')}` 秒",
                "", "| 原本 | 受信時刻(JST) |", "|---|---|",
                f"| 出走表 | {audit.get('racelist_received_jst', '未確認')} |",
                f"| 公式直前 | {audit.get('beforeinfo_received_jst', '未確認')} |",
