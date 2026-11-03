@@ -136,6 +136,37 @@ class ResultCollectorTests(unittest.TestCase):
                     path.write_text(json.dumps(payload),encoding="utf-8")
                     self.assertEqual(c.confirmed_record_is_usable(path,code),expected)
 
+    def test_collector_rejects_corrupt_preexisting_result_without_overwrite(self):
+        class Response:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def read(self,*args): return (
+                "レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
+                "202610270101,2026-10-27T16:00:00+09:00,1,2,3\\n").encode()
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            confirmed=root/"confirmed_results"
+            confirmed.mkdir()
+            code="202610270101"
+            target=confirmed/(code+".json")
+            valid=self.valid_confirmation(code)
+            invalids=[
+                "{}",
+                json.dumps(dict(valid,source_sha256="broken")),
+                json.dumps(dict(valid,finish_order=[1,1,3])),
+                json.dumps(dict(valid,confirmed_at_jst="2026-11-03T12:06:00+09:00")),
+            ]
+            with patch.object(c,"ROOT",root), patch.object(c,"urlopen",return_value=Response()):
+                for data in invalids:
+                    with self.subTest(data=data):
+                        target.write_text(data,encoding="utf-8")
+                        with self.assertRaisesRegex(ValueError,"existing archive invalid"):
+                            c.collect("20261027")
+                        self.assertEqual(target.read_text(encoding="utf-8"),data)
+                target.write_text(json.dumps(valid),encoding="utf-8")
+                self.assertEqual(c.collect("20261027")["saved"],0)
+
     def test_missing_source_rows_are_not_declared_losses(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
         csv=(header+"202610280101,2026-10-28T12:00:00+09:00,1,2,3\\n"
