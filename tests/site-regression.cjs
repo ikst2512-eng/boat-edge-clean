@@ -344,7 +344,7 @@ assert.ok(script.includes("scheduledVenue?'このレースは開催されてい�
 
 // The published racecard must retry transient server/network errors only,
 // preserving race identity and refusing 404 or 422 as retryable evidence.
-const cardLoader=script.slice(script.indexOf('async function loadRaceData('),script.indexOf('async function loadResult('));
+const cardLoader=script.slice(script.indexOf('async function loadRaceData('),script.indexOf('async function loadRaceData(')+3500);
 assert.ok(cardLoader.includes("for(let attempt=0;attempt<3;attempt++)")&&
           cardLoader.includes("[429,500,502,503,504].includes(response.status)"),
           'Racecard loader must bound retries to transient HTTP responses');
