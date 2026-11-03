@@ -34,7 +34,7 @@ class FallbackGateTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/live-official-odds-probe.yml").read_text()
         import re
-        cron = re.findall(r"^\\s+- cron: '([^']+)'", workflow, flags=re.MULTILINE)
+        cron = re.findall(r"^\s+- cron: '([^']+)'", workflow, flags=re.MULTILINE)
         self.assertEqual(cron, ["25 3 * * *", "25 5 * * *", "25 7 * * *"])
         # UTC 03:25 / 05:25 / 07:25 are JST 12:25 / 14:25 / 16:25.
         self.assertEqual({(int(parts.split()[1]) + 9) % 24
