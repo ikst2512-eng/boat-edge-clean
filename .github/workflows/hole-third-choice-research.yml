@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_locked_two_pair_miss_audit.py
+      - test_hole_locked_two_pair_miss_audit.py
       - hole_new_head_coverage_research.py
       - test_hole_new_head_coverage_research.py
       - hole_pair_third_budget_research.py
@@ -30,7 +32,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py
+      - run: python hole_locked_two_pair_miss_audit.py > hole_locked_two_pair_miss_results.json
+      - name: Verify locked two-pair miss categories and saved donor evidence
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_locked_two_pair_miss_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for group,s in r["groups"].items():
+              print("GROUP",group,"N",s["comparable"])
+              print("LOCKED_MISS_CLASSES",s["miss_classes"])
+              print("PAIR_SOURCES",s["missing_pair_sources"])
+              print("THIRD_DONOR_SOURCES",s["wrong_third_donor_availability"])
+              print("BASELINE_LOCKED_TRANSITIONS",s["baseline_to_locked"])
+              print("GAIN_LOSS",s["gain_loss"])
+              assert sum(s["miss_classes"].values())==s["comparable"]
+              assert sum(s["missing_pair_sources"].values())==s["miss_classes"]["second_pair_absent"]
+              assert sum(s["wrong_third_donor_availability"].values())==s["miss_classes"]["third_boat_absent"]
+              assert sum(d["races"] for d in s["by_date"].values())==s["comparable"]
+              assert s["gain_loss"]["net"]==s["gain_loss"]["rescued"]-s["gain_loss"]["displaced"]
+          PY
       - run: python hole_new_head_coverage_research.py > hole_new_head_coverage_results.json
       - name: Explain new 1st-head coverage and compare paired Top10 changes
         run: |
@@ -218,3 +243,4 @@ jobs:
             hole_second_pair_source_report.json
             hole_pair_third_budget_results.json
             hole_new_head_coverage_results.json
+            hole_locked_two_pair_miss_results.json
