@@ -38,6 +38,7 @@ def summarize(raw, venue_report=None):
         "forecast_only_exposure": {"valid": 0, "eligible": 0,
                                    "reordered_top10": 0, "changed_top3_membership": 0,
                                    "changed_top5_membership": 0},
+        "forecast_only_top3_signatures": {m: {} for m in ("narrow", "hit", "balance", "hole", "hit_shadow")},
         "matured_comparable": 0,
         "matured_modes": {m: {f"top{n}": 0 for n in (3, 5, 10)}
                           for m in ("narrow", "hit", "balance", "hole")},
@@ -99,6 +100,24 @@ def summarize(raw, venue_report=None):
                 or row["changed_top3_membership"] > exposure["changed_top3_membership"]
                 or row["changed_top5_membership"] > exposure["changed_top5_membership"]):
             raise ValueError("paired_exposure_exceeds_forecast_exposure")
+        signatures = row["forecast_only_top3_signatures"]
+        if set(signatures) != set(totals["forecast_only_top3_signatures"]):
+            raise ValueError("invalid_top3_signature_modes")
+        for mode, counts in signatures.items():
+            if not isinstance(counts, dict) or any(
+                type(signature) is not str or
+                len(signature.split("|")) != 3 or
+                any(len(combo.split("-")) != 3 or
+                    any(boat not in "123456" for boat in combo.split("-")) or
+                    len(set(combo.split("-"))) != 3
+                    for combo in signature.split("|")) or
+                type(n) is not int or n <= 0
+                for signature, n in counts.items()
+            ) or sum(counts.values()) != valid:
+                raise ValueError("invalid_top3_signature_counts")
+            aggregate = totals["forecast_only_top3_signatures"][mode]
+            for signature, count in counts.items():
+                aggregate[signature] = aggregate.get(signature, 0) + count
         totals["forecast_only_exposure"]["valid"] += valid
         totals["forecast_only_exposure"]["eligible"] += eligible
         completed_days += int(c > 0)
@@ -218,6 +237,17 @@ def summarize(raw, venue_report=None):
             raise ValueError("changed_case_date_count_mismatch")
     if statuses["confirmed_research_only"] != totals["changed_top3_membership"]:
         raise ValueError("changed_case_confirmed_mismatch")
+    top3_concentration = {}
+    for mode, patterns in totals["forecast_only_top3_signatures"].items():
+        samples = totals["forecast_only_exposure"]["valid"]
+        most_common = sorted(patterns.items(), key=lambda kv: (-kv[1], kv[0]))
+        top3_concentration[mode] = {
+            "forecast_count": samples,
+            "distinct_ordered_top3": len(patterns),
+            "most_common_top3": most_common[0][0].split("|") if most_common else None,
+            "most_common_count": most_common[0][1] if most_common else 0,
+            "most_common_share": round(most_common[0][1] / samples, 6) if samples else None,
+        }
     n = totals["paired_results"]
     gains = totals["gained_top3"]
     losses = totals["lost_top3"]
@@ -275,6 +305,7 @@ def summarize(raw, venue_report=None):
         "formal": False, "production_promotion_allowed": False,
         "total": totals, "evaluation_days": completed_days,
         "top3_net_gain": gains - losses,
+        "forecast_only_top3_concentration": top3_concentration,
         "venue_coverage": venue_coverage,
         "changed_top3_case_status_counts": statuses,
         "changed_top3_missing_race_codes": [
