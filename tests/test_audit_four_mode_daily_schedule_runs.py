@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 from scripts.audit_four_mode_daily_schedule_runs import audit_day
 
 
@@ -9,10 +10,10 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
                 "status": status, "conclusion": conclusion}
 
     def test_full_day_detects_early_failure_outside_last_twelve_artifacts(self):
-        rows = [
-            self.run(300 - i, f"2026-11-04T{19 - i // 4:02d}:{(i % 4)*15:02d}:00+09:00")
-            for i in range(48)
-        ]
+        latest = datetime(2026, 11, 4, 20, 52,
+                          tzinfo=timezone(timedelta(hours=9)))
+        rows = [self.run(300 - i, (latest - timedelta(minutes=15*i)).isoformat())
+                for i in range(48)]
         rows[47]["conclusion"] = "failure"
         rows.append(self.run(100, "2026-11-03T20:52:00+09:00"))
         result = audit_day("owner/repo", "20261104", "token",
