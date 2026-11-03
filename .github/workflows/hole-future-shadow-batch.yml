@@ -30,7 +30,7 @@ jobs:
           python-version: '3.11'
       - name: Test batch evidence quarantine
         run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py test_hole_future_late_recheck.py
-      - name: Audit last 20 collection runs (read only)
+      - name: Audit two completed JST collection days (read only)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -76,6 +76,14 @@ jobs:
           assert r["independent_first_receipt_verified"] is False
           assert r["recheck_lag_days"]==int(os.environ["AGE"])
           assert r["window_start_jst"]<r["window_end_exclusive_jst"]
+          # On/after the first eligible period, audit exactly the race day
+          # N calendar days before the report time; not N+1 days ago.
+          from datetime import datetime,timedelta,timezone,date
+          today=datetime.now(timezone(timedelta(hours=9))).date()
+          expected=today-timedelta(days=int(os.environ["AGE"]))
+          if expected>=date(2026,11,4):
+              assert r["window_start_jst"]==expected.isoformat()
+              assert r["window_end_exclusive_jst"]==(expected+timedelta(days=1)).isoformat()
           print("LATE_RECHECK",os.environ["AGE"],r["window_start_jst"],
                 "scorable",r["comparable"],
                 "pending",r["repository_result_coverage"].get("unconfirmed","unknown"),

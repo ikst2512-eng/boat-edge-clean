@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
 from unittest.mock import patch
-from hole_future_artifact_batch import aggregate,discover_full_days,collect_recent,summarize_downloaded_runs
+from hole_future_artifact_batch import aggregate,discover_full_days,collect_recent,summarize_downloaded_runs,late_window_as_of
 
 CODE1="202611040101"
 CODE2="202611040102"
@@ -121,6 +121,38 @@ class FullDayListingTests(unittest.TestCase):
  def test_days_limit(self):
   with self.assertRaises(ValueError):
    discover_full_days("a/b","token",days=4)
+class LateWindowBoundaryTests(unittest.TestCase):
+ def test_seven_days_later_checks_original_race_day(self):
+  now=datetime(2026,11,11,1,40,tzinfo=timezone(timedelta(hours=9)))
+  shifted=late_window_as_of(now,7)
+  self.assertEqual(shifted.date().isoformat(),"2026-11-05")
+  self.assertEqual((shifted.date()-timedelta(days=1)).isoformat(),"2026-11-04")
+ def test_twenty_one_days_later_checks_original_race_day(self):
+  now=datetime(2026,11,25,1,40,tzinfo=timezone(timedelta(hours=9)))
+  shifted=late_window_as_of(now,21)
+  self.assertEqual(shifted.date().isoformat(),"2026-11-05")
+  self.assertEqual((shifted.date()-timedelta(days=1)).isoformat(),"2026-11-04")
+ def test_default_daily_window_remains_previous_two_completed_days(self):
+  now=datetime(2026,11,11,1,40,tzinfo=timezone(timedelta(hours=9)))
+  self.assertEqual(late_window_as_of(now,0,2),now)
+ def test_no_naive_timestamp_or_invalid_lag(self):
+  with self.assertRaises(ValueError):
+   late_window_as_of(datetime(2026,11,11),7)
+  with self.assertRaises(ValueError):
+   late_window_as_of(datetime(2026,11,11,tzinfo=timezone.utc),7)
+  with self.assertRaises(ValueError):
+   late_window_as_of(datetime(2026,11,11,tzinfo=timezone(timedelta(hours=9))),29)
+ def test_seven_day_window_from_real_discovery(self):
+  now=datetime(2026,11,11,1,40,tzinfo=timezone(timedelta(hours=9)))
+  ts=late_window_as_of(now,7)
+  page=[{"id":42,"event":"schedule","created_at":"2026-11-04T04:30:00Z"}]
+  with patch("hole_future_artifact_batch.api",
+             return_value=json.dumps({"workflow_runs":page}).encode()):
+   found=discover_full_days("a/b","token",days=1,as_of_jst=ts)
+  self.assertEqual(found["window_start_jst"],"2026-11-04")
+  self.assertEqual(found["window_end_exclusive_jst"],"2026-11-05")
+  self.assertEqual([r["id"] for r in found["candidates"]],[42])
+
 class DownloadedRunEvidenceTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory()

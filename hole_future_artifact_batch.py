@@ -185,6 +185,22 @@ def summarize_downloaded_runs(root,run_ids):
                            isinstance(shadow.get("records"),list) else None})
     return rows
 
+def late_window_as_of(now_jst, lag_days, days=1):
+    """A check N days later must include the race day now-N, not the day before.
+
+    discover_full_days uses an exclusive end date. For N=7 and days=1,
+    today's 2026-11-11 run must inspect 2026-11-04, not 2026-11-03.
+    """
+    if now_jst.tzinfo is None or now_jst.utcoffset()!=timedelta(hours=9):
+        raise ValueError("now_must_be_jst")
+    if type(lag_days) is not int or not 0<=lag_days<=28:
+        raise ValueError("invalid_lag_days")
+    if type(days) is not int or not 1<=days<=3:
+        raise ValueError("invalid_day_window")
+    # Shift the exclusive end to the day after the target race day.
+    return now_jst-timedelta(days=max(lag_days-1,0))
+
+
 def collect_recent(root,repo,token,days=2,as_of_jst=None):
     if not repo or not token:raise ValueError("credentials_required")
     discovery=discover_full_days(repo,token,days,as_of_jst)
@@ -250,7 +266,7 @@ if __name__=="__main__":
     else:
         if type(opts.lag_days) is not int or opts.lag_days<0 or opts.lag_days>28:
             raise ValueError("invalid_lag_days")
-        observation_time=datetime.now(JST)-timedelta(days=opts.lag_days)
+        observation_time=late_window_as_of(datetime.now(JST),opts.lag_days,opts.days)
         x=collect_recent(opts.root,os.environ["GITHUB_REPOSITORY"],
                          os.environ["GH_TOKEN"],opts.days,observation_time)
         x["recheck_lag_days"]=opts.lag_days
