@@ -70,7 +70,7 @@ class ActivationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"timestamp_naive"):
             dispatch_decision(NOW,[{"event":"schedule",
                 "created_at":"2026-11-04T10:11:00",
-                "head_branch":"main"}])
+                "head_branch":"main","status":"completed"}])
         with self.assertRaisesRegex(ValueError,"future_run_timestamp"):
             dispatch_decision(NOW,[event(minutes=-2)])
         with self.assertRaisesRegex(ValueError,"run_invalid"):
