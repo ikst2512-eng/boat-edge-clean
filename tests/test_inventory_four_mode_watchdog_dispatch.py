@@ -30,6 +30,17 @@ class WatchdogInventoryTest(unittest.TestCase):
         self.assertFalse(d["dispatch_accepted_proven"])
         self.assertFalse(d["forecast_saved_proven"])
 
+    def test_full_capture_history_is_kept_for_daily_liveness(self):
+        calls = [row(i, "schedule", "2026-11-03T00:07:00Z")
+                 for i in range(1, 31)]
+        def fetch(url, token):
+            if "four-mode-prospective-capture.yml" in url and "event=schedule" in url:
+                return {"workflow_runs": calls}
+            return {"workflow_runs": []}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(len(result["recent_capture_runs"]), 30)
+        self.assertEqual(result["recent_capture_runs"][-1]["id"], 30)
+
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
             return {"workflow_runs": []}
