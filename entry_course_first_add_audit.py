@@ -9,8 +9,8 @@ from datetime import datetime,timezone
 from urllib.parse import urlencode
 import re
 
-SHA=re.compile(r"[0-9a-f]{40}\\Z")
-PATH=re.compile(r"(?:t12_baselines|waku10|entry_course)/20[0-9]{6}/20[0-9]{10}\\.json\\Z")
+SHA=re.compile(r"[0-9a-f]{40}\Z")
+PATH=re.compile(r"(?:t12_baselines|waku10|entry_course)/20[0-9]{6}/20[0-9]{10}\.json\Z")
 BRANCH="entry-course-evidence-ledger"
 MAX_FILES=12
 MAX_PAGES=3
