@@ -26,6 +26,7 @@ on:
       - test_third_rate_evidence_ledger.py
       - test_four_mode_v2_frozen_third_nightly.py
       - test_four_mode_v2_frozen_third_artifact_score.py
+      - test_four_mode_v2_capture_ledger_integration.py
       - test_four_mode_v2_third_rate_git_ancestry.py
       - test_four_mode_v2_third_rate_shadow.py
       - test_four_mode_v2_conditional_place_ranks.py
@@ -62,7 +63,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence test_v2_nightly_pipeline_exit_propagation test_four_mode_v2_daily_evidence_summary
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_capture_ledger_integration test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence test_v2_nightly_pipeline_exit_propagation test_four_mode_v2_daily_evidence_summary
       - name: Evaluate read-only V2 shadow on confirmed results
         run: |
           set -o pipefail
