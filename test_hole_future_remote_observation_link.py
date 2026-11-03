@@ -77,7 +77,9 @@ class LinkTests(unittest.TestCase):
     def test_mismatched_commit_or_bytes_cannot_pass(self):
         self.row["first_add_commit"]="b"*40
         self.save()
-        self.assertEqual(self.evaluate()["race_status"][CODE],"conflicting_observations")
+        report=self.evaluate()
+        self.assertEqual(report["race_status"][CODE],"missing_observation")
+        self.assertEqual(report["excluded_ledger_files"]["invalid_ledger_file"],1)
         self.row["first_add_commit"]=SHA
         self.row["original_sha256"]="0"*64
         self.save()
