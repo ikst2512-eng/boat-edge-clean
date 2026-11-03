@@ -82,6 +82,35 @@ class LateResultTests(unittest.TestCase):
         self.assertEqual(result["comparable"],0)
         self.assertEqual(result["conflicted_codes_quarantined"],[CODE])
 
+    def test_run_history_filtered_before_limit_not_buried_by_pr_checks(self):
+        events=[]
+        def invoke(args,**kwargs):
+            if args[1:3]==["run","list"]:
+                self.assertIn("--event",args)
+                event=args[args.index("--event")+1]
+                events.append(event)
+                self.assertEqual(args[args.index("--limit")+1],"2")
+                # Simulate large PR activity: it must not appear in either
+                # event-filtered query, even if most recent overall.
+                listed=([{"databaseId":123,"event":"schedule","conclusion":"success"}]
+                        if event=="schedule" else
+                        [{"databaseId":124,"event":"workflow_dispatch","conclusion":"success"}])
+                return SimpleNamespace(returncode=0,stdout=json.dumps(listed))
+            run_id=int(args[3])
+            self.assertIn(run_id,(123,124))
+            target=Path(args[args.index("--dir")+1])
+            target.mkdir(parents=True,exist_ok=True)
+            (target/"hole_future_batch.json").write_text(json.dumps(
+                report([CODE],0,"2026-11-04","2026-11-06")))
+            return SimpleNamespace(returncode=0,stdout="")
+        with patch("hole_future_cumulative_rollup.subprocess.run",side_effect=invoke):
+            result=fetch_previous("owner/repo",limit=2)
+        self.assertEqual(events,["schedule","workflow_dispatch"])
+        self.assertEqual(result["runs_listed"],2)
+        self.assertEqual(result["event_runs_returned"],
+                         {"schedule":1,"workflow_dispatch":1})
+        self.assertEqual(result["comparable"],1)
+        self.assertEqual(result["hits"]["third_national_rate"]["top10"],1)
     def test_mismatched_age_invalidates_entire_run(self):
         with patch("hole_future_cumulative_rollup.subprocess.run",
                    side_effect=self.fake_gh("tampered")):
