@@ -154,7 +154,8 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
     """Fail closed if normal cron ran or its state cannot be verified.
 
     Only an absent/failed scheduled probe permits the upstream fallback.
-    The upstream's JST day and the three fixed slot times define the window.
+    Require a direct observation within the same 90-minute cron coverage
+    window; out-of-window runs cannot establish on-time coverage for a slot.
     """
     if not repository or "/" not in repository or not token:
         return "schedule_lookup_unavailable"
@@ -186,7 +187,10 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
             if created.tzinfo is None:
                 return "schedule_lookup_unavailable"
-            if not slot <= created <= now:
+            # A direct schedule outside the same 90-minute grace interval
+            # is not verified coverage for this slot. Preserve delayed runs
+            # separately in the cron history report.
+            if not slot <= created <= min(now, slot + timedelta(minutes=90)):
                 continue
             if run.get("status") != "completed":
                 return "direct_schedule_observed"
