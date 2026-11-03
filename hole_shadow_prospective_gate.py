@@ -20,7 +20,7 @@ JST = timezone(timedelta(hours=9))
 TOPS = (3, 5, 10)
 
 
-def freeze(code, root, now=None):
+def freeze(code, root, now=None, clock=None):
     root = Path(root)
     status, archived = archived_four_modes(code, root)
     if status != 200:
@@ -29,10 +29,17 @@ def freeze(code, root, now=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("naive_now")
-    cutoff = datetime.fromisoformat(archived["deadline_jst"])
-    if cutoff.utcoffset() != timedelta(hours=9) or now >= cutoff:
-        return {"status": "past_deadline", "race_code": code,
+    deadline = datetime.fromisoformat(archived["deadline_jst"])
+    if deadline.utcoffset() != timedelta(hours=9):
+        return {"status": "invalid_deadline_timezone", "race_code": code,
                 "prospective_verified": False}
+    cutoff = deadline - timedelta(minutes=12)
+    if now >= cutoff:
+        return {"status": "after_t_minus_12", "race_code": code,
+                "prospective_verified": False}
+    # Check the real completion time too: a forecast that starts before T-12
+    # but finishes later must never be labelled a pre-T-12 frozen candidate.
+    clock = clock or (lambda: datetime.now(timezone.utc))
     modes = {name: [x["combo"] for x in archived["modes"][name]["tickets"]]
              for name in ("hole", "hit", "balance")}
     baseline = modes["hole"][:10]
@@ -67,7 +74,7 @@ def freeze(code, root, now=None):
     # The already-locked 2026-11-04+ research method is frozen at the same
     # publication-job timestamp. Never reconstruct an alleged frozen pick
     # using a settled result. Old-period files retain the original V1 schema.
-    if cutoff.date() >= FIRST_ELIGIBLE_DAY:
+    if deadline.date() >= FIRST_ELIGIBLE_DAY:
         locked=verify_locked_selection()
         choices=variants(archived,national_rates(code,root))
         expected=("baseline","donor_order","max_ticket_score","third_national_rate")
@@ -81,6 +88,14 @@ def freeze(code, root, now=None):
         record["future_locked_method"]="hole_third_choice_research.variants:nov04_locked_v1"
         record["future_locked_selector_git_blobs"]=locked
         record["future_locked_first_eligible_jst"]=FIRST_ELIGIBLE_DAY.isoformat()
+    finished_at = clock()
+    if not isinstance(finished_at, datetime) or finished_at.tzinfo is None:
+        raise ValueError("naive_or_invalid_finish_time")
+    if finished_at >= cutoff:
+        return {"status": "calculation_crossed_t_minus_12", "race_code": code,
+                "prospective_verified": False}
+    record["local_freeze_at_jst"] = finished_at.astimezone(JST).isoformat()
+    record["t_minus_12_jst"] = cutoff.isoformat()
     return record
 
 
