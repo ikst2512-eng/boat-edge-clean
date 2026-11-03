@@ -64,6 +64,30 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(output["targets"]["t12"]["observed_dispatch_runs"],1)
         with self.assertRaisesRegex(ValueError,"runs_invalid"):
             run_once(now=NOW,fetch_runs=lambda f,e:None,dispatch=lambda f:None)
+    def test_second_target_api_failure_never_partially_dispatches_first(self):
+        calls=[]
+        requested=[]
+        def fetch(file,kind):
+            calls.append((file,kind))
+            if file==TARGETS["t2"]:
+                raise ValueError("simulated_t2_api_error")
+            return []
+        with self.assertRaisesRegex(ValueError,"simulated_t2_api_error"):
+            run_once(now=NOW,fetch_runs=fetch,
+                     dispatch=lambda f:requested.append(f))
+        self.assertEqual(requested,[])
+        self.assertEqual(calls[:2],[(TARGETS["t12"],"schedule"),
+                                    (TARGETS["t12"],"workflow_dispatch")])
+
+    def test_second_target_invalid_receipt_never_partially_dispatches_first(self):
+        requested=[]
+        def fetch(file,kind):
+            return [event(minutes=40,status="unknown")] if file==TARGETS["t2"] else []
+        with self.assertRaisesRegex(ValueError,"run_status_invalid"):
+            run_once(now=NOW,fetch_runs=fetch,
+                     dispatch=lambda f:requested.append(f))
+        self.assertEqual(requested,[])
+
     def test_invalid_clock_and_run_receipts_fail_closed(self):
         with self.assertRaisesRegex(ValueError,"clock_invalid"):
             dispatch_decision(datetime(2026,11,4,10,12),[])

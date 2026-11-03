@@ -109,12 +109,15 @@ def run_once(*, now, fetch_runs, dispatch):
                 "observed_schedule_runs":sum(r.get("event")=="schedule" for r in runs),
                 "observed_dispatch_runs":sum(r.get("event")=="workflow_dispatch" for r in runs),
                 "trigger_is_schedule":False}
-        if decision=="dispatch_missing_research_job":
+        record["dispatch_requested"]=False
+        report["targets"][kind]=record
+    # Preflight every target before any side effect: a bad T2 API receipt
+    # must never cause a partial T12 dispatch without an audit report.
+    for kind,file in TARGETS.items():
+        record=report["targets"][kind]
+        if record["decision"]=="dispatch_missing_research_job":
             dispatch(file)
             record["dispatch_requested"]=True
-        else:
-            record["dispatch_requested"]=False
-        report["targets"][kind]=record
     return report
 
 
