@@ -429,7 +429,53 @@ class BatchTests(unittest.TestCase):
                              ["202611030708"])
             self.assertEqual(verdict["missing_baseline_race_codes"],[])
             self.assertTrue(t2_cli_failure(verdict))
-            self.assertEqual(verdict["stored_count"],1)
+            self.assertEqual(verdict["stored_count"],0)
+            self.assertEqual(len(archived),0)
+            self.assertEqual(verdict["results"][0]["status"],
+                             "independent_deadline_conflict")
+    def test_mismatched_deadline_cannot_publish_and_other_races_still_capture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,2)
+            archive={}
+            observed=[]
+            def reader(day,venue,race):
+                observed.append(race)
+                return cards[day+venue+race]
+            report=attempt_batch(tmp,now=lambda:NOW,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:34"},
+                     {"レースコード":"202611030709",
+                      "電話投票締切予定":"18:33"}],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=reader,waku_fetch=lambda url:raw_csv,
+                ledger_ops=(archive.get,lambda p,b:archive.setdefault(p,b)))
+            self.assertEqual(report["status"],"t2_batch_t12_deadline_conflict")
+            self.assertEqual(report["baseline_deadline_conflict_race_codes"],
+                             ["202611030708"])
+            self.assertEqual(report["stored_count"],1)
+            self.assertEqual(report["not_stored_count"],1)
+            self.assertEqual(report["results"][0]["status"],
+                             "independent_deadline_conflict")
+            self.assertEqual(observed,["09"])
+            self.assertEqual(set(archive),{"waku10/20261103/202611030709.json"})
+            self.assertTrue(t2_cli_failure(report))
+    def test_deadline_change_outside_original_window_still_blocks_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            report=attempt_batch(tmp,now=lambda:NOW,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:40"}],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda *args:self.fail("mismatched deadline cannot collect"),
+                waku_fetch=lambda *args:self.fail("mismatched deadline cannot read Waku10"))
+            self.assertEqual(report["baseline_deadline_conflict_race_codes"],
+                             ["202611030708"])
+            self.assertEqual(report["status"],"t2_batch_t12_deadline_conflict")
+            self.assertEqual(report["newly_stored_count"],0)
     def test_independent_schedule_matching_deadline_has_no_conflict(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,raw_csv=setup(tmp,1)

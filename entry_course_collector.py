@@ -313,11 +313,11 @@ def expected_t2_without_baseline(now, root, *, schedule_fetch=None,
             continue
         deadline=datetime.strptime(day+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
         remaining=((deadline-timedelta(minutes=2))-now).total_seconds()
+        previous=expected_deadlines.get(code)
+        if previous is not None and previous!=deadline:
+            raise ValueError("t2_conflicting_live_schedule_deadlines")
+        expected_deadlines[code]=deadline
         if 45<=remaining<=max_minutes*60:
-            previous=expected_deadlines.get(code)
-            if previous is not None and previous!=deadline:
-                raise ValueError("t2_conflicting_live_schedule_deadlines")
-            expected_deadlines[code]=deadline
             expected.append(code)
     return {"expected_race_codes":sorted(set(expected)),
             "expected_deadline_jst_by_race":{
@@ -362,6 +362,39 @@ def attempt_batch(root, *, now=None, max_per_run=3,
                           missing_baseline_race_codes=expected["expected_race_codes"],
                           stored=False)
         return report
+    # Read independent deadline evidence BEFORE creating any new T−2 archive.
+    # Capture races that agree even when a separate race has a disagreement.
+    # A transient schedule outage still allows research captures, but the
+    # completed job remains an explicit source-audit failure.
+    expected_schedule=None
+    schedule_error_type=None
+    missing_bases=[]
+    deadline_conflicts=[]
+    if verify_expected_schedule:
+        try:
+            expected_schedule=expected_t2_without_baseline(
+                snapshot_time,root,schedule_fetch=schedule_fetch)
+            due=set(expected_schedule["expected_race_codes"])
+            known={entry[1] for entry in pool}
+            missing_bases=sorted(due-known)
+            independent_deadlines=expected_schedule["expected_deadline_jst_by_race"]
+            for cutoff,code,base in pool:
+                independent=independent_deadlines.get(code)
+                if independent is None:
+                    continue
+                source_deadline=datetime.fromisoformat(independent)
+                try:
+                    archived_deadline=datetime.fromisoformat(
+                        base.get("source_deadline_jst"))
+                except (TypeError,ValueError):
+                    archived_deadline=None
+                if (archived_deadline!=source_deadline or
+                        cutoff!=source_deadline-timedelta(minutes=2)):
+                    deadline_conflicts.append(code)
+            deadline_conflicts=sorted(set(deadline_conflicts))
+        except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
+            schedule_error_type=type(exc).__name__
+    blocked=set(deadline_conflicts)
     selected=pool[:max_per_run]
     records=[]
     def capture_one(chosen):
@@ -375,9 +408,15 @@ def attempt_batch(root, *, now=None, max_per_run=3,
             return {"race_code":code,"status":"collector_error",
                     "stored":False,"error_type":type(exc).__name__,
                     "research_only":True}
-    # Always attempt EVERY race before waiting on any unpublished preview.
+    # A race with independently conflicting deadline MUST NOT be
+    # published. The unaffected races are still attempted first.
     for chosen in selected:
-        records.append(capture_one(chosen))
+        if chosen[1] in blocked:
+            records.append({"race_code":chosen[1],
+                            "status":"independent_deadline_conflict",
+                            "stored":False,"research_only":True})
+        else:
+            records.append(capture_one(chosen))
     # The preview is often published around T−5, which is only 3 minutes
     # before the separate T−2 cutoff. Five-minute cron alone can miss this
     # narrow interval. One running job may therefore recheck missing previews
@@ -414,36 +453,8 @@ def attempt_batch(root, *, now=None, max_per_run=3,
     skipped=len(records)-stored-failed
     if stored!=newly_stored+reused:
         raise ValueError("t2_unrecognized_stored_verdict")
-    # Validate the entire current T−2 cohort, not only when the candidate
-    # pool is empty. A partially missing T−12 ledger must not be hidden by
-    # one successful Waku10 capture. This check happens AFTER each available
-    # forecast has been attempted, so a source outage cannot starve captures.
-    missing_bases=[]
-    deadline_conflicts=[]
-    expected_schedule=None
-    schedule_error_type=None
-    if verify_expected_schedule:
-        try:
-            expected_schedule=expected_t2_without_baseline(
-                snapshot_time,root,schedule_fetch=schedule_fetch)
-            known={entry[1] for entry in pool}
-            missing_bases=sorted(set(expected_schedule["expected_race_codes"])-known)
-            expected_deadlines=expected_schedule["expected_deadline_jst_by_race"]
-            for cutoff,code,base in pool:
-                independent=expected_deadlines.get(code)
-                if independent is None:
-                    continue
-                expected_cutoff=datetime.fromisoformat(independent)-timedelta(minutes=2)
-                try:
-                    archived_deadline=datetime.fromisoformat(
-                        base.get("source_deadline_jst"))
-                except (ValueError,TypeError):
-                    archived_deadline=None
-                if cutoff!=expected_cutoff or archived_deadline!=datetime.fromisoformat(independent):
-                    deadline_conflicts.append(code)
-            deadline_conflicts=sorted(set(deadline_conflicts))
-        except (ValueError,TypeError,OSError,TimeoutError,HTTPError,URLError) as exc:
-            schedule_error_type=type(exc).__name__
+    # The prospective cohort was independently checked BEFORE the first
+    # write; preserve diagnostics after capturing all unaffected races.
     # A successful workflow with actual eligible races but zero verified
     # archives would hide an operational failure. No eligible races remain
     # a valid no-op, and partially stored batches remain visible as partial.
