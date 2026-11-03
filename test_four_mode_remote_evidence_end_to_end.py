@@ -21,7 +21,7 @@ class PipelineTests(unittest.TestCase):
             "race_code":CODE,"deadline_jst":"2026-11-04T12:00:00+09:00"}).encode()
         (self.root/FILE).write_bytes(self.raw)
         self.sha256=hashlib.sha256(self.raw).hexdigest()
-        self.blob=hashlib.sha1(b"blob "+str(len(self.raw)).encode()+b"\\0"+self.raw).hexdigest()
+        self.blob=hashlib.sha1(b"blob "+str(len(self.raw)).encode()+b"\0"+self.raw).hexdigest()
         self.ledger=self.root/"ledger"
         self.store={}
         self.future={"formal":False,"independent_first_receipt_verified":False,
@@ -34,7 +34,7 @@ class PipelineTests(unittest.TestCase):
           "first_add_commit":SHA,"source_sha256":self.sha256}]}
 
     def git(self,*args):
-        if args[0]=="diff-tree":return (FILE+"\\n").encode()
+        if args[0]=="diff-tree":return (FILE+"\n").encode()
         if args[0]=="show":return self.raw
         raise AssertionError(args)
 
