@@ -304,7 +304,18 @@ def attempt_batch(root, *, now=None, max_per_run=3, **kwargs):
     skipped=len(records)-stored-failed
     if stored!=newly_stored+reused:
         raise ValueError("t2_unrecognized_stored_verdict")
-    return {"status":"t2_batch_error" if failed else "t2_batch_completed",
+    # A successful workflow with actual eligible races but zero verified
+    # archives would hide an operational failure. No eligible races remain
+    # a valid no-op, and partially stored batches remain visible as partial.
+    if failed:
+        status="t2_batch_error"
+    elif stored==0:
+        status="t2_batch_no_capture"
+    elif skipped:
+        status="t2_batch_partial_capture"
+    else:
+        status="t2_batch_completed"
+    return {"status":status,
             "attempted_count":len(records),"stored_count":stored,
             "newly_stored_count":newly_stored,"reused_count":reused,
             "not_stored_count":skipped,
@@ -330,7 +341,8 @@ def main():
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(verdict,ensure_ascii=False,sort_keys=True)+"\n",encoding="utf-8")
     print("COURSE_LATE_EVIDENCE="+json.dumps(verdict,ensure_ascii=False,sort_keys=True))
-    if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error"):
+    if verdict["status"] in ("course_evidence_collector_failed","t2_batch_error",
+                            "t2_batch_no_capture"):
         raise SystemExit(2)
 
 if __name__=="__main__":
