@@ -112,14 +112,28 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
 
 
 def run(race, root, obs_id, repo, branch, token, *, observer=observe,
-        publisher=publish_originals):
+        publisher=publish_originals, verifier=None):
     report = observer(race, root, obs_id)
     files = collected_files(root, race, obs_id, report)
     sha = publisher(repo, branch, token, files)
+    if verifier is None:
+        # Local import prevents dependency cycle with read-only re-auditor.
+        from scripts.reaudit_external_three_t12 import reaudit_published
+        verifier = reaudit_published
+    verified = verifier(repo, token, sha, race, obs_id)
+    if verified.get("status") not in (
+            "independent_originals_reaudited", "observation_not_ready"):
+        raise ValueError("remote evidence reinspection did not succeed")
+    if (verified.get("declared_status") != report["status"]
+            or verified.get("full_t12_source_certified") is not False
+            or verified.get("forecast_usable") is not False):
+        raise ValueError("remote evidence status does not agree with local report")
     return {"race_code": race, "status": report["status"],
             "archived_original_count": len(files) - 1,
-            "evidence_commit": sha, "full_t12_source_certified": False,
-            "forecast_usable": False}
+            "evidence_commit": sha,
+            "remote_originals_reaudited": verified["status"] == "independent_originals_reaudited",
+            "research_complete": verified["research_complete"],
+            "full_t12_source_certified": False, "forecast_usable": False}
 
 
 def main():
