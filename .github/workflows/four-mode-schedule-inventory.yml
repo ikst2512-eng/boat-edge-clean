@@ -5,9 +5,11 @@ on:
       - 'scripts/inventory_four_mode_capture_runs.py'
       - 'scripts/report_four_mode_schedule_publications.py'
       - 'scripts/inventory_four_mode_watchdog_dispatch.py'
+      - 'scripts/audit_four_mode_watchdog_decisions.py'
       - 'tests/test_inventory_four_mode_capture_runs.py'
       - 'tests/test_report_four_mode_schedule_publications.py'
       - 'tests/test_inventory_four_mode_watchdog_dispatch.py'
+      - 'tests/test_audit_four_mode_watchdog_decisions.py'
       - '.github/workflows/four-mode-schedule-inventory.yml'
   push:
     branches: [main]
@@ -27,7 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_inventory_four_mode_watchdog_dispatch
+      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_audit_four_mode_watchdog_decisions
       - name: Check real scheduled run history
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -41,6 +43,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.inventory_four_mode_watchdog_dispatch --repo "${{ github.repository }}" --output reports/four_mode_watchdog_dispatch.json
+      - name: Verify watchdog fallback decisions from their own job logs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.audit_four_mode_watchdog_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_decisions.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -49,4 +55,5 @@ jobs:
             reports/four_mode_schedule_history.json
             reports/four_mode_schedule_publications.json
             reports/four_mode_watchdog_dispatch.json
+            reports/four_mode_watchdog_decisions.json
           if-no-files-found: warn
