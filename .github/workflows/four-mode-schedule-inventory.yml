@@ -68,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_watchdog_artifact_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_artifact_decisions.json
       - name: Confirm today's first-add archive presence in checked-out Git main
-        run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json
+        run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
