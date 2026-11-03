@@ -226,7 +226,7 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
     result["run_listing_complete"]=discovery["listing_complete"]
     result["download_limit_reached"]=len(candidates)>MAX_DOWNLOADS
     result["capture_window_complete"]=(
-        discovery["listing_complete"] and not failures
+        discovery["listing_complete"] and len(candidates)>0 and not failures
         and len(candidates)<=MAX_DOWNLOADS
         and len(downloaded)==len(candidates)
         and result["downloaded_runs_without_shadow"]==0)
@@ -242,10 +242,16 @@ if __name__=="__main__":
     p.add_argument("--root",default=".")
     p.add_argument("--artifacts",default=None)
     p.add_argument("--days",type=int,default=2)
+    p.add_argument("--lag-days",type=int,default=0,
+                   help="Revisit a completed historical JST window; does not change frozen tickets")
     opts=p.parse_args()
     if opts.artifacts:
         x=aggregate(opts.root,opts.artifacts)
     else:
+        if type(opts.lag_days) is not int or opts.lag_days<0 or opts.lag_days>28:
+            raise ValueError("invalid_lag_days")
+        observation_time=datetime.now(JST)-timedelta(days=opts.lag_days)
         x=collect_recent(opts.root,os.environ["GITHUB_REPOSITORY"],
-                         os.environ["GH_TOKEN"],opts.days)
+                         os.environ["GH_TOKEN"],opts.days,observation_time)
+        x["recheck_lag_days"]=opts.lag_days
     print(json.dumps(x,ensure_ascii=False,sort_keys=True))
