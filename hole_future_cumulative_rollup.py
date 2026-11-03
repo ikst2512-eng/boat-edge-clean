@@ -10,6 +10,7 @@ import os
 import subprocess
 import tempfile
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 from hole_future_shadow_audit import POLICIES, TOPS
@@ -25,7 +26,12 @@ def rollup(reports):
         if item.get("schema")!="HOLE_FUTURE_ARTIFACT_BATCH_V1":
             invalid["schema_mismatch"]+=1;continue
         start=item.get("window_start_jst");end=item.get("window_end_exclusive_jst")
-        if not isinstance(start,str) or not isinstance(end,str) or start>=end:
+        try:
+            start_date=date.fromisoformat(start)
+            end_date=date.fromisoformat(end)
+            if start_date>=end_date:
+                raise ValueError("empty_date_window")
+        except (TypeError,ValueError):
             invalid["invalid_window"]+=1;continue
         all_reports.append({"start":start,"end":end,
                             "capture_complete":item.get("capture_window_complete") is True})
@@ -36,6 +42,20 @@ def rollup(reports):
         if not isinstance(flags,dict) or set(flags)!=set(item.get("race_codes",[])) or (
                 item.get("comparable")!=len(flags)):
             invalid["missing_or_inconsistent_race_flags"]+=1;continue
+        # Reject the entire report before accumulating any races if its
+        # claimed race dates are not within its own half-open JST window.
+        # Also reject malformed codes; a partial report could bias hits.
+        try:
+            window_codes_valid=all(
+                isinstance(code,str) and len(code)==12 and code.isdigit()
+                and date(2026,11,4)<=date(int(code[:4]),int(code[4:6]),int(code[6:8]))<end_date
+                and date(int(code[:4]),int(code[4:6]),int(code[6:8]))>=start_date
+                for code in flags
+            )
+        except ValueError:
+            window_codes_valid=False
+        if not window_codes_valid:
+            invalid["race_outside_report_window"]+=1;continue
         for code,values in flags.items():
             if not isinstance(code,str) or len(code)!=12 or not code.isdigit() or code[:8]<"20261104":
                 invalid["invalid_race_code"]+=1;continue
@@ -46,6 +66,9 @@ def rollup(reports):
                    any(type(values[mode][f"top{k}"]) is not bool for k in TOPS)
                    for mode in POLICIES):
                 invalid["invalid_hit_flags"]+=1;continue
+            if any(values[m]["top3"] and not values[m]["top5"] or
+                   values[m]["top5"] and not values[m]["top10"] for m in POLICIES):
+                invalid["nonmonotonic_hit_flags"]+=1;continue
             if any(values[m]["top3"]!=values["baseline"]["top3"] or
                    values[m]["top5"]!=values["baseline"]["top5"] for m in POLICIES):
                 invalid["top5_shift"]+=1;continue
