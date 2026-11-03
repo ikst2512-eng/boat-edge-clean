@@ -371,6 +371,13 @@ for(const key of ['202610280101','202610310708','202611021905','202611031911']){
 assert.ok(historicalPagesWorkflow.includes("if(await page.locator('#resultComparison .comparison-hit, #resultComparison .comparison-miss').count())"),
   'P0 historical browser check must reject unverified scoring');
 
+// A same-day race after its deadline must render as read-only and must not
+// be relabeled as a verified predeadline forecast input.
+assert.ok(historicalPagesWorkflow.includes("CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS"),
+  'Public browser must assert the Nov 3 completed-race read-only state');
+assert.ok(historicalPagesWorkflow.includes("card?.source_audit?.race_card?.predeadline_verified!==false"),
+  'Public browser must reject false predeadline evidence on closed racecards');
+
 // Pages result verification must retry only transient delivery errors without
 // treating a missing or mismatched historical result as proof.
 assert.ok(historicalPagesWorkflow.includes("attempt<4;attempt++"),
