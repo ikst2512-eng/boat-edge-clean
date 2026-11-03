@@ -52,6 +52,21 @@ def inspect_stored_files(files, race, obs_id, *, auditor=audit_three_originals):
         return result
     if set(files) != expected:
         raise ValueError("missing one or more saved original sources or manifests")
+    # Independently check all three original/manifest pairs *before*
+    # invoking the semantic three-source auditor. This prevents a future
+    # auditor mock, shortcut or refactor from silently skipping byte integrity.
+    for part, names in SOURCE_NAMES.items():
+        original = files[f"{prefix}/{part}/{names[0]}"]
+        manifest_raw = files[f"{prefix}/{part}/{names[1]}"]
+        if not isinstance(original, bytes) or not isinstance(manifest_raw, bytes):
+            raise ValueError("non-byte original or manifest")
+        manifest = json.loads(manifest_raw)
+        if (not isinstance(manifest, dict)
+                or manifest.get("race_code") != race
+                or manifest.get("sha256") != hashlib.sha256(original).hexdigest()
+                or type(manifest.get("bytes")) is not int
+                or manifest["bytes"] != len(original)):
+            raise ValueError("stored original manifest SHA256, size or identity mismatch")
     with tempfile.TemporaryDirectory() as tmp:
         dirs = {}
         for part, names in SOURCE_NAMES.items():
