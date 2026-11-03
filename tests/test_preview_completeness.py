@@ -3,10 +3,26 @@ from datetime import datetime
 from unittest import TestCase
 from unittest.mock import patch
 
-from clean_racecard import _fetch_preview
+from clean_racecard import _fetch_preview, _race_read_only, racecard
 
 
 class PreviewCompletenessTests(TestCase):
+    def test_same_day_after_cutoff_is_read_only(self):
+        cutoff = datetime.fromisoformat("2026-11-03T22:20:00+09:00")
+        self.assertFalse(_race_read_only(cutoff, datetime.fromisoformat("2026-11-03T22:19:59+09:00")))
+        self.assertTrue(_race_read_only(cutoff, datetime.fromisoformat("2026-11-03T22:20:00+09:00")))
+        self.assertTrue(_race_read_only(cutoff, datetime.fromisoformat("2026-11-03T23:24:00+09:00")))
+        self.assertTrue(_race_read_only(cutoff, datetime.fromisoformat("2026-11-04T10:00:00+09:00")))
+        with self.assertRaises(ValueError):
+            _race_read_only(cutoff, datetime(2026, 11, 3, 23, 24))
+
+    def test_racecard_uses_cutoff_not_calendar_for_read_only(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1] / "clean_racecard.py").read_text()
+        self.assertIn("historical=_race_read_only(deadline)", source)
+        self.assertNotIn('historical=datetime.strptime(hd,"%Y%m%d").date()<', source)
+        self.assertIn('"phase":"HISTORICAL_READ_ONLY" if historical else "PRE_RESULT"', source)
+
     def test_blank_st_does_not_become_verified_preview(self):
         code = "202610300301"
         deadline = datetime.fromisoformat("2026-10-30T15:00:00+09:00")
