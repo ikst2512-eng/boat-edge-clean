@@ -44,9 +44,14 @@ class LinkTests(unittest.TestCase):
     def save(self):
         self.location.write_text(json.dumps({
             "schema":"FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+            "status":"remote_observation_audited_nonformal",
             "formal":False,"independent_first_remote_receipt_verified":False,
             "github_server_observation_not_first_receipt":True,
+            "production_forecast_changed":False,
             "publication_count":1,"publication_commit_sha":SHA,
+            "observed_before_t_minus_12":int(self.row["status"]=="github_server_observed_before_t_minus_12"),
+            "observed_after_t_minus_12":int(self.row["status"]=="github_server_observed_after_t_minus_12"),
+            "unverified_count":int(self.row["status"]=="remote_observation_unverified"),
             "records":[self.row]}))
     def evaluate(self):
         return match(self.future,self.local,self.ledger,self.root)
@@ -72,7 +77,9 @@ class LinkTests(unittest.TestCase):
     def test_mismatched_commit_or_bytes_cannot_pass(self):
         self.row["first_add_commit"]="b"*40
         self.save()
-        self.assertEqual(self.evaluate()["race_status"][CODE],"conflicting_observations")
+        report=self.evaluate()
+        self.assertEqual(report["race_status"][CODE],"missing_observation")
+        self.assertEqual(report["excluded_ledger_files"]["invalid_ledger_file"],1)
         self.row["first_add_commit"]=SHA
         self.row["original_sha256"]="0"*64
         self.save()
@@ -122,6 +129,36 @@ class LinkTests(unittest.TestCase):
         self.future["hits"]["third_national_rate"]["top10"]=0
         with self.assertRaisesRegex(ValueError,"stratum_hit_reconciliation"):
             self.evaluate()
+
+    def test_malformed_ledger_aggregates_are_not_accepted(self):
+        self.save()
+        doc=json.loads(self.location.read_text())
+        doc["observed_before_t_minus_12"]=0
+        self.location.write_text(json.dumps(doc))
+        report=self.evaluate()
+        self.assertEqual(report["race_status"][CODE],"missing_observation")
+        self.assertEqual(report["excluded_ledger_files"]["invalid_ledger_file"],1)
+
+    def test_wrong_day_or_duplicate_rows_are_not_accepted(self):
+        self.save()
+        doc=json.loads(self.location.read_text())
+        doc["records"].append(dict(doc["records"][0]))
+        doc["publication_count"]=2
+        doc["observed_before_t_minus_12"]=2
+        self.location.write_text(json.dumps(doc))
+        self.assertEqual(self.evaluate()["race_status"][CODE],"missing_observation")
+        self.row["race_code"]="202611050101"
+        self.save()
+        self.assertEqual(self.evaluate()["race_status"][CODE],"missing_observation")
+
+    def test_missing_archive_status_or_production_guard_rejected(self):
+        self.save()
+        doc=json.loads(self.location.read_text())
+        doc.pop("production_forecast_changed")
+        self.location.write_text(json.dumps(doc))
+        report=self.evaluate()
+        self.assertEqual(report["race_status"][CODE],"missing_observation")
+        self.assertEqual(report["excluded_ledger_files"]["invalid_ledger_file"],1)
 
     def test_prior_dates_not_allowed_in_new_cohort(self):
         self.future["race_codes"]=["202611030101"]

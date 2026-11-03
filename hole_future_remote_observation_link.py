@@ -22,6 +22,52 @@ KNOWN=("observed_before_t12","observed_after_t12",
        "local_git_first_add_unverified")
 
 
+def validated_ledger(document, path):
+    """A malformed receipt must never contribute a verified race."""
+    if (not isinstance(document,dict)
+            or document.get("schema")!="FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1"
+            or document.get("status")!="remote_observation_audited_nonformal"
+            or document.get("formal") is not False
+            or document.get("independent_first_remote_receipt_verified") is not False
+            or document.get("github_server_observation_not_first_receipt") is not True
+            or document.get("production_forecast_changed") is not False):
+        raise ValueError("invalid_ledger_header")
+    count=document.get("publication_count")
+    sha=document.get("publication_commit_sha")
+    rows=document.get("records")
+    if (type(count) is not int or not 1<=count<=500
+            or type(sha) is not str or SHA.fullmatch(sha) is None
+            or not isinstance(rows,list) or len(rows)!=count):
+        raise ValueError("invalid_ledger_roster")
+    day=path.parent.name
+    if not re.fullmatch(r"20[0-9]{6}",day):
+        raise ValueError("invalid_ledger_day")
+    seen=set()
+    statuses=Counter()
+    for row in rows:
+        if not isinstance(row,dict):
+            raise ValueError("invalid_ledger_row")
+        code=row.get("race_code")
+        state=row.get("status")
+        if (type(code) is not str or CODE.fullmatch(code) is None
+                or code[:8]!=day or code in seen
+                or row.get("first_add_commit")!=sha
+                or state not in (
+                    "github_server_observed_before_t_minus_12",
+                    "github_server_observed_after_t_minus_12",
+                    "remote_observation_unverified")):
+            raise ValueError("invalid_ledger_race_or_status")
+        seen.add(code)
+        statuses[state]+=1
+    for state,key in (
+        ("github_server_observed_before_t_minus_12","observed_before_t_minus_12"),
+        ("github_server_observed_after_t_minus_12","observed_after_t_minus_12"),
+        ("remote_observation_unverified","unverified_count"),
+    ):
+        if type(document.get(key)) is not int or document[key]!=statuses[state]:
+            raise ValueError("invalid_ledger_status_counts")
+    return sha,rows
+
 def match(future,first_add,ledger_root,forecast_root):
     # The 2026-11-03 job runs before the locked cohort's first eligible day.
     # An empty not-yet-eligible verdict has no prospective proof fields.
@@ -55,16 +101,7 @@ def match(future,first_add,ledger_root,forecast_root):
             invalid_files["unsafe_ledger_file"]+=1;continue
         try:
             document=json.loads(path.read_bytes())
-            rows=document["records"]
-            if (document["schema"]!="FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1"
-                    or document["formal"] is not False
-                    or document["independent_first_remote_receipt_verified"] is not False
-                    or document["github_server_observation_not_first_receipt"] is not True
-                    or len(rows)!=document["publication_count"]):
-                raise ValueError("invalid_ledger_header")
-            sha=document["publication_commit_sha"]
-            if type(sha) is not str or SHA.fullmatch(sha) is None:
-                raise ValueError("invalid_ledger_sha")
+            sha,rows=validated_ledger(document,path)
             for entry in rows:
                 code=entry.get("race_code")
                 if code not in codes:continue
