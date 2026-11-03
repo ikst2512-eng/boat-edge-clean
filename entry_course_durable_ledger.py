@@ -65,7 +65,7 @@ def prepare(raw, *, now=None):
         raise ValueError("missing_late_receipts")
     for receipt in receipts:
         timestamp=_clock(receipt.get("received_at")) if type(receipt) is dict else None
-        if (not timestamp or timestamp>=cutoff or
+        if (not timestamp or timestamp>generated or timestamp>=cutoff or
                 not HASH.fullmatch(str(receipt.get("sha256") or ""))):
             raise ValueError("invalid_late_receipt")
     return f"entry_course/{code[:8]}/{code}.json"
