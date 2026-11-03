@@ -18,6 +18,7 @@ on:
       - four_mode_v2_third_ledger_reconcile.py
       - test_four_mode_v2_third_ledger_reconcile.py
       - test_v2_nightly_diagnostics_independence.py
+      - test_v2_nightly_pipeline_exit_propagation.py
       - third_rate_evidence_ledger.py
       - test_four_mode_v2_third_rate_ledger_rollup.py
       - test_third_rate_evidence_ledger.py
@@ -59,35 +60,58 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger test_four_mode_v2_third_ledger_reconcile test_v2_nightly_diagnostics_independence test_v2_nightly_pipeline_exit_propagation
       - name: Evaluate read-only V2 shadow on confirmed results
-        run: python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
       - name: Validate V2 sample sufficiency and no-production-promotion gate
-        run: python four_mode_v2_research_readiness.py | tee v2_research_readiness.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_research_readiness.py | tee v2_research_readiness.log
       - name: Audit V2 result availability by venue and day
-        run: python four_mode_v2_venue_coverage.py --roster-output v2_overdue_roster.json | tee v2_venue_coverage.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_venue_coverage.py --roster-output v2_overdue_roster.json | tee v2_venue_coverage.log
       - name: Reproduce archived V2 rankings from current research model
-        run: python four_mode_v2_model_reproduction.py | tee v2_model_reproduction.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_model_reproduction.py | tee v2_model_reproduction.log
       - name: Audit V2 boat-one predicted probability against matched results
-        run: python four_mode_v2_head_calibration.py | tee v2_head_calibration.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_head_calibration.py | tee v2_head_calibration.log
       - name: Audit V2 head misses by winner's national rate and model ranks
-        run: python four_mode_v2_winner_head_miss_profile.py | tee v2_winner_head_miss_profile.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_winner_head_miss_profile.py | tee v2_winner_head_miss_profile.log
       - name: Evaluate exploratory national top-two head rescue without outcome leakage
-        run: python four_mode_v2_national_head_shadow.py | tee v2_national_head_shadow.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_national_head_shadow.py | tee v2_national_head_shadow.log
       - name: Compare Top5-protected second-pair V2 research shadow
-        run: python four_mode_v2_protected_pair_shadow.py | tee v2_protected_pair_shadow.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_protected_pair_shadow.py | tee v2_protected_pair_shadow.log
       - name: Audit oracle-conditional second and third place ranks on actual V2 results
-        run: python four_mode_v2_conditional_place_ranks.py | tee v2_conditional_place_ranks.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_conditional_place_ranks.py | tee v2_conditional_place_ranks.log
       - name: Test third-place national-rate shadow against matched V2 results
-        run: python four_mode_v2_third_rate_shadow.py | tee v2_third_rate_shadow.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_third_rate_shadow.py | tee v2_third_rate_shadow.log
       - name: Audit V2 future Git first-add T-12 ancestry against scored same-race cohort
-        run: python four_mode_v2_third_rate_git_ancestry.py --shadow-log v2_third_rate_shadow.log --output v2_third_rate_git_ancestry.json | tee v2_third_rate_git_ancestry.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_third_rate_git_ancestry.py --shadow-log v2_third_rate_shadow.log --output v2_third_rate_git_ancestry.json | tee v2_third_rate_git_ancestry.log
       # Preserve capture-run evidence even if an independent research evaluation fails.
       - name: Read actual capture artifact inventory for frozen-only third-rate scoring
         if: ${{ always() && github.event_name != 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -o pipefail
           gh run list --workflow four-mode-prospective-capture.yml --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
       # Read the durable ledger independently from earlier model/scoring steps.
@@ -98,12 +122,15 @@ jobs:
         run: |
           # Checkout intentionally doesn't persist credentials. Configure an
           # ephemeral GitHub CLI credential helper for this read-only fetch.
+          set -o pipefail
           gh auth setup-git
           git fetch origin refs/heads/v2-third-rate-evidence-ledger:refs/remotes/origin/v2-third-rate-evidence-ledger
           python four_mode_v2_third_rate_ledger_rollup.py --output v2_third_rate_durable_ledger.json | tee v2_third_rate_durable_ledger.log
       - name: Reconcile frozen captured race IDs with durable ledger entries
         if: ${{ always() && github.event_name != 'pull_request' }}
-        run: python four_mode_v2_third_ledger_reconcile.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --output v2_third_ledger_reconciliation.json | tee v2_third_ledger_reconciliation.log
+        run: |
+          set -o pipefail
+          python four_mode_v2_third_ledger_reconcile.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --output v2_third_ledger_reconciliation.json | tee v2_third_ledger_reconciliation.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
