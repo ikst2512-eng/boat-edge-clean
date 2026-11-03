@@ -228,6 +228,66 @@ def reconcile_claimed_pushes(day, paths, additions, evidence_reports):
     return checked, mismatched
 
 
+def reconcile_research_rosters_with_main(day, paths, additions, evidence_reports):
+    """Compare locally self-consistent research IDs with Git first-add paths.
+
+    A local shadow roster matching the local push claim is not independently
+    proof of the actual Git addition roster. Verify that extra identity here.
+    Missing old shadow artifacts remain UNKNOWN, not a failure or a success.
+    """
+    valid_paths = set(paths)
+    by_sha = {}
+    for path in valid_paths:
+        if ARCHIVE.fullmatch(path) and Path(path).name.startswith(day):
+            shas = additions.get(path, [])
+            if len(shas) == 1 and isinstance(shas[0], str) and SHA.fullmatch(shas[0]):
+                by_sha.setdefault(shas[0], set()).add(Path(path).stem)
+    matched, mismatched, unknown = [], [], []
+    seen = set()
+    for evidence in evidence_reports:
+        if not isinstance(evidence, dict) or not isinstance(evidence.get("runs"), list):
+            continue
+        for row in evidence["runs"]:
+            if not isinstance(row, dict) or row.get("publication_outcome") != "pushed_to_main":
+                continue
+            try:
+                stamp = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None or stamp.astimezone(JST).strftime("%Y%m%d") != day:
+                    continue
+            except (KeyError, AttributeError, TypeError, ValueError):
+                continue
+            run_id = row.get("run_id")
+            if type(run_id) is not int or run_id <= 0 or run_id in seen:
+                continue
+            seen.add(run_id)
+            roster = row.get("research_roster_evidence")
+            if not isinstance(roster, dict) or roster.get("status") != "matched":
+                unknown.append(run_id)
+                continue
+            sha = row.get("claimed_commit_sha")
+            codes = roster.get("race_codes")
+            if (not isinstance(sha, str) or not SHA.fullmatch(sha)
+                    or roster.get("commit_sha") != sha
+                    or not isinstance(codes, list) or not codes
+                    or any(not isinstance(code, str) or
+                           not re.fullmatch(r"20[0-9]{10}", code)
+                           for code in codes)
+                    or len(codes) != len(set(codes))
+                    or len(codes) != row.get("claimed_added_forecasts")):
+                mismatched.append({"run_id": run_id, "reason": "invalid_research_roster_identity"})
+                continue
+            actual = by_sha.get(sha, set())
+            if set(codes) == actual:
+                matched.append({"run_id": run_id, "matched_races": len(codes),
+                                "git_first_add_commit_sha": sha})
+            else:
+                mismatched.append({"run_id": run_id, "reason": "research_vs_git_first_add_roster",
+                                   "research_count": len(codes), "git_count": len(actual),
+                                   "research_only": sorted(set(codes) - actual)[:10],
+                                   "git_only": sorted(actual - set(codes))[:10]})
+    return matched, mismatched, unknown
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -289,6 +349,13 @@ def main():
     report["claimed_push_first_add_verified_runs"] = verified_claims
     report["claimed_push_first_add_mismatched_runs"] = mismatched_claims
     report["claimed_push_archive_reconciliation_verified"] = bool(verified_claims) and not mismatched_claims
+    matching_rosters, mismatched_rosters, unknown_rosters = (
+        reconcile_research_rosters_with_main(day, paths, additions, evidence))
+    report["research_git_roster_verified_runs"] = matching_rosters
+    report["research_git_roster_mismatched_runs"] = mismatched_rosters
+    report["research_git_roster_unknown_run_ids"] = unknown_rosters
+    report["research_git_roster_reconciliation_verified"] = (
+        bool(matching_rosters) and not mismatched_rosters)
     report["daily_alert_basis"] = (
         "incomplete_git_first_add" if report["assessment"] == "git_first_add_incomplete" else
         "new_candidates_without_main_archives" if report["assessment"] == "no_new_day_archives_yet" and eligible_ids else
@@ -297,6 +364,11 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and mismatched_rosters):
+        print("::error::V2 research race roster does not match Git main first-add identities")
+        raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and mismatched_claims):
