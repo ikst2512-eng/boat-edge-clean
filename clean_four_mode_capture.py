@@ -96,6 +96,7 @@ def collect(root=ROOT, now=None, read=read_rows):
         cards_by_code.pop(code,None)
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
+    excluded_races=[]
     cutoff_skipped=0
     already_saved=0
     # Never record the collection-start clock as forecast generation time.
@@ -150,7 +151,11 @@ def collect(root=ROOT, now=None, read=read_rows):
         except (KeyError,ValueError,TypeError,OSError) as exc:
             label=str(exc)[:64] or type(exc).__name__
             excluded[label]=excluded.get(label,0)+1
-    return {"new_saved":saved,"excluded":excluded,"source_probes":outcomes,"date_jst":hd,
+            # Preserve bounded per-race diagnostics without recording raw source values.
+            if len(excluded_races)<30:
+                excluded_races.append({"race_code":code,"reason":label})
+    return {"new_saved":saved,"excluded":excluded,"excluded_races":excluded_races,
+            "source_probes":outcomes,"date_jst":hd,
             "published_title_rows":len(titles),"published_card_rows":len(cards),
             "cutoff_skipped":cutoff_skipped,"already_saved":already_saved,
             "source_status":"empty_titles" if not titles else ("empty_cards" if not cards else "available"),
@@ -186,6 +191,7 @@ def publish_status(result,root=ROOT,now=None):
            "published_card_rows":result.get("published_card_rows"),
            "eligible_forecasts_today":result.get("eligible_forecasts_today",0),
            "excluded":result.get("excluded",{}),
+           "excluded_races":result.get("excluded_races",[]),
            "cutoff_skipped":result.get("cutoff_skipped",0),
            "already_saved":result.get("already_saved",0),
            "last_run_new_count":len(result.get("new_saved",[])),
