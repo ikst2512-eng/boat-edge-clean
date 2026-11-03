@@ -110,11 +110,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          current="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
-          if [ "$current" != "$CHECKED_SHA" ]; then
-            echo "::error::AI draft PR changed during validation; rerun against the new head."
-            exit 1
-          fi
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/final-ai-pr.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          pr = json.loads(Path('/tmp/final-ai-pr.json').read_text())
+          if (pr.get('state') != 'open' or pr.get('draft') is not True or
+              pr.get('head', {}).get('sha') != os.environ['CHECKED_SHA'] or
+              pr.get('head', {}).get('repo', {}).get('full_name') != os.environ['GITHUB_REPOSITORY'] or
+              not pr.get('head', {}).get('ref', '').startswith('ai/repair-') or
+              pr.get('base', {}).get('ref') != 'main' or
+              pr.get('base', {}).get('sha') != os.environ['CHECKED_MAIN_SHA'] or
+              pr.get('commits') != 1):
+              raise SystemExit('AI draft PR changed during validation; rerun all checks')
+          PY
           main_now="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           if [[ -z "$main_now" || "$main_now" != "${CHECKED_MAIN_SHA}" ]]; then
             echo "::error::main changed during AI PR validation; rerun against the new base."
