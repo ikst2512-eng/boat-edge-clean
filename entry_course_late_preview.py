@@ -38,6 +38,24 @@ def prepare_late_preview_study(base, card, history_batch, *,
     later_cutoff=deadline-timedelta(minutes=margin_minutes)
     if not target_cutoff<now<later_cutoff:
         raise ValueError("late_study_not_frozen_in_late_window")
+    # The race card is independently fetched. Require its own exact race
+    # deadline and a local receipt that predates this study's freeze.
+    from entry_course_prospective_capture import HEX64
+    meta=card.get("meta",{})
+    day=meta.get("date")
+    deadline_clock=meta.get("deadline")
+    if (not isinstance(day,str) or not isinstance(deadline_clock,str)
+            or not re.fullmatch(r"20\\d{2}-\\d{2}-\\d{2}",day)
+            or not re.fullmatch(r"(?:[01]\\d|2[0-3]):[0-5]\\d",deadline_clock)
+            or _when(day+"T"+deadline_clock+":00+09:00")!=deadline):
+        raise ValueError("late_study_card_deadline_mismatch")
+    card_audit=card.get("source_audit",{}).get("race_card",{})
+    card_receipt=_when(card_audit.get("fetched_at"))
+    if (card_audit.get("status")!="ok"
+            or card_audit.get("predeadline_verified") is not True
+            or not HEX64.fullmatch(str(card_audit.get("sha256") or ""))
+            or not card_receipt or card_receipt>now or card_receipt>=deadline):
+        raise ValueError("late_study_card_provenance_missing_or_after_freeze")
     timing=classify_course_timing(base,card.get("source_audit",{}).get("beforeinfo"),
                                    late_margin_minutes=margin_minutes)
     if not timing.get("late_experiment_possible"):
@@ -56,6 +74,8 @@ def prepare_late_preview_study(base, card, history_batch, *,
     if historical_t12[:10]!=base_tickets:
         raise ValueError("late_study_t12_baseline_drift")
     entry,receipts=_entry_from_preview(card,later_cutoff)
+    receipts.append({"received_at":card_receipt.isoformat(),"sha256":card_audit["sha256"],
+                     "source":"third_party_race_card_local_receipt"})
     # Independently timestamped source data must already exist when this
     # candidate is frozen, not merely be earlier than the future cutoff.
     if any(_when(r["received_at"]) > now for r in receipts):
