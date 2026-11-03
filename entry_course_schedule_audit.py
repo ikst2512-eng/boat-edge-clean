@@ -13,6 +13,7 @@ import re
 import subprocess
 
 from entry_course_archive_integrity_audit import audit_archive_bytes
+from entry_course_schedule_write_audit import inspect_write_witness
 from entry_course_first_add_audit import audit_first_add
 
 JST=timezone(timedelta(hours=9))
@@ -133,7 +134,10 @@ def operational_audit(day, *, fetch=_api, today=None):
             any(path.startswith(f"{prefix}/{day}/") for prefix in prefixes) and
             CODE.fullmatch(path.rsplit("/",1)[-1]) and
             path.rsplit("/",1)[-1][:8]==day)
+        witness=inspect_write_witness(day,kind,tree,executions,fetch,
+                                      repository=REPO)
         result[kind]={
+            "scheduled_write_proof":witness,
             "workflow":workflow,
             "scheduled_run_count":len(executions),
             "completed_success_run_count":decisions["success"],
