@@ -29,6 +29,8 @@ jobs:
           python-version: '3.12'
       - name: Verify parent event and preserve ineligible evidence
         id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python scripts/gate_live_odds_event.py
       - name: Verify fallback event classification
         if: steps.gate.outputs.collect == 'true'
