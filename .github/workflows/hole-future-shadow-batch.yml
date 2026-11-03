@@ -4,6 +4,8 @@ on:
     paths:
       - hole_future_artifact_batch.py
       - test_hole_future_artifact_batch.py
+      - hole_future_result_coverage.py
+      - test_hole_future_result_coverage.py
       - .github/workflows/hole-future-shadow-batch.yml
   workflow_dispatch:
   schedule:
@@ -25,7 +27,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test batch evidence quarantine
-        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py
+        run: python -m unittest -v test_hole_future_artifact_batch.py test_hole_future_shadow_audit.py test_hole_future_result_coverage.py
       - name: Audit last 20 collection runs (read only)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,6 +55,7 @@ jobs:
           print("DOWNLOAD_RUN_EVIDENCE",d["downloaded_run_evidence"])
           print("DUPLICATES_QUARANTINED",d["duplicate_codes_quarantined"])
           print("EXCLUDED",d["excluded_by_reason"])
+          print("REPO_RESULT_COVERAGE",d["repository_result_coverage"])
           print("HITS",d["hits"],"DELTA",d["delta"])
           PY
       - uses: actions/upload-artifact@v4
