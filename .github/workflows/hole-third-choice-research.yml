@@ -35,6 +35,12 @@ jobs:
               print("GROUP",cohort,"N",report["comparable"],"MISSING",report["unavailable"])
               print("TOPN",report["topn"])
               print("PAIRED_TOP10",report["paired_top10"])
+              print("DISAGREEMENT_CASES",report["disagreement_cases"])
+              pair=report["paired_top10"]["donor_consensus"]
+              cases=report["disagreement_cases"]
+              assert len(cases)==pair["only_challenger"]+pair["only_comparator"]
+              assert sum(c["category"]=="consensus_only" for c in cases)==pair["only_comparator"]
+              assert sum(c["category"]=="national_only" for c in cases)==pair["only_challenger"]
               for comparison,paired in report["paired_top10"].items():
                   assert paired["sample"]==report["comparable"]
                   assert paired["net"]==(report["topn"]["third_national_rate"]["top10"]["hits"]-
