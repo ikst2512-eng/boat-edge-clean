@@ -111,6 +111,12 @@ class FutureLockedEvaluationTests(unittest.TestCase):
         self.assertEqual(result["by_day"]["2026-11-04"]["comparable"],0)
         self.assertEqual(result["by_day"]["2026-11-04"]["excluded"]["unconfirmed_result"],1)
         self.assertEqual(result["by_model_version"],{})
+    def test_nightly_workflow_scores_only_completed_jst_days(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/hole-future-locked-eval.yml").read_text(encoding="utf-8")
+        self.assertIn("--as-of \"$(TZ=Asia/Tokyo date -d 'yesterday' +%F)\"", workflow)
+        self.assertNotIn("run: python hole_future_locked_eval.py >", workflow)
+
     def test_reject_invalid_window(self):
         with self.assertRaises(ValueError):evaluate(self.root,date(2026,11,4),days=32)
 
