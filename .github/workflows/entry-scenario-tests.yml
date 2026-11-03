@@ -9,6 +9,8 @@ on:
       - entry_course_history_source.py
       - entry_course_candidate.py
       - entry_course_prospective_audit.py
+      - entry_course_prospective_capture.py
+      - entry_course_write_once.py
       - index.html
       - server.py
       - tests/test_entry_scenario.cjs
@@ -18,6 +20,7 @@ on:
       - tests/test_entry_course_history_source.py
       - tests/test_entry_course_candidate.py
       - tests/test_entry_course_prospective_audit.py
+      - tests/test_entry_course_prospective_capture.py
       - .github/workflows/entry-scenario-tests.yml
   workflow_dispatch:
 permissions:
@@ -36,10 +39,12 @@ jobs:
       - name: Test entry permutation calculations and front-end integration
         run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs tests/test_entry_racecard_evidence.cjs
       - name: Check Python web route and course history syntax
-        run: python -m py_compile server.py entry_course_history.py entry_course_history_source.py entry_course_candidate.py entry_course_prospective_audit.py
+        run: python -m py_compile server.py entry_course_history.py entry_course_history_source.py entry_course_candidate.py entry_course_prospective_audit.py entry_course_prospective_capture.py entry_course_write_once.py
       - name: Check as-of course history integrity
         run: python -m unittest discover -s tests -p 'test_entry_course_history*.py' -v
       - name: Check challenger ranking and matched TopN audit
         run: python -m unittest discover -s tests -p test_entry_course_candidate.py -v
       - name: Reject reconstructed post-hoc comparison and unfrozen challengers
         run: python -m unittest discover -s tests -p test_entry_course_prospective_audit.py -v
+      - name: Validate real source mapping and write-once prospective capture
+        run: python -m unittest discover -s tests -p test_entry_course_prospective_capture.py -v
