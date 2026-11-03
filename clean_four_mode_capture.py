@@ -61,7 +61,19 @@ def collect(root=ROOT, now=None, read=read_rows):
             outcomes["direct_error"]={"status":"error","type":type(exc).__name__,
                 "http_status":getattr(exc,"code",None),
                 "source_url":getattr(exc,"url",None)}
-    if len(datasets)!=2 or any(not datasets[kind][0] for kind in ("title", "race_cards")):
+    # Two nonempty daily feeds may represent different publication moments.
+    # Without a shared race ID, neither side proves a usable six-boat
+    # pre-race snapshot. Prefer a single coherent alternative snapshot.
+    disjoint = (len(datasets) == 2
+                and datasets["title"][0] and datasets["race_cards"][0]
+                and not ({row.get("レースコード") for row in datasets["title"][0]}
+                         & {row.get("レースコード") for row in datasets["race_cards"][0]}))
+    if disjoint:
+        outcomes["daily_roster_overlap"] = {"status": "no_matching_races",
+                                            "title_rows": len(datasets["title"][0]),
+                                            "card_rows": len(datasets["race_cards"][0])}
+    if (len(datasets)!=2 or disjoint
+            or any(not datasets[kind][0] for kind in ("title", "race_cards"))):
         # The alternate source must supply title and cards as ONE snapshot
         # if direct/CSV evidence still has an empty side.
         # Independently published pre-race source; validated six racers and
@@ -78,7 +90,12 @@ def collect(root=ROOT, now=None, read=read_rows):
         except (HTTPError,URLError,TimeoutError,ValueError,OSError,UnicodeError,KeyError,TypeError) as exc:
             outcomes["openapi_direct"]={"status":"unavailable","error_type":type(exc).__name__,
                                         "http_status":getattr(exc,"code",None)}
-    if len(datasets)!=2:
+    if (len(datasets)!=2
+            or (datasets["title"][0] and datasets["race_cards"][0]
+                and not ({row.get("レースコード") for row in datasets["title"][0]}
+                         & {row.get("レースコード") for row in datasets["race_cards"][0]}))):
+        # For an empty side, retain the existing granular empty_titles /
+        # empty_cards diagnostic and original row counts below.
         return {"new_saved":[],"excluded":{},"date_jst":hd,
                 "source_status":"source_blocked" if outcomes.get("direct_error",{}).get("http_status")==403 else "source_incomplete","source_probes":outcomes,
                 "eligible_forecasts_today":len(list((root/"four_mode_forecasts").glob(hd+"*.json"))) if (root/"four_mode_forecasts").exists() else 0}
