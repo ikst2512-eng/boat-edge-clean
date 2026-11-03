@@ -9,7 +9,8 @@ class NearCutoffScheduleTests(unittest.TestCase):
         observer = Path("scripts/observe_three_official_t12_originals.py").read_text()
         self.assertIn("schedule:", workflow)
         self.assertIn("cron: '20,25,30,40,48,50,51 6 3 11 *'", workflow)
-        self.assertIn("github.event_name == 'schedule'", workflow)
+        self.assertIn('|| \'["202611030212"]\'', workflow)
+        self.assertIn("format('-{0}', matrix.race_code)", workflow)
         self.assertIn("202611030212", workflow)
         for race in ("202611030612", "202611030412", "202611030104"):
             self.assertIn(race, workflow)
