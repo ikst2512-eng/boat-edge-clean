@@ -177,6 +177,53 @@ class CaptureEndToEndTests(unittest.TestCase):
             self.assertEqual(saved["source_sha256"],
                              {"title":"b"*64,"race_cards":"b"*64})
 
+    def test_disjoint_nonempty_daily_rosters_use_coherent_pre_race_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            first="202611040101"
+            unrelated="202611040102"
+            received=datetime(2026,11,4,7,30,tzinfo=JST)
+            title={"レースコード":first,"電話投票締切予定":"12:00"}
+            unrelated_card={"レースコード":unrelated,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            matching_card={"レースコード":first,**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([title] if "/title/" in url else [unrelated_card],
+                        received,"a"*64)
+            with patch("clean_openapi_sources.load",
+                       return_value=([title],[matching_card],received,
+                                     "b"*64,{"source":"nonofficial_openapi_v1"})) as alt:
+                result=collect(root=Path(tmp),now=now,read=read)
+            alt.assert_called_once()
+            self.assertEqual(result["new_saved"],[first])
+            self.assertEqual(result["source_probes"]["daily_roster_overlap"]["status"],
+                             "no_matching_races")
+            saved=json.loads((Path(tmp)/"four_mode_forecasts"/(first+".json")).read_text())
+            self.assertEqual(saved["source_sha256"],
+                             {"title":"b"*64,"race_cards":"b"*64})
+
+    def test_disjoint_daily_rosters_without_safe_alternative_fail_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=datetime(2026,11,4,8,0,tzinfo=JST)
+            received=datetime(2026,11,4,7,30,tzinfo=JST)
+            title={"レースコード":"202611040101",
+                   "電話投票締切予定":"12:00"}
+            card={"レースコード":"202611040102",**{
+                f"艇{i}_全国勝率":"5.0" for i in range(1,7)}}
+            def read(url):
+                return ([title] if "/title/" in url else [card],
+                        received,"a"*64)
+            with patch("clean_openapi_sources.load",
+                       side_effect=ValueError("not yet published")):
+                result=collect(root=Path(tmp),now=now,read=read)
+            self.assertEqual(result["source_status"],"source_incomplete")
+            self.assertEqual(result["new_saved"],[])
+            self.assertEqual(result["source_probes"]["daily_roster_overlap"]["status"],
+                             "no_matching_races")
+            self.assertFalse((Path(tmp)/"four_mode_forecasts"/
+                              "202611040101.json").exists())
+
     def test_empty_titles_with_available_cards_are_not_healthy(self):
         with tempfile.TemporaryDirectory() as tmp:
             now=datetime(2026,11,3,8,0,tzinfo=JST)
