@@ -24,6 +24,8 @@ on:
       - hole_shadow_same_job_capture.py
       - test_hole_shadow_same_job_capture.py
       - test_four_mode_workflow_shell_syntax.py
+      - tests/test_four_mode_source_link_scope.py
+      - scripts/report_four_mode_source_links.py
       - .github/workflows/four-mode-prospective-capture.yml
 permissions:
   contents: read
@@ -46,7 +48,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_four_mode_workflow_shell_syntax
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
   capture:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -297,33 +299,9 @@ jobs:
         if: always()
         run: |
           python audit_four_mode_raw_receipts.py four-mode-evidence/raw-sources
-      - name: Report race-level forecast and preserved-source hashes
+      - name: Report only this run's published forecast and preserved-source hashes
         if: always()
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from link_four_mode_raw_forecast import link_forecast
-          root = Path(".")
-          receipts = Path("four-mode-evidence/raw-sources")
-          forecasts = sorted((root / "four_mode_forecasts").glob("20??????????.json"))
-          # Only today's capture cohort, not earlier archives from checkout.
-          from datetime import datetime, timedelta, timezone
-          today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
-          rows = [link_forecast(path.stem, root, receipts) for path in forecasts
-                  if path.stem.startswith(today)]
-          matched = sum(row["status"] == "both_hashes_present" for row in rows)
-          output = {"schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V1",
-                    "day_jst": today, "checked": len(rows), "hashes_present": matched,
-                    "formal": False, "remote_first_seen_verified": False,
-                    "rows": rows}
-          destination = Path("four-mode-evidence/source-links.json")
-          destination.parent.mkdir(parents=True, exist_ok=True)
-          destination.write_text(json.dumps(output, ensure_ascii=False, sort_keys=True)
-                                 + chr(10), encoding="utf-8")
-          print("FOUR_MODE_SOURCE_LINKS=" + json.dumps(
-              {"checked": len(rows), "hashes_present": matched, "formal": False}))
-          PY
+        run: python scripts/report_four_mode_source_links.py
       - name: Preserve capture log and structured source status
         if: always()
         uses: actions/upload-artifact@v4
