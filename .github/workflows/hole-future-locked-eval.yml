@@ -6,7 +6,7 @@ on:
       - hole_future_first_add_audit.py
       - hole_future_remote_observation_link.py
       - test_hole_future_remote_observation_link.py
-      - test_hole_future_first_add_audit.py test_hole_future_remote_observation_link.py
+      - test_hole_future_first_add_audit.py
       - test_hole_future_locked_eval.py
       - test_hole_locked_selector_integrity.py
       - hole_third_choice_research.py
@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Enforce locked future-period safeguards
-        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py test_hole_future_first_add_audit.py
+        run: python -m unittest -v test_hole_future_locked_eval.py test_hole_locked_selector_integrity.py test_hole_future_first_add_audit.py test_hole_future_remote_observation_link.py
       - name: Evaluate only 2026-11-04+ frozen predictions and confirmed results
         run: python hole_future_locked_eval.py > hole_future_locked_results.json
       - name: Audit first-add Git blob provenance without claiming remote receipt
@@ -79,6 +79,14 @@ jobs:
           assert r["comparable"]==future.get("comparable",0)
           assert sum(r["evidence_status_counts"].values())==r["comparable"]
           assert set(r["race_status"])==set(future.get("race_codes",[]))
+          for name,group in r["topn_by_evidence_status"].items():
+              assert group["races"]==r["evidence_status_counts"][name]
+              print("EVIDENCE_TOPN",name,group)
+          if future["status"]!="not_yet_eligible":
+              for policy,topn in future["hits"].items():
+                  for k,total in topn.items():
+                      assert sum(group["hits"][policy][k] for group in
+                                 r["topn_by_evidence_status"].values())==total
           print("SERVER_OBSERVATION_LINK",r["evidence_status_counts"])
           print("REMOTE_FIRST_RECEIPT_PROVEN",False)
           PY
