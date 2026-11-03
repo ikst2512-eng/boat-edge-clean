@@ -80,7 +80,7 @@ class ObservationLedgerTests(unittest.TestCase):
                             "deadline_jst":"2026-11-05T12:00:00+09:00"}).encode()
         (self.root/PATH).write_bytes(altered)
         def git(*args):
-            if args[0]=="diff-tree":return (PATH+"\\n").encode()
+            if args[0]=="diff-tree":return (PATH+"\n").encode()
             if args[0]=="show":return altered
             raise AssertionError(args)
         self.row["original_sha256"]=hashlib.sha256(altered).hexdigest()
