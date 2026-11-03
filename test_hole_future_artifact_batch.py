@@ -120,6 +120,25 @@ class FutureBatchTests(unittest.TestCase):
    output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],0)
   self.assertEqual(output["duplicate_codes_quarantined"],[CODE1])
+ def test_declared_invalid_shadow_does_not_mask_missing_verified_evidence(self):
+  self.artifact("run1",CODE1)
+  # A syntactically present prediction is not verified if replay rejected it.
+  with patch("hole_future_artifact_batch.audit",return_value={
+      "eligible_codes":[],"rows":[],"excluded_by_reason":{"source_hash_mismatch":1}}):
+   output=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(output["declared_future_codes"],[CODE1])
+  self.assertEqual(output["observed_future_codes"],[])
+  self.assertEqual(output["declared_but_not_replay_verified_codes"],[CODE1])
+  self.assertEqual(output["comparable"],0)
+ def test_valid_unconfirmed_shadow_remains_observed_without_hit(self):
+  self.artifact("run1",CODE1)
+  with patch("hole_future_artifact_batch.audit",return_value={
+      "eligible_codes":[CODE1],"rows":[],
+      "excluded_by_reason":{"unconfirmed_result":1}}):
+   output=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(output["observed_future_codes"],[CODE1])
+  self.assertEqual(output["declared_but_not_replay_verified_codes"],[])
+  self.assertEqual(output["comparable"],0)
  def test_no_artifacts_does_not_invent_results(self):
   output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],0)
