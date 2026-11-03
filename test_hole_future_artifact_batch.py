@@ -340,6 +340,50 @@ class LateWindowBoundaryTests(unittest.TestCase):
   self.assertEqual(found["window_end_exclusive_jst"],"2026-11-05")
   self.assertEqual([r["id"] for r in found["candidates"]],[42])
 
+class PerRunShadowCoverageTests(unittest.TestCase):
+ def run_collection(self,layout):
+  from types import SimpleNamespace
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp)
+   discovery={"candidates":[{"id":1},{"id":2}],
+              "listing_complete":True,"pages_fetched":1,
+              "capture_window_start_jst":"2026-11-03",
+              "window_start_jst":"2026-11-04",
+              "window_end_exclusive_jst":"2026-11-05",
+              "capture_lookback_days":1}
+   def download(cmd,**kwargs):
+    run_id=int(cmd[3])
+    run_dir=Path(cmd[cmd.index("--dir")+1])
+    for i,payload in enumerate(layout[run_id]):
+     folder=run_dir/("four-mode-capture-"+str(i))/"four-mode-evidence"
+     folder.mkdir(parents=True,exist_ok=True)
+     (folder/"hole-shadow.json").write_text(payload)
+    return SimpleNamespace(returncode=0,stdout="")
+   with patch("hole_future_artifact_batch.discover_full_days",return_value=discovery),patch(
+        "hole_future_artifact_batch.subprocess.run",side_effect=download):
+    return collect_recent(root,"a/b","token",days=1)
+ def test_two_shadows_one_run_does_not_hide_missing_other_run(self):
+  ok=json.dumps({"status":"not_published","records":[]})
+  result=self.run_collection({1:[ok,ok],2:[]})
+  self.assertEqual(result["artifact_files"],2)
+  self.assertEqual(result["runs_downloaded"],2)
+  self.assertEqual(result["downloaded_runs_without_shadow"],1)
+  self.assertEqual(result["downloaded_runs_ambiguous_shadow"],1)
+  self.assertFalse(result["capture_window_complete"])
+ def test_invalid_json_is_not_usable_shadow_evidence(self):
+  ok=json.dumps({"status":"not_published","records":[]})
+  result=self.run_collection({1:[ok],2:["{broken"]})
+  self.assertEqual(result["downloaded_runs_without_shadow"],0)
+  self.assertEqual(result["downloaded_runs_unusable_shadow"],1)
+  self.assertFalse(result["capture_window_complete"])
+ def test_one_valid_shadow_per_run_can_prove_artifact_retrieval_only(self):
+  ok=json.dumps({"status":"not_published","records":[]})
+  result=self.run_collection({1:[ok],2:[ok]})
+  self.assertTrue(result["capture_window_complete"])
+  self.assertEqual(result["comparable"],0)
+  self.assertFalse(result["formal"])
+  self.assertFalse(result["independent_first_receipt_verified"])
+
 class DownloadedRunEvidenceTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory()

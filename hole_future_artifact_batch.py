@@ -251,7 +251,8 @@ def summarize_downloaded_runs(root,run_ids):
         run_dir=root/str(run_id)
         if run_dir.is_symlink() or not run_dir.is_dir():
             rows.append({"run_id":run_id,"stage":"download_directory_missing",
-                         "has_hole_shadow":False})
+                         "has_hole_shadow":False,"shadow_file_count":0,
+                         "shadow_evidence_usable":False})
             continue
         # GitHub CLI may nest artifacts by artifact name; discover exact one.
         publication_paths=[p for p in run_dir.rglob("publication.json")
@@ -262,7 +263,9 @@ def summarize_downloaded_runs(root,run_ids):
                       if p.is_file() and not p.is_symlink()]
         if any(len(x)>1 for x in (publication_paths,stage_paths,shadow_paths)):
             rows.append({"run_id":run_id,"stage":"ambiguous_multiple_evidence_files",
-                         "has_hole_shadow":False})
+                         "has_hole_shadow":bool(shadow_paths),
+                         "shadow_file_count":len(shadow_paths),
+                         "shadow_evidence_usable":False})
             continue
         publication=(read_evidence_json(publication_paths[0].parent,"publication.json")
                      if publication_paths else None)
@@ -274,6 +277,8 @@ def summarize_downloaded_runs(root,run_ids):
                      "stage":classify(stages,publication,shadow),
                      "publication_outcome":publication.get("outcome") if publication else None,
                      "has_hole_shadow":bool(shadow_paths),
+                     "shadow_file_count":len(shadow_paths),
+                     "shadow_evidence_usable":bool(shadow and isinstance(shadow.get("records"),list)),
                      "shadow_records":len(shadow["records"]) if shadow and
                            isinstance(shadow.get("records"),list) else None})
     return rows
@@ -325,7 +330,15 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
     result["runs_in_window"]=len(candidates)
     result["runs_inspected"]=min(len(candidates),MAX_DOWNLOADS)
     result["runs_downloaded"]=len(downloaded)
-    result["downloaded_runs_without_shadow"]=max(0,len(downloaded)-result["artifact_files"])
+    # Count per run, not per file: two files in one run cannot conceal an
+    # entirely missing shadow in another run.
+    result["downloaded_runs_without_shadow"]=sum(
+        item["shadow_file_count"]==0 for item in run_evidence)
+    result["downloaded_runs_ambiguous_shadow"]=sum(
+        item["shadow_file_count"]>1 for item in run_evidence)
+    result["downloaded_runs_unusable_shadow"]=sum(
+        item["shadow_file_count"]==1 and not item["shadow_evidence_usable"]
+        for item in run_evidence)
     result["run_download_failures"]=failures
     result["window_start_jst"]=discovery["window_start_jst"]
     result["capture_window_start_jst"]=discovery["capture_window_start_jst"]
@@ -341,7 +354,8 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
         discovery["listing_complete"] and len(candidates)>0 and not failures
         and len(candidates)<=MAX_DOWNLOADS
         and len(downloaded)==len(candidates)
-        and result["downloaded_runs_without_shadow"]==0)
+        and all(item["shadow_file_count"]==1 and item["shadow_evidence_usable"]
+                for item in run_evidence))
     result["repository_result_coverage"]["checked_out_file_coverage_complete"]=(
         result["capture_window_complete"] and result["repository_result_coverage"]["confirmed"]>0
         and result["repository_result_coverage"]["confirmed_without_shadow"]==0
