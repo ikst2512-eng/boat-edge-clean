@@ -12,6 +12,7 @@ on:
       - '.github/workflows/four-mode-capture-watchdog.yml'
       - 'scripts/four_mode_watchdog_policy.py'
       - 'test_four_mode_watchdog_policy.py'
+      - 'tests/test_watchdog_decision_artifact.py'
       - 'scripts/render_four_mode_dispatch.py'
       - 'test_render_four_mode_dispatch.py'
 permissions:
@@ -31,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test dispatch policy
-        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact
       - name: Check recent capture runs before fallback dispatch
         env:
           GH_TOKEN: ${{ github.token }}
