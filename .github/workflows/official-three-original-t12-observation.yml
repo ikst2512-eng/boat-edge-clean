@@ -3,7 +3,7 @@ on:
   # Nov 3 only; Python's exact 20261103 JST date guard rejects other years.
   # Scheduled GitHub Actions may start late; all sources remain subject to cutoff.
   schedule:
-    - cron: '30,40,48 6 3 11 *'
+    - cron: '30,40,48,50,51 6 3 11 *'
   pull_request:
     paths:
       - '.github/workflows/official-three-original-t12-observation.yml'
