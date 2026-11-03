@@ -18,6 +18,11 @@ def verify_future_third_rate(root, publication, observation):
     observed = observation["records"]
     future_codes = {row["race_code"] for row in observed
                     if row["race_code"][:8] >= "20261104"}
+    # A shadow must use the exact T-12 cutoff independently recorded for
+    # that same remote-observed race. Separately self-consistent timestamps
+    # are insufficient when the two producers disagree on the deadline.
+    observed_cutoffs = {row["race_code"]: row["deadline_minus_12_jst"]
+                        for row in observed if row["race_code"] in future_codes}
     if not future_codes:
         return
     original = (evidence / "third-rate-shadow.json").read_bytes()
@@ -54,6 +59,14 @@ def verify_future_third_rate(root, publication, observation):
             if (at.utcoffset() is None or cutoff.utcoffset() != timedelta(hours=9)
                     or at >= cutoff):
                 raise ValueError("future_third_rate_frozen_after_cutoff")
+            try:
+                independently_observed_cutoff = datetime.fromisoformat(
+                    observed_cutoffs[code])
+            except (KeyError, ValueError, TypeError, AttributeError) as exc:
+                raise ValueError("future_third_rate_remote_cutoff_invalid") from exc
+            if (independently_observed_cutoff.utcoffset() != timedelta(hours=9)
+                    or cutoff != independently_observed_cutoff):
+                raise ValueError("future_third_rate_remote_cutoff_mismatch")
         elif row.get("status") != "ineligible":
             raise ValueError("future_third_rate_unexpected_status")
     if codes != future_codes or frozen != shadow["frozen_before_t_minus_12"]:
