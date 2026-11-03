@@ -9,6 +9,12 @@
 - 2026-11-04 12:25/14:25/16:25 JSTの実際のschedule・fallback・有効HTTP200・二重計上は未実証。既存18:00 JST自動監査（ID `6ae9b1a3021481919940f077e05cf620`）は有効。独立Render Cron Jobは未作成、追加料金発生なし。
 - 次の最優先: 11/4実測で3枠の時間内起動、GitHub代替起動、HTTP200、artifact、重複を確認。独立スケジューラの導入は遅延再発や費用判断を踏まえて別途行う。
 
+## 2026-11-03 オッズ監視の直接PR・手動起動を定時監視キューから分離
+- PR #1444 を main にsquash統合（`0b5a632e468906b038ae35a5934037054ff6c993`）。既存 `.github/workflows/live-official-odds-probe.yml` では、前回 #1424 で上流PR/push-origin workflow_run は分離済みだったが、同workflowの直接 `pull_request` と `workflow_dispatch` は通常schedule/正規fallbackと同じconcurrency groupに残っていた。PRや手動実行の増加による定時監視遅延リスクを低減するため、それぞれ固有run IDの独立groupに分離。
+- 正規 `schedule` と上流schedule由来 `workflow_run` は同じoperational groupを維持し、`queue: max` と `cancel-in-progress: false` を維持。既存 `tests/test_gate_live_odds_event.py` にPR/手動分離アサーションを追加。
+- PR CI `41636820914`, job `125919997271` 結果success。**これはPRイベントの成功であり無人監視成功としては計上しない**。11/4の12:25・14:25・16:25 JST実起動と有効HTTP200/artifact/重複なしの実証は引き続き未完了。Render有料Cron Jobは作成していない。
+- 11/4 18:00 JST既存の自動監査タスクにより実レースで監視する。次の変更は実測エラーに基づく最小修正のみとする。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
