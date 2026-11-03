@@ -13,7 +13,11 @@ on:
       - 'scripts/check_live_odds_probe_verdict.py'
       - 'tests/test_check_live_odds_probe_verdict.py'
   schedule:
-    - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
+    # Split the same three slots into distinct expressions to refresh the
+    # scheduled-workflow actor/registration without changing cadence.
+    - cron: '25 3 * * *' # 12:25 JST
+    - cron: '25 5 * * *' # 14:25 JST
+    - cron: '25 7 * * *' # 16:25 JST
   workflow_run:
     workflows: ['CLEAN prospective pre-cutoff capture', 'Four-mode prospective capture (research only)']
     types: [completed] # Read-only fallback; upstream schedules actually observed
