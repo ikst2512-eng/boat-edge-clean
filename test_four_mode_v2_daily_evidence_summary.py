@@ -20,7 +20,11 @@ class EvidenceSummaryTests(unittest.TestCase):
             "pending_or_unknown_runs":0,"unsuccessful_runs":0,
             "missing_or_failed_artifacts":[],"bad_validation_runs":[],
             "race_codes_paired":[A],
-            "paired_race_scores":[{"race_code":A}],
+            "paired_race_scores":[{"race_code":A,"topn":{
+                "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
+                "top5":{"baseline":1,"candidate":1,"gained":0,"lost":0},
+                "top10":{"baseline":1,"candidate":1,"gained":0,"lost":0},
+            }}],
             "by_race_day_jst":{
                 "20261104":{"paired":1,"race_codes":[A],"topn":{
                     "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
@@ -121,6 +125,26 @@ class EvidenceSummaryTests(unittest.TestCase):
         self.capture["race_codes_paired"] = [A, "202611040102"]
         self.capture["paired_race_scores"] = [
             {"race_code":A}, {"race_code":"202611040102"}]
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_forged_aggregate_top3_gain_is_withheld(self):
+        # Both the day and global table claim a gain, but the frozen
+        # individual race result records a miss for candidate Top3.
+        self.capture["paired_race_scores"][0]["topn"]["top3"] = {
+            "baseline":0,"candidate":0,"gained":0,"lost":0}
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("Evidence ready for bounded research comparison: no", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_invalid_per_race_hit_boolean_cannot_show_gain(self):
+        self.capture["paired_race_scores"][0]["topn"]["top3"]["candidate"] = True
+        md = summarize(self.capture, self.ledger, self.reconciliation)
+        self.assertIn("TopN accuracy withheld", md)
+        self.assertNotIn("| TOP3 |", md)
+
+    def test_per_race_gain_loss_arithmetic_must_be_consistent(self):
+        self.capture["paired_race_scores"][0]["topn"]["top3"]["lost"] = 1
         md = summarize(self.capture, self.ledger, self.reconciliation)
         self.assertNotIn("| TOP3 |", md)
 
