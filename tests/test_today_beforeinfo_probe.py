@@ -21,7 +21,7 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
         with patch("scripts.probe_today_beforeinfo._preview_rows",
                    side_effect=lambda kind,day: ([row(clock="17:00")],"a"*64)):
             with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_MATCHED_PREDEADLINE_RACES"):
-                run(now=NOW,event_name="schedule")
+                run(now=NOW,event_name="schedule",clock=lambda:NOW)
 
     def test_scheduled_zero_six_lane_verification_fails(self):
         with patch("scripts.probe_today_beforeinfo._preview_rows",
@@ -29,7 +29,7 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
                    "scripts.probe_today_beforeinfo._fetch_preview",
                    return_value=(None,{"status":"invalid_or_incomplete_exhibition"})):
             with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_VERIFIED_SIX_LANE"):
-                run(now=NOW,event_name="schedule")
+                run(now=NOW,event_name="schedule",clock=lambda:NOW)
 
     def test_scheduled_verified_six_lane_passes(self):
         preview={"racers":[{"lane":i} for i in range(1,7)],
@@ -38,21 +38,43 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
                    side_effect=lambda kind,day: ([row()],"a"*64)),patch(
                    "scripts.probe_today_beforeinfo._fetch_preview",
                    return_value=(preview,{"status":"ok"})):
-            result=run(now=NOW,event_name="schedule")
+            result=run(now=NOW,event_name="schedule",clock=lambda:NOW)
         self.assertEqual(result["eligible_count"],1)
         self.assertEqual(result["verified_count"],1)
         self.assertEqual(result["verified_races"],[CODE])
+
+    def test_adapter_completes_after_cutoff_and_cannot_verify_live(self):
+        preview={"racers":[{"lane":i} for i in range(1,7)],
+                 "start_exhibition":[{"lane":i} for i in range(1,7)]}
+        after_cutoff=datetime(2026,11,4,18,0,tzinfo=JST)
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row()],"a"*64)),patch(
+                   "scripts.probe_today_beforeinfo._fetch_preview",
+                   return_value=(preview,{"status":"ok"})):
+            with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_VERIFIED_SIX_LANE"):
+                run(now=NOW,event_name="schedule",clock=lambda:after_cutoff)
+
+    def test_predeadline_adapter_receipt_is_accepted(self):
+        preview={"racers":[{"lane":i} for i in range(1,7)],
+                 "start_exhibition":[{"lane":i} for i in range(1,7)]}
+        just_before=datetime(2026,11,4,17,59,59,tzinfo=JST)
+        with patch("scripts.probe_today_beforeinfo._preview_rows",
+                   side_effect=lambda kind,day: ([row()],"a"*64)),patch(
+                   "scripts.probe_today_beforeinfo._fetch_preview",
+                   return_value=(preview,{"status":"ok"})):
+            result=run(now=NOW,event_name="schedule",clock=lambda:just_before)
+        self.assertEqual(result["verified_count"],1)
 
     def test_no_source_is_explicit_failure_on_schedule(self):
         with patch("scripts.probe_today_beforeinfo._preview_rows",
                    side_effect=OSError("source down")):
             with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_ALL_SOURCES_UNAVAILABLE"):
-                run(now=NOW,event_name="schedule")
+                run(now=NOW,event_name="schedule",clock=lambda:NOW)
 
     def test_manual_diagnostics_can_report_no_evidence_without_fake_success(self):
         with patch("scripts.probe_today_beforeinfo._preview_rows",
                    side_effect=lambda kind,day: ([row(clock="17:00")],"a"*64)):
-            result=run(now=NOW,event_name="workflow_dispatch")
+            result=run(now=NOW,event_name="workflow_dispatch",clock=lambda:NOW)
         self.assertEqual(result["verified_count"],0)
         self.assertEqual(result["eligible_count"],0)
 
