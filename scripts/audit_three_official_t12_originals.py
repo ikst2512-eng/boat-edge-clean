@@ -33,6 +33,13 @@ def audit_three_originals(racelist_dir, beforeinfo_dir, odds_dir):
         "odds_120": bool(pair["component_checks"]["official_odds_120"]),
         "odds_received_by_t12": bool(pair["component_checks"]["odds_received_by_t12"]),
     }
+    # Receipt margin is derived from all independently verified source manifests,
+    # never GitHub Actions start time or a self-reported summary.
+    cutoff = datetime.fromisoformat(pair["cutoff_jst"])
+    latest_receipt = max(datetime.fromisoformat(stamp) for stamp in (
+        card["racelist_received_jst"], card["beforeinfo_received_jst"],
+        pair["odds_received_jst"]))
+    receipt_margin_seconds = (cutoff - latest_receipt).total_seconds()
     missing = [name for name, passed in component_checks.items() if not passed]
     return {
         "race_code": pair["race_code"],
@@ -41,6 +48,8 @@ def audit_three_originals(racelist_dir, beforeinfo_dir, odds_dir):
         "racelist_received_jst": card["racelist_received_jst"],
         "beforeinfo_received_jst": card["beforeinfo_received_jst"],
         "odds_received_jst": pair["odds_received_jst"],
+        "latest_original_received_jst": latest_receipt.isoformat(),
+        "t12_receipt_margin_seconds": receipt_margin_seconds,
         "registrations_by_lane": card["registrations_by_lane"],
         "exhibition_course_to_boat": card["exhibition_course_to_boat"],
         "three_originals_hash_verified": bool(
