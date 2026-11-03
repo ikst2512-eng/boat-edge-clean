@@ -16,7 +16,7 @@ beforeinfo and trifecta odds) to be received before T−12. The runner then
 commits the research report and available raw originals to a **dedicated
 non-main** evidence branch through the GitHub Git API.
 
-The Git tree update is one non-force commit with SHA-verified blobs.
+The Git tree update is one non-force commit with SHA-verified blobs.\nOnly the exactly named `research-t12-external-evidence` branch is accepted,\nand original bytes must match manifest SHA256 and byte lengths before upload.
 It does not alter `main`, publish official forecasts, or enable
 `forecast_usable`, `full_t12_source_certified` or `t12_eligible`.
 Failed evidence uploads make the runner fail, not report success.
