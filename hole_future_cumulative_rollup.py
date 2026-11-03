@@ -15,6 +15,24 @@ from pathlib import Path
 
 from hole_future_shadow_audit import POLICIES, TOPS
 
+def report_totals_match(flags, claimed_hits, claimed_delta):
+    """Cross-check both summary layers against immutable per-race hit booleans."""
+    expected_hits={m:{f"top{k}":sum(int(row[m][f"top{k}"]) for row in flags.values())
+                      for k in TOPS} for m in POLICIES}
+    if claimed_hits!=expected_hits:
+        return False
+    expected_delta={}
+    for m in POLICIES[1:]:
+        expected_delta[m]={}
+        for k in TOPS:
+            key=f"top{k}"
+            gain=sum(int(row[m][key] and not row["baseline"][key])
+                     for row in flags.values())
+            loss=sum(int(row["baseline"][key] and not row[m][key])
+                     for row in flags.values())
+            expected_delta[m][key]={"gained":gain,"lost":loss,"net":gain-loss}
+    return claimed_delta==expected_delta
+
 def rollup(reports):
     rows={}; conflicts=set(); invalid=Counter(); days=set()
     report_count=0; covered=set(); partial=0; all_reports=[]
@@ -56,6 +74,16 @@ def rollup(reports):
             window_codes_valid=False
         if not window_codes_valid:
             invalid["race_outside_report_window"]+=1;continue
+        # Validate every row first, before allowing any report to contribute.
+        # A mismatch in one entry must not allow selective hits to leak in.
+        if any(not isinstance(values,dict) or set(values)!=set(POLICIES)
+               or any(not isinstance(values.get(m),dict) or
+                      set(values[m])!={f"top{k}" for k in TOPS} or
+                      any(type(values[m][f"top{k}"]) is not bool for k in TOPS)
+                      for m in POLICIES) for values in flags.values()):
+            invalid["invalid_hit_flags"]+=1;continue
+        if not report_totals_match(flags,item.get("hits"),item.get("delta")):
+            invalid["summary_totals_mismatch"]+=1;continue
         for code,values in flags.items():
             if not isinstance(code,str) or len(code)!=12 or not code.isdigit() or code[:8]<"20261104":
                 invalid["invalid_race_code"]+=1;continue
