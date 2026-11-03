@@ -169,6 +169,53 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(m["other_http_or_transport"], 1)
         self.assertEqual(m["http_503"], 1)
 
+    def test_jst_first_calendar_day_and_failed_run_are_accounted_for(self):
+        # At 14:00 JST Nov 3, Oct 21 00:30 JST is still within 14 calendar days.
+        current = {"source_status": "no_upcoming_race", "samples": []}
+        valid_stamp = "2026-10-21T00:30:00+09:00"
+        early = {"id": 77, "event": "schedule", "conclusion": "success",
+                 "created_at": "2026-10-20T15:30:00Z"}
+        failed = {"id": 78, "event": "schedule", "conclusion": "failure",
+                  "created_at": "2026-11-02T05:25:00Z"}
+        evidence = {"checked_at_jst": valid_stamp, "source_status": "ok",
+                    "samples": [race("202610210111", ["valid_200"])]}
+        binary = io.BytesIO()
+        with zipfile.ZipFile(binary, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(evidence))
+        def fake_api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [early, failed]}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 123, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(binary.getvalue())):
+            records, count, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake", current,
+                now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(count, 2)
+        self.assertEqual(len(records), 2)
+        self.assertEqual(errors, [{"run_id": 78, "status": "workflow_failure"}])
+        self.assertEqual(history.summarize(records)["eventual_valid_races"], 1)
+
+    def test_future_dated_artifact_not_accepted(self):
+        current = {"source_status": "no_upcoming_race", "samples": []}
+        run = {"id": 8, "event": "schedule", "conclusion": "success",
+               "created_at": "2026-11-03T04:00:00Z"}
+        evidence = {"checked_at_jst": "2026-11-04T13:00:00+09:00",
+                    "source_status": "ok", "samples": [race("202611040111", ["valid_200"])]}
+        binary = io.BytesIO()
+        with zipfile.ZipFile(binary, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(evidence))
+        with patch.object(history, "api_json", side_effect=lambda url, token: (
+                {"workflow_runs": [run]} if "/runs?status=" in url else
+                {"artifacts": [{"name": history.ARTIFACT, "id": 5, "expired": False}]})), patch.object(
+                history, "urlopen", return_value=io.BytesIO(binary.getvalue())):
+            records, count, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake", current,
+                now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(errors, [{"run_id": 8, "status": "ValueError"}])
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])

@@ -152,12 +152,15 @@ def api_json(url, token):
 
 def fetch_history(repository, token, current, *, now=None):
     now = now or datetime.now(timezone.utc)
-    cutoff = now - timedelta(days=DAYS)
+    # Match the 14 calendar days displayed by daily_trends(), not a rolling 336h.
+    jst = timezone(timedelta(hours=9))
+    first_day = now.astimezone(jst).date() - timedelta(days=DAYS - 1)
+    cutoff = datetime.combine(first_day, datetime.min.time(), tzinfo=jst).astimezone(timezone.utc)
     root = "https://api.github.com/repos/" + repository
     runs = api_json(root + "/actions/workflows/" + WORKFLOW + "/runs?status=completed&per_page=100", token).get("workflow_runs", [])
     selected = []
     for run in runs:
-        if run.get("event") not in ("schedule", "workflow_dispatch") or run.get("conclusion") != "success":
+        if run.get("event") not in ("schedule", "workflow_dispatch"):
             continue
         try:
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
@@ -170,6 +173,9 @@ def fetch_history(repository, token, current, *, now=None):
     errors = []
     for run in selected[:MAX_RUNS]:
         run_id = run["id"]
+        if run.get("conclusion") != "success":
+            errors.append({"run_id": run_id, "status": "workflow_" + str(run.get("conclusion") or "unknown")})
+            continue
         try:
             artifacts = api_json(root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100", token).get("artifacts", [])
             item = next((x for x in artifacts if x.get("name") == ARTIFACT and not x.get("expired")), None)
@@ -190,7 +196,10 @@ def fetch_history(repository, token, current, *, now=None):
                 raise ValueError("METRICS_SCHEMA")
             # Only evidence with the source's actual observation timestamp.
             stamp = datetime.fromisoformat(evidence["checked_at_jst"])
-            if stamp.tzinfo is None or stamp.astimezone(timezone.utc) < cutoff:
+            observed = stamp.astimezone(timezone.utc) if stamp.tzinfo is not None else None
+            created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+            if (observed is None or observed < cutoff or observed > now + timedelta(minutes=5)
+                    or abs((observed - created_at).total_seconds()) > 3600):
                 raise ValueError("METRICS_TIME_INVALID")
             history.append(evidence)
         except (HTTPError, URLError, OSError, ValueError, KeyError, zipfile.BadZipFile, TimeoutError) as exc:
