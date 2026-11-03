@@ -84,7 +84,7 @@ def inventory(repo, token, fetch=api_json, now=None):
             "dispatch_accepted_proven": False,
             "forecast_saved_proven": False,
             "note": "Run listings are first-page metadata only. They do not prove dispatch cause or main publication.",
-            "recent_capture_runs": captures[:15],
+            "recent_capture_runs": captures,
             "recent_watchdog_runs": watchdogs[:40]}
 
 
