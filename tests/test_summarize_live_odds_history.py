@@ -366,6 +366,32 @@ class OddsHistoryTests(unittest.TestCase):
             changed[key] = value
             self.assertFalse(history.include_current_event("workflow_run", {"trigger": changed}))
 
+    def test_ineligible_fallback_artifact_does_not_raise_missing_evidence(self):
+        record = {"checked_at_jst": "2026-11-03T14:00:00+09:00",
+                  "source_status": "fallback_ineligible",
+                  "trigger": {"event": "workflow_run", "upstream_event": "push",
+                              "upstream_workflow": "CLEAN prospective pre-cutoff capture",
+                              "upstream_branch": "main", "upstream_run_id": 123},
+                  "samples": []}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(record))
+        upstream = {"id": 999, "event": "workflow_run", "conclusion": "success",
+                    "created_at": "2026-11-03T05:00:00Z"}
+        def fake_api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [upstream]}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 77, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(archive.getvalue())):
+            records, count, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake",
+                {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, 0, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(history.summarize(records)["race_observations"], 0)
+
     def test_prior_verified_scheduled_fallback_artifact_enters_trend(self):
         record = {"checked_at_jst": "2026-11-03T14:00:00+09:00",
                   "source_status": "ok",
