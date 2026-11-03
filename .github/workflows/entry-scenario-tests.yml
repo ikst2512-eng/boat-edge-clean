@@ -3,9 +3,11 @@ on:
   pull_request:
     paths:
       - entry_scenario.js
+      - entry_evidence_gate.js
       - index.html
       - server.py
       - tests/test_entry_scenario.cjs
+      - tests/test_entry_evidence_gate.cjs
       - .github/workflows/entry-scenario-tests.yml
   workflow_dispatch:
 permissions:
@@ -20,8 +22,8 @@ jobs:
         with:
           node-version: '22'
       - name: Verify client simulator JavaScript
-        run: node --check entry_scenario.js
+        run: node --check entry_scenario.js && node --check entry_evidence_gate.js
       - name: Test entry permutation calculations and front-end integration
-        run: node --test tests/test_entry_scenario.cjs
+        run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs
       - name: Check Python web route syntax
         run: python -m py_compile server.py
