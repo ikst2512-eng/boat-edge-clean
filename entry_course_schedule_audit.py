@@ -16,8 +16,8 @@ JST=timezone(timedelta(hours=9))
 REPO="ikst2512-eng/boat-edge-clean"
 BRANCH="entry-course-evidence-ledger"
 WORKFLOWS={
-    "t12":("entry-course-t12-baseline.yml","t12_baselines"),
-    "t2":("entry-course-late-capture.yml","waku10"),
+    "t12":("entry-course-t12-baseline.yml",("t12_baselines",)),
+    "t2":("entry-course-late-capture.yml",("waku10","entry_course")),
 }
 DAY=re.compile(r"20[0-9]{6}\Z")
 CODE=re.compile(r"20[0-9]{10}\.json\Z")
@@ -110,7 +110,7 @@ def operational_audit(day, *, fetch=_api, today=None):
         raise ValueError("schedule_audit_requires_completed_jst_day")
     paths=_tree_paths(fetch)
     result={}
-    for kind,(workflow,prefix) in WORKFLOWS.items():
+    for kind,(workflow,prefixes) in WORKFLOWS.items():
         executions=_runs(workflow,day,fetch)
         decisions=Counter()
         for r in executions:
@@ -121,7 +121,7 @@ def operational_audit(day, *, fetch=_api, today=None):
             else:
                 decisions["incomplete"]+=1
         files=sorted(path for path in paths if
-            path.startswith(f"{prefix}/{day}/") and
+            any(path.startswith(f"{prefix}/{day}/") for prefix in prefixes) and
             CODE.fullmatch(path.rsplit("/",1)[-1]) and
             path.rsplit("/",1)[-1][:8]==day)
         result[kind]={
