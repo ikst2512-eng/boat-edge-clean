@@ -25,7 +25,7 @@ def audit(root,shadow):
     if data.get("status")!="research_only_after_confirmed_push" or not isinstance(data.get("records"),list):
         return {"status":"unusable_shadow","formal":False,"comparable":0}
     hits={p:{f"top{k}":0 for k in TOPS} for p in POLICIES}
-    missing={};rows=[];seen=set()
+    missing={};rows=[];seen=set();eligible_codes=[]
     def exclude(reason):
         missing[reason]=missing.get(reason,0)+1
     for record in data["records"]:
@@ -60,6 +60,10 @@ def audit(root,shadow):
             exclude("candidate_replay_mismatch");continue
         if any(picks[p][:5]!=picks["baseline"][:5] for p in POLICIES):
             exclude("top5_changed");continue
+        # This candidate passed replay and timestamp checks even if the
+        # official result has not settled yet. Do not equate declared files
+        # with validated frozen predictions.
+        eligible_codes.append(code)
         result=compare_race(code,root)
         if result.get("status")!="historical_comparison_only":
             exclude("unconfirmed_result");continue
@@ -84,6 +88,7 @@ def audit(root,shadow):
             "formal":False,"independent_first_receipt_verified":False,
             "prospective_validation":False,"production_forecast_changed":False,
             "comparable":len(rows),"excluded_by_reason":missing,"hits":hits,"delta":delta,"rows":rows,
+            "eligible_codes":eligible_codes,
             "warning":"Same-job freeze is unverified by independent remote first receipt; do not claim formal predeadline accuracy."}
 
 if __name__=="__main__":
