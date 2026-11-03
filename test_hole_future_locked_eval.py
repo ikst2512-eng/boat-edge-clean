@@ -118,6 +118,17 @@ class FutureLockedEvaluationTests(unittest.TestCase):
         self.assertIn("run: python hole_future_first_add_audit.py --as-of \"$(TZ=Asia/Tokyo date -d 'yesterday' +%F)\"", workflow)
         self.assertNotIn("run: python hole_future_locked_eval.py >", workflow)
 
+    def test_nightly_preserves_partial_evidence_after_failure(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/hole-future-locked-eval.yml").read_text(encoding="utf-8")
+        section = workflow.split("      - uses: actions/upload-artifact@v4", 1)
+        self.assertEqual(len(section), 2)
+        self.assertIn("        if: always()", section[1])
+        for name in ("hole_future_locked_results.json",
+                     "hole_future_first_add_results.json",
+                     "hole_future_remote_observation_link.json"):
+            self.assertIn(name, section[1])
+
     def test_reject_invalid_window(self):
         with self.assertRaises(ValueError):evaluate(self.root,date(2026,11,4),days=32)
 
