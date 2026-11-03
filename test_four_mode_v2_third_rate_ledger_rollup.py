@@ -70,6 +70,7 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
         self.assertEqual(report["status"], "durable_frozen_evidence_scored")
         self.assertEqual(report["paired"], 1)
         self.assertEqual(report["by_race_day_jst"]["20261104"]["paired"], 1)
+        self.assertEqual(report["topn"]["top1"]["candidate"], 1)
         self.assertEqual(report["topn"]["top3"]["candidate"], 1)
         self.assertEqual(report["race_codes_paired"], [CODE])
         self.assertEqual(report["paired_race_scores"][0]["race_code"], CODE)
@@ -82,6 +83,7 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
             report = evaluate(self.root, self.git)
         self.assertEqual(report["paired"], 0)
         self.assertEqual(report["pending_results"], 1)
+        self.assertEqual(report["topn"]["top1"]["candidate"], 0)
         self.assertEqual(report["topn"]["top10"]["candidate"], 0)
 
     def test_nightly_checkout_fetch_has_ephemeral_github_credentials(self):
