@@ -233,7 +233,7 @@ class FallbackGateTests(unittest.TestCase):
         pages = []
         def fetch(url, token):
             pages.append(url)
-            return {"workflow_runs": noisy if "page=1" in url else [verified]}
+            return {"workflow_runs": noisy if "&page=1" in url else [verified]}
         result = gate.prior_fallback_guard(
             trigger, "a/b", "token", 500, now=now,
             fetch_json=fetch, probe_check=lambda *_: "valid")
