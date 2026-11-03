@@ -97,6 +97,7 @@ def audit_archive_bytes(day, tree, fetch, *, repository):
             raw=_read_blob(item.get("sha"),fetch,repository)
             validated=_validate_one(path,raw,day=day)
             validated["path"]=path
+            validated["blob_sha"]=item["sha"]
             decoded.append(validated)
         except (ValueError,KeyError,TypeError,UnicodeError,OSError) as exc:
             failures.append({"path":path,"reason":str(exc)[:110]
@@ -117,7 +118,8 @@ def audit_archive_bytes(day, tree, fetch, *, repository):
             linked.append(item["path"])
     return {
         "blob_sha_and_internal_payload_valid_count":len(decoded),
-        "internally_validated_paths":[{"path":x["path"],"cutoff_at":x["cutoff_at"].isoformat()}
+        "internally_validated_paths":[{"path":x["path"],"cutoff_at":x["cutoff_at"].isoformat(),
+                                               "blob_sha":x["blob_sha"]}
                                       for x in decoded],
         "t12_payload_valid_count":len(t12),
         "t2_payload_valid_count":sum(x["family"]!="t12" for x in decoded),
