@@ -1,0 +1,139 @@
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from clean_four_modes import rank_modes
+from research_model import probabilities
+from four_mode_v2_third_rate_shadow import PROTOCOL, candidate
+from third_rate_evidence_ledger import prepare, publish, BRANCH
+
+CODE = "202611040101"
+SHA = "a" * 40
+RATES = [5.2, 6.1, 4.6, 3.9, 4.8, 3.7]
+
+
+class ThirdRateDurableLedgerTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        folder = self.root / "four_mode_forecasts"
+        folder.mkdir()
+        modes = rank_modes(probabilities(RATES))
+        archive = {"race_code": CODE, "model_version":
+                   "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+                   "modes": modes}
+        f = folder / (CODE + ".json")
+        f.write_text(json.dumps(archive) + "\n", encoding="utf-8")
+        baseline = [r["combo"] for r in modes["hit"]["tickets"]]
+        after, _ = candidate(baseline, RATES, probabilities(RATES))
+        self.data = {
+            "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+            "protocol": PROTOCOL, "formal": False,
+            "independent_remote_first_seen_verified": False,
+            "production_forecast_changed": False,
+            "status": "captured_local_after_push_not_remote_proven",
+            "publication_commit_sha": SHA, "published_forecasts": 1,
+            "frozen_before_t_minus_12": 1, "ineligible_count": 0,
+            "validation_error_count": 0,
+            "records": [{
+                "race_code": CODE,
+                "status": "frozen_in_same_job_before_t_minus_12",
+                "source_commit_sha": SHA, "protocol": PROTOCOL,
+                "baseline_top10": baseline, "candidate_top10": after,
+                "frozen_at_utc": "2026-11-04T01:00:00+00:00",
+                "t_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                "source_forecast_sha256": hashlib.sha256(f.read_bytes()).hexdigest(),
+            }],
+        }
+        self.storage = {}
+
+    def original(self):
+        return (json.dumps(self.data, sort_keys=True) + "\n").encode()
+
+    def remote_read(self, path):
+        return self.storage.get(path)
+
+    def remote_create(self, path, original, run_id):
+        self.assertNotIn(path, self.storage)
+        self.storage[path] = original
+
+    def test_first_publish_is_byte_exact_append_only_and_readback(self):
+        raw = self.original()
+        status = publish(raw, self.root, "412345", "1",
+                         self.remote_read, self.remote_create)
+        self.assertEqual(status["status"], "new_immutable_ledger_entry")
+        self.assertTrue(status["stored"])
+        self.assertEqual(status["branch"], BRANCH)
+        self.assertEqual(status["path"],
+                         "third_rate/20261104/run-412345-attempt-1.json")
+        self.assertEqual(self.storage[status["path"]], raw)
+        self.assertFalse(status["independent_remote_first_seen_verified"])
+        self.assertFalse(status["formal"])
+
+    def test_second_identical_write_idempotent_and_conflict_refused(self):
+        raw = self.original()
+        publish(raw, self.root, "412345", "1",
+                self.remote_read, self.remote_create)
+        seen = publish(raw, self.root, "412345", "1",
+                       self.remote_read,
+                       lambda *args: self.fail("attempted overwrite"))
+        self.assertEqual(seen["status"], "already_preserved_identical")
+        self.data["records"][0]["candidate_top10"].reverse()
+        with self.assertRaisesRegex(ValueError, "immutable_ledger_collision"):
+            publish(self.original(), self.root, "412345", "1",
+                    self.remote_read, self.remote_create)
+
+    def test_missing_remote_readback_rejected(self):
+        with self.assertRaisesRegex(ValueError, "ledger_readback_mismatch"):
+            publish(self.original(), self.root, "412345", "1",
+                    lambda _: None, lambda *args: None)
+
+    def test_no_frozen_predictions_not_preserved(self):
+        self.data.update({"status": "no_confirmed_publication",
+                          "published_forecasts": 0,
+                          "frozen_before_t_minus_12": 0,
+                          "ineligible_count": 0, "records": []})
+        report = publish(self.original(), self.root, "412345", "1",
+                         self.remote_read, self.remote_create)
+        self.assertEqual(report["status"], "no_eligible_frozen_predictions")
+        self.assertEqual(self.storage, {})
+
+    def test_reject_tampered_original_frozen_forecast(self):
+        self.data["records"][0]["source_forecast_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "frozen_source_digest_mismatch"):
+            prepare(self.original(), self.root, "412345", "1")
+
+    def test_reject_late_or_development_period_prediction(self):
+        self.data["records"][0]["frozen_at_utc"] = "2026-11-04T02:48:00+00:00"
+        with self.assertRaisesRegex(ValueError, "late_or_inconsistent"):
+            prepare(self.original(), self.root, "412345", "1")
+        self.data["records"][0]["frozen_at_utc"] = "2026-11-04T01:00:00+00:00"
+        self.data["records"][0]["race_code"] = "202611030101"
+        with self.assertRaisesRegex(ValueError, "development_or_wrong_protocol"):
+            prepare(self.original(), self.root, "412345", "1")
+
+    def test_duplicate_race_and_wrong_publication_sha_rejected(self):
+        self.data["records"].append(dict(self.data["records"][0]))
+        self.data["published_forecasts"] = 2
+        self.data["frozen_before_t_minus_12"] = 2
+        with self.assertRaisesRegex(ValueError, "duplicate_or_invalid_race"):
+            prepare(self.original(), self.root, "412345", "1")
+        self.data["records"] = [self.data["records"][0]]
+        self.data["published_forecasts"] = 1
+        self.data["frozen_before_t_minus_12"] = 1
+        self.data["records"][0]["source_commit_sha"] = "b" * 40
+        with self.assertRaisesRegex(ValueError, "source_commit_mismatch"):
+            prepare(self.original(), self.root, "412345", "1")
+
+    def test_invalid_run_identity_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "invalid_run_identity"):
+            prepare(self.original(), self.root, "not-a-run", "1")
+        with self.assertRaisesRegex(ValueError, "invalid_run_identity"):
+            prepare(self.original(), self.root, "123", "0")
+
+
+if __name__ == "__main__":
+    unittest.main()
