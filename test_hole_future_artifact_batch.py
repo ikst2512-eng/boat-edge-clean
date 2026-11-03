@@ -2,8 +2,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from datetime import datetime,timezone,timedelta
 from unittest.mock import patch
-from hole_future_artifact_batch import aggregate
+from hole_future_artifact_batch import aggregate,discover_full_days,collect_recent
 
 CODE1="202611040101"
 CODE2="202611040102"
@@ -73,5 +74,42 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(result["comparable"],0)
   self.assertEqual(result["excluded_by_reason"]["not_future_eligible"],1)
 
+class FullDayListingTests(unittest.TestCase):
+ def test_paginates_beyond_twenty_and_handles_jst_midnight(self):
+  # 2026-11-02 15:30 UTC is already Nov 3 in Japan.
+  first=[{"id":i,"event":"schedule","created_at":"2026-11-02T15:30:00Z"}
+         for i in range(1,101)]
+  second=[{"id":101,"event":"schedule","created_at":"2026-11-01T18:00:00Z"},
+          {"id":102,"event":"schedule","created_at":"2026-10-30T01:00:00Z"},
+          {"id":103,"event":"pull_request","created_at":"2026-11-02T18:00:00Z"}]
+  with patch("hole_future_artifact_batch.api",side_effect=[
+      json.dumps({"workflow_runs":first}).encode(),
+      json.dumps({"workflow_runs":second}).encode()]) as api:
+   found=discover_full_days("a/b","token",days=2,
+          as_of_jst=datetime(2026,11,4,1,40,tzinfo=timezone(timedelta(hours=9))))
+  self.assertEqual(len(found["candidates"]),101)
+  self.assertTrue(found["listing_complete"])
+  self.assertEqual(found["pages_fetched"],2)
+  self.assertEqual(found["window_start_jst"],"2026-11-02")
+  self.assertEqual(found["window_end_exclusive_jst"],"2026-11-04")
+  self.assertIn("page=2",api.call_args_list[-1].args[0])
+ def test_current_jst_day_is_not_complete(self):
+  pages=[{"id":1,"event":"schedule","created_at":"2026-11-03T01:00:00Z"},
+         {"id":2,"event":"schedule","created_at":"2026-11-02T16:00:00Z"}]
+  with patch("hole_future_artifact_batch.api",
+       return_value=json.dumps({"workflow_runs":pages}).encode()):
+   found=discover_full_days("a/b","token",days=2,
+     as_of_jst=datetime(2026,11,3,15,0,tzinfo=timezone(timedelta(hours=9))))
+  self.assertEqual([r["id"] for r in found["candidates"]],[2])
+ def test_duplicate_run_in_paginated_listing_fails(self):
+  page=[{"id":1,"event":"schedule","created_at":"2026-11-02T16:00:00Z"}]
+  a=page*100
+  with patch("hole_future_artifact_batch.api",return_value=json.dumps({"workflow_runs":a}).encode()):
+   with self.assertRaisesRegex(ValueError,"duplicate_run"):
+    discover_full_days("a/b","token",days=2,
+      as_of_jst=datetime(2026,11,4,tzinfo=timezone(timedelta(hours=9))))
+ def test_days_limit(self):
+  with self.assertRaises(ValueError):
+   discover_full_days("a/b","token",days=4)
 if __name__=="__main__":
  unittest.main()
