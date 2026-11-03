@@ -39,12 +39,12 @@ def summarize(records):
             key = (stamp, code)
             if key in seen:
                 continue
-            seen.add(key)
             if any(step.get("state") not in ("valid_200", "invalid_200", "pending_202", "other_http", "http_error") and
                    not str(step.get("state", "")).startswith("transport_error:") for step in steps if isinstance(step, dict)):
                 continue
             if any(not isinstance(step, dict) or not isinstance(step.get("latency_ms"), int) or step["latency_ms"] < 0 for step in steps):
                 continue
+            seen.add(key)
             observations.append({"code": code, "steps": steps, "elapsed": sample.get("elapsed_ms")})
     http = Counter(str(step.get("http")) for item in observations for step in item["steps"])
     first_valid = sum(item["steps"][0]["state"] == "valid_200" for item in observations)
@@ -150,6 +150,8 @@ def main():
             history, scanned, errors = fetch_history(repo, token, current)
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
             status = "history_api_unavailable:" + type(exc).__name__
+    if status == "ok" and errors:
+        status = "partial_history"
     metrics = summarize(history)
     report = {"window_days": DAYS, "status": status, "history_runs_selected": scanned,
               "history_evidence_loaded": len(history) - 1, "history_errors": errors,
