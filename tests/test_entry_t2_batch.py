@@ -50,11 +50,32 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["status"],"t2_batch_completed")
             self.assertEqual(out["attempted_count"],3)
             self.assertEqual(out["stored_count"],3)
+            self.assertEqual(out["newly_stored_count"],3)
+            self.assertEqual(out["reused_count"],0)
+            self.assertEqual(out["not_stored_count"],0)
             self.assertEqual(out["deferred_count"],0)
             self.assertEqual(len(archive),3)
             self.assertEqual(set(archive),{
                 f"waku10/20261103/2026110307{i:02d}.json" for i in (8,9,10)})
             self.assertTrue(all(r["stored"] for r in out["results"]))
+    def test_repeated_batch_does_not_count_reuse_as_new_saved_forecasts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,bytes_=setup(tmp,2)
+            archive={}
+            ops=(archive.get,lambda key,payload:archive.setdefault(key,payload))
+            original=attempt_batch(tmp,now=lambda:NOW,
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:bytes_,
+                ledger_ops=ops)
+            self.assertEqual(original["newly_stored_count"],2)
+            later=attempt_batch(tmp,now=lambda:NOW,
+                card_reader=lambda *args:self.fail("original must be reused"),
+                waku_fetch=lambda url:self.fail("no re-fetch"),
+                ledger_ops=(archive.get,lambda *args:self.fail("no overwrite")))
+            self.assertEqual(later["stored_count"],2)
+            self.assertEqual(later["newly_stored_count"],0)
+            self.assertEqual(later["reused_count"],2)
+            self.assertEqual(later["not_stored_count"],0)
     def test_one_race_unavailable_does_not_block_other_candidates(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,bytes_=setup(tmp,3)
@@ -72,6 +93,8 @@ class BatchTests(unittest.TestCase):
                 ledger_ops=(archive.get,lambda path,data:archive.setdefault(path,data)))
             self.assertEqual(out["attempted_count"],3)
             self.assertEqual(out["stored_count"],2)
+            self.assertEqual(out["newly_stored_count"],2)
+            self.assertEqual(out["not_stored_count"],1)
             self.assertEqual(out["results"][1]["status"],"preview_not_ready")
             self.assertEqual(len(archive),2)
     def test_remote_failure_is_marked_and_remaining_races_still_attempted(self):
@@ -90,6 +113,8 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(out["status"],"t2_batch_error")
             self.assertEqual(out["errors"],1)
             self.assertEqual(out["stored_count"],1)
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(out["errors"],1)
             self.assertEqual(out["results"][0]["status"],"collector_error")
             self.assertEqual(out["results"][1]["status"],"new_append_only_waku10_pilot")
     def test_missing_all_baselines_still_reports_diagnostics(self):

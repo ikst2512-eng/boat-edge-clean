@@ -204,6 +204,7 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
     if not eligible:
         return {"status":"no_races_in_t12_generation_window",
                 "day":day,"eligible_count":0,"stored_count":0,
+                "newly_stored_count":0,"reused_count":0,"failed_count":0,
                 "title_sha256":title_digest,"title_schedule_source":title_source,"research_only":True}
     if ledger_ops is None:
         import os
@@ -258,9 +259,16 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
             states.append({"race_code":code,"status":"failed",
                            "error_type":type(exc).__name__,
                            "error_code":str(exc)[:120] if isinstance(exc,ValueError) else None})
+    newly_stored=sum(s["status"]=="new_t12_baseline" for s in states)
+    reused=sum(s["status"]=="existing_identical_t12_baseline" for s in states)
+    errors=sum(s["status"]=="failed" for s in states)
+    if newly_stored+reused+errors!=len(states):
+        raise ValueError("t12_unrecognized_publish_verdict")
     return {"status":"t12_generation_attempted","day":day,
             "eligible_count":len(eligible),
-            "stored_count":sum(s["status"] in ("new_t12_baseline","existing_identical_t12_baseline") for s in states),
+            "stored_count":newly_stored+reused,
+            "newly_stored_count":newly_stored,"reused_count":reused,
+            "failed_count":errors,
             "title_sha256":title_digest,"title_schedule_source":title_source,
             "results":states,"research_only":True}
 
