@@ -88,5 +88,24 @@ jobs:
               report["action"]="fallback_dispatch_accepted"
           else:
               report["action"]="no_dispatch"
+          # Evidence only: no credentials or prediction data are serialized.
+          from pathlib import Path
+          output=Path("four-mode-evidence/watchdog-decision.json")
+          output.parent.mkdir(parents=True,exist_ok=True)
+          output.write_text(json.dumps({
+              "schema":"FOUR_MODE_WATCHDOG_DECISION_V1",
+              "github_run_id":os.environ["GITHUB_RUN_ID"],
+              "github_event":os.environ["EVENT_NAME"],
+              "checked_at_utc":now.isoformat(),
+              **report
+          },sort_keys=True)+chr(10),encoding="utf-8")
           print("FOUR_MODE_WATCHDOG="+json.dumps(report,sort_keys=True))
           PY
+      - name: Preserve watchdog decision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-mode-watchdog-decision-${{ github.run_id }}
+          path: four-mode-evidence/watchdog-decision.json
+          if-no-files-found: warn
+          retention-days: 14
