@@ -73,6 +73,26 @@ class JointReceiptTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 audit_pair(a, b)
 
+    def test_prior_day_odds_http_start_is_not_valid_same_day_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            a, b = self.make(root)
+            manifest_path = b / "manifest.json"
+            m = json.loads(manifest_path.read_text())
+            m["request_started_at_jst"] = "2026-11-01T23:59:59+09:00"
+            manifest_path.write_text(json.dumps(m))
+            with self.assertRaisesRegex(ValueError, "race day mismatch"):
+                audit_pair(a, b)
+
+    def test_prior_day_beforeinfo_http_start_is_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            a, b = self.make(root)
+            manifest_path = a / "manifest.json"
+            m = json.loads(manifest_path.read_text())
+            m["request_started_at_jst"] = "2026-11-01T23:59:59+09:00"
+            manifest_path.write_text(json.dumps(m))
+            with self.assertRaisesRegex(ValueError, "race day mismatch"):
+                audit_pair(a, b)
+
     def test_deadline_mismatch_rejected(self):
         with tempfile.TemporaryDirectory() as root:
             a, b = self.make(root)
