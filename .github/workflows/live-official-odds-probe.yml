@@ -6,10 +6,13 @@ on:
       - '.github/workflows/live-official-odds-probe.yml'
       - 'scripts/probe_live_odds_health.py'
       - 'tests/test_probe_live_odds_health.py'
+      - 'scripts/summarize_live_odds_history.py'
+      - 'tests/test_summarize_live_odds_history.py'
   schedule:
     - cron: '25 3,5,7 * * *' # 12:25, 14:25, 16:25 JST
 permissions:
   contents: read
+  actions: read
 jobs:
   live-odds:
     runs-on: ubuntu-latest
@@ -21,13 +24,21 @@ jobs:
           python-version: '3.12'
       - name: Verify read-only live odds metric classification
         run: python -m unittest discover -s tests -p test_probe_live_odds_health.py -v
+      - name: Verify 14-day odds trend aggregation
+        run: python -m unittest discover -s tests -p test_summarize_live_odds_history.py -v
       - name: Sample up to three independently sourced upcoming races
         run: python scripts/probe_live_odds_health.py
+      - name: Summarize eligible preceding scheduled run artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/summarize_live_odds_history.py
       - name: Preserve per-race statuses and timings
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: live-odds-metrics
-          path: live_odds_metrics.json
+          path: |
+            live_odds_metrics.json
+            live_odds_14day_trend.json
           if-no-files-found: warn
           retention-days: 14
