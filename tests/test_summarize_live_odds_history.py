@@ -351,6 +351,34 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(report["awaiting_grace"], 3)
         self.assertIsNone(report["observed_rate_pct"])
 
+    def test_repository_creation_boundary_is_not_a_missed_schedule(self):
+        from datetime import timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 16, 19, tzinfo=jst)
+        created = datetime(2026, 10, 22, 18, 24, tzinfo=jst)
+        rows = history.schedule_history_coverage([], now=now, earliest_possible=created)
+        self.assertEqual(rows["slots_configured"], 42)
+        self.assertEqual(rows["slots_before_repository_creation"], 6)
+        self.assertEqual(rows["eligible_slots"], 36)
+        self.assertEqual(rows["awaiting_grace"], 1)
+        self.assertEqual(rows["not_observed_after_grace"], 35)
+        self.assertTrue(all(s["state"] == "before_repository_creation"
+                            for r in rows["daily"][:2] for s in r["slots"]))
+
+    def test_repository_created_at_is_used_for_live_schedule_history(self):
+        from datetime import timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 16, 19, tzinfo=jst)
+        def fake_api(url, token):
+            if "/runs?event=schedule" in url:
+                return {"workflow_runs": []}
+            return {"created_at": "2026-10-22T09:24:01Z"}
+        with patch.object(history, "api_json", side_effect=fake_api):
+            report = history.fetch_schedule_trigger_health("a/b", "token", now=now)
+        self.assertEqual(report["history_14day"]["slots_before_repository_creation"], 6)
+        self.assertEqual(report["not_observed_after_grace"], 2)
+        self.assertEqual(report["history_14day"]["awaiting_grace"], 1)
+
     def test_operational_event_eligibility_excludes_pr(self):
         for event in ("pull_request", "push", "", "unknown"):
             self.assertFalse(history.include_current_event(event))
