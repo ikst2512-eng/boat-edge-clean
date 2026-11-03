@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 
-from entry_course_collector import attempt_batch,expected_t2_without_baseline
+from entry_course_collector import attempt_batch,expected_t2_without_baseline,t2_cli_failure
 from test_entry_waku10_pilot import fixture
 from test_entry_waku10_source import waku
 
@@ -304,6 +304,35 @@ class BatchTests(unittest.TestCase):
             out=attempt_batch(tmp,now=lambda:NOW,
                 schedule_fetch=lambda now:self.fail("do not call schedule by default"))
             self.assertEqual(out["status"],"no_frozen_baseline_in_late_window")
+    def test_partial_capture_retains_original_but_fails_actions_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,2)
+            archived={}
+            def reader(d,v,r):
+                if r=="09":
+                    raise ValueError("preview_not_ready")
+                return cards[d+v+r]
+            verdict=attempt_batch(tmp,now=lambda:NOW,
+                card_reader=reader,waku_fetch=lambda url:raw_csv,
+                ledger_ops=(archived.get,lambda p,b:archived.setdefault(p,b)))
+            self.assertEqual(verdict["status"],"t2_batch_partial_capture")
+            self.assertEqual(verdict["newly_stored_count"],1)
+            self.assertEqual(verdict["not_stored_count"],1)
+            self.assertEqual(len(archived),1)
+            self.assertTrue(t2_cli_failure(verdict))
+    def test_cli_success_requires_all_candidate_races_captured(self):
+        for state in ("t2_batch_completed","no_frozen_baseline_in_late_window"):
+            self.assertFalse(t2_cli_failure({"status":state}))
+        for state in ("t2_batch_no_capture","t2_batch_partial_capture",
+                      "t2_batch_error","t2_missing_expected_t12_baselines",
+                      "t2_expected_schedule_unavailable",
+                      "t2_batch_missing_expected_t12_baselines",
+                      "t2_batch_expected_schedule_unavailable",
+                      "course_evidence_collector_failed"):
+            with self.subTest(state=state):
+                self.assertTrue(t2_cli_failure({"status":state}))
+        with self.assertRaisesRegex(ValueError,"t2_cli_invalid_verdict"):
+            t2_cli_failure(None)
     def test_batch_size_guard(self):
         with self.assertRaisesRegex(ValueError,"batch_size"):
             attempt_batch(".",now=lambda:NOW,max_per_run=100)
