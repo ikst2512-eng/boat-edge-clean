@@ -229,6 +229,7 @@ jobs:
       # research step's outcome. Even when source/publication fails, write
       # explicit "no confirmed publication" evidence rather than silently skip.
       - name: Freeze third-place research shadow from published original before T-12
+        id: third_rate_shadow
         if: ${{ always() && github.event_name != 'pull_request' }}
         run: python third_rate_same_job_capture.py
       # The third-rate research freeze can fail on a malformed individual
@@ -236,6 +237,7 @@ jobs:
       # evidence even when that separate research step fails. Its failure
       # still makes the job fail; no production-success claim is hidden.
       - name: Freeze shadow after confirmed publication (research only)
+        id: hole_shadow
         if: ${{ always() && github.event_name != 'pull_request' }}
         run: |
           python hole_shadow_same_job_capture.py
@@ -245,6 +247,8 @@ jobs:
           SOURCE_OUTCOME: ${{ steps.source_capture.outcome }}
           STAGING_OUTCOME: ${{ steps.receipt_staging.outcome }}
           TESTS_OUTCOME: ${{ steps.before_publish_tests.outcome }}
+          THIRD_RATE_SHADOW_OUTCOME: ${{ steps.third_rate_shadow.outcome }}
+          HOLE_SHADOW_OUTCOME: ${{ steps.hole_shadow.outcome }}
         run: |
           python - <<'PY'
           import json, os
@@ -253,7 +257,11 @@ jobs:
           evidence.mkdir(exist_ok=True)
           states = {"source_capture": os.environ["SOURCE_OUTCOME"],
                     "before_publish_tests": os.environ["TESTS_OUTCOME"],
-                    "receipt_staging": os.environ["STAGING_OUTCOME"]}
+                    "receipt_staging": os.environ["STAGING_OUTCOME"],
+                    # Research failures remain visible and never overwrite
+                    # the independent V2 publication verdict.
+                    "third_rate_shadow": os.environ["THIRD_RATE_SHADOW_OUTCOME"],
+                    "hole_shadow": os.environ["HOLE_SHADOW_OUTCOME"]}
           publication = evidence/"publication.json"
           states["publication"] = "not_confirmed"
           if publication.exists():
