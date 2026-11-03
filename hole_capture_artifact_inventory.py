@@ -8,6 +8,7 @@ from pathlib import Path
 import urllib.request
 import urllib.error
 import zipfile
+from hole_shadow_stage_verdict import classify
 
 def inspect_capture(data):
     if not isinstance(data,dict):
@@ -18,7 +19,15 @@ def inspect_capture(data):
     return {"status":data.get("status"),"records":len(records),
             "frozen":sum(x.get("status")=="shadow_frozen_unverified" for x in records),
             "bundle2":sum(x.get("status")=="shadow_frozen_unverified"
-                and isinstance(x.get("shadow_bundle2"),list) for x in records)}
+                and isinstance(x.get("shadow_bundle2"),list) for x in records),
+            # Presence means a locally declared snapshot, not a verified freeze.
+            "future_locked_declared":sum(
+                x.get("status")=="shadow_frozen_unverified"
+                and isinstance(x.get("future_locked_candidates"),dict)
+                and set(x["future_locked_candidates"])==
+                    {"baseline","donor_order","max_ticket_score","third_national_rate"}
+                and all(isinstance(v,list) for v in x["future_locked_candidates"].values())
+                for x in records)}
 
 def zip_shadow(blob):
     with zipfile.ZipFile(io.BytesIO(blob)) as archive:
@@ -41,7 +50,11 @@ def api(url,token,accept="application/vnd.github+json"):
         data=response.read(10000000)
     return data
 
-def gh_shadow(run_id, repo, token):
+def gh_shadow(run_id,repo,token):
+    """Read a real Actions artifact via gh fallback and attribute a missing shadow.
+
+    A self-declared publication verdict is research evidence, not remote proof.
+    """
     with tempfile.TemporaryDirectory() as directory:
         env={**os.environ,"GH_TOKEN":token}
         result=subprocess.run(["gh","run","download",str(run_id),"--repo",repo,
@@ -49,11 +62,26 @@ def gh_shadow(run_id, repo, token):
                               capture_output=True,text=True,env=env,timeout=90)
         if result.returncode:
             return {"status":"cli_download_failed","exit_code":result.returncode}
-        paths=list(Path(directory).rglob("hole-shadow.json"))
-        if not paths:return {"status":"no_hole_shadow_in_artifact"}
-        if len(paths)!=1:return {"status":"ambiguous_multiple_shadow_files"}
-        if paths[0].stat().st_size>2000000:return {"status":"oversize_shadow"}
-        return inspect_capture(json.loads(paths[0].read_text(encoding="utf-8")))
+        root=Path(directory)
+        def get(name):
+            found=[p for p in root.rglob(name) if p.is_file() and not p.is_symlink()]
+            if not found or len(found)!=1 or found[0].stat().st_size>2000000:
+                return None
+            try:
+                return json.loads(found[0].read_text(encoding="utf-8"))
+            except (OSError,ValueError,UnicodeError):
+                return None
+        shadow=get("hole-shadow.json")
+        publication=get("publication.json")
+        stages=get("stages.json")
+        analysis=inspect_capture(shadow) if shadow is not None else {
+            "status":"no_hole_shadow_in_artifact"}
+        analysis["stage_diagnosis"]=classify(stages,publication,shadow)
+        analysis["publication_outcome"]=(
+            publication.get("outcome") if isinstance(publication,dict) else None)
+        analysis["staging_outcome"]=(
+            stages.get("receipt_staging") if isinstance(stages,dict) else None)
+        return analysis
 
 def run(repo,token,limit=20):
     if not repo or not token:raise ValueError("missing_credentials")
@@ -89,6 +117,7 @@ def run(repo,token,limit=20):
             "independent_first_receipt_verified":False,"runs":rows,
             "total_frozen":sum(x["shadow"].get("frozen",0) for x in rows),
             "total_bundle2":sum(x["shadow"].get("bundle2",0) for x in rows),
+            "total_future_locked_declared":sum(x["shadow"].get("future_locked_declared",0) for x in rows),
             "warning":"Uploaded evidence is not independent first-receipt proof. Repeated run artifacts may represent the same race."}
 
 if __name__=="__main__":
