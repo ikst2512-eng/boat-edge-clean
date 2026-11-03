@@ -19,6 +19,9 @@ from entry_course_late_preview import prepare_late_preview_study
 from entry_course_write_once import freeze_capture
 from entry_course_durable_ledger import github_ops, publish, verify_write_access
 from entry_course_baseline_audit import audit_daily_bases
+from entry_waku10_source import fetch_waku10
+from entry_waku10_pilot import prepare_waku10_pilot
+from entry_waku10_durable_ledger import publish_waku10
 
 JST=timezone(timedelta(hours=9))
 CODE=re.compile(r"20[0-9]{10}\Z")
@@ -77,7 +80,8 @@ def historical_prefetch(day, *, lookback_days=31, fetch=_fetch, workers=6):
 
 def attempt(root, *, now=None, prefetch=historical_prefetch,
             card_reader=None, ledger_ops=None, sleep=time.sleep,
-            output_dir=None, max_minutes=6, min_starts=10):
+            output_dir=None, max_minutes=6, min_starts=10,
+            waku_enabled=True, waku_fetch=None):
     now=now or (lambda:datetime.now(JST))
     sampled_now=now()
     target=candidates(root,now=sampled_now,max_minutes=max_minutes)
@@ -127,10 +131,39 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
                 "race_code":code,"preview_attempts":preview_attempts,
                 "reason":preview_error,"historical_requests":0,
                 "research_only":True}
+    # Preferred independent pilot: one pre-race Waku10 CSV replaces up to 62
+    # old daily downloads. Actual course-slot counts gate every boat.
+    # This NEVER pretends the Waku10 frame-average ST is course-average ST.
+    waku_reason="waku10_not_attempted"
+    if waku_enabled and now()<late-timedelta(seconds=10):
+        try:
+            waku=fetch_waku10(code,cutoff_at=late.isoformat(),
+                              fetch=waku_fetch,clock=now)
+            candidate=prepare_waku10_pilot(
+                base,card,waku,frozen_at=now().isoformat(),min_course_starts=8)
+        except (ValueError,OSError,KeyError,TypeError,TimeoutError,URLError,HTTPError) as exc:
+            waku_reason=str(exc) or type(exc).__name__
+        else:
+            directory=Path(root)/"entry_waku10_attempts"
+            path=freeze_capture(candidate,directory,clock=now)
+            if now()>=late:
+                raise ValueError("waku10_pilot_remote_publish_cutoff_exceeded")
+            if ledger_ops is None:
+                ledger_ops=github_ops(os.environ["GITHUB_REPOSITORY"])
+            remote_read,remote_create=ledger_ops
+            verdict=publish_waku10(path.read_bytes(),remote_read,remote_create,clock=now)
+            verdict["race_code"]=code
+            verdict["study"]="Waku10 independent frame-ST-proxy pilot"
+            verdict["sample_counts"]=candidate["sample_counts"]
+            verdict["preview_attempts"]=preview_attempts
+            return verdict
+    else:
+        waku_reason="waku10_disabled_or_cutoff_too_close"
     cache,fetch_errors=prefetch(code[:8])
     if now()>=late:
         return {"status":"history_fetch_crossed_late_cutoff","stored":False,"race_code":code,
-                "source_failures":len(fetch_errors),"research_only":True}
+                "source_failures":len(fetch_errors),
+                "waku10_pilot_reason":waku_reason,"research_only":True}
     # Source code reports missing archived rows. It does not inject substitutes.
     def local_fetch(url):
         if url not in cache:
@@ -172,7 +205,7 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
                 "race_code":code,"reason":reason,
                 "preview_attempts":preview_attempts,
                 "eligible_historical_pairs":len(batch["history"]),
-                "source_failures":len(fetch_errors),**diagnostics,
+                "source_failures":len(fetch_errors),"waku10_pilot_reason":waku_reason,**diagnostics,
                 "research_only":True}
     dest=output_dir or (Path(root)/"entry_course_attempts")
     path=freeze_capture(candidate,dest,clock=now)
