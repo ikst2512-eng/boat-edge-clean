@@ -115,6 +115,31 @@ class T12SeedTests(unittest.TestCase):
                          now=datetime(2026,11,3,18,22,tzinfo=JST)),[])
         self.assertEqual(near_t12(rows,"20261103",
                          now=datetime(2026,11,3,18,1,tzinfo=JST)),[])
+    def test_broader_retry_window_preserves_strict_twelve_minute_cutoff(self):
+        rows=[{"レースコード":CODE,"電話投票締切予定":"18:33"}]
+        # T−12 is 18:21; discover from 18:07 (14m before) through
+        # 18:19 (2m before), then refuse after that. A broad retry
+        # window NEVER moves the research cutoff itself.
+        for minute in (7,10,15,19):
+            self.assertEqual(near_t12(rows,"20261103",
+                now=datetime(2026,11,3,18,minute,tzinfo=JST)),[CODE])
+        for minute in (6,20,21,22):
+            self.assertEqual(near_t12(rows,"20261103",
+                now=datetime(2026,11,3,18,minute,tzinfo=JST)),[])
+        with self.assertRaisesRegex(ValueError,"missed_cutoff"):
+            validate_base(raw(),CODE,
+                now=datetime(2026,11,3,18,21,tzinfo=JST))
+    def test_five_simultaneous_research_races_not_truncated_to_four(self):
+        rows=[{"レースコード":f"2026110307{i:02d}",
+               "電話投票締切予定":clock}
+              for i,clock in enumerate(("18:29","18:31","18:33",
+                                         "18:35","18:39"),1)]
+        selected=near_t12(rows,"20261103",now=NOW)
+        self.assertEqual(len(selected),5)
+        self.assertEqual(len(near_t12(rows,"20261103",now=NOW,
+                                      max_per_run=4)),4)
+        self.assertEqual(set(selected),{f"2026110307{i:02d}"
+                                         for i in range(1,6)})
     def test_four_overlapping_live_races_not_truncated_to_three(self):
         # The Nov 3 full title schedule has a four-race overlap at 15:55 JST.
         # Retain all four distinct eligible race codes in the same run.
