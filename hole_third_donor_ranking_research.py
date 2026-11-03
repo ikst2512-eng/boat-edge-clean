@@ -124,16 +124,60 @@ def paired_outcomes(rows, challenger="third_national_rate",
             "disagreement_race_codes":sorted(changed_codes)}
 
 
+def donor_ticket_context(archive, rates, combo):
+    """Describe already-frozen features of a ticket, never infer probability."""
+    rank_by_mode={}
+    p_by_mode={}
+    for mode in ("hit","balance"):
+        for rank,ticket in enumerate(archive["modes"][mode]["tickets"],start=1):
+            if ticket["combo"]==combo:
+                rank_by_mode[mode]=rank
+                p_by_mode[mode]=ticket["p"]
+                break
+    third=int(combo.split("-")[2])-1
+    return {
+        "ticket":combo,
+        "third_national_win_rate":rates[third] if rates is not None else None,
+        "donor_rank_1based":rank_by_mode,
+        "donor_ticket_score":p_by_mode,
+        "present_in_both_donors":len(rank_by_mode)==2
+    }
+
+
+def describe_disagreement(code, winner, archive, rates, selected):
+    """Only run after independent candidate selection and confirmed result."""
+    national=selected["third_national_rate"]
+    consensus=selected["donor_consensus"]
+    national_hit=winner in national[:10]
+    consensus_hit=winner in consensus[:10]
+    if national_hit==consensus_hit:
+        return None
+    pair=first_second(winner)
+    return {
+        "race_code":code,
+        "category":"national_only" if national_hit else "consensus_only",
+        "winning_ticket":winner,
+        "winning_third_national_win_rate":(
+            rates[int(winner.split("-")[2])-1] if rates is not None else None),
+        "national_same_pair":[donor_ticket_context(archive,rates,t)
+                              for t in national if first_second(t)==pair],
+        "consensus_same_pair":[donor_ticket_context(archive,rates,t)
+                               for t in consensus if first_second(t)==pair],
+        "winning_ticket_donor":donor_ticket_context(archive,rates,winner)
+    }
+
+
 def inspect(codes,root):
     hits={name:{f"top{k}":{"hits":0,"gained":0,"lost":0,"net":0}
                 for k in TOPS} for name in POLICIES}
-    changes=Counter();unavailable=Counter();rows=[]
+    changes=Counter();unavailable=Counter();rows=[];disagreements=[]
     for code in codes:
         status,archive=archived_four_modes(code,root)
         if status!=200:
             unavailable["invalid_archive"]+=1;continue
         # Predict all tickets BEFORE inspecting the result.
-        picked=select(archive,national_rates(code,root))
+        rates=national_rates(code,root)
+        picked=select(archive,rates)
         base=picked["baseline"]
         if set(picked)!=set(POLICIES) or any(
                 len(picked[name])!=10 or len(set(picked[name]))!=10 or
@@ -143,6 +187,9 @@ def inspect(codes,root):
         if outcome.get("status")!="historical_comparison_only":
             unavailable["unconfirmed_result"]+=1;continue
         winner=outcome["winning_ticket"]
+        disagreement=describe_disagreement(code,winner,archive,rates,picked)
+        if disagreement is not None:
+            disagreements.append(disagreement)
         flags={}
         for name in POLICIES:
             tickets=picked[name]
@@ -171,6 +218,7 @@ def inspect(codes,root):
                 comparison:paired_outcomes(rows,"third_national_rate",comparison,10)
                 for comparison in ("donor_consensus","hit_rank_first","baseline")
             },
+            "disagreement_cases":sorted(disagreements,key=lambda item:item["race_code"]),
             "rows":rows}
 
 
