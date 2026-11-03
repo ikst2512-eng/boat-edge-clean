@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_future_artifact_batch.py
+      - hole_future_shadow_audit.py
+      - test_hole_future_shadow_audit.py
       - hole_future_cumulative_rollup.py
       - test_hole_future_artifact_batch.py
       - test_hole_future_late_recheck.py
@@ -54,6 +56,8 @@ jobs:
           print("ARTIFACT_FILES",d["artifact_files"],"SCORABLE",d["comparable"])
           print("DOWNLOAD_FAILURES",d["run_download_failures"])
           print("SHADOW_STATUSES",d["shadow_status_counts"])
+          print("REPLAY_VERIFIED_CODES",len(d["observed_future_codes"]))
+          print("DECLARED_NOT_VERIFIED",d["declared_but_not_replay_verified_codes"])
           print("RUNS_WITHOUT_SHADOW",d["downloaded_runs_without_shadow"])
           print("DOWNLOAD_STAGE_COUNTS",d["downloaded_stage_counts"])
           print("DOWNLOAD_RUN_EVIDENCE",d["downloaded_run_evidence"])
