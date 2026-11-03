@@ -57,6 +57,24 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         self.assertEqual(report["status"], "bounded_frozen_roster_matched")
         self.assertEqual(report["paired_score_mismatch_codes"], [])
 
+    def test_ledger_result_absent_from_capture_is_not_match(self):
+        # The exact inverse of the older capture-only coverage check:
+        # both producers have the same frozen race, but only ledger scored it.
+        self.ledger.update({
+            "paired": 1, "race_codes_paired": [A],
+            "paired_race_scores": [self.race_score(A, 1, 1)]})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "paired_result_coverage_mismatch")
+        self.assertEqual(report["paired_result_coverage_mismatch_codes"], [A])
+
+    def test_older_ledger_result_outside_capture_freeze_is_ignored(self):
+        self.ledger.update({
+            "paired": 1, "race_codes_paired": [C],
+            "paired_race_scores": [self.race_score(C, 1, 1)]})
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "bounded_frozen_roster_matched")
+        self.assertEqual(report["paired_result_coverage_mismatch_codes"], [])
+
     def test_capture_paired_result_absent_from_ledger_is_not_match(self):
         self.capture.update({"paired": 1, "race_codes_paired": [A],
                              "paired_race_scores": [self.race_score(A, 1, 1)]})
