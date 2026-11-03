@@ -8,6 +8,8 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from probe_live_odds_health import event_provenance
 
@@ -55,10 +57,61 @@ def eligible(event, trigger, *, now=None):
             and fallback_slot_eligible(trigger, now=now))
 
 
+
+def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=None):
+    """Fail closed if normal cron ran or its state cannot be verified.
+
+    Only an absent/failed scheduled probe permits the upstream fallback.
+    The upstream's JST day and the three fixed slot times define the window.
+    """
+    if not repository or "/" not in repository or not token:
+        return "schedule_lookup_unavailable"
+    try:
+        source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
+        if source.tzinfo is None:
+            return "schedule_lookup_unavailable"
+        jst = timezone(timedelta(hours=9))
+        local = source.astimezone(jst)
+        hour = min((12, 14, 16), key=lambda h: abs((local - local.replace(hour=h, minute=25, second=0, microsecond=0)).total_seconds()))
+        slot = local.replace(hour=hour, minute=25, second=0, microsecond=0).astimezone(timezone.utc)
+        now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        url = ("https://api.github.com/repos/" + repository +
+               "/actions/workflows/live-official-odds-probe.yml/runs?event=schedule&per_page=100")
+        if fetch_json is None:
+            request = Request(url, headers={
+                "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0"})
+            with urlopen(request, timeout=15) as response:
+                payload = json.load(response)
+        else:
+            payload = fetch_json(url, token)
+        runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+        if not isinstance(runs, list):
+            return "schedule_lookup_unavailable"
+        for run in runs:
+            if not isinstance(run, dict) or run.get("event") != "schedule":
+                continue
+            created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+            if created.tzinfo is None:
+                return "schedule_lookup_unavailable"
+            if slot <= created <= now and (
+                    run.get("status") != "completed" or run.get("conclusion") == "success"):
+                return "direct_schedule_observed"
+        return "direct_schedule_absent_or_failed"
+    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
+        return "schedule_lookup_unavailable"
+
+
 def main():
     trigger = event_provenance()
     event = trigger["event"]
     allowed = eligible(event, trigger)
+    schedule_guard = "not_applicable"
+    if allowed and event == "workflow_run":
+        schedule_guard = direct_schedule_guard(
+            trigger, os.environ.get("GITHUB_REPOSITORY", ""),
+            os.environ.get("GH_TOKEN", ""))
+        allowed = schedule_guard == "direct_schedule_absent_or_failed"
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
         with open(output, "a", encoding="utf-8") as fp:
@@ -70,14 +123,15 @@ def main():
             "source_status": "fallback_ineligible",
             "trigger": trigger,
             "samples": [],
-            "reason": "upstream_not_verified_or_outside_bounded_fallback_window",
+            "reason": schedule_guard if event == "workflow_run" else "upstream_not_verified_or_outside_bounded_fallback_window",
         }
         Path("live_odds_metrics.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("LIVE_ODDS_TRIGGER_GATE " + json.dumps({
         "collect": allowed, "source": event,
         "upstream_event": trigger.get("upstream_event"),
-        "upstream_run_id": trigger.get("upstream_run_id")}), flush=True)
+        "upstream_run_id": trigger.get("upstream_run_id"),
+        "direct_schedule_guard": schedule_guard}), flush=True)
 
 
 if __name__ == "__main__":
