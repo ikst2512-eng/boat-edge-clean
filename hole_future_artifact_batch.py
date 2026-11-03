@@ -17,6 +17,7 @@ from hole_capture_artifact_inventory import api
 from hole_shadow_stage_verdict import classify
 from hole_future_shadow_audit import audit, POLICIES, TOPS
 from hole_future_locked_eval import verify_locked_selection
+from hole_future_result_coverage import reconcile
 
 def aggregate(root,artifacts):
     root=Path(root);artifacts=Path(artifacts)
@@ -77,6 +78,7 @@ def aggregate(root,artifacts):
             "artifact_files":examined,"distinct_future_codes_seen":len(all_rows)+len(duplicates),
             "duplicate_codes_quarantined":sorted(duplicates),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
+            "observed_future_codes":sorted(set(all_rows)|duplicates),
             "excluded_by_reason":dict(excluded),"invalid_artifacts":dict(nonusable),
             "shadow_status_counts":dict(shadow_statuses),
             "hits":hits,"delta":delta,
@@ -216,6 +218,9 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
     result["run_download_failures"]=failures
     result["window_start_jst"]=discovery["window_start_jst"]
     result["window_end_exclusive_jst"]=discovery["window_end_exclusive_jst"]
+    result["repository_result_coverage"]=reconcile(root,
+        discovery["window_start_jst"],discovery["window_end_exclusive_jst"],
+        result["observed_future_codes"],result["race_codes"])
     result["pages_fetched"]=discovery["pages_fetched"]
     result["run_listing_complete"]=discovery["listing_complete"]
     result["download_limit_reached"]=len(candidates)>MAX_DOWNLOADS
@@ -224,6 +229,10 @@ def collect_recent(root,repo,token,days=2,as_of_jst=None):
         and len(candidates)<=MAX_DOWNLOADS
         and len(downloaded)==len(candidates)
         and result["downloaded_runs_without_shadow"]==0)
+    result["repository_result_coverage"]["capture_window_complete_proven"]=(
+        result["capture_window_complete"] and result["repository_result_coverage"]["confirmed"]>0
+        and result["repository_result_coverage"]["confirmed_without_shadow"]==0
+        and result["repository_result_coverage"]["confirmed_shadow_but_unscored"]==0)
     result["warning"]+=" Complete capture window describes artifact retrieval ONLY, not race/result completeness or independent first receipt."
     return result
 
