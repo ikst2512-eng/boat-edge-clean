@@ -21,6 +21,8 @@ PROTOCOL = "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1"
 COUNT_POLICY = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 TOPS = (3, 5, 10)
 MODES = ("narrow", "hit", "balance", "hole")
+PAIRS = (("hit", "balance"), ("narrow", "hit"), ("balance", "hole"))
+PAIR_OUTCOMES = ("both", "left_only", "right_only", "neither")
 MISS_REASONS = ("covered", "winner_head_absent", "winner_second_pair_absent", "winner_third_absent")
 
 
@@ -74,6 +76,8 @@ def evaluate(root=ROOT, now=None):
                                 "within_60m_after_deadline": 0,
                                 "over_60m_after_deadline": 0},
         "applied": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
+        "paired_modes": {f"{left}_vs_{right}": {f"top{n}": {o: 0 for o in PAIR_OUTCOMES}
+                          for n in TOPS} for left, right in PAIRS},
         "miss_reasons": {m: {reason: 0 for reason in MISS_REASONS} for m in MODES},
         "baseline": {f"top{n}": 0 for n in TOPS},
         "candidate": {f"top{n}": 0 for n in TOPS},
@@ -141,6 +145,17 @@ def evaluate(root=ROOT, now=None):
             row["miss_reasons"][m][compared["modes"][m]["coverage_diagnostic"]] += 1
             for n in TOPS:
                 row["modes"][m][f"top{n}"] += int(compared["modes"][m][f"top{n}"])
+        for left, right in PAIRS:
+            for n in TOPS:
+                flag = f"top{n}"
+                left_hit = compared["modes"][left][flag]
+                right_hit = compared["modes"][right][flag]
+                if type(left_hit) is not bool or type(right_hit) is not bool:
+                    raise ValueError("invalid_paired_topn")
+                outcome = ("both" if left_hit and right_hit else
+                           "left_only" if left_hit else
+                           "right_only" if right_hit else "neither")
+                row["paired_modes"][f"{left}_vs_{right}"][flag][outcome] += 1
         for n in TOPS:
             row["baseline"][f"top{n}"] += int(winning in baseline[:n])
             row["candidate"][f"top{n}"] += int(winning in candidate[:n])
