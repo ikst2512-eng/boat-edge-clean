@@ -1,6 +1,10 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from scripts.audit_four_mode_daily_capture_liveness import report, should_fail
+from scripts.audit_four_mode_daily_capture_liveness import report, should_fail, main
 
 WF = "four-mode-prospective-capture.yml"
 
@@ -18,6 +22,27 @@ class CaptureLivenessTests(unittest.TestCase):
         self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
         self.assertFalse(should_fail(result, "push", "refs/heads/main"))
         self.assertFalse(should_fail(result, "pull_request", "refs/pull/3/merge"))
+
+    def test_missing_inventory_is_fail_closed_on_scheduled_main(self):
+        result = {"status": "capture_inventory_unavailable"}
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+        self.assertFalse(should_fail(result, "pull_request", "refs/pull/3/merge"))
+
+    def test_missing_inventory_writes_artifact_even_when_scheduled_audit_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "liveness.json"
+            missing = Path(directory) / "missing.json"
+            args = ["audit", "--inventory", str(missing), "--output", str(output),
+                    "--day-jst", "20261104"]
+            with patch("sys.argv", args), patch.dict(
+                    "os.environ", {"GITHUB_EVENT_NAME": "schedule",
+                                   "GITHUB_REF": "refs/heads/main"}):
+                with self.assertRaises(SystemExit) as error:
+                    main()
+            self.assertEqual(error.exception.code, 2)
+            evidence = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(evidence["status"], "capture_inventory_unavailable")
+            self.assertFalse(evidence["publication_verified"])
 
     def test_prior_jst_day_does_not_count(self):
         result = report("20261104", {"recent_capture_runs": [
