@@ -47,6 +47,11 @@ def dispatch_decision(now, runs):
             continue
         if run.get("head_branch")!="main":
             continue
+        # An unknown run state cannot prove that no capture is active.
+        # Reject malformed API records instead of dispatching on ambiguity.
+        if run.get("status") not in ("queued", "in_progress", "waiting",
+                                     "pending", "requested", "completed"):
+            raise ValueError("entry_watchdog_run_status_invalid")
         at=_timestamp(run.get("created_at"))
         age=now-at
         if age<timedelta(minutes=-1):
