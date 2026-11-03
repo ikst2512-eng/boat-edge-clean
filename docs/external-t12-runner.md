@@ -20,6 +20,14 @@ The Git tree update is one non-force commit with SHA-verified blobs.\nOnly the e
 It does not alter `main`, publish official forecasts, or enable
 `forecast_usable`, `full_t12_source_certified` or `t12_eligible`.
 Failed evidence uploads make the runner fail, not report success.
+
+After the evidence commit is created, the runner now **downloads every saved
+blob at that exact immutable commit SHA**, recomputes the Git blob SHA and
+re-runs the three-official-original audit from downloaded bytes. If the remote
+readback, three-source validation, or declared report disagree, the runner
+exits with an error rather than claiming archival success. On an expired
+preflight, only the diagnostic report is archived and its status stays
+`observation_not_ready` (no original-source certification).
 The durable Git commit is separate from Render's ephemeral filesystem.
 
 ## Prerequisites before provisioning a Render Cron Job

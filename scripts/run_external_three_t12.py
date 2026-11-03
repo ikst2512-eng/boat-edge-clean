@@ -38,6 +38,13 @@ def collected_files(root, race, obs_id, report):
     prefix = f"external_three_t12/{race[:8]}/{race}/{obs_id}"
     files = {f"{prefix}/reports/three_originals.json":
              json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")}
+    # If the observation stops before all three originals are available,
+    # archive only its diagnostic report. Never publish partial evidence as
+    # if it were a complete source set.
+    successful_fetch = report.get("status") in (
+        "research_components_complete_by_t12", "research_components_incomplete")
+    if not successful_fetch:
+        return files
     for part, names in SOURCE_NAMES.items():
         folder = Path(root) / "observations" / f"{part}{obs_id}" / race[:8] / race
         for name in names:
@@ -112,14 +119,28 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
 
 
 def run(race, root, obs_id, repo, branch, token, *, observer=observe,
-        publisher=publish_originals):
+        publisher=publish_originals, verifier=None):
     report = observer(race, root, obs_id)
     files = collected_files(root, race, obs_id, report)
     sha = publisher(repo, branch, token, files)
+    if verifier is None:
+        # Local import prevents dependency cycle with read-only re-auditor.
+        from scripts.reaudit_external_three_t12 import reaudit_published
+        verifier = reaudit_published
+    verified = verifier(repo, token, sha, race, obs_id)
+    if verified.get("status") not in (
+            "independent_originals_reaudited", "observation_not_ready"):
+        raise ValueError("remote evidence reinspection did not succeed")
+    if (verified.get("declared_status") != report["status"]
+            or verified.get("full_t12_source_certified") is not False
+            or verified.get("forecast_usable") is not False):
+        raise ValueError("remote evidence status does not agree with local report")
     return {"race_code": race, "status": report["status"],
             "archived_original_count": len(files) - 1,
-            "evidence_commit": sha, "full_t12_source_certified": False,
-            "forecast_usable": False}
+            "evidence_commit": sha,
+            "remote_originals_reaudited": verified["status"] == "independent_originals_reaudited",
+            "research_complete": verified["research_complete"],
+            "full_t12_source_certified": False, "forecast_usable": False}
 
 
 def main():
