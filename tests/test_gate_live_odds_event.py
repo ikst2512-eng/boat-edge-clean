@@ -38,12 +38,12 @@ class FallbackGateTests(unittest.TestCase):
         history = workflow.index("      - name: Summarize eligible preceding scheduled run artifacts")
         artifact = workflow.index("      - name: Preserve per-race statuses and timings")
         self.assertTrue(sample < verdict < qa < history < artifact)
-        self.assertIn("if: always()\\n        uses: actions/upload-artifact@v4", workflow)
+        self.assertIn("if: always()\n        uses: actions/upload-artifact@v4", workflow)
         for name in ("Verify fallback event classification",
                      "Verify read-only live odds metric classification",
                      "Verify 14-day odds trend aggregation",
                      "Verify strict operational verdict tests"):
-            line = workflow.split("      - name: " + name + "\\n", 1)[1].split("\\n", 2)[0]
+            line = workflow.split("      - name: " + name + "\n", 1)[1].split("\n", 2)[0]
             self.assertIn("github.event_name == 'pull_request'", line)
             self.assertIn("github.event_name == 'workflow_dispatch'", line)
 
