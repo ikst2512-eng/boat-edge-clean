@@ -123,6 +123,49 @@ class ThirdRateDurableRollupTests(unittest.TestCase):
         self.assertEqual(report["paired"], 0)
         self.assertEqual(report["invalid_files"], [self.name])
 
+    def test_rejected_mixed_duplicate_does_not_poison_later_valid_race(self):
+        # First ledger: A. Second ledger: B then A (cross-entry
+        # duplicate), so whole second ledger is invalid. Third ledger:
+        # only B, valid and must not inherit second ledger's failed state.
+        from copy import deepcopy
+        other_code = "202611040102"
+        original_file = self.root / "four_mode_forecasts" / (CODE + ".json")
+        other_file = self.root / "four_mode_forecasts" / (other_code + ".json")
+        archive = json.loads(original_file.read_text(encoding="utf-8"))
+        archive["race_code"] = other_code
+        other_file.write_text(json.dumps(archive) + "\n", encoding="utf-8")
+        other_row = deepcopy(self.evidence["records"][0])
+        other_row["race_code"] = other_code
+        other_row["source_forecast_sha256"] = hashlib.sha256(
+            other_file.read_bytes()).hexdigest()
+        paths = [self.name,
+                 "third_rate/20261104/run-12346-attempt-1.json",
+                 "third_rate/20261104/run-12347-attempt-1.json"]
+        first = deepcopy(self.evidence)
+        second = deepcopy(self.evidence)
+        second["records"] = [other_row, deepcopy(self.evidence["records"][0])]
+        second["published_forecasts"] = 2
+        second["frozen_before_t_minus_12"] = 2
+        third = deepcopy(self.evidence)
+        third["records"] = [other_row]
+        contents = dict(zip(paths, [first, second, third]))
+
+        def git(root, *args):
+            if args[0] == "ls-tree":
+                return ("\n".join(paths) + "\n").encode()
+            if args[0] == "show":
+                return json.dumps(contents[args[1].split(":", 1)[1]]).encode()
+            raise AssertionError(args)
+
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "result_unavailable"}):
+            report = evaluate(self.root, git)
+        self.assertEqual(report["status"], "incomplete_or_invalid_ledger_evidence")
+        self.assertEqual(report["invalid_files"], [paths[1]])
+        self.assertEqual(report["frozen"], 2)
+        self.assertEqual(report["pending_results"], 2)
+        self.assertEqual(report["race_codes_frozen"], [CODE, other_code])
+
     def test_duplicate_frozen_race_across_entries_fails_closed(self):
         other = "third_rate/20261104/run-12346-attempt-1.json"
         def duplicate(root, *args):

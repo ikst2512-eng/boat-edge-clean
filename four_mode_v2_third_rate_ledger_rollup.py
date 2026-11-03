@@ -66,10 +66,14 @@ def evaluate(root, git=_git):
             scoring = score_evidence(evidence, root)
             if scoring["invalid"] or scoring.get("validation_error_count", 0):
                 report["invalid_files"].append(path)
-            for code in scoring["race_codes_frozen"]:
-                if code in seen:
-                    raise ValueError("repeated_frozen_race")
-                seen.add(code)
+            frozen_codes = scoring["race_codes_frozen"]
+            # Validate the entire entry before changing the accepted roster.
+            # If a later row overlaps a prior ledger entry, none of this
+            # rejected file's otherwise-new races may poison later siblings.
+            if (len(frozen_codes) != len(set(frozen_codes))
+                    or not seen.isdisjoint(frozen_codes)):
+                raise ValueError("repeated_frozen_race")
+            seen.update(frozen_codes)
             for field in ("frozen", "paired", "pending_results", "invalid", "excluded"):
                 report[field] += scoring[field]
             report["race_codes_paired"].extend(scoring["race_codes_paired"])
