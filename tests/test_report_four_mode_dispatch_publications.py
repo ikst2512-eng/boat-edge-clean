@@ -54,11 +54,24 @@ class DispatchEvidenceTests(unittest.TestCase):
         self.assertEqual(result["hole_shadow_failure_runs"], [9])
         self.assertEqual(result["runs"][0]["hole_shadow_outcome"], "failure")
 
+    def test_dispatch_research_coverage_unknown_not_zero_success(self):
+        def download(_, root):
+            p = root / "four-mode-evidence"
+            p.mkdir(parents=True)
+            (p / "publication.json").write_text(
+                json.dumps({"outcome": "no_eligible_candidates"}), encoding="utf-8")
+        result = inspect_dispatches({"recent_capture_runs": [run(9)]}, download)
+        self.assertEqual(result["research_stage_coverage"]["third_rate_shadow"]["unknown"], 1)
+        self.assertEqual(result["research_stage_coverage"]["hole_shadow"]["unknown"], 1)
+        self.assertEqual(result["research_stage_coverage"]["hole_shadow"]["checked"], 1)
+
     def test_empty_dispatch_is_unproven(self):
         result = inspect_dispatches({"recent_capture_runs": [run(5, event="schedule")]},
                                     lambda *_: self.fail("no download"))
         self.assertEqual(result["dispatch_runs_checked"], 0)
         self.assertIsNone(result["claimed_added_forecasts_sum"])
+        self.assertEqual(result["research_stage_coverage"]["third_rate_shadow"]["checked"], 0)
+        self.assertEqual(result["research_stage_coverage"]["hole_shadow"]["checked"], 0)
 
     def test_missing_artifact_is_unknown_not_saved_zero(self):
         result = inspect_dispatches({"recent_capture_runs": [run(4)]},
