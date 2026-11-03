@@ -1,0 +1,50 @@
+name: Hole cumulative evidence rollup (research only)
+on:
+  pull_request:
+    paths:
+      - hole_future_cumulative_rollup.py
+      - test_hole_future_cumulative_rollup.py
+      - hole_future_artifact_batch.py
+      - .github/workflows/hole-cumulative-rollup.yml
+  workflow_dispatch:
+  schedule:
+    # 17:10 UTC = 02:10 JST, after existing daily hole evidence check.
+    - cron: '10 17 * * *'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test identical-overlap deduplication and conflicting-evidence quarantine
+        run: python -m unittest -v test_hole_future_cumulative_rollup.py test_hole_future_artifact_batch.py
+      - name: Read prior complete daily research summaries (not raw forecast reconstruction)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python hole_future_cumulative_rollup.py --limit 40 > hole_cumulative_result.json
+          python - <<'PY'
+          import json
+          x=json.load(open("hole_cumulative_result.json"))
+          assert x["formal"] is False
+          assert x["prospective_validation"] is False
+          assert x["independent_first_receipt_verified"] is False
+          assert x["historical_reporting_coverage_proven"] is False
+          print("READ",x["daily_artifacts_read"],"RUNS",x["runs_listed"])
+          print("MISSING_RUNS",x["unavailable_daily_run_ids"])
+          print("COMPARABLE",x["comparable"],"CONFLICTS",x["conflicted_codes_quarantined"])
+          print("INCOMPLETE_DAILY_WINDOWS",x["incomplete_window_reports"])
+          print("HITS",x["hits"],"DELTA",x["delta"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hole-cumulative-research
+          path: hole_cumulative_result.json
+          if-no-files-found: warn
