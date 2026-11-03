@@ -332,8 +332,11 @@ def main():
     try:
         remote_read,remote_create=github_ops(os.environ['GITHUB_REPOSITORY'])
         access=verify_write_access(remote_read,remote_create)
+        from entry_course_scheduled_write_probe import from_environment
+        scheduled_access=from_environment("t2",remote_read,remote_create)
         verdict=attempt_batch(Path(args.root),ledger_ops=(remote_read,remote_create))
         verdict['ledger_write_access_probe']=access
+        verdict['scheduled_actions_write_probe']=scheduled_access
     except Exception as exc:
         verdict={"status":"course_evidence_collector_failed","stored":False,
                  "error_type":type(exc).__name__,"research_only":True}
