@@ -327,6 +327,7 @@ class BatchTests(unittest.TestCase):
                       "t2_batch_error","t2_missing_expected_t12_baselines",
                       "t2_expected_schedule_unavailable",
                       "t2_batch_missing_expected_t12_baselines",
+                      "t2_batch_t12_deadline_conflict",
                       "t2_batch_expected_schedule_unavailable",
                       "course_evidence_collector_failed"):
             with self.subTest(state=state):
@@ -410,6 +411,56 @@ class BatchTests(unittest.TestCase):
                         card_reader=lambda *args:self.fail("unverified T12 not usable"))
                     self.assertEqual(report["status"],
                                      "t2_missing_expected_t12_baselines")
+    def test_independent_schedule_deadline_mismatch_is_fatal_even_when_archive_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            archived={}
+            verdict=attempt_batch(tmp,now=lambda:NOW,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:34"}],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:raw_csv,
+                ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
+            self.assertEqual(verdict["status"],"t2_batch_t12_deadline_conflict")
+            self.assertEqual(verdict["baseline_deadline_conflict_race_codes"],
+                             ["202611030708"])
+            self.assertEqual(verdict["missing_baseline_race_codes"],[])
+            self.assertTrue(t2_cli_failure(verdict))
+            self.assertEqual(verdict["stored_count"],1)
+    def test_independent_schedule_matching_deadline_has_no_conflict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            archived={}
+            verdict=attempt_batch(tmp,now=lambda:NOW,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:33"}],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:raw_csv,
+                ledger_ops=(archived.get,lambda path,raw:archived.setdefault(path,raw)))
+            self.assertEqual(verdict["status"],"t2_batch_completed")
+            self.assertEqual(verdict["baseline_deadline_conflict_race_codes"],[])
+            self.assertFalse(t2_cli_failure(verdict))
+    def test_conflicting_independent_schedule_rows_fail_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            verdict=attempt_batch(tmp,now=lambda:NOW,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda snapshot:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":t} for t in ("18:33","18:34")],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:raw_csv,
+                ledger_ops=(lambda path:None,lambda path,raw:None))
+            self.assertEqual(verdict["status"],"t2_batch_expected_schedule_unavailable")
+            self.assertEqual(verdict["schedule_error_type"],"ValueError")
+            self.assertTrue(t2_cli_failure(verdict))
     def test_batch_size_guard(self):
         with self.assertRaisesRegex(ValueError,"batch_size"):
             attempt_batch(".",now=lambda:NOW,max_per_run=100)
