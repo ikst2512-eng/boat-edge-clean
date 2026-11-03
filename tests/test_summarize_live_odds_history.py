@@ -231,7 +231,7 @@ class OddsHistoryTests(unittest.TestCase):
         def fake_api(url, token):
             if "/runs?status=" in url:
                 requested.append(url)
-                return {"workflow_runs": recent_prs if "page=1" in url else [older]}
+                return {"workflow_runs": recent_prs if "&page=1" in url else [older]}
             return {"artifacts": [{"name": history.ARTIFACT, "id": 7, "expired": False}]}
         with patch.object(history, "api_json", side_effect=fake_api), patch.object(
                 history, "urlopen", return_value=io.BytesIO(payload.getvalue())):
