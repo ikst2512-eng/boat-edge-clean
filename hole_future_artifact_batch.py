@@ -10,6 +10,7 @@ import re
 import subprocess
 import tempfile
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from hole_capture_artifact_inventory import api
@@ -80,19 +81,64 @@ def aggregate(root,artifacts):
             "hits":hits,"delta":delta,
             "warning":"These are result-blind same-job locally frozen snapshots, NOT independently verified first receipts. Empty or incomplete capture window cannot establish accuracy."}
 
-def collect_recent(root,repo,token,limit=20):
-    if not repo or not token:raise ValueError("credentials_required")
-    if type(limit) is not int or not 1<=limit<=40:raise ValueError("invalid_run_limit")
+JST=timezone(timedelta(hours=9))
+PAGE_SIZE=100
+MAX_PAGES=4
+MAX_DOWNLOADS=180
+
+def discover_full_days(repo,token,days=2,as_of_jst=None):
+    """Page GitHub runs by CREATED date, not a small latest-N limit.
+
+    Include only completed JST days; partially collected current-day runs must
+    not masquerade as a complete daily accuracy cohort.
+    """
+    if type(days) is not int or not 1<=days<=3:
+        raise ValueError("invalid_day_window")
+    now=as_of_jst or datetime.now(JST)
+    if now.utcoffset()!=timedelta(hours=9):
+        raise ValueError("as_of_must_be_jst")
+    end_day=now.date()  # exclusive: today is incomplete
+    first_day=end_day-timedelta(days=days)
     base="https://api.github.com/repos/"+repo
-    response=json.loads(api(base+"/actions/workflows/four-mode-prospective-capture.yml/runs?per_page="+str(limit),token))
-    candidates=[r for r in response.get("workflow_runs",[])
-                if r.get("event") in ("schedule","workflow_dispatch")
-                and isinstance(r.get("created_at"),str)
-                and r["created_at"][:10]>="2026-11-03"]
+    runs=[];seen=set();listing_complete=False
+    pages=0
+    for page in range(1,MAX_PAGES+1):
+        url=(base+"/actions/workflows/four-mode-prospective-capture.yml/runs"
+             +"?per_page="+str(PAGE_SIZE)+"&page="+str(page))
+        response=json.loads(api(url,token))
+        page_runs=response.get("workflow_runs",[])
+        if not isinstance(page_runs,list):
+            raise ValueError("invalid_workflow_listing")
+        pages=page
+        oldest_day=None
+        for item in page_runs:
+            created=item.get("created_at")
+            if not isinstance(created,str):
+                continue
+            timestamp=datetime.fromisoformat(created.replace("Z","+00:00"))
+            if timestamp.utcoffset() is None:continue
+            local_day=timestamp.astimezone(JST).date()
+            if oldest_day is None or local_day<oldest_day:oldest_day=local_day
+            if first_day<=local_day<end_day and item.get("event") in ("schedule","workflow_dispatch"):
+                run_id=item["id"]
+                if run_id in seen:raise ValueError("duplicate_run_in_listing")
+                seen.add(run_id);runs.append(item)
+        # Older-than-window entry proves traversal reached the window boundary.
+        if len(page_runs)<PAGE_SIZE or (oldest_day is not None and oldest_day<first_day):
+            listing_complete=True
+            break
+    return {"candidates":runs,"listing_complete":listing_complete,
+            "pages_fetched":pages,"window_start_jst":first_day.isoformat(),
+            "window_end_exclusive_jst":end_day.isoformat(),"days":days}
+
+def collect_recent(root,repo,token,days=2,as_of_jst=None):
+    if not repo or not token:raise ValueError("credentials_required")
+    discovery=discover_full_days(repo,token,days,as_of_jst)
+    candidates=discovery["candidates"]
     failures=[];downloaded=[]
     with tempfile.TemporaryDirectory() as directory:
         dest=Path(directory)
-        for entry in candidates:
+        for entry in candidates[:MAX_DOWNLOADS]:
             run_id=entry["id"]
             run_dir=dest/str(run_id);run_dir.mkdir()
             env={**os.environ,"GH_TOKEN":token}
@@ -108,24 +154,33 @@ def collect_recent(root,repo,token,limit=20):
             except (OSError,subprocess.TimeoutExpired):
                 failures.append({"run_id":run_id,"reason":"download_error"})
         result=aggregate(root,dest)
-    result["runs_inspected"]=len(candidates)
+    result["runs_in_window"]=len(candidates)
+    result["runs_inspected"]=min(len(candidates),MAX_DOWNLOADS)
     result["runs_downloaded"]=len(downloaded)
     result["downloaded_runs_without_shadow"]=max(0,len(downloaded)-result["artifact_files"])
     result["run_download_failures"]=failures
-    result["run_list_limit"]=limit
-    result["capture_window_complete"]=False
-    result["warning"]+=" At most recent N workflow runs; capture history is not exhaustive."
+    result["window_start_jst"]=discovery["window_start_jst"]
+    result["window_end_exclusive_jst"]=discovery["window_end_exclusive_jst"]
+    result["pages_fetched"]=discovery["pages_fetched"]
+    result["run_listing_complete"]=discovery["listing_complete"]
+    result["download_limit_reached"]=len(candidates)>MAX_DOWNLOADS
+    result["capture_window_complete"]=(
+        discovery["listing_complete"] and not failures
+        and len(candidates)<=MAX_DOWNLOADS
+        and len(downloaded)==len(candidates)
+        and result["downloaded_runs_without_shadow"]==0)
+    result["warning"]+=" Complete capture window describes artifact retrieval ONLY, not race/result completeness or independent first receipt."
     return result
 
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     p.add_argument("--root",default=".")
     p.add_argument("--artifacts",default=None)
-    p.add_argument("--runs",type=int,default=20)
+    p.add_argument("--days",type=int,default=2)
     opts=p.parse_args()
     if opts.artifacts:
         x=aggregate(opts.root,opts.artifacts)
     else:
         x=collect_recent(opts.root,os.environ["GITHUB_REPOSITORY"],
-                         os.environ["GH_TOKEN"],opts.runs)
+                         os.environ["GH_TOKEN"],opts.days)
     print(json.dumps(x,ensure_ascii=False,sort_keys=True))

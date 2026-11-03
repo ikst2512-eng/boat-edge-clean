@@ -15,7 +15,7 @@ permissions:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
@@ -30,7 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python hole_future_artifact_batch.py --runs 20 > hole_future_batch.json
+          python hole_future_artifact_batch.py --days 2 > hole_future_batch.json
           python - <<'PY'
           import json
           d=json.load(open("hole_future_batch.json"))
@@ -38,8 +38,13 @@ jobs:
           assert d["independent_first_receipt_verified"] is False
           assert d["prospective_validation"] is False
           assert d["production_forecast_changed"] is False
-          assert d["capture_window_complete"] is False
-          print("RUNS",d["runs_inspected"],"DOWNLOADED",d["runs_downloaded"])
+          assert type(d["capture_window_complete"]) is bool
+          assert type(d["run_listing_complete"]) is bool
+          assert d["window_start_jst"] < d["window_end_exclusive_jst"]
+          print("WINDOW",d["window_start_jst"],d["window_end_exclusive_jst"])
+          print("PAGES",d["pages_fetched"],"LISTING_COMPLETE",d["run_listing_complete"])
+          print("RUNS",d["runs_in_window"],"INSPECTED",d["runs_inspected"],"DOWNLOADED",d["runs_downloaded"])
+          print("ARTIFACT_WINDOW_COMPLETE",d["capture_window_complete"])
           print("ARTIFACT_FILES",d["artifact_files"],"SCORABLE",d["comparable"])
           print("DOWNLOAD_FAILURES",d["run_download_failures"])
           print("SHADOW_STATUSES",d["shadow_status_counts"])
