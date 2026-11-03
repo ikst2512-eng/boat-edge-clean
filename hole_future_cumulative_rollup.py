@@ -34,7 +34,7 @@ def report_totals_match(flags, claimed_hits, claimed_delta):
     return claimed_delta==expected_delta
 
 def rollup(reports):
-    rows={}; conflicts=set(); invalid=Counter(); days=set()
+    rows={}; conflicts=set(); quarantined=set(); invalid=Counter(); days=set()
     report_count=0; covered=set(); partial=0; all_reports=[]
     for item in reports:
         report_count+=1
@@ -99,13 +99,41 @@ def rollup(reports):
             for values in flags.values() for m in POLICIES
         ):
             invalid["top5_shift"]+=1;continue
+        # A race quarantined by one valid daily audit must never be
+        # resurrected by a different overlapping daily or late-result report.
+        # Validate quarantine metadata before importing any scored rows.
+        claimed_quarantine=set()
+        for field in ("duplicate_codes_quarantined",
+                      "codes_quarantined_for_failed_replay"):
+            codes=item.get(field,[])
+            if (not isinstance(codes,list) or
+                    any(not isinstance(code,str) for code in codes) or
+                    len(codes)!=len(set(codes))):
+                invalid["invalid_quarantine_metadata"]+=1
+                claimed_quarantine=None
+                break
+            claimed_quarantine.update(codes)
+        if claimed_quarantine is None:
+            continue
+        if (claimed_quarantine.intersection(flags) or
+                any(len(code)!=12 or not code.isdigit() or
+                    not (date(2026,11,4)<=
+                         date(int(code[:4]),int(code[4:6]),int(code[6:8]))
+                         <end_date) or
+                    date(int(code[:4]),int(code[4:6]),int(code[6:8]))<start_date
+                    for code in claimed_quarantine)):
+            invalid["invalid_quarantine_metadata"]+=1
+            continue
+        quarantined.update(claimed_quarantine)
         for code,values in flags.items():
-            if code in conflicts:continue
+            if code in conflicts or code in quarantined:continue
             # The same date can recur in rolling daily windows.
             if code in rows and rows[code]!=values:
                 rows.pop(code);conflicts.add(code)
             else:
                 rows[code]=values
+    for code in quarantined:
+        rows.pop(code,None)
     counts={m:{f"top{k}":0 for k in TOPS} for m in POLICIES}
     for row in rows.values():
         for m in POLICIES:
@@ -126,6 +154,7 @@ def rollup(reports):
             "incomplete_window_reports":partial,
             "invalid_report_counts":dict(invalid),
             "conflicted_codes_quarantined":sorted(conflicts),
+            "upstream_quarantined_codes":sorted(quarantined),
             "comparable":len(rows),"race_codes":sorted(rows),
             "hits":counts,"delta":delta,
             "historical_reporting_coverage_proven":False,
