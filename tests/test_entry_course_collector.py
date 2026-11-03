@@ -51,16 +51,45 @@ class CollectorTests(unittest.TestCase):
             self.assertEqual(len(content["course_plus_st"]),120)
     def test_no_history_is_not_promoted_to_fake_research(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root,_,_=setup(tmp)
+            root,card,_=setup(tmp)
             out=attempt(root,now=lambda:NOW,prefetch=lambda day:({},{}),
-                        card_reader=lambda *args:self.fail("no history, no card"),
+                        card_reader=lambda *args:card,
                         ledger_ops=(lambda p:None,lambda p,b:self.fail("no publish")))
             self.assertEqual(out["status"],"no_verified_historical_pairs")
             self.assertFalse(out["stored"])
+    def test_insufficient_history_reports_each_boat_course_starts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,urls=setup(tmp)
+            out=attempt(root,now=lambda:NOW,prefetch=lambda day:(urls,{}),
+                card_reader=lambda *args:card,min_starts=10)
+            self.assertEqual(out["status"],"ineligible_late_study")
+            self.assertEqual(out["reason"],"late_study_insufficient_course_samples")
+            self.assertEqual(len(out["course_start_counts"]),6)
+            self.assertEqual(out["insufficient_boats"],[1,2,3,4,5,6])
+            self.assertFalse(out["stored"])
+    def test_missing_preview_must_not_fetch_any_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,_=setup(tmp)
+            card["source_audit"]["beforeinfo"]["status"]="not_published_or_unavailable"
+            out=attempt(root,now=lambda:NOW,
+                prefetch=lambda day:self.fail("should not download 62 files"),
+                card_reader=lambda *args:card,sleep=lambda seconds:None)
+            self.assertEqual(out["status"],"preview_not_ready")
+            self.assertEqual(out["historical_requests"],0)
+            self.assertFalse(out["stored"])
+    def test_wrong_race_preview_must_not_fetch_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root,card,_=setup(tmp)
+            card["race_key"]="20261103-07-09"
+            out=attempt(root,now=lambda:NOW,
+                prefetch=lambda day:self.fail("wrong race should not download"),
+                card_reader=lambda *args:card,sleep=lambda seconds:None)
+            self.assertEqual(out["status"],"preview_not_ready")
+            self.assertIn("not_verified_same_race_preresult",out["reason"])
     def test_source_not_used_if_prefetch_crosses_cutoff(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root,_,urls=setup(tmp)
-            iter_time=iter((NOW,NOW,datetime(2026,11,3,18,32,tzinfo=JST)))
-            out=attempt(root,now=lambda:next(iter_time),prefetch=lambda day:(urls,{}))
+            root,card,urls=setup(tmp)
+            iter_time=iter((NOW,NOW,NOW,NOW,NOW,datetime(2026,11,3,18,32,tzinfo=JST)))
+            out=attempt(root,now=lambda:next(iter_time),prefetch=lambda day:(urls,{}),card_reader=lambda *args:card)
             self.assertEqual(out["status"],"history_fetch_crossed_late_cutoff")
 if __name__=="__main__":unittest.main()
