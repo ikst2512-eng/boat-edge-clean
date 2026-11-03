@@ -16,7 +16,7 @@ CUTOFF_CREATED_UTC = "2026-11-03T15:00:00Z"  # Nov 4 JST
 EVENTS = {"schedule", "workflow_dispatch"}
 STATUS = {"success", "failure", "cancelled", "timed_out", "action_required"}
 INVENTORY_LIMIT = 500
-RUN_MAX = INVENTORY_LIMIT  # Do not silently trim older eligible runs.
+RUN_MAX = len(EVENTS) * INVENTORY_LIMIT  # Full union of event-scoped API pages.
 TOPS = (3, 5, 10)
 RUN_ID = re.compile(r"[1-9][0-9]{0,16}\Z")
 
