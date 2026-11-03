@@ -48,6 +48,7 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
     outside_window=set()
     source_snapshots={}
     identical_repeated_codes=set()
+    replay_verified_codes=set()
     for path in files:
         examined+=1
         file_codes=set()
@@ -82,6 +83,9 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             # duplicate from another run without proving which is canonical.
             duplicates.update(file_codes)
             nonusable[type(exc).__name__]+=1;continue
+        for code in scored.get("eligible_codes",[]):
+            if in_window(code):
+                replay_verified_codes.add(code)
         for name,n in scored.get("excluded_by_reason",{}).items():
             excluded[name]+=n
         for row in scored.get("rows",[]):
@@ -125,7 +129,9 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             "outside_race_day_codes":sorted(outside_window),
             "comparable":len(rows),"race_codes":[r["race_code"] for r in rows],
             "per_race_flags":{r["race_code"]:r["flags"] for r in rows},
-            "observed_future_codes":sorted(set(all_rows)|duplicates),
+            "observed_future_codes":sorted(replay_verified_codes-duplicates),
+            "declared_future_codes":sorted(set(all_rows)|duplicates),
+            "declared_but_not_replay_verified_codes":sorted((set(all_rows)|duplicates)-replay_verified_codes),
             "excluded_by_reason":dict(excluded),"invalid_artifacts":dict(nonusable),
             "shadow_status_counts":dict(shadow_statuses),
             "hits":hits,"delta":delta,
