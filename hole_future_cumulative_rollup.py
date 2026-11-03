@@ -84,22 +84,23 @@ def rollup(reports):
             invalid["invalid_hit_flags"]+=1;continue
         if not report_totals_match(flags,item.get("hits"),item.get("delta")):
             invalid["summary_totals_mismatch"]+=1;continue
+        # Reject the complete report before importing any rows. Otherwise
+        # selectively skipping failed races would bias the denominator and
+        # allow apparently valid gains to survive a corrupt daily artifact.
+        if any(
+            (values[m]["top3"] and not values[m]["top5"]) or
+            (values[m]["top5"] and not values[m]["top10"])
+            for values in flags.values() for m in POLICIES
+        ):
+            invalid["nonmonotonic_hit_flags"]+=1;continue
+        if any(
+            values[m]["top3"]!=values["baseline"]["top3"] or
+            values[m]["top5"]!=values["baseline"]["top5"]
+            for values in flags.values() for m in POLICIES
+        ):
+            invalid["top5_shift"]+=1;continue
         for code,values in flags.items():
-            if not isinstance(code,str) or len(code)!=12 or not code.isdigit() or code[:8]<"20261104":
-                invalid["invalid_race_code"]+=1;continue
             if code in conflicts:continue
-            if not isinstance(values,dict) or set(values)!=set(POLICIES):
-                invalid["invalid_modes"]+=1;continue
-            if any(set(values[mode])!={f"top{k}" for k in TOPS} or
-                   any(type(values[mode][f"top{k}"]) is not bool for k in TOPS)
-                   for mode in POLICIES):
-                invalid["invalid_hit_flags"]+=1;continue
-            if any(values[m]["top3"] and not values[m]["top5"] or
-                   values[m]["top5"] and not values[m]["top10"] for m in POLICIES):
-                invalid["nonmonotonic_hit_flags"]+=1;continue
-            if any(values[m]["top3"]!=values["baseline"]["top3"] or
-                   values[m]["top5"]!=values["baseline"]["top5"] for m in POLICIES):
-                invalid["top5_shift"]+=1;continue
             # The same date can recur in rolling daily windows.
             if code in rows and rows[code]!=values:
                 rows.pop(code);conflicts.add(code)
