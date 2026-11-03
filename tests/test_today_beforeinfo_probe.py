@@ -52,7 +52,7 @@ class TodayBeforeinfoProbeVerdictTests(unittest.TestCase):
                    "scripts.probe_today_beforeinfo._fetch_preview",
                    return_value=(preview,{"status":"ok"})):
             with self.assertRaisesRegex(RuntimeError,"SCHEDULED_PREVIEW_NO_VERIFIED_SIX_LANE"):
-                run(now=NOW,event_name="schedule",clock=lambda:after_cutoff)
+                run(now=NOW,event_name="schedule",clock=iter([NOW,NOW,NOW,after_cutoff]).__next__)
 
     def test_predeadline_adapter_receipt_is_accepted(self):
         preview={"racers":[{"lane":i} for i in range(1,7)],
