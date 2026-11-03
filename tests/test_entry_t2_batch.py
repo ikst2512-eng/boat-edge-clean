@@ -333,6 +333,45 @@ class BatchTests(unittest.TestCase):
                 self.assertTrue(t2_cli_failure({"status":state}))
         with self.assertRaisesRegex(ValueError,"t2_cli_invalid_verdict"):
             t2_cli_failure(None)
+    def test_unattended_mode_rejects_local_snapshot_without_durable_t12(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            self.assertEqual(len(__import__("entry_course_collector").candidates(
+                tmp,now=NOW)),1)
+            self.assertEqual(len(__import__("entry_course_collector").candidates(
+                tmp,now=NOW,require_durable_t12=True)),0)
+            result=attempt_batch(tmp,now=lambda:NOW,require_durable_t12=True,
+                verify_expected_schedule=True,
+                schedule_fetch=lambda sampled:(
+                    [{"レースコード":"202611030708",
+                      "電話投票締切予定":"18:33"}],
+                    "20261103","a"*64,"published_daily_title"),
+                card_reader=lambda *args:self.fail("local original must not be used"),
+                waku_fetch=lambda url:self.fail("no unsafe Waku10 capture"))
+            self.assertEqual(result["status"],"t2_missing_expected_t12_baselines")
+    def test_unattended_mode_uses_durable_original_over_conflicting_local(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,raw_csv=setup(tmp,1)
+            local=Path(tmp)/"research_snapshots"/"202611030708.json"
+            altered=json.loads(local.read_text())
+            altered["predictions"]=["6-5-4"]
+            local.write_text(json.dumps(altered))
+            durable=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
+            durable.mkdir(parents=True)
+            original=__import__("test_entry_waku10_pilot").fixture()[0]
+            (durable/"202611030708.json").write_text(json.dumps(original))
+            selected=__import__("entry_course_collector").candidates(
+                tmp,now=NOW,require_durable_t12=True)
+            self.assertEqual(len(selected),1)
+            self.assertEqual(selected[0][2]["predictions"],original["predictions"])
+            archive={}
+            out=attempt_batch(tmp,now=lambda:NOW,require_durable_t12=True,
+                card_reader=lambda d,v,r:cards[d+v+r],
+                waku_fetch=lambda url:raw_csv,
+                ledger_ops=(archive.get,lambda p,b:archive.setdefault(p,b)))
+            self.assertEqual(out["status"],"t2_batch_completed")
+            self.assertEqual(out["newly_stored_count"],1)
+            self.assertEqual(len(archive),1)
     def test_batch_size_guard(self):
         with self.assertRaisesRegex(ValueError,"batch_size"):
             attempt_batch(".",now=lambda:NOW,max_per_run=100)
