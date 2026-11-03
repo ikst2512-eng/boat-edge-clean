@@ -294,9 +294,20 @@ def attempt_batch(root, *, now=None, max_per_run=3, **kwargs):
         else:
             records.append(result)
     stored=sum(r.get("stored") is True for r in records)
+    newly_stored=sum(r.get("status") in (
+        "new_append_only_waku10_pilot","new_append_only_late_capture")
+        for r in records)
+    reused=sum(r.get("status") in (
+        "already_identical_waku10_pilot","already_identical_late_capture")
+        for r in records)
     failed=sum(r.get("status")=="collector_error" for r in records)
+    skipped=len(records)-stored-failed
+    if stored!=newly_stored+reused:
+        raise ValueError("t2_unrecognized_stored_verdict")
     return {"status":"t2_batch_error" if failed else "t2_batch_completed",
             "attempted_count":len(records),"stored_count":stored,
+            "newly_stored_count":newly_stored,"reused_count":reused,
+            "not_stored_count":skipped,
             "errors":failed,"deferred_count":max(0,len(pool)-max_per_run),
             "results":records,"research_only":True}
 
