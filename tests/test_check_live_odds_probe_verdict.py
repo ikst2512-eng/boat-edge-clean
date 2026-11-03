@@ -17,6 +17,18 @@ class OddsOperationalVerdictTests(unittest.TestCase):
                                   "samples": [self.sample("valid_200", 200)]}),
                          "valid_200_observed")
 
+    def test_initial_timeout_then_valid_200_is_operational_success(self):
+        sample = {"race_code": "202611030111", "attempts": [
+            {"http": None, "state": "transport_error:TimeoutError",
+             "latency_ms": 25000},
+            {"http": 200, "state": "valid_200", "latency_ms": 300}]}
+        self.assertEqual(verdict({"source_status": "ok", "samples": [sample]}),
+                         "valid_200_observed")
+        sample["attempts"].insert(0, {"http": 202, "state": "pending_202",
+                                      "latency_ms": 100})
+        self.assertEqual(verdict({"source_status": "ok", "samples": [sample]}),
+                         "no_valid_200")
+
     def test_no_sample_and_unavailable_source_are_not_green(self):
         self.assertEqual(verdict({"source_status": "ok", "samples": []}),
                          "no_eligible_races")
