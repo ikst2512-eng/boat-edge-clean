@@ -152,6 +152,25 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(result["hole_shadow_failure_runs"], [])
         self.assertEqual(result["claimed_added_forecasts_sum"], 3)
 
+    def test_legacy_artifacts_are_unknown_not_clean_research(self):
+        def download(run_id, root):
+            if run_id == 124:
+                self.save(root, "four-mode-evidence/stages.json", {
+                    "third_rate_shadow": "success", "hole_shadow": "skipped"})
+            else:
+                self.save(root, "four-mode-evidence/publication.json", {
+                    "outcome": "no_eligible_candidates"})
+        runs = [self.RUN, {**self.RUN, "id": 124}]
+        result = report({"runs": runs}, download)
+        self.assertEqual(result["research_stage_coverage"]["third_rate_shadow"],
+                         {"success": 1, "failure": 0, "skipped": 0,
+                          "cancelled": 0, "unknown": 1, "checked": 2})
+        self.assertEqual(result["research_stage_coverage"]["hole_shadow"],
+                         {"success": 0, "failure": 0, "skipped": 1,
+                          "cancelled": 0, "unknown": 1, "checked": 2})
+        self.assertEqual(result["third_rate_shadow_failure_runs"], [])
+        self.assertEqual(result["hole_shadow_failure_runs"], [])
+
     def test_missing_and_invalid_research_verdicts_stay_unknown(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/stages.json", {

@@ -54,6 +54,11 @@ def inspect_dispatches(capture_inventory, downloader, limit=12):
         return {"schema": "FOUR_MODE_DISPATCH_PUBLICATION_EVIDENCE_V1",
                 "dispatch_runs_checked": 0, "artifacts_present": 0,
                 "runs_claiming_push": 0, "claimed_added_forecasts_sum": None,
+                "research_stage_coverage": {
+                    field: {"success": 0, "failure": 0, "skipped": 0,
+                            "cancelled": 0, "unknown": 0, "checked": 0}
+                    for field in ("third_rate_shadow", "hole_shadow")},
+                "third_rate_shadow_failure_runs": [], "hole_shadow_failure_runs": [],
                 "remote_main_verified": False, "runs": [],
                 "note": "No dispatch runs in bounded listing; no publication conclusion."}
     result = report(history, downloader, limit=limit)
@@ -92,6 +97,7 @@ def main():
         "history_runs_omitted": result.get("history_runs_omitted", 0),
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
+        "research_stage_coverage": result["research_stage_coverage"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
         "hole_shadow_failure_runs": result["hole_shadow_failure_runs"],
         "claimed_added_forecasts_sum": result["claimed_added_forecasts_sum"],
