@@ -5,13 +5,16 @@ generated, modified or ranked here. Previous V1 exploration informed the
 shadow candidate, so this is not a preregistered independent holdout.
 """
 import json
+from datetime import datetime, timedelta, timezone
 from math import comb
 from four_mode_v2_predeclared_shadow import evaluate, PAIRS, PAIR_OUTCOMES
+from four_mode_v2_venue_coverage import venue_audit
 
 MIN_PAIRED = 100
 MIN_DAYS = 3
 MIN_DISCORDANT = 20
 MIN_MATURE_RESULT_COVERAGE = 0.90
+MIN_VENUE_MATURE_RACES = 5
 
 
 def paired_one_sided_pvalue(gained, lost):
@@ -24,7 +27,7 @@ def paired_one_sided_pvalue(gained, lost):
     return sum(comb(n, k) for k in range(gained, n + 1)) / 2**n
 
 
-def summarize(raw):
+def summarize(raw, venue_report=None):
     if raw.get("formal") is not False or raw.get("independent_remote_first_seen_verified") is not False:
         raise ValueError("unexpected_evidence_promotion")
     groups = raw.get("groups", {})
@@ -112,6 +115,30 @@ def summarize(raw):
             raise ValueError("discordance_mismatch")
         if row["gained_top3"] + row["lost_top3"] > row["applied"]:
             raise ValueError("impossible_discordances")
+    venue_coverage = {"audited": False, "mature_venues": 0,
+                      "low_coverage_venues": [], "zero_confirmed_venues": []}
+    if venue_report is not None:
+        if (venue_report.get("formal") is not False
+                or venue_report.get("verified_first_remote_publication") is not False):
+            raise ValueError("unexpected_venue_evidence_promotion")
+        if (venue_report.get("total_saved") != totals["saved_forecasts"]
+                or venue_report.get("total_confirmed") != totals["paired_results"]
+                or venue_report.get("total_overdue_missing") != totals["over_60m_after_deadline"]):
+            raise ValueError("venue_cohort_mismatch")
+        venue_coverage["audited"] = True
+        for key, data in sorted(venue_report["venues"].items()):
+            matured = data["mature_confirmed"]
+            overdue = data["missing_over_60m"]
+            if any(type(x) is not int or x < 0 for x in (matured, overdue)):
+                raise ValueError("invalid_venue_counts")
+            denominator = matured + overdue
+            if denominator >= MIN_VENUE_MATURE_RACES:
+                venue_coverage["mature_venues"] += 1
+                ratio = matured / denominator
+                if ratio < MIN_MATURE_RESULT_COVERAGE:
+                    venue_coverage["low_coverage_venues"].append(key)
+                if matured == 0:
+                    venue_coverage["zero_confirmed_venues"].append(key)
     n = totals["paired_results"]
     gains = totals["gained_top3"]
     losses = totals["lost_top3"]
@@ -141,6 +168,10 @@ def summarize(raw):
                                           if mature_denom else None),
             }
     reasons = []
+    if not venue_coverage["audited"]:
+        reasons.append("venue_representation_not_audited")
+    elif venue_coverage["low_coverage_venues"]:
+        reasons.append("uneven_venue_result_coverage")
     if mature_coverage is None or mature_coverage < MIN_MATURE_RESULT_COVERAGE:
         reasons.append("insufficient_mature_result_coverage")
     if n < MIN_PAIRED:
@@ -165,6 +196,7 @@ def summarize(raw):
         "formal": False, "production_promotion_allowed": False,
         "total": totals, "evaluation_days": completed_days,
         "top3_net_gain": gains - losses,
+        "venue_coverage": venue_coverage,
         "paired_top3_one_sided_pvalue": pvalue,
         "comparable_denominator": n,
         "mature_outcome_denominator": mature_denom,
@@ -179,4 +211,6 @@ def summarize(raw):
 
 
 if __name__ == "__main__":
-    print("V2_RESEARCH_READINESS=" + json.dumps(summarize(evaluate()), sort_keys=True))
+    now = datetime.now(timezone(timedelta(hours=9)))
+    print("V2_RESEARCH_READINESS=" + json.dumps(
+        summarize(evaluate(now=now), venue_report=venue_audit(now=now)), sort_keys=True))
