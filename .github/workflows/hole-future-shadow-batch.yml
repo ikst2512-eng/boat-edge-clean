@@ -42,6 +42,8 @@ jobs:
           print("RUNS",d["runs_inspected"],"DOWNLOADED",d["runs_downloaded"])
           print("ARTIFACT_FILES",d["artifact_files"],"SCORABLE",d["comparable"])
           print("DOWNLOAD_FAILURES",d["run_download_failures"])
+          print("SHADOW_STATUSES",d["shadow_status_counts"])
+          print("RUNS_WITHOUT_SHADOW",d["downloaded_runs_without_shadow"])
           print("DUPLICATES_QUARANTINED",d["duplicate_codes_quarantined"])
           print("EXCLUDED",d["excluded_by_reason"])
           print("HITS",d["hits"],"DELTA",d["delta"])
