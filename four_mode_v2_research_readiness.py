@@ -40,6 +40,8 @@ def summarize(raw, venue_report=None):
                           for m in ("narrow", "hit", "balance", "hole")},
         "before_deadline": 0, "within_60m_after_deadline": 0,
         "over_60m_after_deadline": 0, "applied": 0,
+        "reordered_top10": 0, "changed_top3_membership": 0,
+        "changed_top5_membership": 0,
         "gained_top3": 0, "lost_top3": 0,
         "baseline": {f"top{n}": 0 for n in (3, 5, 10)},
         "candidate": {f"top{n}": 0 for n in (3, 5, 10)},
@@ -63,10 +65,22 @@ def summarize(raw, venue_report=None):
             raise ValueError("invalid_matured_comparable")
         if c + p > saved or row["applied"] > c:
             raise ValueError("inconsistent_count")
+        for key in ("reordered_top10", "changed_top3_membership",
+                    "changed_top5_membership"):
+            v = row[key]
+            if type(v) is not int or v < 0 or v > row["applied"]:
+                raise ValueError("invalid_actual_rerank_count")
+        if row["changed_top3_membership"] > row["reordered_top10"] or row["changed_top5_membership"] > row["reordered_top10"]:
+            raise ValueError("changed_subset_exceeds_reorders")
+        if row["gained_top3"] + row["lost_top3"] > row["changed_top3_membership"]:
+            raise ValueError("discordance_without_top3_membership_change")
         completed_days += int(c > 0)
         totals["matured_comparable"] += matured
         for key, value in (("saved_forecasts", saved), ("paired_results", c),
                            ("pending_results", p), ("applied", row["applied"]),
+                           ("reordered_top10", row["reordered_top10"]),
+                           ("changed_top3_membership", row["changed_top3_membership"]),
+                           ("changed_top5_membership", row["changed_top5_membership"]),
                            ("gained_top3", row["gained_top3"]), ("lost_top3", row["lost_top3"])):
             totals[key] += value
         phases = row["pending_by_deadline"]
