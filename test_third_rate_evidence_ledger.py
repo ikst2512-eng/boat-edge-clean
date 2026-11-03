@@ -7,7 +7,7 @@ from pathlib import Path
 from clean_four_modes import rank_modes
 from research_model import probabilities
 from four_mode_v2_third_rate_shadow import PROTOCOL, candidate
-from third_rate_evidence_ledger import prepare, publish, BRANCH
+from third_rate_evidence_ledger import prepare, publish, BRANCH, verify_first_add_git_provenance
 
 CODE = "202611040101"
 SHA = "a" * 40
@@ -127,6 +127,56 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         self.data["records"][0]["source_commit_sha"] = "b" * 40
         with self.assertRaisesRegex(ValueError, "source_commit_mismatch"):
             prepare(self.original(), self.root, "412345", "1")
+
+    def git_provenance(self, *args):
+        if args[:2] == ("rev-parse", "HEAD"):
+            return (SHA + "\n").encode()
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            return b""
+        if args[0] == "diff-tree":
+            return ("four_mode_forecasts/" + CODE + ".json\n").encode()
+        if args[0] == "show":
+            return (self.root / "four_mode_forecasts" /
+                    (CODE + ".json")).read_bytes()
+        raise AssertionError(args)
+
+    def test_source_commit_first_add_provenance_matches_original(self):
+        self.assertEqual(
+            verify_first_add_git_provenance(self.original(), self.root,
+                                            self.git_provenance), 1)
+
+    def test_source_commit_must_match_capture_checkout_head(self):
+        def wrong(*args):
+            if args[:2] == ("rev-parse", "HEAD"):
+                return ("b" * 40 + "\n").encode()
+            return self.git_provenance(*args)
+        with self.assertRaisesRegex(ValueError, "ledger_publication_head_mismatch"):
+            verify_first_add_git_provenance(self.original(), self.root, wrong)
+
+    def test_source_must_be_first_added_not_just_present(self):
+        def wrong(*args):
+            if args[0] == "diff-tree":
+                return b""
+            return self.git_provenance(*args)
+        with self.assertRaisesRegex(ValueError, "ledger_source_not_first_add_in_commit"):
+            verify_first_add_git_provenance(self.original(), self.root, wrong)
+
+    def test_first_add_git_blob_must_match_frozen_source_hash(self):
+        def wrong(*args):
+            if args[0] == "show":
+                return b"modified history"
+            return self.git_provenance(*args)
+        with self.assertRaisesRegex(ValueError, "ledger_first_add_blob_mismatch"):
+            verify_first_add_git_provenance(self.original(), self.root, wrong)
+
+    def test_missing_remote_main_ancestry_is_fail_closed(self):
+        import subprocess
+        def wrong(*args):
+            if args[0] == "merge-base":
+                raise subprocess.CalledProcessError(1, list(args))
+            return self.git_provenance(*args)
+        with self.assertRaisesRegex(ValueError, "ledger_git_history_unavailable"):
+            verify_first_add_git_provenance(self.original(), self.root, wrong)
 
     def test_invalid_run_identity_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "invalid_run_identity"):
