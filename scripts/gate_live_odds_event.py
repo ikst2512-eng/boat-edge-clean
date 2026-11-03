@@ -225,45 +225,56 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
         now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         url = ("https://api.github.com/repos/" + repository +
                "/actions/workflows/live-official-odds-probe.yml/runs?event=workflow_run&per_page=100")
-        if fetch_json is None:
-            request = Request(url, headers={
-                "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0"})
-            with urlopen(request, timeout=15) as response:
-                payload = json.load(response)
-        else:
-            payload = fetch_json(url, token)
-        runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
-        if not isinstance(runs, list):
-            return "fallback_lookup_unavailable"
-        for run in runs:
-            if not isinstance(run, dict) or run.get("event") != "workflow_run":
-                continue
-            if run.get("id") == current_run_id:
-                continue
-            created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
-            if created.tzinfo is None:
+        # A busy repository can produce more than 100 upstream PR events in
+        # one slot. Search further pages or fail closed; never assume absence.
+        for page in range(1, 6):
+            page_url = url + "&page=" + str(page)
+            if fetch_json is None:
+                request = Request(page_url, headers={
+                    "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0"})
+                with urlopen(request, timeout=15) as response:
+                    payload = json.load(response)
+            else:
+                payload = fetch_json(page_url, token)
+            runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+            if not isinstance(runs, list):
                 return "fallback_lookup_unavailable"
-            if not slot <= created <= now:
-                continue
-            if run.get("status") != "completed":
-                return "prior_fallback_observed"
-            if run.get("conclusion") == "success":
-                run_id = run.get("id")
-                if type(run_id) is not int or run_id <= 0:
+            older_than_slot = False
+            for run in runs:
+                if not isinstance(run, dict) or run.get("event") != "workflow_run":
+                    continue
+                if run.get("id") == current_run_id:
+                    continue
+                created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+                if created.tzinfo is None:
                     return "fallback_lookup_unavailable"
-                if probe_check is None:
-                    state = direct_probe_evidence(
-                        repository, token, run_id, expected_slot=slot,
-                        run_created_at=created)
-                else:
-                    state = probe_check(repository, token, run_id)
-                if state == "valid":
+                if created < slot:
+                    older_than_slot = True
+                    continue
+                if created > now:
+                    continue
+                if run.get("status") != "completed":
                     return "prior_fallback_observed"
-                if state != "no_valid_odds":
-                    return "fallback_lookup_unavailable"
-        return "prior_fallback_absent_or_failed"
+                if run.get("conclusion") == "success":
+                    run_id = run.get("id")
+                    if type(run_id) is not int or run_id <= 0:
+                        return "fallback_lookup_unavailable"
+                    if probe_check is None:
+                        state = direct_probe_evidence(
+                            repository, token, run_id, expected_slot=slot,
+                            run_created_at=created)
+                    else:
+                        state = probe_check(repository, token, run_id)
+                    if state == "valid":
+                        return "prior_fallback_observed"
+                    if state != "no_valid_odds":
+                        return "fallback_lookup_unavailable"
+            if older_than_slot or len(runs) < 100:
+                return "prior_fallback_absent_or_failed"
+        # Five full pages with no older timestamp is an incomplete scan.
+        return "fallback_lookup_unavailable"
     except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
         return "fallback_lookup_unavailable"
 

@@ -220,6 +220,42 @@ class FallbackGateTests(unittest.TestCase):
             trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
 
 
+    def test_prior_fallback_paginates_busy_history_without_false_absence(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:38:00Z"}
+        now = datetime(2026, 11, 3, 7, 50, tzinfo=timezone.utc)
+        noisy = [{"id": i + 100, "event": "workflow_run",
+                  "created_at": "2026-11-03T07:40:00Z",
+                  "status": "completed", "conclusion": "failure"} for i in range(100)]
+        verified = {"id": 99, "event": "workflow_run",
+                    "created_at": "2026-11-03T07:41:00Z",
+                    "status": "completed", "conclusion": "success"}
+        pages = []
+        def fetch(url, token):
+            pages.append(url)
+            return {"workflow_runs": noisy if "&page=1" in url else [verified]}
+        result = gate.prior_fallback_guard(
+            trigger, "a/b", "token", 500, now=now,
+            fetch_json=fetch, probe_check=lambda *_: "valid")
+        self.assertEqual(result, "prior_fallback_observed")
+        self.assertEqual(len(pages), 2)
+
+    def test_prior_fallback_fails_closed_if_all_history_pages_are_full(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:38:00Z"}
+        now = datetime(2026, 11, 3, 7, 50, tzinfo=timezone.utc)
+        noisy = [{"id": i + 100, "event": "workflow_run",
+                  "created_at": "2026-11-03T07:40:00Z",
+                  "status": "completed", "conclusion": "failure"} for i in range(100)]
+        urls = []
+        def fetch(url, token):
+            urls.append(url)
+            return {"workflow_runs": noisy}
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 500, now=now, fetch_json=fetch),
+            "fallback_lookup_unavailable")
+        self.assertEqual(len(urls), 5)
+
     def test_prior_valid_200_requires_matching_scheduled_upstream_and_slot(self):
         from datetime import datetime, timezone
         import io
