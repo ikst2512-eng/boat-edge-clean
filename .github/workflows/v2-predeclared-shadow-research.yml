@@ -95,9 +95,10 @@ jobs:
           git fetch origin refs/heads/v2-third-rate-evidence-ledger:refs/remotes/origin/v2-third-rate-evidence-ledger
           python four_mode_v2_third_rate_ledger_rollup.py --output v2_third_rate_durable_ledger.json | tee v2_third_rate_durable_ledger.log
       - name: Reconcile frozen captured race IDs with durable ledger entries
-        if: github.event_name != 'pull_request'
+        if: ${{ always() && github.event_name != 'pull_request' }}
         run: python four_mode_v2_third_ledger_reconcile.py --capture v2_frozen_third_nightly.json --ledger v2_third_rate_durable_ledger.json --output v2_third_ledger_reconciliation.json | tee v2_third_ledger_reconciliation.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
           path: |
