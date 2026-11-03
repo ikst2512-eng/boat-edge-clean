@@ -15,7 +15,7 @@ from scripts.inspect_joint_t12_archive import load_archive
 RACE = "202611030212"
 DAY = "20261103"
 WORKFLOW = "official-three-original-t12-observation.yml"
-EXPECTED_SLOTS_JST = ("15:30", "15:40", "15:48", "15:50", "15:51")
+EXPECTED_SLOTS_JST = ("15:20", "15:25", "15:30", "15:40", "15:48", "15:50", "15:51")
 FILES = {"card": ("racelist.html", "manifest.json"),
          "before": ("beforeinfo.json", "manifest.json"),
          "odds": ("original.html", "manifest.json")}
@@ -178,7 +178,7 @@ def collect(repo, token):
 
 def markdown(result):
     lines = ["## 戸田12R｜T−12直前・保存原本の独立再監査", "",
-             f"- 予定実行: {result['expected_schedule_count']}回（15:30、15:40、15:48、15:50、15:51 JST）",
+             f"- 予定実行: {result['expected_schedule_count']}回（15:20、15:25、15:30、15:40、15:48、15:50、15:51 JST）",
              f"- 実行記録: {result['observed_scheduled_runs']}件（UTC当日のスケジュール実行）",
              f"- 原本3種類を独立再監査: {result['independent_originals_reaudited']}件",
              f"- 研究用T−12充足: {result['research_complete_by_t12']}件",
