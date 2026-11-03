@@ -148,6 +148,45 @@ class CumulativeEvidenceTests(unittest.TestCase):
         self.assertEqual(out["comparable"],1)
         self.assertEqual(out["race_codes"],["202611040101"])
         self.assertEqual(out["invalid_report_counts"]["top5_shift"],1)
+    def test_later_quarantine_removes_previously_scored_race(self):
+        scored=report({"202611040101":flags(False,True)})
+        quarantined=report({})
+        quarantined["duplicate_codes_quarantined"]=["202611040101"]
+        out=rollup([scored,quarantined])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["upstream_quarantined_codes"],["202611040101"])
+        self.assertEqual(out["hits"]["third_national_rate"]["top10"],0)
+    def test_earlier_failed_replay_quarantine_blocks_later_score(self):
+        quarantined=report({})
+        quarantined["codes_quarantined_for_failed_replay"]=["202611040101"]
+        scored=report({"202611040101":flags(False,True)})
+        out=rollup([quarantined,scored])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["upstream_quarantined_codes"],["202611040101"])
+    def test_quarantine_cannot_overlap_same_report_scored_races(self):
+        bad=report({"202611040101":flags(False,True)})
+        bad["duplicate_codes_quarantined"]=["202611040101"]
+        out=rollup([bad])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["invalid_report_counts"]["invalid_quarantine_metadata"],1)
+    def test_invalid_quarantine_date_and_shape_reject_whole_report(self):
+        for value in (["202611310101"],"202611040101",["202611050101"],
+                      ["202611040101","202611040101"]):
+            with self.subTest(value=value):
+                bad=report({"202611040102":flags(False,True)},
+                           "2026-11-04","2026-11-05")
+                bad["duplicate_codes_quarantined"]=value
+                out=rollup([bad])
+                self.assertEqual(out["comparable"],0)
+                self.assertEqual(out["invalid_report_counts"]["invalid_quarantine_metadata"],1)
+    def test_report_quarantine_does_not_remove_unrelated_races(self):
+        scored=report({"202611040101":flags(False,True),
+                       "202611040102":flags(True,False)})
+        quarantine=report({})
+        quarantine["duplicate_codes_quarantined"]=["202611040101"]
+        out=rollup([scored,quarantine])
+        self.assertEqual(out["race_codes"],["202611040102"])
+        self.assertEqual(out["hits"]["baseline"]["top10"],1)
     def test_empty_reports_not_formal_proof(self):
         out=rollup([])
         self.assertEqual(out["comparable"],0)
