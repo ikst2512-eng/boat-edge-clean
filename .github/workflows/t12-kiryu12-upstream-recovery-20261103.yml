@@ -26,17 +26,11 @@ jobs:
           UPSTREAM_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
         run: |
           python - <<'PY'
-          from datetime import datetime, timedelta, timezone
-          from zoneinfo import ZoneInfo
           import os
-          now = datetime.now(ZoneInfo("Asia/Tokyo"))
-          cutoff = datetime(2026, 11, 3, 20, 19, tzinfo=ZoneInfo("Asia/Tokyo"))
-          window = datetime(2026, 11, 3, 19, 30, tzinfo=ZoneInfo("Asia/Tokyo"))
-          if not (window <= now < cutoff - timedelta(seconds=90)):
-              raise SystemExit("Kiryu12 research T12 recovery outside safe window")
-          started = datetime.fromisoformat(os.environ["UPSTREAM_STARTED_AT"].replace("Z", "+00:00"))
-          if not (window.astimezone(timezone.utc) <= started <= now.astimezone(timezone.utc)):
-              raise SystemExit("Upstream scheduled run is stale or outside research window")
+          from datetime import datetime, timezone
+          from scripts.gate_kiryu12_upstream_recovery import check_window
+          check_window(datetime.now(timezone.utc), os.environ["UPSTREAM_STARTED_AT"])
+          print("Verified Kiryu12 recovery window and upstream timestamp")
           PY
       - name: Write original three-source evidence only to dedicated branch and reread it
         env:
