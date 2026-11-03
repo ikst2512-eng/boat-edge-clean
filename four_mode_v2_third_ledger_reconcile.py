@@ -8,6 +8,46 @@ import argparse
 import json
 from pathlib import Path
 
+TOPS = ("top3", "top5", "top10")
+FIELDS = ("baseline", "candidate", "gained", "lost")
+
+
+def paired_scores(report):
+    """Read exact same-race TopN scores; reject missing or malformed evidence."""
+    paired = report.get("paired")
+    scores = report.get("paired_race_scores")
+    codes = report.get("race_codes_paired")
+    if (type(paired) is not int or paired < 0
+            or type(scores) is not list or type(codes) is not list
+            or len(scores) != paired or len(codes) != paired
+            or len(set(codes)) != len(codes)):
+        raise ValueError("invalid_paired_score_roster")
+    mapping = {}
+    for row in scores:
+        if type(row) is not dict or type(row.get("race_code")) is not str:
+            raise ValueError("invalid_paired_score_row")
+        code = row["race_code"]
+        if code not in codes or code in mapping:
+            raise ValueError("invalid_paired_score_identity")
+        topn = row.get("topn")
+        if type(topn) is not dict or set(topn) != set(TOPS):
+            raise ValueError("invalid_paired_score_topn")
+        verified = {}
+        for n in TOPS:
+            values = topn[n]
+            if (type(values) is not dict or set(values) != set(FIELDS)
+                    or any(type(values[k]) is not int
+                           or values[k] not in (0, 1) for k in FIELDS)
+                    or values["candidate"] - values["baseline"]
+                       != values["gained"] - values["lost"]
+                    or values["gained"] and values["lost"]):
+                raise ValueError("invalid_paired_score_value")
+            verified[n] = dict(values)
+        mapping[code] = verified
+    if set(mapping) != set(codes):
+        raise ValueError("paired_score_roster_disagrees")
+    return mapping
+
 def reconcile(capture, ledger):
     if (type(capture) is not dict or type(ledger) is not dict
             or capture.get("schema") != "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1"
@@ -22,6 +62,10 @@ def reconcile(capture, ledger):
         "ledger_frozen": ledger.get("frozen"),
         "capture_codes": [], "missing_from_ledger": [],
         "additional_ledger_codes": [],
+        "capture_paired": capture.get("paired"),
+        "ledger_paired": ledger.get("paired"),
+        "paired_score_mismatch_codes": [],
+        "paired_result_coverage_mismatch_codes": [],
         "warning": "A bounded run inventory and Git history are not independent remote-first-seen proof.",
     }
     left = capture.get("race_codes_frozen")
@@ -58,7 +102,23 @@ def reconcile(capture, ledger):
     elif out["missing_from_ledger"]:
         out["status"] = "frozen_predictions_missing_from_ledger"
     elif left:
-        out["status"] = "bounded_frozen_roster_matched"
+        try:
+            capture_scores = paired_scores(capture)
+            ledger_scores = paired_scores(ledger)
+        except ValueError:
+            out["status"] = "paired_score_evidence_missing_or_invalid"
+        else:
+            out["paired_result_coverage_mismatch_codes"] = sorted(
+                set(capture_scores) - set(ledger_scores))
+            out["paired_score_mismatch_codes"] = sorted(
+                code for code in set(capture_scores) & set(ledger_scores)
+                if capture_scores[code] != ledger_scores[code])
+            out["status"] = (
+                "paired_result_coverage_mismatch"
+                if out["paired_result_coverage_mismatch_codes"] else
+                "paired_topn_score_mismatch"
+                if out["paired_score_mismatch_codes"] else
+                "bounded_frozen_roster_matched")
     else:
         out["status"] = "no_frozen_predictions_to_compare"
     return out
@@ -76,5 +136,8 @@ if __name__ == "__main__":
                            encoding="utf-8")
     print("V2_THIRD_RATE_LEDGER_RECONCILIATION=" + json.dumps(report, sort_keys=True))
     if report["status"] in ("frozen_predictions_missing_from_ledger",
-                            "invalid_or_unavailable_ledger"):
+                            "invalid_or_unavailable_ledger",
+                            "paired_score_evidence_missing_or_invalid",
+                            "paired_result_coverage_mismatch",
+                            "paired_topn_score_mismatch"):
         raise SystemExit(2)
