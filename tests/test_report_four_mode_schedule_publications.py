@@ -300,6 +300,49 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(data["research_roster_status_counts"]["unknown"], 1)
         self.assertEqual(data["research_roster_status_counts"]["matched"], 0)
 
+    def test_server_observation_claims_require_exact_per_race_counts(self):
+        race = "202611040101"
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "remote_observation_audited_nonformal",
+                "publication_commit_sha": "a" * 40, "publication_count": 1,
+                "observed_before_t_minus_12": 1,
+                "observed_after_t_minus_12": 0, "unverified_count": 0,
+                "records": [{"race_code": race, "first_add_commit": "a" * 40,
+                             "status": "remote_observation_unverified"}]})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["github_observation_integrity"]["status"], "mismatch")
+        self.assertEqual(row["github_observation_integrity"]["reason"],
+                         "observation_count_disagrees_with_rows")
+        self.assertIsNone(row["github_observation_before_t12"])
+        self.assertEqual(result["github_observation_before_t12_total"], 0)
+        self.assertEqual(result["github_observation_integrity_mismatch_run_ids"], [123])
+
+    def test_server_observation_matching_rows_is_not_first_receipt_proof(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": "a" * 40,
+                "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "remote_observation_audited_nonformal",
+                "publication_commit_sha": "a" * 40, "publication_count": 1,
+                "observed_before_t_minus_12": 1,
+                "observed_after_t_minus_12": 0, "unverified_count": 0,
+                "records": [{"race_code": "202611040101",
+                             "first_add_commit": "a" * 40,
+                             "status": "github_server_observed_before_t_minus_12"}]})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["github_observation_integrity"]["status"], "matched")
+        self.assertEqual(result["github_observation_before_t12_total"], 1)
+        self.assertFalse(result["remote_main_verified"])
+
     def test_remote_server_observation_failure_is_not_hidden_in_successful_capture(self):
         def download(run_id, root):
             self.save(root, "four-mode-evidence/publication.json",
