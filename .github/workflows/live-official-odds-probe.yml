@@ -15,6 +15,9 @@ on:
   workflow_run:
     workflows: ['CLEAN prospective pre-cutoff capture', 'Four-mode prospective capture (research only)']
     types: [completed] # Read-only fallback; upstream schedules actually observed
+concurrency:
+  group: live-odds-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
   actions: read
