@@ -39,6 +39,26 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertEqual(result["pending_or_unknown_run_ids"], [5])
         self.assertTrue(result["full_day_metadata_coverage"])
 
+    def test_all_pending_runs_cannot_be_credited_as_a_healthy_day(self):
+        rows = [self.make_run(9, "2026-11-04T20:52:00+09:00",
+                              status="in_progress", conclusion=None),
+                self.make_run(8, "2026-11-04T20:37:00+09:00",
+                              status="completed", conclusion=None),
+                self.make_run(7, "2026-11-04T20:22:00+09:00",
+                              status="completed", conclusion="success"),
+                self.make_run(6, "2026-11-03T20:52:00+09:00")]
+        result = audit_day("owner/repo", "20261104", "token",
+                           lambda _: {"total_count": len(rows),
+                                      "workflow_runs": rows})
+        self.assertTrue(result["full_day_metadata_coverage"])
+        self.assertEqual(result["failed_run_ids"], [])
+        self.assertEqual(result["pending_or_unknown_run_ids"], [8, 9])
+        from pathlib import Path
+        source = Path("scripts/audit_four_mode_daily_schedule_runs.py").read_text(
+            encoding="utf-8")
+        self.assertIn('if result["pending_or_unknown_run_ids"]:', source)
+        self.assertIn("day cannot be certified", source)
+
     def test_invalid_timestamp_and_unsorted_data_fail_closed(self):
         for rows in ([self.make_run(1, "not-a-date")],
                      [self.make_run(1, "2026-11-04T07:07:00"),
