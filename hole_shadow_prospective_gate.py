@@ -88,6 +88,14 @@ def freeze(code, root, now=None, clock=None):
         record["future_locked_method"]="hole_third_choice_research.variants:nov04_locked_v1"
         record["future_locked_selector_git_blobs"]=locked
         record["future_locked_first_eligible_jst"]=FIRST_ELIGIBLE_DAY.isoformat()
+    finished_at = clock()
+    if not isinstance(finished_at, datetime) or finished_at.tzinfo is None:
+        raise ValueError("naive_or_invalid_finish_time")
+    if finished_at >= cutoff:
+        return {"status": "calculation_crossed_t_minus_12", "race_code": code,
+                "prospective_verified": False}
+    record["local_freeze_at_jst"] = finished_at.astimezone(JST).isoformat()
+    record["t_minus_12_jst"] = cutoff.isoformat()
     return record
 
 
