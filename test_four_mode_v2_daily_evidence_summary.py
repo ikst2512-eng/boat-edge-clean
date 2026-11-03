@@ -21,13 +21,15 @@ class EvidenceSummaryTests(unittest.TestCase):
             "missing_or_failed_artifacts":[],"bad_validation_runs":[],
             "race_codes_paired":[A],
             "paired_race_scores":[{"race_code":A,"topn":{
+                "top1":{"baseline":0,"candidate":0,"gained":0,"lost":0},
                 "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
                 "top5":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                 "top10":{"baseline":1,"candidate":1,"gained":0,"lost":0},
             }}],
             "by_race_day_jst":{
                 "20261104":{"paired":1,"race_codes":[A],"topn":{
-                    "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
+                    "top1":{"baseline":0,"candidate":0,"gained":0,"lost":0},
+                "top3":{"baseline":0,"candidate":1,"gained":1,"lost":0},
                     "top5":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                     "top10":{"baseline":1,"candidate":1,"gained":0,"lost":0},
                 }}
