@@ -20,6 +20,7 @@ PROTOCOL = "V2_FIRST_HEAD_GAP_0_5_BONUS_0_30_SHADOW_V1"
 COUNT_POLICY = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 TOPS = (3, 5, 10)
 MODES = ("narrow", "hit", "balance", "hole")
+MISS_REASONS = ("covered", "winner_head_absent", "winner_second_pair_absent", "winner_third_absent")
 
 
 def candidate_order(tickets, rates):
@@ -56,6 +57,7 @@ def evaluate(root=ROOT):
     groups = defaultdict(lambda: {
         "forecast_files": 0, "comparable": 0, "pending_results": 0,
         "applied": 0, "modes": {m: {f"top{n}": 0 for n in TOPS} for m in MODES},
+        "miss_reasons": {m: {reason: 0 for reason in MISS_REASONS} for m in MODES},
         "baseline": {f"top{n}": 0 for n in TOPS},
         "candidate": {f"top{n}": 0 for n in TOPS},
         "gained_top3": 0, "lost_top3": 0})
@@ -95,8 +97,15 @@ def evaluate(root=ROOT):
             excluded["invalid_shadow_inputs"] += 1
             continue
         compared = compare_race(path.stem, root)
-        if compared.get("status") != "historical_comparison_only":
+        if compared.get("status") == "result_unavailable":
             row["pending_results"] += 1
+            continue
+        if compared.get("status") != "historical_comparison_only":
+            excluded["invalid_or_untrusted_result"] += 1
+            continue
+        if any(compared.get("modes", {}).get(m, {}).get("coverage_diagnostic") not in MISS_REASONS
+               for m in MODES):
+            excluded["invalid_miss_diagnostics"] += 1
             continue
         winning = compared["winning_ticket"]
         baseline = [item["combo"] for item in archive["modes"]["hit"]["tickets"]]
@@ -106,6 +115,7 @@ def evaluate(root=ROOT):
         row["comparable"] += 1
         row["applied"] += int(enabled)
         for m in MODES:
+            row["miss_reasons"][m][compared["modes"][m]["coverage_diagnostic"]] += 1
             for n in TOPS:
                 row["modes"][m][f"top{n}"] += int(compared["modes"][m][f"top{n}"])
         for n in TOPS:
