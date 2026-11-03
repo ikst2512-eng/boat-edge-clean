@@ -131,7 +131,17 @@ def run(race, root, obs_id, repo, branch, token, *, observer=observe,
     if verified.get("status") not in (
             "independent_originals_reaudited", "observation_not_ready"):
         raise ValueError("remote evidence reinspection did not succeed")
-    if (verified.get("declared_status") != report["status"]
+    completed_locally = report["status"] in (
+        "research_components_complete_by_t12", "research_components_incomplete")
+    expected_remote_status = (
+        "independent_originals_reaudited" if completed_locally
+        else "observation_not_ready")
+    local_complete = bool(report.get("audit", {}).get(
+        "all_research_components_observed_by_t12")) if completed_locally else False
+    if (verified.get("status") != expected_remote_status
+            or verified.get("declared_status") != report["status"]
+            or verified.get("research_complete") is not local_complete
+            or verified.get("original_files_found") != len(files) - 1
             or verified.get("full_t12_source_certified") is not False
             or verified.get("forecast_usable") is not False):
         raise ValueError("remote evidence status does not agree with local report")
