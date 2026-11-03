@@ -113,6 +113,16 @@ class T12SeedTests(unittest.TestCase):
                          now=datetime(2026,11,3,18,22,tzinfo=JST)),[])
         self.assertEqual(near_t12(rows,"20261103",
                          now=datetime(2026,11,3,18,1,tzinfo=JST)),[])
+    def test_four_overlapping_live_races_not_truncated_to_three(self):
+        # The Nov 3 full title schedule has a four-race overlap at 15:55 JST.
+        # Retain all four distinct eligible race codes in the same run.
+        rows=[{"レースコード":f"2026110307{i:02d}",
+               "電話投票締切予定":deadline}
+              for i,deadline in enumerate(("18:31","18:32","18:33","18:34"),1)]
+        selected=near_t12(rows,"20261103",now=NOW)
+        self.assertEqual(len(selected),4)
+        self.assertEqual(set(selected),{f"2026110307{i:02d}" for i in range(1,5)})
+        self.assertEqual(len(near_t12(rows,"20261103",now=NOW,max_per_run=3)),3)
     def test_archives_original_bytes_and_T2_finds_them(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);store={}
