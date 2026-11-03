@@ -301,7 +301,7 @@ jobs:
           python audit_four_mode_raw_receipts.py four-mode-evidence/raw-sources
       - name: Report only this run's published forecast and preserved-source hashes
         if: always()
-        run: python scripts/report_four_mode_source_links.py
+        run: python -m scripts.report_four_mode_source_links
       - name: Preserve capture log and structured source status
         if: always()
         uses: actions/upload-artifact@v4
