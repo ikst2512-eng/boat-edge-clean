@@ -13,6 +13,8 @@ from pathlib import Path
 from four_mode_archive_api import archived_four_modes
 from hole_upper_rank_pair_protection import propose
 from hole_pair_third_bundle_research import bundle
+from hole_third_choice_research import national_rates, variants
+from hole_future_locked_eval import FIRST_ELIGIBLE_DAY, verify_locked_selection
 
 JST = timezone(timedelta(hours=9))
 TOPS = (3, 5, 10)
@@ -62,6 +64,23 @@ def freeze(code, root, now=None):
         "production_forecast": False,
         "warning": "Local freeze timestamp is not independent proof. Never call formal performance until independent timestamp+hash proof is verified."
     }
+    # The already-locked 2026-11-04+ research method is frozen at the same
+    # publication-job timestamp. Never reconstruct an alleged frozen pick
+    # using a settled result. Old-period files retain the original V1 schema.
+    if cutoff.date() >= FIRST_ELIGIBLE_DAY:
+        locked=verify_locked_selection()
+        choices=variants(archived,national_rates(code,root))
+        expected=("baseline","donor_order","max_ticket_score","third_national_rate")
+        if set(choices)!=set(expected) or choices["baseline"]!=baseline:
+            raise ValueError("unexpected_locked_candidate")
+        if any(choices[name][:5]!=baseline[:5] or len(choices[name])!=len(baseline)
+               or len(set(choices[name]))!=len(baseline)
+               for name in expected):
+            raise ValueError("locked_candidate_budget")
+        record["future_locked_candidates"]={name:choices[name] for name in expected}
+        record["future_locked_method"]="hole_third_choice_research.variants:nov04_locked_v1"
+        record["future_locked_selector_git_blobs"]=locked
+        record["future_locked_first_eligible_jst"]=FIRST_ELIGIBLE_DAY.isoformat()
     return record
 
 
