@@ -68,6 +68,8 @@ def score_evidence(evidence, root):
            "formal": False, "independent_first_publication_verified": False,
            "untouched_holdout_verified": False, "production_promotion_allowed": False,
            "published_forecasts": published,
+           "publication_evidence_status": evidence["status"],
+           "validation_error_count": evidence.get("validation_error_count", 0),
            "frozen": 0, "paired": 0, "pending_results": 0,
            "excluded": 0, "invalid": 0, "race_codes_paired": [],
            "race_codes_frozen": [],
