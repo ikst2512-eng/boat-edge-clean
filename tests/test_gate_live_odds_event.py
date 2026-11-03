@@ -23,6 +23,10 @@ class FallbackGateTests(unittest.TestCase):
                    "upstream_run_id": 123, "upstream_created_at": "2026-11-03T03:45:00Z"}
         now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
         self.assertTrue(gate.eligible("workflow_run", allowed, now=now))
+        secondary = {**allowed, "upstream_workflow": gate.SECONDARY_UPSTREAM,
+                     "upstream_created_at": "2026-11-03T07:38:00Z"}
+        self.assertTrue(gate.eligible("workflow_run", secondary,
+                                     now=datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)))
         self.assertTrue(gate.eligible("schedule", {"event": "schedule"}))
         self.assertTrue(gate.eligible("workflow_dispatch", {"event": "workflow_dispatch"}))
         self.assertTrue(gate.eligible("pull_request", {"event": "pull_request"}))
@@ -33,6 +37,9 @@ class FallbackGateTests(unittest.TestCase):
             bad[key] = val
             self.assertFalse(gate.eligible("workflow_run", bad, now=now))
         self.assertFalse(gate.eligible("workflow_run", {}))
+        secondary["upstream_created_at"] = "2026-11-03T07:34:00Z"
+        self.assertFalse(gate.eligible("workflow_run", secondary,
+                                      now=datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)))
 
     def test_fallback_only_in_three_jst_catchup_windows(self):
         from datetime import datetime, timezone, timedelta
