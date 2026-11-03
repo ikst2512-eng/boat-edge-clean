@@ -92,6 +92,7 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["paired"], 1)
         self.assertEqual(out["topn"]["top3"]["candidate"], 1)
         self.assertEqual(out["race_codes_paired"], [CODE])
+        self.assertEqual(out["paired_race_scores"][0]["race_code"], CODE)
         self.assertEqual(out["by_race_day_jst"]["20261104"]["paired"], 1)
         self.assertEqual(out["by_race_day_jst"]["20261104"]["topn"]["top3"]["candidate"], 1)
         self.assertFalse(out["remote_first_seen_independently_verified"])
