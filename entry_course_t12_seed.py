@@ -140,7 +140,7 @@ def near_t12(rows, day, *, now, max_per_run=3):
     return [code for cutoff,code in sorted(set(found))[:max_per_run]]
 
 
-def validate_base(raw, code, *, now):
+def validate_base(raw, code, *, now, expected_deadline=None):
     if type(raw) is not bytes or len(raw)>MAX_FILE:
         raise ValueError("t12_archive_invalid_size")
     try:
@@ -157,6 +157,7 @@ def validate_base(raw, code, *, now):
     title=_dt(d.get("source_title_received_jst"))
     card=_dt(d.get("source_cards_received_jst"))
     if (not all([deadline,cutoff,generated,title,card]) or
+            (expected_deadline is not None and deadline!=expected_deadline) or
             cutoff!=deadline-timedelta(minutes=12) or
             max(generated,title,card)>cutoff or now.utcoffset() is None or now>=cutoff):
         raise ValueError("t12_archive_missed_cutoff")
@@ -172,9 +173,10 @@ def validate_base(raw, code, *, now):
     return f"t12_baselines/{code[:8]}/{code}.json"
 
 
-def publish_base(raw, code, remote_read, remote_create, *, clock):
+def publish_base(raw, code, remote_read, remote_create, *, clock,
+                 expected_deadline=None):
     now=clock()
-    path=validate_base(raw,code,now=now)
+    path=validate_base(raw,code,now=now,expected_deadline=expected_deadline)
     previous=remote_read(path)
     if previous is not None and previous!=raw:
         raise ValueError("t12_existing_baseline_immutable_conflict")
@@ -207,6 +209,21 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
         import os
         ledger_ops=github_ops(os.environ["GITHUB_REPOSITORY"])
     read,create=ledger_ops
+    # Bind the candidate's scheduling deadline to its immutable prediction.
+    # The predictor uses multiple source types, which may disagree.
+    expected_deadlines={}
+    for row in rows:
+        code=row.get("レースコード")
+        if code not in eligible:
+            continue
+        clock_text=row.get("電話投票締切予定")
+        expected=datetime.strptime(day+clock_text,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        previous=expected_deadlines.get(code)
+        if previous is not None and previous!=expected:
+            raise ValueError("t12_conflicting_schedule_deadlines")
+        expected_deadlines[code]=expected
+    if len(expected_deadlines)!=len(eligible):
+        raise ValueError("t12_selected_schedule_incomplete")
     states=[]
     for code in eligible:
         try:
@@ -216,7 +233,8 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
             remote_path=f"t12_baselines/{code[:8]}/{code}.json"
             existing=read(remote_path)
             if existing is not None:
-                path=validate_base(existing,code,now=now())
+                path=validate_base(existing,code,now=now(),
+                                   expected_deadline=expected_deadlines[code])
                 if path!=remote_path:
                     raise ValueError("t12_existing_baseline_wrong_path")
                 if read(remote_path)!=existing:
@@ -234,7 +252,8 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
             path=record_path(code)
             raw=path.read_bytes()
             states.append(dict(race_code=code,
-                               **publish_base(raw,code,read,create,clock=now)))
+                               **publish_base(raw,code,read,create,clock=now,
+                                              expected_deadline=expected_deadlines[code])))
         except Exception as exc:
             states.append({"race_code":code,"status":"failed",
                            "error_type":type(exc).__name__,
