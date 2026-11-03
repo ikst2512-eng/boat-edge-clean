@@ -5,6 +5,7 @@ first-place novelty bonus *within the existing hit Top10*. This rule was
 informed by inspected V1 history; it is not an independent V1 holdout.
 No forecast or result files are written or modified.
 """
+import argparse
 import json
 import math
 import re
@@ -229,4 +230,17 @@ def evaluate(root=ROOT, now=None):
 
 
 if __name__ == "__main__":
-    print("V2_PREDECLARED_SHADOW=" + json.dumps(evaluate(), sort_keys=True))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--changed-top3-output", type=Path)
+    args = parser.parse_args()
+    report = evaluate()
+    if args.changed_top3_output:
+        cases = report.get("changed_top3_cases", [])
+        args.changed_top3_output.write_text(
+            json.dumps({"schema": "V2_SHADOW_CHANGED_TOP3_CASES_V1",
+                        "formal": False,
+                        "independent_remote_first_seen_verified": False,
+                        "evaluated_at_jst": report.get("evaluated_at_jst"),
+                        "count": len(cases), "cases": cases},
+                       sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    print("V2_PREDECLARED_SHADOW=" + json.dumps(report, sort_keys=True))
