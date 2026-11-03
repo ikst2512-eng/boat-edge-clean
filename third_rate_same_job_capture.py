@@ -38,6 +38,7 @@ def freeze_published(root, evidence_path, now=None, git=None, clock=None):
         "published_forecasts": 0,
         "frozen_before_t_minus_12": 0,
         "ineligible_count": 0,
+        "validation_error_count": 0,
     }
     if evidence_path.is_symlink() or not evidence_path.is_file():
         return result
@@ -73,63 +74,67 @@ def freeze_published(root, evidence_path, now=None, git=None, clock=None):
         code = FILE.fullmatch(name).group(1)
         record = {"race_code": code, "status": "ineligible"}
         path = root / name
-        if code[:8] < FUTURE_START_JST:
-            record["reason"] = "development_period"
-        elif path.is_symlink() or not path.is_file() or path.stat().st_size > 30000:
-            record["reason"] = "missing_or_unsafe_source_archive"
-        else:
-            original = git(["show", sha + ":" + name]).encode("utf-8")
-            current = path.read_bytes()
-            if original != current:
-                raise ValueError("first_add_blob_changed")
-            record["source_forecast_sha256"] = hashlib.sha256(current).hexdigest()
-            status, archive = archived_four_modes(code, root)
-            if status != 200 or archive.get("model_version") != VERSION:
-                record["reason"] = "invalid_v2_archive"
+        try:
+            if code[:8] < FUTURE_START_JST:
+                record["reason"] = "development_period"
+            elif path.is_symlink() or not path.is_file() or path.stat().st_size > 30000:
+                record["reason"] = "missing_or_unsafe_source_archive"
             else:
-                deadline = datetime.fromisoformat(archive["deadline_jst"])
-                cutoff = deadline - timedelta(minutes=12)
-                record["t_minus_12_jst"] = cutoff.isoformat()
-                if deadline.utcoffset() != timedelta(hours=9):
-                    record["reason"] = "invalid_deadline_timezone"
-                elif now >= cutoff:
-                    record["reason"] = "after_t_minus_12"
+                original = git(["show", sha + ":" + name]).encode("utf-8")
+                current = path.read_bytes()
+                if original != current:
+                    raise ValueError("first_add_blob_changed")
+                record["source_forecast_sha256"] = hashlib.sha256(current).hexdigest()
+                status, archive = archived_four_modes(code, root)
+                if status != 200 or archive.get("model_version") != VERSION:
+                    record["reason"] = "invalid_v2_archive"
                 else:
-                    raw = json.loads(current.decode("utf-8"))
-                    rates = raw["input_national_win_rates"]
-                    board = probabilities(rates)
-                    modes = rank_modes(board)
-                    if any(
-                        [(x["combo"], x["p"]) for x in archive["modes"][mode]["tickets"]]
-                        != [(x["combo"], x["p"]) for x in modes[mode]["tickets"]]
-                        for mode in ("narrow", "hit", "balance", "hole")
-                    ):
-                        raise ValueError("saved_forecast_not_reproducible")
-                    baseline = [x["combo"] for x in archive["modes"]["hit"]["tickets"]]
-                    picks, _ = candidate(baseline, rates, board)
-                    # Recheck at the end of modeling. A start-time check alone
-                    # can falsely pass if processing crosses the cutoff.
-                    finished_at = clock()
-                    if finished_at.tzinfo is None:
-                        raise ValueError("naive_finished_time")
-                    if finished_at >= cutoff:
-                        record["reason"] = "calculation_crossed_t_minus_12"
-                        result["records"].append(record)
-                        continue
-                    record.update({
-                        "status": "frozen_in_same_job_before_t_minus_12",
-                        "baseline_top10": baseline,
-                        "candidate_top10": picks,
-                        "frozen_at_utc": finished_at.astimezone(timezone.utc).isoformat(),
-                        "source_commit_sha": sha,
-                        "protocol": PROTOCOL,
-                        "formal": False,
-                    })
+                    deadline = datetime.fromisoformat(archive["deadline_jst"])
+                    cutoff = deadline - timedelta(minutes=12)
+                    record["t_minus_12_jst"] = cutoff.isoformat()
+                    if deadline.utcoffset() != timedelta(hours=9):
+                        record["reason"] = "invalid_deadline_timezone"
+                    elif now >= cutoff:
+                        record["reason"] = "after_t_minus_12"
+                    else:
+                        raw = json.loads(current.decode("utf-8"))
+                        rates = raw["input_national_win_rates"]
+                        board = probabilities(rates)
+                        modes = rank_modes(board)
+                        if any(
+                            [(x["combo"], x["p"]) for x in archive["modes"][mode]["tickets"]]
+                            != [(x["combo"], x["p"]) for x in modes[mode]["tickets"]]
+                            for mode in ("narrow", "hit", "balance", "hole")
+                        ):
+                            raise ValueError("saved_forecast_not_reproducible")
+                        baseline = [x["combo"] for x in archive["modes"]["hit"]["tickets"]]
+                        picks, _ = candidate(baseline, rates, board)
+                        finished_at = clock()
+                        if finished_at.tzinfo is None:
+                            raise ValueError("naive_finished_time")
+                        if finished_at >= cutoff:
+                            record["reason"] = "calculation_crossed_t_minus_12"
+                        else:
+                            record.update({
+                                "status": "frozen_in_same_job_before_t_minus_12",
+                                "baseline_top10": baseline,
+                                "candidate_top10": picks,
+                                "frozen_at_utc": finished_at.astimezone(timezone.utc).isoformat(),
+                                "source_commit_sha": sha,
+                                "protocol": PROTOCOL,
+                                "formal": False,
+                            })
+        except (ValueError, TypeError, KeyError, UnicodeError,
+                subprocess.CalledProcessError, OSError) as exc:
+            record = {"race_code": code, "status": "validation_error",
+                      "error_type": type(exc).__name__}
         result["records"].append(record)
     result["frozen_before_t_minus_12"] = sum(
         row["status"] == "frozen_in_same_job_before_t_minus_12"
         for row in result["records"])
     result["ineligible_count"] = count - result["frozen_before_t_minus_12"]
+    result["validation_error_count"] = sum(
+        row["status"] == "validation_error" for row in result["records"])
     if len(result["records"]) != count:
         raise ValueError("record_partition")
     return result
@@ -141,7 +146,19 @@ if __name__ == "__main__":
     parser.add_argument("--evidence", default="four-mode-evidence/publication.json")
     parser.add_argument("--output", default="four-mode-evidence/third-rate-shadow.json")
     args = parser.parse_args()
-    evidence = freeze_published(args.root, args.evidence)
+    try:
+        evidence = freeze_published(args.root, args.evidence)
+    except (ValueError, KeyError, TypeError, OSError, UnicodeError,
+            subprocess.CalledProcessError) as exc:
+        evidence = {
+            "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+            "status": "validation_error_before_freeze",
+            "formal": False, "production_forecast_changed": False,
+            "independent_remote_first_seen_verified": False,
+            "published_forecasts": 0, "frozen_before_t_minus_12": 0,
+            "ineligible_count": 0, "validation_error_count": 1,
+            "error_type": type(exc).__name__, "records": [],
+        }
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     # Created in the original capture job's artifact only; never staged in main.
@@ -152,4 +169,7 @@ if __name__ == "__main__":
         "published_forecasts": evidence["published_forecasts"],
         "frozen_before_t_minus_12": evidence["frozen_before_t_minus_12"],
         "ineligible_count": evidence["ineligible_count"],
+        "validation_error_count": evidence["validation_error_count"],
     }, sort_keys=True))
+    if evidence["validation_error_count"]:
+        raise SystemExit(2)

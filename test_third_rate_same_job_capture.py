@@ -107,6 +107,31 @@ class CaptureThirdRateTests(unittest.TestCase):
                       workflow[third:hole])
         self.assertIn("four-mode-evidence/third-rate-shadow.json", workflow)
 
+    def test_one_bad_race_does_not_erase_good_race_freeze(self):
+        self.publish(added_forecasts=2)
+        second = "202611040102"
+        second_name = f"four_mode_forecasts/{second}.json"
+        second_path = self.file.parent / f"{second}.json"
+        record = json.loads(self.file.read_text())
+        record["race_code"] = second
+        second_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+        def git(args):
+            if args[0] == "rev-parse":
+                return SHA + "\n"
+            if args[0] == "diff-tree":
+                return NAME + "\n" + second_name + "\n"
+            if args[0] == "show":
+                return "{}\n" if second_name in args[1] else self.file.read_text()
+            raise AssertionError(args)
+        report = freeze_published(self.root, self.publication, NOW, git)
+        self.assertEqual(report["published_forecasts"], 2)
+        self.assertEqual(report["frozen_before_t_minus_12"], 1)
+        self.assertEqual(report["validation_error_count"], 1)
+        self.assertEqual([row["status"] for row in report["records"]],
+                         ["frozen_in_same_job_before_t_minus_12", "validation_error"])
+        self.assertEqual([row["race_code"] for row in report["records"]], [CODE, second])
+        self.assertFalse(report["independent_remote_first_seen_verified"])
+
     def test_invalid_commit_count_and_head_fail_closed(self):
         self.publish(added_forecasts=2)
         with self.assertRaises(ValueError):
@@ -119,18 +144,22 @@ class CaptureThirdRateTests(unittest.TestCase):
 
     def test_git_original_blob_must_match_archive_bytes(self):
         self.publish()
-        with self.assertRaisesRegex(ValueError, "first_add_blob_changed"):
-            freeze_published(self.root, self.publication, NOW,
-                             lambda args: "{}\n" if args[0] == "show"
-                             else self.git(args))
+        report = freeze_published(self.root, self.publication, NOW,
+                                  lambda args: "{}\n" if args[0] == "show"
+                                  else self.git(args))
+        self.assertEqual(report["validation_error_count"], 1)
+        self.assertEqual(report["frozen_before_t_minus_12"], 0)
+        self.assertEqual(report["records"][0]["status"], "validation_error")
 
     def test_reject_changed_prediction_without_valid_reproduction(self):
         self.publish()
         record = json.loads(self.file.read_text())
         record["modes"]["hit"]["tickets"][0]["p"] += 0.01
         self.file.write_text(json.dumps(record) + "\n")
-        with self.assertRaisesRegex(ValueError, "saved_forecast_not_reproducible"):
-            freeze_published(self.root, self.publication, NOW, self.git)
+        report = freeze_published(self.root, self.publication, NOW, self.git)
+        self.assertEqual(report["validation_error_count"], 1)
+        self.assertEqual(report["frozen_before_t_minus_12"], 0)
+        self.assertEqual(report["records"][0]["status"], "validation_error")
 
 
 if __name__ == "__main__":
