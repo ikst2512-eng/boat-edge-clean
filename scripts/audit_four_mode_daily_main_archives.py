@@ -339,6 +339,8 @@ def github_observation_failure_run_ids(day, evidence_reports):
             run_id = row.get("run_id")
             if (type(run_id) is int and run_id > 0 and (
                     row.get("github_server_observation_outcome") == "failure"
+                    or (isinstance(row.get("github_observation_integrity"), dict)
+                        and row["github_observation_integrity"].get("status") == "mismatch")
                     or row.get("github_observation_ledger_outcome") == "failure"
                     or row.get("github_observation_ledger_status") == "observation_preservation_failed")):
                 failures.add(run_id)
