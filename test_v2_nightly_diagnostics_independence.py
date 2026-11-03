@@ -34,7 +34,7 @@ class NightlyDiagnosticsIndependenceTest(unittest.TestCase):
 
         workflow = Path(".github/workflows/v2-predeclared-shadow-research.yml").read_text(
             encoding="utf-8")
-        match = re.search(r"          python - <<'PY'\\n(.*?)\\n          PY", workflow, re.S)
+        match = re.search(r"          python - <<'PY'\n(.*?)\n          PY", workflow, re.S)
         self.assertIsNotNone(match)
         source = textwrap.dedent(match.group(1))
         with tempfile.TemporaryDirectory() as folder:
@@ -54,7 +54,7 @@ class NightlyDiagnosticsIndependenceTest(unittest.TestCase):
             output = (root / "v2_capture_run_inventory.json").read_text(
                 encoding="utf-8")
             self.assertEqual(json.loads(output), expected)
-            self.assertTrue(output.endswith("\\n"))
+            self.assertTrue(output.endswith("\n"))
             self.assertFalse(output.endswith("\\\\n"))
 
     def test_capture_inventory_excludes_pr_traffic_before_combining(self):
