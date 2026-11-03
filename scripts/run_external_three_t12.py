@@ -157,6 +157,21 @@ def run(race, root, obs_id, repo, branch, token, *, observer=observe,
             "full_t12_source_certified": False, "forecast_usable": False}
 
 
+def archival_exit_code(result):
+    """Only seven reread, independently audited files qualify as runner success.
+
+    Exhibition completeness is separate: research_components_incomplete with
+    all seven files verified can still be a valid *research evidence* run.
+    """
+    if (not isinstance(result, dict)
+            or result.get("remote_originals_reaudited") is not True
+            or result.get("archived_original_count") != 6
+            or result.get("full_t12_source_certified") is not False
+            or result.get("forecast_usable") is not False):
+        return 1
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--race-code", required=True)
@@ -170,8 +185,10 @@ def main():
     if not token:
         p.error("GITHUB_EVIDENCE_TOKEN required for durable original evidence")
     obs_id = datetime.now(timezone.utc).strftime("ext%Y%m%dT%H%M%S") + secrets.token_hex(4)
-    print(json.dumps(run(args.race_code, args.root, obs_id, args.repo,
-                         args.branch, token), ensure_ascii=False))
+    result = run(args.race_code, args.root, obs_id, args.repo,
+                 args.branch, token)
+    print(json.dumps(result, ensure_ascii=False))
+    raise SystemExit(archival_exit_code(result))
 
 
 if __name__ == "__main__":
