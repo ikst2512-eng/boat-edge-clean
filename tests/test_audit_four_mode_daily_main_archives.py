@@ -16,13 +16,13 @@ class DailyMainArchivesTest(unittest.TestCase):
         workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
             encoding="utf-8")
         self.assertIn(
-            "name: Confirm today's first-add archive presence in checked-out Git main\\n"
-            "        if: always()\\n",
+            "name: Confirm today's first-add archive presence in checked-out Git main" + chr(10)
+            + "        if: always()" + chr(10),
             workflow,
         )
         self.assertIn(
-            "name: Audit today's actual capture execution separately from Git archives\\n"
-            "        if: always()\\n",
+            "name: Audit today's actual capture execution separately from Git archives" + chr(10)
+            + "        if: always()" + chr(10),
             workflow,
         )
 
