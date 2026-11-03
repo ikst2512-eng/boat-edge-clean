@@ -6,6 +6,7 @@ JSON is kept byte-for-byte, on a separate immutable research evidence branch.
 This does not promote or change the four formal modes.
 """
 from datetime import datetime, timedelta
+from urllib.error import HTTPError, URLError
 from pathlib import Path
 from urllib.request import Request, urlopen
 import csv
@@ -32,7 +33,7 @@ def _dt(raw):
         return None
 
 
-def _title(now, *, fetch=None):
+def _title(now, *, fetch=None, fallback=None):
     if now.utcoffset() is None:
         raise ValueError("t12_clock_without_timezone")
     day=now.astimezone(JST).strftime("%Y%m%d")
@@ -43,7 +44,22 @@ def _title(now, *, fetch=None):
                 if r.status!=200:
                     raise ValueError("t12_title_http_failure")
                 return r.read(250_001)
-    raw=fetch(url)
+    try:
+        raw=fetch(url)
+    except (OSError,TimeoutError,URLError,HTTPError) as exc:
+        # The daily *published archive* can be missing while races are open.
+        # Use the same independent pre-race holding schedule accepted by
+        # clean_racecard; never read a result or accept an untimed source.
+        if fallback is None:
+            from clean_direct_sources import holding_rows
+            fallback=holding_rows
+        rows,observed,digest=fallback(day)
+        if (not isinstance(rows,list) or not rows or
+                not isinstance(observed,datetime) or observed.utcoffset() is None or
+                observed>now + timedelta(seconds=30) or
+                not SHA.fullmatch(str(digest or ""))):
+            raise ValueError("t12_live_schedule_receipt_invalid") from exc
+        return rows,day,digest,"live_holding_schedule"
     if type(raw) is not bytes or len(raw)>250_000 or not raw:
         raise ValueError("t12_title_bad_source_size")
     try:
@@ -53,7 +69,7 @@ def _title(now, *, fetch=None):
         rows=list(parsed)
     except (UnicodeError,csv.Error) as exc:
         raise ValueError("t12_title_csv_invalid") from exc
-    return rows,day,hashlib.sha256(raw).hexdigest()
+    return rows,day,hashlib.sha256(raw).hexdigest(),"published_daily_title"
 
 
 def near_t12(rows, day, *, now, max_per_run=3):
@@ -129,16 +145,16 @@ def publish_base(raw, code, remote_read, remote_create, *, clock):
             "independent_first_seen_verified":False}
 
 
-def seed_once(*, now, fetch_title=None, predictor=predict,
+def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
               record_path=_record_path, ledger_ops=None, max_per_run=3):
     """Use unchanged predict() and its original on-disk T-12 evidence."""
     first=now()
-    rows,day,title_digest=_title(first,fetch=fetch_title)
+    rows,day,title_digest,title_source=_title(first,fetch=fetch_title,fallback=fallback_title)
     eligible=near_t12(rows,day,now=now(),max_per_run=max_per_run)
     if not eligible:
         return {"status":"no_races_in_t12_generation_window",
                 "day":day,"eligible_count":0,"stored_count":0,
-                "title_sha256":title_digest,"research_only":True}
+                "title_sha256":title_digest,"title_schedule_source":title_source,"research_only":True}
     if ledger_ops is None:
         import os
         ledger_ops=github_ops(os.environ["GITHUB_REPOSITORY"])
@@ -178,7 +194,8 @@ def seed_once(*, now, fetch_title=None, predictor=predict,
     return {"status":"t12_generation_attempted","day":day,
             "eligible_count":len(eligible),
             "stored_count":sum(s["status"] in ("new_t12_baseline","existing_identical_t12_baseline") for s in states),
-            "title_sha256":title_digest,"results":states,"research_only":True}
+            "title_sha256":title_digest,"title_schedule_source":title_source,
+            "results":states,"research_only":True}
 
 
 def main():
