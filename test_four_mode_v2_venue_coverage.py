@@ -42,6 +42,8 @@ class VenueResearchTests(unittest.TestCase):
             self.assertEqual(result["total_saved"],3)
             self.assertEqual(result["total_confirmed"],1)
             self.assertEqual(result["total_overdue_missing"],2)
+            self.assertEqual([x["race_code"] for x in result["overdue_roster"]], ["202611030102", "202611030201"])
+            self.assertTrue(all(not x["result_file_present"] for x in result["overdue_roster"]))
             self.assertEqual(result["total_missing_file_absent"], 2)
             self.assertEqual(result["total_missing_file_present_but_unavailable"], 0)
             self.assertEqual(result["venues"]["20261103:01"]["overdue_example_race_codes"], ["202611030102"])
@@ -70,6 +72,8 @@ class VenueResearchTests(unittest.TestCase):
                 report = venue_audit(root, now=datetime(2026,11,3,15,30,tzinfo=JST))
             self.assertEqual(report["total_missing_file_absent"],0)
             self.assertEqual(report["total_missing_file_present_but_unavailable"],1)
+            self.assertEqual(report["overdue_roster"][0]["race_code"], code)
+            self.assertTrue(report["overdue_roster"][0]["result_file_present"])
             self.assertEqual(report["total_confirmed"],0)
 
     def test_no_v2_denominator_not_zero_accuracy(self):
@@ -77,6 +81,7 @@ class VenueResearchTests(unittest.TestCase):
             (Path(td)/"four_mode_forecasts").mkdir()
             result=venue_audit(td)
             self.assertEqual(result["total_saved"],0)
+            self.assertEqual(result["overdue_roster"], [])
             self.assertEqual(result["venues"],{})
             self.assertFalse(result["formal"])
 
