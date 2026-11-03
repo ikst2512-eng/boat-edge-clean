@@ -161,6 +161,42 @@ class FutureBatchTests(unittest.TestCase):
   self.assertEqual(result["comparable"],0)
   self.assertEqual(result["codes_quarantined_for_failed_replay"],[CODE1])
   self.assertEqual(result["observed_future_codes"],[])
+ def test_phantom_scored_race_without_saved_snapshot_is_rejected(self):
+  self.artifact("run1",CODE1)
+  with patch("hole_future_artifact_batch.audit",return_value=self.scored(CODE2,False,True)):
+   result=aggregate(self.root,self.folder,"2026-11-04","2026-11-05")
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["race_codes"],[])
+  self.assertEqual(result["invalid_artifacts"]["ValueError"],1)
+  self.assertEqual(result["duplicate_codes_quarantined"],[CODE1])
+ def test_scored_row_without_replay_eligibility_is_rejected(self):
+  self.artifact("run1",CODE1)
+  fake=self.scored(CODE1,False,True)
+  fake["eligible_codes"]=[]
+  with patch("hole_future_artifact_batch.audit",return_value=fake):
+   result=aggregate(self.root,self.folder)
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["duplicate_codes_quarantined"],[CODE1])
+ def test_duplicate_scored_rows_in_one_artifact_are_rejected(self):
+  self.artifact("run1",CODE1)
+  fake=self.scored(CODE1,False,True)
+  fake["rows"].append(dict(fake["rows"][0]))
+  with patch("hole_future_artifact_batch.audit",return_value=fake):
+   result=aggregate(self.root,self.folder)
+  self.assertEqual(result["comparable"],0)
+  self.assertEqual(result["invalid_artifacts"]["ValueError"],1)
+ def test_nonboolean_or_nonmonotonic_topk_flags_fail_closed(self):
+  self.artifact("run1",CODE1)
+  for wrong in ("truthy","nonmonotonic"):
+   fake=self.scored(CODE1,False,True)
+   if wrong=="truthy":
+    fake["rows"][0]["flags"]["baseline"]["top10"]=1
+   else:
+    fake["rows"][0]["flags"]["baseline"]["top3"]=True
+   with self.subTest(wrong=wrong),patch("hole_future_artifact_batch.audit",return_value=fake):
+    result=aggregate(self.root,self.folder)
+    self.assertEqual(result["comparable"],0)
+    self.assertEqual(result["duplicate_codes_quarantined"],[CODE1])
  def test_no_artifacts_does_not_invent_results(self):
   output=aggregate(self.root,self.folder)
   self.assertEqual(output["comparable"],0)

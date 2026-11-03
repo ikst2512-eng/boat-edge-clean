@@ -79,6 +79,35 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
                 elif first is not None and isinstance(code,str) and re.fullmatch(r"20[0-9]{10}",code):
                     outside_window.add(code)
             scored=audit(root,path)
+            # The per-file auditor must never invent a scored race not in
+            # the frozen artifact or score it without passing replay.
+            eligible=scored.get("eligible_codes",[])
+            scored_rows=scored.get("rows",[])
+            if not isinstance(eligible,list) or not isinstance(scored_rows,list):
+                raise ValueError("invalid_audit_contract")
+            eligible_in_window=[code for code in eligible if in_window(code)]
+            if (len(eligible_in_window)!=len(set(eligible_in_window)) or
+                    not set(eligible_in_window).issubset(file_codes)):
+                raise ValueError("unbacked_eligible_code")
+            scored_in_window=[row for row in scored_rows
+                              if isinstance(row,dict) and in_window(row.get("race_code"))]
+            scored_codes=[row["race_code"] for row in scored_in_window]
+            if (len(scored_codes)!=len(set(scored_codes)) or
+                    not set(scored_codes).issubset(set(eligible_in_window))):
+                raise ValueError("unbacked_scored_row")
+            for row in scored_in_window:
+                flags=row.get("flags")
+                if not isinstance(flags,dict) or set(flags)!=set(POLICIES):
+                    raise ValueError("invalid_audit_flags")
+                for mode in POLICIES:
+                    outcome=flags[mode]
+                    if (not isinstance(outcome,dict) or
+                            set(outcome)!={f"top{k}" for k in TOPS} or
+                            any(type(outcome[f"top{k}"]) is not bool for k in TOPS)):
+                        raise ValueError("invalid_audit_flags")
+                    if (outcome["top3"] and not outcome["top5"] or
+                            outcome["top5"] and not outcome["top10"]):
+                        raise ValueError("nonmonotonic_hit_flags")
         except (OSError,UnicodeError,ValueError,KeyError,TypeError) as exc:
             # If one artifact is invalid, its race cannot be rescued by a
             # duplicate from another run without proving which is canonical.
