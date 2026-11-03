@@ -19,6 +19,11 @@ class CaptureLivenessTests(unittest.TestCase):
         self.assertFalse(should_fail(result, "push", "refs/heads/main"))
         self.assertFalse(should_fail(result, "pull_request", "refs/pull/3/merge"))
 
+    def test_missing_inventory_is_fail_closed_on_scheduled_main(self):
+        result = {"status": "capture_inventory_unavailable"}
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+        self.assertFalse(should_fail(result, "pull_request", "refs/pull/3/merge"))
+
     def test_prior_jst_day_does_not_count(self):
         result = report("20261104", {"recent_capture_runs": [
             run(1, "2026-11-03T14:59:59Z")]})
