@@ -5,6 +5,7 @@ from research_model import TICKETS
 
 ENTRY=[2,1,3,4,5,6]
 RATES=[7.0,6.0,5.5,5,4.5,4]
+CUTOFF='2026-11-03T19:08:00+09:00'
 def rows():
     return [dict(boat=boat,course=idx,courseStarts=50,courseWinRate=.1+.02*idx,
       courseTop2Rate=.3+.02*idx,courseTop3Rate=.55+.02*idx,
@@ -12,7 +13,7 @@ def rows():
       sufficient_sample=True,observedAt="2026-11-03T18:00:00+09:00")
       for idx,boat in enumerate(ENTRY,1)]
 def full():
-    return challenger_rank(RATES,ENTRY,rows(),include_st=True)
+    return challenger_rank(RATES,ENTRY,rows(),cutoff_at=CUTOFF,include_st=True)
 
 class CourseCandidateTests(unittest.TestCase):
     def test_three_read_only_variants_120_tickets_normalize(self):
@@ -27,22 +28,26 @@ class CourseCandidateTests(unittest.TestCase):
     def test_missing_course_sample_rejected_not_replaced_with_national_rate(self):
         rs=rows();rs[0]["courseStarts"]=3
         with self.assertRaisesRegex(ValueError,"course_sample"):
-            challenger_rank(RATES,ENTRY,rs)
+            challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF)
     def test_swapped_course_record_mismatch_rejected(self):
         with self.assertRaisesRegex(ValueError,"course_sample"):
-            challenger_rank(RATES,[1,2,3,4,5,6],rows())
+            challenger_rank(RATES,[1,2,3,4,5,6],rows(),cutoff_at=CUTOFF)
     def test_missing_st_blocks_st_challenger(self):
         rs=rows();rs[0]["courseAverageST"]=None
         with self.assertRaisesRegex(ValueError,"missing_course_average_st"):
-            challenger_rank(RATES,ENTRY,rs,include_st=True)
+            challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF,include_st=True)
     def test_unverified_source_not_elevated(self):
         rs=rows();rs[0]["courseDataSource"]="manual"
         with self.assertRaisesRegex(ValueError,"course_sample"):
-            challenger_rank(RATES,ENTRY,rs)
+            challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF)
     def test_nonnumeric_rate_rejected(self):
         rs=rows();rs[0]["courseWinRate"]="0.2"
         with self.assertRaisesRegex(ValueError,"invalid_course_rate"):
-            challenger_rank(RATES,ENTRY,rs)
+            challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF)
+    def test_late_course_receipt_is_rejected(self):
+        rs=rows();rs[0]['observedAt']='2026-11-03T19:09:00+09:00'
+        with self.assertRaisesRegex(ValueError,'course_observed_after_cutoff'):
+            challenger_rank(RATES,ENTRY,rs,cutoff_at=CUTOFF)
     def test_matched_only_topn(self):
         tickets=["-".join(map(str,t)) for t in TICKETS]
         row={"race_code":"202611030708","cutoff_at":"2026-11-03T19:08:00+09:00",
