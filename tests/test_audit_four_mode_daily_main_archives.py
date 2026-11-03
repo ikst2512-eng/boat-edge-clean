@@ -38,6 +38,29 @@ class DailyMainArchivesTest(unittest.TestCase):
         self.assertEqual(bad[0]["research_only"], ["202611040103"])
         self.assertEqual(bad[0]["git_only"], ["202611040102"])
 
+    def test_explicit_shadow_artifact_mismatch_is_not_silently_unknown(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2,
+               "research_roster_evidence": {
+                   "status": "mismatch", "reason": "shadow_race_rosters_disagree"}}
+        matched, bad, unknown = reconcile_research_rosters_with_main(
+            "20261104", [P, P2], {P: [A], P2: [A]}, [{"runs": [row]}])
+        self.assertEqual((matched, unknown), ([], []))
+        self.assertEqual(bad, [{
+            "run_id": 415, "reason": "research_artifacts_disagree",
+            "artifact_reason": "shadow_race_rosters_disagree"}])
+
+    def test_old_or_missing_shadow_artifact_stays_unknown(self):
+        row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
+               "publication_outcome": "pushed_to_main",
+               "claimed_commit_sha": A, "claimed_added_forecasts": 2,
+               "research_roster_evidence": {
+                   "status": "unknown", "reason": "research_artifact_missing"}}
+        matched, bad, unknown = reconcile_research_rosters_with_main(
+            "20261104", [P, P2], {P: [A], P2: [A]}, [{"runs": [row]}])
+        self.assertEqual((matched, bad, unknown), ([], [], [415]))
+
     def test_legacy_missing_research_roster_is_unknown_not_error(self):
         row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",
                "publication_outcome": "pushed_to_main",

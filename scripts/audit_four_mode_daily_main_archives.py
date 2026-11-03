@@ -261,6 +261,16 @@ def reconcile_research_rosters_with_main(day, paths, additions, evidence_reports
                 continue
             seen.add(run_id)
             roster = row.get("research_roster_evidence")
+            # An explicit contradiction from both preserved same-job research
+            # artifacts is not merely missing evidence. Escalate it in the
+            # scheduled main audit, while legacy/missing records stay unknown.
+            if isinstance(roster, dict) and roster.get("status") == "mismatch":
+                mismatched.append({
+                    "run_id": run_id,
+                    "reason": "research_artifacts_disagree",
+                    "artifact_reason": roster.get("reason"),
+                })
+                continue
             if not isinstance(roster, dict) or roster.get("status") != "matched":
                 unknown.append(run_id)
                 continue
