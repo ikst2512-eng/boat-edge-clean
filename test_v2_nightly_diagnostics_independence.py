@@ -24,6 +24,27 @@ class NightlyDiagnosticsIndependenceTest(unittest.TestCase):
         self.assertIn("v2_third_ledger_reconciliation.json", workflow)
         self.assertIn("if: always()\n        with:\n          name: v2-predeclared-shadow-", workflow)
 
+    def test_nightly_piped_scorer_failure_cannot_be_hidden_by_tee(self):
+        import subprocess
+
+        workflow = Path(".github/workflows/v2-predeclared-shadow-research.yml").read_text(
+            encoding="utf-8")
+        self.assertIn(
+            "  evaluate:\n    runs-on: ubuntu-latest\n"
+            "    timeout-minutes: 30\n"
+            "    # Explicit bash turns on pipefail: a failed scorer before `| tee` fails CI.\n"
+            "    defaults:\n      run:\n        shell: bash", workflow)
+        self.assertIn("four_mode_v2_frozen_third_nightly.py --run-inventory", workflow)
+        self.assertIn("| tee v2_frozen_third_nightly.log", workflow)
+        self.assertIn("| tee v2_third_rate_durable_ledger.log", workflow)
+        self.assertIn("| tee v2_third_ledger_reconciliation.log", workflow)
+        result = subprocess.run(
+            ["bash", "-e", "-o", "pipefail", "-c", "python -c 'raise SystemExit(17)' | tee /dev/null"],
+            check=False, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 17)
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
