@@ -33,6 +33,14 @@ jobs:
           python -m scripts.observe_three_official_t12_originals \
             --race-code "$RACE_CODE" --observation-id "$OBSERVATION_ID" \
             --root evidence --report reports/three_originals.json
+      - name: Show independently audited timestamps and missing T12 components
+        if: always()
+        run: |
+          if [ -f reports/three_originals.json ]; then
+            python -m scripts.render_three_t12_live_summary reports/three_originals.json "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Research observation did not produce an audit report; T12 not verified.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
