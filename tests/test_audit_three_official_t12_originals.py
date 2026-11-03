@@ -35,7 +35,7 @@ class ThreeOriginalAuditTests(unittest.TestCase):
         before.mkdir(); odds.mkdir()
         source = {"maindata": {"hd": "20261102", "jcd": "19", "rno": "10",
                   "deadline": "21:51",
-                  "teiinfolist": [{"teino": str(i), "extime": "6.75", "tilt": "0"}
+                  "teiinfolist": [{"teino": str(i), "racerno": boats[i-1], "extime": "6.75", "tilt": "0"}
                                   for i in range(1,7)],
                   "sttenjiinfolist": [{"teino": str(i), "cs": 7-i, "st": ".05"}
                                       for i in range(1,7)]}}
@@ -74,6 +74,25 @@ class ThreeOriginalAuditTests(unittest.TestCase):
             self.assertFalse(result["full_t12_source_certified"])
             self.assertFalse(result["forecast_usable"])
             self.assertFalse(result["t12_eligible"])
+
+    def test_official_beforeinfo_racer_number_mismatch_fails_closed(self):
+        with tempfile.TemporaryDirectory() as root:
+            card, before, odds = self.make(root)
+            path = before / "beforeinfo.json"
+            payload = json.loads(path.read_text())
+            payload["maindata"]["teiinfolist"][0]["racerno"] = "9999"
+            raw = json.dumps(payload).encode()
+            path.write_bytes(raw)
+            manifest_path = before / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["sha256"] = hashlib.sha256(raw).hexdigest()
+            manifest["bytes"] = len(raw)
+            manifest_path.write_text(json.dumps(manifest))
+            result = self.joined(card, before, odds)
+            self.assertFalse(result["all_research_components_observed_by_t12"])
+            self.assertIn("racer_registration_ids_match", result["missing_components"])
+            self.assertFalse(result["full_t12_source_certified"])
+            self.assertFalse(result["forecast_usable"])
 
     def test_late_racecard_cannot_pass(self):
         with tempfile.TemporaryDirectory() as root:

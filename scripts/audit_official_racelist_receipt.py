@@ -91,6 +91,30 @@ def audit_racelist_with_official_deadline(racelist_dir, beforeinfo_dir, race_cod
     result["racecard_and_exhibition_entry_observed_by_t12"] = bool(
         result["received_before_supplied_cutoff"] and before_received <= cutoff
         and result["six_racers_verified"] and len(exhibition_map) == 6)
+    # Official beforeinfo teiinfolist carries the racer registration 'racerno';
+    # verify it independently against all six official racecard lane assignments.
+    before_racers = source.get("teiinfolist")
+    official_racers = {}
+    if isinstance(before_racers, list) and len(before_racers) == 6:
+        for boat in before_racers:
+            if not isinstance(boat, dict):
+                break
+            lane, racer_id = str(boat.get("teino", "")), str(boat.get("racerno", ""))
+            if (lane not in ("1", "2", "3", "4", "5", "6")
+                    or not re.fullmatch(r"[0-9]{4}", racer_id)
+                    or lane in official_racers):
+                break
+            official_racers[lane] = racer_id
+    full_before_map = (len(official_racers) == 6
+                       and len(set(official_racers.values())) == 6)
+    result["beforeinfo_registrations_by_lane"] = (
+        dict(sorted(official_racers.items(), key=lambda pair: int(pair[0])))
+        if full_before_map else {}
+    )
+    result["racer_registration_identities_agree"] = bool(
+        full_before_map and result["six_racers_verified"]
+        and result["registrations_by_lane"] == result["beforeinfo_registrations_by_lane"]
+    )
     result["received_by_t12"] = result["received_before_supplied_cutoff"]
     result["cutoff_source_verified"] = True
     result["cutoff_provenance"] = "verified_original_beforeinfo"
