@@ -91,6 +91,39 @@ def audit(day, paths, additions, *, main_context):
 
 
 
+
+def inspect_first_add_commit_days(day, additions, paths, stamp_for_sha):
+    """Report same-JST-day Git commit timestamps, not remote first-seen times."""
+    counts = {"same_day": 0, "other_day": 0, "unknown": 0}
+    other_day_paths = []
+    commit_days = {}
+    for name in paths:
+        if not ARCHIVE.fullmatch(name) or not Path(name).name.startswith(day):
+            continue
+        shas = additions.get(name, [])
+        if len(shas) != 1 or not isinstance(shas[0], str) or not SHA.fullmatch(shas[0]):
+            counts["unknown"] += 1
+            continue
+        sha = shas[0]
+        if sha not in commit_days:
+            try:
+                raw = stamp_for_sha(sha)
+                instant = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+                if instant.tzinfo is None:
+                    raise ValueError("timezone absent")
+                commit_days[sha] = instant.astimezone(JST).strftime("%Y%m%d")
+            except (OSError, UnicodeError, ValueError, TypeError, subprocess.SubprocessError):
+                commit_days[sha] = None
+        if commit_days[sha] is None:
+            counts["unknown"] += 1
+        elif commit_days[sha] == day:
+            counts["same_day"] += 1
+        else:
+            counts["other_day"] += 1
+            other_day_paths.append(name)
+    return counts, other_day_paths
+
+
 def inspect_day_archive_versions(day, paths, root=Path(".")):
     """Inspect checked-out archive payloads; this does not prove remote timing."""
     counts = {"v2": 0, "other_model": 0, "invalid": 0}
@@ -168,8 +201,18 @@ def main():
     paths = git("ls-tree", "-r", "--name-only", "HEAD", "--", "four_mode_forecasts/").splitlines()
     history = git("log", "--diff-filter=A", "--format=%H", "--name-only",
                   "HEAD", "--", "four_mode_forecasts/")
-    report = audit(day, paths, parse_additions(history),
+    additions = parse_additions(history)
+    report = audit(day, paths, additions,
                    main_context=os.environ.get("GITHUB_REF") == "refs/heads/main")
+    commit_days, other_day_paths = inspect_first_add_commit_days(
+        day, additions, paths, lambda sha: git("show", "-s", "--format=%cI", sha))
+    report["today_first_add_commit_same_jst_day_count"] = commit_days["same_day"]
+    report["today_first_add_commit_other_jst_day_count"] = commit_days["other_day"]
+    report["today_first_add_commit_day_unknown_count"] = commit_days["unknown"]
+    report["today_first_add_commit_other_day_paths"] = other_day_paths[:20]
+    report["same_day_git_commit_time_verified"] = (
+        report["today_archive_count"] > 0
+        and commit_days["same_day"] == report["today_archive_count"])
     versions, invalid_paths = inspect_day_archive_versions(day, paths)
     report["today_v2_archive_count"] = versions["v2"]
     report["today_other_model_archive_count"] = versions["other_model"]
