@@ -1,0 +1,50 @@
+name: One-time external T12 Git evidence write/readback smoke (research only)
+on:
+  # This workflow is intentionally NOT scheduled. It executes exactly once
+  # when its new file is merged to main on November 3, 2026.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/t12-evidence-git-smoke-20261103.yml'
+permissions:
+  contents: write
+jobs:
+  verify-evidence-commit:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fail closed outside one-day Kiryu 12R research window
+        run: |
+          test "$(TZ=Asia/Tokyo date +%Y%m%d)" = "20261103"
+          # Official Kiryu 12R closes at 20:31 JST, so cutoff is 20:19.
+          # Keep at least 60 seconds before the verified T−12 cutoff.
+          python - <<'PY'
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          now = datetime.now(ZoneInfo("Asia/Tokyo"))
+          cutoff = datetime(2026,11,3,20,19,tzinfo=ZoneInfo("Asia/Tokyo"))
+          if now + timedelta(seconds=60) >= cutoff:
+              raise SystemExit("Kiryu 12R T12 evidence smoke expired, fail closed")
+          PY
+      - name: Capture, persist to evidence-only branch, and reread original Git blobs
+        env:
+          GITHUB_EVIDENCE_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.run_external_three_t12 \
+            --race-code 202611030112 \
+            --repo ikst2512-eng/boat-edge-clean \
+            --branch research-t12-external-evidence
+      - name: State precisely what this test does not establish
+        if: always()
+        run: |
+          {
+            echo 'One-time GitHub push-triggered original evidence smoke.'
+            echo 'This is NOT an external Render Cron startup or scheduled reliability test.'
+            echo 'An archive Git commit does not establish final race entry, formal T12'
+            echo 'eligibility or permission to publish forecasts.'
+          } >> "$GITHUB_STEP_SUMMARY"
