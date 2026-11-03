@@ -168,6 +168,12 @@ def verify(root):
         ledger["path"])
     if not first:
         raise ValueError("github_observation_ledger_run_identity_invalid")
+    # Ledger path date is not decorative. A receipt path claiming another
+    # race day must not certify this same-job, same-day publication.
+    observed_days = {code[:8] for code in codes}
+    path_day = ledger["path"].split("/")[1]
+    if len(observed_days) != 1 or path_day not in observed_days:
+        raise ValueError("github_observation_ledger_race_day_mismatch")
     if any(code[:8] >= "20261104" for code in codes):
         third = read("third-rate-ledger.json")
         path = third.get("path") if type(third) is dict else None
