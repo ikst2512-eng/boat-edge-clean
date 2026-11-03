@@ -194,5 +194,42 @@ class FallbackGateTests(unittest.TestCase):
                 os.chdir(old)
 
 
+    def test_secondary_fallback_does_not_duplicate_verified_first_fallback(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:45:00Z"}
+        now = datetime(2026, 11, 3, 7, 50, tzinfo=timezone.utc)
+        first = {"id": 10, "event": "workflow_run", "created_at": "2026-11-03T07:38:00Z",
+                 "status": "completed", "conclusion": "success"}
+        def fetch(url, token):
+            self.assertIn("event=workflow_run", url)
+            return {"workflow_runs": [first, {**first, "id": 11}]}
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "valid"), "prior_fallback_observed")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "no_valid_odds"), "prior_fallback_absent_or_failed")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch,
+            probe_check=lambda *_: "unavailable"), "fallback_lookup_unavailable")
+        first["status"], first["conclusion"] = "in_progress", None
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_observed")
+        first["status"], first["conclusion"] = "completed", "failure"
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 11, now=now, fetch_json=fetch), "prior_fallback_absent_or_failed")
+
+    def test_secondary_fallback_fails_closed_on_missing_history(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-03T07:38:00Z"}
+        now = datetime(2026, 11, 3, 7, 40, tzinfo=timezone.utc)
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 12, now=now,
+            fetch_json=lambda *_: {"workflow_runs": None}), "fallback_lookup_unavailable")
+        self.assertEqual(gate.prior_fallback_guard(
+            trigger, "a/b", "token", 12, now=now,
+            fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
+
+
 if __name__ == "__main__":
     unittest.main()
