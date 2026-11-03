@@ -24,6 +24,39 @@ class NightlyDiagnosticsIndependenceTest(unittest.TestCase):
         self.assertIn("v2_third_ledger_reconciliation.json", workflow)
         self.assertIn("if: always()\n        with:\n          name: v2-predeclared-shadow-", workflow)
 
+    def test_combined_capture_inventory_is_valid_json_at_runtime(self):
+        import json
+        import re
+        import subprocess
+        import sys
+        import tempfile
+        import textwrap
+
+        workflow = Path(".github/workflows/v2-predeclared-shadow-research.yml").read_text(
+            encoding="utf-8")
+        match = re.search(r"          python - <<'PY'\\n(.*?)\\n          PY", workflow, re.S)
+        self.assertIsNotNone(match)
+        source = textwrap.dedent(match.group(1))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            expected = [
+                {"databaseId": 1001, "event": "schedule"},
+                {"databaseId": 1002, "event": "workflow_dispatch"},
+            ]
+            (root / "v2_capture_scheduled.json").write_text(
+                json.dumps(expected[:1]), encoding="utf-8")
+            (root / "v2_capture_dispatched.json").write_text(
+                json.dumps(expected[1:]), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, "-c", source], cwd=root,
+                check=False, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = (root / "v2_capture_run_inventory.json").read_text(
+                encoding="utf-8")
+            self.assertEqual(json.loads(output), expected)
+            self.assertTrue(output.endswith("\\n"))
+            self.assertFalse(output.endswith("\\\\n"))
+
     def test_capture_inventory_excludes_pr_traffic_before_combining(self):
         workflow = Path(".github/workflows/v2-predeclared-shadow-research.yml").read_text(
             encoding="utf-8")
