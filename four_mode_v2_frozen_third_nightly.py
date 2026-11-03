@@ -82,6 +82,7 @@ def summarize(inventory, root, download, out_dir):
         "paired": 0, "frozen": 0, "pending_results": 0,
         "invalid": 0, "excluded": 0,
         "race_codes_paired": [],
+        "paired_race_scores": [],
         "race_codes_frozen": [],
         "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
@@ -136,6 +137,7 @@ def summarize(inventory, root, download, out_dir):
         for field in ("paired", "frozen", "pending_results", "invalid", "excluded"):
             report[field] += scoring[field]
         report["race_codes_paired"].extend(scoring["race_codes_paired"])
+        report["paired_race_scores"].extend(scoring["paired_race_scores"])
         report["race_codes_frozen"].extend(scoring["race_codes_frozen"])
         per_race_rows = scoring.get("paired_race_scores", [])
         if len(per_race_rows) != scoring["paired"]:
@@ -157,6 +159,7 @@ def summarize(inventory, root, download, out_dir):
             for name in ("baseline", "candidate", "gained", "lost"):
                 report["topn"][f"top{n}"][name] += scoring["topn"][f"top{n}"][name]
     report["race_codes_paired"].sort()
+    report["paired_race_scores"].sort(key=lambda row: row["race_code"])
     report["race_codes_frozen"].sort()
     if len(set(report["race_codes_frozen"])) != report["frozen"]:
         raise ValueError("frozen_roster_mismatch")
