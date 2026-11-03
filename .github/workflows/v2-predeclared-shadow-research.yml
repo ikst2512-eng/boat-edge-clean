@@ -14,6 +14,10 @@ on:
       - four_mode_v2_third_rate_git_ancestry.py
       - four_mode_v2_frozen_third_artifact_score.py
       - four_mode_v2_frozen_third_nightly.py
+      - four_mode_v2_third_rate_ledger_rollup.py
+      - third_rate_evidence_ledger.py
+      - test_four_mode_v2_third_rate_ledger_rollup.py
+      - test_third_rate_evidence_ledger.py
       - test_four_mode_v2_frozen_third_nightly.py
       - test_four_mode_v2_frozen_third_artifact_score.py
       - test_four_mode_v2_third_rate_git_ancestry.py
@@ -48,7 +52,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate fixed shadow research protocol
-        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly
+        run: python -m unittest -v test_four_mode_v2_predeclared_shadow test_four_mode_v2_research_readiness test_four_mode_v2_venue_coverage test_four_mode_v2_model_reproduction test_four_mode_v2_head_calibration test_four_mode_v2_winner_head_miss_profile test_four_mode_v2_national_head_shadow test_four_mode_v2_protected_pair_shadow test_four_mode_v2_conditional_place_ranks test_four_mode_v2_third_rate_shadow test_four_mode_v2_third_rate_git_ancestry test_four_mode_v2_frozen_third_artifact_score test_four_mode_v2_frozen_third_nightly test_four_mode_v2_third_rate_ledger_rollup test_third_rate_evidence_ledger
       - name: Evaluate read-only V2 shadow on confirmed results
         run: python four_mode_v2_predeclared_shadow.py --changed-top3-output v2_changed_top3_cases.json | tee v2_predeclared_shadow.log
       - name: Validate V2 sample sufficiency and no-production-promotion gate
@@ -78,6 +82,11 @@ jobs:
         run: |
           gh run list --workflow four-mode-prospective-capture.yml --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
+      - name: Score preserved third-rate original evidence from durable branch
+        if: github.event_name != 'pull_request'
+        run: |
+          git fetch origin refs/heads/v2-third-rate-evidence-ledger:refs/remotes/origin/v2-third-rate-evidence-ledger
+          python four_mode_v2_third_rate_ledger_rollup.py --output v2_third_rate_durable_ledger.json | tee v2_third_rate_durable_ledger.log
       - uses: actions/upload-artifact@v4
         with:
           name: v2-predeclared-shadow-${{ github.run_id }}
@@ -99,4 +108,6 @@ jobs:
             v2_capture_run_inventory.json
             v2_frozen_third_nightly.json
             v2_frozen_third_nightly.log
+            v2_third_rate_durable_ledger.json
+            v2_third_rate_durable_ledger.log
           retention-days: 30
