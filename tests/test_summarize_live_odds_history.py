@@ -216,6 +216,47 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(errors, [{"run_id": 8, "status": "ValueError"}])
 
+    def test_second_history_page_can_recover_older_scheduled_evidence(self):
+        # A busy repo's first 100 entries can contain unrelated completed PR runs.
+        recent_prs = [{"id": n, "event": "pull_request", "conclusion": "success",
+                       "created_at": "2026-11-03T04:00:00Z"} for n in range(100)]
+        older = {"id": 301, "event": "schedule", "conclusion": "success",
+                 "created_at": "2026-11-02T05:25:00Z"}
+        valid = {"checked_at_jst": "2026-11-02T14:25:01+09:00",
+                 "source_status": "ok", "samples": [race("202611020111", ["valid_200"])]}
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w") as zf:
+            zf.writestr(history.FILE, json.dumps(valid))
+        requested = []
+        def fake_api(url, token):
+            if "/runs?status=" in url:
+                requested.append(url)
+                return {"workflow_runs": recent_prs if "page=1" in url else [older]}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 7, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(payload.getvalue())):
+            records, selected, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake",
+                {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(len(requested), 2)
+        self.assertEqual(selected, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(history.summarize(records)["eventual_valid_races"], 1)
+
+    def test_unread_final_page_must_be_flagged_incomplete(self):
+        rows = [{"id": n, "event": "pull_request", "conclusion": "success",
+                 "created_at": "2026-11-03T04:00:00Z"} for n in range(100)]
+        with patch.object(history, "MAX_PAGES", 1), patch.object(
+                history, "api_json", return_value={"workflow_runs": rows}):
+            records, selected, errors = history.fetch_history(
+                "ikst2512-eng/boat-edge-clean", "fake",
+                {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(selected, 0)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(errors, [{"run_id": None, "status": "workflow_run_list_truncated"}])
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
