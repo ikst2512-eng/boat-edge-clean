@@ -17,8 +17,18 @@ def flags(hit):
             for m in MODES}
 
 
-def report(race_codes,age,window_start,window_end):
-    rows={code:flags(True) for code in race_codes}
+def report(race_codes,age,window_start,window_end,hit=True):
+    rows={code:flags(hit) for code in race_codes}
+    hits={m:{f"top{k}":sum(int(r[m][f"top{k}"]) for r in rows.values())
+             for k in (3,5,10)} for m in MODES}
+    delta={}
+    for m in MODES[1:]:
+        delta[m]={}
+        for k in (3,5,10):
+            key=f"top{k}"
+            gain=sum(int(r[m][key] and not r["baseline"][key]) for r in rows.values())
+            loss=sum(int(r["baseline"][key] and not r[m][key]) for r in rows.values())
+            delta[m][key]={"gained":gain,"lost":loss,"net":gain-loss}
     return {"schema":"HOLE_FUTURE_ARTIFACT_BATCH_V1",
             "window_start_jst":window_start,
             "window_end_exclusive_jst":window_end,
@@ -26,7 +36,7 @@ def report(race_codes,age,window_start,window_end):
             "capture_window_complete":False,
             "formal":False,"independent_first_receipt_verified":False,
             "comparable":len(rows),"race_codes":sorted(rows),
-            "per_race_flags":rows}
+            "per_race_flags":rows,"hits":hits,"delta":delta}
 
 
 class LateResultTests(unittest.TestCase):
@@ -47,8 +57,7 @@ class LateResultTests(unittest.TestCase):
             elif mode=="conflicting":
                 late=report([CODE],7,"2026-11-04","2026-11-05")
                 (target/"hole_future_late_7d.json").write_text(json.dumps(late))
-                other=report([CODE],21,"2026-11-04","2026-11-05")
-                other["per_race_flags"][CODE]["third_national_rate"]["top10"]=False
+                other=report([CODE],21,"2026-11-04","2026-11-05",hit=False)
                 (target/"hole_future_late_21d.json").write_text(json.dumps(other))
             elif mode=="tampered":
                 late=report([CODE],21,"2026-11-04","2026-11-05")
