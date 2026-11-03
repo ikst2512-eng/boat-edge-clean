@@ -94,6 +94,30 @@ def publish(raw, remote_read, remote_create, *, clock=None):
             "independent_remote_first_seen_verified":False}
 
 
+# Non-forecast canary: verify the scheduled job's write permission ahead of
+# the first actual course forecast. This is never counted as a race capture.
+WRITE_PROBE_PATH="operations/entry-course-write-access-v1.json"
+WRITE_PROBE_BYTES=(b'{"formal":false,"forecast_record":false,'
+                   b'"schema":"ENTRY_COURSE_LEDGER_WRITE_ACCESS_PROBE_V1"}\\n')
+
+
+def verify_write_access(remote_read,remote_create):
+    existing=remote_read(WRITE_PROBE_PATH)
+    if existing is None:
+        remote_create(WRITE_PROBE_PATH,WRITE_PROBE_BYTES)
+        status="new_write_probe"
+    elif existing==WRITE_PROBE_BYTES:
+        status="existing_write_probe_readback"
+    else:
+        raise ValueError("course_ledger_write_probe_collision")
+    if remote_read(WRITE_PROBE_PATH)!=WRITE_PROBE_BYTES:
+        raise ValueError("course_ledger_write_probe_readback_mismatch")
+    return {"status":status,"path":WRITE_PROBE_PATH,
+            "formal":False,"forecast_record":False,
+            "write_permission_tested_this_run":status=="new_write_probe"}
+
+
+
 def _gh(args):
     response=subprocess.run(["gh","api",*args],capture_output=True,timeout=30)
     if response.returncode:
@@ -119,6 +143,6 @@ def github_ops(repository):
     def create(path,raw):
         encoded=base64.b64encode(raw).decode("ascii")
         _gh(["-X","PUT",f"repos/{repository}/contents/{path}",
-             "-f","message=research: freeze separate T-2 course study",
+             "-f","message=research: preserve append-only entry-course evidence",
              "-f",f"branch={BRANCH}","-f",f"content={encoded}"])
     return read,create
