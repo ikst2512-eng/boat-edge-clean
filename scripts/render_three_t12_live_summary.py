@@ -9,6 +9,7 @@ CHECK_LABELS = {
     "racer_registration_ids_match": "出走表・直前JSONの登録番号一致",
     "racecard_received_by_t12": "出走表T−12受信",
     "beforeinfo_received_by_t12": "公式直前T−12受信",
+    "beforeinfo_six_unique_boats": "公式直前6艇番号の重複なし",
     "exhibition_six_courses": "展示進入6コース",
     "exhibition_times_six": "展示タイム6艇",
     "tilt_six": "チルト6艇",

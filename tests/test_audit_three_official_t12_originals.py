@@ -75,6 +75,25 @@ class ThreeOriginalAuditTests(unittest.TestCase):
             self.assertFalse(result["forecast_usable"])
             self.assertFalse(result["t12_eligible"])
 
+    def test_beforeinfo_duplicate_boat_number_never_counts_as_complete(self):
+        with tempfile.TemporaryDirectory() as root:
+            card, before, odds = self.make(root)
+            path = before / "beforeinfo.json"
+            payload = json.loads(path.read_text())
+            payload["maindata"]["teiinfolist"][5]["teino"] = "5"
+            raw = json.dumps(payload).encode()
+            path.write_bytes(raw)
+            mpath = before / "manifest.json"
+            m = json.loads(mpath.read_text())
+            m["sha256"] = hashlib.sha256(raw).hexdigest()
+            m["bytes"] = len(raw)
+            mpath.write_text(json.dumps(m))
+            result = self.joined(card, before, odds)
+            self.assertFalse(result["component_checks"]["beforeinfo_six_unique_boats"])
+            self.assertIn("beforeinfo_six_unique_boats", result["missing_components"])
+            self.assertFalse(result["all_research_components_observed_by_t12"])
+            self.assertFalse(result["forecast_usable"])
+
     def test_official_beforeinfo_racer_number_mismatch_fails_closed(self):
         with tempfile.TemporaryDirectory() as root:
             card, before, odds = self.make(root)

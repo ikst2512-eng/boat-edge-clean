@@ -5,6 +5,7 @@ RACE = "202611030212"
 KEYS = ["racecard_original_hash_verified", "racecard_six_registrations",
         "racer_registration_ids_match",
         "racecard_received_by_t12", "beforeinfo_received_by_t12",
+        "beforeinfo_six_unique_boats",
         "exhibition_six_courses", "exhibition_times_six", "tilt_six",
         "start_exhibition_six", "odds_120", "odds_received_by_t12"]
 
