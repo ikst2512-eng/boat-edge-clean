@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 
 DAYS = 14
 MAX_RUNS = 100
+MAX_PAGES = 3
 WORKFLOW = "live-official-odds-probe.yml"
 ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
@@ -157,7 +158,18 @@ def fetch_history(repository, token, current, *, now=None):
     first_day = now.astimezone(jst).date() - timedelta(days=DAYS - 1)
     cutoff = datetime.combine(first_day, datetime.min.time(), tzinfo=jst).astimezone(timezone.utc)
     root = "https://api.github.com/repos/" + repository
-    runs = api_json(root + "/actions/workflows/" + WORKFLOW + "/runs?status=completed&per_page=100", token).get("workflow_runs", [])
+    runs = []
+    list_truncated = False
+    for page in range(1, MAX_PAGES + 1):
+        batch = api_json(root + "/actions/workflows/" + WORKFLOW +
+                         "/runs?status=completed&per_page=100&page=" + str(page), token).get("workflow_runs", [])
+        if not isinstance(batch, list):
+            raise ValueError("WORKFLOW_RUN_LIST_INVALID")
+        runs.extend(batch)
+        if len(batch) < 100:
+            break
+        if page == MAX_PAGES:
+            list_truncated = True
     selected = []
     for run in runs:
         if run.get("event") not in ("schedule", "workflow_dispatch"):
@@ -171,6 +183,10 @@ def fetch_history(repository, token, current, *, now=None):
         selected.append(run)
     history = [current]
     errors = []
+    if list_truncated:
+        errors.append({"run_id": None, "status": "workflow_run_list_truncated"})
+    if len(selected) > MAX_RUNS:
+        errors.append({"run_id": None, "status": "history_run_limit_exceeded"})
     for run in selected[:MAX_RUNS]:
         run_id = run["id"]
         if run.get("conclusion") != "success":
