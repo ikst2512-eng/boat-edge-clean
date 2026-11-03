@@ -77,6 +77,11 @@ class ShadowAuditTests(unittest.TestCase):
         self.assertEqual(x["eligible_codes"],[CODE])
         self.assertEqual(x["comparable"],0)
         self.assertEqual(x["excluded_by_reason"]["unconfirmed_result"],1)
+    def test_nonobject_shadow_record_is_validation_error(self):
+        self.shadow.write_text(json.dumps({
+            "status":"research_only_after_confirmed_push","records":[None]}))
+        with self.assertRaisesRegex(ValueError,"invalid_shadow_record"):
+            audit(self.root,self.shadow)
     def test_no_unverified_files_count_as_hits(self):
         x=audit(self.root,self.shadow)
         self.assertEqual(x["status"],"missing_shadow")
