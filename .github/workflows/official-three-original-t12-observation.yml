@@ -14,6 +14,7 @@ on:
       - 'scripts/inspect_official_racelist_registrations.py'
       - 'scripts/inspect_official_beforeinfo_json.py'
       - 'scripts/summarize_three_t12_venues.py'
+      - 'test_official_three_original_schedule_retirement.py'
   workflow_dispatch:
     inputs:
       race_code:
@@ -23,7 +24,16 @@ on:
 permissions:
   contents: read
 jobs:
+  workflow-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_official_three_original_schedule_retirement
   observe:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -65,7 +75,7 @@ jobs:
           if-no-files-found: warn
 
   summarize:
-    if: always()
+    if: github.event_name == 'workflow_dispatch' && always()
     needs: observe
     runs-on: ubuntu-24.04
     timeout-minutes: 4
