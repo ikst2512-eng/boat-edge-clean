@@ -1,0 +1,50 @@
+name: Entry course missed-cron activation watchdog
+on:
+  # Separate schedule events for the original jobs remain the primary path.
+  # Push and a completed four-mode scheduled run give a second event source.
+  push:
+    branches: [main]
+  schedule:
+    - cron: '3,18,33,48 0-13 * * *'
+  workflow_run:
+    workflows: ["Four-mode prospective capture (research only)"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: entry-course-activation-watchdog-main
+  cancel-in-progress: false
+jobs:
+  recover-missing-schedule:
+    # Never let a PR/dispatch-triggered four-mode run masquerade as a cron.
+    if: >-
+      github.repository == 'ikst2512-eng/boat-edge-clean' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.event == 'schedule' &&
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate fallback dispatch policy
+        run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
+      - name: Dispatch missing T12/T2 research runs (not a scheduled evidence claim)
+        run: python scripts/entry_course_activation_watchdog.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Retain fallback decision independently of research capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-course-activation-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entry-course-evidence/activation-watchdog.json
+          if-no-files-found: warn
+          retention-days: 7
