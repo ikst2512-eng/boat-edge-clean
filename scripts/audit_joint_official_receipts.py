@@ -19,9 +19,9 @@ def audit_pair(before_dir, odds_dir):
         received = datetime.fromisoformat(manifest["received_at_jst"])
         if start.utcoffset() != timedelta(hours=9) or received.utcoffset() != timedelta(hours=9) or received < start:
             raise ValueError("invalid receipt chronology")
-        return raw, manifest, received
-    original_before, a, a_received = load(before_dir, "beforeinfo.json")
-    original_odds, b, b_received = load(odds_dir, "original.html")
+        return raw, manifest, start, received
+    original_before, a, a_started, a_received = load(before_dir, "beforeinfo.json")
+    original_odds, b, b_started, b_received = load(odds_dir, "original.html")
     if a.get("status") != "official_json_observed_not_t12_certified" or b.get("status") != "official_odds_observed_research_only":
         raise ValueError("not successful original source observations")
     race = a["race_code"]
@@ -31,6 +31,8 @@ def audit_pair(before_dir, odds_dir):
     # Check both immutable receipt URLs against the exact official race identity.
     from urllib.parse import urlencode
     day, venue, number = race[:8], race[8:10], str(int(race[10:]))
+    if any(stamp.strftime("%Y%m%d") != day for stamp in (a_started, a_received, b_started, b_received)):
+        raise ValueError("original HTTP receipt race day mismatch")
     params = urlencode({"hd": day, "jcd": venue, "rno": number})
     expected_before = ("https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&" + params)
     expected_odds = ("https://www.boatrace.jp/owpc/pc/race/odds3t?" + params)
