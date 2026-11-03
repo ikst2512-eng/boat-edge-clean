@@ -21,6 +21,10 @@ on:
       - '.github/workflows/four-mode-prospective-capture.yml'
       - '.github/workflows/four-mode-capture-watchdog.yml'
       - '.github/workflows/four-mode-schedule-inventory.yml'
+  # Read-only daily audit after the morning JST capture window starts.
+  # Cron is UTC: 00:20 UTC = 09:20 JST. Does not dispatch captures.
+  schedule:
+    - cron: '20 0 * * *'
   workflow_dispatch:
 permissions:
   contents: read
