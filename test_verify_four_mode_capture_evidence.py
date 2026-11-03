@@ -139,6 +139,18 @@ class EvidenceVerdictTests(unittest.TestCase):
             verify(self.root)
         self.assertEqual(record_verdict(self.root)["status"], "failed")
 
+    def test_observation_ledger_wrong_race_day_not_same_day_proof(self):
+        self.published(); self.good(); self.good_third()
+        folder = self.root / "four-mode-evidence"
+        receipt = json.loads(
+            (folder/"github-server-observation-ledger.json").read_text())
+        receipt["path"] = "github_server/20261105/run-1234-attempt-1.json"
+        self.write("github-server-observation-ledger.json", receipt)
+        with self.assertRaisesRegex(ValueError,
+                                    "github_observation_ledger_race_day_mismatch"):
+            verify(self.root)
+        self.assertEqual(record_verdict(self.root)["status"], "failed")
+
     def test_cross_run_receipt_substitution_is_not_same_job_proof(self):
         self.published(); self.good(); self.good_third()
         ledger = self.root / "four-mode-evidence" / "third-rate-ledger.json"
