@@ -256,6 +256,18 @@ jobs:
               const lanes=await page.locator('#raceDataRows tr td:first-child').allTextContents();
               if(lanes.map(x=>x.trim()).join(',')!=='1,2,3,4,5,6')throw Error('PUBLIC_HISTORICAL_RACECARD_LANES '+lanes.join(','));
               if(!(await page.locator('#raceDataSource').innerText()).includes('Git初回登録時刻は未照合'))throw Error('PUBLIC_HISTORICAL_RACECARD_EVIDENCE_NOTICE_MISSING');
+              if(race.key==='202611031911'){
+                // Read the source actually accepted by the published frontend.
+                // Closed on the same calendar day must be research-only/read-only,
+                // never misrepresented as a verified predeadline source.
+                const card=await page.evaluate(()=>verifiedRaceCache.get(sameRaceKey()));
+                if(card?.meta?.phase!=='HISTORICAL_READ_ONLY'||
+                   card?.meta?.historical_reference_only!==true||
+                   card?.meta?.scoring!==false||
+                   card?.source_audit?.race_card?.predeadline_verified!==false)
+                  throw Error('SAME_DAY_CLOSED_CARD_NOT_READ_ONLY '+JSON.stringify(card?.meta));
+                console.log('CLEAN_SAME_DAY_CUTOFF_READ_ONLY_BROWSER_PASS',race.key);
+              }
               console.log('CLEAN_HISTORICAL_SIX_RACER_BROWSER_PASS',race.key,status);
               await page.evaluate(()=>setView('exhibit'));
               if(!(await page.locator('#exhibitionGrid').isVisible()))throw Error('PUBLIC_HISTORICAL_EXHIBITION_TAB_HIDDEN');
