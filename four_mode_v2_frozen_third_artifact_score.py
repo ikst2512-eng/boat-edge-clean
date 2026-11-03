@@ -48,6 +48,11 @@ def score_evidence(evidence, root):
         raise ValueError("invalid_publication_count")
     if len(records) != published:
         raise ValueError("artifact_publication_roster_inconsistent")
+    # Validate shape before counting statuses: a null/list row must produce
+    # a controlled bad-artifact verdict, not an uncaught AttributeError that
+    # interrupts the whole nightly audit and loses its remaining evidence.
+    if any(type(row) is not dict for row in records):
+        raise ValueError("malformed_record")
     if (type(evidence.get("frozen_before_t_minus_12")) is not int
             or sum(r.get("status") == "frozen_in_same_job_before_t_minus_12"
                    for r in records) != evidence["frozen_before_t_minus_12"]):
