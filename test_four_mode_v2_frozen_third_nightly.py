@@ -110,6 +110,45 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(report["pending_or_unknown_run_ids"],[])
         self.assertTrue(report["cohort_completeness_verified"])
 
+    def test_failed_run_with_zero_publication_is_not_healthy_noop(self):
+        self.evidence.update({"status":"no_confirmed_publication",
+                              "published_forecasts":0,
+                              "frozen_before_t_minus_12":0,
+                              "ineligible_count":0,"records":[]})
+        self.evidence.pop("publication_commit_sha")
+        out=summarize([run(121,conclusion="failure")],
+                      self.root,self.download,self.root)
+        self.assertEqual(out["unsuccessful_run_ids"],[121])
+        self.assertEqual(out["no_new_candidate_runs"],0)
+        self.assertEqual(out["runs"][0]["status"],"failed_run_without_new_publication")
+        self.assertEqual(out["status"],"incomplete_capture_run_outcomes")
+        self.assertFalse(out["cohort_completeness_verified"])
+
+    def test_failed_sibling_cannot_make_successful_run_complete(self):
+        self.evidence.update({"status":"no_confirmed_publication",
+                              "published_forecasts":0,
+                              "frozen_before_t_minus_12":0,
+                              "ineligible_count":0,"records":[]})
+        self.evidence.pop("publication_commit_sha")
+        out=summarize([run(121),run(122,conclusion="cancelled")],
+                      self.root,self.download,self.root)
+        self.assertEqual(out["unsuccessful_run_ids"],[122])
+        self.assertEqual(out["no_new_candidate_runs"],1)
+        self.assertFalse(out["cohort_completeness_verified"])
+        self.assertEqual(out["status"],"incomplete_capture_run_outcomes")
+
+    def test_failed_run_frozen_evidence_still_scored_but_not_complete(self):
+        finish=self.evidence["records"][0]["candidate_top10"][0]
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status":"historical_comparison_only",
+                                 "winning_ticket":finish}):
+            out=summarize([run(123,conclusion="timed_out")],
+                          self.root,self.download,self.root)
+        self.assertEqual(out["paired"],1)
+        self.assertEqual(out["unsuccessful_run_ids"],[123])
+        self.assertFalse(out["cohort_completeness_verified"])
+        self.assertEqual(out["status"],"incomplete_capture_run_outcomes")
+
     def test_only_main_future_capture_not_pr(self):
         inventory = [
             run(10, "2026-11-03T14:59:59Z"),
