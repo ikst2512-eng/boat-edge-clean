@@ -39,7 +39,9 @@ class NavigationContractTest(unittest.TestCase):
         match = re.search(r'<nav class="site-global-nav[^"]*"[^>]*>(.*?)</nav>', self.index)
         self.assertIsNotNone(match)
         self.assertEqual(re.findall(r'href="([^"]+)"', match.group(1)),
-                         ["/review", "/selection"])
+                         ["/review"])
+        self.assertEqual(len(re.findall(r'class="header-candidate-tab"', self.index)), 1)
+        self.assertIn('class="header-candidate-tab" href="/selection"', self.index)
         self.assertNotIn("nav.innerHTML=", self.nav)
 
     def test_detail_views_and_prediction_entry_still_exist(self):
@@ -72,9 +74,11 @@ class NavigationContractTest(unittest.TestCase):
         self.assertNotIn('script src="/navigation.js"', self.server)
         self.assertIn("history.back()", self.secondary)
         self.assertIn("レース選択へ", self.secondary)
+        self.assertIn(".site-head .header-candidate-tab", self.nav)
 
     def test_pages_candidate_route_is_render_and_keeps_origin(self):
         self.assertIn("selection.href='https://boat-edge-clean.onrender.com/selection'",self.nav)
+        self.assertIn("document.querySelector('.site-head .header-candidate-tab[href=", self.nav)
         self.assertIn("destination.origin===location.origin?destination.pathname+destination.search:destination.href",self.nav)
 
     def test_github_pages_logo_does_not_leave_clean_site(self):
