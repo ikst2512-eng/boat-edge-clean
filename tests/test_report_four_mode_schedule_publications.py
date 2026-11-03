@@ -347,6 +347,76 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertEqual(result["github_observation_before_t12_total"], 1)
         self.assertFalse(result["remote_main_verified"])
 
+    def test_observation_race_roster_cannot_swap_equal_count_other_race(self):
+        sha = "a" * 40
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": sha, "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": sha, "published_forecasts": 1,
+                "records": [{"race_code": "202611040101"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": sha, "published_new_count": 1,
+                "records": [{"race_code": "202611040101"}]})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "remote_observation_audited_nonformal",
+                "publication_commit_sha": sha, "publication_count": 1,
+                "observed_before_t_minus_12": 1,
+                "observed_after_t_minus_12": 0, "unverified_count": 0,
+                "records": [{
+                    "race_code": "202611040102",
+                    "first_add_commit": sha,
+                    "status": "github_server_observed_before_t_minus_12",
+                    "github_api_server_date_utc": "2026-11-04T01:00:00+00:00",
+                    "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                    "first_add_blob_matches_remote": True,
+                    "original_sha256": "f" * 64}]})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["research_roster_evidence"]["status"], "matched")
+        self.assertEqual(row["github_observation_integrity"]["status"], "mismatch")
+        self.assertEqual(row["github_observation_integrity"]["reason"],
+                         "observation_vs_research_race_roster")
+        self.assertEqual(result["github_observation_before_t12_total"], 0)
+        self.assertIsNone(row["github_observation_before_t12"])
+        self.assertEqual(result["github_observation_integrity_mismatch_run_ids"], [123])
+
+    def test_observation_and_research_race_roster_same_ids_match(self):
+        sha = "a" * 40
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "commit_sha": sha, "added_forecasts": 1})
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": sha, "published_forecasts": 1,
+                "records": [{"race_code": "202611040101"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": sha, "published_new_count": 1,
+                "records": [{"race_code": "202611040101"}]})
+            self.save(root, "four-mode-evidence/github-server-observation.json", {
+                "schema": "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+                "status": "remote_observation_audited_nonformal",
+                "publication_commit_sha": sha, "publication_count": 1,
+                "observed_before_t_minus_12": 1,
+                "observed_after_t_minus_12": 0, "unverified_count": 0,
+                "records": [{
+                    "race_code": "202611040101",
+                    "first_add_commit": sha,
+                    "status": "github_server_observed_before_t_minus_12",
+                    "github_api_server_date_utc": "2026-11-04T01:00:00+00:00",
+                    "deadline_minus_12_jst": "2026-11-04T11:48:00+09:00",
+                    "first_add_blob_matches_remote": True,
+                    "original_sha256": "f" * 64}]})
+        result = report({"runs": [self.RUN]}, download)
+        row = result["runs"][0]
+        self.assertEqual(row["research_roster_evidence"]["status"], "matched")
+        self.assertEqual(row["github_observation_integrity"]["status"], "matched")
+        self.assertEqual(result["github_observation_before_t12_total"], 1)
+
     def test_false_early_label_cannot_be_certified_by_matching_aggregate(self):
         def download(_, root):
             self.save(root, "four-mode-evidence/publication.json", {
