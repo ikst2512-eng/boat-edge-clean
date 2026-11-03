@@ -105,7 +105,7 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
         response = api(repo, token, "POST", "git/blobs", {
             "content": base64.b64encode(data).decode("ascii"),
             "encoding": "base64"})
-        expected = hashlib.sha1(f"blob {len(data)}\\0".encode() + data).hexdigest()
+        expected = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
         if response.get("sha") != expected:
             raise ValueError("Git blob hash differs from source evidence")
         tree.append({"path": path, "mode": "100644", "type": "blob",
