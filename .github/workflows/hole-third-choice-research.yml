@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_rate_score_conflict_research.py
+      - test_hole_rate_score_conflict_research.py
       - hole_third_feature_gap_audit.py
       - test_hole_third_feature_gap_audit.py
       - hole_third_full_denominator_audit.py
@@ -36,7 +38,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py test_hole_third_full_denominator_audit.py test_hole_third_feature_gap_audit.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py test_hole_new_head_coverage_research.py test_hole_locked_two_pair_miss_audit.py test_hole_third_full_denominator_audit.py test_hole_third_feature_gap_audit.py test_hole_rate_score_conflict_research.py
+      - run: python hole_rate_score_conflict_research.py > hole_rate_score_conflict_results.json
+      - name: Verify national-vs-score decisions across every confirmed race
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("hole_rate_score_conflict_results.json"))
+          assert all(r[k] is False for k in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,s in r["groups"].items():
+              print("GROUP",name,"N",s["comparable"])
+              print("TOP10",s["top10"])
+              print("CONFLICT_STRATA",s["pre_result_conflict_strata_on_actual_pair"])
+              print("BY_DATE",s["by_date"])
+              assert sum(d["races"] for d in s["by_date"].values())==s["comparable"]
+              assert sum(d.get("races",0) for d in s["pre_result_conflict_strata_on_actual_pair"].values())==s["comparable"]
+              for p in ("score","score_guard_1pt","score_guard_2pt"):
+                  x=s["top10"][p]
+                  assert x.get("hits",0)-s["top10"]["national"].get("hits",0)==x["net"]
+                  assert x["only_new"]-x["only_national"]==x["net"]
+          PY
       - run: python hole_third_feature_gap_audit.py > hole_third_feature_gap_results.json
       - name: Validate third-ticket feature gaps with full denominator
         run: |
@@ -297,3 +321,4 @@ jobs:
             hole_locked_two_pair_miss_results.json
             hole_third_full_denominator_results.json
             hole_third_feature_gap_results.json
+            hole_rate_score_conflict_results.json
