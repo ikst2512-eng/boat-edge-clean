@@ -67,6 +67,9 @@ class V2ReadinessTests(unittest.TestCase):
     def test_no_overdue_result_coverage_is_unproven(self):
         d = fixture()
         d["groups"]["20261103"]["matured_comparable"] = 0
+        for mode in d["groups"]["20261103"]["matured_modes"].values():
+            for key in mode:
+                mode[key] = 0
         d["groups"]["20261103"]["pending_by_deadline"]["before_deadline"] += 58
         d["groups"]["20261103"]["pending_by_deadline"]["over_60m_after_deadline"] = 0
         result = summarize(d)
