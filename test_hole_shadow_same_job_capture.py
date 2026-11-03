@@ -72,6 +72,48 @@ class SameJobTest(unittest.TestCase):
         self.assertFalse(data["independent_first_receipt_verified"])
         f.assert_called_once()
 
+    def test_failed_one_race_preserves_another_valid_shadow(self):
+        self.put(added_forecasts=2)
+        code2 = "202611030102"
+        def git(args):
+            if args[0] == "rev-parse":
+                return SHA
+            return "\n".join([
+                "four_mode_forecasts/" + CODE + ".json",
+                "four_mode_forecasts/" + code2 + ".json",
+            ])
+        def shadow(code, root, now):
+            if code == CODE:
+                raise ValueError("broken_model_input")
+            return {"race_code": code, "status": "shadow_frozen_unverified"}
+        with patch("hole_shadow_same_job_capture.freeze", side_effect=shadow):
+            result = capture_published(
+                self.root, self.path, datetime(2026, 11, 3, tzinfo=timezone.utc), git)
+        self.assertEqual(result["published_new_count"], 2)
+        self.assertEqual(result["frozen_count"], 1)
+        self.assertEqual(result["validation_error_count"], 1)
+        self.assertEqual(result["records"][0], {
+            "race_code": CODE, "status": "validation_error", "error_type": "ValueError"})
+        self.assertEqual(result["records"][1]["race_code"], code2)
+        self.assertFalse(result["formal"])
+
+    def test_shadow_cannot_return_wrong_race_identity(self):
+        self.put()
+        def git(args):
+            return SHA if args[0] == "rev-parse" else "four_mode_forecasts/" + CODE + ".json"
+        with patch("hole_shadow_same_job_capture.freeze", return_value={
+                "race_code": "202611030102", "status": "shadow_frozen_unverified"}):
+            result = capture_published(
+                self.root, self.path, datetime(2026, 11, 3, tzinfo=timezone.utc), git)
+        self.assertEqual(result["validation_error_count"], 1)
+        self.assertEqual(result["frozen_count"], 0)
+        self.assertEqual(result["records"][0]["status"], "validation_error")
+
+    def test_capture_cli_retains_nonzero_status_on_validation_errors(self):
+        script = (Path(__file__).parent / "hole_shadow_same_job_capture.py").read_text()
+        self.assertIn('if report.get("validation_error_count", 0):', script)
+        self.assertIn("raise SystemExit(2)", script)
+
     def test_mismatched_publication_rejected(self):
         self.put()
         with self.assertRaises(ValueError):
