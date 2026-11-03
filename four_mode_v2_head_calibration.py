@@ -278,14 +278,15 @@ def assess(root=ROOT):
         ]
         # Hypothetical threshold using only the most adverse missing head
         # outcomes, without assuming anything about later unresolved races.
-        running = observed_brier_delta
-        for k, max_case in enumerate(
-                sorted((x["brier_max"] for x in missing_counterfactual),
-                       reverse=True), 1):
-            running += max_case
-            if running >= 0:
-                sensitivity["minimum_adverse_missing_outcomes_to_reverse_observed_brier"] = k
-                break
+        if n and observed_brier_delta < 0:
+            running = observed_brier_delta
+            for k, max_case in enumerate(
+                    sorted((x["brier_max"] for x in missing_counterfactual),
+                           reverse=True), 1):
+                running += max_case
+                if running >= 0:
+                    sensitivity["minimum_adverse_missing_outcomes_to_reverse_observed_brier"] = k
+                    break
     if len(paired_race_deltas) != n:
         raise ValueError("leave_one_race_cohort_mismatch")
     for row in output["sample_by_day"].values():
