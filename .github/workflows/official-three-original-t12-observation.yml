@@ -1,11 +1,9 @@
 name: Official three-original T12 live research observation
 on:
-  # Nov 3 only; Python's exact 20261103 JST date guard rejects other years.
-  # Scheduled GitHub Actions may start late; all sources remain subject to cutoff.
-  schedule:
-    - cron: '20,25,30,40,48,50,51 6 3 11 *'
-    # 16:08/14/18 JST: Kiryu 4R has independently observed 16:35 deadline.
-    - cron: '8,14,18 7 3 11 *'
+  # The Nov 3 scheduled research campaign has ended. The UTC cron matching
+  # Nov 3 can run after midnight JST on Nov 4 with a stale Nov 3 race code.
+  # Preserve manual current-day observations, but never schedule yesterday's
+  # immutable race-code matrix on the next local date or in later years.
   pull_request:
     paths:
       - '.github/workflows/official-three-original-t12-observation.yml'
@@ -31,8 +29,9 @@ jobs:
       fail-fast: false
       matrix:
         # Different venues are PR research observations only.
-        # Scheduled jobs remain scoped exclusively to Toda 12R.
-        race_code: ${{ fromJSON(github.event_name == 'pull_request' && '["202611030104"]' || github.event_name == 'schedule' && github.event.schedule == '8,14,18 7 3 11 *' && '["202611030104"]' || '["202611030212"]') }}
+        # Dispatch uses the supplied current-day race_code instead.
+        # This fallback only drives safe PR fixtures.
+        race_code: ${{ fromJSON('["202611030104"]') }}
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
