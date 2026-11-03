@@ -132,7 +132,7 @@ def compile_asof_course_history(target, history, *, cutoff_at, entry=None, min_s
         # Published realtime CSVs include Japanese full-width spacing,
         # e.g. 2026-11-02: 「逃　げ」, which must normalize to 「逃げ」.
         # Never infer an unknown decision from the winning course.
-        decision = re.sub(r"\\s+", "", decision) if isinstance(decision, str) else None
+        decision = re.sub(r"\s+", "", decision) if isinstance(decision, str) else None
         if decision not in DECISIONS:
             decision = None
         # All validation above is race-atomic. Only now can we mark it used.
