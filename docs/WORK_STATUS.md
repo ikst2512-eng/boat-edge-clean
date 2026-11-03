@@ -119,6 +119,13 @@
 - 既存`.github/workflows/live-racecard-e2e.yml`のPR syntaxジョブに4件の決定的な回帰テストを追加。PR run `41664174030` はsyntax/過去出走表/確定結果/オッズの4ジョブsuccess、**e2e-live-raceはPRのためskipped**。CIが成功しても無人実レースT-12取得成功とは扱わない。GitHubの予定実行が予定時刻から遅れる問題と情報源の公開遅延は未解決。
 - 既存ジョブの予定時刻09:30/12:30/14:30/16:30/18:30/21:30 JST、買い目、予想ロジック、画面、有料サービスは不変更。次は11月4日の実scheduleで選択対象・受信証拠・T-12成立数を独立監査する。
 
+## 2026-11-04 JST 実schedule深夜起動とT-12展示候補の受信時刻整合性
+- GitHub Actionsのschedule event実行 `41663438908`（run start 2026-11-03 15:23:45 UTC = 11/4 00:23:45 JST、head `9cd5cd9e7aab4be5137a848422189c584201a004`）では、11/4の出走表3レース `202611042101`、`202611041001`、`202611042102` はCARD_PASSだが、tkz/stt/suiはいずれも`source_unavailable`、展示/進入0レースで`NO_SIX_BOAT_PREDEADLINE_EXHIBITION_VERIFIED`のfailure。予定cronは09:30/12:30/14:30/16:30/18:30/21:30 JSTだが、このrunがどの予定枠に対応するかの原本は未特定。前日21:30 JST予定からの遅延である**可能性**は高いが、遅延時間の確定値にはしない。
+- PR #1543 main squash `ca041863997ecaf5c70bb88962fdff18cf9265fa`。`scripts/verify_live_racecard_e2e.py`は無人scheduleの日本時間09:00〜22:59以外で`SCHEDULED_LIVE_SAMPLE_OUTSIDE_JST_RACING_WINDOW`を出し、適格性なしとして失敗。日付が変わった後の翌日未公開展示を通常の展示ソース障害成功/失敗と混同しない。手動診断での時間帯制約は追加しない。
+- 以前の`PREVIEW_CANDIDATES`評価では独立したtkz/sttの各HTTP読込後の`取得日時`を開始時刻とではなく最新の評価時刻で複数回比較していた。これを各情報源のHTTP読込完了直後の`source_received_at_jst`で固定し、取得日時<=受信完了時刻、両時刻が締切より前かつ当日レース一致の場合だけ候補にする。受信後時刻や締切後のデータを成功扱いしない。ソース取得終了後`selection_at_jst`で候補を再順位付けしてT-12残余時間を確認する。API側の締切12分前受領、tkz/stt両観測が締切12分前である実証条件は維持。
+- 既存`tests/test_live_racecard_candidate_priority.py`は8件へ増強。PR CI `41665568784` のsyntax+8テスト/歴史出走表/結果/オッズ成功。e2e-live-raceはPR由来のためskippedで、**無人実レースT-12の成立を認定しない**。新規scheduleや有料サービス、予想買い目/モデル変更なし。
+- 次は11/4以降の正規schedule発火時刻・runごとのイベント・CSV元2系統のHTTP受信時刻・API受信時刻・T-12可否を照合。時刻外の実行はcoverage失敗として数え、データ不足だけに転嫁しない。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
