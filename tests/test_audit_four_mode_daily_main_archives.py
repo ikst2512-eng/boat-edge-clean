@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -100,6 +100,52 @@ class DailyMainArchivesTest(unittest.TestCase):
         matched, bad, unknown = reconcile_research_rosters_with_main(
             "20261104", [P], {P: [A]}, [{"runs": [row]}])
         self.assertEqual((matched, bad, unknown), ([], [], [415]))
+
+    def test_later_unpublished_candidates_detected_after_prior_good_push(self):
+        evidence = {"runs": [
+            {"run_id": 410, "created_at": "2026-11-04T00:07:00Z",
+             "artifact_present": True, "newly_generated": 2,
+             "staged_valid": 2, "publication_outcome": "pushed_to_main",
+             "claimed_added_forecasts": 2},
+            {"run_id": 411, "created_at": "2026-11-04T00:22:00Z",
+             "artifact_present": True, "newly_generated": 1,
+             "staged_valid": 1, "publication_outcome": "failed"},
+            {"run_id": 412, "created_at": "2026-11-04T00:37:00Z",
+             "artifact_present": True, "newly_generated": 0,
+             "staged_valid": 0, "publication_outcome": "no_eligible_candidates"}]}
+        broken = unpublished_new_candidate_runs("20261104", [evidence])
+        self.assertEqual([r["run_id"] for r in broken], [411])
+        self.assertEqual(broken[0]["reason"], "new_candidates_without_successful_push")
+        # This is an independent alert even with existing 11/4 Git archives.
+        report = audit("20261104", [P, P2], {P: [A], P2: [A]}, main_context=True)
+        self.assertEqual(report["assessment"], "new_day_git_archives_found")
+        script = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn('and report["unpublished_new_candidate_runs"]', script)
+
+    def test_partially_pushed_same_run_is_an_explicit_mismatch(self):
+        evidence = {"runs": [{
+            "run_id": 420, "created_at": "2026-11-04T00:07:00Z",
+            "artifact_present": True, "newly_generated": 3,
+            "staged_valid": 3, "publication_outcome": "pushed_to_main",
+            "claimed_added_forecasts": 2}]}
+        problem = unpublished_new_candidate_runs("20261104", [evidence])
+        self.assertEqual([x["run_id"] for x in problem], [420])
+        self.assertEqual(problem[0]["reason"], "candidate_count_exceeds_push_claim")
+
+    def test_new_candidate_failure_is_day_scoped_and_deduplicated(self):
+        row = {"run_id": 430, "created_at": "2026-11-04T00:07:00Z",
+               "artifact_present": True, "newly_generated": 1,
+               "staged_valid": 0, "publication_outcome": "no_eligible_candidates"}
+        self.assertEqual([r["run_id"] for r in unpublished_new_candidate_runs(
+            "20261104", [{"runs": [row]}, {"runs": [{**row}]}])], [430])
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261105", [{"runs": [row]}]), [])
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261104", [{"runs": [{**row, "artifact_present": False}]}]), [])
+        self.assertEqual(unpublished_new_candidate_runs(
+            "20261104", [{"runs": [{**row, "newly_generated": None,
+                                  "staged_valid": None}]}]), [])
 
     def test_claimed_push_matches_actual_first_add_commit_and_count(self):
         row = {"run_id": 415, "created_at": "2026-11-04T00:07:00Z",

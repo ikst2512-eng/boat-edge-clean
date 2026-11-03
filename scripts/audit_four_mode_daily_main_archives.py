@@ -180,6 +180,58 @@ def positive_eligible_run_ids(day, evidence_reports):
 
 
 
+def unpublished_new_candidate_runs(day, evidence_reports):
+    """Find same-day positive new candidates without a complete push claim.
+
+    An earlier successful push does not excuse a later run that staged more
+    candidates but failed to publish them. Missing artifacts are UNKNOWN.
+    """
+    problems = {}
+    for evidence in evidence_reports:
+        if not isinstance(evidence, dict) or not isinstance(evidence.get("runs"), list):
+            continue
+        for row in evidence["runs"]:
+            if not isinstance(row, dict) or row.get("artifact_present") is not True:
+                continue
+            try:
+                stamp = datetime.fromisoformat(
+                    row["created_at"].replace("Z", "+00:00"))
+                if (stamp.tzinfo is None
+                        or stamp.astimezone(JST).strftime("%Y%m%d") != day):
+                    continue
+            except (KeyError, AttributeError, TypeError, ValueError):
+                continue
+            rid = row.get("run_id")
+            if type(rid) is not int or rid <= 0:
+                continue
+            generated = row.get("newly_generated")
+            staged = row.get("staged_valid")
+            published = row.get("claimed_added_forecasts")
+            positive = [v for v in (generated, staged)
+                        if type(v) is int and v > 0]
+            if not positive:
+                continue
+            outcome = row.get("publication_outcome")
+            if outcome == "pushed_to_main":
+                # The push claim is separately reconciled against main first-
+                # add history. Here detect partial intra-run publication.
+                if type(published) is int and published >= max(positive):
+                    continue
+                reason = "candidate_count_exceeds_push_claim"
+            elif outcome in ("failed", "no_eligible_candidates"):
+                reason = "new_candidates_without_successful_push"
+            else:
+                # Missing/legacy receipt cannot establish a failure.
+                continue
+            problems.setdefault(rid, {
+                "run_id": rid, "reason": reason,
+                "newly_generated": generated, "staged_valid": staged,
+                "publication_outcome": outcome,
+                "claimed_added_forecasts": published,
+            })
+    return [problems[key] for key in sorted(problems)]
+
+
 def reconcile_claimed_pushes(day, paths, additions, evidence_reports):
     """Cross-check artifact push claims against same-day first-add Git history.
 
@@ -403,6 +455,7 @@ def main():
             evidence.append(None)
     eligible_ids = positive_eligible_run_ids(day, evidence)
     report["matching_day_eligible_capture_run_ids"] = eligible_ids
+    report["unpublished_new_candidate_runs"] = unpublished_new_candidate_runs(day, evidence)
     report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
     report["github_observation_failure_run_ids"] = github_observation_failure_run_ids(day, evidence)
     verified_claims, mismatched_claims = reconcile_claimed_pushes(
@@ -425,6 +478,11 @@ def main():
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_MAIN_ARCHIVES=" + json.dumps(report, sort_keys=True))
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["unpublished_new_candidate_runs"]):
+        print("::error::Same-day V2 capture staged or generated new races without a complete publication claim")
+        raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["github_observation_failure_run_ids"]):
