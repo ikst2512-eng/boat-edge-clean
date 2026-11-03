@@ -1,5 +1,6 @@
 import json
 import subprocess
+import threading
 import unittest
 from pathlib import Path
 
@@ -15,6 +16,22 @@ class ScheduledEvidenceTest(unittest.TestCase):
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value), encoding="utf-8")
+
+    def test_bounded_parallel_downloads_keep_original_run_order(self):
+        runs = [
+            {"id": 300 + i, "created_at": "2026-11-04T00:07:00Z",
+             "capture_conclusion": "success", "failed_steps": []}
+            for i in range(4)
+        ]
+        barrier = threading.Barrier(4, timeout=5)
+        def download(run_id, root):
+            barrier.wait()
+            self.save(root, "four-mode-evidence/staging.json",
+                      {"staged_valid": run_id})
+        result = report({"runs": runs}, download)
+        self.assertEqual(
+            [(row["run_id"], row["staged_valid"]) for row in result["runs"]],
+            [(300 + i, 300 + i) for i in range(4)])
 
     def test_morning_nine_scheduled_runs_include_earliest_publication_evidence(self):
         # Chronological GitHub listing is newest first; the first 07:07
