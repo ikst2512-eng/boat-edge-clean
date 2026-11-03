@@ -30,6 +30,9 @@ jobs:
       - name: Verify parent event and preserve ineligible evidence
         id: gate
         run: python scripts/gate_live_odds_event.py
+      - name: Verify fallback event classification
+        if: steps.gate.outputs.collect == 'true'
+        run: python -m unittest discover -s tests -p test_gate_live_odds_event.py -v
       - name: Verify read-only live odds metric classification
         if: steps.gate.outputs.collect == 'true'
         run: python -m unittest discover -s tests -p test_probe_live_odds_health.py -v
