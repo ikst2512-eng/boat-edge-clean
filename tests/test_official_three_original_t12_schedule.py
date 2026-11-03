@@ -4,17 +4,15 @@ from pathlib import Path
 
 
 class NearCutoffScheduleTests(unittest.TestCase):
-    def test_cron_is_narrow_and_targets_same_exact_race(self):
+    def test_expired_one_day_campaign_is_retired_but_manual_observation_remains(self):
         workflow = Path(".github/workflows/official-three-original-t12-observation.yml").read_text()
         observer = Path("scripts/observe_three_official_t12_originals.py").read_text()
-        self.assertIn("schedule:", workflow)
-        self.assertIn("cron: '20,25,30,40,48,50,51 6 3 11 *'", workflow)
-        self.assertIn('|| \'["202611030212"]\'', workflow)
+        self.assertNotIn("\\n  schedule:", workflow)
+        self.assertNotIn("cron:", workflow)
         self.assertIn("format('-{0}', matrix.race_code)", workflow)
-        self.assertIn("202611030212", workflow)
         self.assertIn("202611030104", workflow)
         self.assertNotIn('["202611030212","202611030612","202611030412","202611030104"]', workflow)
-        self.assertIn("github.event_name == 'pull_request'", workflow)
+        self.assertIn("  observe:\\n    if: github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("matrix.race_code", workflow)
         self.assertIn("strategy:", workflow)
@@ -27,8 +25,6 @@ class NearCutoffScheduleTests(unittest.TestCase):
             "scripts/inspect_official_beforeinfo_json.py",
         ):
             self.assertIn(audited_path, workflow)
-        self.assertIn("cron: '8,14,18 7 3 11 *'", workflow)
-        self.assertIn("github.event.schedule", workflow)
         self.assertIn('202611030104', workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("datetime.now(JST)", observer)
