@@ -23,7 +23,7 @@ FILE = re.compile(r"four_mode_forecasts/(20[0-9]{10})\.json\Z")
 JST = timezone(timedelta(hours=9))
 
 
-def freeze_published(root, evidence_path, now=None, git=None):
+def freeze_published(root, evidence_path, now=None, git=None, clock=None):
     root = Path(root)
     evidence_path = Path(evidence_path)
     result = {
@@ -55,6 +55,7 @@ def freeze_published(root, evidence_path, now=None, git=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("naive_capture_time")
+    clock = clock or (lambda: now if fixed_test_clock else datetime.now(timezone.utc))
     git = git or (lambda args: subprocess.check_output(
         ["git", *args], cwd=root, text=True, timeout=30))
     if git(["rev-parse", "HEAD"]).strip() != sha:
@@ -108,7 +109,9 @@ def freeze_published(root, evidence_path, now=None, git=None):
                     picks, _ = candidate(baseline, rates, board)
                     # Recheck at the end of modeling. A start-time check alone
                     # can falsely pass if processing crosses the cutoff.
-                    finished_at = now if fixed_test_clock else datetime.now(timezone.utc)
+                    finished_at = clock()
+                    if finished_at.tzinfo is None:
+                        raise ValueError("naive_finished_time")
                     if finished_at >= cutoff:
                         record["reason"] = "calculation_crossed_t_minus_12"
                         result["records"].append(record)
