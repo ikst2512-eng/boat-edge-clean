@@ -48,6 +48,15 @@ def collected_files(root, race, obs_id, report):
             "research_components_complete_by_t12", "research_components_incomplete"):
         if len(files) != 7:
             raise ValueError("complete fetch status requires all three original pairs")
+        for part, names in SOURCE_NAMES.items():
+            pair = {name: files[f"{prefix}/{part}/{name}"] for name in names}
+            original, manifest_bytes = pair[names[0]], pair[names[1]]
+            manifest = json.loads(manifest_bytes)
+            if (manifest.get("race_code") != race
+                    or manifest.get("sha256") != hashlib.sha256(original).hexdigest()
+                    or manifest.get("bytes") != len(original)):
+                raise ValueError("original bytes and manifest disagree")
+
     if sum(len(raw) for raw in files.values()) > 9_000_000:
         raise ValueError("excessive original evidence size")
     return files
@@ -69,10 +78,10 @@ def github_api(repo, token, method, endpoint, data=None):
 
 def publish_originals(repo, branch, token, files, *, api=github_api):
     """Single non-force Git commit, optimistic ref update. No main branch writes."""
-    if (not BRANCH.fullmatch(branch) or ".." in branch or "//" in branch
-            or branch.startswith("/") or branch.endswith("/") or branch == "main"
-            or branch.startswith("refs/")):
-        raise ValueError("invalid non-production evidence branch")
+    # Writing to any arbitrary non-main branch is not safe: the evidence
+    # runner must have exactly one preapproved destination.
+    if branch != "research-t12-external-evidence":
+        raise ValueError("invalid dedicated evidence branch")
     if not files or len(files) > 8:
         raise ValueError("invalid evidence count")
     ref = api(repo, token, "GET", "git/ref/heads/" + quote(branch, safe="/"))
