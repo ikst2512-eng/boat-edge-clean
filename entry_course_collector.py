@@ -85,6 +85,44 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     remaining=(late-now()).total_seconds()
     if remaining<45:
         return {"status":"too_close_to_late_cutoff","stored":False,"race_code":code,"research_only":True}
+    if card_reader is None:
+        from clean_racecard import racecard
+        card_reader=racecard
+    # Read the real race preview first; do not download 62 historical CSVs
+    # when the T-5 preview is still unpublished.
+    from entry_course_prospective_capture import _entry_from_preview
+    card=None
+    preview_error="late_preview_unavailable"
+    preview_attempts=0
+    for i in range(3):
+        if now()>=late-timedelta(seconds=10):
+            break
+        preview_attempts+=1
+        try:
+            observed=card_reader(code[:8],code[8:10],code[10:12])
+            meta=observed.get("meta",{})
+            if (observed.get("race_key")!=f"{code[:8]}-{code[8:10]}-{code[10:]}"
+                    or meta.get("phase")!="PRE_RESULT"
+                    or meta.get("results_seen") is not False):
+                raise ValueError("not_verified_same_race_preresult")
+            _, preview_receipts=_entry_from_preview(
+                observed,late)
+            from entry_course_prospective_capture import _when
+            if any(_when(item["received_at"])>now() for item in preview_receipts):
+                raise ValueError("preview_receipt_after_current_clock")
+            card=observed
+            break
+        except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
+            preview_error=str(exc) or type(exc).__name__
+        if i<2 and now()+timedelta(seconds=35)<late:
+            sleep(35)
+        else:
+            break
+    if card is None:
+        return {"status":"preview_not_ready","stored":False,
+                "race_code":code,"preview_attempts":preview_attempts,
+                "reason":preview_error,"historical_requests":0,
+                "research_only":True}
     cache,fetch_errors=prefetch(code[:8])
     if now()>=late:
         return {"status":"history_fetch_crossed_late_cutoff","stored":False,"race_code":code,
@@ -99,39 +137,35 @@ def attempt(root, *, now=None, prefetch=historical_prefetch,
     if not batch["history"]:
         return {"status":"no_verified_historical_pairs","stored":False,
                 "race_code":code,"source_failures":len(fetch_errors),"research_only":True}
-    if card_reader is None:
-        from clean_racecard import racecard
-        card_reader=racecard
     reason="late_preview_unavailable"
-    # At most three attempts; no polling or storage after the research cutoff.
-    for attempt_number in range(3):
-        if now()>=late-timedelta(seconds=10):
-            break
-        try:
-            card=card_reader(code[:8],code[8:10],code[10:12])
-            candidate=prepare_late_preview_study(
-                base,card,batch,frozen_at=now().isoformat(),min_starts=min_starts)
-        except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
-            reason=str(exc) if str(exc) else type(exc).__name__
-        else:
-            dest=output_dir or (Path(root)/"entry_course_attempts")
-            path=freeze_capture(candidate,dest,clock=now)
-            if now()>=late:
-                raise ValueError("late_study_remote_publish_cutoff_exceeded")
-            if ledger_ops is None:
-                ledger_ops=github_ops(os.environ["GITHUB_REPOSITORY"])
-            remote_read,remote_create=ledger_ops
-            verdict=publish(path.read_bytes(),remote_read,remote_create,clock=now)
-            verdict["race_code"]=code
-            verdict["source_failures"]=len(fetch_errors)
-            return verdict
-        if attempt_number<2 and now()+timedelta(seconds=35)<late:
-            sleep(35)
-        else:
-            break
-    return {"status":"ineligible_late_study","stored":False,
-            "race_code":code,"reason":reason,"source_failures":len(fetch_errors),
-            "research_only":True}
+    # Preview has been preflighted; use a fresh frozen_at after all source reads.
+    # A result or future receipt must never be used to repair this cohort.
+    if now()>=late-timedelta(seconds=10):
+        return {"status":"history_fetch_too_close_to_cutoff",
+                "stored":False,"race_code":code,
+                "source_failures":len(fetch_errors),"research_only":True}
+    try:
+        candidate=prepare_late_preview_study(
+            base,card,batch,frozen_at=now().isoformat(),min_starts=min_starts)
+    except (ValueError,OSError,KeyError,TypeError,TimeoutError) as exc:
+        return {"status":"ineligible_late_study","stored":False,
+                "race_code":code,"reason":str(exc) or type(exc).__name__,
+                "preview_attempts":preview_attempts,
+                "eligible_historical_pairs":len(batch["history"]),
+                "source_failures":len(fetch_errors),"research_only":True}
+    dest=output_dir or (Path(root)/"entry_course_attempts")
+    path=freeze_capture(candidate,dest,clock=now)
+    if now()>=late:
+        raise ValueError("late_study_remote_publish_cutoff_exceeded")
+    if ledger_ops is None:
+        ledger_ops=github_ops(os.environ["GITHUB_REPOSITORY"])
+    remote_read,remote_create=ledger_ops
+    verdict=publish(path.read_bytes(),remote_read,remote_create,clock=now)
+    verdict["race_code"]=code
+    verdict["source_failures"]=len(fetch_errors)
+    verdict["preview_attempts"]=preview_attempts
+    verdict["eligible_historical_pairs"]=len(batch["history"])
+    return verdict
 
 
 def main():
