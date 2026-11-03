@@ -62,6 +62,54 @@ class FutureLockedEvaluationTests(unittest.TestCase):
             r=evaluate(self.root,date(2026,11,4))
         self.assertEqual(r["comparable"],0)
         self.assertEqual(r["excluded_by_reason"],{"local_timing_invalid":1})
+    def test_daily_model_denominators_and_evidence_gate(self):
+        second="202611050101"
+        third="202611050102"
+        (self.root/"four_mode_forecasts"/(second+".json")).write_text("{}")
+        (self.root/"four_mode_forecasts"/(third+".json")).write_text("{}")
+        def archive(code,root):
+            template=dict(self.archive)
+            if code!=CODE:
+                template["deadline_jst"]="2026-11-05T10:00:00+09:00"
+                template["generated_at_jst"]="2026-11-05T09:00:00+09:00"
+                template["model_version"]="CLEAN_FOUR_MODES_V1_UNCALIBRATED"
+            return 200,template
+        def confirmed(code,root):
+            if code==third:
+                return {"status":"result_unavailable"}
+            return {"status":"historical_comparison_only",
+                    "winning_ticket":"1-5-3" if code==CODE else "1-2-3"}
+        with patch("hole_future_locked_eval.archived_four_modes",side_effect=archive),patch(
+            "hole_future_locked_eval.national_rates",return_value=None),patch(
+            "hole_future_locked_eval.variants",return_value=self.picks),patch(
+            "hole_future_locked_eval.compare_race",side_effect=confirmed):
+            output=evaluate(self.root,date(2026,11,5))
+        self.assertEqual(output["scanned_valid_date_codes"],3)
+        self.assertEqual(output["comparable"],2)
+        self.assertEqual(output["excluded_by_reason"],{"unconfirmed_result":1})
+        self.assertEqual(output["by_day"]["2026-11-04"]["comparable"],1)
+        self.assertEqual(output["by_day"]["2026-11-05"]["scanned"],2)
+        self.assertEqual(output["by_day"]["2026-11-05"]["comparable"],1)
+        self.assertEqual(output["by_day"]["2026-11-05"]["excluded"],{"unconfirmed_result":1})
+        self.assertEqual(
+            output["by_model_version"]["CLEAN_FOUR_MODES_V1_UNCALIBRATED"]["comparable"],1)
+        self.assertEqual(
+            output["by_model_version"]["CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"]["comparable"],1)
+        self.assertEqual(output["by_day"]["2026-11-04"]["hits"]["third_national_rate"]["top10"],1)
+        self.assertEqual(output["hits"]["third_national_rate"]["top10"],2)
+        self.assertFalse(output["evidence_quality"]["independent_remote_first_receipt_proof_present"])
+        self.assertFalse(output["evidence_quality"]["eligible_for_formal_accuracy"])
+
+    def test_missing_result_is_counted_by_day_not_a_hit(self):
+        with patch("hole_future_locked_eval.archived_four_modes",return_value=(200,self.archive)),patch(
+            "hole_future_locked_eval.national_rates",return_value=None),patch(
+            "hole_future_locked_eval.variants",return_value=self.picks),patch(
+            "hole_future_locked_eval.compare_race",return_value={"status":"result_unavailable"}):
+            result=evaluate(self.root,date(2026,11,4))
+        self.assertEqual(result["by_day"]["2026-11-04"]["scanned"],1)
+        self.assertEqual(result["by_day"]["2026-11-04"]["comparable"],0)
+        self.assertEqual(result["by_day"]["2026-11-04"]["excluded"]["unconfirmed_result"],1)
+        self.assertEqual(result["by_model_version"],{})
     def test_reject_invalid_window(self):
         with self.assertRaises(ValueError):evaluate(self.root,date(2026,11,4),days=32)
 
