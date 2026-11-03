@@ -69,8 +69,8 @@ class PendingResultCoverageTests(unittest.TestCase):
             confirmed=root/"confirmed_results"
             confirmed.mkdir()
             (confirmed/(code+".json")).write_text("{}")
-            raw=("レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
-                 "202610290101,2026-10-29T15:00:00+09:00,1,2,3\\n").encode()
+            raw=("レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
+                 "202610290101,2026-10-29T15:00:00+09:00,1,2,3\n").encode()
             output=diagnose_source_gaps("20261029",root,download=lambda _:raw)
             self.assertEqual(output["unresolved"],1)
             self.assertEqual(output["reasons"][code],"row_present_requires_review")
