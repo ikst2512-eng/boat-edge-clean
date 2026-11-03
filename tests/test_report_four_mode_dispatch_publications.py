@@ -57,6 +57,31 @@ class DispatchEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             dispatch_history({"recent_capture_runs": [unexpected]})
 
+    def test_earliest_fallback_push_not_hidden_by_eight_later_noops(self):
+        # Latest first: six-run reporting would miss the early push.
+        runs = [run(120 - i) for i in range(9)]
+        def download(run_id, root):
+            p = root / "four-mode-evidence"
+            p.mkdir(parents=True)
+            payload = ({"outcome": "pushed_to_main",
+                        "added_forecasts": 3, "commit_sha": "a" * 40}
+                       if run_id == 112 else {"outcome": "no_eligible_candidates"})
+            (p / "publication.json").write_text(json.dumps(payload), encoding="utf-8")
+        result = inspect_dispatches({"recent_capture_runs": runs}, download)
+        self.assertEqual(result["dispatch_runs_checked"], 9)
+        self.assertEqual(result["runs"][-1]["run_id"], 112)
+        self.assertEqual(result["runs_claiming_push"], 1)
+        self.assertEqual(result["claimed_added_forecasts_sum"], 3)
+
+    def test_dispatch_evidence_bound_remains_explicit(self):
+        history = {"recent_capture_runs": [run(200 - i) for i in range(15)]}
+        checked = []
+        result = inspect_dispatches(history, lambda rid, _: checked.append(rid))
+        self.assertEqual(result["dispatch_runs_checked"], 12)
+        self.assertEqual(result["history_runs_omitted"], 3)
+        self.assertEqual(len(checked), 12)
+        self.assertFalse(result["remote_main_verified"])
+
     def test_limit_and_identity_rules(self):
         rows = dispatch_history({"recent_capture_runs": [run(3), run(2), run(1)]}, limit=2)
         self.assertEqual([x["id"] for x in rows["runs"]], [3, 2])
