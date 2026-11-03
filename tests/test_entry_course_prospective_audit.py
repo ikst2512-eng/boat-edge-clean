@@ -13,7 +13,7 @@ def base():
 def candidate():
     return {"race_code":CODE,"frozen_at":"2026-10-31T18:10:00+09:00",
             "cutoff_at":CUTOFF,"entry":[1,2,3,4,5,6],
-            "entry_source":"verified_independent_preview","research_only":True,
+            "entry_source":"third_party_timestamped_preview","research_only":True,
             "source_receipts":[{"received_at":"2026-10-31T18:00:00+09:00","sha256":"e"*64}],
             "baseline":T[:],"course":T[::-1],"course_plus_st":T[:]}
 def result():
