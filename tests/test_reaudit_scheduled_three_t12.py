@@ -32,6 +32,7 @@ def source_archive(run_id, status="research_components_incomplete"):
               "forecast_usable": False, "full_t12_source_certified": False,
               "audit": {"component_checks": {"exhibition_times_six": False},
                         "missing_components": ["exhibition_times_six"],
+                        "all_research_components_observed_by_t12": False,
                         "cutoff_jst": "2026-11-03T15:53:00+09:00",
                         "racelist_received_jst": "2026-11-03T15:45:00+09:00",
                         "beforeinfo_received_jst": "2026-11-03T15:44:00+09:00",
@@ -73,6 +74,11 @@ class T12ScheduledAuditTests(unittest.TestCase):
         other["component_checks"] = {"exhibition_times_six": True}
         with self.assertRaisesRegex(ValueError, "disagrees"):
             audit_artifact(source_archive(123), 123, auditor=lambda *args: other)
+
+    def test_declared_research_status_cannot_override_independent_origins(self):
+        original = source_archive(123, status="research_components_complete_by_t12")
+        with self.assertRaisesRegex(ValueError, "completion status disagrees"):
+            audit_artifact(original, 123, auditor=lambda *args: independent_result())
 
     def test_duplicate_scheduled_run_rejected(self):
         x = {"id": 99, "event": "schedule", "created_at": "2026-11-03T06:30:00Z"}
