@@ -69,8 +69,6 @@ class T12SeedTests(unittest.TestCase):
             def make(day,venue,race):
                 seen.append(day+venue+race)
                 d=base();d["race_code"]=more
-                # The fixture's only purpose is to test selection and
-                # immutable bytes, not to construct a post-result forecast.
                 saver(more).write_bytes(json.dumps(d).encode())
             output=seed_once(now=lambda:NOW,fetch_title=lambda url:original,
                 fallback_title=lambda day:(
@@ -79,14 +77,15 @@ class T12SeedTests(unittest.TestCase):
                     NOW,"a"*64),
                 predictor=make,record_path=saver,
                 ledger_ops=(store.get,lambda k,v:store.setdefault(k,v)))
-            # Missing live race is discovered; source consistency and model
-            # integrity still gate any actual archival.
+            # The live-supplemented race receives a genuine test-fixture
+            # archive while the unrelated published race is left untouched.
             self.assertEqual(output["title_schedule_source"],
                              "published_title_plus_live_checked")
             self.assertEqual(output["eligible_count"],1)
             self.assertEqual(seen,[more])
-            self.assertEqual(output["stored_count"],0)
-            self.assertEqual(output["results"][0]["status"],"failed")
+            self.assertEqual(output["stored_count"],1)
+            self.assertEqual(output["results"][0]["status"],"new_t12_baseline")
+            self.assertIn("t12_baselines/20261103/"+more+".json",store)
     def test_conflicting_deadline_is_not_selected(self):
         partial=(f"レースコード,電話投票締切予定\\n{CODE},18:33\\n").encode()
         output=seed_once(now=lambda:NOW,
