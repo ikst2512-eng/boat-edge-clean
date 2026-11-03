@@ -68,7 +68,7 @@ def reconcile(root, start, end_exclusive, observed_codes, scored_codes):
             "confirmed_missing_shadow_codes":not_observed,
             "confirmed_unscored_shadow_codes":unscored_observed,
             "pending_with_shadow_codes":late_result_pending,
-            "all_archived_scored":len(not_scored_codes)==0 and not excluded and not pending_codes,
+            "all_archived_scored":bool(confirmed_codes) and len(not_scored_codes)==0 and not excluded and not pending_codes,
             "capture_window_complete_proven":False,
             "formal":False,"independent_first_receipt_verified":False,
             "production_forecast_changed":False,
