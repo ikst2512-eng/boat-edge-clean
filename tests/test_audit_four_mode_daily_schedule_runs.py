@@ -22,6 +22,22 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertIn("reports/four_mode_schedule_publications.json", workflow)
         self.assertIn("reports/four_mode_daily_schedule_metadata.json", workflow)
 
+    def test_independent_fallback_diagnostics_run_despite_upstream_failure(self):
+        from pathlib import Path
+        workflow = Path(".github/workflows/four-mode-schedule-inventory.yml").read_text(
+            encoding="utf-8")
+        for step in (
+            "Compare scheduled runs with fallback dispatch and watchdog history",
+            "Audit fallback dispatch publication artifacts using existing evidence checks",
+            "Audit watchdog decision artifacts and subsequent capture timing",
+        ):
+            with self.subTest(step=step):
+                self.assertIn("name: " + step + "\n        if: always()", workflow)
+        self.assertIn("reports/four_mode_watchdog_dispatch.json", workflow)
+        self.assertIn("reports/four_mode_dispatch_publications.json", workflow)
+        self.assertIn("reports/four_mode_watchdog_artifact_decisions.json", workflow)
+        self.assertIn("name: Confirm today's first-add archive presence in checked-out Git main\n        if: always()", workflow)
+
     def test_full_day_detects_early_failure_outside_last_twelve_artifacts(self):
         latest = datetime(2026, 11, 4, 20, 52,
                           tzinfo=timezone(timedelta(hours=9)))
