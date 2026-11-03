@@ -84,16 +84,18 @@ class AIReviewGuardTests(unittest.TestCase):
                         self.assertIn("sha=head-a", output.read_text())
                         self.assertIn("main_sha=main-a", output.read_text())
 
-    def test_final_head_and_main_race_guard(self):
+    def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
         block = workflow.split("      - name: Check PR head did not change during validation\n", 1)[1]
         block = block.split("      - name: Review note\n", 1)[0]
         script = block.split("        run: |\n", 1)[1]
         script = "\n".join(line[10:] if line.startswith("          ") else line
                            for line in script.splitlines())
+        script = script.replace("'/tmp/final-ai-pr.json'",
+                                "os.environ['MOCK_FINAL_PR']")
         mock_gh = """gh() {
           case "$*" in
-            *"/pulls/"*) printf '%s\\n' "$LIVE_HEAD" ;;
+            *"/pulls/"*) cat "$MOCK_FINAL_PR" ;;
             *"/git/ref/heads/main"*) printf '%s\\n' "$LIVE_MAIN" ;;
             *) return 2 ;;
           esac
@@ -103,20 +105,34 @@ class AIReviewGuardTests(unittest.TestCase):
         syntax = subprocess.run(["bash", "-n"], input=command, text=True,
                                 capture_output=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
-        for live_head, live_main, expected in (
-            ("head-a", "main-a", 0),
-            ("head-b", "main-a", 1),
-            ("head-a", "main-b", 1),
-            ("head-a", "", 1),
-        ):
-            with self.subTest(live_head=live_head, live_main=live_main):
-                env = dict(os.environ, GITHUB_REPOSITORY="example/repo", PR_NUMBER="42",
-                           CHECKED_SHA="head-a", CHECKED_MAIN_SHA="main-a",
-                           LIVE_HEAD=live_head, LIVE_MAIN=live_main)
-                result = subprocess.run(["bash", "-c", command], text=True,
-                                        capture_output=True, env=env)
-                self.assertEqual(result.returncode, expected,
-                                 result.stdout + result.stderr)
+        cases = (
+            ("valid", "head-a", "main-a", "open", True, "main-a", 1, 0),
+            ("changed-head", "head-b", "main-a", "open", True, "main-a", 1, 1),
+            ("changed-main", "head-a", "main-b", "open", True, "main-a", 1, 1),
+            ("missing-main", "head-a", "", "open", True, "main-a", 1, 1),
+            ("closed", "head-a", "main-a", "closed", True, "main-a", 1, 1),
+            ("ready", "head-a", "main-a", "open", False, "main-a", 1, 1),
+            ("changed-base", "head-a", "main-a", "open", True, "main-b", 1, 1),
+            ("multiple-commits", "head-a", "main-a", "open", True, "main-a", 2, 1),
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "final-pr.json"
+            for label, head, main, state, draft, base, count, expected in cases:
+                with self.subTest(case=label):
+                    fixture.write_text(json.dumps({
+                        "state": state, "draft": draft, "commits": count,
+                        "head": {"sha": head, "ref": "ai/repair-42",
+                                 "repo": {"full_name": "example/repo"}},
+                        "base": {"ref": "main", "sha": base}
+                    }))
+                    env = dict(os.environ, GITHUB_REPOSITORY="example/repo",
+                               PR_NUMBER="42", CHECKED_SHA="head-a",
+                               CHECKED_MAIN_SHA="main-a", LIVE_MAIN=main,
+                               MOCK_FINAL_PR=str(fixture))
+                    result = subprocess.run(["bash", "-c", command], text=True,
+                                            capture_output=True, env=env)
+                    self.assertEqual(result.returncode, expected,
+                                     label + result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
