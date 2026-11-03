@@ -57,9 +57,11 @@ def aggregate(root,artifacts,window_start=None,window_end_exclusive=None):
             # Record duplicate codes regardless of whether a result is currently settled.
             for record in records:
                 code=record.get("race_code") if isinstance(record,dict) else None
-                if isinstance(code,str) and re.fullmatch(r"20\d{10}",code) and code[:8]>="20261104":
+                if in_window(code):
                     if code in all_rows:duplicates.add(code)
                     all_rows.setdefault(code,None)
+                elif first is not None and isinstance(code,str) and re.fullmatch(r"20[0-9]{10}",code):
+                    outside_window.add(code)
             scored=audit(root,path)
         except (OSError,UnicodeError,ValueError,KeyError,TypeError) as exc:
             nonusable[type(exc).__name__]+=1;continue
