@@ -50,8 +50,27 @@ def _valid_daily_partition(capture):
     score_codes = [row.get("race_code") for row in paired_scores
                    if type(row) is dict]
     if (len(score_codes) != capture["paired"]
+            or any(type(code) is not str for code in score_codes)
             or sorted(score_codes) != sorted(overall_codes)):
         return False
+    # Validate and recompute the arithmetic from individual *frozen* paired
+    # race outcomes. A coherent-looking but tampered aggregate is not proof.
+    by_race = {}
+    for row in paired_scores:
+        code = row["race_code"]
+        topn = row.get("topn")
+        if type(topn) is not dict or set(topn) != set(TOPS):
+            return False
+        for n in TOPS:
+            values = topn[n]
+            if (type(values) is not dict or set(values) != set(FIELDS)
+                    or any(type(values[k]) is not int or
+                           values[k] not in (0, 1) for k in FIELDS)
+                    or values["candidate"] - values["baseline"]
+                       != values["gained"] - values["lost"]
+                    or (values["gained"] and values["lost"])):
+                return False
+        by_race[code] = topn
     paired_total = 0
     all_day_codes = []
     totals = {key: {field: 0 for field in FIELDS} for key in TOPS}
@@ -65,6 +84,8 @@ def _valid_daily_partition(capture):
                 or any(type(code) is not str or code[:8] != day
                        for code in codes)
                 or len(set(codes)) != len(codes)):
+            return False
+        if any(code not in by_race for code in codes):
             return False
         all_day_codes.extend(codes)
         paired_total += group["paired"]
@@ -80,6 +101,8 @@ def _valid_daily_partition(capture):
                        != values["gained"] - values["lost"]):
                 return False
             for field in FIELDS:
+                if values[field] != sum(by_race[code][n][field] for code in codes):
+                    return False
                 totals[n][field] += values[field]
     if (paired_total != capture["paired"]
             or sorted(all_day_codes) != sorted(overall_codes)):
