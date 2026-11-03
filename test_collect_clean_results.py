@@ -87,7 +87,7 @@ class ResultCollectorTests(unittest.TestCase):
         self.assertEqual(reasons["202610280102"],"invalid_or_unfinished_finish")
         self.assertEqual(reasons["202610280103"],"not_in_published_csv")
     def test_overdue_gap_diagnosis_matches_collector_timestamp_rejections(self):
-        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n".replace("\\\\n", "\\n")
+        header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\n"
         entries=[
             ("202610280101","not-a-time","invalid_source_timestamp"),
             ("202610280102","2026-10-28T12:00:00","invalid_source_timestamp"),
@@ -95,7 +95,7 @@ class ResultCollectorTests(unittest.TestCase):
             ("202610280104","2026-10-28T12:00:00+09:00","row_present_requires_review"),
             ("202610280105","","missing_source_timestamp"),
         ]
-        data=header+"".join(f"{code},{stamp},1,2,3\\n".replace("\\\\n", "\\n") for code,stamp,_ in entries)
+        data=header+"".join(f"{code},{stamp},1,2,3\n" for code,stamp,_ in entries)
         now=datetime.fromisoformat("2026-10-28T13:00:00+09:00")
         result=c.source_gap_reasons("20261028", data.encode(), [item[0] for item in entries],
                                     collected_at=now)
