@@ -142,7 +142,7 @@ def daily_trends(records, *, now=None):
 
 
 
-def schedule_trigger_health(runs, *, now=None, grace_minutes=90):
+def schedule_trigger_health(runs, *, now=None, grace_minutes=90, day=None):
     """Observe today's configured cron slots; missing triggers are not API failures.
 
     A late GitHub scheduled event may arrive after this check, so "not_observed"
@@ -150,7 +150,7 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90):
     """
     utc_now = now or datetime.now(timezone.utc)
     jst = timezone(timedelta(hours=9))
-    day = utc_now.astimezone(jst).date()
+    day = day or utc_now.astimezone(jst).date()
     slots = []
     for hour in (3, 5, 7):  # 12:25, 14:25, 16:25 JST, as configured in workflow
         scheduled = datetime.combine(day, datetime.min.time(), tzinfo=jst).replace(
@@ -176,6 +176,32 @@ def schedule_trigger_health(runs, *, now=None, grace_minutes=90):
             "grace_minutes": grace_minutes, "slots": slots}
 
 
+def schedule_history_coverage(runs, *, now=None, days=DAYS, grace_minutes=90):
+    """Track observed schedule events over calendar days, not API success.
+
+    Missing scheduled trigger observations are not evidence that GitHub attempted
+    and failed the API probe; they are separate operational coverage gaps.
+    """
+    now = now or datetime.now(timezone.utc)
+    jst = timezone(timedelta(hours=9))
+    today = now.astimezone(jst).date()
+    daily = []
+    for offset in range(days - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        slot_status = schedule_trigger_health(runs, now=now, day=day,
+                                              grace_minutes=grace_minutes)
+        daily.append({"date_jst": day.isoformat(), **slot_status})
+    total = sum(len(row["slots"]) for row in daily)
+    observed = sum(row["observed_slots"] for row in daily)
+    missing = sum(row["not_observed_after_grace"] for row in daily)
+    return {"calendar_days": days, "slots_configured": total,
+            "observed_slots": observed, "not_observed_after_grace": missing,
+            "awaiting_grace": total - observed - missing,
+            "observed_rate_pct": round(100 * observed / (observed + missing), 1)
+            if observed + missing else None,
+            "daily": daily}
+
+
 def fetch_schedule_trigger_health(repository, token, *, now=None):
     root = "https://api.github.com/repos/" + repository
     url = root + "/actions/workflows/" + WORKFLOW + "/runs?event=schedule&per_page=100"
@@ -183,7 +209,8 @@ def fetch_schedule_trigger_health(repository, token, *, now=None):
     runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
     if not isinstance(runs, list):
         raise ValueError("SCHEDULE_RUN_LIST_INVALID")
-    return schedule_trigger_health(runs, now=now)
+    return {**schedule_trigger_health(runs, now=now),
+            "history_14day": schedule_history_coverage(runs, now=now)}
 
 
 
@@ -337,6 +364,12 @@ def main():
                          "/14; missing days are N/A, not successes.\n\n")
             stream.write("Today's scheduled trigger observations: " +
                          json.dumps(schedule_health, ensure_ascii=False) + "\n\n")
+            if schedule_health.get("history_14day"):
+                h = schedule_health["history_14day"]
+                stream.write("14-day cron slot coverage: observed " + str(h["observed_slots"]) +
+                             "/" + str(h["slots_configured"]) + "; not observed after grace: " +
+                             str(h["not_observed_after_grace"]) + "; awaiting grace: " +
+                             str(h["awaiting_grace"]) + ". This measures trigger evidence, not API success.\\n\\n")
             stream.write("Unobserved scheduled triggers are not counted as successful checks.\n")
 
 

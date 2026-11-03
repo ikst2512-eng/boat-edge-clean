@@ -286,6 +286,37 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(data["slots"][0]["matching_runs"]), 1)
         self.assertEqual(data["slots"][1]["state"], "awaiting_grace")
 
+    def test_14day_schedule_history_marks_missing_trigger_separately(self):
+        from datetime import timedelta
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 3, 15, 6, tzinfo=jst)
+        runs = [
+            {"id": 8, "event": "schedule", "status": "completed",
+             "conclusion": "success", "created_at": "2026-11-02T03:26:00Z"},
+            {"id": 9, "event": "pull_request", "status": "completed",
+             "conclusion": "success", "created_at": "2026-11-03T03:26:00Z"},
+        ]
+        report = history.schedule_history_coverage(runs, now=now)
+        self.assertEqual(report["calendar_days"], 14)
+        self.assertEqual(report["slots_configured"], 42)
+        self.assertEqual(report["observed_slots"], 1)
+        self.assertEqual(report["not_observed_after_grace"], 39)
+        self.assertEqual(report["awaiting_grace"], 2)
+        self.assertEqual(report["daily"][-1]["date_jst"], "2026-11-03")
+        self.assertEqual([slot["state"] for slot in report["daily"][-1]["slots"]],
+                         ["not_observed_after_grace", "awaiting_grace", "awaiting_grace"])
+        self.assertEqual(report["daily"][-2]["observed_slots"], 1)
+        self.assertEqual(report["observed_rate_pct"], 2.5)
+
+    def test_14day_schedule_history_only_counts_matured_slots(self):
+        from datetime import timedelta
+        now = datetime(2026, 11, 3, 10, 0, tzinfo=timezone(timedelta(hours=9)))
+        report = history.schedule_history_coverage([], now=now, days=1)
+        self.assertEqual(report["observed_slots"], 0)
+        self.assertEqual(report["not_observed_after_grace"], 0)
+        self.assertEqual(report["awaiting_grace"], 3)
+        self.assertIsNone(report["observed_rate_pct"])
+
     def test_operational_event_eligibility_excludes_pr(self):
         for event in ("pull_request", "push", "", "unknown"):
             self.assertFalse(history.include_current_event(event))
