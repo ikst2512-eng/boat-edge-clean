@@ -16,8 +16,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 DAYS = 14
-MAX_RUNS = 100
-MAX_PAGES = 3
+MAX_RUNS = 250
+MAX_PAGES = 12
 WORKFLOW = "live-official-odds-probe.yml"
 ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
@@ -224,6 +224,20 @@ def api_json(url, token):
         return json.load(response)
 
 
+def plausible_fallback_run_time(created):
+    """Prefilter completed fallback runs, never PR smoke or unrelated upstream hours.
+
+    An upstream started 12:40-12:55, 14:40-14:55, 16:40-16:55 JST.
+    GitHub may delay the corresponding workflow_run by up to 60 minutes, so
+    allow a deliberately broad window before verifying its artifact.
+    """
+    jst = timezone(timedelta(hours=9))
+    local = created.astimezone(jst)
+    minute_of_day = local.hour * 60 + local.minute
+    return any(hour * 60 + 40 <= minute_of_day <= (hour + 1) * 60 + 55
+               for hour in (12, 14, 16))
+
+
 def fetch_history(repository, token, current, *, now=None):
     now = now or datetime.now(timezone.utc)
     # Match the 14 calendar days displayed by daily_trends(), not a rolling 336h.
@@ -231,29 +245,41 @@ def fetch_history(repository, token, current, *, now=None):
     first_day = now.astimezone(jst).date() - timedelta(days=DAYS - 1)
     cutoff = datetime.combine(first_day, datetime.min.time(), tzinfo=jst).astimezone(timezone.utc)
     root = "https://api.github.com/repos/" + repository
-    runs = []
-    list_truncated = False
-    for page in range(1, MAX_PAGES + 1):
-        batch = api_json(root + "/actions/workflows/" + WORKFLOW +
-                         "/runs?status=completed&per_page=100&page=" + str(page), token).get("workflow_runs", [])
-        if not isinstance(batch, list):
-            raise ValueError("WORKFLOW_RUN_LIST_INVALID")
-        runs.extend(batch)
-        if len(batch) < 100:
-            break
-        if page == MAX_PAGES:
-            list_truncated = True
+    # Event-specific queries prevent large PR and upstream fallback traffic
+    # from pushing the 14-day scheduled evidence outside the first N pages.
     selected = []
-    for run in runs:
-        if run.get("event") not in ("schedule", "workflow_dispatch", "workflow_run"):
-            continue
-        try:
-            created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
-        except (ValueError, KeyError, TypeError):
-            continue
-        if created < cutoff or created > now + timedelta(minutes=5):
-            continue
-        selected.append(run)
+    list_truncated = False
+    for event in ("schedule", "workflow_dispatch", "workflow_run"):
+        for page in range(1, MAX_PAGES + 1):
+            payload = api_json(root + "/actions/workflows/" + WORKFLOW +
+                               "/runs?status=completed&event=" + event +
+                               "&per_page=100&page=" + str(page), token)
+            batch = payload.get("workflow_runs") if isinstance(payload, dict) else None
+            if not isinstance(batch, list):
+                raise ValueError("WORKFLOW_RUN_LIST_INVALID")
+            past_cutoff = False
+            for run in batch:
+                if not isinstance(run, dict) or run.get("event") != event:
+                    continue
+                try:
+                    created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+                except (ValueError, KeyError, TypeError, AttributeError):
+                    continue
+                if created.tzinfo is None:
+                    continue
+                if created < cutoff:
+                    past_cutoff = True
+                    continue
+                if created > now + timedelta(minutes=5):
+                    continue
+                if event == "workflow_run" and not plausible_fallback_run_time(created):
+                    continue
+                selected.append(run)
+            if len(batch) < 100 or past_cutoff:
+                break
+            if page == MAX_PAGES:
+                list_truncated = True
+    selected.sort(key=lambda r: r["created_at"], reverse=True)
     history = [current]
     errors = []
     if list_truncated:
