@@ -1,0 +1,27 @@
+name: Entry-order forecast scenario regression
+on:
+  pull_request:
+    paths:
+      - entry_scenario.js
+      - index.html
+      - server.py
+      - tests/test_entry_scenario.cjs
+      - .github/workflows/entry-scenario-tests.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  entry-scenario:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify client simulator JavaScript
+        run: node --check entry_scenario.js
+      - name: Test entry permutation calculations and front-end integration
+        run: node --test tests/test_entry_scenario.cjs
+      - name: Check Python web route syntax
+        run: python -m py_compile server.py

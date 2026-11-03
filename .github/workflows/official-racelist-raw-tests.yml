@@ -18,8 +18,6 @@ on:
       - 'tests/test_t12_kiryu12_upstream_recovery_contract.py'
       - 'scripts/gate_kiryu12_upstream_recovery.py'
       - 'tests/test_gate_kiryu12_upstream_recovery.py'
-      - '.github/workflows/t12-evidence-git-smoke-20261103.yml'
-      - 'tests/test_t12_evidence_git_smoke_contract.py'
       - 'scripts/reaudit_external_three_t12.py'
       - 'tests/test_reaudit_external_three_t12.py'
       - 'tests/test_run_external_three_t12.py'

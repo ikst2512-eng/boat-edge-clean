@@ -376,6 +376,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/navigation.js":
             body = (ROOT / "navigation.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
+        elif path == "/entry_scenario.js":
+            body = (ROOT / "entry_scenario.js").read_bytes()
+            status, kind = 200, "application/javascript; charset=utf-8"
         elif path == "/secondary_navigation.js":
             body = (ROOT / "secondary_navigation.js").read_bytes()
             status, kind = 200, "application/javascript; charset=utf-8"
