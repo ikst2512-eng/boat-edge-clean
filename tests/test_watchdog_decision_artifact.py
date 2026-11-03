@@ -48,7 +48,7 @@ class WatchdogEvidenceContractTest(unittest.TestCase):
     def test_upload_occurs_even_when_watchdog_fails(self):
         self.assertIn('if: always()', self.text)
         self.assertIn('name: four-mode-watchdog-decision-${{ github.run_id }}', self.text)
-        self.assertIn('path: four-mode-evidence/watchdog-decision.json', self.text)
+        self.assertIn('path: |\n            four-mode-evidence/watchdog-decision.json\n            four-mode-evidence/v2-nightly-decision.json', self.text)
         self.assertIn('retention-days: 14', self.text)
 
 
