@@ -24,6 +24,40 @@ def race(code, states, elapsed=800):
 
 
 class OddsHistoryTests(unittest.TestCase):
+    def test_legacy_odds_artifacts_without_attempt_timestamps_remain_eligible(self):
+        self.assertTrue(history.consistent_attempts(
+            race("202611030111", ["pending_202", "valid_200"])["attempts"]))
+
+    def test_new_odds_timestamps_must_be_complete_utc_and_chronological(self):
+        steps = race("202611030111", ["pending_202", "valid_200"])["attempts"]
+        steps[0].update(started_at_utc="2026-11-03T03:25:00+00:00",
+                        finished_at_utc="2026-11-03T03:25:01+00:00")
+        steps[1].update(started_at_utc="2026-11-03T03:25:02+00:00",
+                        finished_at_utc="2026-11-03T03:25:03+00:00")
+        self.assertTrue(history.consistent_attempts(steps))
+        malformed = [dict(item) for item in steps]
+        del malformed[1]["finished_at_utc"]
+        self.assertFalse(history.consistent_attempts(malformed))
+        malformed = [dict(item) for item in steps]
+        malformed[1]["started_at_utc"] = "2026-11-03T03:25:00+00:00"
+        self.assertFalse(history.consistent_attempts(malformed))
+        malformed = [dict(item) for item in steps]
+        malformed[0]["started_at_utc"] = "2026-11-03T03:26:00+00:00"
+        self.assertFalse(history.consistent_attempts(malformed))
+        malformed = [dict(item) for item in steps]
+        malformed[0]["finished_at_utc"] = "2026-11-03T12:25:01+09:00"
+        self.assertFalse(history.consistent_attempts(malformed))
+        malformed = [dict(item) for item in steps]
+        malformed[0]["finished_at_utc"] = "not-a-timestamp"
+        self.assertFalse(history.consistent_attempts(malformed))
+
+    def test_invalid_new_timestamp_evidence_is_not_counted(self):
+        sample = race("202611030111", ["valid_200"])
+        sample["attempts"][0]["started_at_utc"] = "2026-11-03T03:25:00+00:00"
+        record = {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
+                  "samples": [sample]}
+        self.assertEqual(history.summarize([record])["eventual_valid_races"], 0)
+
     def test_count_valid_pending_recovered_and_errors_without_duplicating(self):
         data = [
             {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
