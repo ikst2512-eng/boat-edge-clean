@@ -36,7 +36,7 @@ def evaluate(root, git=_git):
         "pending_results": 0, "invalid": 0, "excluded": 0,
         "invalid_files": [], "race_codes_paired": [],
         "paired_race_scores": [],
-        "race_codes_frozen": [],
+        "race_codes_frozen": [], "frozen_ticket_hashes": {},
         "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                            "gained": 0, "lost": 0} for n in TOPS},
@@ -75,6 +75,7 @@ def evaluate(root, git=_git):
             report["race_codes_paired"].extend(scoring["race_codes_paired"])
             report["paired_race_scores"].extend(scoring["paired_race_scores"])
             report["race_codes_frozen"].extend(scoring["race_codes_frozen"])
+            report["frozen_ticket_hashes"].update(scoring["frozen_ticket_hashes"])
             for n in TOPS:
                 for field in ("baseline", "candidate", "gained", "lost"):
                     report["topn"][f"top{n}"][field] += scoring["topn"][f"top{n}"][field]
