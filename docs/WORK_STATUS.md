@@ -1,3 +1,9 @@
+## 2026-11-04 JST サイト担当：部分開催日程で出走表を誤って遮断しない（PR準備）
+- 既存PR #786の開催場・レースピッカー修正はRender `40f4c8ed` live。今回の読取では当日2026-11-04の `schedule_snapshots/20261104.json` はmainに存在せず、Renderの `/api/clean-schedule` 200 と住之江1R/5R `/api/clean-racecard` 404 を記録。API 200だけで全開催の完全性・住之江開催有無は断定しない。
+- `index.html` の `loadRaceData` が `partial_coverage!==true` だけで存在しないレース扱いしており、選択ガード側が除外している `historical_result_only===true` の部分的な結果復元まで誤遮断する不一致を確認。すでに導入済みの共通 `completeHeldSchedule()` を出走表経路でも使い、事実未確認で404扱いや「開催なし」表示をしない。
+- 前後レースの矢印を既存の選択制限に合わせて無効表示し、日程の非同期読込後にも更新。既存4タブや予想・原本・検証・旧サイトには変更なし。
+- 既存`tests/site-regression.cjs`にこの共通ゲートと矢印の退行検査を追加。PR CI・公開Pages/Render実ブラウザ確認は別途判定する。
+
 ## 2026-11-04 JST サイト担当：既存PR #786の競合解消と開催場選択の安全ガード（レビュー中）
 - Render My WorkspaceでCLEAN main `d88fa2e` がlive、HEAD/GETルート200を確認。これはレースAPI全件正常の証拠ではない。
 - 既存draft PR #786は旧mainとの競合があり、そのまま統合できないため、同じPRブランチを元コミットを保存したmerge commitで現行mainへ追随。現行`index.html`で全件確認済み開催日程の場合のみ、非開催場・非開催レースを選べないようにする。日程の一部取得・過去結果からの復元・未公開・取得失敗は選択可能のままとし、存在しないデータを作らない。
