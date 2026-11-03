@@ -6,7 +6,7 @@ scheduled upstream runs are eligible for fallback operational sampling.
 """
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from probe_live_odds_health import event_provenance
@@ -38,7 +38,7 @@ def main():
     if not allowed:
         now = datetime.now(timezone.utc)
         data = {
-            "checked_at_jst": now.astimezone(timezone.utc).isoformat(),
+            "checked_at_jst": now.astimezone(timezone(timedelta(hours=9))).isoformat(),
             "source_status": "fallback_ineligible",
             "trigger": trigger,
             "samples": [],
