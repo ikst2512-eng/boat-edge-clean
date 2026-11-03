@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - hole_third_choice_research.py
+      - hole_pair_third_budget_research.py
+      - test_hole_pair_third_budget_research.py
       - hole_second_pair_source_audit.py
       - test_hole_second_pair_source_audit.py
       - hole_second_pair_priority_research.py
@@ -26,7 +28,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py
+      - run: python -m unittest -v test_hole_third_choice_research.py test_hole_error_attribution_research.py test_hole_third_donor_ranking_research.py test_hole_third_consensus_guard_research.py test_hole_second_pair_priority_research.py test_hole_second_pair_source_audit.py test_hole_pair_third_budget_research.py
+      - run: python hole_pair_third_budget_research.py > hole_pair_third_budget_results.json
+      - name: Compare fixed-budget one-pair/two-thirds against two-pair allocation
+        run: |
+          python - <<'PY'
+          import json
+          report=json.load(open("hole_pair_third_budget_results.json"))
+          assert all(report[x] is False for x in (
+              "formal","independent_holdout","prospective_validation",
+              "independent_first_receipt_verified","locked_selector_changed",
+              "production_forecast_changed"))
+          for name,g in report["groups"].items():
+              print("GROUP",name,"N",g["comparable"])
+              print("PAIR_THIRD_TRADEOFF",g["one_pair_vs_two_pairs"])
+              print("TOPN",g["topn"])
+              print("DATE_BREAKDOWN",g["by_date"])
+              paired=g["one_pair_vs_two_pairs"]
+              assert paired["net"]==paired["only_one_pair"]-paired["only_two_pairs"]
+              assert sum(d["races"] for d in g["by_date"].values())==g["comparable"]
+              for mode in g["topn"].values():
+                  for k in (3,5):
+                      assert mode[f"top{k}"]["gained"]==mode[f"top{k}"]["lost"]==0
+          PY
       - run: python hole_second_pair_source_audit.py > hole_second_pair_source_report.json
       - name: Validate source coverage without claiming missing inputs caused misses
         run: |
@@ -165,3 +189,4 @@ jobs:
             hole_third_consensus_guard_results.json
             hole_second_pair_priority_results.json
             hole_second_pair_source_report.json
+            hole_pair_third_budget_results.json
