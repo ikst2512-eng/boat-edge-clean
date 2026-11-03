@@ -67,8 +67,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.audit_four_mode_daily_schedule_runs --repo "${{ github.repository }}" --output reports/four_mode_daily_schedule_metadata.json
+      # Day-wide metadata failures must NOT suppress independent per-run
+      # artifact checks. Preserve both diagnoses in the uploaded report.
       - name: Inspect recent capture artifacts without inferring remote push proof
-        if: success()
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m scripts.report_four_mode_schedule_publications --repo "${{ github.repository }}" --history reports/four_mode_schedule_history.json --output reports/four_mode_schedule_publications.json
