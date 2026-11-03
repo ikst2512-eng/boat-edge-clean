@@ -85,6 +85,8 @@ def _valid_daily_partition(capture):
                        for code in codes)
                 or len(set(codes)) != len(codes)):
             return False
+        if any(code not in by_race for code in codes):
+            return False
         all_day_codes.extend(codes)
         paired_total += group["paired"]
         topn = group.get("topn")
