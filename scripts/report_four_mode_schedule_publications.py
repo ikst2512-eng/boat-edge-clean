@@ -221,6 +221,8 @@ def inspect(run, root):
               "github_observation_integrity": None,
               "final_evidence_verdict_status": None,
               "final_evidence_verdict_error_type": None,
+              "final_evidence_verdict_result": None,
+              "final_evidence_published_count": None,
               "research_roster_evidence": None,
               "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
@@ -241,6 +243,24 @@ def inspect(run, root):
         result["final_evidence_verdict_status"] = final["status"]
         if final["status"] == "failed" and isinstance(final.get("error_type"), str):
             result["final_evidence_verdict_error_type"] = final["error_type"]
+        elif final["status"] == "passed" and isinstance(final.get("detail"), dict):
+            detail = final["detail"]
+            if (detail.get("status") == "no_new_forecasts"
+                    and detail.get("evidence_required") is False
+                    and isinstance(publication, dict)
+                    and publication.get("outcome") == "no_eligible_candidates"):
+                result["final_evidence_verdict_result"] = "no_new_forecasts"
+            elif (detail.get("status") == "published_with_durable_early_observation"
+                    and detail.get("evidence_required") is True
+                    and type(detail.get("published")) is int
+                    and detail["published"] > 0
+                    and isinstance(publication, dict)
+                    and publication.get("outcome") == "pushed_to_main"
+                    and count(publication, "added_forecasts") == detail["published"]):
+                # Internal final-gate verdict, not independent first receipt.
+                result["final_evidence_verdict_result"] = (
+                    "published_with_durable_early_observation")
+                result["final_evidence_published_count"] = detail["published"]
     integrity = github_observation_integrity(publication, observed)
     result["github_observation_integrity"] = integrity
     if observed is not None and observed.get("schema") == "FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1":
@@ -410,6 +430,19 @@ def report(history, downloader, limit=12):
             "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
+            "final_gate_published_run_count": sum(
+                r["final_evidence_verdict_result"] ==
+                "published_with_durable_early_observation" for r in rows),
+            "final_gate_published_forecast_count": sum(
+                r["final_evidence_published_count"] or 0 for r in rows),
+            "final_gate_no_new_run_count": sum(
+                r["final_evidence_verdict_result"] == "no_new_forecasts" for r in rows),
+            "final_gate_failed_run_ids": [
+                r["run_id"] for r in rows
+                if r["final_evidence_verdict_status"] == "failed"],
+            "final_gate_unknown_run_count": sum(
+                r["final_evidence_verdict_status"] != "failed"
+                and r["final_evidence_verdict_result"] is None for r in rows),
             "research_stage_coverage": research_coverage,
             "third_rate_ledger_coverage": coverage(ledger_outcomes),
             "github_observation_coverage": coverage(github_observation_outcomes),
@@ -481,6 +514,11 @@ def main():
         ],
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
+        "final_gate_published_run_count": result["final_gate_published_run_count"],
+        "final_gate_published_forecast_count": result["final_gate_published_forecast_count"],
+        "final_gate_no_new_run_count": result["final_gate_no_new_run_count"],
+        "final_gate_failed_run_ids": result["final_gate_failed_run_ids"],
+        "final_gate_unknown_run_count": result["final_gate_unknown_run_count"],
         "research_stage_coverage": result["research_stage_coverage"],
         "third_rate_ledger_coverage": result["third_rate_ledger_coverage"],
         "github_observation_coverage": result["github_observation_coverage"],
