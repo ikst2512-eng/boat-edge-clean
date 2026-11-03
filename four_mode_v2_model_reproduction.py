@@ -10,7 +10,7 @@ from collections import Counter
 from pathlib import Path
 
 from clean_four_modes import rank_modes
-from research_model import probabilities
+from research_model import probabilities, WIN
 from four_mode_archive_api import archived_four_modes
 
 ROOT = Path(__file__).resolve().parent
@@ -34,6 +34,14 @@ def audit(root=ROOT):
         "invalid_archive_count": 0,
         "input_head_rate_max_is_boat1": 0,
         "saved_hit_top3_all_head1": 0,
+        "verified_reproductions_for_bias": 0,
+        "boat1_rate_not_max": 0,
+        "boat1_rate_not_max_but_hit_top3_all_head1": 0,
+        "boat1_rate_not_max_but_top1_head1": 0,
+        "boat1_model_head_mass_above_all_other_heads": 0,
+        "boat1_rate_rank_distribution": {str(i): 0 for i in range(1, 7)},
+        "head_prior_1000_counts": list(WIN),
+        "boat1_head_mass_sum": 0.0,
         "hit_top3_signatures": {},
         "warning": "Current-model reproduction is not independent model provenance or a valid accuracy test.",
     }
@@ -64,7 +72,8 @@ def audit(root=ROOT):
             rates = raw["input_national_win_rates"]
             if not isinstance(rates, list):
                 raise ValueError("invalid_rates")
-            expected = rank_modes(probabilities(rates))
+            board = probabilities(rates)
+            expected = rank_modes(board)
             stored = archive["modes"]
             matched = all(
                 [(t["combo"], t["p"]) for t in stored[mode]["tickets"]]
@@ -87,7 +96,35 @@ def audit(root=ROOT):
         result["saved_hit_top3_all_head1"] += int(
             all(t[0] == "1" for t in top3))
         signatures["|".join(top3)] += 1
+        if matched:
+            # Decompose only archives reproduced *exactly* by current code;
+            # mismatches must not be attributed to this implementation.
+            head_masses = [sum(p for combo, p in board if combo[0] == i)
+                           for i in range(1, 7)]
+            not_max = rates[0] < max(rates)
+            head1_all_top3 = all(t[0] == "1" for t in top3)
+            boat1_rank = 1 + sum(rate > rates[0] for rate in rates[1:])
+            result["verified_reproductions_for_bias"] += 1
+            result["boat1_rate_not_max"] += int(not_max)
+            result["boat1_rate_not_max_but_hit_top3_all_head1"] += int(
+                not_max and head1_all_top3)
+            result["boat1_rate_not_max_but_top1_head1"] += int(
+                not_max and top3[0][0] == "1")
+            result["boat1_model_head_mass_above_all_other_heads"] += int(
+                head_masses[0] > max(head_masses[1:]))
+            result["boat1_rate_rank_distribution"][str(boat1_rank)] += 1
+            result["boat1_head_mass_sum"] += head_masses[0]
     result["hit_top3_signatures"] = dict(sorted(signatures.items()))
+    if result["verified_reproductions_for_bias"]:
+        result["boat1_mean_head_probability"] = round(
+            result["boat1_head_mass_sum"] / result["verified_reproductions_for_bias"], 6)
+    else:
+        result["boat1_mean_head_probability"] = None
+    # No unbounded precision-heavy sum in published logs.
+    result.pop("boat1_head_mass_sum")
+    if (sum(result["boat1_rate_rank_distribution"].values()) !=
+            result["verified_reproductions_for_bias"]):
+        raise ValueError("input_rank_partition_mismatch")
     if sum(signatures.values()) != result["valid_v2_archives"]:
         raise ValueError("signature_count_mismatch")
     return result
