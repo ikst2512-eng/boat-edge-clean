@@ -6,12 +6,23 @@ def flags(b=False,a=False):
     return {m:{"top3":False,"top5":False,"top10":b if m=="baseline" else a}
             for m in MODES}
 def report(rows,start="2026-11-04",end="2026-11-06",complete=False):
+    from hole_future_cumulative_rollup import POLICIES, TOPS
+    hits={m:{f"top{k}":sum(int(r[m][f"top{k}"]) for r in rows.values())
+             for k in TOPS} for m in POLICIES}
+    delta={}
+    for m in POLICIES[1:]:
+        delta[m]={}
+        for k in TOPS:
+            key=f"top{k}"
+            gain=sum(int(r[m][key] and not r["baseline"][key]) for r in rows.values())
+            loss=sum(int(r["baseline"][key] and not r[m][key]) for r in rows.values())
+            delta[m][key]={"gained":gain,"lost":loss,"net":gain-loss}
     return {"schema":"HOLE_FUTURE_ARTIFACT_BATCH_V1",
             "formal":False,"independent_first_receipt_verified":False,
             "window_start_jst":start,"window_end_exclusive_jst":end,
             "capture_window_complete":complete,
             "per_race_flags":rows,"race_codes":sorted(rows),
-            "comparable":len(rows)}
+            "comparable":len(rows),"hits":hits,"delta":delta}
 
 class CumulativeEvidenceTests(unittest.TestCase):
     def test_overlapping_identical_race_is_counted_once(self):
@@ -89,6 +100,30 @@ class CumulativeEvidenceTests(unittest.TestCase):
         out=rollup([bad])
         self.assertEqual(out["comparable"],0)
         self.assertEqual(out["invalid_report_counts"]["invalid_window"],1)
+    def test_forged_top10_total_does_not_bias_cumulative(self):
+        valid=report({"202611040101":flags(False,True)})
+        altered=report({"202611050101":flags(False,True)})
+        altered["hits"]["third_national_rate"]["top10"]=2
+        out=rollup([valid,altered])
+        self.assertEqual(out["comparable"],1)
+        self.assertEqual(out["hits"]["third_national_rate"]["top10"],1)
+        self.assertEqual(out["invalid_report_counts"]["summary_totals_mismatch"],1)
+    def test_corrupted_gain_loss_blocks_entire_daily_report(self):
+        bad=report({"202611040101":flags(False,True)})
+        bad["delta"]["third_national_rate"]["top10"]["gained"]=2
+        out=rollup([bad])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["invalid_report_counts"]["summary_totals_mismatch"],1)
+    def test_missing_totals_not_silently_trusted(self):
+        bad=report({"202611040101":flags(False,True)})
+        del bad["hits"]
+        out=rollup([bad])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["invalid_report_counts"]["summary_totals_mismatch"],1)
+    def test_empty_genuine_daily_report_has_zero_consistent_totals(self):
+        out=rollup([report({})])
+        self.assertEqual(out["comparable"],0)
+        self.assertEqual(out["invalid_report_counts"],{})
     def test_empty_reports_not_formal_proof(self):
         out=rollup([])
         self.assertEqual(out["comparable"],0)
