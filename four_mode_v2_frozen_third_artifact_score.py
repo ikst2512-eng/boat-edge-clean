@@ -129,6 +129,13 @@ def score_evidence(evidence, root):
                     or hashlib.sha256(path.read_bytes()).hexdigest() != item["source_forecast_sha256"]):
                 raise ValueError("original_forecast_digest_mismatch")
             archive = json.loads(path.read_text(encoding="utf-8"))
+            # The recorded T-12 must equal the original immutable forecast's
+            # real cutoff, not merely a self-consistent claimed timestamp.
+            deadline = datetime.fromisoformat(archive["deadline_jst"])
+            if (deadline.utcoffset() != timedelta(hours=9)
+                    or deadline.strftime("%Y%m%d") != code[:8]
+                    or cutoff != deadline - timedelta(minutes=12)):
+                raise ValueError("frozen_cutoff_disagrees_with_original")
             if (archive.get("race_code") != code or
                     archive.get("model_version") != "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
                     or [r.get("combo") for r in archive["modes"]["hit"]["tickets"]]
