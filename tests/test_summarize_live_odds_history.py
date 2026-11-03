@@ -286,6 +286,40 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(data["slots"][0]["matching_runs"]), 1)
         self.assertEqual(data["slots"][1]["state"], "awaiting_grace")
 
+    def test_operational_event_eligibility_excludes_pr(self):
+        for event in ("pull_request", "push", "", "unknown"):
+            self.assertFalse(history.include_current_event(event))
+        for event in ("schedule", "workflow_dispatch"):
+            self.assertTrue(history.include_current_event(event))
+
+    def test_pr_current_200_not_part_of_trend(self):
+        import os
+        import tempfile
+        current = {"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
+                   "samples": [race("202611030111", ["valid_200"])]}
+        prior = {"source_status": "ok", "checked_at_jst": "2026-11-02T14:25:00+09:00",
+                 "samples": [race("202611020111", ["pending_202", "pending_202", "pending_202"])]}
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as folder:
+            try:
+                os.chdir(folder)
+                Path(history.FILE).write_text(json.dumps(current), encoding="utf-8")
+                env = {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_REPOSITORY": "test/repo",
+                       "GH_TOKEN": "token", "GITHUB_STEP_SUMMARY": ""}
+                with patch.dict(os.environ, env), patch.object(
+                        history, "fetch_history", return_value=([current, prior], 1, [])), patch.object(
+                        history, "fetch_schedule_trigger_health", return_value={}):
+                    history.main()
+                result = json.loads(Path("live_odds_14day_trend.json").read_text())
+                self.assertFalse(result["includes_current_run"])
+                self.assertEqual(result["source_event"], "pull_request")
+                self.assertEqual(result["history_evidence_loaded"], 1)
+                self.assertEqual(result["metrics"]["race_observations"], 1)
+                self.assertEqual(result["metrics"]["eventual_valid_races"], 0)
+                self.assertEqual(result["metrics"]["http_202"], 3)
+            finally:
+                os.chdir(cwd)
+
     def test_first_200_does_not_count_as_recovery(self):
         m = history.summarize([{"source_status": "ok", "checked_at_jst": "2026-11-03T14:25:00+09:00",
                                 "samples": [race("202611030111", ["valid_200"])]}])
