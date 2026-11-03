@@ -41,12 +41,19 @@ def reconcile(capture, ledger):
     # capture and a valid durable rollup can establish a matched roster.
     capture_scored = capture.get("status") == "frozen_artifacts_scored_limited_cohort"
     ledger_scored = ledger.get("status") == "durable_frozen_evidence_scored"
+    # Before the first valid future freeze the durable branch can legitimately
+    # have zero research records. That is a zero denominator, not corruption.
+    # Never allow this exemption if either side lists a frozen race.
+    empty_ledger = (ledger.get("status") == "no_long_lived_frozen_evidence"
+                    and ledger["frozen"] == 0 and not right
+                    and not ledger.get("invalid_files"))
     if (not capture_scored
             or capture.get("cohort_completeness_verified") is not True
             or capture.get("missing_or_failed_artifacts")
             or capture.get("bad_validation_runs")):
         out["status"] = "incomplete_capture_inventory"
-    elif (not ledger_scored or ledger.get("invalid_files")):
+    elif (not (ledger_scored or (not left and empty_ledger))
+          or ledger.get("invalid_files")):
         out["status"] = "invalid_or_unavailable_ledger"
     elif out["missing_from_ledger"]:
         out["status"] = "frozen_predictions_missing_from_ledger"
