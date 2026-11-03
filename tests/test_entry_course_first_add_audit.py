@@ -9,14 +9,15 @@ REPO="ikst2512-eng/boat-edge-clean"
 COMMIT="a"*40
 
 
-def fetch(path, *, event="added", at="2026-11-03T09:00:00Z", count=1):
+def fetch(path, *, event="added", at="2026-11-03T09:00:00Z", count=1,
+          blob_sha="b"*40):
     if path.startswith(f"repos/{REPO}/commits?"):
         page=int(parse_qs(urlparse(path).query)["page"][0])
         if page==1:
             return [{"sha":COMMIT}]*count
         return []
     if path==f"repos/{REPO}/commits/{COMMIT}":
-        return {"sha":COMMIT,"files":[{"filename":PATH,"status":event}],
+        return {"sha":COMMIT,"files":[{"filename":PATH,"status":event,"sha":blob_sha}],
                 "commit":{"committer":{"date":at}}}
     raise AssertionError(path)
 
@@ -34,6 +35,16 @@ class FirstAddTests(unittest.TestCase):
             fetch=lambda path:fetch(path,at="2026-11-03T09:30:00Z"),
             repository=REPO)
         self.assertFalse(result["commit_timestamp_before_cutoff"])
+    def test_first_add_and_current_blob_must_match(self):
+        result=first_add_for_path(PATH,cutoff_at=CUTOFF,
+            fetch=fetch,repository=REPO,expected_blob_sha="c"*40)
+        self.assertEqual(result["status"],"first_add_blob_different_from_current")
+        self.assertFalse(result["commit_timestamp_before_cutoff"])
+    def test_modified_path_not_acceptably_immutable(self):
+        result=first_add_for_path(PATH,cutoff_at=CUTOFF,
+            fetch=lambda path:fetch(path,count=2),repository=REPO)
+        self.assertEqual(result["status"],"history_multiple_changes")
+        self.assertFalse(result["independent_server_first_seen_verified"])
     def test_earliest_change_not_added_is_not_claimed_first_add(self):
         result=first_add_for_path(PATH,cutoff_at=CUTOFF,
             fetch=lambda path:fetch(path,event="modified"),repository=REPO)
