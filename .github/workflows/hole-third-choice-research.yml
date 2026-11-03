@@ -32,6 +32,7 @@ jobs:
               print("GROUP",group,"SAMPLE",stats["comparable"])
               print("MISS_REASONS",stats["miss_reasons"])
               print("SECOND_PAIR_THIRD_ATTRIBUTION",stats["missing_pair_recovery"])
+              print("THIRD_DONOR_AVAILABILITY",stats["third_choice_gaps"])
               print("TOPN",stats["topn"])
           PY
       - run: python hole_third_choice_research.py > hole_third_choice_results.json
