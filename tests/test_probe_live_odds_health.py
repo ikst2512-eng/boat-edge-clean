@@ -100,6 +100,25 @@ class ProbeTests(unittest.TestCase):
         self.assertIsNone(stats["pending_recovery_rate_pct"])
         self.assertIsInstance(stats["median_request_latency_ms"], int)
 
+    def test_workflow_run_provenance_is_explicit(self):
+        import os
+        import tempfile
+        from unittest.mock import patch
+        from pathlib import Path
+        parent = {"workflow_run": {"id": 778, "event": "schedule",
+                  "name": "CLEAN prospective pre-cutoff capture",
+                  "head_branch": "main"}}
+        with tempfile.TemporaryDirectory() as folder:
+            event_file = Path(folder) / "event.json"
+            event_file.write_text(json.dumps(parent))
+            with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run",
+                      "GITHUB_EVENT_PATH": str(event_file)}):
+                source = probe.event_provenance()
+        self.assertEqual(source["event"], "workflow_run")
+        self.assertEqual(source["upstream_event"], "schedule")
+        self.assertEqual(source["upstream_workflow"], "CLEAN prospective pre-cutoff capture")
+        self.assertEqual(source["upstream_run_id"], 778)
+
     def test_source_candidate_window(self):
         jst = timezone(timedelta(hours=9))
         now = datetime(2026, 11, 3, 14, 0, tzinfo=jst)
