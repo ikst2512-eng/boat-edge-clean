@@ -13,6 +13,7 @@ import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from scripts.observe_three_official_t12_originals import observe
@@ -91,9 +92,10 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
         raise ValueError("invalid dedicated evidence branch")
     if not files or len(files) > 8:
         raise ValueError("invalid evidence count")
-    ref = api(repo, token, "GET", "git/ref/heads/" + quote(branch, safe="/"))
-    base_sha = ref["object"]["sha"]
-    base = api(repo, token, "GET", "git/commits/" + base_sha)
+    # Blob objects are immutable; create them only once. A concurrent
+    # observation may update the dedicated evidence branch after we read its
+    # head, in which case rebuild the tree atop the *new* head and retry a
+    # non-force ref update. Never overwrite or force-update another receipt.
     tree = []
     for path, data in sorted(files.items()):
         if (not isinstance(data, bytes) or len(data) > 2_000_000 or
@@ -103,20 +105,31 @@ def publish_originals(repo, branch, token, files, *, api=github_api):
         response = api(repo, token, "POST", "git/blobs", {
             "content": base64.b64encode(data).decode("ascii"),
             "encoding": "base64"})
-        expected = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+        expected = hashlib.sha1(f"blob {len(data)}\\0".encode() + data).hexdigest()
         if response.get("sha") != expected:
             raise ValueError("Git blob hash differs from source evidence")
         tree.append({"path": path, "mode": "100644", "type": "blob",
                      "sha": response["sha"]})
-    new_tree = api(repo, token, "POST", "git/trees", {
-        "base_tree": base["tree"]["sha"], "tree": tree})
-    commit = api(repo, token, "POST", "git/commits", {
-        "message": "research: archive external official T12 original receipts (no forecast)",
-        "tree": new_tree["sha"], "parents": [base_sha]})
-    api(repo, token, "PATCH", "git/refs/heads/" + quote(branch, safe="/"), {
-        "sha": commit["sha"], "force": False})
-    return commit["sha"]
-
+    endpoint = "git/refs/heads/" + quote(branch, safe="/")
+    for attempt in range(3):
+        ref = api(repo, token, "GET", "git/ref/heads/" + quote(branch, safe="/"))
+        base_sha = ref["object"]["sha"]
+        base = api(repo, token, "GET", "git/commits/" + base_sha)
+        new_tree = api(repo, token, "POST", "git/trees", {
+            "base_tree": base["tree"]["sha"], "tree": tree})
+        commit = api(repo, token, "POST", "git/commits", {
+            "message": "research: archive external official T12 original receipts (no forecast)",
+            "tree": new_tree["sha"], "parents": [base_sha]})
+        try:
+            api(repo, token, "PATCH", endpoint, {
+                "sha": commit["sha"], "force": False})
+            return commit["sha"]
+        except HTTPError as exc:
+            # Only a rejected optimistic ref update is retryable. A 401,
+            # 403, 404 or any blob/tree/commit error must fail immediately.
+            if exc.code not in (409, 422) or attempt == 2:
+                raise
+    raise AssertionError("unreachable retry state")
 
 def run(race, root, obs_id, repo, branch, token, *, observer=observe,
         publisher=publish_originals, verifier=None):
