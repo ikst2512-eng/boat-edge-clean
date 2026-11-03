@@ -6,6 +6,7 @@ complete lifetime inventory; the ledger may contain older entries.
 """
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -81,6 +82,22 @@ def reconcile(capture, ledger, *, before_future_start=False):
     out["capture_codes"] = sorted(left)
     out["missing_from_ledger"] = sorted(set(left) - set(right))
     out["additional_ledger_codes"] = sorted(set(right) - set(left))
+    # Identical hit flags do not prove that the underlying frozen tickets
+    # were identical. Compare ordered baseline/candidate digest by race.
+    def validated_hashes(report, codes):
+        hashes = report.get("frozen_ticket_hashes")
+        if (type(hashes) is not dict
+                or not set(hashes).issubset(set(codes))
+                or any(type(code) is not str
+                       or type(value) is not str
+                       or not re.fullmatch(r"[a-f0-9]{64}", value)
+                       for code, value in hashes.items())):
+            return None
+        return hashes
+
+    left_hashes = validated_hashes(capture, left)
+    right_hashes = validated_hashes(ledger, right)
+    out["frozen_ticket_mismatch_codes"] = []
     # Matching IDs are not sufficient when either upstream producer has an
     # unknown/contradictory result status. Only an explicitly scored bounded
     # capture and a valid durable rollup can establish a matched roster.
@@ -121,6 +138,14 @@ def reconcile(capture, ledger, *, before_future_start=False):
         out["status"] = "invalid_or_unavailable_ledger"
     elif out["missing_from_ledger"]:
         out["status"] = "frozen_predictions_missing_from_ledger"
+    elif left and (left_hashes is None or right_hashes is None
+          or set(left_hashes) != set(left)
+          or not set(left).issubset(set(right_hashes))):
+        out["status"] = "frozen_ticket_digest_evidence_missing_or_invalid"
+    elif left and any(left_hashes[code] != right_hashes[code] for code in left):
+        out["frozen_ticket_mismatch_codes"] = sorted(
+            code for code in left if left_hashes[code] != right_hashes[code])
+        out["status"] = "frozen_ticket_digest_mismatch"
     elif left:
         try:
             capture_scores = paired_scores(capture)
@@ -205,5 +230,7 @@ if __name__ == "__main__":
                             "invalid_or_unavailable_ledger",
                             "paired_score_evidence_missing_or_invalid",
                             "paired_result_coverage_mismatch",
-                            "paired_topn_score_mismatch"):
+                            "paired_topn_score_mismatch",
+                            "frozen_ticket_digest_evidence_missing_or_invalid",
+                            "frozen_ticket_digest_mismatch"):
         raise SystemExit(2)

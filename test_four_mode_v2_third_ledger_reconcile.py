@@ -21,6 +21,7 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             "frozen": 2,
             "paired": 0, "paired_race_scores": [], "race_codes_paired": [],
             "race_codes_frozen": [A, B],
+            "frozen_ticket_hashes": {A: "a"*64, B: "b"*64},
             "missing_or_failed_artifacts": [],
             "bad_validation_runs": [],
         }
@@ -30,6 +31,7 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             "frozen": 3,
             "paired": 0, "paired_race_scores": [], "race_codes_paired": [],
             "race_codes_frozen": [A, B, C],
+            "frozen_ticket_hashes": {A: "a"*64, B: "b"*64, C: "c"*64},
             "invalid_files": [],
         }
 
@@ -42,6 +44,18 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
             name: {"baseline": baseline, "candidate": candidate,
                    "gained": gain, "lost": lost}
             for name in ("top3", "top5", "top10")}}
+
+    def test_identical_hits_cannot_hide_different_frozen_tickets(self):
+        self.ledger["frozen_ticket_hashes"][A] = "d" * 64
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"], "frozen_ticket_digest_mismatch")
+        self.assertEqual(report["frozen_ticket_mismatch_codes"], [A])
+
+    def test_missing_digest_cannot_claim_ticket_identity(self):
+        del self.capture["frozen_ticket_hashes"][A]
+        report = reconcile(self.capture, self.ledger)
+        self.assertEqual(report["status"],
+                         "frozen_ticket_digest_evidence_missing_or_invalid")
 
     def test_same_race_equal_frozen_roster_but_different_hits_fails(self):
         self.capture.update({"paired": 1, "race_codes_paired": [A],

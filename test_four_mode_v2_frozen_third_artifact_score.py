@@ -100,6 +100,19 @@ class FrozenArtifactScoreTests(unittest.TestCase):
         self.assertEqual(report["invalid"], 1)
         self.assertEqual(report["paired"], 0)
 
+    def test_frozen_ticket_digest_is_independent_of_result_availability(self):
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "result_unavailable"}):
+            pending = score_evidence(self.evidence, self.root)
+        winning = self.evidence["records"][0]["candidate_top10"][0]
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "historical_comparison_only",
+                                 "winning_ticket": winning}):
+            scored = score_evidence(self.evidence, self.root)
+        self.assertEqual(pending["frozen_ticket_hashes"],
+                         scored["frozen_ticket_hashes"])
+        self.assertEqual(len(scored["frozen_ticket_hashes"][CODE]), 64)
+
     def test_missing_result_is_pending_not_loss(self):
         with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
                    return_value={"status": "result_unavailable"}):

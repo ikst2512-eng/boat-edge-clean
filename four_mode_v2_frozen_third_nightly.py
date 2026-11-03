@@ -106,7 +106,7 @@ def summarize(inventory, root, download, out_dir):
         "invalid": 0, "excluded": 0,
         "race_codes_paired": [],
         "paired_race_scores": [],
-        "race_codes_frozen": [],
+        "race_codes_frozen": [], "frozen_ticket_hashes": {},
         "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                             "gained": 0, "lost": 0} for n in TOPS},
@@ -165,6 +165,7 @@ def summarize(inventory, root, download, out_dir):
         report["race_codes_paired"].extend(scoring["race_codes_paired"])
         report["paired_race_scores"].extend(scoring["paired_race_scores"])
         report["race_codes_frozen"].extend(scoring["race_codes_frozen"])
+        report["frozen_ticket_hashes"].update(scoring["frozen_ticket_hashes"])
         per_race_rows = scoring.get("paired_race_scores", [])
         if len(per_race_rows) != scoring["paired"]:
             raise ValueError("per_race_score_partition_mismatch")
