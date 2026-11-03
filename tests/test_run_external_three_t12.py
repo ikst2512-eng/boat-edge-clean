@@ -113,6 +113,22 @@ class ExternalT12EvidenceTests(unittest.TestCase):
             publisher.assert_called_once()
             verifier.assert_called_once()
 
+    def test_local_complete_claim_needs_explicit_audit_completion(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.populate(root)
+            local = report("research_components_complete_by_t12")
+            remote = {
+                "status": "independent_originals_reaudited",
+                "declared_status": local["status"],
+                "research_complete": False, "original_files_found": 6,
+                "full_t12_source_certified": False, "forecast_usable": False,
+            }
+            with self.assertRaisesRegex(ValueError, "lacks source audit proof"):
+                run(RACE, root, OBS, "owner/repo", "research-t12-external-evidence",
+                    "token", observer=lambda *args: local,
+                    publisher=lambda *args: "saved-commit",
+                    verifier=lambda *args: remote)
+
     def test_remote_file_count_mismatch_blocks_success(self):
         with tempfile.TemporaryDirectory() as root:
             self.populate(root)
