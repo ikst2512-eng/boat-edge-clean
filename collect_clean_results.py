@@ -200,12 +200,19 @@ def confirmed_record_is_usable(path, code):
                 or not isinstance(record.get("source_sha256"),str)
                 or re.fullmatch(r"[a-f0-9]{64}",record["source_sha256"]) is None):
             return False
+        timestamps = {}
         for key in ("confirmed_at_jst","collected_at_jst"):
             value=record.get(key)
             if not isinstance(value,str):
                 return False
-            if datetime.fromisoformat(value).utcoffset() is None:
+            timestamp=datetime.fromisoformat(value)
+            if timestamp.utcoffset() is None:
                 return False
+            timestamps[key]=timestamp
+        # Match the source collector's future-time rejection. A persisted
+        # result cannot claim a source acquisition >3 minutes after collection.
+        if timestamps["confirmed_at_jst"] > timestamps["collected_at_jst"] + timedelta(minutes=3):
+            return False
         return True
     except (OSError,ValueError,TypeError,AttributeError,OverflowError):
         return False

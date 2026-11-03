@@ -117,6 +117,25 @@ class ResultCollectorTests(unittest.TestCase):
             self.assertTrue(c.confirmed_record_is_usable(target,code))
             self.assertEqual(c.audit_missing_results(root,now),[])
 
+    def test_persisted_source_timestamp_must_not_exceed_collection_grace(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            code="202611030101"
+            path=root/(code+".json")
+            valid=self.valid_confirmation(code)
+            cases=[
+                ("2026-11-03T12:05:00+09:00","2026-11-03T12:02:00+09:00",True),
+                ("2026-11-03T03:05:00+00:00","2026-11-03T12:02:00+09:00",True),
+                ("2026-11-03T12:05:01+09:00","2026-11-03T12:02:00+09:00",False),
+                ("2026-11-03T03:05:01+00:00","2026-11-03T12:02:00+09:00",False),
+            ]
+            for source_time,collected_time,expected in cases:
+                with self.subTest(source_time=source_time):
+                    payload=dict(valid,confirmed_at_jst=source_time,
+                                 collected_at_jst=collected_time)
+                    path.write_text(json.dumps(payload),encoding="utf-8")
+                    self.assertEqual(c.confirmed_record_is_usable(path,code),expected)
+
     def test_missing_source_rows_are_not_declared_losses(self):
         header="レースコード,取得日時,1着_艇番,2着_艇番,3着_艇番\\n"
         csv=(header+"202610280101,2026-10-28T12:00:00+09:00,1,2,3\\n"

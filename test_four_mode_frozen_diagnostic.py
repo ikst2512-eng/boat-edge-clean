@@ -73,6 +73,15 @@ class FrozenFourModeDiagnosticTests(unittest.TestCase):
                 self.assertEqual(outcome["status"],"invalid_result_or_timing")
                 self.assertFalse(outcome["formal"])
 
+    def test_future_dated_persisted_result_is_not_scored(self):
+        record=json.loads(self.result.read_text(encoding="utf-8"))
+        record["confirmed_at_jst"]="2026-10-28T14:05:01+09:00"
+        record["collected_at_jst"]="2026-10-28T14:02:00+09:00"
+        self.result.write_text(json.dumps(record),encoding="utf-8")
+        outcome=compare_race(CODE,self.root)
+        self.assertEqual(outcome["status"],"invalid_result_or_timing")
+        self.assertFalse(outcome["formal"])
+
     def test_wrong_date_is_not_formally_promoted(self):
         a=archive()
         a["deadline_jst"]="2026-10-29T14:00:00+09:00"
