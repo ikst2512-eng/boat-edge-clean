@@ -47,6 +47,7 @@ class ShadowAuditTests(unittest.TestCase):
         self.store()
         x=self.review()
         self.assertEqual(x["comparable"],1)
+        self.assertEqual(x["eligible_codes"],[CODE])
         self.assertEqual(x["delta"]["third_national_rate"]["top10"]["gained"],1)
         self.assertFalse(x["formal"])
     def test_candidate_tampering_is_excluded(self):
@@ -55,6 +56,7 @@ class ShadowAuditTests(unittest.TestCase):
         x=self.review()
         self.assertEqual(x["comparable"],0)
         self.assertEqual(x["excluded_by_reason"]["candidate_replay_mismatch"],1)
+        self.assertEqual(x["eligible_codes"],[])
     def test_method_tampering_is_excluded(self):
         self.record["future_locked_selector_git_blobs"]={"wrong":"hash"}
         self.store()
@@ -65,6 +67,16 @@ class ShadowAuditTests(unittest.TestCase):
         self.store()
         x=self.review()
         self.assertEqual(x["excluded_by_reason"]["local_timing_invalid"],1)
+    def test_result_not_yet_confirmed_is_valid_freeze_not_hit(self):
+        self.store()
+        with patch("hole_future_shadow_audit.archived_four_modes",return_value=(200,self.archive)),patch(
+             "hole_future_shadow_audit.national_rates",return_value=[4,5,6,7,8,9]),patch(
+             "hole_future_shadow_audit.variants",return_value=self.candidates),patch(
+             "hole_future_shadow_audit.compare_race",return_value={"status":"result_pending"}):
+            x=audit(self.root,self.shadow)
+        self.assertEqual(x["eligible_codes"],[CODE])
+        self.assertEqual(x["comparable"],0)
+        self.assertEqual(x["excluded_by_reason"]["unconfirmed_result"],1)
     def test_no_unverified_files_count_as_hits(self):
         x=audit(self.root,self.shadow)
         self.assertEqual(x["status"],"missing_shadow")
