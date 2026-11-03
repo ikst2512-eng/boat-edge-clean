@@ -1,0 +1,35 @@
+name: Entry course research-only late preview capture
+on:
+  schedule:
+    # Twice/hour during 09:00-22:59 JST. Bounded at one race/run.
+    - cron: '0,30 0-13 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: entry-course-late-research
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.repository == 'ikst2512-eng/boat-edge-clean' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Collect only eligible separate T-minus-2 research study
+        run: python entry_course_collector.py --root . --output entry-course-evidence/last-attempt.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Retain inspection status (not a formal forecast)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-course-attempt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entry-course-evidence/last-attempt.json
+          if-no-files-found: warn
+          retention-days: 5
