@@ -117,7 +117,9 @@ def inspect(run, root):
               "publication_outcome": None, "claimed_added_forecasts": None,
               "claimed_commit_sha": None, "remote_main_verified": False,
               "failure_stage": None, "third_rate_shadow_outcome": None,
-              "hole_shadow_outcome": None, "research_roster_evidence": None,
+              "hole_shadow_outcome": None, "third_rate_ledger_outcome": None,
+              "third_rate_ledger_status": None, "third_rate_ledger_probe_status": None,
+              "research_roster_evidence": None,
               "source_link_status": None,
               "source_link_checked": None, "source_link_hashes_present": None,
               "source_link_formal": False}
@@ -127,6 +129,18 @@ def inspect(run, root):
     stages = safe_json(root, "four-mode-evidence/stages.json")
     third = safe_json(root, "four-mode-evidence/third-rate-shadow.json")
     hole = safe_json(root, "four-mode-evidence/hole-shadow.json")
+    ledger = safe_json(root, "four-mode-evidence/third-rate-ledger.json")
+    if ledger is not None:
+        status_value = ledger.get("status")
+        if status_value in ("new_immutable_ledger_entry",
+                            "already_preserved_identical",
+                            "no_eligible_frozen_predictions",
+                            "ledger_preservation_failed"):
+            result["third_rate_ledger_status"] = status_value
+        probe = ledger.get("write_access_probe")
+        if isinstance(probe, dict) and probe.get("status") in (
+                "new_write_permission_probe", "existing_write_probe_readback"):
+            result["third_rate_ledger_probe_status"] = probe["status"]
     result["research_roster_evidence"] = research_roster_evidence(publication, third, hole)
     source_links = safe_json(root, "four-mode-evidence/source-links.json")
     result["artifact_present"] = any(x is not None for x in (status, staging, publication, stages, source_links))
@@ -178,7 +192,7 @@ def inspect(run, root):
     # Research step outcomes are separate from immutable V2 publication.
     # Old artifacts may lack these fields: unknown is not success.
     if isinstance(stages, dict):
-        for field in ("third_rate_shadow", "hole_shadow"):
+        for field in ("third_rate_shadow", "hole_shadow", "third_rate_ledger"):
             value = stages.get(field)
             if value in ("success", "failure", "skipped", "cancelled"):
                 result[field + "_outcome"] = value
@@ -232,6 +246,7 @@ def report(history, downloader, limit=12):
             "unknown": outcomes.count(None),
             "checked": len(outcomes),
         }
+    ledger_outcomes = [r["third_rate_ledger_outcome"] for r in rows]
     return {"schema": "FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE_V1",
             "scheduled_runs_checked": len(rows),
             "history_runs_available": len(history["runs"]),
@@ -239,6 +254,22 @@ def report(history, downloader, limit=12):
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "research_stage_coverage": research_coverage,
+            "third_rate_ledger_coverage": {
+                "success": ledger_outcomes.count("success"),
+                "failure": ledger_outcomes.count("failure"),
+                "skipped": ledger_outcomes.count("skipped"),
+                "cancelled": ledger_outcomes.count("cancelled"),
+                "unknown": ledger_outcomes.count(None),
+                "checked": len(ledger_outcomes)},
+            "third_rate_ledger_failure_run_ids": [
+                r["run_id"] for r in rows
+                if r["third_rate_ledger_outcome"] == "failure"
+                or r["third_rate_ledger_status"] == "ledger_preservation_failed"],
+            "third_rate_ledger_probe_verified_run_ids": [
+                r["run_id"] for r in rows
+                if r["third_rate_ledger_probe_status"] in (
+                    "new_write_permission_probe", "existing_write_probe_readback")
+                and r["third_rate_ledger_outcome"] == "success"],
             "research_roster_status_counts": {
                 state: sum(r["research_roster_evidence"]["status"] == state for r in rows)
                 for state in ("matched", "mismatch", "unknown", "not_applicable")},
@@ -284,6 +315,9 @@ def main():
         "artifacts_present": result["artifacts_present"],
         "runs_claiming_push": result["runs_claiming_push"],
         "research_stage_coverage": result["research_stage_coverage"],
+        "third_rate_ledger_coverage": result["third_rate_ledger_coverage"],
+        "third_rate_ledger_failure_run_ids": result["third_rate_ledger_failure_run_ids"],
+        "third_rate_ledger_probe_verified_run_ids": result["third_rate_ledger_probe_verified_run_ids"],
         "research_roster_status_counts": result["research_roster_status_counts"],
         "research_roster_mismatch_run_ids": result["research_roster_mismatch_run_ids"],
         "third_rate_shadow_failure_runs": result["third_rate_shadow_failure_runs"],
