@@ -170,6 +170,43 @@ def operational_audit(day, *, fetch=_api, today=None):
             "prediction_hit_rate_verified":False}
 
 
+
+def operational_health(report):
+    """Fail closed on absent unattended evidence, not on a successfully run audit.
+
+    Never imply empirical accuracy or verified GitHub-server first-seen timing.
+    A zero-archive day is *unverified*, not proof that forecasts should exist.
+    """
+    if not isinstance(report,dict) or report.get("schema")!="entry-course-scheduled-ledger-path-audit-v2":
+        return {"status":"invalid_audit_report","verified_capture":False,
+                "issues":["invalid_audit_report"],"research_only":True}
+    issues=[]
+    for kind in ("t12","t2"):
+        part=report.get(kind)
+        if not isinstance(part,dict):
+            issues.append(kind+"_missing_audit_section")
+            continue
+        if part.get("scheduled_run_count",0)<1:
+            issues.append(kind+"_no_actual_schedule_runs")
+        proof=part.get("scheduled_write_proof")
+        if not isinstance(proof,dict) or proof.get("write_proven") is not True:
+            issues.append(kind+"_scheduled_write_proof_missing_or_unverified")
+        if part.get("archived_candidate_path_count",0)<1:
+            issues.append(kind+"_no_research_archive_evidence")
+    if report.get("archive_paths_not_byte_verified") is not False:
+        issues.append("research_archive_bytes_unverified")
+    integrity=report.get("archive_integrity")
+    if not isinstance(integrity,dict) or integrity.get("blob_sha_and_internal_payload_valid_count",0)<2:
+        issues.append("insufficient_internally_validated_research_archives")
+    return {"status":"unattended_capture_unverified" if issues else
+                     "internally_consistent_research_evidence_observed",
+            "issues":issues,
+            "verified_capture":not issues,
+            "independent_server_first_seen_verified":False,
+            "prediction_hit_rate_verified":False,
+            "research_only":True}
+
+
 def main():
     import argparse
     p=argparse.ArgumentParser()
@@ -183,11 +220,14 @@ def main():
                 "date_jst":args.day,"status":"audit_failed",
                 "error_type":type(exc).__name__,
                 "research_only":True,"formal":False}
+    if result.get("status")!="audit_failed":
+        result["operational_health"]=operational_health(result)
     path=Path(args.output)
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8")
     print("ENTRY_COURSE_SCHEDULE_AUDIT="+json.dumps(result,ensure_ascii=False,sort_keys=True))
-    if result.get("status")=="audit_failed":
+    if (result.get("status")=="audit_failed" or
+            result.get("operational_health",{}).get("issues")):
         raise SystemExit(2)
 
 

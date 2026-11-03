@@ -1,7 +1,7 @@
 import unittest
 from datetime import date
 from urllib.parse import parse_qs,urlparse
-from entry_course_schedule_audit import operational_audit
+from entry_course_schedule_audit import operational_audit,operational_health
 
 DAY="20261103"
 def response(path, *, t12=True, t2=True, archive=True, workflow_dispatch=False,
@@ -62,6 +62,47 @@ class ScheduledLedgerAuditTests(unittest.TestCase):
                               today=date(2026,11,4))
         self.assertEqual(out["t12"]["completed_failure_run_count"],1)
         self.assertEqual(out["t12"]["completed_success_run_count"],0)
+    def test_no_schedule_runs_or_no_archives_never_mark_nightly_green(self):
+        report=operational_audit(DAY,
+            fetch=lambda route:response(route,t12=False,t2=False,archive=False),
+            today=date(2026,11,4))
+        health=operational_health(report)
+        self.assertEqual(health["status"],"unattended_capture_unverified")
+        for expected in ("t12_no_actual_schedule_runs",
+                         "t2_no_actual_schedule_runs",
+                         "t12_no_research_archive_evidence",
+                         "t2_no_research_archive_evidence"):
+            self.assertIn(expected,health["issues"])
+        self.assertFalse(health["verified_capture"])
+        self.assertFalse(health["independent_server_first_seen_verified"])
+    def test_successful_crons_but_no_original_or_canary_are_not_success(self):
+        report=operational_audit(DAY,
+            fetch=lambda route:response(route,archive=False),
+            today=date(2026,11,4))
+        self.assertEqual(report["t12"]["scheduled_run_count"],1)
+        self.assertEqual(report["t2"]["scheduled_run_count"],1)
+        health=operational_health(report)
+        self.assertIn("t12_scheduled_write_proof_missing_or_unverified",health["issues"])
+        self.assertIn("t2_scheduled_write_proof_missing_or_unverified",health["issues"])
+        self.assertIn("insufficient_internally_validated_research_archives",
+                      health["issues"])
+    def test_consistent_internal_evidence_cannot_claim_independent_first_seen(self):
+        report={"schema":"entry-course-scheduled-ledger-path-audit-v2",
+                "archive_paths_not_byte_verified":False,
+                "archive_integrity":{
+                    "blob_sha_and_internal_payload_valid_count":2}}
+        for kind in ("t12","t2"):
+            report[kind]={"scheduled_run_count":1,
+                          "archived_candidate_path_count":1,
+                          "scheduled_write_proof":{"write_proven":True}}
+        health=operational_health(report)
+        self.assertEqual(health["issues"],[])
+        self.assertTrue(health["verified_capture"])
+        self.assertFalse(health["independent_server_first_seen_verified"])
+        self.assertFalse(health["prediction_hit_rate_verified"])
+    def test_invalid_audit_report_is_not_success(self):
+        self.assertEqual(operational_health({})["status"],"invalid_audit_report")
+        self.assertFalse(operational_health(None)["verified_capture"])
     def test_unfinished_day_never_scored_as_final(self):
         with self.assertRaisesRegex(ValueError,"completed_jst_day"):
             operational_audit(DAY,fetch=response,today=date(2026,11,3))
