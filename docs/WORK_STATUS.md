@@ -99,6 +99,12 @@
 - 新設 `tests/test_today_beforeinfo_probe.py` で、0件、アダプタ不完全、全情報源不通、6艇証明成功、手動0件の5パターンを独立時計/モックで検証。既存 `.github/workflows/today-beforeinfo-probe.yml` のPR実行にテストを追加。PR CI run `41657163439` job `125990433208` success、5テストPASS。PR上の実CSV取得は23:47頃JSTですでに締切前レース0件であり、**PR成功を当日締切前の運用証拠とは呼ばない**。
 - 既存 schedule は 13:15 / 15:15 / 17:15 / 19:15 JST のまま。GitHub cron遅延により締切後に起動する可能性は引き続き未解決。次は11/4の実schedule run ID・開始時刻・同一レースの両展示ソース時刻・6艇完全性・T-12成立可否を実観測する。新しいジョブや有料サービス、予想ロジック変更なし。
 
+## 2026-11-04 JST 締切前展示の実検証完了時刻を再チェック
+- 2026-11-03 schedule実行の独立検証で、`CLEAN today's predeadline exhibition source probe` は実行開始時点`now`で今後の同一レースtkz/sttを抽出してから`_fetch_preview`を実行していた。取得処理がレース締切をまたいだ場合、実データの検証完了時刻と締切時刻を再比較せず`SCHEDULED_PREVIEW_VERIFIED`に昇格する経路があった。発生頻度は未実測だが、ロジック上の誤証明可能性がある。
+- PR #1534 main squash `a6c80d5f2ffe6d3ba333dda3fd7fde83e5d4f7ce`。`scripts/probe_today_beforeinfo.py`でアダプタ戻り直後のタイムゾーン付き実時刻を再取得し、締切以上・タイムゾーンなしを`cutoff_passed_before_receipt`として6艇の締切前成功に数えない。成功時は`received_at_jst`をログに残す。既存ソース照合、6艇完全性、T-12判定ロジックを緩めない。時計を注入可能にし、締切直前成功・締切同時拒否の境界回帰を追加。
+- PR CI run `41661183224` job `126004484149` success。7回帰テストPASS、実CSVのPR診断は夜間のため締切前レースが無く、**本番scheduleやT-12実証ではない**。
+- 次の実運用監査は11/4予定13:15/15:15/17:15/19:15 JSTのschedule run ID、起動時刻、6艇検証完了ログ`received_at_jst`、同レースの期限、tkz/stt原本、T-12取得・API返却の各時刻を照合する。旧リポジトリ、予想、UI、スケジュール回数は変更なし。
+
 ## BOATERSモデルを全担当の固定方針とする（2026-11-01 ユーザー指示）
 - 正本は AGENTS.md の「UI・情報設計の最優先固定方針」。メイン開発／予想研究／データ収集の全トークに適用。
 - BOATERSをモデルにした1レース1ページ：確定結果を予想より上へ、AI展開予想、先頭艇別条件付き2着/3着率、6艇別イン逃げ/3連対/決まり手率、展示・進入・気象、最終3連単予想とオッズ。
