@@ -140,6 +140,10 @@ class CaptureEndToEndTests(unittest.TestCase):
                 result=collect(root=Path(tmp),now=now,read=read)
                 self.assertEqual(result["new_saved"],[])
                 self.assertEqual(result["excluded"].get("invalid_national_win_rate"),1)
+                self.assertEqual(result["excluded_races"],
+                                 [{"race_code": code, "reason": "invalid_national_win_rate"}])
+                state=publish_status(result,root=Path(tmp),now=now)
+                self.assertEqual(state["excluded_races"], result["excluded_races"])
                 self.assertFalse((Path(tmp)/"four_mode_forecasts"/(code+".json")).exists())
 
     def test_source_receipt_after_generation_is_rejected(self):
