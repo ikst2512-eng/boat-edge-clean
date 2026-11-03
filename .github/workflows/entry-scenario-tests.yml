@@ -5,11 +5,13 @@ on:
       - entry_scenario.js
       - entry_evidence_gate.js
       - entry_racecard_evidence.js
+      - entry_course_history.py
       - index.html
       - server.py
       - tests/test_entry_scenario.cjs
       - tests/test_entry_evidence_gate.cjs
       - tests/test_entry_racecard_evidence.cjs
+      - tests/test_entry_course_history.py
       - .github/workflows/entry-scenario-tests.yml
   workflow_dispatch:
 permissions:
@@ -27,5 +29,7 @@ jobs:
         run: node --check entry_scenario.js && node --check entry_evidence_gate.js && node --check entry_racecard_evidence.js
       - name: Test entry permutation calculations and front-end integration
         run: node --test tests/test_entry_scenario.cjs tests/test_entry_evidence_gate.cjs tests/test_entry_racecard_evidence.cjs
-      - name: Check Python web route syntax
-        run: python -m py_compile server.py
+      - name: Check Python web route and course history syntax
+        run: python -m py_compile server.py entry_course_history.py
+      - name: Check as-of course history integrity
+        run: python -m unittest discover -s tests -p test_entry_course_history.py -v
