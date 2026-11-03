@@ -70,6 +70,7 @@ def score_evidence(evidence, root):
            "published_forecasts": published,
            "frozen": 0, "paired": 0, "pending_results": 0,
            "excluded": 0, "invalid": 0, "race_codes_paired": [],
+           "race_codes_frozen": [],
            "topn": scores, "warning": "Results scored ONLY from same-job frozen artifact, not independently timestamped publication."}
     seen = set()
     for item in records:
@@ -83,6 +84,7 @@ def score_evidence(evidence, root):
             out["excluded"] += 1
             continue
         out["frozen"] += 1
+        out["race_codes_frozen"].append(code)
         try:
             if code[:8] < FUTURE_START or item.get("protocol") != PROTOCOL:
                 raise ValueError("development_or_protocol_mismatch")
@@ -139,6 +141,7 @@ def score_evidence(evidence, root):
         if row["candidate"] - row["baseline"] != row["gained"] - row["lost"]:
             raise ValueError("gain_loss_mismatch")
     out["race_codes_paired"].sort()
+    out["race_codes_frozen"].sort()
     return out
 
 
