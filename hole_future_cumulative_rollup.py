@@ -102,15 +102,37 @@ def fetch_previous(repo,limit=40):
                                   capture_output=True,text=True,env=env,timeout=45)
             if result.returncode!=0:
                 failed.append(run_id);continue
-            files=[p for p in target.rglob("hole_future_batch.json")
-                   if p.is_file() and not p.is_symlink()]
-            if len(files)!=1 or files[0].stat().st_size>3000000:
+            accepted={"hole_future_batch.json","hole_future_late_7d.json",
+                      "hole_future_late_21d.json"}
+            files=[p for p in target.rglob("*.json") if p.is_file()
+                   and not p.is_symlink() and p.name in accepted]
+            names=[p.name for p in files]
+            # A run may predate delayed checks. Any duplicate report name
+            # or unreadable report invalidates the entire run's contribution.
+            if (not files or len(names)!=len(set(names)) or
+                    "hole_future_batch.json" not in names or
+                    any(p.stat().st_size>3000000 for p in files)):
                 failed.append(run_id);continue
-            try:reports.append(json.loads(files[0].read_text(encoding="utf-8")))
-            except (ValueError,UnicodeError,OSError):failed.append(run_id)
+            batch=[]
+            try:
+                for path in files:
+                    report=json.loads(path.read_text(encoding="utf-8"))
+                    if (not isinstance(report,dict) or
+                            report.get("schema")!="HOLE_FUTURE_ARTIFACT_BATCH_V1"):
+                        raise ValueError("invalid_daily_report")
+                    age=(0 if path.name=="hole_future_batch.json"
+                         else 7 if path.name=="hole_future_late_7d.json" else 21)
+                    if report.get("recheck_lag_days",0)!=age:
+                        raise ValueError("wrong_recheck_lag")
+                    batch.append(report)
+            except (ValueError,UnicodeError,OSError):
+                failed.append(run_id);continue
+            reports.extend(batch)
     result=rollup(reports)
     result["runs_listed"]=len(ids)
     result["daily_artifacts_read"]=len(reports)
+    result["late_recheck_reports_read"]=sum(
+        x.get("recheck_lag_days",0) in (7,21) for x in reports)
     result["unavailable_daily_run_ids"]=failed
     result["run_list_cap"]=limit
     result["history_exhaustive"]=False
