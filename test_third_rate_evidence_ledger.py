@@ -103,6 +103,36 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         self.assertEqual(report["status"], "no_eligible_frozen_predictions")
         self.assertEqual(self.storage, {})
 
+    def test_reject_double_counted_ineligible_error_before_preservation(self):
+        self.data["published_forecasts"] = 2
+        self.data["records"].append({
+            "race_code": "202611040102", "status": "validation_error",
+            "error_type": "ValueError"})
+        self.data["validation_error_count"] = 1
+        self.data["ineligible_count"] = 1  # Old bug: error counted twice.
+        with self.assertRaisesRegex(ValueError, "ledger_record_partition_mismatch"):
+            publish(self.original(), self.root, "412345", "1",
+                    self.remote_read, self.remote_create)
+        self.assertEqual(self.storage, {})
+
+    def test_partial_error_is_preserved_with_disjoint_counts(self):
+        self.data["published_forecasts"] = 2
+        self.data["records"].append({
+            "race_code": "202611040102", "status": "validation_error",
+            "error_type": "ValueError"})
+        self.data["validation_error_count"] = 1
+        self.data["ineligible_count"] = 0
+        result = publish(self.original(), self.root, "412345", "1",
+                         self.remote_read, self.remote_create)
+        self.assertTrue(result["stored"])
+
+    def test_unknown_research_row_status_never_preserved(self):
+        self.data["records"][0]["status"] = "unknown"
+        with self.assertRaisesRegex(ValueError, "invalid_research_row_status"):
+            publish(self.original(), self.root, "412345", "1",
+                    self.remote_read, self.remote_create)
+        self.assertEqual(self.storage, {})
+
     def test_reject_tampered_original_frozen_forecast(self):
         self.data["records"][0]["source_forecast_sha256"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "frozen_source_digest_mismatch"):
