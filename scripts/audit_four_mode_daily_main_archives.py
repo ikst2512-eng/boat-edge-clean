@@ -468,6 +468,46 @@ def missing_new_push_final_evidence_run_ids(day, evidence_reports):
     return sorted(unknown)
 
 
+def uncertified_new_push_final_evidence_run_ids(day, evidence_reports):
+    """Explicitly passed but incompatible final detail for Nov-4+ pushes.
+
+    'passed' alone might represent a no-op or malformed/mismatched published
+    count. Only a matching published-with-durable-early-observation detail
+    can certify a capture's final gate. Missing and explicit failures are
+    tracked separately by the existing audit gates.
+    """
+    if day < "20261104":
+        return []
+    invalid = set()
+    for report in evidence_reports:
+        if not isinstance(report, dict) or not isinstance(report.get("runs"), list):
+            continue
+        for row in report["runs"]:
+            if (not isinstance(row, dict)
+                    or row.get("artifact_present") is not True
+                    or row.get("publication_outcome") != "pushed_to_main"
+                    or row.get("final_evidence_verdict_status") != "passed"):
+                continue
+            try:
+                moment = datetime.fromisoformat(
+                    row["created_at"].replace("Z", "+00:00"))
+                if (moment.tzinfo is None or
+                        moment.astimezone(JST).strftime("%Y%m%d") != day):
+                    continue
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+            claimed = row.get("claimed_added_forecasts")
+            if (type(claimed) is not int or claimed <= 0
+                    or row.get("final_evidence_verdict_result") !=
+                       "published_with_durable_early_observation"
+                    or type(row.get("final_evidence_published_count")) is not int
+                    or row["final_evidence_published_count"] != claimed):
+                run_id = row.get("run_id")
+                if type(run_id) is int and run_id > 0:
+                    invalid.add(run_id)
+    return sorted(invalid)
+
+
 def scheduled_audit_alert(result, event, evidence_reports=()):
     if event != "schedule" or result.get("checkout_main_context") is not True:
         return False
@@ -528,6 +568,7 @@ def main():
     report["third_rate_ledger_failure_run_ids"] = ledger_failure_run_ids(day, evidence)
     report["final_evidence_failure_run_ids"] = final_evidence_failure_run_ids(day, evidence)
     report["missing_new_push_final_evidence_run_ids"] = missing_new_push_final_evidence_run_ids(day, evidence)
+    report["uncertified_new_push_final_evidence_run_ids"] = uncertified_new_push_final_evidence_run_ids(day, evidence)
     report["github_observation_failure_run_ids"] = github_observation_failure_run_ids(day, evidence)
     verified_claims, mismatched_claims = reconcile_claimed_pushes(
         day, paths, additions, evidence)
@@ -553,6 +594,11 @@ def main():
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
             and report["unpublished_new_candidate_runs"]):
         print("::error::Same-day V2 capture staged or generated new races without a complete publication claim")
+        raise SystemExit(2)
+    if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and report["uncertified_new_push_final_evidence_run_ids"]):
+        print("::error::New V2 push reports final gate passed but lacks matching published evidence")
         raise SystemExit(2)
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"
