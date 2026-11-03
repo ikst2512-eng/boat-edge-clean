@@ -49,6 +49,11 @@ def prepare(original,root,run_id,attempt,git=None):
             type(sha) is not str or SHA.fullmatch(sha) is None or
             type(records) is not list or len(records)!=count):
         raise ValueError("bad_observation_publication")
+    # The independent future-only protocol starts on Nov 4. Older capture
+    # runs are not failures and must not be stored as future evidence.
+    if all(type(r) is dict and type(r.get("race_code")) is str and
+           r["race_code"][:8]<"20261104" for r in records):
+        return None
     git=git or (lambda *args: subprocess.check_output(
         ["git",*args],cwd=root,timeout=30))
     seen=set();by_status={name:0 for name in VALID}
