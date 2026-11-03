@@ -36,12 +36,20 @@ def inspect(run, root):
               "newly_generated": None, "staged_valid": None,
               "publication_outcome": None, "claimed_added_forecasts": None,
               "claimed_commit_sha": None, "remote_main_verified": False,
-              "failure_stage": None}
+              "failure_stage": None, "source_link_status": None,
+              "source_link_checked": None, "source_link_hashes_present": None,
+              "source_link_formal": False}
     status = safe_json(root, "four_mode_forecasts/capture_status.json")
     staging = safe_json(root, "four-mode-evidence/staging.json")
     publication = safe_json(root, "four-mode-evidence/publication.json")
     stages = safe_json(root, "four-mode-evidence/stages.json")
-    result["artifact_present"] = any(x is not None for x in (status, staging, publication, stages))
+    source_links = safe_json(root, "four-mode-evidence/source-links.json")
+    result["artifact_present"] = any(x is not None for x in (status, staging, publication, stages, source_links))
+    if source_links is not None and source_links.get("schema") in ("FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V1", "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2"):
+        if source_links.get("day_jst") == datetime.fromisoformat(run["created_at"].replace("Z", "+00:00")).astimezone(JST).strftime("%Y%m%d"):
+            result["source_link_status"] = source_links.get("publication_scope_status") if source_links.get("schema") == "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2" else "legacy_all_day_archives"
+            result["source_link_checked"] = count(source_links, "checked")
+            result["source_link_hashes_present"] = count(source_links, "hashes_present")
     try:
         day = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00")).astimezone(JST).strftime("%Y%m%d")
     except (KeyError, ValueError, TypeError, AttributeError):

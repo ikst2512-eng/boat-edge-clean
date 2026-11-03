@@ -78,6 +78,37 @@ class ScheduledEvidenceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             report({"runs": []}, lambda *_: None, limit=0)
 
+    def test_new_noop_link_report_counts_zero_not_old_149(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/source-links.json", {
+                "schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2",
+                "day_jst": "20261103",
+                "publication_scope_status": "no_new_publication",
+                "checked": 0, "hashes_present": 0, "formal": False})
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertEqual(row["source_link_status"], "no_new_publication")
+        self.assertEqual(row["source_link_checked"], 0)
+        self.assertEqual(row["source_link_hashes_present"], 0)
+        self.assertFalse(row["source_link_formal"])
+
+    def test_legacy_all_day_hash_count_is_flagged_not_current_job_failure(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/source-links.json", {
+                "schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V1",
+                "day_jst": "20261103",
+                "checked": 149, "hashes_present": 0})
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertEqual(row["source_link_status"], "legacy_all_day_archives")
+        self.assertEqual(row["source_link_checked"], 149)
+
+    def test_wrong_day_link_report_does_not_count(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/source-links.json", {
+                "schema": "FOUR_MODE_LOCAL_SOURCE_LINK_REPORT_V2",
+                "day_jst": "20261102", "checked": 999, "hashes_present": 0})
+        row = report({"runs": [self.RUN]}, download)["runs"][0]
+        self.assertIsNone(row["source_link_checked"])
+
 
 if __name__ == "__main__":
     unittest.main()
