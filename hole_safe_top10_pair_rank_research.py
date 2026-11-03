@@ -111,7 +111,7 @@ def compare(codes,root):
         for name in NAMES:
             changed[name]+=int(candidates[name]!=candidates["baseline"])
             for k in TOPS:
-                key=f"top{k]";key=key[:-1] # explicitly use stable Top-N keys
+                key=f"top{k}"
                 hit=flags[name][key];original=baseline[key]
                 bucket=hits[name][key]
                 bucket["hits"]+=int(hit)
