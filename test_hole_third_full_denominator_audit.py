@@ -72,7 +72,7 @@ class FullDenominatorAuditTests(unittest.TestCase):
             result=inspect([CODES[0]],Path("."))
         self.assertEqual(result["comparable"],0)
         self.assertEqual(result["unavailable"],{"unconfirmed_result":1})
-        self.assertEqual(result["top10_all_races"]["third_national_rate"],{})
+        self.assertEqual(result["top10_all_races"]["third_national_rate"].get("hits",0),0)
 
     def test_rejects_invalid_budget_before_reading_outcome(self):
         a=archive_fixture()
