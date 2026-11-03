@@ -2,7 +2,8 @@
 import unittest
 from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
-from scripts.live_racecard_candidate_priority import rank_candidates,t12_window_open
+from scripts.live_racecard_candidate_priority import (rank_candidates,t12_window_open,
+    live_sampling_window_open,preview_codes_at_receipt)
 
 JST=ZoneInfo("Asia/Tokyo")
 NOW=datetime(2026,11,4,17,30,tzinfo=JST)
@@ -29,6 +30,39 @@ class LiveRacecardCandidatePriorityTests(unittest.TestCase):
         self.assertEqual(len(ranked),2)
         self.assertEqual([code for _,code in ranked],["near_matched","near_unmatched"])
         self.assertTrue(all(not t12_window_open(deadline,NOW) for deadline,_ in ranked))
+
+    def test_schedule_delayed_across_midnight_is_not_valid_race_window(self):
+        self.assertFalse(live_sampling_window_open(datetime(2026,11,4,0,23,tzinfo=JST)))
+        self.assertTrue(live_sampling_window_open(datetime(2026,11,4,9,30,tzinfo=JST)))
+        self.assertTrue(live_sampling_window_open(datetime(2026,11,4,21,30,tzinfo=JST)))
+        self.assertFalse(live_sampling_window_open(datetime(2026,11,4,23,30,tzinfo=JST)))
+
+    def test_preview_published_during_http_fetch_is_eligible_by_receipt(self):
+        row={"レースコード":"202611041911","締切時刻":"18:00",
+             "取得日時":"2026-11-04T17:30:30+09:00"}
+        receipt=datetime(2026,11,4,17,31,tzinfo=JST)
+        self.assertEqual(preview_codes_at_receipt([row],"20261104",receipt),{"202611041911"})
+
+    def test_preview_source_in_future_or_after_cutoff_does_not_qualify(self):
+        future={"レースコード":"202611041911","締切時刻":"18:00",
+                "取得日時":"2026-11-04T17:31:01+09:00"}
+        receipt=datetime(2026,11,4,17,31,tzinfo=JST)
+        self.assertEqual(preview_codes_at_receipt([future],"20261104",receipt),set())
+        future["取得日時"]="2026-11-04T17:20:00+09:00"
+        after=datetime(2026,11,4,18,0,tzinfo=JST)
+        self.assertEqual(preview_codes_at_receipt([future],"20261104",after),set())
+
+    def test_preview_rejects_wrong_date_and_naive_source_timestamp(self):
+        receipt=datetime(2026,11,4,17,31,tzinfo=JST)
+        rows=[{"レースコード":"202611031911","締切時刻":"18:00",
+               "取得日時":"2026-11-03T17:20:00+09:00"},
+              {"レースコード":"202611041911","締切時刻":"18:00",
+               "取得日時":"2026-11-04T17:20:00"}]
+        self.assertEqual(preview_codes_at_receipt(rows,"20261104",receipt),set())
+        with self.assertRaisesRegex(ValueError,"preview_receipt_timezone_missing"):
+            preview_codes_at_receipt(rows,"20261104",datetime(2026,11,4,17,31))
+        with self.assertRaisesRegex(ValueError,"sample_clock_timezone_missing"):
+            live_sampling_window_open(datetime(2026,11,4,0,23))
 
     def test_timezone_missing_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"t12_clock_timezone_missing"):
