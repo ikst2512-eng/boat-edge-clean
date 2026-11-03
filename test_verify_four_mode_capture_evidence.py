@@ -90,6 +90,38 @@ class EvidenceVerdictTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "future_third_rate_shadow_missing_or_invalid"):
             verify(self.root)
 
+    def test_two_published_but_one_third_rate_freeze_never_passes(self):
+        self.published(); self.good(); self.good_third()
+        evidence_dir = self.root / "four-mode-evidence"
+        publication = json.loads((evidence_dir/"publication.json").read_text())
+        publication["added_forecasts"] = 2
+        self.write("publication.json", publication)
+        observation = json.loads((evidence_dir/"github-server-observation.json").read_text())
+        second = dict(observation["records"][0])
+        second["race_code"] = "202611040102"
+        observation["records"].append(second)
+        observation["publication_count"] = 2
+        observation["observed_before_t_minus_12"] = 2
+        self.write("github-server-observation.json", observation)
+        observed_bytes = (evidence_dir/"github-server-observation.json").read_bytes()
+        first_ledger = json.loads((evidence_dir/"github-server-observation-ledger.json").read_text())
+        first_ledger["sha256"] = hashlib.sha256(observed_bytes).hexdigest()
+        self.write("github-server-observation-ledger.json", first_ledger)
+        shadow = json.loads((evidence_dir/"third-rate-shadow.json").read_text())
+        shadow["published_forecasts"] = 2
+        shadow["records"].append({
+            "race_code":"202611040102", "status":"ineligible",
+            "reason":"calculation_crossed_t_minus_12"})
+        shadow["ineligible_count"] = 1
+        self.write("third-rate-shadow.json", shadow)
+        shadow_bytes = (evidence_dir/"third-rate-shadow.json").read_bytes()
+        second_ledger = json.loads((evidence_dir/"third-rate-ledger.json").read_text())
+        second_ledger["original_sha256"] = hashlib.sha256(shadow_bytes).hexdigest()
+        self.write("third-rate-ledger.json", second_ledger)
+        with self.assertRaisesRegex(ValueError, "future_third_rate_partial_frozen_roster"):
+            verify(self.root)
+        self.assertEqual(record_verdict(self.root)["status"], "failed")
+
     def test_valid_future_shadow_and_ledger_are_required_for_publication_pass(self):
         self.published(); self.good(); self.good_third()
         self.assertEqual(verify(self.root)["status"],
