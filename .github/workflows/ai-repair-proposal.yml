@@ -40,6 +40,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Refuse AI repair dispatch outside main
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        shell: bash
+        run: |
+          if [[ "$DISPATCH_REF" != "refs/heads/main" ]]; then
+            echo "::error::AI repair proposals must be dispatched from main."
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
