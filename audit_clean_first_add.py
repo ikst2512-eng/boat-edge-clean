@@ -21,6 +21,14 @@ _BULK = local()
 @contextmanager
 def bulk_first_add(root=ROOT):
     root = Path(root).resolve()
+    # Deployment checkouts may contain only a shallow Git history. In such a
+    # checkout, a later commit can appear to be the original add, producing
+    # a false late-cutoff verdict. Withhold the entire bulk audit instead.
+    shallow = subprocess.check_output(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=root, text=True).strip()
+    if shallow != "false":
+        raise ValueError("incomplete local git history")
     raw = subprocess.check_output(
         ["git", "log", "--format=COMMIT %H %cI", "--name-only",
          "--diff-filter=A", "--", "prospective_predictions"],
