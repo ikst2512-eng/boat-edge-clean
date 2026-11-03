@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids
+from scripts.audit_four_mode_daily_main_archives import audit, parse_additions, scheduled_audit_alert, positive_eligible_run_ids, inspect_day_archive_versions, inspect_first_add_commit_days, reconcile_claimed_pushes, unpublished_new_candidate_runs, reconcile_research_rosters_with_main, ledger_failure_run_ids, github_observation_failure_run_ids, final_evidence_failure_run_ids, missing_new_push_final_evidence_run_ids
 
 A = "a" * 40
 B = "b" * 40
@@ -12,6 +12,36 @@ OLD = "four_mode_forecasts/202611030101.json"
 
 
 class DailyMainArchivesTest(unittest.TestCase):
+    def test_new_published_run_missing_final_verdict_is_explicit_unknown_alert(self):
+        good = {"run_id": 901, "created_at": "2026-11-04T00:07:00Z",
+                "artifact_present": True, "publication_outcome": "pushed_to_main",
+                "final_evidence_verdict_status": "passed"}
+        missing = {**good, "run_id": 902,
+                   "final_evidence_verdict_status": None}
+        noop = {**missing, "run_id": 903,
+                "publication_outcome": "no_eligible_candidates"}
+        old = {**missing, "run_id": 904,
+               "created_at": "2026-11-03T00:07:00Z"}
+        absent = {**missing, "run_id": 905, "artifact_present": False}
+        report = {"runs": [good, missing, noop, old, absent]}
+        self.assertEqual(missing_new_push_final_evidence_run_ids(
+            "20261104", [report, {"runs": [dict(missing)]}]), [902])
+        self.assertEqual(missing_new_push_final_evidence_run_ids(
+            "20261103", [report]), [])
+        self.assertEqual(missing_new_push_final_evidence_run_ids(
+            "20261105", [report]), [])
+        source = Path("scripts/audit_four_mode_daily_main_archives.py").read_text(
+            encoding="utf-8")
+        self.assertIn('and report["missing_new_push_final_evidence_run_ids"]', source)
+
+    def test_legacy_or_invalid_run_does_not_become_fabricated_failure(self):
+        row = {"run_id": 907, "created_at": "bad-date",
+               "publication_outcome": "pushed_to_main",
+               "final_evidence_verdict_status": None,
+               "artifact_present": True}
+        self.assertEqual(missing_new_push_final_evidence_run_ids(
+            "20261104", [{"runs": [row]}]), [])
+
     def test_explicit_final_gate_failure_alerts_only_matching_jst_day(self):
         failed = {"run_id": 501, "created_at": "2026-11-03T15:05:00Z",
                   "final_evidence_verdict_status": "failed",
