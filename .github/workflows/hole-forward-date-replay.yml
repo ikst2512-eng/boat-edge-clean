@@ -1,0 +1,38 @@
+name: Hole forward-date fixed-candidate replay
+on:
+  pull_request:
+    paths:
+      - hole_forward_date_replay.py
+      - test_hole_forward_date_replay.py
+      - .github/workflows/hole-forward-date-replay.yml
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest -v test_hole_forward_date_replay.py
+      - run: python hole_forward_date_replay.py --date 20261103 > hole_forward_date_results.json
+      - name: Verify attribution and print actual new-day metrics
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('hole_forward_date_results.json'))
+          assert r['formal'] is False and r['independent_first_receipt_verified'] is False
+          assert r['prospective_validation'] is False and r['production_forecast_changed'] is False
+          assert r['date_jst']=='20261103'
+          print("NEW_DATE_ARCHIVES",r['scanned_archives'],"COMPARABLE",r['comparable'])
+          print("EXCLUDED",r['excluded'])
+          print("HITS",r['hits'])
+          print("DELTA",r['delta'])
+          print("RACE_CODES",[x['race_code'] for x in r['rows']])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-forward-date-results
+          path: hole_forward_date_results.json
