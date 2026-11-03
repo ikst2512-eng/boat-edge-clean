@@ -56,6 +56,49 @@ class AttributionTests(unittest.TestCase):
         self.assertEqual(output["topn"]["third_national_rate"]["top10"]["gained"], 1)
         self.assertEqual(output["topn"]["third_national_rate"]["top5"]["gained"], 0)
         self.assertEqual(output["missing_pair_recovery"]["donor_order"]["winner_in_donor_tickets"], 1)
+        self.assertEqual(output["third_choice_gaps"]["donor_order"]["correct_pair_wrong_third"], 1)
+        self.assertEqual(output["third_choice_gaps"]["donor_order"]["winner_available_in_donors"], 1)
+        self.assertEqual(output["third_choice_gaps"]["donor_order"]["multiple_donor_thirds"], 1)
+        self.assertEqual(output["missing_pair_recovery"]["donor_order"]["third_wrong_but_winner_in_donors"], 1)
+
+    def test_correct_pair_wrong_third_without_donor_candidate_is_distinct(self):
+        archive = {"modes": {
+            "hit": {"tickets": [{"combo": "1-5-2"}]},
+            "balance": {"tickets": []}}}
+        chosen = {"baseline": BASE, "donor_order": DONOR,
+                  "max_ticket_score": DONOR, "third_national_rate": DONOR}
+        with patch("hole_error_attribution_research.archived_four_modes",
+                   return_value=(200, archive)), patch(
+             "hole_error_attribution_research.national_rates", return_value=None), patch(
+             "hole_error_attribution_research.variants", return_value=chosen), patch(
+             "hole_error_attribution_research.compare_race",
+             return_value={"status": "historical_comparison_only",
+                           "winning_ticket": "1-5-3"}):
+            result = inspect([CODE], Path("."))
+        gap=result["third_choice_gaps"]["donor_order"]
+        self.assertEqual(gap["correct_pair_wrong_third"], 1)
+        self.assertEqual(gap["winner_absent_from_donors"], 1)
+        self.assertEqual(gap["one_donor_third"], 1)
+        self.assertEqual(result["missing_pair_recovery"]["donor_order"]
+                         ["third_wrong_and_winner_not_in_donors"], 1)
+
+    def test_same_existing_pair_wrong_third_not_mislabelled_as_pair_recovery(self):
+        archive = {"modes": {"hit": {"tickets": [{"combo": "1-4-6"}]},
+                             "balance": {"tickets": []}}}
+        chosen = {p: BASE for p in
+                  ("baseline", "donor_order",
+                   "max_ticket_score", "third_national_rate")}
+        with patch("hole_error_attribution_research.archived_four_modes",
+                   return_value=(200, archive)), patch(
+             "hole_error_attribution_research.national_rates", return_value=None), patch(
+             "hole_error_attribution_research.variants", return_value=chosen), patch(
+             "hole_error_attribution_research.compare_race",
+             return_value={"status": "historical_comparison_only",
+                           "winning_ticket": "1-4-6"}):
+            result = inspect([CODE], Path("."))
+        self.assertEqual(result["third_choice_gaps"]["baseline"]["correct_pair_wrong_third"], 1)
+        self.assertEqual(result["third_choice_gaps"]["baseline"]["winner_available_in_donors"], 1)
+        self.assertEqual(result["missing_pair_recovery"]["donor_order"], {})
 
     def test_pending_result_not_used_as_a_scored_hit(self):
         archive = {"modes": {"hit": {"tickets": []}, "balance": {"tickets": []}}}
