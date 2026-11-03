@@ -138,7 +138,7 @@ def reconcile(capture, ledger, *, before_future_start=False):
         out["status"] = "invalid_or_unavailable_ledger"
     elif out["missing_from_ledger"]:
         out["status"] = "frozen_predictions_missing_from_ledger"
-    elif (left_hashes is None or right_hashes is None
+    elif left and (left_hashes is None or right_hashes is None
           or set(left_hashes) != set(left)
           or not set(left).issubset(set(right_hashes))):
         out["status"] = "frozen_ticket_digest_evidence_missing_or_invalid"
