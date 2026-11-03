@@ -15,7 +15,8 @@ from four_mode_v2_frozen_third_artifact_score import score_zip
 CUTOFF_CREATED_UTC = "2026-11-03T15:00:00Z"  # Nov 4 JST
 EVENTS = {"schedule", "workflow_dispatch"}
 STATUS = {"success", "failure", "cancelled", "timed_out", "action_required"}
-RUN_MAX = 40
+RUN_MAX = 80
+INVENTORY_LIMIT = 500
 TOPS = (3, 5, 10)
 RUN_ID = re.compile(r"[1-9][0-9]{0,16}\Z")
 
@@ -51,6 +52,14 @@ def summarize(inventory, root, download, out_dir):
     """Download exact artifact names and score individually; never count a
     missing artifact as zero-hit. Abort duplicate frozen races across runs."""
     selected = choose_runs(inventory)
+    # Never claim a complete study when older captures were silently dropped.
+    eligible = sum(1 for row in inventory if type(row) is dict and
+                   row.get("headBranch") == "main" and row.get("event") in EVENTS
+                   and isinstance(row.get("createdAt"), str)
+                   and row["createdAt"] >= CUTOFF_CREATED_UTC
+                   and row.get("conclusion") in STATUS)
+    truncated = eligible > RUN_MAX
+    inventory_limit_reached = len(inventory) >= INVENTORY_LIMIT
     report = {
         "schema": "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1",
         "status": "no_future_capture_runs" if not selected else "scored_frozen_artifacts",
@@ -58,8 +67,15 @@ def summarize(inventory, root, download, out_dir):
         "remote_first_seen_independently_verified": False,
         "production_promotion_allowed": False,
         "searched_run_limit": RUN_MAX,
+        "inventory_limit": INVENTORY_LIMIT,
+        "eligible_runs_in_inventory": eligible,
+        "older_eligible_runs_omitted": max(0, eligible - len(selected)),
+        "inventory_limit_reached": inventory_limit_reached,
+        "cohort_completeness_verified": False,
         "selected_runs": len(selected),
         "downloaded_artifacts": 0,
+        "no_new_candidate_runs": 0,
+        "bad_validation_runs": [],
         "missing_or_failed_artifacts": [],
         "paired": 0, "frozen": 0, "pending_results": 0,
         "invalid": 0, "excluded": 0,
@@ -81,6 +97,19 @@ def summarize(inventory, root, download, out_dir):
             if not path.is_file() or path.is_symlink() or path.stat().st_size > 15_000_000:
                 raise ValueError("missing_or_unsafe_zip")
             scoring = score_zip(path, root)
+            if scoring["published_forecasts"] == 0 and scoring["frozen"] == 0:
+                # An explicitly successful no-new-publication report is normal.
+                # A freeze validation failure must NEVER masquerade as empty.
+                if (scoring.get("publication_evidence_status") != "no_confirmed_publication"
+                        or scoring.get("validation_error_count", 0)):
+                    raise ValueError("invalid_or_failed_empty_publication")
+                row["status"] = "no_new_candidate_publication"
+                report["no_new_candidate_runs"] += 1
+                report["downloaded_artifacts"] += 1
+                report["runs"].append(row)
+                continue
+            if scoring["invalid"] or scoring.get("validation_error_count", 0):
+                report["bad_validation_runs"].append(run_id)
         except (OSError, ValueError, KeyError, TypeError,
                 subprocess.SubprocessError, __import__("zipfile").BadZipFile) as exc:
             row["status"] = "artifact_unavailable_or_invalid"
@@ -111,10 +140,18 @@ def summarize(inventory, root, download, out_dir):
     for score in report["topn"].values():
         if score["candidate"] - score["baseline"] != score["gained"] - score["lost"]:
             raise ValueError("paired_gain_loss_mismatch")
-    if report["missing_or_failed_artifacts"]:
+    if report["missing_or_failed_artifacts"] or report["bad_validation_runs"]:
         report["status"] = "incomplete_capture_artifact_evidence"
-    if not report["downloaded_artifacts"] and selected:
+    if truncated or inventory_limit_reached:
+        report["status"] = "incomplete_run_inventory_coverage"
+    if not report["downloaded_artifacts"] and selected and not (truncated or inventory_limit_reached):
         report["status"] = "capture_artifacts_unavailable"
+    report["cohort_completeness_verified"] = bool(
+        selected and not truncated and not inventory_limit_reached
+        and not report["missing_or_failed_artifacts"]
+        and not report["bad_validation_runs"])
+    if report["cohort_completeness_verified"] and report["status"] == "scored_frozen_artifacts":
+        report["status"] = "frozen_artifacts_scored_limited_cohort"
     return report
 
 

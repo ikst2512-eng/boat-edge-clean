@@ -76,7 +76,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run list --workflow four-mode-prospective-capture.yml --limit 100 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
+          gh run list --workflow four-mode-prospective-capture.yml --limit 500 --json databaseId,event,createdAt,headBranch,conclusion > v2_capture_run_inventory.json
           python four_mode_v2_frozen_third_nightly.py --run-inventory v2_capture_run_inventory.json --root . --out-dir v2_frozen_artifacts --output v2_frozen_third_nightly.json | tee v2_frozen_third_nightly.log
       - uses: actions/upload-artifact@v4
         with:

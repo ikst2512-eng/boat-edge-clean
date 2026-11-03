@@ -86,7 +86,8 @@ class FrozenNightlyTests(unittest.TestCase):
                    return_value={"status": "historical_comparison_only",
                                  "winning_ticket": finish}):
             out = summarize([run(123)], self.root, self.download, self.root)
-        self.assertEqual(out["status"], "scored_frozen_artifacts")
+        self.assertEqual(out["status"], "frozen_artifacts_scored_limited_cohort")
+        self.assertTrue(out["cohort_completeness_verified"])
         self.assertEqual(out["paired"], 1)
         self.assertEqual(out["topn"]["top3"]["candidate"], 1)
         self.assertEqual(out["race_codes_paired"], [CODE])
@@ -106,6 +107,63 @@ class FrozenNightlyTests(unittest.TestCase):
         self.assertEqual(out["status"], "capture_artifacts_unavailable")
         self.assertEqual(out["missing_or_failed_artifacts"], [123])
         self.assertEqual(out["paired"], 0)
+
+    def test_no_publication_capture_is_normal_zero_denominator(self):
+        self.evidence.update({"status": "no_confirmed_publication",
+                              "published_forecasts": 0,
+                              "frozen_before_t_minus_12": 0,
+                              "ineligible_count": 0, "records": []})
+        self.evidence.pop("publication_commit_sha")
+        out = summarize([run(125)], self.root, self.download, self.root)
+        self.assertEqual(out["no_new_candidate_runs"], 1)
+        self.assertEqual(out["paired"], 0)
+        self.assertEqual(out["missing_or_failed_artifacts"], [])
+        self.assertTrue(out["cohort_completeness_verified"])
+
+    def test_older_runs_dropped_is_explicit_incomplete(self):
+        inventory = [run(1000 + i) for i in range(81)]
+        # Real runs with no newly published predictions carry zero races,
+        # not an impossible duplicated frozen prediction across 80 runs.
+        self.evidence.update({"status": "no_confirmed_publication",
+                              "published_forecasts": 0,
+                              "frozen_before_t_minus_12": 0,
+                              "ineligible_count": 0, "records": []})
+        self.evidence.pop("publication_commit_sha")
+        out = summarize(inventory, self.root, self.download, self.root)
+        self.assertEqual(out["selected_runs"], 80)
+        self.assertEqual(out["older_eligible_runs_omitted"], 1)
+        self.assertEqual(out["status"], "incomplete_run_inventory_coverage")
+        self.assertFalse(out["cohort_completeness_verified"])
+
+    def test_inventory_api_limit_hit_is_never_claimed_complete(self):
+        inventory = [run(10000 + i, "2026-11-03T10:00:00Z")
+                     for i in range(500)]
+        out = summarize(inventory, self.root, self.download, self.root)
+        self.assertEqual(out["selected_runs"], 0)
+        self.assertTrue(out["inventory_limit_reached"])
+        self.assertFalse(out["cohort_completeness_verified"])
+
+    def test_corrupted_frozen_record_marks_incomplete_not_success(self):
+        self.evidence["records"][0]["source_forecast_sha256"] = "0" * 64
+        out = summarize([run(126)], self.root, self.download, self.root)
+        self.assertEqual(out["bad_validation_runs"], [126])
+        self.assertEqual(out["invalid"], 1)
+        self.assertEqual(out["paired"], 0)
+        self.assertEqual(out["status"], "incomplete_capture_artifact_evidence")
+
+    def test_failed_freeze_artifact_is_not_normal_no_new_run(self):
+        self.evidence.update({"status": "validation_error_before_freeze",
+                              "published_forecasts": 0,
+                              "frozen_before_t_minus_12": 0,
+                              "ineligible_count": 0,
+                              "validation_error_count": 1,
+                              "records": []})
+        self.evidence.pop("publication_commit_sha")
+        out = summarize([run(127)], self.root, self.download, self.root)
+        self.assertEqual(out["no_new_candidate_runs"], 0)
+        self.assertEqual(out["missing_or_failed_artifacts"], [127])
+        self.assertEqual(out["status"], "capture_artifacts_unavailable")
+        self.assertFalse(out["cohort_completeness_verified"])
 
     def test_reject_duplicate_run_ids(self):
         with self.assertRaisesRegex(ValueError, "duplicate_run_id"):
