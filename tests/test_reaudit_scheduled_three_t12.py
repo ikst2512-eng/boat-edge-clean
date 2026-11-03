@@ -93,24 +93,48 @@ class T12ScheduledAuditTests(unittest.TestCase):
     def test_empty_inventory_does_not_invent_completion(self):
         result = review_runs([], lambda _: [], lambda _: b"")
         self.assertEqual(result["observed_scheduled_runs"], 0)
-        self.assertEqual(result["expected_schedule_count"], 7)
+        self.assertEqual(result["expected_schedule_count"], 10)
         self.assertIn("記録なし", markdown(result))
 
     def test_elapsed_schedule_is_not_mistaken_for_future_or_source_failure(self):
         at_1522 = datetime.fromisoformat("2026-11-03T06:22:00+00:00")
         result = review_runs([], lambda _: [], lambda _: b"", as_of_utc=at_1522)
         self.assertEqual(result["planned_slots_elapsed"], 1)
-        self.assertEqual(result["planned_slots_future"], 6)
+        self.assertEqual(result["planned_slots_future"], 9)
         self.assertEqual(result["elapsed_slots_without_matching_run_at_snapshot"], 1)
         self.assertEqual(result["missing_or_unverified_runs"], 0)
-        self.assertIn("未到来の予定時刻: 6回", markdown(result))
+        self.assertIn("未到来の予定時刻: 9回", markdown(result))
 
         at_1600 = datetime.fromisoformat("2026-11-03T07:00:00+00:00")
         later = review_runs([], lambda _: [], lambda _: b"", as_of_utc=at_1600)
         self.assertEqual(later["planned_slots_elapsed"], 7)
-        self.assertEqual(later["planned_slots_future"], 0)
+        self.assertEqual(later["planned_slots_future"], 3)
         self.assertEqual(later["elapsed_slots_without_matching_run_at_snapshot"], 7)
         self.assertEqual(later["research_complete_by_t12"], 0)
+
+    def test_kiryu_originals_are_validated_under_kiryu_identity(self):
+        archive = source_archive(123)
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            transformed = {name.replace(RACE, "202611030104"):
+                           z.read(name).replace(RACE.encode(), b"202611030104")
+                           for name in z.namelist()}
+        independent = independent_result()
+        independent["race_code"] = "202611030104"
+        fake_audit = Mock(return_value=independent)
+        result = audit_artifact(zip_bytes(transformed), 123, auditor=fake_audit)
+        self.assertEqual(result["race_code"], "202611030104")
+        self.assertEqual(result["status"], "independent_originals_reaudited")
+        self.assertFalse(result["research_complete"])
+        fake_audit.assert_called_once()
+
+    def test_other_race_report_rejected(self):
+        archive = source_archive(123)
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            transformed = {name.replace(RACE, "202611030105"):
+                           z.read(name).replace(RACE.encode(), b"202611030105")
+                           for name in z.namelist()}
+        with self.assertRaisesRegex(ValueError, "foreign"):
+            audit_artifact(zip_bytes(transformed), 123, auditor=lambda *a: {})
 
     def test_archive_traversal_and_duplicate_entries_rejected(self):
         bad = zip_bytes({"../secret": "x", "reports/three_originals.json": "{}"})

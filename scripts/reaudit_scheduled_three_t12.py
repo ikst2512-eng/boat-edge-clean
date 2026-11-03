@@ -15,6 +15,8 @@ from scripts.inspect_joint_t12_archive import load_archive
 
 RACE = "202611030212"
 DAY = "20261103"
+ALLOWED_RACES = {"202611030212": "戸田12R", "202611030104": "桐生4R"}
+KIRYU_SLOTS_JST = ("16:08", "16:14", "16:18")
 WORKFLOW = "official-three-original-t12-observation.yml"
 EXPECTED_SLOTS_JST = ("15:20", "15:25", "15:30", "15:40", "15:48", "15:50", "15:51")
 FILES = {"card": ("racelist.html", "manifest.json"),
@@ -41,18 +43,19 @@ def audit_artifact(raw, run_id, auditor=audit_three_originals):
         if report_name not in seen:
             return {"status": "missing_observation_report", "research_complete": False}
         report = json.loads(archive.read(report_name))
-        if (not isinstance(report, dict) or report.get("race_code") != RACE
+        if (not isinstance(report, dict) or report.get("race_code") not in ALLOWED_RACES
                 or report.get("forecast_usable") is not False
                 or report.get("full_t12_source_certified") is not False):
             raise ValueError("contradictory or foreign report")
+        race = report["race_code"]
         if report.get("status") not in ("research_components_complete_by_t12",
                                          "research_components_incomplete"):
             return {"status": report.get("status", "observation_failed"),
-                    "research_complete": False}
+                    "race_code": race, "research_complete": False}
         missing = []
         roots = {}
         for part, names in FILES.items():
-            prefix = f"evidence/observations/{part}{run_id}/{DAY}/{RACE}/"
+            prefix = f"evidence/observations/{part}{run_id}/{DAY}/{race}/"
             roots[part] = Path(temp) / prefix
             for filename in names:
                 key = prefix + filename
@@ -63,10 +66,10 @@ def audit_artifact(raw, run_id, auditor=audit_three_originals):
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(archive.read(key))
         if missing:
-            return {"status": "source_original_missing",
+            return {"status": "source_original_missing", "race_code": race,
                     "missing_source_count": len(missing), "research_complete": False}
         independently = auditor(roots["card"], roots["before"], roots["odds"])
-        if independently.get("race_code") != RACE:
+        if independently.get("race_code") != race:
             raise ValueError("source race mismatch")
         declared = report.get("audit")
         # Do not let the report claim more complete components or different
@@ -80,6 +83,7 @@ def audit_artifact(raw, run_id, auditor=audit_three_originals):
             raise ValueError("report disagrees with independent originals")
         return {
             "status": "independent_originals_reaudited",
+            "race_code": race,
             "research_complete": independently["all_research_components_observed_by_t12"],
             "missing_components": independently["missing_components"],
             "received_jst": {
@@ -96,8 +100,9 @@ def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact, *, as_of
     as_of_utc = as_of_utc or datetime.now(timezone.utc)
     if as_of_utc.utcoffset() != timedelta(0):
         raise ValueError("as_of_utc must have UTC offset")
+    slots = EXPECTED_SLOTS_JST + KIRYU_SLOTS_JST
     elapsed = sum(datetime.fromisoformat("2026-11-03T" + hhmm + ":00+09:00")
-                  <= as_of_utc for hhmm in EXPECTED_SLOTS_JST)
+                  <= as_of_utc for hhmm in slots)
     if not isinstance(runs, list) or len(runs) > 100:
         raise ValueError("invalid run inventory")
     findings = []
@@ -127,6 +132,7 @@ def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact, *, as_of
                     raise ValueError("invalid artifact ID")
                 examined = audit(get_zip(aid), rid)
                 outcome.update({"source_status": examined["status"],
+                                "race_code": examined.get("race_code"),
                                 "research_complete": examined["research_complete"],
                                 "missing_components": examined.get("missing_components", []),
                                 "received_jst": examined.get("received_jst")})
@@ -137,13 +143,13 @@ def review_runs(runs, artifacts_for_run, get_zip, audit=audit_artifact, *, as_of
         findings.append(outcome)
     return {
         "race_code": RACE,
-        "scope": "only scheduled workflow runs on 2026-11-03 UTC; not all historical races",
-        "expected_schedule_count": len(EXPECTED_SLOTS_JST),
-        "expected_jst_schedule": list(EXPECTED_SLOTS_JST),
+        "scope": "Toda 12R and Kiryu 4R scheduled workflow runs on 2026-11-03 UTC only",
+        "expected_schedule_count": len(slots),
+        "expected_jst_schedule": list(EXPECTED_SLOTS_JST) + list(KIRYU_SLOTS_JST),
         "observed_scheduled_runs": len(findings),
         "as_of_utc": as_of_utc.isoformat(),
         "planned_slots_elapsed": elapsed,
-        "planned_slots_future": len(EXPECTED_SLOTS_JST) - elapsed,
+        "planned_slots_future": len(slots) - elapsed,
         # Missing at snapshot != skipped event; delayed runs can appear later.
         "elapsed_slots_without_matching_run_at_snapshot": max(0, elapsed - len(findings)),
         "independent_originals_reaudited": sum(
@@ -188,8 +194,8 @@ def collect(repo, token):
 
 
 def markdown(result):
-    lines = ["## 戸田12R｜T−12直前・保存原本の独立再監査", "",
-             f"- 予定実行: {result['expected_schedule_count']}回（15:20、15:25、15:30、15:40、15:48、15:50、15:51 JST）",
+    lines = ["## 戸田12R・桐生4R｜T−12直前・保存原本の独立再監査", "",
+             f"- 予定実行: {result['expected_schedule_count']}回（戸田15:20/25/30/40/48/50/51、桐生16:08/14/18 JST）",
              f"- 実行記録: {result['observed_scheduled_runs']}件（UTC当日のスケジュール実行）",
              f"- 予定時刻経過: {result['planned_slots_elapsed']}回",
              f"- 未到来の予定時刻: {result['planned_slots_future']}回",
@@ -199,13 +205,13 @@ def markdown(result):
              f"- 未検証／不足Artifact: {result['missing_or_unverified_runs']}件",
              "- 注意：個々の予定時刻どおりの実行は未保証。時刻は原本受信時刻で判定。",
              "- 最終進入・正式予想への使用: **未認証**", "",
-             "| Actions run | 原本監査結果 | 不足項目 |",
-             "|---|---|---|"]
+             "| Actions run | レース | 原本監査結果 | 不足項目 |",
+             "|---|---|---|---|"]
     for row in result["run_findings"]:
-        lines.append(f"| {row['run_id']} | {row['source_status']} | "
+        lines.append(f"| {row['run_id']} | {row.get('race_code') or '未確認'} | {row['source_status']} | "
                      + ", ".join(row.get("missing_components", [])) + " |")
     if not result["run_findings"]:
-        lines.append("| 記録なし | 未確認（0件を成功・失敗率と解釈しない） | - |")
+        lines.append("| 記録なし | - | 未確認（0件を成功・失敗率と解釈しない） | - |")
     return "\n".join(lines) + "\n"
 
 

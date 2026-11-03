@@ -1,4 +1,4 @@
-name: Re-audit Toda T12 scheduled original archives (research only)
+name: Re-audit Toda/Kiryu T12 scheduled original archives (research only)
 on:
   pull_request:
     paths:
