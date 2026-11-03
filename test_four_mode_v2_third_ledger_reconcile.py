@@ -43,7 +43,7 @@ class FrozenLedgerReconciliationTests(unittest.TestCase):
         return {"race_code": code, "topn": {
             name: {"baseline": baseline, "candidate": candidate,
                    "gained": gain, "lost": lost}
-            for name in ("top3", "top5", "top10")}}
+            for name in ("top1", "top3", "top5", "top10")}}
 
     def test_identical_hits_cannot_hide_different_frozen_tickets(self):
         self.ledger["frozen_ticket_hashes"][A] = "d" * 64
