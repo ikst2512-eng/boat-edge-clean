@@ -15,8 +15,8 @@ from four_mode_v2_frozen_third_artifact_score import score_zip
 CUTOFF_CREATED_UTC = "2026-11-03T15:00:00Z"  # Nov 4 JST
 EVENTS = {"schedule", "workflow_dispatch"}
 STATUS = {"success", "failure", "cancelled", "timed_out", "action_required"}
-RUN_MAX = 80
 INVENTORY_LIMIT = 500
+RUN_MAX = INVENTORY_LIMIT  # Do not silently trim older eligible runs.
 TOPS = (3, 5, 10)
 RUN_ID = re.compile(r"[1-9][0-9]{0,16}\Z")
 
@@ -72,6 +72,8 @@ def summarize(inventory, root, download, out_dir):
         "older_eligible_runs_omitted": max(0, eligible - len(selected)),
         "inventory_limit_reached": inventory_limit_reached,
         "cohort_completeness_verified": False,
+        "evidence_retention_window_complete": False,
+        "source_inventory_exhaustive_across_all_history": False,
         "selected_runs": len(selected),
         "downloaded_artifacts": 0,
         "no_new_candidate_runs": 0,
@@ -80,6 +82,7 @@ def summarize(inventory, root, download, out_dir):
         "paired": 0, "frozen": 0, "pending_results": 0,
         "invalid": 0, "excluded": 0,
         "race_codes_paired": [],
+        "by_race_day_jst": {},
         "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
                             "gained": 0, "lost": 0} for n in TOPS},
         "runs": [],
@@ -131,10 +134,39 @@ def summarize(inventory, root, download, out_dir):
         for field in ("paired", "frozen", "pending_results", "invalid", "excluded"):
             report[field] += scoring[field]
         report["race_codes_paired"].extend(scoring["race_codes_paired"])
+        per_race_rows = scoring.get("paired_race_scores", [])
+        if len(per_race_rows) != scoring["paired"]:
+            raise ValueError("per_race_score_partition_mismatch")
+        for pair in per_race_rows:
+            code = pair["race_code"]
+            day = code[:8]
+            group = report["by_race_day_jst"].setdefault(day, {
+                "paired": 0, "race_codes": [],
+                "topn": {f"top{n}": {"baseline": 0, "candidate": 0,
+                                    "gained": 0, "lost": 0} for n in TOPS},
+            })
+            group["paired"] += 1
+            group["race_codes"].append(code)
+            for n in TOPS:
+                for name in ("baseline", "candidate", "gained", "lost"):
+                    group["topn"][f"top{n}"][name] += pair["topn"][f"top{n}"][name]
         for n in TOPS:
             for name in ("baseline", "candidate", "gained", "lost"):
                 report["topn"][f"top{n}"][name] += scoring["topn"][f"top{n}"][name]
     report["race_codes_paired"].sort()
+    report["by_race_day_jst"] = dict(sorted(report["by_race_day_jst"].items()))
+    if sum(d["paired"] for d in report["by_race_day_jst"].values()) != report["paired"]:
+        raise ValueError("day_partition_mismatch")
+    if sorted(code for d in report["by_race_day_jst"].values()
+              for code in d["race_codes"]) != report["race_codes_paired"]:
+        raise ValueError("day_race_roster_mismatch")
+    for day in report["by_race_day_jst"].values():
+        day["race_codes"].sort()
+    for n in TOPS:
+        for field in ("baseline", "candidate", "gained", "lost"):
+            if sum(d["topn"][f"top{n}"][field]
+                   for d in report["by_race_day_jst"].values()) != report["topn"][f"top{n}"][field]:
+                raise ValueError("daily_topn_sum_mismatch")
     if len(set(report["race_codes_paired"])) != report["paired"]:
         raise ValueError("paired_roster_mismatch")
     for score in report["topn"].values():
