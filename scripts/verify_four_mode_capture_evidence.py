@@ -6,6 +6,74 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 
+
+def verify_future_third_rate(root, publication, observation):
+    """A Nov-4+ publication is not fully audited without durable third-rate bytes.
+
+    The branch writer already verifies the original Git first-add provenance.
+    This final gate independently checks its output digest and race roster.
+    It is a same-job integrity check, not formal independent first receipt.
+    """
+    evidence = Path(root) / "four-mode-evidence"
+    observed = observation["records"]
+    future_codes = {row["race_code"] for row in observed
+                    if row["race_code"][:8] >= "20261104"}
+    if not future_codes:
+        return
+    original = (evidence / "third-rate-shadow.json").read_bytes()
+    shadow = json.loads(original)
+    durable = json.loads((evidence / "third-rate-ledger.json").read_text(
+        encoding="utf-8"))
+    if (not isinstance(shadow, dict)
+            or shadow.get("schema") != "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1"
+            or shadow.get("status") != "captured_local_after_push_not_remote_proven"
+            or shadow.get("formal") is not False
+            or shadow.get("publication_commit_sha") != publication["commit_sha"]
+            or shadow.get("published_forecasts") != publication["added_forecasts"]
+            or type(shadow.get("frozen_before_t_minus_12")) is not int
+            or shadow["frozen_before_t_minus_12"] < 1
+            or shadow.get("validation_error_count", 0) != 0
+            or type(shadow.get("records")) is not list
+            or len(shadow["records"]) != publication["added_forecasts"]):
+        raise ValueError("future_third_rate_shadow_missing_or_invalid")
+    codes = set()
+    frozen = 0
+    for row in shadow["records"]:
+        if not isinstance(row, dict) or not isinstance(row.get("race_code"), str):
+            raise ValueError("future_third_rate_roster_invalid")
+        code = row["race_code"]
+        if code in codes or code not in future_codes:
+            raise ValueError("future_third_rate_roster_invalid")
+        codes.add(code)
+        if row.get("status") == "frozen_in_same_job_before_t_minus_12":
+            frozen += 1
+            if row.get("source_commit_sha") != publication["commit_sha"]:
+                raise ValueError("future_third_rate_commit_mismatch")
+            at = datetime.fromisoformat(row["frozen_at_utc"])
+            cutoff = datetime.fromisoformat(row["t_minus_12_jst"])
+            if (at.utcoffset() is None or cutoff.utcoffset() != timedelta(hours=9)
+                    or at >= cutoff):
+                raise ValueError("future_third_rate_frozen_after_cutoff")
+        elif row.get("status") != "ineligible":
+            raise ValueError("future_third_rate_unexpected_status")
+    if codes != future_codes or frozen != shadow["frozen_before_t_minus_12"]:
+        raise ValueError("future_third_rate_frozen_count_mismatch")
+    expected_day = next(iter(future_codes))[:8]
+    if (any(code[:8] != expected_day for code in future_codes)
+            or durable.get("stored") is not True
+            or durable.get("formal") is not False
+            or durable.get("status") not in
+               ("new_immutable_ledger_entry", "already_preserved_identical")
+            or durable.get("branch") != "v2-third-rate-evidence-ledger"
+            or durable.get("original_sha256") != hashlib.sha256(original).hexdigest()
+            or not isinstance(durable.get("path"), str)
+            or not re.fullmatch(
+                r"third_rate/" + expected_day +
+                r"/run-[1-9][0-9]*-attempt-[1-9][0-9]*\\.json",
+                durable["path"])):
+        raise ValueError("future_third_rate_not_durable")
+
+
 def verify(root):
     root = Path(root)
     evidence = root / "four-mode-evidence"
@@ -73,6 +141,7 @@ def verify(root):
             raise ValueError("invalid_observation_timestamp") from exc
     if len(codes) != count or observation.get("observed_after_t_minus_12") != 0:
         raise ValueError("observation_race_count_mismatch")
+    verify_future_third_rate(root, publication, observation)
     return {"status": "published_with_durable_early_observation",
             "evidence_required": True, "published": count}
 
