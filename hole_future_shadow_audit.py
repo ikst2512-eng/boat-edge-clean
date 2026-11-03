@@ -29,6 +29,8 @@ def audit(root,shadow):
     def exclude(reason):
         missing[reason]=missing.get(reason,0)+1
     for record in data["records"]:
+        if not isinstance(record,dict):
+            raise ValueError("invalid_shadow_record")
         code=record.get("race_code")
         if not isinstance(code,str) or len(code)!=12 or not code.isdigit() or code in seen:
             raise ValueError("invalid_or_duplicate_code")
