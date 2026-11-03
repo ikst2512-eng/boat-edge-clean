@@ -115,6 +115,36 @@ def collect(root=ROOT, now=None, read=read_rows):
             cards_by_code[code]=card
     for code in duplicate_codes:
         cards_by_code.pop(code,None)
+    # Nonempty CSV feeds can overlap while omitting some race cards.
+    # Request only missing, not-yet-archived race IDs from the bounded
+    # direct pre-race origin. Never replace present (or duplicate) CSV cards.
+    direct_receipts={}
+    missing_titles=[title for title in titles
+                    if title.get("レースコード") not in cards_by_code
+                    and title.get("レースコード") not in duplicate_codes]
+    if missing_titles:
+        from clean_direct_sources import direct_cards
+        old_archive=root/"four_mode_forecasts"
+        existing={p.stem for p in old_archive.glob(hd+"*.json")} if old_archive.exists() else set()
+        try:
+            recovered,received,combined,hashes,failed=direct_cards(
+                hd,missing_titles,existing,now=now)
+            outcomes["partial_cards_direct"]={
+                "status":"recovered" if recovered else "unavailable",
+                "missing":len(missing_titles),"rows":len(recovered),
+                "failed":failed,"requested_limit":18}
+            for card in recovered:
+                code=card.get("レースコード")
+                if (code in cards_by_code or code in duplicate_codes
+                        or code not in {row.get("レースコード") for row in missing_titles}
+                        or code not in hashes):
+                    continue
+                cards_by_code[code]=card
+                direct_meta[code]=hashes[code]
+                direct_receipts[code]=received
+        except (HTTPError,URLError,TimeoutError,ValueError,OSError,UnicodeError) as exc:
+            outcomes["partial_cards_direct"]={"status":"unavailable",
+                "error_type":type(exc).__name__}
     out=root/"four_mode_forecasts"
     saved,excluded=[],{}
     excluded_races=[]
@@ -138,7 +168,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                 continue
             cutoff=datetime.strptime(hd+title["電話投票締切予定"],"%Y%m%d%H:%M").replace(tzinfo=JST)
             # Allow GitHub commit time before the actual deadline.
-            if max(now,title_received,card_received)>cutoff-timedelta(minutes=20):
+            if max(now,title_received,direct_receipts.get(code,card_received))>cutoff-timedelta(minutes=20):
                 cutoff_skipped+=1
                 continue
             racer=cards_by_code.get(code)
@@ -148,7 +178,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                 raise ValueError("invalid_national_win_rate")
             forecast=rank_modes(probabilities(rates))
             generated_at=datetime.now(JST) if now_is_live else now
-            if generated_at < max(title_received,card_received):
+            if generated_at < max(title_received,direct_receipts.get(code,card_received)):
                 raise ValueError("source_receipt_after_generation")
             if generated_at >= cutoff-timedelta(minutes=20):
                 raise ValueError("generation_after_safe_cutoff")
@@ -157,7 +187,7 @@ def collect(root=ROOT, now=None, read=read_rows):
                     "model_version":"CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
                     "deadline_jst":cutoff.isoformat(),"generated_at_jst":generated_at.isoformat(),
                     "source_title_received_jst":title_received.isoformat(),
-                    "source_cards_received_jst":card_received.isoformat(),
+                    "source_cards_received_jst":direct_receipts.get(code,card_received).isoformat(),
                     "beforeinfo":"optional_not_in_snapshot",
                     "source_sha256":{"title":title_sha,"race_cards":direct_meta.get(code,card_sha)},
                     "input_national_win_rates":rates,
