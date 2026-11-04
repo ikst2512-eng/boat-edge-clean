@@ -241,6 +241,14 @@ jobs:
                   raise SystemExit('Committed AI patch SHA-256 or mode mismatch')
           print('AI committed tree validated:', len(claimed))
           PY
+          # main can advance after the earlier stale-base check and tests.
+          # Refuse to push a stale AI proposal even if the commit itself is valid.
+          live_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          committed_base="$(git rev-parse HEAD^)"
+          if [[ -z "$live_main" || "$live_main" != "$committed_base" || "$committed_base" != "$GITHUB_SHA" ]]; then
+            echo "::error::main advanced before AI draft push; refusing stale candidate."
+            exit 1
+          fi
           # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
