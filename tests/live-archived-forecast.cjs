@@ -116,16 +116,24 @@ const {chromium}=require('playwright');
   })));
   if(list.length!==12||list.some((item,i)=>item.race!==(i+1)+'R'))throw Error('RESULT_LIST_RACE_ORDER_INVALID '+JSON.stringify(list));
   console.log('PASS: published venue 06 result list has 12 ordered race cards');
-  // A new venue selection must immediately expose twelve navigable placeholders
-  // while independent result/payout requests are still in flight.
+  // Venue switches must immediately retain twelve race rows and status text.
+  // Navigation intentionally compacts each row's redundant four/five controls
+  // to ONE "このレースの予想を見る" button; the four tabs live in the selected race panel.
+  // The old >=4-actions assertion confused this deliberate design with missing results.
   await page.evaluate(()=>{s.venue=0;s.race=1;setView('forecast');render();});
+  await page.waitForFunction(()=>
+    document.querySelectorAll('#resultList .clean-race-card').length===12&&
+    [...document.querySelectorAll('#resultList .clean-race-actions')].every(n=>n.dataset.compact==='1'),
+    null,{timeout:10000});
   const initialRows=await page.evaluate(()=>[...document.querySelectorAll('#resultList .clean-race-card')].map(node=>({
    name:node.querySelector('.clean-race-head strong')?.textContent,
-   actions:node.querySelectorAll('.clean-race-actions button').length
+   state:node.querySelector('.clean-race-state')?.textContent,
+   actions:[...node.querySelectorAll('.clean-race-actions button')].map(b=>b.textContent.trim())
   })));
-  if(initialRows.length!==12||initialRows.some((v,i)=>v.name!==(i+1)+'R'||v.actions<4))
-   throw Error('RESULTS_BLANK_DURING_FETCH '+JSON.stringify(initialRows));
-  console.log('PASS: 12 navigable result rows visible immediately on venue switch');
+  if(initialRows.length!==12||initialRows.some((v,i)=>
+      v.name!==(i+1)+'R'||!v.state||v.actions.length!==1||v.actions[0]!=='このレースの予想を見る'))
+   throw Error('RESULT_LIST_COMPACT_NAV_OR_STATUS_MISMATCH '+JSON.stringify(initialRows));
+  console.log('PASS: 12 result rows with status and single intentional forecast action on venue switch');
   // Independently verify all 12 completed races for two different venues.
   for(const venue of [0,2]){
    await page.evaluate(v=>{s.venue=v;s.race=1;setView('forecast');render();},venue);
@@ -174,18 +182,31 @@ const {chromium}=require('playwright');
   if(theme.background!=='rgb(255, 255, 255)'||theme.header!=='rgb(234, 246, 255)'||theme.important!=='rgb(187, 38, 56)'||theme.venues!==12||!theme.reviewFocused)
    throw Error('PUBLIC_THEME_OR_REVIEW_MISMATCH '+JSON.stringify(theme));
   console.log('PASS: live white/pale-blue/red theme and 12 grouped review venues');
-  // Verify the selected race's result and saved tickets share one panel in production.
+  // Current navigation uses one selected panel at a time. The forecast's
+  // saved-result cache and the distinct Result tab must agree on this race;
+  // the old combined-panel .forecast-result-preview is intentionally hidden.
   await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果'&&predictionTickets.length===10,{timeout:35000});
-  const combined=await page.evaluate(()=>({
-   hasPanel:!!document.querySelector('#forecast .forecast-combined-race'),
-   result:document.querySelector('#forecast .forecast-combined-race #forecastResultDetail')?.textContent,
-   ticketCount:document.querySelectorAll('#forecast .forecast-combined-race #predictionRows .prediction-row').length,
-   border:getComputedStyle(document.querySelector('#forecast .forecast-combined-race .forecast-result-preview')).borderTopColor
+  const forecastState=await page.evaluate(()=>({
+   forecastVisible:!document.getElementById('forecast').hidden,
+   hasForecastPanel:!!document.querySelector('#forecast .forecast-combined-race'),
+   savedResult:document.getElementById('forecastResultDetail')?.textContent,
+   ticketCount:document.querySelectorAll('#forecast #predictionRows .prediction-row').length
   }));
-  if(!combined.hasPanel||!combined.result?.includes('2 - 3 - 1')||combined.ticketCount!==10||combined.border!=='rgb(187, 38, 56)')
-   throw Error('COMBINED_FORECAST_RESULT_LAYOUT_BROKEN '+JSON.stringify(combined));
-  console.log('PASS: published race forecast and confirmed result share one panel');
+  if(!forecastState.forecastVisible||!forecastState.hasForecastPanel||
+      !forecastState.savedResult?.includes('2 - 3 - 1')||forecastState.ticketCount!==10)
+   throw Error('FORECAST_SAVED_RESULT_MISMATCH '+JSON.stringify(forecastState));
+  await page.evaluate(()=>{setView('result');render()});
+  await page.waitForFunction(()=>document.getElementById('resultStatus').textContent==='CLEAN保存済み結果',{timeout:35000});
+  const separateResult=await page.evaluate(()=>({
+   view:activeView,
+   resultVisible:!document.getElementById('resultSection').hidden,
+   order:[...document.querySelectorAll('#resultDetail .result-summary .boat-num')].map(n=>n.textContent.trim())
+  }));
+  if(separateResult.view!=='result'||!separateResult.resultVisible||
+      JSON.stringify(separateResult.order)!==JSON.stringify(['2','3','1']))
+   throw Error('SEPARATE_RESULT_TAB_MISSING '+JSON.stringify(separateResult));
+  console.log('PASS: saved research forecast and confirmed result available on their respective race tabs');
   // Verify a real, newly archived 2026-10-31 forecast is visible through the published UI.
   await page.evaluate(()=>{s.date='2026-10-31';s.venue=23;s.race=1;datePinned=true;venueTouched=true;setView('forecast');render()});
   await page.waitForFunction(()=>displayedPredictionKey==='20261031-24-01'&&predictionTickets.length===10,{timeout:45000});

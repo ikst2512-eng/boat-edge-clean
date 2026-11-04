@@ -30,14 +30,19 @@ const {chromium}=require('playwright');
    await page.evaluate(()=>setView('exhibit'));
    const switched=await page.evaluate(()=>({key:sameRaceKey(),visible:!document.getElementById('raceDataSection').hidden}));
    if(switched.key!==expected||!switched.visible)throw Error('EXHIBIT_NAV_MISMATCH '+JSON.stringify(switched));
-   const back=await page.evaluate(()=>{
+   await page.evaluate(()=>{
     const control=document.getElementById('raceViewBack');
     if(!control||control.hidden||document.getElementById('raceBrowserToolbar').hidden)
      throw Error('RACE_VIEW_BACK_CONTROL_MISSING');
     control.click();
-    return {key:sameRaceKey(),view:activeView,visible:!document.getElementById('raceDataSection').hidden};
    });
-   if(back.key!==expected||back.view!=='card')throw Error('RACE_VIEW_BACK_MISMATCH '+JSON.stringify({selected,back}));
+   // navigation.js uses history.back(): the popstate view restore is async,
+   // so an immediate read after click observes the old exhibit pane.
+   await page.waitForFunction(key=>activeView==='card'&&sameRaceKey()===key,expected,{timeout:10000});
+   const back=await page.evaluate(()=>({
+    key:sameRaceKey(),view:activeView,visible:!document.getElementById('raceDataSection').hidden
+   }));
+   if(back.key!==expected||back.view!=='card'||!back.visible)throw Error('RACE_VIEW_BACK_MISMATCH '+JSON.stringify({selected,back}));
   }
   // The user-visible back control must restore the previous panel, not reset home.
   await page.evaluate(()=>{setView('card');render();});
