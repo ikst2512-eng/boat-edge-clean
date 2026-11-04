@@ -135,6 +135,15 @@ def propose(issue, root, api_key, model, transport=urlopen):
     except (KeyError, IndexError, TypeError, ValueError) as exc:
         raise ValueError("invalid_gemini_response") from exc
     patches = parse_patches(proposal)
+    # Reject reviewless proposed changes before touching the checkout. A JSON
+    # patch without a concrete rationale and test plan is not review-ready.
+    if patches:
+        reason = proposal.get("reason")
+        tests = proposal.get("tests")
+        if (not isinstance(reason, str) or not reason.strip()
+                or len(reason) > 700 or not isinstance(tests, str)
+                or not tests.strip() or len(tests) > 700):
+            raise ValueError("missing_patch_rationale_or_tests")
     changed = apply(root, patches) if patches else []
     file_sha256 = {
         name: hashlib.sha256((Path(root) / name).read_bytes()).hexdigest()
