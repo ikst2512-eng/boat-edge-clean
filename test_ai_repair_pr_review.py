@@ -129,15 +129,19 @@ class AIReviewGuardTests(unittest.TestCase):
             root = Path(tmp)
             pr_file, run_file = root / "pr.json", root / "run.json"
             jobs_file = root / "jobs.json"
+            artifacts_file = root / "artifacts.json"
             validator = validator.replace("Path('/tmp/ai-proposal-run.json')",
                                           "Path(os.environ['MOCK_RUN'])")
             validator = validator.replace("Path('/tmp/ai-proposal-jobs.json')",
                                           "Path(os.environ['MOCK_JOBS'])")
+            validator = validator.replace("Path('/tmp/ai-proposal-artifacts.json')",
+                                          "Path(os.environ['MOCK_ARTIFACTS'])")
             validator = validator.replace("Path('/tmp/pr.json')",
                                           "Path(os.environ['MOCK_PR'])")
             pr_file.write_text(json.dumps({"head": {"ref": "ai/repair-321"}}))
             env = dict(os.environ, MOCK_PR=str(pr_file), MOCK_RUN=str(run_file),
-                       MOCK_JOBS=str(jobs_file), CHECKED_MAIN_SHA="base-a",
+                       MOCK_JOBS=str(jobs_file), MOCK_ARTIFACTS=str(artifacts_file),
+                       CHECKED_MAIN_SHA="base-a",
                        GITHUB_REPOSITORY="example/repo")
             valid = {"id": 321, "run_attempt": 1, "event": "workflow_dispatch",
                      "path": ".github/workflows/ai-repair-proposal.yml",
@@ -159,11 +163,21 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("wrong-repository", {"repository": {"full_name": "other/repo"}}, False),
             )
             job_base = {"status": "completed", "conclusion": "success",
-                        "run_id": 321, "run_attempt": 1, "head_sha": "base-a"}
+                        "run_id": 321, "run_attempt": 1, "head_sha": "base-a",
+                        "started_at": "2026-11-04T10:00:00Z",
+                        "completed_at": "2026-11-04T10:05:00Z"}
             jobs = {"total_count": 2,
                     "jobs": [{"name": "tests", **job_base},
                              {"name": "propose", **job_base}]}
             jobs_file.write_text(json.dumps(jobs))
+            artifact = {
+                "name": "ai-repair-proposal-321", "created_at": "2026-11-04T10:03:00Z",
+                "expired": False,
+                "workflow_run": {"id": 321, "head_sha": "base-a"}
+            }
+            artifacts_file.write_text(json.dumps({
+                "total_count": 1, "artifacts": [artifact]
+            }))
             for label, overrides, expected in cases:
                 with self.subTest(case=label):
                     run_file.write_text(json.dumps({**valid, **overrides}))
@@ -186,6 +200,44 @@ class AIReviewGuardTests(unittest.TestCase):
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0,
                                  result.stdout + result.stderr)
+
+            # The archive must be from THIS proposal execution, not an
+            # earlier run/attempt or an unrelated branch, and not expired.
+            run_file.write_text(json.dumps(valid))
+            jobs_file.write_text(json.dumps(jobs))
+            for label, overrides, expected in (
+                ("valid-artifact", {}, True),
+                ("wrong-artifact-name", {"name": "ai-repair-proposal-322"}, False),
+                ("wrong-run-artifact", {"workflow_run": {"id": 322, "head_sha": "base-a"}}, False),
+                ("wrong-sha-artifact", {"workflow_run": {"id": 321, "head_sha": "different"}}, False),
+                ("expired-artifact", {"expired": True}, False),
+                ("previous-attempt-artifact", {"created_at": "2026-11-04T09:59:59Z"}, False),
+                ("post-job-artifact", {"created_at": "2026-11-04T10:05:01Z"}, False),
+                ("invalid-artifact-time", {"created_at": "invalid"}, False),
+            ):
+                with self.subTest(case=label):
+                    artifacts_file.write_text(json.dumps({
+                        "total_count": 1, "artifacts": [{**artifact, **overrides}]
+                    }))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+            for label, items, total in (
+                ("no-artifact", [], 0),
+                ("duplicate-artifact", [artifact, artifact], 2),
+                ("truncated-artifacts", [artifact], 101),
+            ):
+                with self.subTest(case=label):
+                    artifacts_file.write_text(json.dumps({
+                        "total_count": total, "artifacts": items
+                    }))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, label)
+            artifacts_file.write_text(json.dumps({
+                "total_count": 1, "artifacts": [artifact]
+            }))
 
             # Even successful job names and status do not prove provenance if
             # the job belongs to a different run, attempt or commit SHA.
