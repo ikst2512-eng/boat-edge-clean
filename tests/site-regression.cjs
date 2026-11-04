@@ -594,3 +594,8 @@ assert.ok(!archivePublish.includes("page.locator('#predictionRows').children()")
 // Pre-race preview collector is implemented; unavailable or unverified values must not be labeled as "not implemented".
 assert.ok(script.includes('対象レースの締切前6艇分の取得記録を検証できていません。'),'unverified exhibition copy must reflect evidence state');
 assert.ok(!script.includes('直前データ収集が未実装'),'do not mislabel unverified source evidence as unimplemented collection');
+
+// Real-day site diagnostics distinguish six visible placeholders from verified beforeinfo.
+assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'published exhibition diagnostic must include source verification flag');
+assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
+assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
