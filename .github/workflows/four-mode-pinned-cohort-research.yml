@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - pinned_four_mode_cohort_audit.py
+      - pinned_hole_rank3_research.py
+      - test_pinned_hole_rank3_research.py
+      - hole_upper_rank_pair_protection.py
       - test_pinned_four_mode_cohort_audit.py
       - research/locked_four_mode_cohorts_20261105.json
       - four_mode_research_batch.py
@@ -21,14 +24,18 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
+      - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
+        run: python pinned_hole_rank3_research.py
       - name: Retain evidence on both success and failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pinned-four-mode-historical-${{ github.run_id }}
-          path: pinned_four_mode_cohort_report.json
+          path: |
+            pinned_four_mode_cohort_report.json
+            pinned_hole_rank3_research_report.json
           if-no-files-found: warn
           retention-days: 90
