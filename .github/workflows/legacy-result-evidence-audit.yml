@@ -1,6 +1,11 @@
 name: Audit legacy CLEAN result evidence (read-only)
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/archive_legacy_p0_originals.py
+      - tests/test_archive_legacy_p0_originals.py
+      - .github/workflows/legacy-result-evidence-audit.yml
   push:
     branches: [main]
     paths:
@@ -18,6 +23,7 @@ permissions:
   contents: read
 jobs:
   audit:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -64,5 +70,44 @@ jobs:
           path: |
             audit_out/*.json
             audit_out/legacy_result_originals.tar.gz
+          if-no-files-found: warn
+          retention-days: 90
+
+  p0-original-byte-preservation:
+    # Independent archive-only job; no predictions, UI, writes to legacy,
+    # workflow duplication, or changes to the existing result audit steps.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test fail-closed P0 original preservation
+        run: python -m unittest discover -s tests -p 'test_archive_legacy_p0_originals.py' -v
+      - name: Fetch pinned old Git commit into temporary read-only clone
+        run: |
+          git init -q "${{ runner.temp }}/boat-edge-legacy"
+          git -C "${{ runner.temp }}/boat-edge-legacy" remote add origin https://github.com/ikst2512-eng/boat-edge.git
+          git -C "${{ runner.temp }}/boat-edge-legacy" -c protocol.version=2 fetch --depth=1 origin f38204105a979aa6ef5293d1b9cad854056faadd
+          test "$(git -C "${{ runner.temp }}/boat-edge-legacy" rev-parse --verify 'f38204105a979aa6ef5293d1b9cad854056faadd^{commit}')" = 'f38204105a979aa6ef5293d1b9cad854056faadd'
+      - name: Archive and read back all 5578 pinned P0 original bytes
+        run: |
+          python -m scripts.archive_legacy_p0_originals \
+            --legacy-repo "${{ runner.temp }}/boat-edge-legacy" \
+            --out "legacy_p0_archive/p0-5578-originals.zip" \
+            --receipt "legacy_p0_archive/p0-5578-receipt.json" \
+            --execute
+      - name: Upload P0 archive for independent offsite transfer and restore
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-p0-original-bytes-${{ github.run_id }}
+          path: legacy_p0_archive/
           if-no-files-found: warn
           retention-days: 90
