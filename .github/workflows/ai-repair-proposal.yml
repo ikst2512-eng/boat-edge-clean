@@ -69,6 +69,9 @@ jobs:
       - name: Test patch guardrails
         run: python -m unittest -v test_ai_repair_agent
       - name: Refuse stale main before paid AI request
+        # A no-op receipt must not fail when unrelated commits advance main.
+        # Real Gemini requests still reject stale or displaced checkouts.
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
