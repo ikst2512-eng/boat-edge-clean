@@ -66,9 +66,24 @@ def collect(day=None):
     day = day or now.strftime("%Y%m%d")
     datetime.strptime(day, "%Y%m%d")
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
-    titles,t1,h1=read_rows(BASE+"title/"+path)
-    cards,t2,h2=read_rows(BASE+"race_cards/"+path)
-    provenance=model_provenance()
+    try:
+        titles,t1,h1=read_rows(BASE+"title/"+path)
+        cards,t2,h2=read_rows(BASE+"race_cards/"+path)
+        if not titles or not cards:
+            raise OSError("empty daily pre-race CSV source")
+        source_kind="public_pre_race_csv"
+    except (OSError, TimeoutError, ValueError) as exc:
+        if isinstance(exc,ValueError) and str(exc)!="source unavailable":
+            raise
+        # Fail over only to the existing strictly pre-race day source.
+        # A missing or malformed alternate source is a failed capture, never a
+        # result-derived forecast or a fabricated successful candidate.
+        from clean_openapi_sources import load
+        titles,cards,received,digest,source=load(day)
+        t1=t2=received
+        h1=h2=digest
+        source_kind=source["source"]
+    provenance={**model_provenance(),"input_source_kind":source_kind}
     # A prospective forecast cannot predate its own input receipts. The first
     # timestamp above is only the capture-run start, not generation evidence.
     started_generation=datetime.now(JST)
