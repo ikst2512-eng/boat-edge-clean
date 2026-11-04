@@ -360,6 +360,20 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(source["upstream_workflow"], "CLEAN prospective pre-cutoff capture")
         self.assertEqual(source["upstream_run_id"], 778)
 
+    def test_manual_recovery_marker_is_saved_but_is_not_direct_cron(self):
+        with tempfile.TemporaryDirectory() as folder:
+            event_file = Path(folder) / "event.json"
+            event_file.write_text(json.dumps({"inputs": {
+                "rescue_slot_jst": "2026-11-05T12:25:00+09:00"}}))
+            with patch.dict(os.environ, {
+                    "GITHUB_EVENT_NAME": "workflow_dispatch",
+                    "GITHUB_EVENT_PATH": str(event_file)}):
+                source = probe.event_provenance()
+        self.assertEqual(source["event"], "workflow_dispatch")
+        self.assertIsNone(source["cron"])
+        self.assertEqual(source["rescue_slot_jst"],
+                         "2026-11-05T12:25:00+09:00")
+
     def test_source_candidate_window(self):
         jst = timezone(timedelta(hours=9))
         now = datetime(2026, 11, 3, 14, 0, tzinfo=jst)
