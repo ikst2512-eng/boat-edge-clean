@@ -133,6 +133,10 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
                 datetime.now(JST),{**provenance,
                    "input_source_kind":"direct_race_specific_pre_race"})
     final=finalize_records(later,t1,t2,datetime.now(JST))
+    # A single fetched card (even if unusable or already after cutoff) must
+    # not hide other failed HTTP reads as a healthy zero-candidate run.
+    if not final and failed and not existing_output:
+        raise ValueError("supplement_no_eligible_cards_with_fetch_errors")
     if set(final)&set(existing_output):
         raise ValueError("source pair overlap prohibited")
     print("PROSPECTIVE_SUPPLEMENT "+json.dumps({
@@ -202,6 +206,10 @@ def collect(day=None):
     # record to the beginning of a fetch or a long-running batch.
     completed_generation=datetime.now(JST)
     output=finalize_records(output,t1,t2,completed_generation)
+    # Also catch partial direct fallback: one unusable card plus another
+    # failed read cannot masquerade as a source-verified empty schedule.
+    if source_kind == "direct_race_specific_pre_race" and not output and card_failures:
+        raise ValueError("direct_no_eligible_cards_with_fetch_errors")
     # A daily publication can include one valid race while omitting many
     # upcoming cards. A missing pair gets an entirely independent direct
     # holding-list + six-racer card receipt, never mixed-source fields.
