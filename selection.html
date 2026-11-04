@@ -25,12 +25,17 @@ async function showTodayCandidates(){
   if(!upcoming.length){status.textContent='本日の締切前レースはありません。開催場一覧から別の日付を確認できます。';return}
   // Probe all upcoming race keys in bounded parallel batches: a valid saved
   // candidate may sit beyond the first 18 races. Never infer picks from results.
-  let checked=0,available=0;
+  let checked=0,available=0,fetchFailures=0;
   for(let start=0;start<upcoming.length&&available<6;start+=12){
    const batch=upcoming.slice(start,start+12);
    const records=await Promise.all(batch.map(async race=>{
     const raceCode=code+pad(race.venue)+pad(race.race);
-    try{const response=await timed(rawBase+'prospective_predictions/'+raceCode+'.json');return response.ok?await response.json():null}catch(_){return null}
+    try{
+     const response=await fetch(rawBase+'prospective_predictions/'+raceCode+'.json',{cache:'no-store',signal:AbortSignal.timeout(4500)});
+     if(response.status===404)return null; // Missing archive, not a network failure.
+     if(!response.ok)return {fetchFailure:true};
+     return await response.json();
+    }catch(_){return {fetchFailure:true}}
    }));
    for(let i=0;i<batch.length&&available<6;i++){
     const race=batch[i],pred=records[i];
@@ -38,6 +43,7 @@ async function showTodayCandidates(){
     if(Date.now()>=limit)continue;
     checked++;
     if(!pred)continue;
+    if(pred.fetchFailure===true){fetchFailures++;continue}
    // Fail closed before counting or showing tickets: a source received after
    // the claimed generation time is not a verified pre-race prediction.
    const isJstStamp=value=>typeof value==='string'&&
@@ -65,7 +71,9 @@ async function showTodayCandidates(){
    root.append(card);
    }
   }
-  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）':'締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
+  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）'+(fetchFailures?'／通信未確認 '+fetchFailures+'件':''):
+   fetchFailures?'締切前の開催レース '+upcoming.length+'件を探索しましたが、通信未確認が'+fetchFailures+'件あります。候補なしとは断定できません。':
+   '締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
  }catch(error){status.textContent='本日の候補を取得できません：'+cleanText(error?.message||'通信エラー')+'。開催場一覧からレースを直接選択できます。'}
 }
 showTodayCandidates();
