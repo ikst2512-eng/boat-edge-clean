@@ -64,14 +64,34 @@ class FirstAddAuditTests(unittest.TestCase):
         rel = "prospective_predictions/202610281201.json"
         stamp = "2026-10-28T09:00:00+09:00"
         with patch.object(audit.subprocess, "check_output",
-                          side_effect=["a"*40+" "+stamp+"\n", b"original"]) as run, \
+                          side_effect=["false\n", "a"*40+" "+stamp+"\n", b"original"]) as run, \
                 patch.object(Path, "read_bytes", return_value=b"original"):
             original, sha, when = audit.first_add(rel, root)
         self.assertEqual(sha, "a"*40)
         self.assertEqual(original, b"original")
         self.assertEqual(when.isoformat(), stamp)
-        self.assertEqual(run.call_args_list[0].args[0][:3],
+        self.assertEqual(run.call_args_list[0].args[0],
+                         ["git", "rev-parse", "--is-shallow-repository"])
+        self.assertEqual(run.call_args_list[1].args[0][:3],
                          ["git", "log", "--max-count=2"])
+
+    def test_single_record_refuses_shallow_history(self):
+        root=Path("/tmp/first-add-check")
+        with patch.object(audit.subprocess,"check_output",
+                          return_value="true\n") as run:
+            with self.assertRaisesRegex(ValueError,"incomplete local git history"):
+                audit.first_add("prospective_predictions/202610281201.json",root)
+        self.assertEqual(run.call_count,1)
+        self.assertEqual(run.call_args.args[0],
+                         ["git","rev-parse","--is-shallow-repository"])
+
+    def test_single_record_refuses_indeterminate_history(self):
+        root=Path("/tmp/first-add-check")
+        with patch.object(audit.subprocess,"check_output",
+                          return_value="unknown\n") as run:
+            with self.assertRaisesRegex(ValueError,"incomplete local git history"):
+                audit.first_add("prospective_predictions/202610281201.json",root)
+        self.assertEqual(run.call_count,1)
 
     def test_bulk_refuses_shallow_history_before_reading_additions(self):
         root = Path("/tmp/first-add-check")
