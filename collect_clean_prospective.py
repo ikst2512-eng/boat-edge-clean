@@ -21,6 +21,10 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
     counts = Counter(r.get("レースコード") for r in titles if isinstance(r, dict))
     card_counts = Counter(r.get("レースコード") for r in cards if isinstance(r, dict))
     by_card = {r["レースコード"]: r for r in cards if isinstance(r, dict) and card_counts[r.get("レースコード")] == 1 and r.get("レースコード")}
+    # A candidate timestamp must not precede either actual source receipt.
+    # Reject rather than emit evidence with impossible receipt chronology.
+    if any(t.tzinfo is None for t in (now, title_received, cards_received)) or max(title_received, cards_received) > now:
+        return {}
     items = {}
     for row in titles:
         code = row.get("レースコード") if isinstance(row, dict) else None
@@ -53,14 +57,16 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
     return items
 
 def collect(day=None):
-    now = datetime.now(JST)
-    day = day or now.strftime("%Y%m%d")
+    day = day or datetime.now(JST).strftime("%Y%m%d")
     datetime.strptime(day, "%Y%m%d")
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
     titles,t1,h1=read_rows(BASE+"title/"+path)
     cards,t2,h2=read_rows(BASE+"race_cards/"+path)
     provenance=model_provenance()
-    output=build(day,titles,cards,t1,t2,h1,h2,now,provenance)
+    # Stamp generation *after* source fetch and model provenance collection.
+    # Historical candidate JSON is immutable; this affects only new files.
+    generated_at=datetime.now(JST)
+    output=build(day,titles,cards,t1,t2,h1,h2,generated_at,provenance)
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)
