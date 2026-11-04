@@ -607,7 +607,12 @@ assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on 
 assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
 assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
 assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
-assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
+assert.ok(candidateHtml.includes("titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff"),'inverted source timestamps must exclude tickets before rendering');
+assert.ok(candidateHtml.includes("const validTimes=times.every(key=>isJstStamp(pred?.[key]))"),'missing or non-JST source timestamps must fail closed');
+assert.ok(candidateHtml.includes("recordedDeadline===limit&&limit-cutoff===12*60*1000"),'source deadline must match the schedule and T-12 boundary');
+assert.ok(candidateHtml.includes("if(!structurallyValid)continue;\n   available++;"),'invalid candidates must not increase displayed count');
+assert.ok(candidateHtml.includes("購入判断に使用しないでください"),'unverified remote first-seen must never become a purchase recommendation');
+assert.ok(!candidateHtml.includes('const recordedBeforeInput=generated<source'),'source inversion must not merely change warning copy');
 assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
 
 // Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
@@ -621,3 +626,35 @@ assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'pu
 assert.ok(publicCandidateWorkflow.includes("document.querySelectorAll('#candidateCards > article.card')"),'candidate report must count rendered cards');
 assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must be distinct from displayed candidates');
 assert.ok(publicCandidateWorkflow.includes('candidate_warning_or_tickets_missing'),'public candidate page must retain research warning');
+
+
+// Behavioral regression: evaluate the production candidate guard, not only its text.
+const guardStart=candidateHtml.indexOf('   const isJstStamp=value=>');
+const guardEnd=candidateHtml.indexOf('   if(!structurallyValid)continue;',guardStart);
+assert.ok(guardStart>0&&guardEnd>guardStart,'candidate chronology guard must be extractable');
+const productionGuard=candidateHtml.slice(guardStart,guardEnd);
+const guardedCandidate=(candidate,nowMs)=>{
+ const raceCode='202611040104',limit=Date.parse('2026-11-04T16:35:00+09:00');
+ const fakeDate=class extends Date{static now(){return nowMs}};
+ return vm.runInNewContext('(()=>{'+productionGuard+'return structurallyValid;})()',
+  {pred:candidate,raceCode,limit,Date:fakeDate,Set});
+};
+const safeCandidate={
+ race_code:'202611040104',formal:false,scoring:false,status:'prospective_candidate',
+ predictions:['1-2-3','1-3-2'],
+ source_title_received_jst:'2026-11-04T11:01:33.708274+09:00',
+ source_cards_received_jst:'2026-11-04T11:01:33.766393+09:00',
+ generated_at:'2026-11-04T11:01:34.000000+09:00',
+ cutoff_jst:'2026-11-04T16:23:00+09:00',
+ source_deadline_jst:'2026-11-04T16:35:00+09:00'
+};
+const nowAfterGeneration=Date.parse('2026-11-04T16:00:00+09:00');
+assert.equal(guardedCandidate(safeCandidate,nowAfterGeneration),true,'correct post-input generation remains research-display eligible');
+assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T11:01:33.627045+09:00'},nowAfterGeneration),false,'actual Nov 4 candidate chronology inversion is rejected');
+assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'title receipt alone after generation is rejected');
+assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'cards receipt alone after generation is rejected');
+assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:null},nowAfterGeneration),false,'missing title receipt is rejected');
+assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T02:01:33Z'},nowAfterGeneration),false,'non-JST receipt is rejected even for equivalent instant');
+assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:23:00+09:00'},nowAfterGeneration),false,'generation exactly at T-12 is rejected');
+assert.equal(guardedCandidate({...safeCandidate,source_deadline_jst:'2026-11-04T16:36:00+09:00'},nowAfterGeneration),false,'mismatching source race deadline is rejected');
+assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:20:00+09:00'},Date.parse('2026-11-04T16:00:00+09:00')),false,'future-dated generation is rejected');
