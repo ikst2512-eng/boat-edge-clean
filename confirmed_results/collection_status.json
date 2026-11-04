@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-04T01:02:03.782598+09:00",
+  "checked_at_jst": "2026-11-04T11:59:28.462401+09:00",
   "days": [
     {
       "day": "20261103",
@@ -11,32 +11,16 @@
     },
     {
       "day": "20261104",
-      "http_status": 404,
-      "newly_saved": 0,
-      "source_races": 0,
-      "source_url": "https://boatracecsv.github.io/data/results/realtime/2026/11/04.csv",
-      "status": "waiting_for_published_source"
+      "http_status": null,
+      "newly_saved": 15,
+      "source_races": 31,
+      "source_url": null,
+      "status": "available"
     }
   ],
   "historical_retries": {
-    "days": [
-      {
-        "day": "20261028",
-        "saved": 0,
-        "source_races": 124
-      },
-      {
-        "day": "20261031",
-        "saved": 0,
-        "source_races": 155
-      },
-      {
-        "day": "20261102",
-        "saved": 0,
-        "source_races": 155
-      }
-    ],
-    "status": "checked"
+    "days": [],
+    "status": "not_hourly_window"
   },
   "overdue_race_codes": [
     "202610280112",
@@ -49,8 +33,14 @@
     "202610280312",
     "202610311408",
     "202611021912",
-    "202611031912"
+    "202611031912",
+    "202611040403",
+    "202611040604",
+    "202611040804",
+    "202611040904",
+    "202611042108",
+    "202611042203"
   ],
-  "overdue_result_count": 11,
+  "overdue_result_count": 17,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }

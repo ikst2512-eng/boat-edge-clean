@@ -178,10 +178,16 @@ class FallbackGateTests(unittest.TestCase):
     def test_saved_artifact_with_verified_200_suppresses_fallback(self):
         import io
         import zipfile
-        evidence = {"source_status": "ok", "samples": [{
+        evidence = {"source_status": "ok",
+                    "checked_at_jst": "2026-11-03T12:00:00+09:00",
+                    "samples": [{
             "race_code": "202611030111", "attempts": [{
-                "http": 202, "state": "pending_202", "latency_ms": 80}, {
-                "http": 200, "state": "valid_200", "latency_ms": 100}]}]}
+                "http": 202, "state": "pending_202", "latency_ms": 80,
+                "started_at_utc": "2026-11-03T03:00:01+00:00",
+                "finished_at_utc": "2026-11-03T03:00:02+00:00"}, {
+                "http": 200, "state": "valid_200", "latency_ms": 100,
+                "started_at_utc": "2026-11-03T03:00:04+00:00",
+                "finished_at_utc": "2026-11-03T03:00:05+00:00"}]}]}
         def archive_of(data):
             buffer = io.BytesIO()
             with zipfile.ZipFile(buffer, "w") as out:
@@ -190,6 +196,12 @@ class FallbackGateTests(unittest.TestCase):
         artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics", "id": 7, "expired": False}]}
         self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
                           fetch_zip=lambda *_: archive_of(evidence)), "valid")
+        legacy = json.loads(json.dumps(evidence))
+        for item in legacy["samples"][0]["attempts"]:
+            del item["started_at_utc"]
+            del item["finished_at_utc"]
+        self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
+                          fetch_zip=lambda *_: archive_of(legacy)), "no_valid_odds")
         pending = {"source_status": "ok", "samples": [{"race_code": "202611030111",
                     "attempts": [{"http": 202, "state": "pending_202", "latency_ms": 100}]}]}
         self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
@@ -365,9 +377,12 @@ class FallbackGateTests(unittest.TestCase):
                    "upstream_branch": "main", "upstream_run_id": 42,
                    "upstream_created_at": "2026-11-03T07:38:00Z"}
         evidence = {"source_status": "ok", "trigger": trigger,
+                    "checked_at_jst": "2026-11-03T16:40:00+09:00",
                     "samples": [{"race_code": "202611030111",
                                  "attempts": [{"http": 200, "state": "valid_200",
-                                               "latency_ms": 80}]}]}
+                                               "latency_ms": 80,
+                                               "started_at_utc": "2026-11-03T07:40:01+00:00",
+                                               "finished_at_utc": "2026-11-03T07:40:02+00:00"}]}]}
         artifacts = lambda *_: {"artifacts": [
             {"name": "live-odds-metrics", "id": 7, "expired": False}]}
         def probe(record):
@@ -379,6 +394,10 @@ class FallbackGateTests(unittest.TestCase):
                 fetch_zip=lambda *_: buffer.getvalue(),
                 expected_slot=slot, run_created_at=run_created)
         self.assertEqual(probe(evidence), "valid")
+        legacy = json.loads(json.dumps(evidence))
+        del legacy["samples"][0]["attempts"][0]["started_at_utc"]
+        del legacy["samples"][0]["attempts"][0]["finished_at_utc"]
+        self.assertEqual(probe(legacy), "no_valid_odds")
         self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_event": "push"}}),
                          "no_valid_odds")
         self.assertEqual(probe({**evidence, "trigger": {**trigger, "upstream_branch": "dev"}}),

@@ -3,6 +3,18 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const html=fs.readFileSync('index.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'inline application script must exist');
+// The header exposes exactly one daily-candidate entry, never fake per-race tabs.
+assert.equal((html.match(/class="header-candidate-tab"/g)||[]).length,1);
+assert.ok(html.includes('class="header-candidate-tab" href="/selection"'));
+assert.ok(html.includes('>候補レース</a>'));
+assert.ok(!html.includes('href="/selection">購入候補</a>'),'avoid duplicate candidate navigation');
+// Candidate destination must not promote historical verified comparisons to today's tips.
+const candidateHtml=fs.readFileSync('selection.html','utf8');
+assert.ok(candidateHtml.includes('id="todayCandidateRaces"'));
+assert.ok(candidateHtml.includes('id="todayCandidateDate"'));
+assert.ok(candidateHtml.includes("timeZone:'Asia/Tokyo'"));
+assert.ok(candidateHtml.includes('過去の確定結果から作った研究候補を、本日の購入候補として表示することはありません。'));
+
 new vm.Script(script,{filename:'index.html'});
 function extract(name){
  const line=script.split('\n').find(l=>l.startsWith('function '+name+'('));
@@ -551,3 +563,20 @@ assert.match(script,/for\(let attempt=0;attempt<3;attempt\+\+\)/,'odds pending r
 assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*res=await fetch\(oddsUrl/,'pending odds must abort for another race');
 assert.match(script,/if\(res.status!==202\)break;/,'retry only pending HTTP 202');
 assert.match(script,/if\(!enrichCurrent\(\)\)return;\s*if\(!res.ok\)/,'recheck race before applying completed odds');
+
+// Confirmed full schedule excludes absent choices; partial/unpublished sources leave picker usable.
+assert.ok(script.includes('function completeHeldSchedule()'),'full CLEAN schedule gate must be explicit');
+assert.ok(script.includes('todayVenueRaces.partial_coverage!==true&&todayVenueRaces.historical_result_only!==true'),'partial or archive-derived schedule must not disable a real race');
+assert.ok(script.includes('button.disabled=!hasConfirmedVenue(i+1)'),'confirmed absent venue must be visibly disabled');
+assert.ok(script.includes('b.disabled=!hasConfirmedRace(s.venue+1,i)'),'confirmed absent race must be visibly disabled');
+assert.ok(script.includes("if(!hasConfirmedVenue(i+1))return;venueTouched=true"),'confirmed venue guard on click');
+assert.ok(script.includes("if(!hasConfirmedRace(s.venue+1,i))return;venueTouched=true"),'confirmed race guard on click');
+assert.ok(script.includes("next>12||!hasConfirmedRace(s.venue+1,next)"),'previous/next navigation cannot bypass held-race gate');
+assert.ok(script.includes("button.disabled=false;button.classList.remove('held')"),'failed or unpublished schedule must restore navigation');
+
+// Racecard gate and visually disabled previous/next buttons must share the same complete-schedule predicate.
+const raceDataGate=script.slice(script.indexOf('async function loadRaceData(force=false)'),script.indexOf('async function loadRaceData(force=false)')+1700);
+assert.ok(raceDataGate.includes('if(completeHeldSchedule())'), 'partial/recovered schedule must not falsely hide archived six-boat racecards');
+assert.ok(!raceDataGate.includes('todayVenueRaces.partial_coverage!==true'), 'racecard path must reuse the centralized complete-coverage gate');
+assert.ok(script.includes("document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1)"), 'previous button must reflect confirmed absent race');
+assert.ok(script.includes("document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1)"), 'next button must reflect confirmed absent race');
