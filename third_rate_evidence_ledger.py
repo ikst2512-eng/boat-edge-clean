@@ -237,10 +237,12 @@ def verify_ledger_write_access(remote_read, remote_create):
             "write_permission_tested_this_run": state == "new_write_permission_probe"}
 
 
-def _api(args):
-    result = subprocess.run(["gh", "api", *args],
-                            capture_output=True, timeout=30)
-    return result
+def _api(args, payload=None):
+    # GitHub's contents endpoint needs base64, but a 100 KB JSON evidence file
+    # expands beyond Linux MAX_ARG_STRLEN when sent via `-f content=...`.
+    # Send the JSON body on stdin: no large/sensitive evidence in argv.
+    return subprocess.run(["gh", "api", *args], input=payload,
+                          capture_output=True, timeout=30)
 
 
 def _github_ops(repository):
@@ -259,10 +261,15 @@ def _github_ops(repository):
         return base64.b64decode(payload["content"], validate=False)
     def put(path, original, run_id):
         encoded = base64.b64encode(original).decode("ascii")
-        r = _api(["-X", "PUT",
-                  f"repos/{repository}/contents/{path}",
-                  "-f", f"message=research: preserve third-rate frozen shadow from capture run {run_id}",
-                  "-f", f"branch={BRANCH}", "-f", f"content={encoded}"])
+        # No --field/-f arguments: a 100091-byte frozen original produced a
+        # 133464-byte single argv item (Linux per-argument limit 131072).
+        payload = json.dumps({
+            "message": f"research: preserve third-rate frozen shadow from capture run {run_id}",
+            "branch": BRANCH,
+            "content": encoded,
+        }, sort_keys=True).encode("utf-8")
+        r = _api(["-X", "PUT", f"repos/{repository}/contents/{path}",
+                  "--input", "-"], payload=payload)
         if r.returncode:
             raise ValueError("github_append_only_write_failed")
     return get, put
