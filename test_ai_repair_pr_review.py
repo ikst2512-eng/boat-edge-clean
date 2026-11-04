@@ -198,6 +198,43 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
 
+    def test_independent_review_checkout_must_match_exact_candidate_sha(self):
+        workflow = self.source()
+        block = workflow.split(
+            "      - name: Verify checked-out candidate commit is the approved SHA\n", 1
+        )[1].split("      - name: Validate changed-file allowlist\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        check = subprocess.run(["bash", "-n"], input=script, text=True,
+                               capture_output=True)
+        self.assertEqual(check.returncode, 0, check.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            candidate = root / "navigation.js"
+            candidate.write_text("baseline\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
+            current = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            for label, sha, dirty, expected in (
+                ("exact", current, False, True),
+                ("wrong-commit", "f" * 40, False, False),
+                ("missing-sha", "", False, False),
+                ("modified-worktree", current, True, False),
+            ):
+                with self.subTest(case=label):
+                    candidate.write_text("modified\n" if dirty else "baseline\n")
+                    env = dict(os.environ, EXPECTED_PR_SHA=sha)
+                    result = subprocess.run(["bash", "-c", script],
+                                            cwd=root, env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_independent_reviewer_rejects_three_modified_files(self):
         workflow = self.source()
         block = workflow.split(
