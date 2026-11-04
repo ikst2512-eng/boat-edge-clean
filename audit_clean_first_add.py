@@ -177,4 +177,6 @@ if __name__=="__main__":
         print(f"::warning::Prospective local first-add audit rejected {output['rejected']} / {output['total']} frozen candidates; none count as verified outcomes.",file=sys.stderr)
     if output["local_audit_passed"]==0:
         raise SystemExit("No locally auditable candidates: do not certify the archive")
+    if output["rejected"]>0:
+        raise SystemExit("Mixed archive contains rejected candidates: do not certify the archive")
 

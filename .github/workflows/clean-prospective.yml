@@ -18,6 +18,7 @@ on:
       - .github/workflows/clean-prospective.yml
 permissions:
   contents: write
+  actions: write  # Dispatch the existing independent audit after an actual successful freeze push.
 concurrency:
   group: clean-prospective-capture
   cancel-in-progress: false
@@ -48,6 +49,8 @@ jobs:
       - name: Freeze immutable candidate evidence
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ ! -d prospective_predictions ]; then
@@ -126,6 +129,11 @@ jobs:
             git fetch origin main
             git -c rebase.autoStash=true rebase origin/main
             if git push origin HEAD:main; then
+              # A GITHUB_TOKEN push does not trigger another workflow's push event.
+              # Dispatch the existing read-only audit only after a successful freeze.
+              # If dispatch fails, surface a failed capture run; never claim audited.
+              gh workflow run clean-prospective-evaluation.yml --ref main
+              echo 'PROSPECTIVE_FIRST_ADD_AUDIT_DISPATCHED'
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
