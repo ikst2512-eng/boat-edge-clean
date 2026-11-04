@@ -427,6 +427,15 @@ jobs:
                 if(tabEvidence[view].race!==selected.key)throw Error('tab_evidence_race_changed_'+view);
               }
               tabEvidence.exhibit.count=await page.locator('#exhibitionGrid .exhibition-boat').count();
+              // Six UI cards are not proof of real exhibition measurements.
+              // Derive evidence only from the verified CLEAN snapshot retained for this race.
+              tabEvidence.exhibit.sourceVerified=await page.evaluate(key=>{
+                const card=verifiedRaceCache.get(key);
+                return card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok';
+              },selected.key);
+              tabEvidence.exhibit.sourceState=await page.locator('#exhibitionGrid .muted').first().innerText().catch(()=> 'status_missing');
+              if(!tabEvidence.exhibit.sourceVerified&&/取得記録は締切前/.test(tabEvidence.exhibit.sourceState))
+                throw Error('unverified_exhibition_mislabeled_verified');
               // Exhibition cards without measured source values are not exhibition-data proof.
               tabEvidence.forecast.forecastRows=await page.locator('#predictionRows > *').count();
               tabEvidence.result.confirmed=await page.locator('#resultDetail .result-combo .boat-num').count()===3;
