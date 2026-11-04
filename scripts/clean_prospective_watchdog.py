@@ -31,6 +31,28 @@ TRUSTED_SCHEDULES = frozenset({
 })
 
 
+def within_planned_recovery_slot(now):
+    """Do not dispatch before or long after a real CLEAN cron slot.
+
+    Main pushes and independently completed workflows can wake this watchdog
+    at arbitrary times.  They are wakeups, not proof a capture was due.
+    The final 22:28 JST slot ends at 22:33 T-12; later retries are too late.
+    """
+    if now.tzinfo is None:
+        raise ValueError("timezone_required")
+    local = now.astimezone(timezone(timedelta(hours=9)))
+    minute_of_day = local.hour * 60 + local.minute
+    for hour in range(7, 22):
+        for minute in (4, 19, 34, 49):
+            if 0 <= minute_of_day - (hour * 60 + minute) < WINDOW_MINUTES:
+                return True
+    for minute in (4, 19, 28):
+        maximum_age = 5 if minute == 28 else WINDOW_MINUTES
+        if 0 <= minute_of_day - (22 * 60 + minute) < maximum_age:
+            return True
+    return False
+
+
 def trusted_schedule_completion(payload, repository):
     """Accept only a successful scheduled main run of a known same-repo workflow."""
     if not isinstance(payload, dict) or not repository:
@@ -75,6 +97,8 @@ def decide(runs, now, event_name, ref, *, trigger=None, repository=None):
     """Only trusted main branch schedules can wake recovery from another workflow."""
     if ref != "refs/heads/main" or event_name not in (
             "schedule", "push", "workflow_dispatch", "workflow_run"):
+        return False
+    if not within_planned_recovery_slot(now):
         return False
     if event_name == "workflow_run" and not trusted_schedule_completion(
             trigger, repository):
