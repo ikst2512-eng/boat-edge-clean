@@ -145,7 +145,8 @@ jobs:
           from pathlib import Path
           files=json.loads(Path('/tmp/changed.json').read_text())
           allowed={'index.html','navigation.js','secondary_navigation.js'}
-          if not files or len(files)>3:
+          # AI proposer caps suggestions at two exact replacements.
+          if not files or len(files)>2:
               raise SystemExit('Invalid AI repair file count')
           for file in files:
               if file['filename'] not in allowed or file['status'] not in ('modified',):
@@ -190,7 +191,7 @@ jobs:
               report.get('published_head_sha') != source_pr['head']['sha'] or
               report.get('published_base_sha') != source_pr['base']['sha'] or
               report.get('production_change_allowed') is not False or
-              not isinstance(claimed, list) or not claimed or
+              not isinstance(claimed, list) or not claimed or len(claimed)>2 or
               any(not isinstance(name, str) or name not in allowed for name in claimed) or
               len(set(claimed)) != len(claimed) or
               sorted(filenames) != sorted(claimed) or
