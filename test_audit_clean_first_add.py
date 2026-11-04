@@ -44,6 +44,24 @@ class FirstAddAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source received after candidate generation"):
                 audit.inspect("prospective_predictions/202611040404.json")
 
+    def test_either_source_receipt_after_generation_denied_independently(self):
+        template={"race_code":"202611040404","status":"prospective_candidate",
+                  "formal":False,"scoring":False,
+                  "source_deadline_jst":"2026-11-04T12:16:00+09:00",
+                  "cutoff_jst":"2026-11-04T12:04:00+09:00",
+                  "generated_at":"2026-11-04T11:01:34+09:00",
+                  "source_title_received_jst":"2026-11-04T11:01:33+09:00",
+                  "source_cards_received_jst":"2026-11-04T11:01:33+09:00"}
+        for source_key in ("source_title_received_jst","source_cards_received_jst"):
+            obj=dict(template)
+            obj[source_key]="2026-11-04T11:01:35+09:00"
+            with self.subTest(source_key=source_key):
+                with patch.object(audit,"first_add",return_value=(
+                    json.dumps(obj).encode(),"b"*40,
+                    datetime.fromisoformat("2026-11-04T11:02:00+09:00"))):
+                    with self.assertRaisesRegex(ValueError,"source received after candidate generation"):
+                        audit.inspect("prospective_predictions/202611040404.json")
+
     def test_equal_or_earlier_input_receipts_remain_eligible_for_research(self):
         obj={"race_code":"202611040404","status":"prospective_candidate",
              "formal":False,"scoring":False,
