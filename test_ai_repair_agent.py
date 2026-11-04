@@ -389,6 +389,9 @@ node() {
             subprocess.run(["git", "add", "navigation.js", "index.html"],
                            cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            dispatch_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            env = dict(os.environ, GITHUB_SHA=dispatch_sha)
             (root / "navigation.js").write_bytes(b"new\n")
             subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "AI test commit"], cwd=root, check=True)
@@ -408,9 +411,20 @@ node() {
                         "file_sha256": digests, "production_change_allowed": False
                     }))
                     outcome = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
-                                             cwd=root, text=True, capture_output=True)
+                                             cwd=root, env=env, text=True, capture_output=True)
                     self.assertEqual(outcome.returncode == 0, expected,
                                      label + outcome.stdout + outcome.stderr)
+            # A correct patch on a different dispatch base is not acceptable.
+            report.write_text(json.dumps({
+                "status": "proposed", "changed_files": ["navigation.js"],
+                "file_sha256": {"navigation.js": good},
+                "production_change_allowed": False
+            }))
+            bad_env = dict(env, GITHUB_SHA="0" * 40)
+            outcome = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                     cwd=root, env=bad_env, text=True, capture_output=True)
+            self.assertNotEqual(outcome.returncode, 0,
+                                "Commit parent must equal dispatch main SHA")
             # A commit containing two files must be rejected even if its report
             # claims only one of them.
             (root / "index.html").write_bytes(b"unexpected\n")
@@ -422,7 +436,7 @@ node() {
                 "production_change_allowed": False
             }))
             outcome = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
-                                     cwd=root, text=True, capture_output=True)
+                                     cwd=root, env=env, text=True, capture_output=True)
             self.assertNotEqual(outcome.returncode, 0,
                                 "Extra committed files must be rejected")
 
