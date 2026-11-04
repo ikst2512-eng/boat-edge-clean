@@ -115,6 +115,11 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(primary.call_count,2)
         alternate.assert_called_once_with(day)
 
+    def test_nonmatching_daily_race_lists_use_alternate(self):
+        source=(Path(__file__).resolve().parent/"collect_clean_prospective.py").read_text()
+        self.assertIn("title_codes & card_codes",source)
+        self.assertIn("incomplete daily pre-race CSV coverage",source)
+
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
