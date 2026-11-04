@@ -1,6 +1,7 @@
 """Run bounded, reproducible historical four-mode research on real archived files."""
 import json
 import re
+import hashlib
 from pathlib import Path
 from four_mode_research_batch import summarize, MODES
 from four_mode_frozen_diagnostic import compare_race
@@ -138,7 +139,13 @@ def run(root=ROOT, limit=120):
     codes.sort()
     days = sorted(set(code[:8] for code in codes))
     venues = sorted(set(code[8:10] for code in codes))
+    # A content fingerprint binds all summary metrics to an exact, auditable
+    # membership roster. Dynamic archive sampling does NOT freeze that roster.
+    roster_sha256 = hashlib.sha256(("\n".join(codes) + "\n").encode("ascii")).hexdigest()
     return {"status": "historical_research_only", "cohort_codes": codes,
+            "cohort_sha256": roster_sha256,
+            "cohort_hash_scope": "sha256_ascii_newline_join_sorted_race_codes_trailing_newline",
+            "cohort_membership_frozen": False,
             **overall, "rank_and_miss_breakdown": breakdown,
             "hole_second_pair_review": hole_pair_review, "by_day": {day: summarize_group([c for c in codes if c[:8] == day], root) for day in days},
             "by_venue_code": {venue: summarize_group([c for c in codes if c[8:10] == venue], root) for venue in venues},
@@ -152,6 +159,8 @@ if __name__ == "__main__":
         "status": report["status"],
         "requested": report["requested"],
         "comparable": report.get("historical_comparable"),
+        "cohort_sha256": report.get("cohort_sha256"),
+        "cohort_membership_frozen": report.get("cohort_membership_frozen"),
         "topn": report.get("topn_hits", {}),
         "pairwise_topn": report.get("pairwise_topn", {}),
         "rank_and_miss_breakdown": report.get("rank_and_miss_breakdown", {}),
