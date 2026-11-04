@@ -105,9 +105,55 @@ def inspect(path, root=ROOT):
             "candidate_unchanged":True,"git_commit_before_cutoff":True,
             "remote_first_seen_verified":False,"formal":False,"scoring":False}
 
+# Report a mixed archive as a whole. An invalid frozen record is a rejected
+# candidate, never a fabricated miss or an amended first-add receipt.
+# The CLI exit is only "audit completed", not a statement that all rows passed.
+def audit_records(paths, root=ROOT, inspector=inspect):
+    paths=list(paths)
+    if not paths or len(set(paths))!=len(paths):
+        raise ValueError("unique nonempty candidate paths required")
+    if any(not isinstance(path,str) or PATTERN.fullmatch(path) is None for path in paths):
+        raise ValueError("invalid candidate path")
+    accepted=[]
+    rejected=[]
+    reasons={}
+    # The CLI must use the same full-history requirement as production bulk audits.
+    with bulk_first_add(root):
+        for path in paths:
+            try:
+                accepted.append(inspector(path,root))
+            except (ValueError,KeyError,TypeError,json.JSONDecodeError) as exc:
+                # Keep a bounded, stable reason category. No candidate may be
+                # counted as an evaluated race from this diagnostic output.
+                known={
+                    "source received after candidate generation":"source_receipt_after_generation",
+                    "source received after cutoff":"source_late",
+                    "first Git commit not before prospective cutoff":"first_commit_late",
+                    "unambiguous first addition not found":"first_add_missing_or_ambiguous",
+                    "candidate changed since first add":"original_blob_mismatch",
+                    "generated after cutoff":"generation_late",
+                    "wrong archive type":"archive_type_invalid",
+                }
+                reason=known.get(str(exc),"other_rejection")
+                rejected.append({"race_code":path[len("prospective_predictions/"):-5],
+                                 "reason":reason})
+                reasons[reason]=reasons.get(reason,0)+1
+    return {"schema":"CLEAN_PROSPECTIVE_LOCAL_FIRST_ADD_DIAGNOSTIC_V1",
+            "formal":False,"remote_first_seen_verified":False,
+            "total":len(paths),"local_audit_passed":len(accepted),
+            "rejected":len(rejected),"rejection_reasons":reasons,
+            "local_passed_records":accepted,"rejected_records":rejected}
+
 if __name__=="__main__":
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("paths",nargs="+")
     args=p.parse_args()
-    print(json.dumps([inspect(f) for f in args.paths],ensure_ascii=False))
+    output=audit_records(args.paths)
+    print(json.dumps(output,ensure_ascii=False))
+    if output["rejected"]:
+        import sys
+        print(f"::warning::Prospective local first-add audit rejected {output['rejected']} / {output['total']} frozen candidates; none count as verified outcomes.",file=sys.stderr)
+    if output["local_audit_passed"]==0:
+        raise SystemExit("No locally auditable candidates: do not certify the archive")
+
