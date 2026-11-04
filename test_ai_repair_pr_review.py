@@ -195,15 +195,25 @@ class AIReviewGuardTests(unittest.TestCase):
             root = Path(directory)
             report_file = root / "ai_repair_proposal.json"
             changed_file = root / "changed.json"
+            pr_file = root / "pr.json"
             code = code.replace("Path('/tmp/ai-source-evidence/ai_repair_proposal.json')",
                                 "Path(os.environ['MOCK_REPORT'])")
             code = code.replace("Path('/tmp/changed.json')",
                                 "Path(os.environ['MOCK_CHANGED'])")
+            code = code.replace("Path('/tmp/pr.json')",
+                                "Path(os.environ['MOCK_PR'])")
             code = "import os\n" + code
             (root / "navigation.js").write_bytes(b"reviewed-ai-change")
+            pr_file.write_text(json.dumps({
+                "head": {"ref": "ai/repair-321", "sha": "a" * 40},
+                "base": {"sha": "b" * 40}
+            }))
             env = dict(os.environ, MOCK_REPORT=str(report_file),
-                       MOCK_CHANGED=str(changed_file))
+                       MOCK_CHANGED=str(changed_file), MOCK_PR=str(pr_file))
             valid_report = {"status": "proposed",
+                            "published_branch": "ai/repair-321",
+                            "published_head_sha": "a" * 40,
+                            "published_base_sha": "b" * 40,
                             "production_change_allowed": False,
                             "changed_files": ["navigation.js"],
                             "file_sha256": {"navigation.js": hashlib.sha256(
@@ -218,6 +228,10 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("tampered-file-digest", {"file_sha256": {"navigation.js": "0"*64}},
                  valid_files, False),
                 ("missing-digest", {"file_sha256": {}}, valid_files, False),
+                ("different-branch", {"published_branch": "ai/repair-322"}, valid_files, False),
+                ("different-head", {"published_head_sha": "c" * 40}, valid_files, False),
+                ("different-base", {"published_base_sha": "c" * 40}, valid_files, False),
+                ("missing-published-sha", {"published_head_sha": None}, valid_files, False),
                 ("duplicate-files", {"changed_files": ["navigation.js", "navigation.js"]},
                  valid_files, False),
                 ("production-allowed", {"production_change_allowed": True}, valid_files, False),
