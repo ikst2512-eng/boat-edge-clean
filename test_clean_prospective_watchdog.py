@@ -36,7 +36,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             (7, 4, True), (7, 10, True), (7, 17, True),
             (7, 18, False), (7, 19, True),
             (21, 59, True), (22, 0, True), (22, 3, False),
-            (22, 4, True), (22, 18, True), (22, 19, True),
+            (22, 4, True), (22, 18, False), (22, 19, True),
             (22, 28, True), (22, 32, True),
             (22, 33, False), (22, 44, False),
         )
