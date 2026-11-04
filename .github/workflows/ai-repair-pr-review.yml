@@ -44,12 +44,12 @@ jobs:
           fi
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr.json
           head_sha="$(python - <<'PY'
-          import json,os
+          import json,os,re
           from pathlib import Path
           p=json.loads(Path('/tmp/pr.json').read_text())
           if (p['state']!='open' or not p['draft'] or
               p['head']['repo']['full_name']!=os.environ['GITHUB_REPOSITORY'] or
-              not p['head']['ref'].startswith('ai/repair-') or
+              not re.fullmatch(r'ai/repair-[0-9]+', p['head']['ref']) or
               p['base']['ref']!='main' or p['commits']!=1):
               raise SystemExit('Not a one-commit local AI draft PR against main')
           print(p['head']['sha'])
@@ -67,6 +67,12 @@ jobs:
           if (len(parents)!=1 or parents[0].get('sha')!=main or
               p['base']['sha']!=main or commit.get('sha')!=p['head']['sha']):
               raise SystemExit('AI draft PR is stale or not a direct child of current main')
+          bot = 'github-actions[bot]'
+          expected_message = 'AI: propose narrow UI repair for review'
+          if (commit.get('commit', {}).get('message') != expected_message or
+              commit.get('author', {}).get('login') != bot or
+              commit.get('committer', {}).get('login') != bot):
+              raise SystemExit('AI draft PR commit does not match AI publication signature')
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
               f.write('sha='+p['head']['sha']+'\n')
               f.write('main_sha='+main+'\n')
@@ -112,13 +118,13 @@ jobs:
           set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/final-ai-pr.json
           python - <<'PY'
-          import json, os
+          import json, os, re
           from pathlib import Path
           pr = json.loads(Path('/tmp/final-ai-pr.json').read_text())
           if (pr.get('state') != 'open' or pr.get('draft') is not True or
               pr.get('head', {}).get('sha') != os.environ['CHECKED_SHA'] or
               pr.get('head', {}).get('repo', {}).get('full_name') != os.environ['GITHUB_REPOSITORY'] or
-              not pr.get('head', {}).get('ref', '').startswith('ai/repair-') or
+              not re.fullmatch(r'ai/repair-[0-9]+', pr.get('head', {}).get('ref', '')) or
               pr.get('base', {}).get('ref') != 'main' or
               pr.get('base', {}).get('sha') != os.environ['CHECKED_MAIN_SHA'] or
               pr.get('commits') != 1):
