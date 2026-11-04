@@ -78,6 +78,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0",
     }
+    stage = "artifact_metadata"
     try:
         url = root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100"
         if fetch_json is None:
@@ -95,6 +96,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         artifact_id = artifact.get("id")
         if type(artifact_id) is not int or artifact_id <= 0:
             return "unavailable"
+        stage = "artifact_zip"
         archive_url = root + "/actions/artifacts/" + str(artifact_id) + "/zip"
         if fetch_zip is None:
             with urlopen(Request(archive_url, headers=headers), timeout=20) as response:
@@ -103,6 +105,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
             raw = fetch_zip(archive_url, token)
         if not isinstance(raw, bytes) or len(raw) > 2_000_000:
             return "unavailable"
+        stage = "artifact_parse"
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             if "live_odds_metrics.json" not in archive.namelist():
                 return "no_valid_odds"
@@ -136,7 +139,10 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         # never suppress another valid scheduled-slot fallback attempt.
         return "valid" if verdict(data) == "valid_200_observed" else "no_valid_odds"
     except (OSError, TimeoutError, ValueError, TypeError, KeyError,
-            HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError):
+            HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
+        print("LIVE_ODDS_ARTIFACT_DIAGNOSTIC " + json.dumps({
+            "stage": stage, "run_id": run_id, "error_class": type(exc).__name__,
+            "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "unavailable"
 
 
