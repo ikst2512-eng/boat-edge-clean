@@ -65,7 +65,8 @@ def eligible(event, trigger, *, now=None):
 
 
 def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_zip=None,
-                          expected_slot=None, run_created_at=None):
+                          expected_slot=None, run_created_at=None,
+                          expected_direct_slot=None):
     """Only a validated saved 200 counts as completed direct monitoring.
 
     Returns valid, no_valid_odds, or unavailable. Metadata/ZIP network errors
@@ -122,6 +123,21 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
             data = json.loads(archive.read("live_odds_metrics.json"))
         if not isinstance(data, dict) or data.get("source_status") != "ok":
             return "no_valid_odds"
+        if expected_direct_slot is not None:
+            # A late direct cron may appear in the next cron slot. Check the
+            # archived webhook schedule and actual HTTP sampling window.
+            provenance = data.get("trigger")
+            try:
+                checked = datetime.fromisoformat(data["checked_at_jst"])
+                wanted = expected_direct_slot.astimezone(timezone.utc)
+                if (not isinstance(provenance, dict)
+                        or provenance.get("event") != "schedule"
+                        or provenance.get("cron") != "25 " + str(wanted.hour) + " * * *"
+                        or checked.tzinfo is None
+                        or not wanted <= checked.astimezone(timezone.utc) <= wanted + timedelta(minutes=90)):
+                    return "no_valid_odds"
+            except (KeyError, TypeError, AttributeError, ValueError):
+                return "no_valid_odds"
         if expected_slot is not None:
             provenance = data.get("trigger")
             if not isinstance(provenance, dict) or run_created_at is None:
@@ -208,7 +224,11 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
                     print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "invalid_run_id", "runs_examined": runs_examined}), flush=True)
                     return "schedule_lookup_unavailable"
                 stage = "schedule_artifact"
-                state = ((probe_check or direct_probe_evidence)(repository, token, run_id))
+                if probe_check is None:
+                    state = direct_probe_evidence(
+                        repository, token, run_id, expected_direct_slot=slot)
+                else:
+                    state = probe_check(repository, token, run_id)
                 if state == "valid":
                     return "direct_schedule_observed"
                 if state != "no_valid_odds":
