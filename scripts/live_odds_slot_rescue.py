@@ -62,9 +62,12 @@ def checked_history(payload, event, slot, now):
             raise ValueError("invalid_odds_history_timestamp") from exc
         if created.tzinfo is None or created > now + timedelta(minutes=2):
             raise ValueError("invalid_odds_history_chronology")
-        # Trust only same-branch runs; an ambiguous ref is not proof of absence.
-        if run.get("head_branch") != "main":
+        # A different, explicitly identified branch is not main's operational
+        # evidence. Missing branch identity is ambiguous and fails closed.
+        if not isinstance(run.get("head_branch"), str):
             raise ValueError("odds_history_branch_unverified")
+        if run["head_branch"] != "main":
+            continue
         parsed.append((created.astimezone(JST), run))
     if len(runs) == 100 and (not parsed or min(t for t, _ in parsed) >= slot):
         raise ValueError("odds_history_page_truncated_in_slot")
