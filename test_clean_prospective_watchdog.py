@@ -70,6 +70,32 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             'conclusion': 'failure', 'head_branch': 'main',
         }], last, 'schedule', MAIN))
 
+    def test_last_2228_slot_is_not_masked_by_2219_success(self):
+        last = datetime(2026, 11, 4, 13, 29, tzinfo=timezone.utc)  # 22:29 JST
+        def observed(minute, event="schedule", status="completed",
+                     conclusion="success"):
+            return {
+                "created_at": last.replace(minute=minute).isoformat(),
+                "event": event, "status": status,
+                "conclusion": conclusion, "head_branch": "main",
+            }
+        # Earlier completed attempts belong to the 22:19 slot, not 22:28.
+        self.assertTrue(decide([observed(19)], last, "schedule", MAIN))
+        self.assertTrue(decide([observed(19, "workflow_dispatch")],
+                               last, "push", MAIN))
+        # The real 22:28 schedule, same-slot fallback, and older active
+        # writer still prevent redundant dispatch.
+        self.assertFalse(decide([observed(28)], last, "schedule", MAIN))
+        self.assertFalse(decide([observed(28, "workflow_dispatch",
+                                          conclusion="failure")],
+                                last, "push", MAIN))
+        self.assertFalse(decide([observed(19, status="queued",
+                                          conclusion=None)],
+                                last, "schedule", MAIN))
+        # Before the dedicated 22:29 check, ordinary 14m policy is unchanged.
+        self.assertFalse(decide([observed(19)],
+                                last - timedelta(minutes=1), "schedule", MAIN))
+
     def test_feature_branch_manual_and_pr_runs_do_not_mask_missed_main(self):
         events = [
             run(2, event="workflow_dispatch", branch="experiment"),
