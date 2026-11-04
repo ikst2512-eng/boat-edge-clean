@@ -204,6 +204,11 @@ class AIReviewGuardTests(unittest.TestCase):
                                 "Path(os.environ['MOCK_PR'])")
             code = "import os\n" + code
             (root / "navigation.js").write_bytes(b"reviewed-ai-change")
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
             pr_file.write_text(json.dumps({
                 "head": {"ref": "ai/repair-321", "sha": "a" * 40},
                 "base": {"sha": "b" * 40}
@@ -247,6 +252,26 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
+            report_file.write_text(json.dumps(valid_report))
+            changed_file.write_text(json.dumps(valid_files))
+            # The exact same file bytes must not permit an executable file.
+            subprocess.run(["git", "update-index", "--chmod=+x", "navigation.js"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "unexpected executable mode"],
+                           cwd=root, check=True)
+            executable = subprocess.run(["python", "-c", code], cwd=root, env=env,
+                                        text=True, capture_output=True)
+            self.assertNotEqual(executable.returncode, 0, "Executable mode must fail")
+            # A symlink can resolve to the expected bytes; still reject its type.
+            (root / "payload").write_bytes(b"reviewed-ai-change")
+            (root / "navigation.js").unlink()
+            (root / "navigation.js").symlink_to("payload")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "unexpected symlink"],
+                           cwd=root, check=True)
+            symlink = subprocess.run(["python", "-c", code], cwd=root, env=env,
+                                     text=True, capture_output=True)
+            self.assertNotEqual(symlink.returncode, 0, "Symlink must fail")
 
     def test_independent_tests_reject_tracked_checkout_mutation(self):
         workflow = self.source()
