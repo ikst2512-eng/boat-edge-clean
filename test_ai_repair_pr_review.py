@@ -67,7 +67,10 @@ class AIReviewGuardTests(unittest.TestCase):
                         "base": {"ref": "main", "sha": base}
                     }))
                     commit_path.write_text(json.dumps({
-                        "sha": "head-a", "parents": [{"sha": v} for v in parents]
+                        "sha": "head-a", "parents": [{"sha": v} for v in parents],
+                        "commit": {"message": "AI: propose narrow UI repair for review"},
+                        "author": {"login": "github-actions[bot]"},
+                        "committer": {"login": "github-actions[bot]"}
                     }))
                     main_path.write_text(json.dumps({"object": {"sha": "main-a"}}))
                     precheck = subprocess.run(["python", "-c", first], env=env,
@@ -83,6 +86,33 @@ class AIReviewGuardTests(unittest.TestCase):
                     if expected:
                         self.assertIn("sha=head-a", output.read_text())
                         self.assertIn("main_sha=main-a", output.read_text())
+
+            # Valid parent/main alone does not suffice: reject forged provenance.
+            for field, replacement in (
+                ("author", {"login": "someone-else"}),
+                ("committer", {"login": "someone-else"}),
+                ("commit", {"message": "unrelated change"}),
+            ):
+                with self.subTest(provenance=field):
+                    output.write_text("")
+                    pr_path.write_text(json.dumps({
+                        "state": "open", "draft": True, "commits": 1,
+                        "head": {"repo": {"full_name": "example/repo"},
+                                 "ref": "ai/repair-42", "sha": "head-a"},
+                        "base": {"ref": "main", "sha": "main-a"}
+                    }))
+                    payload = {
+                        "sha": "head-a", "parents": [{"sha": "main-a"}],
+                        "commit": {"message": "AI: propose narrow UI repair for review"},
+                        "author": {"login": "github-actions[bot]"},
+                        "committer": {"login": "github-actions[bot]"}
+                    }
+                    payload[field] = replacement
+                    commit_path.write_text(json.dumps(payload))
+                    main_path.write_text(json.dumps({"object": {"sha": "main-a"}}))
+                    result = subprocess.run(["python", "-c", second], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, field)
 
     def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
@@ -114,6 +144,7 @@ class AIReviewGuardTests(unittest.TestCase):
             ("ready", "head-a", "main-a", "open", False, "main-a", 1, 1),
             ("changed-base", "head-a", "main-a", "open", True, "main-b", 1, 1),
             ("multiple-commits", "head-a", "main-a", "open", True, "main-a", 2, 1),
+            ("invalid-run-branch", "head-a", "main-a", "open", True, "main-a", 1, 1),
         )
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Path(tmp) / "final-pr.json"
@@ -121,7 +152,7 @@ class AIReviewGuardTests(unittest.TestCase):
                 with self.subTest(case=label):
                     fixture.write_text(json.dumps({
                         "state": state, "draft": draft, "commits": count,
-                        "head": {"sha": head, "ref": "ai/repair-42",
+                        "head": {"sha": head, "ref": "ai/repair-not-a-run" if label == "invalid-run-branch" else "ai/repair-42",
                                  "repo": {"full_name": "example/repo"}},
                         "base": {"ref": "main", "sha": base}
                     }))
