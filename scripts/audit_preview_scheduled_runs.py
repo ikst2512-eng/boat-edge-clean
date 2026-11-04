@@ -89,6 +89,7 @@ def capture_window_health(runs, today, scheduled_audit):
     """Classify actual schedule-run starts, without certifying race data or T-12."""
     jst=timezone(timedelta(hours=9))
     in_window, outside, unknown=[], [], []
+    in_window_success, in_window_failed, in_window_pending=[], [], []
 
     def aware(value):
         if not isinstance(value, str):
@@ -116,6 +117,12 @@ def capture_window_health(runs, today, scheduled_audit):
         local=started.astimezone(jst)
         if (8, 3)<=(local.hour, local.minute)<=(21, 58):
             in_window.append(run_id)
+            if run.get("status")=="completed" and run.get("conclusion")=="success":
+                in_window_success.append(run_id)
+            elif run.get("status")=="completed" and run.get("conclusion") not in (None,"success"):
+                in_window_failed.append(run_id)
+            else:
+                in_window_pending.append(run_id)
         else:
             outside.append(run_id)
 
@@ -124,7 +131,11 @@ def capture_window_health(runs, today, scheduled_audit):
         "today_in_nominal_window_run_ids": sorted(in_window),
         "today_outside_nominal_window_run_ids": sorted(outside),
         "today_unknown_start_run_ids": sorted(unknown),
+        "today_in_window_successful_run_ids": sorted(in_window_success),
+        "today_in_window_failed_run_ids": sorted(in_window_failed),
+        "today_in_window_pending_or_unknown_run_ids": sorted(in_window_pending),
         "no_in_window_capture_start_today": bool(scheduled_audit and not in_window),
+        "no_successful_in_window_capture_today": bool(scheduled_audit and in_window and not in_window_success),
         "window_check_is_t12_evidence": False,
     }
 
@@ -207,12 +218,14 @@ def main():
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; inspected {report['history_rows_inspected']} across {report['history_pages_read']} page(s), full-day covered: {report['full_day_metadata_coverage']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
             file.write(f"Audited JST day: {report['audited_day_jst']} (nominal-slot inference: {report['audited_day_is_nominal_slot_inference']}); scheduled runs: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
-            file.write(f"Nominal JST window: {report['nominal_capture_window_jst']}; in-window IDs: {report['today_in_nominal_window_run_ids']}; outside-window IDs: {report['today_outside_nominal_window_run_ids']}; unknown-start IDs: {report['today_unknown_start_run_ids']}. Run metadata only; not T-12 evidence.\n")
+            file.write(f"Nominal JST window: {report['nominal_capture_window_jst']}; in-window IDs: {report['today_in_nominal_window_run_ids']}; in-window successful: {report['today_in_window_successful_run_ids']}; in-window failed: {report['today_in_window_failed_run_ids']}; in-window pending/unknown: {report['today_in_window_pending_or_unknown_run_ids']}; outside-window IDs: {report['today_outside_nominal_window_run_ids']}; unknown-start IDs: {report['today_unknown_start_run_ids']}. Run metadata only; not T-12 evidence.\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
     if report["schedule_missing_today"]:
         raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")
     if report["no_in_window_capture_start_today"]:
         raise SystemExit("NO_IN_WINDOW_SCHEDULED_PREVIEW_CAPTURE_TODAY")
+    if report["no_successful_in_window_capture_today"]:
+        raise SystemExit("NO_SUCCESSFUL_IN_WINDOW_SCHEDULED_PREVIEW_CAPTURE_TODAY")
     if report["all_today_captures_failed"]:
         raise SystemExit("ALL_TODAY_SCHEDULED_PREVIEW_CAPTURES_FAILED")
 
