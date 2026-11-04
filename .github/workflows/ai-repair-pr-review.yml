@@ -107,7 +107,11 @@ jobs:
           expected_path = '.github/workflows/ai-repair-proposal.yml'
           jobs_response = json.loads(Path('/tmp/ai-proposal-jobs.json').read_text())
           jobs = jobs_response.get('jobs') if isinstance(jobs_response, dict) else None
-          propose_jobs = [job for job in jobs if job.get('name') == 'propose'] if isinstance(jobs, list) else []
+          # The API returns one page here. Never accept partial provenance.
+          if (not isinstance(jobs, list) or
+              jobs_response.get('total_count') != len(jobs)):
+              raise SystemExit('Originating AI proposal jobs response is incomplete')
+          propose_jobs = [job for job in jobs if isinstance(job, dict) and job.get('name') == 'propose']
           if (len(propose_jobs) != 1 or propose_jobs[0].get('status') != 'completed' or
               propose_jobs[0].get('conclusion') != 'success'):
               raise SystemExit('Originating AI proposal job did not complete successfully')
