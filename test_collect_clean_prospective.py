@@ -489,7 +489,7 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIn(safe,workflow.split("      - name: Flag zero daily captures after midday JST",1)[1])
         self.assertIn(safe,workflow.split("      - name: Archive prospective capture diagnostics",1)[1])
         self.assertIn("git -c rebase.autoStash=true rebase origin/main",freeze)
-        self.assertIn("Candidate receipt buffer expired after rebase",freeze)
+        self.assertIn("Post-rebase candidate receipt buffer expired; refusing late push:",freeze)
         # No extra schedule, no T-12 relaxation.
         self.assertIn("  schedule:",workflow)
         self.assertIn("  workflow_dispatch:",workflow)
