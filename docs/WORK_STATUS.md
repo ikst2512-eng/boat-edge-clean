@@ -1,3 +1,17 @@
+## 2026-11-04 19:26 JST 引継ぎ実行：503・トップ締切表示の修正と本番実証
+
+- **統合済み #1606 / main `67173f32b1365419fb1b215a25c7768e6c484ce7`**: Render `/api/signal70-holdout-status` の恒常503を実ログから特定。`bulk_first_add` が浅いGit履歴を拒否していた。Render限定の既存バックグラウンドworkerで固定CLEAN Git URLを `fetch --unshallow --no-tags`、90秒上限・対話無効で補完する。checkout/reset/予想原本変更なし、失敗時の監査停止を維持。exact-head `7a1ade2602976178c8f6824c53eadc0cafaa2074` CIは12成功・1skip。Navigation run `41813248601`、Cross-model `41813248159`成功。既存bulkテストの浅い履歴ガード未追随も修正。
+- **本番503実測**: Render `2026-11-04T10:22:02Z` log は `holdout_refresh_finished duration_seconds=27.81 outcome=ready`。HTTP200で later_holdout_days=6、archived_candidates=762、audit_rejected_races=762（全て source_receipt_after_generation）、evaluated_holdout_races=0。過去不適格原本を合格に変更していない。デプロイでcacheが消えるため初回集計中は従来どおり `HOLDOUT_PENDING` 503となり得る。サイト全体の障害と混同しない。
+- **統合済み #1610 / main `2f7e88975c2a123de7376fed4e32197e87fe9a50`**: `loadHeldVenues` 成功後に削除済み `loadHomeRaceCards()` を呼ぶ残骸がReferenceError→catch→正常日程消去を起こしていた。呼出1箇所だけ除去。新規画面なし。既存navigation workflowへ、成功日程4レース→次3レース表示・開催場より上の位置を検証する390px Chromium/WebKit試験を追加。CI `41813672504` job `126518904757`: `CLEAN_HOME_SCHEDULE_CHROMIUM_PASS` / `...WEBKIT_PASS`。対象head `6f0e19a2654629622700cf1c5f12a1b6fa50b0ac` は8成功・1skip。
+- **本番トップ実測 19:24 JST**: Render deploy `dep-dblgf8ln7bfs7389k6m0` LIVE（10:24:28Z）、commit=`2f7e8897`。実ブラウザで12開催場、開催場の上に下関5R19:30・丸亀10R19:39・大村10R19:48の3件を表示。保存日程が11:40取得のため30分超の古さ警告は残る。iPhone Safari実機は未検証（WebKit試験と区別）。
+- **実レース取得**: 19:15 JST 大村9R（締切19:16）で出走表6艇、展示タイム6艇、展示ST/進入/気象とソース別取得時刻・SHA256をAPI応答から確認。ただしT−12ではない。19:22台の桐生10R・下関5R・丸亀10Rは各出走表6艇とオッズ120通りHTTP200、展示は当時not_published_or_unavailable。`docs/observations/production_receipts_20261104.json` は手動read-only観測で、後続raw UTF-8応答とSHA256も保存。無人監視・公式原本・T−12証明として使わない。
+- **候補レース**: 19:16 JST実ブラウザで締切前18件を検査、表示安全条件を満たす保存済み研究予想0件。空欄のUI故障とは区別。時刻逆転原本を修正して埋めない。11/05の新規scheduled保存・初回Git・遠隔初見・候補DOM検証が必要。
+- **#1593 無人監視**: public Actions RESTでevent=schedule履歴4件全件を確認。最新11/03 `41624217156`、11/04直接scheduleは0件。workflowはactive。PR/manualの成功を監視成功に数えない。既存#1603等の修正を重複実装せず、既存11/05 12:25/14:25/16:25 JST（各90分猶予）の実行・artifact実sample検証を継続。新規重複cron/automationなし、復旧未認定。
+- **#71/#958/#294 4モード**: 現行アーカイブ120件を既存`four_mode_historical_cohort.run()`でread-only再集計。Top3/5/10件数: 絞り18/30/30、本命18/30/46、バランス19/29/45、穴2/4/13。`formal=false`、歴史研究であり独立前向き精度ではない。厳密点数の元合意は追加検索でも未回収。`絞り < 本命 < バランス < 穴`と矛盾する5/30/20/12を勝手に正とせず、復元未完了。原本・モデル不変更。
+- **#708/#329 移行**: 既存artifact `13280103552` / run `41738920306` のZIPを再ダウンロード・解析。SHA256=`a8434d92a9eaf27363c7e36ad50b83b53b1ccd06a6d348e026cac619af38fd19`、matched1200 / compared124 / uncomparable1076 / unresolved0 / copy_authorized=false / delete_authorized=false。P0 5,578原本の独立保全・復元は未達。旧repo・書込・Pages停止/削除なし。
+- **競合保護**: main進行中の#1607/#1609を維持し、用途別worktreeとSHA固定PRで作業。#1560/#1563のAI修正Draft、#1559保全Draft、#1558/#832等の研究PRは未統合のまま保護。#722と#832は旧/代替関係であり両方を機械的に統合しない。古いブランチの強制push/閉鎖なし。
+- **次の最優先**: 11/05新規収集・無人オッズの実証、T−12で展示を取得できる範囲の確立、4モードの元仕様回収、P0原本の独立復元。正式採点ゲート・予想原本・既存証拠は維持。
+
 ## 2026-11-04 JST サイト担当：当日候補「保存済み原本」と「公開描画」の切り分け（PR・公開検証待ち）
 - 16:25:42 JSTの開催日程 `schedule_snapshots/20261104.json` では締切前40レース、候補UIが先に照合する締切順18レース中、保存済み研究予想JSON存在16件／404が2件。16件はいずれも3連単10点・研究候補で、正式予想として採用しない。
 - **重要な時刻証拠のギャップ**: 16件の `generated_at=2026-11-04T11:01:33.627045+09:00` が `source_cards_received_jst=2026-11-04T11:01:33.766393+09:00` より約0.139秒前。従来のUIは `recordedBeforeInput` 警告付きで表示し得るが、入力後生成を証明できず「購入候補が16件ある」「予想精度が検証済み」とは扱わない。原本・初回Git時刻は書き換えず、別担当のPR #1571／#1569と競合しない。
