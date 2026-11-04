@@ -404,6 +404,35 @@ jobs:
                 if(await page.evaluate(()=>activeView)!==view)throw Error('tab_not_selected_'+view);
                 if(await page.evaluate(()=>sameRaceKey())!==selected.key)throw Error('race_changed_in_'+view);
               }
+              // Observe data availability independently of tab visibility. Missing forecast,
+              // exhibition, or result is not a successful data verification.
+              const tabEvidence={};
+              for(const [view,selector] of [
+                ['card','#raceDataStatus'],
+                ['exhibit','#raceDataStatus'],
+                ['forecast','#predictionStatus'],
+                ['result','#resultStatus']
+              ]){
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
+                try{
+                  await page.waitForFunction(sel=>{
+                    const value=document.querySelector(sel)?.textContent?.trim()||'';
+                    return !!value&&!/(確認中|更新中|読み込み中|取得中)/.test(value);
+                  },selector,{timeout:12000});
+                }catch(_){}
+                tabEvidence[view]=await page.evaluate(sel=>({
+                  status:document.querySelector(sel)?.textContent?.trim()?.slice(0,180)||'status_missing',
+                  race:sameRaceKey()
+                }),selector);
+                if(tabEvidence[view].race!==selected.key)throw Error('tab_evidence_race_changed_'+view);
+              }
+              tabEvidence.exhibit.count=await page.locator('#exhibitionGrid .exhibition-boat').count();
+              // Exhibition cards without measured source values are not exhibition-data proof.
+              tabEvidence.forecast.forecastRows=await page.locator('#predictionRows').children().count();
+              tabEvidence.result.confirmed=await page.locator('#resultDetail .result-combo .boat-num').count()===3;
+              console.log('CLEAN_LIVE_DAY_TAB_STATUS',selected.key,JSON.stringify(tabEvidence));
+              summary('Live JST-day tab data states (not proof of complete sources): '+selected.key+
+                ' '+JSON.stringify(tabEvidence).slice(0,750));
               if(failures.length)throw Error('browser_js_errors_'+failures.join(';').slice(0,240));
               console.log('CLEAN_LIVE_DAY_BROWSER_VERIFIED',selected.key);
               summary('Live JST-day Pages browser (390px, 4 tabs, six racers): **VERIFIED** '+selected.key+
