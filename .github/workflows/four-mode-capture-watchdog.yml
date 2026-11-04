@@ -41,6 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test dispatch policy
+        id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog
       - name: Check recent capture runs before fallback dispatch
         env:
@@ -187,7 +188,9 @@ jobs:
       # Dispatch is not proof of a saved forecast; the collector preserves
       # its own T-12, append-only, raw-source and independent audit gates.
       - name: Recover missed CLEAN prospective capture
-        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        # Independent collector recovery must run even if unrelated four-mode
+        # or nightly GitHub API checks failed; never skip failing policy tests.
+        if: ${{ always() && steps.policy_tests.outcome == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}

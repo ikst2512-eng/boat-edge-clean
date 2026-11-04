@@ -109,6 +109,19 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
+        # Explicit always() overrides GitHub's implicit success() condition:
+        # a separate Four-mode/V2 API failure must not skip CLEAN recovery.
+        self.assertIn("id: policy_tests", workflow)
+        self.assertIn("always() && steps.policy_tests.outcome == 'success'", workflow)
+        policy_pos = workflow.index("- name: Test dispatch policy")
+        other_pos = workflow.index("- name: Check recent capture runs before fallback dispatch")
+        clean_pos = workflow.index("- name: Recover missed CLEAN prospective capture")
+        self.assertLess(policy_pos, other_pos)
+        self.assertLess(other_pos, clean_pos)
+        condition = workflow[clean_pos:workflow.index("- name: Preserve watchdog decision evidence", clean_pos)]
+        self.assertIn("github.event_name != 'pull_request'", condition)
+        self.assertIn("github.ref == 'refs/heads/main'", condition)
+
         self.assertIn("test_clean_prospective_watchdog", workflow)
         self.assertIn("four-mode-evidence/clean-prospective-watchdog-decision.json",
                       workflow)
