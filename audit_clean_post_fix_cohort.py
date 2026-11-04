@@ -4,6 +4,8 @@ The legacy cohort stays rejected. This never certifies remote first-seen or
 promotes any research candidate to formal scoring.
 """
 import json
+import os
+import subprocess
 from pathlib import Path
 from audit_clean_first_add import ROOT, PATTERN, audit_records
 
@@ -52,6 +54,10 @@ def inspect_post_fix(root=ROOT, auditor=audit_records):
 
 if __name__ == "__main__":
     output = inspect_post_fix()
+    output["audit_run_id"] = os.environ.get("GITHUB_RUN_ID") or None
+    output["audit_event_name"] = os.environ.get("GITHUB_EVENT_NAME") or None
+    output["audit_checkout_sha"] = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     print(json.dumps(output, ensure_ascii=False))
     if output["status"] != "local_first_add_passed":
         raise SystemExit("Post-fix candidate evidence not yet locally certified")
