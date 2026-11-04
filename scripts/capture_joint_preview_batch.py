@@ -94,8 +94,15 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                 report['complete_pairs_before_t12'] += item['status'] == 'pair_complete'
             except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
                 item.update(status='capture_or_audit_failed',error_type=type(exc).__name__)
+        # A saved beforeinfo body is not proof the odds request succeeded.
+        # Keep each good original, but fail the batch if any actual source
+        # acquisition or audit attempt failed; incomplete published previews
+        # and crossed T-12 gates remain separately reported, not fabricated.
+        source_failed=any(item['status'] in (
+            'beforeinfo_failed','odds_failed','capture_or_audit_failed')
+            for item in report['observations'])
         report['status'] = ('no_pre_t12_candidate' if not codes else
-                            'source_capture_failed' if not report['beforeinfo_originals_saved'] else
+                            'source_capture_failed' if source_failed or not report['beforeinfo_originals_saved'] else
                             'complete_pairs_observed' if report['complete_pairs_before_t12'] else
                             'sources_saved_pair_not_ready')
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
