@@ -35,6 +35,9 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
             if max(now, title_received, cards_received) >= cutoff:
                 continue
             rates = [float(by_card[code][f"艇{i}_全国勝率"]) for i in range(1,7)]
+            # Per-race direct cards each have distinct raw HTTP bytes. Daily
+            # CSV and OpenAPI retain their existing one-digest-per-file format.
+            card_sha = card_digest[code] if isinstance(card_digest, dict) else card_digest
             outcomes = probabilities(rates)
             tickets = ["-".join(map(str, p)) for p, _ in outcomes[:10]]
             items[code] = {
@@ -44,8 +47,8 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
                 "generated_at":now.isoformat(), "source_deadline_jst":deadline.isoformat(),
                 "cutoff_jst":cutoff.isoformat(), "source_title_received_jst":title_received.isoformat(),
                 "source_cards_received_jst":cards_received.isoformat(),
-                "source_title_sha256":title_digest, "source_cards_sha256":card_digest,
-                "input_sha256":hashlib.sha256((title_digest+":"+card_digest).encode()).hexdigest(),
+                "source_title_sha256":title_digest, "source_cards_sha256":card_sha,
+                "input_sha256":hashlib.sha256((title_digest+":"+card_sha).encode()).hexdigest(),
                 "national_win_rates":rates, **provenance,
                 "attestation":"pending Git remote first-add verification",
             }
@@ -85,10 +88,29 @@ def collect(day=None):
         # A missing or malformed alternate source is a failed capture, never a
         # result-derived forecast or a fabricated successful candidate.
         from clean_openapi_sources import load
-        titles,cards,received,digest,source=load(day)
-        t1=t2=received
-        h1=h2=digest
-        source_kind=source["source"]
+        try:
+            titles,cards,received,digest,source=load(day)
+            t1=t2=received
+            h1=h2=digest
+            source_kind=source["source"]
+        except (OSError, TimeoutError, ValueError) as alternate_error:
+            # Never bypass a malformed secondary source: only a documented
+            # unavailable/empty-day response may try the bounded direct feed.
+            if (isinstance(alternate_error, ValueError)
+                    and str(alternate_error) not in ("no_valid_races", "source unavailable")):
+                raise
+            from clean_direct_sources import holding_rows, direct_cards
+            try:
+                titles,t1,h1=holding_rows(day)
+                already_saved={p.stem for p in STORE.glob(day+"????.json")}
+                cards,t2,_,card_shas,_=direct_cards(
+                    day,titles,existing_codes=already_saved,limit=18)
+                if not cards:
+                    raise ValueError("direct_pre_race_cards_unavailable")
+                h2=card_shas
+                source_kind="direct_race_specific_pre_race"
+            except (OSError, TimeoutError, ValueError, UnicodeError) as direct_error:
+                raise ValueError("all_pre_race_sources_unavailable") from direct_error
     provenance={**model_provenance(),"input_source_kind":source_kind}
     # A prospective forecast cannot predate its own input receipts. The first
     # timestamp above is only the capture-run start, not generation evidence.
