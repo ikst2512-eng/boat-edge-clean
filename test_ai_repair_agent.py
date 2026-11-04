@@ -367,6 +367,58 @@ node() {
                                     cwd=root, env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_prepush_staged_ai_content_matches_evidence(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        block = block.split("      - name: Archive proposal\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        validator = script.split("          # Compare the exact staged bytes to the recorded AI evidence before push.\n", 1)[1]
+        validator = validator.split("          git commit -m", 1)[0]
+        validator = "\n".join(line[10:] if line.startswith("          ") else line
+                              for line in validator.splitlines())
+        syntax = subprocess.run(["bash", "-n"], input=validator,
+                                text=True, capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            file = root / "navigation.js"
+            file.write_bytes(b"before\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            file.write_bytes(b"reviewed\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            report = root / "ai_repair_proposal.json"
+            good = hashlib.sha256(b"reviewed\n").hexdigest()
+            cases = (
+                ("valid", "proposed", {"navigation.js": good}, True),
+                ("tampered-content", "proposed", {"navigation.js": "0" * 64}, False),
+                ("missing-evidence", "proposed", {}, False),
+                ("no-safe-patch", "no_safe_patch", {"navigation.js": good}, False),
+            )
+            for label, status, digests, expected in cases:
+                with self.subTest(case=label):
+                    report.write_text(json.dumps({
+                        "status": status, "changed_files": ["navigation.js"],
+                        "production_change_allowed": False, "file_sha256": digests
+                    }))
+                    result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                            cwd=root, text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+            file.write_bytes(b"post-stage-unreviewed\n")
+            report.write_text(json.dumps({
+                "status": "proposed", "changed_files": ["navigation.js"],
+                "production_change_allowed": False,
+                "file_sha256": {"navigation.js": good}
+            }))
+            result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                    cwd=root, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0,
+                                "Working tree changed after staging must be rejected")
+
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
