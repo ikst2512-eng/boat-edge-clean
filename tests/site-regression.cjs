@@ -383,6 +383,17 @@ console.log('PASS: historical schedule 404/503 fallback regression');
 
 // Pages smoke must target each shortcut button itself, not a nested descendant.
 const pagesPublishingWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+// The existing Pages site needs upload/deploy, not an extra settings API call.
+// Keep the actual permission/environment gates; do not let a green static
+// regression test claim the public URL is deployed.
+assert.ok(!pagesPublishingWorkflow.includes('uses: actions/configure-pages@v5'),
+  'Established Pages publish must not spend a settings-API call before upload');
+assert.ok(pagesPublishingWorkflow.includes('uses: actions/upload-pages-artifact@v3')&&
+          pagesPublishingWorkflow.includes('uses: actions/deploy-pages@v4')&&
+          pagesPublishingWorkflow.includes('id-token: write')&&
+          pagesPublishingWorkflow.includes('pages: write')&&
+          pagesPublishingWorkflow.includes('name: github-pages'),
+          'Pages artifact, deploy, environment and token safety gates must remain');
 assert.ok(pagesPublishingWorkflow.includes("await page.locator('.race-detail-shortcuts button[data-race-view="),
   'Pages smoke must target the shortcut button directly');
 assert.ok(!pagesPublishingWorkflow.includes("await shortcuts.locator("),
