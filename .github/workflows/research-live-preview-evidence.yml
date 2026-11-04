@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/collect_live_preview_evidence.py'
+      - 'scripts/capture_joint_preview_batch.py'
+      - 'tests/test_capture_joint_preview_batch.py'
       - '.github/workflows/research-live-preview-evidence.yml'
       - 'tests/test_late_preview_paired_coverage.py'
       - 'scripts/late_preview_feature_pairs.py'
@@ -43,6 +45,10 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_archive_late_research_candidates.py' -v
       - name: Test same-race late candidate TopN evaluation
         run: python -m unittest discover -s tests -p 'test_evaluate_late_research_topn.py' -v
+      - name: Test bounded official source-pair capture
+        run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
+      - name: Preserve official preview and odds originals before CSV collection
+        run: python -m scripts.capture_joint_preview_batch
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
       - name: Report strict twelve-minute source-and-receipt pair coverage
@@ -123,6 +129,7 @@ jobs:
           name: independent-late-preview-${{ github.run_id }}
           path: |
             late_preview_evidence/
+            official_joint_evidence/
             late_research_candidates/
             late_research_archive_report.json
             late_research_topn_report.json
