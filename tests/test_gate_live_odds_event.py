@@ -148,6 +148,69 @@ class FallbackGateTests(unittest.TestCase):
         self.assertFalse(gate.eligible("workflow_run", trigger, now=source + timedelta(hours=2)))
 
 
+    def test_fallback_lookup_failure_diagnostics_remain_fail_closed(self):
+        from datetime import datetime, timezone
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from urllib.error import HTTPError
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
+        output = StringIO()
+
+        def failing_fetch(url, token):
+            raise HTTPError(url, 403, "Forbidden", None, None)
+
+        with redirect_stdout(output):
+            state = gate.prior_fallback_guard(
+                trigger, "owner/repo", "secret-token", 100,
+                now=now, fetch_json=failing_fetch)
+        self.assertEqual(state, "fallback_lookup_unavailable")
+        diagnostic = output.getvalue()
+        self.assertIn("LIVE_ODDS_FALLBACK_DIAGNOSTIC", diagnostic)
+        self.assertIn('"stage": "history_page"', diagnostic)
+        self.assertIn('"http_status": 403', diagnostic)
+        self.assertNotIn("secret-token", diagnostic)
+
+    def test_malformed_history_response_is_diagnosed_and_rejected(self):
+        from datetime import datetime, timezone
+        from contextlib import redirect_stdout
+        from io import StringIO
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.prior_fallback_guard(
+                {"upstream_created_at": "2026-11-03T03:45:00Z"},
+                "owner/repo", "token", 100,
+                now=datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc),
+                fetch_json=lambda *_: {"workflow_runs": None})
+        self.assertEqual(result, "fallback_lookup_unavailable")
+        self.assertIn("malformed_history_response", output.getvalue())
+        self.assertNotIn('"token"', output.getvalue())
+
+    def test_missing_configuration_is_diagnosed_and_rejected(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.prior_fallback_guard({}, "owner/repo", "", 0)
+        self.assertEqual(result, "fallback_lookup_unavailable")
+        self.assertIn("missing_required_input", output.getvalue())
+
+    def test_direct_schedule_malformed_history_is_diagnosed_fail_closed(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from datetime import datetime, timezone
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.direct_schedule_guard(
+                {"upstream_created_at": "2026-11-03T03:45:00Z"},
+                "owner/repo", "secret-token",
+                now=datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc),
+                fetch_json=lambda *_: {"workflow_runs": None})
+        self.assertEqual(result, "schedule_lookup_unavailable")
+        self.assertIn("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC", output.getvalue())
+        self.assertIn("malformed_history_response", output.getvalue())
+        self.assertNotIn("secret-token", output.getvalue())
+
     def test_direct_schedule_guard_avoids_duplicate_and_allows_failed_retry(self):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
@@ -421,6 +484,43 @@ class FallbackGateTests(unittest.TestCase):
         self.assertEqual(gate.prior_fallback_guard(
             trigger, "a/b", "token", 12, now=now,
             fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
+
+
+    def test_artifact_api_error_diagnostics_remain_fail_closed(self):
+        import contextlib
+        import io
+        from urllib.error import HTTPError
+
+        output = io.StringIO()
+        def forbidden(*_):
+            raise HTTPError("https://example.test/artifacts", 403, "Forbidden", None, None)
+        with contextlib.redirect_stdout(output):
+            result = gate.direct_probe_evidence(
+                "a/b", "token", 91, fetch_json=forbidden)
+        self.assertEqual(result, "unavailable")
+        line = next(line for line in output.getvalue().splitlines()
+                    if line.startswith("LIVE_ODDS_ARTIFACT_DIAGNOSTIC "))
+        details = json.loads(line.split(" ", 1)[1])
+        self.assertEqual(details["stage"], "artifact_metadata")
+        self.assertEqual(details["run_id"], 91)
+        self.assertEqual(details["http_status"], 403)
+        self.assertEqual(details["error_class"], "HTTPError")
+
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 33, "expired": False}]}
+        output = io.StringIO()
+        def missing_zip(*_):
+            raise HTTPError("https://example.test/archive.zip", 404, "Missing", None, None)
+        with contextlib.redirect_stdout(output):
+            result = gate.direct_probe_evidence(
+                "a/b", "token", 92, fetch_json=artifacts, fetch_zip=missing_zip)
+        self.assertEqual(result, "unavailable")
+        line = next(line for line in output.getvalue().splitlines()
+                    if line.startswith("LIVE_ODDS_ARTIFACT_DIAGNOSTIC "))
+        details = json.loads(line.split(" ", 1)[1])
+        self.assertEqual(details["stage"], "artifact_zip")
+        self.assertEqual(details["run_id"], 92)
+        self.assertEqual(details["http_status"], 404)
 
 
 if __name__ == "__main__":

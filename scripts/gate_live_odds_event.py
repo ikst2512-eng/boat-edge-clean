@@ -78,6 +78,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "BOAT-EDGE-CLEAN-ODDS-FALLBACK-GUARD/1.0",
     }
+    stage = "artifact_metadata"
     try:
         url = root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100"
         if fetch_json is None:
@@ -95,6 +96,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         artifact_id = artifact.get("id")
         if type(artifact_id) is not int or artifact_id <= 0:
             return "unavailable"
+        stage = "artifact_zip"
         archive_url = root + "/actions/artifacts/" + str(artifact_id) + "/zip"
         if fetch_zip is None:
             with urlopen(Request(archive_url, headers=headers), timeout=20) as response:
@@ -103,6 +105,7 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
             raw = fetch_zip(archive_url, token)
         if not isinstance(raw, bytes) or len(raw) > 2_000_000:
             return "unavailable"
+        stage = "artifact_parse"
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             if "live_odds_metrics.json" not in archive.namelist():
                 return "no_valid_odds"
@@ -136,7 +139,10 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         # never suppress another valid scheduled-slot fallback attempt.
         return "valid" if verdict(data) == "valid_200_observed" else "no_valid_odds"
     except (OSError, TimeoutError, ValueError, TypeError, KeyError,
-            HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError):
+            HTTPError, URLError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
+        print("LIVE_ODDS_ARTIFACT_DIAGNOSTIC " + json.dumps({
+            "stage": stage, "run_id": run_id, "error_class": type(exc).__name__,
+            "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "unavailable"
 
 
@@ -147,10 +153,14 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
     The upstream's JST day and the three fixed slot times define the window.
     """
     if not repository or "/" not in repository or not token:
+        print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": "configuration", "reason": "missing_required_input"}), flush=True)
         return "schedule_lookup_unavailable"
+    stage = "parse_upstream"
+    runs_examined = 0
     try:
         source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
         if source.tzinfo is None:
+            print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_timestamp"}), flush=True)
             return "schedule_lookup_unavailable"
         jst = timezone(timedelta(hours=9))
         local = source.astimezone(jst)
@@ -159,6 +169,7 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
         now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         url = ("https://api.github.com/repos/" + repository +
                "/actions/workflows/live-official-odds-probe.yml/runs?event=schedule&per_page=100")
+        stage = "schedule_history"
         if fetch_json is None:
             request = Request(url, headers={
                 "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
@@ -169,12 +180,15 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             payload = fetch_json(url, token)
         runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
         if not isinstance(runs, list):
+            print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "malformed_history_response"}), flush=True)
             return "schedule_lookup_unavailable"
         for run in runs:
+            runs_examined += 1
             if not isinstance(run, dict) or run.get("event") != "schedule":
                 continue
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
             if created.tzinfo is None:
+                print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_run_timestamp", "runs_examined": runs_examined}), flush=True)
                 return "schedule_lookup_unavailable"
             if not slot <= created <= now:
                 continue
@@ -183,14 +197,18 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             if run.get("conclusion") == "success":
                 run_id = run.get("id")
                 if type(run_id) is not int or run_id <= 0:
+                    print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "invalid_run_id", "runs_examined": runs_examined}), flush=True)
                     return "schedule_lookup_unavailable"
+                stage = "schedule_artifact"
                 state = ((probe_check or direct_probe_evidence)(repository, token, run_id))
                 if state == "valid":
                     return "direct_schedule_observed"
                 if state != "no_valid_odds":
+                    print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "prior_evidence_unavailable", "run_id": run_id, "artifact_state": state}), flush=True)
                     return "schedule_lookup_unavailable"
         return "direct_schedule_absent_or_failed"
-    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
+    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError) as exc:
+        print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "runs_examined": runs_examined, "error_class": type(exc).__name__, "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "schedule_lookup_unavailable"
 
 
@@ -202,10 +220,15 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
     counts a prior green workflow as a valid odds sample.
     """
     if not repository or "/" not in repository or not token or not current_run_id:
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": "configuration", "reason": "missing_required_input"}), flush=True)
         return "fallback_lookup_unavailable"
+    stage = "parse_upstream"
+    page_seen = 0
+    runs_examined = 0
     try:
         source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
         if source.tzinfo is None:
+            print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_timestamp"}), flush=True)
             return "fallback_lookup_unavailable"
         jst = timezone(timedelta(hours=9))
         local = source.astimezone(jst)
@@ -218,6 +241,8 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
         # A busy repository can produce more than 100 upstream PR events in
         # one slot. Search further pages or fail closed; never assume absence.
         for page in range(1, 6):
+            stage = "history_page"
+            page_seen = page
             page_url = url + "&page=" + str(page)
             if fetch_json is None:
                 request = Request(page_url, headers={
@@ -230,15 +255,18 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 payload = fetch_json(page_url, token)
             runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
             if not isinstance(runs, list):
+                print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "malformed_history_response"}), flush=True)
                 return "fallback_lookup_unavailable"
             older_than_slot = False
             for run in runs:
+                runs_examined += 1
                 if not isinstance(run, dict) or run.get("event") != "workflow_run":
                     continue
                 if run.get("id") == current_run_id:
                     continue
                 created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
                 if created.tzinfo is None:
+                    print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "naive_run_timestamp"}), flush=True)
                     return "fallback_lookup_unavailable"
                 if created < slot:
                     older_than_slot = True
@@ -254,13 +282,17 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 if run.get("conclusion") == "success":
                     run_id = run.get("id")
                     if type(run_id) is not int or run_id <= 0:
+                        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "invalid_prior_run_id"}), flush=True)
                         return "fallback_lookup_unavailable"
+                    stage = "prior_artifact"
                     if probe_check is None:
                         state = direct_probe_evidence(
                             repository, token, run_id, expected_slot=slot,
                             run_created_at=created)
                     else:
                         state = probe_check(repository, token, run_id)
+                    if state == "unavailable":
+                        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "artifact_state": state, "prior_run_id": run_id}), flush=True)
                     if state == "valid":
                         return "prior_fallback_observed"
                     if state != "no_valid_odds":
@@ -268,8 +300,10 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
             if older_than_slot or len(runs) < 100:
                 return "prior_fallback_absent_or_failed"
         # Five full pages with no older timestamp is an incomplete scan.
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": "history_page_limit", "page": page_seen, "runs_examined": runs_examined, "reason": "incomplete_scan"}), flush=True)
         return "fallback_lookup_unavailable"
-    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
+    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError) as exc:
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "error_class": type(exc).__name__, "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "fallback_lookup_unavailable"
 
 

@@ -23,15 +23,27 @@ async function showTodayCandidates(){
   }
   const upcoming=races.filter(r=>Number.isInteger(r.venue)&&r.venue>=1&&r.venue<=24&&Number.isInteger(r.race)&&r.race>=1&&r.race<=12&&/^\d{2}:\d{2}$/.test(r.deadline)&&Date.parse(date+'T'+r.deadline+':00+09:00')>Date.now()).sort((a,b)=>a.deadline.localeCompare(b.deadline)||a.venue-b.venue||a.race-b.race);
   if(!upcoming.length){status.textContent='本日の締切前レースはありません。開催場一覧から別の日付を確認できます。';return}
-  // Only the first upcoming races are probed. Never backfill predictions from results.
-  let checked=0,available=0;
-  for(const race of upcoming.slice(0,18)){
-   if(available>=6)break;
-   const raceCode=code+pad(race.venue)+pad(race.race),limit=Date.parse(date+'T'+race.deadline+':00+09:00');
-   if(Date.now()>=limit)continue;
-   checked++;
-   let pred;
-   try{const response=await timed(rawBase+'prospective_predictions/'+raceCode+'.json');if(!response.ok)continue;pred=await response.json()}catch(_){continue}
+  // Probe all upcoming race keys in bounded parallel batches: a valid saved
+  // candidate may sit beyond the first 18 races. Never infer picks from results.
+  let checked=0,available=0,fetchFailures=0;
+  for(let start=0;start<upcoming.length&&available<6;start+=12){
+   const batch=upcoming.slice(start,start+12);
+   const records=await Promise.all(batch.map(async race=>{
+    const raceCode=code+pad(race.venue)+pad(race.race);
+    try{
+     const response=await fetch(rawBase+'prospective_predictions/'+raceCode+'.json',{cache:'no-store',signal:AbortSignal.timeout(4500)});
+     if(response.status===404)return null; // Missing archive, not a network failure.
+     if(!response.ok)return {fetchFailure:true};
+     return await response.json();
+    }catch(_){return {fetchFailure:true}}
+   }));
+   for(let i=0;i<batch.length&&available<6;i++){
+    const race=batch[i],pred=records[i];
+    const raceCode=code+pad(race.venue)+pad(race.race),limit=Date.parse(date+'T'+race.deadline+':00+09:00');
+    if(Date.now()>=limit)continue;
+    checked++;
+    if(!pred)continue;
+    if(pred.fetchFailure===true){fetchFailures++;continue}
    // Fail closed before counting or showing tickets: a source received after
    // the claimed generation time is not a verified pre-race prediction.
    const isJstStamp=value=>typeof value==='string'&&
@@ -57,8 +69,11 @@ async function showTodayCandidates(){
    const all=document.createElement('p');all.className='notes';all.textContent='保存済み3連単 '+tickets.length+'点：'+tickets.join(' ／ ');card.append(all);
    const link=document.createElement('a');link.href=api+'/forecast?date='+date+'&venue='+race.venue+'&race='+race.race;link.textContent='このレースの予想・出走表・展示を見る';card.append(link);
    root.append(card);
+   }
   }
-  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）':'締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
+  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）'+(fetchFailures?'／通信未確認 '+fetchFailures+'件':''):
+   fetchFailures?'締切前の開催レース '+upcoming.length+'件を探索しましたが、通信未確認が'+fetchFailures+'件あります。候補なしとは断定できません。':
+   '締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
  }catch(error){status.textContent='本日の候補を取得できません：'+cleanText(error?.message||'通信エラー')+'。開催場一覧からレースを直接選択できます。'}
 }
 showTodayCandidates();
