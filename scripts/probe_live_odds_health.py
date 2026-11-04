@@ -308,14 +308,8 @@ def main():
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError) as error:
         data["source_status"] = "unavailable:" + type(error).__name__
     data["summary"] = summarize(data["samples"])
-    # Read-only second-source diagnostics after the operational verdict has
-    # already been measured. Never change its state based on this later fetch.
-    try:
-        data["failure_diagnostics"] = preserve_failed_official_html(data["samples"])
-    except (OSError, ValueError) as error:
-        data["failure_diagnostics"] = [{
-            "diagnostic_only": True, "result": "archive_unavailable",
-            "error_type": type(error).__name__}]
+    # Emit the operational artifact immediately; forensic follow-up HTTP fetches
+    # run in a separate post-verdict Actions step, never on the critical path.
     out = Path("live_odds_metrics.json")
     out.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     summary = data["summary"]
