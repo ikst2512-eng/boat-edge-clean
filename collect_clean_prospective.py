@@ -69,8 +69,13 @@ def collect(day=None):
     try:
         titles,t1,h1=read_rows(BASE+"title/"+path)
         cards,t2,h2=read_rows(BASE+"race_cards/"+path)
-        if not titles or not cards:
-            raise OSError("empty daily pre-race CSV source")
+        # Both files can be nonempty yet contain disjoint race sets while
+        # the publisher is updating the day's archives. Never mix their rows
+        # or silently report zero saved forecasts in that case.
+        title_codes={row.get("レースコード") for row in titles if isinstance(row,dict)}
+        card_codes={row.get("レースコード") for row in cards if isinstance(row,dict)}
+        if not titles or not cards or not (title_codes & card_codes):
+            raise OSError("incomplete daily pre-race CSV coverage")
         source_kind="public_pre_race_csv"
     except (OSError, TimeoutError, ValueError) as exc:
         if isinstance(exc,ValueError) and str(exc)!="source unavailable":
