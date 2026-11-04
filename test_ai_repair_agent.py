@@ -1052,7 +1052,7 @@ node() {
             for name, bad in (("bad-head", dict(env, SMOKE_HEAD_SHA="bad")),
                               ("bad-id", dict(env, SMOKE_RUN_ID="0"))):
                 with self.subTest(name=name):
-                    (root / "ai_repair_proposal.json").unlink()
+                    (root / "ai_repair_proposal.json").unlink(missing_ok=True)
                     invalid = subprocess.run(["bash", "-c", bash], cwd=root,
                                              env=bad, capture_output=True, text=True)
                     self.assertNotEqual(invalid.returncode, 0)
