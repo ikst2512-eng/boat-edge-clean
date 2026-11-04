@@ -4,6 +4,7 @@ These tests never call GitHub or request paid AI services.
 """
 import os
 import json
+import hashlib
 import tempfile
 import subprocess
 import unittest
@@ -199,11 +200,14 @@ class AIReviewGuardTests(unittest.TestCase):
             code = code.replace("Path('/tmp/changed.json')",
                                 "Path(os.environ['MOCK_CHANGED'])")
             code = "import os\n" + code
+            (root / "navigation.js").write_bytes(b"reviewed-ai-change")
             env = dict(os.environ, MOCK_REPORT=str(report_file),
                        MOCK_CHANGED=str(changed_file))
             valid_report = {"status": "proposed",
                             "production_change_allowed": False,
-                            "changed_files": ["navigation.js"]}
+                            "changed_files": ["navigation.js"],
+                            "file_sha256": {"navigation.js": hashlib.sha256(
+                                b"reviewed-ai-change").hexdigest()}}
             valid_files = [{"filename": "navigation.js", "status": "modified"}]
             cases = (
                 ("valid", {}, valid_files, True),
@@ -211,6 +215,9 @@ class AIReviewGuardTests(unittest.TestCase):
                  valid_files, False),
                 ("disabled", {"status": "disabled"}, valid_files, False),
                 ("wrong-file", {"changed_files": ["index.html"]}, valid_files, False),
+                ("tampered-file-digest", {"file_sha256": {"navigation.js": "0"*64}},
+                 valid_files, False),
+                ("missing-digest", {"file_sha256": {}}, valid_files, False),
                 ("duplicate-files", {"changed_files": ["navigation.js", "navigation.js"]},
                  valid_files, False),
                 ("production-allowed", {"production_change_allowed": True}, valid_files, False),
@@ -222,7 +229,7 @@ class AIReviewGuardTests(unittest.TestCase):
                 with self.subTest(case=label):
                     report_file.write_text(json.dumps({**valid_report, **changes}))
                     changed_file.write_text(json.dumps(files))
-                    result = subprocess.run(["python", "-c", code], env=env,
+                    result = subprocess.run(["python", "-c", code], cwd=root, env=env,
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
