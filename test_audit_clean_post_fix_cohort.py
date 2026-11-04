@@ -27,6 +27,16 @@ class PostFixCohortTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"invalid checkout commit"):
                 with_execution_receipt({"status":"pending_no_new_capture"},environ={})
 
+    def test_scheduled_backup_only_runs_independent_post_fix_evidence(self):
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")
+        self.assertIn("  schedule:", workflow)
+        self.assertIn("    - cron: '30 3,12 * * *'", workflow)
+        self.assertIn("  post-fix-cohort-evidence:", workflow)
+        self.assertIn("  unit-tests:\\n    if: github.event_name != 'schedule'".replace("\\n","\n"), workflow)
+        self.assertIn("  immutable-archive-gate:\\n    if: github.event_name != 'schedule'".replace("\\n","\n"), workflow)
+        self.assertIn("  workflow_dispatch:", workflow)
+        self.assertIn("  push:", workflow)
+
     def test_no_new_capture_is_pending_not_success(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = inspect_post_fix(Path(tmp))
