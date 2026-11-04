@@ -243,7 +243,32 @@ jobs:
           fi
           gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${AI_ARTIFACT_ID}/zip" > /tmp/ai-source-evidence.zip
           printf '%s  %s\n' "${AI_ARTIFACT_DIGEST#sha256:}" /tmp/ai-source-evidence.zip | sha256sum --check --status
-          unzip -q /tmp/ai-source-evidence.zip -d /tmp/ai-source-evidence
+          # Only one small regular JSON report is expected in this archive.
+          # Never unzip unexpected entries or paths into the runner filesystem.
+          python - <<'PY'
+          import stat
+          import zipfile
+          from pathlib import Path
+
+          archive = Path('/tmp/ai-source-evidence.zip')
+          target = Path('/tmp/ai-source-evidence/ai_repair_proposal.json')
+          if archive.stat().st_size > 1_000_000:
+              raise SystemExit('AI source ZIP exceeds the safe archive size')
+          with zipfile.ZipFile(archive) as source:
+              entries = source.infolist()
+              if len(entries) != 1:
+                  raise SystemExit('AI source ZIP must contain exactly one report')
+              entry = entries[0]
+              kind = stat.S_IFMT(entry.external_attr >> 16)
+              if (entry.filename != 'ai_repair_proposal.json' or
+                  entry.is_dir() or kind not in (0, stat.S_IFREG) or
+                  entry.file_size > 300_000):
+                  raise SystemExit('AI source ZIP has an unsafe member')
+              data = source.read(entry)
+              if len(data) != entry.file_size:
+                  raise SystemExit('AI source ZIP report has inconsistent size')
+          target.write_bytes(data)
+          PY
           python - <<'PY'
           import hashlib
           import json
