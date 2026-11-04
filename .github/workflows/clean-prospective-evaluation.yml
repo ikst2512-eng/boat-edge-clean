@@ -45,6 +45,7 @@ jobs:
         run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add test_audit_clean_post_fix_cohort
   post-fix-cohort-evidence:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
