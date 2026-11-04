@@ -196,6 +196,15 @@ class ProspectiveTests(unittest.TestCase):
         self.assertFalse(saved["formal"])
         self.assertFalse(saved["scoring"])
 
+    def test_invalid_alternate_response_never_invokes_direct_source(self):
+        day="20990101"
+        with patch.object(capture,"read_rows",side_effect=OSError("daily HTTP 404")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("stadiums_invalid")), \
+             patch("clean_direct_sources.holding_rows") as direct:
+            with self.assertRaisesRegex(ValueError,"stadiums_invalid"):
+                capture.collect(day)
+        direct.assert_not_called()
+
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
