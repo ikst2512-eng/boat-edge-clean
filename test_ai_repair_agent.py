@@ -256,6 +256,41 @@ class RepairAgentTests(unittest.TestCase):
                         # unrelated site regression command may be absent.
                         self.assertIn("AI proposal report/diff validated: proposed 1", result.stdout)
 
+    def test_stale_main_prevents_ai_draft_publication(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        preflight = workflow.split("      - name: Refuse stale main before publishing AI draft\n", 1)[1]
+        preflight = preflight.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[0]
+        script = preflight.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        self.assertEqual(subprocess.run(["bash", "-n"], input=script,
+                                        text=True, capture_output=True).returncode, 0)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "navigation.js").write_text("original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            actual_head = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                                  cwd=root, text=True).strip()
+            (root / "navigation.js").write_text("changed\n")
+            mock_gh = 'gh() { printf "%s\\n" "$LIVE_MAIN"; }\n'
+            for current_main, expected in ((actual_head, 0), ("stale-sha", 1), ("", 1)):
+                with self.subTest(current_main=current_main):
+                    env = dict(os.environ, GITHUB_REPOSITORY="example/repo",
+                               LIVE_MAIN=current_main)
+                    result = subprocess.run(["bash", "-c", mock_gh + script],
+                                            cwd=root, env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected,
+                                     result.stdout + result.stderr)
+            (root / "navigation.js").write_text("original\n")
+            env = dict(os.environ, GITHUB_REPOSITORY="example/repo", LIVE_MAIN="stale-sha")
+            result = subprocess.run(["bash", "-c", mock_gh + script],
+                                    cwd=root, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
