@@ -98,6 +98,23 @@ class WatchdogPolicyTests(unittest.TestCase):
                                         "schedule", recent_minutes=14,
                                         cooldown_minutes=14))
 
+    def test_staggered_watchdog_follows_both_capture_schedules(self):
+        from pathlib import Path
+        collection=(Path(__file__).resolve().parent/
+                    ".github/workflows/clean-prospective.yml").read_text()
+        watchdog=(Path(__file__).resolve().parent/
+                  ".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        # Nine minutes after each CLEAN regular 15-minute slot.
+        for minute in (4,19,34,49):
+            self.assertIn(str(minute), "4,19,34,49")
+        self.assertEqual(tuple(int(v) for v in "13,28,43,58".split(",")),
+                         tuple(v+9 for v in (4,19,34,49)))
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", watchdog)
+        self.assertIn("cron: '4,19,34,49 0-12 * * *'", collection)
+        # Existing V2 start slots remain 7/22/37/52: six-minute rescue.
+        self.assertIn("cron: '50 12 * * *'", watchdog)
+        self.assertIn("cron: '20 13 * * *'", watchdog)
+
     def test_clean_night_hours_do_not_extend_other_watchdogs(self):
         from datetime import timedelta
         late = self.now + timedelta(hours=13, minutes=29)  # 22:29 JST
