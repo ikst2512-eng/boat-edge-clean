@@ -148,6 +148,10 @@ def run(*, token, now=None, request=urllib.request.urlopen):
         return result
     if not isinstance(token, str) or not token:
         raise ValueError("GITHUB_DISPATCH_TOKEN_required")
+    deferred = []
+    # Validate *both* GitHub histories before posting to either workflow.
+    # A GitHub API failure for the second collector must not leave the first
+    # collector accidentally dispatched with no complete decision receipt.
     for kind, filename in WORKFLOWS.items():
         slot = eligible[kind]
         if slot is None:
@@ -158,10 +162,12 @@ def run(*, token, now=None, request=urllib.request.urlopen):
         schedule = _read_run_list(root, "schedule", token, request)
         manual = _read_run_list(root, "workflow_dispatch", token, request)
         verdict = decide(kind, schedule, manual, slot, now)
-        if verdict["action"] == "eligible_for_dispatch":
-            _dispatch(root, token, request)
-            verdict["action"] = "dispatch_accepted_not_forecast_proof"
         result["workflows"][kind] = verdict
+        if verdict["action"] == "eligible_for_dispatch":
+            deferred.append((kind, root))
+    for kind, root in deferred:
+        _dispatch(root, token, request)
+        result["workflows"][kind]["action"] = "dispatch_accepted_not_forecast_proof"
     result["action"] = "checked_not_publication_proof"
     return result
 
