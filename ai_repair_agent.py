@@ -1,5 +1,6 @@
 """Human-review-gated AI repair proposer. Only exact-match patches in a narrow allowlist."""
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -135,8 +136,13 @@ def propose(issue, root, api_key, model, transport=urlopen):
         raise ValueError("invalid_gemini_response") from exc
     patches = parse_patches(proposal)
     changed = apply(root, patches) if patches else []
+    file_sha256 = {
+        name: hashlib.sha256((Path(root) / name).read_bytes()).hexdigest()
+        for name in changed
+    }
     return {"status": "proposed" if changed else "no_safe_patch",
-            "changed_files": changed, "reason": str(proposal.get("reason", ""))[:700],
+            "changed_files": changed, "file_sha256": file_sha256,
+            "reason": str(proposal.get("reason", ""))[:700],
             "suggested_tests": str(proposal.get("tests", ""))[:700],
             "production_change_allowed": False}
 
