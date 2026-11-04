@@ -580,3 +580,9 @@ assert.ok(raceDataGate.includes('if(completeHeldSchedule())'), 'partial/recovere
 assert.ok(!raceDataGate.includes('todayVenueRaces.partial_coverage!==true'), 'racecard path must reuse the centralized complete-coverage gate');
 assert.ok(script.includes("document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1)"), 'previous button must reflect confirmed absent race');
 assert.ok(script.includes("document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1)"), 'next button must reflect confirmed absent race');
+
+ // Live Pages browser test must report data states separately from four-tab navigation.
+ assert.ok(archivePublish.includes('CLEAN_LIVE_DAY_TAB_STATUS'),'real-day published browser test must log tab status evidence');
+ assert.ok(archivePublish.includes('tabEvidence[view].race!==selected.key'),'live tab data observation must retain race identity');
+ assert.ok(archivePublish.includes("tabEvidence.result.confirmed="),'result tab must distinguish confirmed content from tab visibility');
+ assert.ok(archivePublish.includes('not proof of complete sources'),'incomplete source evidence must remain explicitly qualified');
