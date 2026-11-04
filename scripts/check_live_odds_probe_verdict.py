@@ -25,6 +25,7 @@ def verdict(record):
                 # Operational success requires precisely dated HTTP receipts.
                 # Legacy untimestamped artifacts remain available to historical
                 # reports, but cannot certify a current unattended recovery.
+                and isinstance(attempts, list) and bool(attempts)
                 and all(isinstance(step, dict)
                         and "started_at_utc" in step
                         and "finished_at_utc" in step for step in attempts)
