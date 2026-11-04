@@ -124,7 +124,9 @@ class FallbackGateTests(unittest.TestCase):
                 }), patch.object(gate, "event_provenance", return_value={
                     "event": "workflow_dispatch",
                     "rescue_slot_jst": "2026-11-01T12:25:00+09:00"}):
-                    gate.main()
+                    with self.assertRaises(SystemExit) as rejection:
+                        gate.main()
+                    self.assertEqual(rejection.exception.code, 2)
                 record = json.loads(Path("live_odds_metrics.json").read_text())
                 self.assertEqual(record["source_status"], "fallback_ineligible")
                 self.assertEqual(record["reason"], "invalid_or_stale_recovery_slot")
