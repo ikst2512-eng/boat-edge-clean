@@ -161,6 +161,28 @@ jobs:
           PY
             git fetch origin main
             git -c rebase.autoStash=true rebase origin/main
+            # Rebase can consume the 90s safety margin or change the
+            # publication commit. Check its exact first-add files again,
+            # immediately before attempting a remote push.
+            python - <<'PY'
+          import json,subprocess
+          from datetime import datetime,timedelta,timezone
+          files=subprocess.check_output(
+              ['git','diff-tree','--no-commit-id','--name-only','--diff-filter=A','-r','HEAD','--','prospective_predictions/'],
+              text=True).splitlines()
+          if not files:
+              raise SystemExit('No immutable candidate additions after rebase')
+          now=datetime.now(timezone.utc)
+          for path in files:
+              with open(path,encoding='utf-8') as handle:
+                  candidate=json.load(handle)
+              cutoff=datetime.fromisoformat(candidate['cutoff_jst'])
+              if cutoff.utcoffset()!=timedelta(hours=9):
+                  raise SystemExit('Non-JST cutoff after rebase: '+path)
+              if now>=cutoff-timedelta(seconds=90):
+                  raise SystemExit('Post-rebase candidate receipt buffer expired; refusing late push: '+path)
+          print('PROSPECTIVE_POST_REBASE_GATE',json.dumps({'eligible_for_push':len(files),'status':'passed'}))
+          PY
             if git push origin HEAD:main; then
               # A GITHUB_TOKEN push does not trigger another workflow's push event.
               # Dispatch the existing read-only audit only after a successful freeze.
