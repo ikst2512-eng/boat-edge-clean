@@ -341,7 +341,8 @@ class OddsHistoryTests(unittest.TestCase):
                 now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
         self.assertEqual(count, 1)
         self.assertEqual(len(records), 1)
-        self.assertEqual(errors, [{"run_id": 8, "status": "ValueError"}])
+        self.assertEqual(errors, [{"run_id": 8, "status": "ValueError",
+                                   "stage": "artifact_parse", "http_status": None}])
 
     def test_second_history_page_can_recover_older_scheduled_evidence(self):
         # A busy repo's first 100 entries can contain unrelated completed PR runs.
