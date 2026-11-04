@@ -87,6 +87,23 @@ def validate(path=PROTOCOL, source=SOURCE):
             or end.get("report_per_race") is not True
             or end.get("report_gained_lost") is not True):
         raise ValueError("metric_contract_changed")
+    prereg_enrollment = {
+        "decision_inputs": "verified_pre_result_archive_and_saved_shadow_and_remote_observation_only",
+        "first_n_pre_result_eligible_races": 300,
+        "first_n_order": "deadline_jst_ascending_then_race_code_ascending",
+        "no_results_payouts_or_postrace_indicators_allowed": True,
+        "pending_result_retains_original_enrolled_slot": True,
+        "no_replacing_enrolled_races_with_later_winning_races": True,
+        "no_early_optional_peek_for_efficacy": True,
+        "pre_result_roster_complete_only_if_run_inventory_exhaustive": True,
+        "insufficient_300_before_study_end_remains_inconclusive": True,
+    }
+    if p.get("enrollment") != prereg_enrollment:
+        raise ValueError("pre_result_enrollment_contract_changed")
+    if (type(p.get("protocol_refinement_note")) is not str
+            or not p["protocol_refinement_note"].startswith(
+                "Pre-result 300-member enrollment clarified on 2026-11-05 JST")):
+        raise ValueError("amendment_disclosure_missing")
     required_evidence = {
         "source_forecast": "immutable_v2_four_mode_first_add_original",
         "source_and_model_inputs": "original_receipts_valid_and_six_boats",
@@ -110,6 +127,8 @@ def validate(path=PROTOCOL, source=SOURCE):
         "schema": SCHEMA,
         "study_id": p["study_id"],
         "minimum_future_verified_pairs_required": 300,
+        "membership_selected_before_outcomes": True,
+        "pending_result_preserves_member": True,
         "selector_git_blob_sha1": actual_blob,
         "protocol_sha256": manifest_sha256,
         "prospective_results_checked": False,
