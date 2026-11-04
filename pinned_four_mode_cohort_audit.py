@@ -81,6 +81,7 @@ def run(root=ROOT, manifest_path=MANIFEST):
     data, manifest_sha = load_locked_manifest(manifest_path)
     root = Path(root)
     cohorts = {}
+    race_rows = {}
     complete = True
     for name, info in data["cohorts"].items():
         codes = info["codes"]
@@ -93,6 +94,7 @@ def run(root=ROOT, manifest_path=MANIFEST):
         present = {r["race_code"] for r in report["per_race"]}
         if len(present) != observed or not present.issubset(set(codes)):
             raise ValueError("evaluated_race_id_mismatch")
+        race_rows[name] = {r["race_code"]: r["modes"] for r in report["per_race"]}
         # No accuracy rate on an incomplete cohort. A missing result is NOT a loss.
         rates = ({
             mode: {top: round(100 * report["topn_hits"][mode][top] / len(codes), 2)
@@ -110,6 +112,49 @@ def run(root=ROOT, manifest_path=MANIFEST):
             "historical_topn_pct": rates,
             "pairwise_topn": report["pairwise_topn"] if ok else None,
         }
+    drift = None
+    if complete:
+        previous = race_rows["prior_120"]
+        rolling = race_rows["rolling_120"]
+        common = sorted(set(previous) & set(rolling))
+        previous_only = sorted(set(previous) - set(rolling))
+        rolling_only = sorted(set(rolling) - set(previous))
+        if (len(common), len(previous_only), len(rolling_only)) != (86, 34, 34):
+            raise ValueError("unexpected_membership_drift")
+        by_mode = {}
+        for mode in MODES:
+            by_top = {}
+            for top in TOPS:
+                shared_before = sum(previous[c][mode][top] is True for c in common)
+                shared_after = sum(rolling[c][mode][top] is True for c in common)
+                if shared_before != shared_after:
+                    raise ValueError("common_race_results_disagree")
+                old_unique_hits = sum(previous[c][mode][top] is True for c in previous_only)
+                new_unique_hits = sum(rolling[c][mode][top] is True for c in rolling_only)
+                if (shared_before + old_unique_hits != cohorts["prior_120"]
+                        ["topn_hits_on_comparable_only"][mode][top]
+                    or shared_after + new_unique_hits != cohorts["rolling_120"]
+                        ["topn_hits_on_comparable_only"][mode][top]):
+                    raise ValueError("membership_only_delta_reconciliation_failed")
+                by_top[top] = {
+                    "shared_86_hits": shared_before,
+                    "removed_34_hits": old_unique_hits,
+                    "added_34_hits": new_unique_hits,
+                    "observed_delta_due_to_membership": new_unique_hits - old_unique_hits,
+                }
+            by_mode[mode] = by_top
+        old_days = {c[:8] for c in data["cohorts"]["prior_120"]["codes"]}
+        held_days = {c[:8] for c in data["cohorts"]["holdout_240"]["codes"]}
+        rolling_days = {c[:8] for c in data["cohorts"]["rolling_120"]["codes"]}
+        drift = {
+            "shared_races": len(common),
+            "prior_only_races": len(previous_only),
+            "rolling_only_races": len(rolling_only),
+            "same_calendar_days_prior_vs_holdout": sorted(old_days & held_days),
+            "same_calendar_days_rolling_vs_holdout": sorted(rolling_days & held_days),
+            "by_mode": by_mode,
+            "formal": False,
+        }
     return {
         "schema": "FOUR_MODE_LOCKED_HISTORICAL_AUDIT_V1",
         "status": "historical_complete" if complete else "incomplete_historical_evidence",
@@ -120,6 +165,7 @@ def run(root=ROOT, manifest_path=MANIFEST):
         "cohort_membership_frozen_in_git": True,
         "overlaps": data["expected_overlaps"],
         "cohorts": cohorts,
+        "roster_drift_decomposition": drift,
         "warning": ("Every group is retrospective, even when its race IDs do not overlap "
                     "another group. No independent pre-T-12 remote-first-seen proof.")
     }
@@ -138,6 +184,7 @@ def main():
     print("PINNED_FOUR_MODE_COHORT=" + json.dumps({
         "status": result["status"], "manifest_sha256": result["manifest_sha256"],
         "overlaps": result["overlaps"],
+        "roster_drift_decomposition": result["roster_drift_decomposition"],
         "cohorts": {name: {
             "status": row["status"], "requested": row["requested"],
             "comparable": row["comparable"], "missing": len(row["unavailable_codes"]),
