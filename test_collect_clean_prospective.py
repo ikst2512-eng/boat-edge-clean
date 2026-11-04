@@ -799,6 +799,21 @@ class ProspectiveTests(unittest.TestCase):
         self.assertLess(marker,retry)
         self.assertEqual(workflow.count("gh workflow run clean-prospective-evaluation.yml --ref main"),1)
 
+    def test_collector_cron_staggers_off_hour_start_before_last_cutoff(self):
+        # Github explicitly warns that scheduled jobs at minute 00 may be
+        # delayed or dropped. Keep early-evening coverage and late T-12 safety.
+        from datetime import datetime, timedelta
+        workflow=(Path(__file__).resolve().parent/
+                  ".github/workflows/clean-prospective.yml").read_text()
+        self.assertIn("cron: '4,19,34,49 22 * * *'", workflow)
+        self.assertIn("cron: '4,19,34,49 23 * * *'", workflow)
+        self.assertIn("cron: '4,19,34,49 0-12 * * *'", workflow)
+        self.assertIn("cron: '4,19,28 13 * * *'", workflow)
+        self.assertNotIn("cron: '0,15,30,45", workflow)
+        last=datetime(2026,11,4,22,28,tzinfo=JST)
+        cutoff=datetime(2026,11,4,22,45,tzinfo=JST)-timedelta(minutes=12)
+        self.assertLess(last,cutoff-timedelta(seconds=90))
+
     def test_late_race_2245_stays_collectable_until_twelve_minute_cutoff(self):
         # Real 2026-11-04 upstream title CSV contained a 22:45 JST deadline.
         # Night schedule extension changes when acquisition runs, not T-12.
