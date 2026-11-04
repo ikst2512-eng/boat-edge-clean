@@ -169,6 +169,23 @@ jobs:
           # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
+          # Bind the archived AI evidence to the precise published branch and commit.
+          AI_PUBLISHED_BRANCH="$branch" AI_PUBLISHED_SHA="$(git rev-parse HEAD)" \
+          AI_PUBLISHED_BASE="$(git rev-parse HEAD^)" python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          path = Path('ai_repair_proposal.json')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          if (report.get('status') != 'proposed' or
+              not re.fullmatch(r'ai/repair-[0-9]+', os.environ['AI_PUBLISHED_BRANCH']) or
+              not re.fullmatch(r'[a-f0-9]{40}', os.environ['AI_PUBLISHED_SHA']) or
+              not re.fullmatch(r'[a-f0-9]{40}', os.environ['AI_PUBLISHED_BASE'])):
+              raise SystemExit('Cannot bind non-proposed AI report to published commit')
+          report['published_branch'] = os.environ['AI_PUBLISHED_BRANCH']
+          report['published_head_sha'] = os.environ['AI_PUBLISHED_SHA']
+          report['published_base_sha'] = os.environ['AI_PUBLISHED_BASE']
+          path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
           # Some repositories disable PR creation by GitHub Actions even with
           # pull-requests:write. Keep the reviewed patch branch available.
           # A repository policy rejection has a manual-review fallback.
