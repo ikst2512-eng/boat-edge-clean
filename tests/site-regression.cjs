@@ -599,3 +599,13 @@ assert.ok(!script.includes('直前データ収集が未実装'),'do not mislabel
 assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'published exhibition diagnostic must include source verification flag');
 assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
 assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
+
+// Candidate availability regression: real saved pre-deadline forecasts are reachable.
+assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut is available from any race view');
+assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut must work on GitHub Pages');
+assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
+assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
+assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
+assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
+assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
+assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
