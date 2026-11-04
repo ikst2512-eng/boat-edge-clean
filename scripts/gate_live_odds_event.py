@@ -147,10 +147,14 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
     The upstream's JST day and the three fixed slot times define the window.
     """
     if not repository or "/" not in repository or not token:
+        print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": "configuration", "reason": "missing_required_input"}), flush=True)
         return "schedule_lookup_unavailable"
+    stage = "parse_upstream"
+    runs_examined = 0
     try:
         source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
         if source.tzinfo is None:
+            print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_timestamp"}), flush=True)
             return "schedule_lookup_unavailable"
         jst = timezone(timedelta(hours=9))
         local = source.astimezone(jst)
@@ -159,6 +163,7 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
         now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         url = ("https://api.github.com/repos/" + repository +
                "/actions/workflows/live-official-odds-probe.yml/runs?event=schedule&per_page=100")
+        stage = "schedule_history"
         if fetch_json is None:
             request = Request(url, headers={
                 "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
@@ -169,12 +174,15 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             payload = fetch_json(url, token)
         runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
         if not isinstance(runs, list):
+            print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "malformed_history_response"}), flush=True)
             return "schedule_lookup_unavailable"
         for run in runs:
+            runs_examined += 1
             if not isinstance(run, dict) or run.get("event") != "schedule":
                 continue
             created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
             if created.tzinfo is None:
+                print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_run_timestamp", "runs_examined": runs_examined}), flush=True)
                 return "schedule_lookup_unavailable"
             if not slot <= created <= now:
                 continue
@@ -183,14 +191,18 @@ def direct_schedule_guard(trigger, repository, token, *, now=None, fetch_json=No
             if run.get("conclusion") == "success":
                 run_id = run.get("id")
                 if type(run_id) is not int or run_id <= 0:
+                    print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "invalid_run_id", "runs_examined": runs_examined}), flush=True)
                     return "schedule_lookup_unavailable"
+                stage = "schedule_artifact"
                 state = ((probe_check or direct_probe_evidence)(repository, token, run_id))
                 if state == "valid":
                     return "direct_schedule_observed"
                 if state != "no_valid_odds":
+                    print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "prior_evidence_unavailable", "run_id": run_id, "artifact_state": state}), flush=True)
                     return "schedule_lookup_unavailable"
         return "direct_schedule_absent_or_failed"
-    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
+    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError) as exc:
+        print("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC " + json.dumps({"stage": stage, "runs_examined": runs_examined, "error_class": type(exc).__name__, "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "schedule_lookup_unavailable"
 
 

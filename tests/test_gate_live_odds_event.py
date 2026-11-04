@@ -195,6 +195,22 @@ class FallbackGateTests(unittest.TestCase):
         self.assertEqual(result, "fallback_lookup_unavailable")
         self.assertIn("missing_required_input", output.getvalue())
 
+    def test_direct_schedule_malformed_history_is_diagnosed_fail_closed(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from datetime import datetime, timezone
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.direct_schedule_guard(
+                {"upstream_created_at": "2026-11-03T03:45:00Z"},
+                "owner/repo", "secret-token",
+                now=datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc),
+                fetch_json=lambda *_: {"workflow_runs": None})
+        self.assertEqual(result, "schedule_lookup_unavailable")
+        self.assertIn("LIVE_ODDS_DIRECT_SCHEDULE_DIAGNOSTIC", output.getvalue())
+        self.assertIn("malformed_history_response", output.getvalue())
+        self.assertNotIn("secret-token", output.getvalue())
+
     def test_direct_schedule_guard_avoids_duplicate_and_allows_failed_retry(self):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
