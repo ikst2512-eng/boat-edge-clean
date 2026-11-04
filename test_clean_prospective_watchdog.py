@@ -57,13 +57,13 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
     def test_no_fetch_before_first_scheduled_capture(self):
         from scripts import clean_prospective_watchdog as mod
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.object(mod, "OUTPUT", Path(tmp) / "decision.json"), \\
+            with patch.object(mod, "OUTPUT", Path(tmp) / "decision.json"), \
                  patch.dict("os.environ", {
                      "GITHUB_EVENT_NAME": "push",
                      "GITHUB_REF": MAIN,
                      "GITHUB_RUN_ID": "20261105",
-                 }), \\
-                 patch.object(mod, "fetch_runs") as fetch, \\
+                 }), \
+                 patch.object(mod, "fetch_runs") as fetch, \
                  patch.object(mod, "datetime") as clock:
                 clock.now.return_value = datetime(
                     2026, 11, 4, 22, 0, tzinfo=timezone.utc)
