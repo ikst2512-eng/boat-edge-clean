@@ -101,6 +101,9 @@ jobs:
           from pathlib import Path
 
           report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          # The publish step commits staged changes too. Reject pre-staged files,
+          # which would otherwise bypass this unstaged-diff allowlist check.
+          subprocess.run(['git', 'diff', '--cached', '--quiet'], check=True)
           actual = subprocess.check_output(
               ['git', 'diff', '--name-only', '--diff-filter=ACDMRTUXB'],
               text=True).splitlines()
@@ -152,6 +155,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! git diff --cached --quiet; then
+            echo "::error::Unexpected staged changes before AI repair publication."
+            exit 1
+          fi
           if git diff --quiet; then echo 'No repair to publish'; exit 0; fi
           branch="ai/repair-${GITHUB_RUN_ID}"
           git switch -c "$branch"
