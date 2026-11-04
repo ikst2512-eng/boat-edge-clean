@@ -4,7 +4,9 @@ import io
 import base64
 import hashlib
 import json
+import os
 import unittest
+from unittest.mock import patch
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
