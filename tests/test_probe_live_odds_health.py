@@ -113,6 +113,18 @@ class ProbeTests(unittest.TestCase):
                     ".github/workflows/live-official-odds-probe.yml").read_text()
         self.assertIn("live_odds_failure_evidence/", workflow)
         self.assertIn("name: live-odds-forensics", workflow)
+        self.assertIn("scripts/diagnose_live_odds_failure.py", workflow)
+        sample_step = workflow.index("- name: Sample up to three independently sourced upcoming races")
+        verdict_step = workflow.index("- name: Fail unhealthy unattended odds sampling")
+        followup_step = workflow.index("- name: Preserve failed-source HTML after operational verdict")
+        upload_step = workflow.index("- name: Preserve failure-only official HTML diagnostics")
+        self.assertLess(sample_step, verdict_step)
+        self.assertLess(verdict_step, followup_step)
+        self.assertLess(followup_step, upload_step)
+        self.assertIn("continue-on-error: true", workflow[followup_step:upload_step])
+        sampler = (Path(__file__).resolve().parents[1] /
+                   "scripts/probe_live_odds_health.py").read_text()
+        self.assertNotIn("preserve_failed_official_html(data[", sampler[sampler.index("def main():"):])
         # Large HTML must not expand the operational artifact beyond 2MB.
         metrics_start = workflow.index("name: ${{ steps.gate.outputs.collect")
         diagnostic_step = workflow.index("- name: Preserve failure-only official HTML diagnostics")
