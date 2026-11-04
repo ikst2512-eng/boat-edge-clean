@@ -224,6 +224,67 @@ class ExternalWakeupTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "dispatch_not_accepted"):
             mod.run(token="TEST", now=dt(7, 10), request=request)
 
+    def test_external_slot_contract_matches_both_real_github_crons(self):
+        # Do not allow the optional Render wakeup's hardcoded slot table to
+        # silently drift from the actual, separately maintained Actions cron.
+        # This is read-only: it never creates a cron service or dispatches.
+        import re
+        from pathlib import Path
+
+        def expand(expr):
+            values = set()
+            for item in expr.split(","):
+                if "-" in item:
+                    start, end = (int(p) for p in item.split("-", 1))
+                    self.assertLessEqual(start, end)
+                    values.update(range(start, end + 1))
+                else:
+                    values.add(int(item))
+            return values
+
+        for kind, workflow in (
+            ("clean", ".github/workflows/clean-prospective.yml"),
+            ("four_mode", ".github/workflows/four-mode-prospective-capture.yml"),
+        ):
+            with self.subTest(kind=kind):
+                yaml = Path(workflow).read_text(encoding="utf-8")
+                declarations = re.findall(
+                    r"(?m)^\s+- cron: '([^']+)'", yaml)
+                self.assertTrue(declarations, "source cron missing")
+                actual = set()
+                for expression in declarations:
+                    fields = expression.split()
+                    self.assertEqual(len(fields), 5)
+                    # Day-specific schedules require an explicit contract
+                    # update, not an accidental partial match.
+                    self.assertEqual(fields[2:], ["*", "*", "*"])
+                    for hour in expand(fields[1]):
+                        for minute in expand(fields[0]):
+                            self.assertTrue(0 <= hour < 24)
+                            self.assertTrue(0 <= minute < 60)
+                            actual.add(((hour + 9) % 24, minute))
+                slots = mod.planned_slots(kind, dt(12, 0))
+                expected = {(slot.hour, slot.minute) for slot in slots}
+                self.assertEqual(actual, expected,
+                                 "Render wakeup slots drifted from GitHub cron")
+
+                # The documented single Render UTC */5 cron must offer a
+                # tick in the script's narrow eligible window for EVERY
+                # primary slot, including CLEAN's final 22:28 JST.
+                for slot in slots:
+                    ticks = []
+                    for minutes_after in range(1, 9):
+                        t = slot + timedelta(minutes=minutes_after)
+                        utc_hour = t.astimezone(timezone.utc).hour
+                        if (t.minute % 5 == 0 and
+                                (utc_hour >= 22 or utc_hour <= 13) and
+                                mod.eligible_slot(kind, t) == slot):
+                            ticks.append(t)
+                    self.assertTrue(
+                        ticks,
+                        f"No */5 UTC 22-13 Render recovery tick for {kind} {slot.isoformat()}"
+                    )
+
     def test_workflow_ci_includes_render_safety_suite(self):
         from pathlib import Path
         wf = Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
