@@ -466,20 +466,31 @@ class ProspectiveTests(unittest.TestCase):
         expected=(
             "group: ${{ github.event_name == 'pull_request' && "
             "format('clean-prospective-pr-{0}', github.event.pull_request.number) "
+            "|| github.event_name == 'push' && 'clean-prospective-main-push-ci' "
             "|| 'clean-prospective-capture' }}"
         )
         self.assertIn(expected,concurrency)
         self.assertIn("cancel-in-progress: false",concurrency)
-        # PR jobs only unit-test, never stage, freeze, or push a candidate.
+        # PR and main push both run unit tests only, never stage/push originals.
         capture=workflow.split("      - name: Capture if public race cards are already published",1)[1].split(
             "      - name: Freeze immutable candidate evidence",1)[0]
         freeze=workflow.split("      - name: Freeze immutable candidate evidence",1)[1].split(
             "      - name: Flag zero daily captures after midday JST",1)[0]
-        self.assertIn("if: github.event_name != 'pull_request'",capture)
-        self.assertIn("if: github.event_name != 'pull_request'",freeze)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",capture)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",freeze)
         self.assertIn("git commit -m 'data: freeze prospective pre-cutoff",freeze)
-        # All non-PR events keep one publication group, no independent
-        # schedule or extra writer and no cancel-in-progress relaxation.
+        # Only schedule/manual recovery keep one immutable writer; main push
+        # still wakes the independent watchdog, which may manual-dispatch
+        # when a real scheduled slot is missing.
+        watchdog=(Path(__file__).resolve().parent/".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        self.assertIn("  push:\n    branches: [main]",watchdog)
+        self.assertIn("run: python -m scripts.clean_prospective_watchdog",watchdog)
+        safe="github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'"
+        self.assertIn(safe,workflow.split("      - name: Flag zero daily captures after midday JST",1)[1])
+        self.assertIn(safe,workflow.split("      - name: Archive prospective capture diagnostics",1)[1])
+        self.assertIn("git -c rebase.autoStash=true rebase origin/main",freeze)
+        self.assertIn("Candidate receipt buffer expired after rebase",freeze)
+        # No extra schedule, no T-12 relaxation.
         self.assertIn("  schedule:",workflow)
         self.assertIn("  workflow_dispatch:",workflow)
         self.assertIn("  push:",workflow)
