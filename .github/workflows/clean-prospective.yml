@@ -12,12 +12,16 @@ on:
     paths:
       - collect_clean_prospective.py
       - test_collect_clean_prospective.py
+      - scripts/clean_capture_local_accounting.py
+      - test_clean_capture_local_accounting.py
       - .github/workflows/clean-prospective.yml
   push:
     branches: [main]
     paths:
       - collect_clean_prospective.py
       - test_collect_clean_prospective.py
+      - scripts/clean_capture_local_accounting.py
+      - test_clean_capture_local_accounting.py
       - .github/workflows/clean-prospective.yml
 permissions:
   contents: write
@@ -39,7 +43,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v test_collect_clean_prospective
+        run: python -m unittest -v test_collect_clean_prospective test_clean_capture_local_accounting
       - name: Capture if public race cards are already published
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
@@ -200,6 +204,12 @@ jobs:
             fi
             sleep "$attempt"
           done
+      - name: Record local capture counts without asserting Git publication
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          python scripts/clean_capture_local_accounting.py \
+            --capture-log test-results/prospective-capture.log \
+            --output test-results/clean-capture-local-accounting.json
       - name: Flag zero daily captures after midday JST
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
@@ -224,6 +234,7 @@ jobs:
           name: clean-prospective-capture-${{ github.run_id }}
           path: |
             test-results/prospective-capture.log
+            test-results/clean-capture-local-accounting.json
             test-results/prospective-source-originals/
           if-no-files-found: warn
           retention-days: 30
