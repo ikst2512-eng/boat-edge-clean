@@ -512,6 +512,39 @@ jobs:
               if(candidateResponse.status()!==200||!(await candidateResponse.text()).includes('id="todayCandidateRaces"'))
                 throw Error('PUBLIC_CANDIDATE_PAGE_UNAVAILABLE '+candidateResponse.status());
               console.log('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED',candidateHref,reviewHref);
+              // Verify the rendered candidate count rather than merely its HTML container.
+              // The page may correctly show zero; that is evidence of zero visible
+              // research tickets, never proof that no eligible race exists elsewhere.
+              const candidatePage=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              try{
+                const candidateView=await candidatePage.goto(candidateHref,{waitUntil:'domcontentloaded',timeout:30000});
+                if(!candidateView||candidateView.status()!==200)throw Error('PUBLIC_CANDIDATE_BROWSER_HTTP_'+candidateView?.status());
+                let settled=true;
+                try{
+                  await candidatePage.waitForFunction(()=>{
+                    const status=document.getElementById('candidateStatus')?.textContent||'';
+                    return !!status&&!status.includes('確認中')&&!status.includes('読み込み中');
+                  },null,{timeout:50000});
+                }catch(_){settled=false;}
+                const evidence=await candidatePage.evaluate(()=>({
+                  status:document.getElementById('candidateStatus')?.textContent?.trim()?.slice(0,220)||'status_missing',
+                  visibleCards:document.querySelectorAll('#candidateCards article.card').length,
+                  savedTicketCards:[...document.querySelectorAll('#candidateCards article.card')].filter(el=>el.textContent.includes('保存済み3連単')).length,
+                  titles:[...document.querySelectorAll('#candidateCards article.card strong')].map(el=>el.textContent?.trim()).slice(0,6)
+                }));
+                if(evidence.savedTicketCards!==evidence.visibleCards)throw Error('CANDIDATE_CARD_WITHOUT_SAVED_TICKETS');
+                if(evidence.visibleCards>6)throw Error('CANDIDATE_MAX_SIX_EXCEEDED');
+                if(settled&&evidence.status.includes('レース表示')&&!evidence.visibleCards)
+                  throw Error('CANDIDATE_STATUS_MISMATCH_ZERO');
+                if(settled&&/保存済み研究予想 [1-9]/.test(evidence.status)&&
+                   !evidence.status.includes('保存済み研究予想 '+evidence.visibleCards+'レース表示'))
+                  throw Error('CANDIDATE_STATUS_COUNT_MISMATCH');
+                console.log(settled?'CLEAN_PUBLIC_CANDIDATE_COUNT':'CLEAN_PUBLIC_CANDIDATE_UNVERIFIED',JSON.stringify(evidence));
+                require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                  'Live JST-day candidate research cards: **'+(settled?String(evidence.visibleCards):'UNVERIFIED')+
+                  '**; '+evidence.status.replace(/[\r\n]/g,' ').slice(0,180)+
+                  ' (non-formal research, not purchase recommendations)\n');
+              }finally{await candidatePage.close();}
               const shortcuts=page.locator('.race-detail-shortcuts button');
               if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
