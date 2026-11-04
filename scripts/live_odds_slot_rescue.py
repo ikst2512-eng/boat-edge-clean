@@ -111,8 +111,12 @@ def dispatch(root, headers):
             raise RuntimeError("odds_slot_rescue_dispatch_rejected")
 
 
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
 def main():
-    now = datetime.now(timezone.utc)
+    now = now_utc()
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     ref = os.environ.get("GITHUB_REF", "")
     repo = os.environ.get("GH_REPOSITORY", "")
