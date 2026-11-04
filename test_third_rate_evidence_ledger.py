@@ -1,7 +1,10 @@
+import base64
 import hashlib
 import json
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 
 from clean_four_modes import rank_modes
@@ -9,7 +12,7 @@ from research_model import probabilities
 from four_mode_v2_third_rate_shadow import PROTOCOL, candidate
 from third_rate_evidence_ledger import (prepare, publish, BRANCH,
     verify_first_add_git_provenance, verify_ledger_write_access,
-    WRITE_PROBE_PATH, WRITE_PROBE_BYTES)
+    _github_ops, WRITE_PROBE_PATH, WRITE_PROBE_BYTES)
 
 CODE = "202611040101"
 SHA = "a" * 40
@@ -280,6 +283,33 @@ class ThirdRateDurableLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_run_identity"):
             prepare(self.original(), self.root, "123", "0")
 
+
+    def test_large_github_append_only_transport_uses_stdin_not_argv(self):
+        # A real 111-race same-job shadow was 100091 bytes. Its base64
+        # content= field occupied 133464 bytes and failed Linux execve E2BIG.
+        original = b"x" * 100091
+        _, create = _github_ops("example/repo")
+        with patch("third_rate_evidence_ledger.subprocess.run") as run:
+            run.return_value = SimpleNamespace(returncode=0, stdout=b"{}", stderr=b"")
+            create("third_rate/20261104/run-41758821985-attempt-1.json",
+                   original, "41758821985")
+            argv = run.call_args.args[0]
+            self.assertLess(max(len(arg) for arg in argv), 4096)
+            self.assertEqual(argv[-2:], ["--input", "-"])
+            payload = json.loads(run.call_args.kwargs["input"])
+            self.assertEqual(payload["branch"], BRANCH)
+            self.assertNotIn("sha", payload)  # create-only: no overwrite
+            self.assertEqual(base64.b64decode(payload["content"]), original)
+            self.assertIn("41758821985", payload["message"])
+            self.assertTrue(run.call_args.kwargs["capture_output"])
+
+    def test_github_append_only_stdin_rejection_stays_failure(self):
+        _, create = _github_ops("example/repo")
+        with patch("third_rate_evidence_ledger.subprocess.run") as run:
+            run.return_value = SimpleNamespace(returncode=1, stdout=b"", stderr=b"403")
+            with self.assertRaisesRegex(ValueError, "github_append_only_write_failed"):
+                create("third_rate/20261104/run-1-attempt-1.json", b"shadow", "1")
+            self.assertEqual(run.call_args.args[0][-2:], ["--input", "-"])
 
 if __name__ == "__main__":
     unittest.main()
