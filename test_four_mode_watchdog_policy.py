@@ -49,9 +49,9 @@ class WatchdogPolicyTests(unittest.TestCase):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/four-mode-capture-watchdog.yml").read_text()
-        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", workflow)
         self.assertIn("recent_minutes=14, cooldown_minutes=14", workflow)
-        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
+        self.assertIn("cron: '13,29,44 13 * * *'", workflow)
 
     def test_fifteen_minute_watchdog_recovers_missed_slot(self):
         # A successful run 20 minutes ago must not hide a missed 15-minute slot.
