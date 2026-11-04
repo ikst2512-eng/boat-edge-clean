@@ -285,5 +285,7 @@ jobs:
         with:
           name: ai-repair-proposal-${{ github.run_id }}
           path: ai_repair_proposal.json
-          if-no-files-found: warn
+          # The independent reviewer requires this exact artifact. Missing
+          # evidence is a failed proposal run, not a successful warning.
+          if-no-files-found: error
           retention-days: 30
