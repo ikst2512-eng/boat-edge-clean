@@ -1277,3 +1277,5 @@
 - `official_preview.py` は既存公式JSON検査器を再利用し、HTTP200・最終URL・1MB上限、日付/場/R/締切、登録番号6艇、欠場なし、展示タイム5〜9・チルト−1〜3、ST/進入6艇完全性、JST受信時刻<締切を全て要求。CSVで展示が取得できない締切前レースだけ補完し、既存CSV優先・締切済み参照では公式取得しない。失敗時は出走表を保持し、CSV理由と公式失敗理由を残す。原本/モデル/予想生成/正式採点ゲート不変更。気象の補完は含めない。
 - 実コードでracecard(20261104,01,11)を19:44:34 JSTに再取得し、公式6艇タイム6.66/6.68/6.59/6.81/6.63/6.67、ST F.01/F.03/F.06/.08/.03/.06の正規化とstatus=okを確認。source SHA256=f7b256e8ea4ea63da4df2321426cb42b6586e849398dfc12163d7224b59047f4。T−12より前のHTTP観測だが、独立の上流測定時刻証明・正式T−12認定ではなくformal_t12_certified=falseを維持。
 - ローカル試験: 公式adapter/統合8件、出走表14件、既存展示完全性7件、出所5件、ナビ14件とNode site-regression成功。既存navigation workflowに新adapter/実原文fixtureの回帰検査を追加。PR CI・main統合・Render API/ブラウザ表示は別途確認し、未反映の段階では本番復旧と呼ばない。
+
+- PR #1617初回CIで既存`Verify REAL beforeinfo source`が`REAL_BEFOREINFO_NO_VERIFIED_RACE`。実ログで昨日の日程へ現在の受信時刻を使うため常時締切後拒否となる検査を特定。既定対象日を当日へ修正し、CSVに未掲載なら現行production adapterから当日の締切前6艇を実取得して検証する。空/締切後/不完全は引き続きfailure、歴史日付を現在の公式取得で代用しない。追加回帰2件。cron自体は変更しない。
