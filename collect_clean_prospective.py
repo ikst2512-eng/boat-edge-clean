@@ -93,6 +93,10 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
             "day":day,"error_type":type(exc).__name__,
             "daily_candidates_retained":len(existing_output)
         },sort_keys=True),file=sys.stderr)
+        if not existing_output and not (
+                isinstance(exc, ValueError) and str(exc) == "no_upcoming_schedule"):
+            # Source outage cannot be a healthy zero-candidate capture.
+            raise ValueError("supplement_holding_source_unavailable") from exc
         return {}
     extra=[]
     conflicts=0
@@ -116,6 +120,9 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
             "day":day,"error_type":type(exc).__name__,
             "daily_candidates_retained":len(existing_output)
         },sort_keys=True),file=sys.stderr)
+        if not existing_output:
+            # An exception is not an empty, fully checked card list.
+            raise ValueError("supplement_direct_cards_unavailable") from exc
         return {}
     # If the partial primary files yielded no valid candidate, then failed
     # attempted direct-card requests are an upstream failure, not a legitimate
