@@ -103,9 +103,13 @@ def collect(day=None):
             try:
                 titles,t1,h1=holding_rows(day)
                 already_saved={p.stem for p in STORE.glob(day+"????.json")}
-                cards,t2,_,card_shas,_=direct_cards(
+                cards,t2,_,card_shas,card_failures=direct_cards(
                     day,titles,existing_codes=already_saved,limit=18)
-                if not cards:
+                # A complete/no-op run is distinct from an upstream outage.
+                # Already-frozen and past-cutoff races produce no eligible
+                # card request; do not make subsequent scheduled runs red.
+                # Failed attempted card fetches still fail closed.
+                if not cards and card_failures:
                     raise ValueError("direct_pre_race_cards_unavailable")
                 h2=card_shas
                 source_kind="direct_race_specific_pre_race"
