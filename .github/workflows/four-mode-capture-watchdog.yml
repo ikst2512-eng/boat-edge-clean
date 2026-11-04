@@ -39,6 +39,8 @@ on:
       - 'tests/test_watchdog_decision_artifact.py'
       - 'scripts/render_four_mode_dispatch.py'
       - 'test_render_four_mode_dispatch.py'
+      - 'scripts/render_capture_wakeup.py'
+      - 'test_render_capture_wakeup.py'
 permissions:
   actions: read
   contents: read
@@ -61,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test dispatch policy
         id: policy_tests
-        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
       - name: Check recent capture runs before fallback dispatch
         # An independent schedule completion is only a CLEAN recovery wakeup;
         # do not use this extra trigger to publish unrelated Four-mode runs.
