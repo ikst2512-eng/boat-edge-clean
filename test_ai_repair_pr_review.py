@@ -347,6 +347,18 @@ class AIReviewGuardTests(unittest.TestCase):
             with zipfile.ZipFile(zipfile_path, "w") as z:
                 z.writestr("ai_repair_proposal.json", '{"status":"proposed"}')
             digest = hashlib.sha256(zipfile_path.read_bytes()).hexdigest()
+            invalid_archives = {}
+            for name, entries in (
+                ("extra-entry", [("ai_repair_proposal.json", "{}"), ("unexpected.txt", "extra")]),
+                ("path-traversal", [("../ai_repair_proposal.json", "{}")]),
+                ("directory", [("ai_repair_proposal.json/", "")]),
+                ("oversized-report", [("ai_repair_proposal.json", "x" * 300_001)]),
+            ):
+                candidate = root / (name + ".zip")
+                with zipfile.ZipFile(candidate, "w") as z:
+                    for filename, data in entries:
+                        z.writestr(filename, data)
+                invalid_archives[name] = candidate.read_bytes()
             extracted = root / "extracted"
             downloaded = root / "downloaded.zip"
             script = script.replace("/tmp/ai-source-evidence.zip",
@@ -375,6 +387,10 @@ class AIReviewGuardTests(unittest.TestCase):
                  zipfile_path.read_bytes(), False),
                 ("tampered-zip", "123456", "sha256:" + digest,
                  zipfile_path.read_bytes() + b"tampered", False),
+                *[(name, "123456",
+                   "sha256:" + hashlib.sha256(contents).hexdigest(),
+                   contents, False)
+                  for name, contents in invalid_archives.items()],
             ):
                 with self.subTest(case=label):
                     archive = root / "mock.zip"
