@@ -1,8 +1,14 @@
 name: Validate AI repair draft PR
 on:
+  # Always run free safety unit tests for audit code pushes as well as PRs.
+  push:
+    paths:
+      - .github/workflows/ai-repair-pr-review.yml
+      - test_ai_repair_pr_review.py
   pull_request:
     paths:
       - .github/workflows/ai-repair-pr-review.yml
+      - test_ai_repair_pr_review.py
   workflow_dispatch:
     inputs:
       pr_number:
@@ -12,6 +18,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 jobs:
   syntax:
     runs-on: ubuntu-latest
@@ -22,6 +29,7 @@ jobs:
         with:
           persist-credentials: false
       - run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ai-repair-pr-review.yml"); puts "workflow YAML parsed"'
+      - run: python -m unittest -v test_ai_repair_pr_review
   verify:
     if: github.event_name == 'workflow_dispatch'
     needs: syntax
@@ -36,18 +44,136 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::AI repair PR review must run from main."
+            exit 1
+          fi
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr.json
-          python - <<'PY'
-          import json,os
+          head_sha="$(python - <<'PY'
+          import json,os,re
           from pathlib import Path
           p=json.loads(Path('/tmp/pr.json').read_text())
           if (p['state']!='open' or not p['draft'] or
               p['head']['repo']['full_name']!=os.environ['GITHUB_REPOSITORY'] or
-              not p['head']['ref'].startswith('ai/repair-') or
-              p['base']['ref']!='main'):
-              raise SystemExit('Not an open local AI draft PR against main')
+              not re.fullmatch(r'ai/repair-[0-9]+', p['head']['ref']) or
+              p['base']['ref']!='main' or p['commits']!=1):
+              raise SystemExit('Not a one-commit local AI draft PR against main')
+          print(p['head']['sha'])
+          PY
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${head_sha}" > /tmp/head-commit.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" > /tmp/main-ref.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path('/tmp/pr.json').read_text())
+          commit=json.loads(Path('/tmp/head-commit.json').read_text())
+          main=json.loads(Path('/tmp/main-ref.json').read_text())['object']['sha']
+          parents=commit.get('parents',[])
+          if (len(parents)!=1 or parents[0].get('sha')!=main or
+              p['base']['sha']!=main or commit.get('sha')!=p['head']['sha']):
+              raise SystemExit('AI draft PR is stale or not a direct child of current main')
+          bot = 'github-actions[bot]'
+          expected_message = 'AI: propose narrow UI repair for review'
+          if (commit.get('commit', {}).get('message') != expected_message or
+              commit.get('author', {}).get('login') != bot or
+              commit.get('committer', {}).get('login') != bot):
+              raise SystemExit('AI draft PR commit does not match AI publication signature')
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
               f.write('sha='+p['head']['sha']+'\n')
+              f.write('main_sha='+main+'\n')
+          PY
+      - name: Verify completed AI proposal workflow provenance
+        id: source_evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHECKED_MAIN_SHA: ${{ steps.pr.outputs.main_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python - <<'PY'
+          import json, re
+          from pathlib import Path
+          p = json.loads(Path('/tmp/pr.json').read_text())
+          match = re.fullmatch(r'ai/repair-([0-9]+)', p['head']['ref'])
+          if match is None:
+              raise SystemExit('Invalid AI proposal workflow run ID')
+          print(match.group(1))
+          PY
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > /tmp/ai-proposal-run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > /tmp/ai-proposal-jobs.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" > /tmp/ai-proposal-artifacts.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from datetime import datetime
+          run = json.loads(Path('/tmp/ai-proposal-run.json').read_text())
+          pr = json.loads(Path('/tmp/pr.json').read_text())
+          expected_id = int(pr['head']['ref'].split('-')[-1])
+          expected_path = '.github/workflows/ai-repair-proposal.yml'
+          jobs_response = json.loads(Path('/tmp/ai-proposal-jobs.json').read_text())
+          jobs = jobs_response.get('jobs') if isinstance(jobs_response, dict) else None
+          # The API returns one page here. Never accept partial provenance.
+          if (not isinstance(jobs, list) or
+              jobs_response.get('total_count') != len(jobs)):
+              raise SystemExit('Originating AI proposal jobs response is incomplete')
+          for required_job in ('tests', 'propose'):
+              matches = [job for job in jobs
+                         if isinstance(job, dict) and job.get('name') == required_job]
+              if (len(matches) != 1 or
+                  matches[0].get('status') != 'completed' or
+                  matches[0].get('conclusion') != 'success' or
+                  matches[0].get('run_id') != expected_id or
+                  matches[0].get('run_attempt') != run.get('run_attempt') or
+                  matches[0].get('head_sha') != os.environ['CHECKED_MAIN_SHA']):
+                  raise SystemExit('Originating AI ' + required_job +
+                                   ' job is missing, unsuccessful, or from another run/commit')
+          artifacts_response = json.loads(Path('/tmp/ai-proposal-artifacts.json').read_text())
+          artifacts = artifacts_response.get('artifacts') if isinstance(artifacts_response, dict) else None
+          if (not isinstance(artifacts, list) or
+              artifacts_response.get('total_count') != len(artifacts)):
+              raise SystemExit('Originating AI artifacts response is incomplete')
+          artifact_name = 'ai-repair-proposal-' + str(expected_id)
+          matched_artifacts = [item for item in artifacts
+                               if isinstance(item, dict) and item.get('name') == artifact_name]
+          proposal_job = next(job for job in jobs if job.get('name') == 'propose')
+          if len(matched_artifacts) != 1:
+              raise SystemExit('Missing or ambiguous AI proposal artifact')
+          artifact = matched_artifacts[0]
+          try:
+              created = datetime.fromisoformat(artifact['created_at'].replace('Z', '+00:00'))
+              started = datetime.fromisoformat(proposal_job['started_at'].replace('Z', '+00:00'))
+              completed = datetime.fromisoformat(proposal_job['completed_at'].replace('Z', '+00:00'))
+          except (KeyError, AttributeError, TypeError, ValueError) as error:
+              raise SystemExit('Missing valid AI artifact/job timestamps') from error
+          if (artifact.get('expired') is not False or
+              artifact.get('workflow_run', {}).get('id') != expected_id or
+              artifact.get('workflow_run', {}).get('head_sha') != os.environ['CHECKED_MAIN_SHA'] or
+              not (started <= created <= completed)):
+              raise SystemExit('AI evidence artifact was not uploaded by the verified proposal job')
+          import re
+          artifact_id = artifact.get('id')
+          archive_digest = artifact.get('digest')
+          if (type(artifact_id) is not int or artifact_id <= 0 or
+              not isinstance(archive_digest, str) or
+              not re.fullmatch(r'sha256:[a-f0-9]{64}', archive_digest)):
+              raise SystemExit('AI evidence artifact lacks a verifiable ID or ZIP digest')
+          if (run.get('id') != expected_id or
+              not isinstance(run.get('run_attempt'), int) or
+              run.get('run_attempt') < 1 or
+              run.get('event') != 'workflow_dispatch' or
+              run.get('path') != expected_path or
+              run.get('head_branch') != 'main' or
+              run.get('head_sha') != os.environ['CHECKED_MAIN_SHA'] or
+              run.get('status') != 'completed' or
+              run.get('conclusion') != 'success' or
+              run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']):
+              raise SystemExit('AI draft PR is not backed by a completed successful proposal workflow')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('artifact_id=' + str(artifact_id) + '\n')
+              output.write('artifact_digest=' + archive_digest + '\n')
           PY
       - uses: actions/checkout@v4
         with:
@@ -56,6 +182,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify checked-out candidate commit is the approved SHA
+        env:
+          EXPECTED_PR_SHA: ${{ steps.pr.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ -z "$EXPECTED_PR_SHA" || "$actual_sha" != "$EXPECTED_PR_SHA" ]]; then
+            echo "::error::Candidate checkout does not match validated draft PR commit."
+            exit 1
+          fi
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Candidate checkout is not pristine."
+            exit 1
+          fi
       - name: Validate changed-file allowlist
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,27 +210,160 @@ jobs:
           from pathlib import Path
           files=json.loads(Path('/tmp/changed.json').read_text())
           allowed={'index.html','navigation.js','secondary_navigation.js'}
-          if not files or len(files)>3:
+          # AI proposer caps suggestions at two exact replacements.
+          if not files or len(files)>2:
               raise SystemExit('Invalid AI repair file count')
           for file in files:
               if file['filename'] not in allowed or file['status'] not in ('modified',):
                   raise SystemExit('Unexpected AI repair file: '+file['filename'])
           PY
-      - name: Re-run independent UI and navigation tests
+      - name: Match proposed PR to originating AI report artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          AI_ARTIFACT_ID: ${{ steps.source_evidence.outputs.artifact_id }}
+          AI_ARTIFACT_DIGEST: ${{ steps.source_evidence.outputs.artifact_digest }}
+        shell: bash
         run: |
+          set -euo pipefail
+          run_id="$(python - <<'PY'
+          import json, re
+          from pathlib import Path
+          pr = json.loads(Path('/tmp/pr.json').read_text())
+          match = re.fullmatch(r'ai/repair-([0-9]+)', pr['head']['ref'])
+          if not match:
+              raise SystemExit('Missing originating AI run ID')
+          print(match.group(1))
+          PY
+          )"
+          mkdir -p /tmp/ai-source-evidence
+          if [[ ! "$AI_ARTIFACT_ID" =~ ^[1-9][0-9]*$ || ! "$AI_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::Missing pinned AI artifact ID or SHA-256 digest."
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${AI_ARTIFACT_ID}/zip" > /tmp/ai-source-evidence.zip
+          printf '%s  %s\n' "${AI_ARTIFACT_DIGEST#sha256:}" /tmp/ai-source-evidence.zip | sha256sum --check --status
+          # Only one small regular JSON report is expected in this archive.
+          # Never unzip unexpected entries or paths into the runner filesystem.
+          python - <<'PY'
+          import stat
+          import zipfile
+          from pathlib import Path
+
+          archive = Path('/tmp/ai-source-evidence.zip')
+          target = Path('/tmp/ai-source-evidence/ai_repair_proposal.json')
+          if archive.stat().st_size > 1_000_000:
+              raise SystemExit('AI source ZIP exceeds the safe archive size')
+          with zipfile.ZipFile(archive) as source:
+              entries = source.infolist()
+              if len(entries) != 1:
+                  raise SystemExit('AI source ZIP must contain exactly one report')
+              entry = entries[0]
+              kind = stat.S_IFMT(entry.external_attr >> 16)
+              if (entry.filename != 'ai_repair_proposal.json' or
+                  entry.is_dir() or kind not in (0, stat.S_IFREG) or
+                  entry.file_size > 300_000):
+                  raise SystemExit('AI source ZIP has an unsafe member')
+              data = source.read(entry)
+              if len(data) != entry.file_size:
+                  raise SystemExit('AI source ZIP report has inconsistent size')
+          target.write_bytes(data)
+          PY
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/ai-source-evidence/ai_repair_proposal.json').read_text(encoding='utf-8'))
+          source_pr = json.loads(Path('/tmp/pr.json').read_text(encoding='utf-8'))
+          changed = json.loads(Path('/tmp/changed.json').read_text(encoding='utf-8'))
+          allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
+          claimed = report.get('changed_files')
+          digests = report.get('file_sha256')
+          filenames = [entry['filename'] for entry in changed]
+          # Independently compare the selected commit's exact Git tree diff.
+          # Do not trust the PR files API as the sole source of changed paths.
+          git_entries = [line.split(chr(9)) for line in subprocess.check_output(
+              ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
+              text=True).splitlines()]
+          if (len(git_entries) != len(filenames) or
+              any(len(entry) != 2 or entry[0] != 'M' for entry in git_entries) or
+              sorted(entry[1] for entry in git_entries) != sorted(filenames)):
+              raise SystemExit('Candidate Git commit changes do not match the PR API file list')
+          # Reject AI evidence without the producer's review rationale and test plan.
+          reason = report.get('reason')
+          suggested_tests = report.get('suggested_tests')
+          if (report.get('status') != 'proposed' or
+              not isinstance(reason, str) or not reason.strip() or len(reason) > 700 or
+              not isinstance(suggested_tests, str) or
+              not suggested_tests.strip() or len(suggested_tests) > 700 or
+              report.get('published_branch') != source_pr['head']['ref'] or
+              report.get('published_head_sha') != source_pr['head']['sha'] or
+              report.get('published_base_sha') != source_pr['base']['sha'] or
+              report.get('production_change_allowed') is not False or
+              not isinstance(claimed, list) or not claimed or len(claimed)>2 or
+              any(not isinstance(name, str) or name not in allowed for name in claimed) or
+              len(set(claimed)) != len(claimed) or
+              sorted(filenames) != sorted(claimed) or
+              not isinstance(digests, dict) or set(digests) != set(claimed) or
+              any(not isinstance(value, str) or not re.fullmatch(r'[a-f0-9]{64}', value)
+                  for value in digests.values()) or
+              any(entry.get('status') != 'modified' for entry in changed)):
+              raise SystemExit('AI candidate PR does not match the originating proposal evidence')
+          for name in claimed:
+              # An identical byte digest must not hide a symlink or mode change.
+              tree_entry = subprocess.check_output(
+                  ['git', 'ls-tree', 'HEAD', '--', name], text=True).split()
+              if (len(tree_entry) != 4 or tree_entry[0] != '100644' or
+                  tree_entry[1] != 'blob' or Path(name).is_symlink() or
+                  hashlib.sha256(Path(name).read_bytes()).hexdigest() != digests[name]):
+                  raise SystemExit('AI candidate file bytes or Git mode differ from the originating proposal')
+          print('AI artifact SHA-256 matches candidate draft files:', len(claimed))
+          PY
+      - name: Re-run independent UI and navigation tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The candidate checkout must be pristine before and after tests.
+          # This check also rejects staged or newly tracked modifications.
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Candidate checkout already differs from the selected PR commit."
+            exit 1
+          fi
           python -m unittest -v tests.test_navigation_contract test_ai_repair_agent
           node tests/site-regression.cjs
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Independent tests modified tracked candidate files."
+            exit 1
+          fi
       - name: Check PR head did not change during validation
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
           CHECKED_SHA: ${{ steps.pr.outputs.sha }}
+          CHECKED_MAIN_SHA: ${{ steps.pr.outputs.main_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          current="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
-          if [ "$current" != "$CHECKED_SHA" ]; then
-            echo "::error::AI draft PR changed during validation; rerun against the new head."
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/final-ai-pr.json
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          pr = json.loads(Path('/tmp/final-ai-pr.json').read_text())
+          if (pr.get('state') != 'open' or pr.get('draft') is not True or
+              pr.get('head', {}).get('sha') != os.environ['CHECKED_SHA'] or
+              pr.get('head', {}).get('repo', {}).get('full_name') != os.environ['GITHUB_REPOSITORY'] or
+              not re.fullmatch(r'ai/repair-[0-9]+', pr.get('head', {}).get('ref', '')) or
+              pr.get('base', {}).get('ref') != 'main' or
+              pr.get('base', {}).get('sha') != os.environ['CHECKED_MAIN_SHA'] or
+              pr.get('commits') != 1):
+              raise SystemExit('AI draft PR changed during validation; rerun all checks')
+          PY
+          main_now="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ -z "$main_now" || "$main_now" != "${CHECKED_MAIN_SHA}" ]]; then
+            echo "::error::main changed during AI PR validation; rerun against the new base."
             exit 1
           fi
       - name: Review note
