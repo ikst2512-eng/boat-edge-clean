@@ -103,9 +103,11 @@ jobs:
           )"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > /tmp/ai-proposal-run.json
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > /tmp/ai-proposal-jobs.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" > /tmp/ai-proposal-artifacts.json
           python - <<'PY'
           import json, os
           from pathlib import Path
+          from datetime import datetime
           run = json.loads(Path('/tmp/ai-proposal-run.json').read_text())
           pr = json.loads(Path('/tmp/pr.json').read_text())
           expected_id = int(pr['head']['ref'].split('-')[-1])
@@ -127,6 +129,29 @@ jobs:
                   matches[0].get('head_sha') != os.environ['CHECKED_MAIN_SHA']):
                   raise SystemExit('Originating AI ' + required_job +
                                    ' job is missing, unsuccessful, or from another run/commit')
+          artifacts_response = json.loads(Path('/tmp/ai-proposal-artifacts.json').read_text())
+          artifacts = artifacts_response.get('artifacts') if isinstance(artifacts_response, dict) else None
+          if (not isinstance(artifacts, list) or
+              artifacts_response.get('total_count') != len(artifacts)):
+              raise SystemExit('Originating AI artifacts response is incomplete')
+          artifact_name = 'ai-repair-proposal-' + str(expected_id)
+          matched_artifacts = [item for item in artifacts
+                               if isinstance(item, dict) and item.get('name') == artifact_name]
+          proposal_job = next(job for job in jobs if job.get('name') == 'propose')
+          if len(matched_artifacts) != 1:
+              raise SystemExit('Missing or ambiguous AI proposal artifact')
+          artifact = matched_artifacts[0]
+          try:
+              created = datetime.fromisoformat(artifact['created_at'].replace('Z', '+00:00'))
+              started = datetime.fromisoformat(proposal_job['started_at'].replace('Z', '+00:00'))
+              completed = datetime.fromisoformat(proposal_job['completed_at'].replace('Z', '+00:00'))
+          except (KeyError, AttributeError, TypeError, ValueError) as error:
+              raise SystemExit('Missing valid AI artifact/job timestamps') from error
+          if (artifact.get('expired') is not False or
+              artifact.get('workflow_run', {}).get('id') != expected_id or
+              artifact.get('workflow_run', {}).get('head_sha') != os.environ['CHECKED_MAIN_SHA'] or
+              not (started <= created <= completed)):
+              raise SystemExit('AI evidence artifact was not uploaded by the verified proposal job')
           if (run.get('id') != expected_id or
               not isinstance(run.get('run_attempt'), int) or
               run.get('run_attempt') < 1 or
