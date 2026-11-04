@@ -478,8 +478,10 @@ class AIReviewGuardTests(unittest.TestCase):
         block = workflow.split("      - name: Match proposed PR to originating AI report artifact\n", 1)[1]
         block = block.split("      - name: Re-run independent UI and navigation tests\n", 1)[0]
         script = block.split("        run: |\n", 1)[1]
-        self.assertIn("gh run download", script)
-        self.assertIn("ai-repair-proposal-", script)
+        self.assertIn('actions/artifacts/${AI_ARTIFACT_ID}/zip', script)
+        self.assertIn("AI_ARTIFACT_DIGEST", script)
+        self.assertIn("sha256sum --check --status", script)
+        self.assertNotIn("gh run download", script)
         code = script.split("          python - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in code.splitlines())
