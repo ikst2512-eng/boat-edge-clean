@@ -862,6 +862,68 @@ node() {
                         label + " must not bind unpublished evidence",
                     )
 
+            # GitHub returned this exact GraphQL policy error in a real
+            # manual AI proposal run, after a valid branch was pushed.
+            # Policy denial must not turn a safe proposal into a failed run;
+            # unrelated PR creation failures must still fail closed.
+            for label, run_id, mode, allowed in (
+                ("github-actions-policy", "980127", "policy", True),
+                ("unexpected-pr-error", "980128", "other-error", False),
+            ):
+                with self.subTest(case=label):
+                    subprocess.run(
+                        ["git", "reset", "--hard", "-q"], cwd=root, check=True
+                    )
+                    subprocess.run(
+                        ["git", "switch", "-C", "fallback-" + run_id, original],
+                        cwd=root, check=True, capture_output=True
+                    )
+                    (root / "navigation.js").write_text(
+                        "reviewed change\n", encoding="utf-8"
+                    )
+                    report.write_text(json.dumps({
+                        "status": "proposed",
+                        "changed_files": ["navigation.js"],
+                        "file_sha256": {"navigation.js": digest},
+                        "production_change_allowed": False,
+                    }), encoding="utf-8")
+                    summary.write_text("", encoding="utf-8")
+                    local_env = dict(
+                        env, GITHUB_RUN_ID=run_id, MOCK_PR_MODE=mode
+                    )
+                    outcome = subprocess.run(
+                        ["bash", "-c", script], cwd=root, env=local_env,
+                        text=True, capture_output=True
+                    )
+                    self.assertEqual(
+                        outcome.returncode == 0, allowed,
+                        label + outcome.stdout + outcome.stderr
+                    )
+                    fallback_branch = "ai/repair-" + run_id
+                    pushed = subprocess.check_output(
+                        ["git", "--git-dir", str(remote), "rev-parse",
+                         "refs/heads/" + fallback_branch], text=True
+                    ).strip()
+                    evidence = json.loads(report.read_text(encoding="utf-8"))
+                    self.assertEqual(evidence["published_branch"], fallback_branch)
+                    self.assertEqual(evidence["published_head_sha"], pushed)
+                    self.assertEqual(evidence["published_base_sha"], original)
+                    if allowed:
+                        self.assertIn(
+                            "manual draft PR needed", summary.read_text()
+                        )
+                        self.assertIn(
+                            "/pull/new/" + fallback_branch, summary.read_text()
+                        )
+                    else:
+                        self.assertIn(
+                            "Draft PR publication failed",
+                            outcome.stdout + outcome.stderr
+                        )
+                        self.assertNotIn(
+                            "manual draft PR needed", summary.read_text()
+                        )
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
