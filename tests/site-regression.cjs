@@ -586,3 +586,7 @@ assert.ok(script.includes("document.getElementById('followingRace').disabled=s.r
  assert.ok(archivePublish.includes('tabEvidence[view].race!==selected.key'),'live tab data observation must retain race identity');
  assert.ok(archivePublish.includes("tabEvidence.result.confirmed="),'result tab must distinguish confirmed content from tab visibility');
  assert.ok(archivePublish.includes('not proof of complete sources'),'incomplete source evidence must remain explicitly qualified');
+
+// Playwright Locator has no children() API; query direct descendants explicitly.
+assert.ok(archivePublish.includes("page.locator('#predictionRows > *').count()"),'live status diagnostic must use supported locator selector');
+assert.ok(!archivePublish.includes("page.locator('#predictionRows').children()"),'live status diagnostic must not call nonexistent children() API');
