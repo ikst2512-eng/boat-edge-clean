@@ -132,6 +132,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify checked-out candidate commit is the approved SHA
+        env:
+          EXPECTED_PR_SHA: ${{ steps.pr.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ -z "$EXPECTED_PR_SHA" || "$actual_sha" != "$EXPECTED_PR_SHA" ]]; then
+            echo "::error::Candidate checkout does not match validated draft PR commit."
+            exit 1
+          fi
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Candidate checkout is not pristine."
+            exit 1
+          fi
       - name: Validate changed-file allowlist
         env:
           GH_TOKEN: ${{ github.token }}
