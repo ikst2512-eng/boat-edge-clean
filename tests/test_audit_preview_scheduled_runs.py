@@ -178,8 +178,8 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
             {"id":401,"event":"schedule","created_at":"2026-11-04T11:00:00Z",
              "run_started_at":"2026-11-04T11:00:00Z",
              "status":"completed","conclusion":"failure"},
-            {"id":402,"event":"schedule","created_at":"2026-11-04T17:45:45Z",
-             "run_started_at":"2026-11-04T17:45:45Z",
+            {"id":402,"event":"schedule","created_at":"2026-11-04T14:25:45Z",
+             "run_started_at":"2026-11-04T14:25:45Z",
              "status":"completed","conclusion":"success"},
         ]
         day=date(2026,11,4)
