@@ -103,7 +103,7 @@ jobs:
           run = json.loads(Path('/tmp/ai-proposal-run.json').read_text())
           pr = json.loads(Path('/tmp/pr.json').read_text())
           expected_id = int(pr['head']['ref'].split('-')[-1])
-          expected_path = '.github/workflows/ai-repair-proposal.yml@main'
+          expected_path = '.github/workflows/ai-repair-proposal.yml'
           if (run.get('id') != expected_id or
               run.get('event') != 'workflow_dispatch' or
               run.get('path') != expected_path or
