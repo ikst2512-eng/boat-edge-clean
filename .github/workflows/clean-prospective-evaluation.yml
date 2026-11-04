@@ -21,7 +21,7 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +30,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add
+      - name: Check prospective evaluator and first-add audit contracts
+        run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add
+  immutable-archive-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Audit existing immutable candidate commits if present
         shell: bash
         run: |
@@ -38,7 +48,37 @@ jobs:
           shopt -s nullglob
           candidates=(prospective_predictions/*.json)
           if [ "${#candidates[@]}" -gt 0 ]; then
-            python audit_clean_first_add.py "${candidates[@]}"
+            mkdir -p test-results
+            # Preserve every individual rejection in a downloadable artifact.
+            # The audit must still exit nonzero if no record passes.
+            python audit_clean_first_add.py "${candidates[@]}" > test-results/first-add-audit.json
           else
-            echo 'No prospective candidates to attest yet'
+            echo '::error::No immutable prospective candidates found; cannot certify the archive' >&2
+            exit 1
           fi
+      - name: Summarize immutable archive audit
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = Path('test-results/first-add-audit.json')
+          if not report.is_file():
+              print('FIRST_ADD_AUDIT_REPORT_UNAVAILABLE; no evidence certified')
+          else:
+              data = json.loads(report.read_text(encoding='utf-8'))
+              print('FIRST_ADD_AUDIT_SUMMARY', json.dumps({
+                  key: data[key] for key in (
+                      'total', 'local_audit_passed', 'rejected',
+                      'rejection_reasons', 'by_day',
+                      'remote_first_seen_verified', 'formal')
+              }, sort_keys=True))
+          PY
+      - name: Archive full immutable candidate audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-first-add-audit-${{ github.run_id }}
+          path: test-results/first-add-audit.json
+          if-no-files-found: warn
+          retention-days: 30
