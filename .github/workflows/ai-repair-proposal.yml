@@ -18,6 +18,11 @@ on:
         required: true
         default: 'Inspect navigation.js for a demonstrable UI/navigation issue. Only propose an exact safe fix if evidence supports it. Do not change prediction logic, data capture or tests.'
         type: string
+      dry_run:
+        description: '無料の証拠ZIP動作確認。AI API呼出し・修正案作成なし'
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 # Prevent concurrent manual AI calls from spending quota or racing on PR branches.
@@ -76,6 +81,7 @@ jobs:
             exit 1
           fi
       - name: Require configured AI credential
+        if: ${{ !inputs.dry_run }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         shell: bash
@@ -86,11 +92,34 @@ jobs:
           fi
           echo "Gemini API credential is present (value is never printed)."
       - name: Request a small AI UI repair (optional API)
+        if: ${{ !inputs.dry_run }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-3.5-flash-lite
           AI_ISSUE: ${{ inputs.issue }}
         run: python ai_repair_agent.py --issue "$AI_ISSUE"
+      - name: Write no-cost dry-run receipt (no model call, no code patch)
+        if: ${{ inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = {
+              "status": "no_safe_patch",
+              "dry_run": True,
+              "changed_files": [],
+              "file_sha256": {},
+              "reason": "Manual GitHub Actions workflow dry run: no AI invoked.",
+              "suggested_tests": "Validate authentic run ID, jobs, artifact ID, ZIP SHA-256 and JSON receipt.",
+              "production_change_allowed": False,
+          }
+          Path('ai_repair_proposal.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8')
+          print("FREE_DRY_RUN_NO_AI_OR_PATCH", report["status"])
+          PY
       - name: Summarize Gemini response without exposing source
         shell: bash
         run: |
@@ -101,13 +130,15 @@ jobs:
           status=report.get("status","unknown")
           files=report.get("changed_files",[])
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as summary:
-              summary.write("### Gemini UI repair proposal\n")
+              summary.write("### AI repair proposal or free dry-run receipt\n")
+              if report.get('dry_run') is True:
+                  summary.write("- Mode: FREE_DRY_RUN_NO_AI_OR_PATCH (not an AI-generated proposal)\n")
               summary.write(f"- Status: `{status}`\n")
               summary.write(f"- Changed files: {len(files)}\n")
               summary.write("- Automatic merge: disabled\n")
               if status=="no_safe_patch":
                   summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\n")
-          print("Gemini proposal status:",status,"changed files:",len(files))
+          print("AI workflow status:",status,"changed files:",len(files))
           PY
       - name: Validate AI report against actual tracked diff
         shell: bash

@@ -965,6 +965,53 @@ node() {
                 raise AssertionError("network unexpectedly called")
             self.assertEqual(propose("fix navigation",directory,None,"test",forbidden)["status"],"disabled")
 
+    def test_free_manual_dry_run_writes_receipt_without_model(self):
+        """Execute actual workflow receipt code in isolation without credentials."""
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("      dry_run:\n", workflow)
+        self.assertIn("        default: false\n        type: boolean", workflow)
+        self.assertIn(
+            "      - name: Require configured AI credential\n        if: ${{ !inputs.dry_run }}",
+            workflow)
+        self.assertIn(
+            "      - name: Request a small AI UI repair (optional API)\n        if: ${{ !inputs.dry_run }}",
+            workflow)
+        step = workflow.split(
+            "      - name: Write no-cost dry-run receipt (no model call, no code patch)\n", 1
+        )[1].split(
+            "      - name: Summarize Gemini response without exposing source\n", 1
+        )[0]
+        self.assertIn("        if: ${{ inputs.dry_run }}", step)
+        body = step.split("        run: |\n", 1)[1]
+        body = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in body.splitlines())
+        self.assertNotIn("generativelanguage.googleapis.com", body)
+        self.assertNotIn("GEMINI_API_KEY", body)
+        self.assertIn("          if-no-files-found: error", workflow)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "navigation.js"
+            source.write_text("unchanged UI source", encoding="utf-8")
+            local_env = dict(os.environ)
+            local_env.pop("GEMINI_API_KEY", None)
+            execution = subprocess.run(
+                ["bash", "-c", body], cwd=root, env=local_env,
+                capture_output=True, text=True)
+            self.assertEqual(execution.returncode, 0,
+                             execution.stdout + execution.stderr)
+            receipt = json.loads((root / "ai_repair_proposal.json").read_text(
+                encoding="utf-8"))
+            self.assertEqual(receipt["status"], "no_safe_patch")
+            self.assertIs(receipt["dry_run"], True)
+            self.assertEqual(receipt["changed_files"], [])
+            self.assertEqual(receipt["file_sha256"], {})
+            self.assertIs(receipt["production_change_allowed"], False)
+            self.assertIn("FREE_DRY_RUN_NO_AI_OR_PATCH", execution.stdout)
+            self.assertEqual(source.read_text(), "unchanged UI source")
+
+
 
 if __name__ == "__main__":
     unittest.main()
