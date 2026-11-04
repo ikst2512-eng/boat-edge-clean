@@ -115,6 +115,34 @@ class OddsRescuePolicyTest(unittest.TestCase):
         self.assertEqual(judge(at(12, 43), event="workflow_run",
                                trigger=altered)["action"], "no_dispatch")
 
+    def test_completed_direct_unknown_outcome_never_triggers_dispatch(self):
+        d = judge(at(12, 44), scheduled=[
+            entry("schedule", at(12, 35), conclusion=None)])
+        self.assertEqual(d["action"], "no_dispatch")
+        self.assertEqual(d["reason"], "direct_schedule_success_or_active")
+
+    def test_main_accepts_one_real_dispatch_and_records_nonproof_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(rescue, "OUTPUT", Path(tmp) / "decision.json"), \
+             patch.object(rescue, "now_utc", return_value=at(12, 43)), \
+             patch.object(rescue, "fetch_history", side_effect=[
+                 history(), history()]) as fetch, \
+             patch.object(rescue, "dispatch") as dispatch, \
+             patch.dict("os.environ", {
+                 "GITHUB_EVENT_NAME": "schedule", "GITHUB_REF": MAIN,
+                 "GH_REPOSITORY": REPO, "GH_TOKEN": "test",
+                 "GITHUB_RUN_ID": "777",
+             }):
+            rescue.main()
+            result = json.loads((Path(tmp) / "decision.json").read_text())
+            self.assertEqual(result["action"],
+                             "fallback_dispatch_accepted_not_sample_proof")
+            self.assertFalse(result["on_time_slot_verified"])
+            self.assertFalse(result["recovery_odds_verified"])
+            self.assertEqual(result["slot_jst"], at(12, 25).isoformat())
+            self.assertEqual(fetch.call_count, 2)
+            dispatch.assert_called_once()
+
     def test_missing_ambiguous_truncated_api_history_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "invalid_odds_run_history"):
             rescue.checked_history({}, "schedule", at(12, 25), at(12, 44))
