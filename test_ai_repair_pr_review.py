@@ -139,7 +139,7 @@ class AIReviewGuardTests(unittest.TestCase):
             env = dict(os.environ, MOCK_PR=str(pr_file), MOCK_RUN=str(run_file),
                        MOCK_JOBS=str(jobs_file), CHECKED_MAIN_SHA="base-a",
                        GITHUB_REPOSITORY="example/repo")
-            valid = {"id": 321, "event": "workflow_dispatch",
+            valid = {"id": 321, "run_attempt": 1, "event": "workflow_dispatch",
                      "path": ".github/workflows/ai-repair-proposal.yml",
                      "head_branch": "main", "head_sha": "base-a",
                      "status": "completed", "conclusion": "success",
@@ -147,6 +147,9 @@ class AIReviewGuardTests(unittest.TestCase):
             cases = (
                 ("valid", {}, True),
                 ("wrong-run-id", {"id": 322}, False),
+                ("missing-run-attempt", {"run_attempt": None}, False),
+                ("invalid-run-attempt", {"run_attempt": 0}, False),
+                ("different-run-attempt", {"run_attempt": 2}, False),
                 ("pr-trigger", {"event": "pull_request"}, False),
                 ("wrong-workflow", {"path": ".github/workflows/other.yml"}, False),
                 ("feature-branch", {"head_branch": "other"}, False),
@@ -155,9 +158,11 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("failure", {"conclusion": "failure"}, False),
                 ("wrong-repository", {"repository": {"full_name": "other/repo"}}, False),
             )
+            job_base = {"status": "completed", "conclusion": "success",
+                        "run_id": 321, "run_attempt": 1, "head_sha": "base-a"}
             jobs = {"total_count": 2,
-                    "jobs": [{"name": "tests", "status": "completed", "conclusion": "success"},
-                             {"name": "propose", "status": "completed", "conclusion": "success"}]}
+                    "jobs": [{"name": "tests", **job_base},
+                             {"name": "propose", **job_base}]}
             jobs_file.write_text(json.dumps(jobs))
             for label, overrides, expected in cases:
                 with self.subTest(case=label):
@@ -166,6 +171,25 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
+            # Even successful job names and status do not prove provenance if
+            # the job belongs to a different run, attempt or commit SHA.
+            run_file.write_text(json.dumps(valid))
+            for label, field, value in (
+                ("job-wrong-run", "run_id", 322),
+                ("job-wrong-attempt", "run_attempt", 2),
+                ("job-wrong-sha", "head_sha", "another-sha"),
+                ("job-missing-sha", "head_sha", None),
+            ):
+                with self.subTest(case=label):
+                    job_items = [dict(x) for x in jobs["jobs"]]
+                    job_items[1][field] = value
+                    jobs_file.write_text(json.dumps({
+                        "total_count": len(job_items), "jobs": job_items
+                    }))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, label)
+
             # Workflow run success is insufficient when the publish/propose job
             # was skipped or failed, or its page of jobs is incomplete.
             for label, proposed_jobs in (
