@@ -155,7 +155,8 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("failure", {"conclusion": "failure"}, False),
                 ("wrong-repository", {"repository": {"full_name": "other/repo"}}, False),
             )
-            jobs = {"jobs": [{"name": "tests", "status": "completed", "conclusion": "success"},
+            jobs = {"total_count": 2,
+                    "jobs": [{"name": "tests", "status": "completed", "conclusion": "success"},
                              {"name": "propose", "status": "completed", "conclusion": "success"}]}
             jobs_file.write_text(json.dumps(jobs))
             for label, overrides, expected in cases:
@@ -176,7 +177,23 @@ class AIReviewGuardTests(unittest.TestCase):
             ):
                 with self.subTest(case=label):
                     run_file.write_text(json.dumps(valid))
-                    jobs_file.write_text(json.dumps({"jobs": proposed_jobs}))
+                    jobs_file.write_text(json.dumps({
+                        "total_count": len(proposed_jobs), "jobs": proposed_jobs
+                    }))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, label)
+
+            # Missing, short or forged total_count must fail closed; the
+            # reviewer only fetches the first API page of origin jobs.
+            run_file.write_text(json.dumps(valid))
+            for label, payload in (
+                ("missing-total", {"jobs": jobs["jobs"]}),
+                ("truncated-page", {"total_count": 101, "jobs": jobs["jobs"]}),
+                ("invalid-count", {"total_count": "2", "jobs": jobs["jobs"]}),
+            ):
+                with self.subTest(case=label):
+                    jobs_file.write_text(json.dumps(payload))
                     result = subprocess.run(["python", "-c", validator], env=env,
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
