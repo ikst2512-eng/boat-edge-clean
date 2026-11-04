@@ -114,6 +114,50 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, field)
 
+    def test_ai_proposal_workflow_run_provenance_fixtures(self):
+        workflow = self.source()
+        block = workflow.split("      - name: Verify completed AI proposal workflow provenance\n", 1)[1]
+        block = block.split("      - uses: actions/checkout@v4", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        snippets = script.split("          python - <<'PY'\n")
+        self.assertEqual(len(snippets), 2)
+        validator = snippets[1].split("          PY\n", 1)[0]
+        validator = "\n".join(line[10:] if line.startswith("          ") else line
+                              for line in validator.splitlines())
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pr_file, run_file = root / "pr.json", root / "run.json"
+            validator = validator.replace("Path('/tmp/ai-proposal-run.json')",
+                                          "Path(os.environ['MOCK_RUN'])")
+            validator = validator.replace("Path('/tmp/pr.json')",
+                                          "Path(os.environ['MOCK_PR'])")
+            pr_file.write_text(json.dumps({"head": {"ref": "ai/repair-321"}}))
+            env = dict(os.environ, MOCK_PR=str(pr_file), MOCK_RUN=str(run_file),
+                       CHECKED_MAIN_SHA="base-a", GITHUB_REPOSITORY="example/repo")
+            valid = {"id": 321, "event": "workflow_dispatch",
+                     "path": ".github/workflows/ai-repair-proposal.yml",
+                     "head_branch": "main", "head_sha": "base-a",
+                     "status": "completed", "conclusion": "success",
+                     "repository": {"full_name": "example/repo"}}
+            cases = (
+                ("valid", {}, True),
+                ("wrong-run-id", {"id": 322}, False),
+                ("pr-trigger", {"event": "pull_request"}, False),
+                ("wrong-workflow", {"path": ".github/workflows/other.yml"}, False),
+                ("feature-branch", {"head_branch": "other"}, False),
+                ("stale-sha", {"head_sha": "old"}, False),
+                ("in-progress", {"status": "in_progress"}, False),
+                ("failure", {"conclusion": "failure"}, False),
+                ("wrong-repository", {"repository": {"full_name": "other/repo"}}, False),
+            )
+            for label, overrides, expected in cases:
+                with self.subTest(case=label):
+                    run_file.write_text(json.dumps({**valid, **overrides}))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
         block = workflow.split("      - name: Check PR head did not change during validation\n", 1)[1]
