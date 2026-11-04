@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import unittest
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
@@ -47,6 +48,91 @@ class ProbeTests(unittest.TestCase):
                     "finished_at_utc": (NOW + timedelta(seconds=seconds)).isoformat(),
                     "response_base64": base64.b64encode(raw).decode(),
                     "response_sha256": hashlib.sha256(raw).hexdigest()}]}
+
+    def test_failed_odds_archives_bounded_second_official_html_without_promotion(self):
+        source = b"<html><body><table><tr><td>prepublication</td></tr></table></body></html>"
+        requested = []
+        class HTMLResponse:
+            status = 200
+            headers = {"Content-Type": "text/html; charset=utf-8"}
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, limit):
+                self.assert_limit = limit
+                return source
+        def fetch(request, timeout):
+            requested.append((request.full_url, timeout))
+            return HTMLResponse()
+        failed = {"race_code": CODE, "final_state": "http_error",
+                  "attempts": [{"http": 503, "state": "http_error"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "evidence"
+            rows = probe.preserve_failed_official_html([failed], request=fetch,
+                                                       directory=folder)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["result"], "captured_followup_html")
+            self.assertFalse(rows[0]["same_bytes_as_render_api_request"])
+            self.assertFalse(rows[0]["formal"])
+            self.assertEqual(rows[0]["raw_sha256"], hashlib.sha256(source).hexdigest())
+            self.assertEqual((folder / (CODE + ".html")).read_bytes(), source)
+            self.assertEqual(json.loads((folder / (CODE + ".json")).read_text())["raw_sha256"],
+                             hashlib.sha256(source).hexdigest())
+            self.assertEqual(requested[0][1], 10)
+            self.assertIn("hd=20261103&jcd=02&rno=11", requested[0][0])
+            # The operational 503 remains unchanged; second source never
+            # retroactively converts a failure into a verified 200.
+            self.assertEqual(failed["attempts"][-1]["http"], 503)
+            self.assertEqual(failed["final_state"], "http_error")
+        # No diagnostic fetch for a normally replayable successful sample.
+        with tempfile.TemporaryDirectory() as tmp:
+            rows = probe.preserve_failed_official_html([self.receipt()], request=fetch,
+                                                       directory=Path(tmp) / "evidence")
+            self.assertEqual(rows, [])
+            self.assertEqual(len(requested), 1)
+
+    def test_failed_odds_source_error_is_recorded_but_never_success(self):
+        from urllib.error import URLError
+        failed = {"race_code": CODE, "final_state": "http_error",
+                  "attempts": [{"http": 503, "state": "http_error"}]}
+        def unavailable(*args, **kwargs):
+            raise URLError("temporary upstream")
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "evidence"
+            rows = probe.preserve_failed_official_html([failed], request=unavailable,
+                                                       directory=folder)
+            self.assertEqual(rows[0]["result"], "followup_error")
+            self.assertEqual(rows[0]["error_type"], "URLError")
+            self.assertFalse((folder / (CODE + ".html")).exists())
+            self.assertTrue((folder / (CODE + ".json")).is_file())
+        self.assertEqual(failed["final_state"], "http_error")
+
+    def test_forensic_diagnostics_path_is_uploaded_without_new_cron(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        self.assertIn("live_odds_failure_evidence/", workflow)
+        self.assertIn("name: live-odds-forensics", workflow)
+        self.assertIn("scripts/diagnose_live_odds_failure.py", workflow)
+        sample_step = workflow.index("- name: Sample up to three independently sourced upcoming races")
+        verdict_step = workflow.index("- name: Fail unhealthy unattended odds sampling")
+        followup_step = workflow.index("- name: Preserve failed-source HTML after operational verdict")
+        upload_step = workflow.index("- name: Preserve failure-only official HTML diagnostics")
+        self.assertLess(sample_step, verdict_step)
+        self.assertLess(verdict_step, followup_step)
+        self.assertLess(followup_step, upload_step)
+        self.assertIn("continue-on-error: true", workflow[followup_step:upload_step])
+        sampler = (Path(__file__).resolve().parents[1] /
+                   "scripts/probe_live_odds_health.py").read_text()
+        self.assertNotIn("preserve_failed_official_html(data[", sampler[sampler.index("def main():"):])
+        # Large HTML must not expand the operational artifact beyond 2MB.
+        metrics_start = workflow.index("name: ${{ steps.gate.outputs.collect")
+        diagnostic_step = workflow.index("- name: Preserve failure-only official HTML diagnostics")
+        self.assertNotIn("live_odds_failure_evidence/", workflow[metrics_start:diagnostic_step])
+        self.assertIn("if: always()", workflow)
+        self.assertIn("25 3 * * *", workflow)
+        self.assertIn("25 5 * * *", workflow)
+        self.assertIn("25 7 * * *", workflow)
 
     def test_replays_exact_120_odds_and_source_t12_separately(self):
         sample = self.receipt()
