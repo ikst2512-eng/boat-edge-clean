@@ -1,5 +1,10 @@
 name: Validate AI repair draft PR
 on:
+  # Always run free safety unit tests for audit code pushes as well as PRs.
+  push:
+    paths:
+      - .github/workflows/ai-repair-pr-review.yml
+      - test_ai_repair_pr_review.py
   pull_request:
     paths:
       - .github/workflows/ai-repair-pr-review.yml
