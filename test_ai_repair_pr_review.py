@@ -171,6 +171,22 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
+            # A legitimate rerun must remain reviewable when both required
+            # jobs and the run metadata agree on the NEW run attempt.
+            with self.subTest(case="matching-second-attempt"):
+                second = {**valid, "run_attempt": 2}
+                jobs_second = [
+                    {**job, "run_attempt": 2} for job in jobs["jobs"]
+                ]
+                run_file.write_text(json.dumps(second))
+                jobs_file.write_text(json.dumps({
+                    "total_count": len(jobs_second), "jobs": jobs_second
+                }))
+                result = subprocess.run(["python", "-c", validator], env=env,
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0,
+                                 result.stdout + result.stderr)
+
             # Even successful job names and status do not prove provenance if
             # the job belongs to a different run, attempt or commit SHA.
             run_file.write_text(json.dumps(valid))
