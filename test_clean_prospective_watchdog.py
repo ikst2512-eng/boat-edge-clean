@@ -57,7 +57,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertFalse(decide([], NOW + timedelta(hours=14), "schedule", MAIN))
 
     def test_night_race_end_hour_and_cooldown(self):
-        # CLEAN captures 21:15 and 22:29 JST; 23:15 is outside hours.
+        # CLEAN final slot is 22:28 and its rescue is at 22:29; 23:15 is outside hours.
         late = NOW + timedelta(hours=12)
         last = NOW + timedelta(hours=13, minutes=14)
         after = NOW + timedelta(hours=14)
@@ -65,7 +65,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertTrue(decide([], last, 'workflow_dispatch', MAIN))
         self.assertFalse(decide([], after, 'schedule', MAIN))
         self.assertFalse(decide([{
-            'created_at': (last - timedelta(minutes=3)).isoformat(),
+            'created_at': (last - timedelta(minutes=1)).isoformat(),
             'event': 'workflow_dispatch', 'status': 'completed',
             'conclusion': 'failure', 'head_branch': 'main',
         }], last, 'schedule', MAIN))
