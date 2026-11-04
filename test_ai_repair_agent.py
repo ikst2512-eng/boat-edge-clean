@@ -295,6 +295,36 @@ node() {
                     if mutate:
                         self.assertIn("tests modified the AI repair diff", result.stdout)
 
+    def test_staged_changes_rejected_before_ai_publish(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Validate AI report against actual tracked diff\n", 1)[1]
+        block = block.split("      - name: Refuse stale main before publishing AI draft\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "navigation.js").write_text("original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            (root / "ai_repair_proposal.json").write_text(json.dumps({
+                "status": "no_safe_patch", "changed_files": [],
+                "production_change_allowed": False
+            }))
+            clean = subprocess.run(["bash", "-c", script], cwd=root,
+                                   capture_output=True, text=True)
+            self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+            (root / "navigation.js").write_text("staged-unreviewed\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            staged = subprocess.run(["bash", "-c", script], cwd=root,
+                                    capture_output=True, text=True)
+            self.assertNotEqual(staged.returncode, 0,
+                                "Staged changes must not be silently committed")
+            self.assertIn("CalledProcessError", staged.stderr)
+
     def test_stale_main_prevents_ai_draft_publication(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         preflight = workflow.split("      - name: Refuse stale main before publishing AI draft\n", 1)[1]
