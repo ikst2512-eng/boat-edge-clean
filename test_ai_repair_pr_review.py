@@ -364,6 +364,83 @@ class AIReviewGuardTests(unittest.TestCase):
                                      text=True, capture_output=True)
             self.assertNotEqual(symlink.returncode, 0, "Symlink must fail")
 
+    def test_real_git_candidate_artifact_contract_end_to_end_offline(self):
+        """Verify a real candidate commit against its exact local evidence."""
+        workflow = self.source()
+        block = workflow.split(
+            "      - name: Match proposed PR to originating AI report artifact\n", 1
+        )[1].split("      - name: Re-run independent UI and navigation tests\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        code = script.split("          python - <<'PY'\n", 1)[1].split(
+            "          PY\n", 1)[0]
+        code = "\n".join(line[10:] if line.startswith("          ") else line
+                         for line in code.splitlines())
+        code = code.replace(
+            "Path('/tmp/ai-source-evidence/ai_repair_proposal.json')",
+            "Path(os.environ['MOCK_REPORT'])"
+        ).replace(
+            "Path('/tmp/changed.json')", "Path(os.environ['MOCK_CHANGED'])"
+        ).replace(
+            "Path('/tmp/pr.json')", "Path(os.environ['MOCK_PR'])"
+        )
+        code = "import os\n" + code
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"],
+                           cwd=root, check=True)
+            file = root / "navigation.js"
+            file.write_bytes(b"original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "main"], cwd=root, check=True)
+            parent = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            file.write_bytes(b"reviewed change\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm",
+                            "AI: propose narrow UI repair for review"],
+                           cwd=root, check=True)
+            head = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            report = root / "proposal.json"
+            pr_file = root / "pr.json"
+            changed_file = root / "changed.json"
+            digest = hashlib.sha256(b"reviewed change\n").hexdigest()
+            original_report = {
+                "status": "proposed", "changed_files": ["navigation.js"],
+                "file_sha256": {"navigation.js": digest},
+                "published_branch": "ai/repair-980123",
+                "published_head_sha": head, "published_base_sha": parent,
+                "production_change_allowed": False,
+            }
+            pr_file.write_text(json.dumps({
+                "head": {"ref": "ai/repair-980123", "sha": head},
+                "base": {"ref": "main", "sha": parent},
+            }))
+            changed_file.write_text(json.dumps([
+                {"filename": "navigation.js", "status": "modified"}
+            ]))
+            env = dict(os.environ, MOCK_REPORT=str(report),
+                       MOCK_CHANGED=str(changed_file), MOCK_PR=str(pr_file))
+            for label, overrides, expected in (
+                ("exact-real-git", {}, True),
+                ("wrong-published-head", {"published_head_sha": "0"*40}, False),
+                ("wrong-published-parent", {"published_base_sha": "1"*40}, False),
+                ("wrong-file-hash", {"file_sha256": {"navigation.js": "2"*64}}, False),
+                ("extra-report-path", {"changed_files": ["navigation.js", "index.html"]},
+                 False),
+            ):
+                with self.subTest(case=label):
+                    report.write_text(json.dumps({**original_report, **overrides}))
+                    response = subprocess.run(["python", "-c", code], cwd=root,
+                                              env=env, capture_output=True, text=True)
+                    self.assertEqual(response.returncode == 0, expected,
+                                     label + response.stdout + response.stderr)
+
     def test_independent_tests_reject_tracked_checkout_mutation(self):
         workflow = self.source()
         segment = workflow.split("      - name: Re-run independent UI and navigation tests\n", 1)[1]
