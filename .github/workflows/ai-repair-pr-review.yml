@@ -168,13 +168,16 @@ jobs:
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
             --name "ai-repair-proposal-${run_id}" --dir /tmp/ai-source-evidence
           python - <<'PY'
+          import hashlib
           import json
+          import re
           from pathlib import Path
 
           report = json.loads(Path('/tmp/ai-source-evidence/ai_repair_proposal.json').read_text(encoding='utf-8'))
           changed = json.loads(Path('/tmp/changed.json').read_text(encoding='utf-8'))
           allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
           claimed = report.get('changed_files')
+          digests = report.get('file_sha256')
           filenames = [entry['filename'] for entry in changed]
           if (report.get('status') != 'proposed' or
               report.get('production_change_allowed') is not False or
@@ -182,9 +185,15 @@ jobs:
               any(not isinstance(name, str) or name not in allowed for name in claimed) or
               len(set(claimed)) != len(claimed) or
               sorted(filenames) != sorted(claimed) or
+              not isinstance(digests, dict) or set(digests) != set(claimed) or
+              any(not isinstance(value, str) or not re.fullmatch(r'[a-f0-9]{64}', value)
+                  for value in digests.values()) or
               any(entry.get('status') != 'modified' for entry in changed)):
-              raise SystemExit('AI candidate PR files do not match the originating proposed patch')
-          print('AI artifact matches candidate draft PR files:', len(claimed))
+              raise SystemExit('AI candidate PR does not match the originating proposal evidence')
+          for name in claimed:
+              if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digests[name]:
+                  raise SystemExit('AI candidate file content differs from the originating proposal')
+          print('AI artifact SHA-256 matches candidate draft files:', len(claimed))
           PY
       - name: Re-run independent UI and navigation tests
         run: |
