@@ -200,9 +200,21 @@ jobs:
           print('AI artifact SHA-256 matches candidate draft files:', len(claimed))
           PY
       - name: Re-run independent UI and navigation tests
+        shell: bash
         run: |
+          set -euo pipefail
+          # The candidate checkout must be pristine before and after tests.
+          # This check also rejects staged or newly tracked modifications.
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Candidate checkout already differs from the selected PR commit."
+            exit 1
+          fi
           python -m unittest -v tests.test_navigation_contract test_ai_repair_agent
           node tests/site-regression.cjs
+          if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+            echo "::error::Independent tests modified tracked candidate files."
+            exit 1
+          fi
       - name: Check PR head did not change during validation
         env:
           GH_TOKEN: ${{ github.token }}
