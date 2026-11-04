@@ -482,7 +482,7 @@ class AIReviewGuardTests(unittest.TestCase):
         self.assertIn("AI_ARTIFACT_DIGEST", script)
         self.assertIn("sha256sum --check --status", script)
         self.assertNotIn("gh run download", script)
-        code = script.split("          python - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
+        code = script.rsplit("          python - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in code.splitlines())
         with tempfile.TemporaryDirectory() as directory:
@@ -577,7 +577,7 @@ class AIReviewGuardTests(unittest.TestCase):
             "      - name: Match proposed PR to originating AI report artifact\n", 1
         )[1].split("      - name: Re-run independent UI and navigation tests\n", 1)[0]
         script = block.split("        run: |\n", 1)[1]
-        code = script.split("          python - <<'PY'\n", 1)[1].split(
+        code = script.rsplit("          python - <<'PY'\n", 1)[1].split(
             "          PY\n", 1)[0]
         code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in code.splitlines())
@@ -665,7 +665,7 @@ class AIReviewGuardTests(unittest.TestCase):
             "      - name: Match proposed PR to originating AI report artifact\n", 1
         )[1].split("      - name: Re-run independent UI and navigation tests\n", 1)[0]
         script = block.split("        run: |\n", 1)[1]
-        code = script.split("          python - <<'PY'\n", 1)[1].split(
+        code = script.rsplit("          python - <<'PY'\n", 1)[1].split(
             "          PY\n", 1)[0]
         code = "\n".join(
             line[10:] if line.startswith("          ") else line
