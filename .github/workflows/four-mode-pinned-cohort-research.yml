@@ -9,6 +9,8 @@ on:
       - test_four_mode_latest_main_inventory.py
       - pinned_hole_rank3_research.py
       - forward_hole_rank3_protocol.py
+      - forward_protocol_github_observation.py
+      - test_forward_protocol_github_observation.py
       - test_forward_hole_rank3_protocol.py
       - research/forward_hole_rank3_protocol_20261105.json
       - test_pinned_hole_rank3_research.py
@@ -31,13 +33,36 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
       - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
         run: python pinned_hole_rank3_research.py
       - name: Verify fixed forward experiment protocol (no data scored)
         run: python forward_hole_rank3_protocol.py > forward_hole_rank3_protocol_audit.json
+      - name: Observe pre-study protocol on GitHub with server Date and exact bytes
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          boundary=datetime(2026,11,4,22,0,0,tzinfo=timezone.utc)
+          output=Path("forward_protocol_github_observation.json")
+          if datetime.now(timezone.utc)>=boundary:
+              output.write_text(json.dumps({
+                  "status":"too_late_to_attest_study_protocol",
+                  "formal":False,"protocol_observed_early":False,
+                  "warning":"Never synthesize an early observation after the deadline."
+              },sort_keys=True)+"\\n")
+              print("STUDY_PROTOCOL_REMOTE_OBSERVATION_SKIPPED_LATE")
+          else:
+              from forward_protocol_github_observation import main
+              main()
+          PY
       - name: Read-only fetch latest main (never check out over PR research files)
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: Inspect latest main tree for November 5+ files (no accuracy scored)
@@ -51,6 +76,7 @@ jobs:
             pinned_four_mode_cohort_report.json
             pinned_hole_rank3_research_report.json
             forward_hole_rank3_protocol_audit.json
+            forward_protocol_github_observation.json
             four_mode_latest_main_inventory.json
           if-no-files-found: warn
           retention-days: 90
