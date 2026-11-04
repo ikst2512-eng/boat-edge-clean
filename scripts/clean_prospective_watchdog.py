@@ -26,6 +26,8 @@ TRUSTED_SCHEDULES = frozenset({
     "Entry research T-minus-12 baseline archival",
     # Observed independent main schedule run #41836305578 (22:14 JST).
     "Research independent late preview evidence",
+    # Same-repository main schedule run #41835996367 (22:12 JST).
+    "Entry course missed-cron activation watchdog",
 })
 
 

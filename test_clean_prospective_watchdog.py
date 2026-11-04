@@ -115,6 +115,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "CLEAN live official trifecta odds probe",
             "Entry research T-minus-12 baseline archival",
             "Research independent late preview evidence",
+            "Entry course missed-cron activation watchdog",
         )
         for source in allowed:
             with self.subTest(source=source):
@@ -137,6 +138,34 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
                     [run(3, status="in_progress", conclusion=None)],
                     NOW, "workflow_run", MAIN,
                     trigger=parent, repository=repo))
+
+    def test_entry_watchdog_parent_requires_real_schedule_and_same_repo(self):
+        repo = "ikst2512-eng/boat-edge-clean"
+        original = {
+            "name": "Entry course missed-cron activation watchdog",
+            "event": "schedule",
+            "head_branch": "main",
+            "status": "completed",
+            "conclusion": "success",
+            "head_repository": {"full_name": repo},
+        }
+        self.assertTrue(decide(
+            [], NOW, "workflow_run", MAIN,
+            trigger={"workflow_run": original}, repository=repo))
+        for field, bad in (
+            ("event", "workflow_dispatch"),
+            ("event", "pull_request"),
+            ("event", "push"),
+            ("head_branch", "feature"),
+            ("status", "in_progress"),
+            ("conclusion", "failure"),
+            ("head_repository", {"full_name": "foreign/fork"}),
+        ):
+            with self.subTest(field=field, bad=bad):
+                self.assertFalse(decide(
+                    [], NOW, "workflow_run", MAIN,
+                    trigger={"workflow_run": {**original, field: bad}},
+                    repository=repo))
 
     def test_independent_wakeup_rejects_wrong_source_type_or_repo(self):
         repo = "ikst2512-eng/boat-edge-clean"
@@ -181,6 +210,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "CLEAN live official trifecta odds probe",
             "Entry research T-minus-12 baseline archival",
             "Research independent late preview evidence",
+            "Entry course missed-cron activation watchdog",
         ):
             self.assertIn("- '" + name + "'", workflow)
         self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
