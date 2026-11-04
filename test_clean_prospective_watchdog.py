@@ -28,17 +28,19 @@ def run(age, event="schedule", status="completed", conclusion="success",
 
 class CleanProspectiveWatchdogTests(unittest.TestCase):
     def test_wakeup_only_dispatches_after_actual_clean_slot(self):
-        # A main push is not a missed cron. In particular, 07:00 precedes
-        # today's first 07:04 slot, and 22:44 is after the 22:33 T-12 gate.
+        # A main push is not a missed cron. Do not race a newly due
+        # scheduled run, including the exceptional 22:28 final attempt.
         jst = timezone(timedelta(hours=9))
         cases = (
             (7, 0, False), (7, 3, False),
-            (7, 4, True), (7, 10, True), (7, 17, True),
-            (7, 18, False), (7, 19, True),
+            (7, 4, False), (7, 5, False), (7, 9, False),
+            (7, 10, True), (7, 17, True), (7, 18, False),
+            (7, 19, False), (7, 24, False), (7, 25, True),
             (21, 59, True), (22, 0, True), (22, 3, False),
-            (22, 4, True), (22, 18, False), (22, 19, True),
-            (22, 28, True), (22, 32, True),
-            (22, 33, False), (22, 44, False),
+            (22, 4, False), (22, 9, False), (22, 10, True),
+            (22, 18, False), (22, 19, False), (22, 25, True),
+            (22, 27, True), (22, 28, False), (22, 29, True),
+            (22, 32, True), (22, 33, False), (22, 44, False),
         )
         for hour, minute, expected in cases:
             with self.subTest(hour=hour, minute=minute):
