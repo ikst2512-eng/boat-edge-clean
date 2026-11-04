@@ -1,4 +1,6 @@
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime
@@ -184,6 +186,48 @@ class FirstAddAuditTests(unittest.TestCase):
         for paths in ([p,p],["../" + p],[p,"prospective_predictions/missing.json"]):
             with self.assertRaises(ValueError):
                 audit.audit_records(paths)
+
+    def test_real_full_git_history_accepts_only_original_valid_research_candidate(self):
+        # Use an actual temporary Git repository rather than mocked Git replies.
+        # This verifies the first-add SHA, immutable blob and the same chronology
+        # used to admit future post-fix candidate records locally.
+        path="prospective_predictions/202611050404.json"
+        candidate={
+            "race_code":"202611050404","status":"prospective_candidate",
+            "formal":False,"scoring":False,
+            "source_deadline_jst":"2026-11-05T12:16:00+09:00",
+            "cutoff_jst":"2026-11-05T12:04:00+09:00",
+            "generated_at":"2026-11-05T10:00:00+09:00",
+            "source_title_received_jst":"2026-11-05T09:59:00+09:00",
+            "source_cards_received_jst":"2026-11-05T09:59:01+09:00"}
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            subprocess.run(["git","init","-q"],cwd=root,check=True)
+            subprocess.run(["git","config","user.name","CLEAN test"],cwd=root,check=True)
+            subprocess.run(["git","config","user.email","clean@example.invalid"],cwd=root,check=True)
+            original=root/path
+            original.parent.mkdir(parents=True)
+            original.write_text(json.dumps(candidate,sort_keys=True),encoding="utf-8")
+            subprocess.run(["git","add","--",path],cwd=root,check=True)
+            env={**os.environ,"GIT_AUTHOR_DATE":"2026-11-05T10:01:00+09:00",
+                 "GIT_COMMITTER_DATE":"2026-11-05T10:01:00+09:00"}
+            subprocess.run(["git","commit","-qm","freeze test research candidate"],
+                           cwd=root,env=env,check=True)
+            direct=audit.inspect(path,root)
+            self.assertEqual(len(direct["first_add_sha"]),40)
+            self.assertTrue(direct["candidate_unchanged"])
+            self.assertFalse(direct["formal"])
+            self.assertFalse(direct["remote_first_seen_verified"])
+            report=audit.audit_records([path],root)
+            self.assertEqual((report["total"],report["local_audit_passed"],
+                              report["rejected"]),(1,1,0))
+            self.assertEqual(report["by_day"]["20261105"]["rejection_reasons"],{})
+            self.assertFalse(report["remote_first_seen_verified"])
+            # A post-commit edit must never be accepted as the first-added blob.
+            original.write_text(json.dumps({**candidate,"generated_at":
+                "2026-11-05T10:02:00+09:00"}),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"candidate changed since first add"):
+                audit.inspect(path,root)
 
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
