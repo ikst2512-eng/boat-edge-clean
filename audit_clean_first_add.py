@@ -125,12 +125,19 @@ def audit_records(paths, root=ROOT, inspector=inspect):
     accepted=[]
     rejected=[]
     reasons={}
+    by_day={}
     # The CLI must use the same full-history requirement as production bulk audits.
     with bulk_first_add(root):
         for path in paths:
+            race_code=path[len("prospective_predictions/"):-5]
+            day=race_code[:8]
+            counts=by_day.setdefault(day,{"total":0,"local_audit_passed":0,"rejected":0})
+            counts["total"]+=1
             try:
                 accepted.append(inspector(path,root))
+                counts["local_audit_passed"]+=1
             except (ValueError,KeyError,TypeError,json.JSONDecodeError) as exc:
+                counts["rejected"]+=1
                 # Keep a bounded, stable reason category. No candidate may be
                 # counted as an evaluated race from this diagnostic output.
                 known={
@@ -150,6 +157,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
             "formal":False,"remote_first_seen_verified":False,
             "total":len(paths),"local_audit_passed":len(accepted),
             "rejected":len(rejected),"rejection_reasons":reasons,
+            "by_day":dict(sorted(by_day.items())),
             "local_passed_records":accepted,"rejected_records":rejected}
 
 if __name__=="__main__":
