@@ -182,18 +182,30 @@ const {chromium}=require('playwright');
   if(theme.background!=='rgb(255, 255, 255)'||theme.header!=='rgb(234, 246, 255)'||theme.important!=='rgb(187, 38, 56)'||theme.venues!==12||!theme.reviewFocused)
    throw Error('PUBLIC_THEME_OR_REVIEW_MISMATCH '+JSON.stringify(theme));
   console.log('PASS: live white/pale-blue/red theme and 12 grouped review venues');
-  // Verify the selected race's result and saved tickets share one panel in production.
+  // Current navigation uses one selected panel at a time. The forecast's
+  // saved-result cache and the distinct Result tab must agree on this race;
+  // the old combined-panel .forecast-result-preview is intentionally hidden.
   await page.evaluate(()=>{s.date='2026-10-30';s.venue=2;s.race=1;setView('forecast');render()});
   await page.waitForFunction(()=>document.getElementById('forecastResultStatus').textContent==='CLEAN保存済み確定結果'&&predictionTickets.length===10,{timeout:35000});
-  const combined=await page.evaluate(()=>({
-   hasPanel:!!document.querySelector('#forecast .forecast-combined-race'),
-   result:document.querySelector('#forecast .forecast-combined-race #forecastResultDetail')?.textContent,
-   ticketCount:document.querySelectorAll('#forecast .forecast-combined-race #predictionRows .prediction-row').length,
-   border:getComputedStyle(document.querySelector('#forecast .forecast-combined-race .forecast-result-preview')).borderTopColor
+  const forecastState=await page.evaluate(()=>({
+   forecastVisible:!document.getElementById('forecast').hidden,
+   hasForecastPanel:!!document.querySelector('#forecast .forecast-combined-race'),
+   savedResult:document.getElementById('forecastResultDetail')?.textContent,
+   ticketCount:document.querySelectorAll('#forecast #predictionRows .prediction-row').length
   }));
-  if(!combined.hasPanel||!combined.result?.includes('2 - 3 - 1')||combined.ticketCount!==10||combined.border!=='rgb(187, 38, 56)')
-   throw Error('COMBINED_FORECAST_RESULT_LAYOUT_BROKEN '+JSON.stringify(combined));
-  console.log('PASS: published race forecast and confirmed result share one panel');
+  if(!forecastState.forecastVisible||!forecastState.hasForecastPanel||
+      !forecastState.savedResult?.includes('2 - 3 - 1')||forecastState.ticketCount!==10)
+   throw Error('FORECAST_SAVED_RESULT_MISMATCH '+JSON.stringify(forecastState));
+  await page.evaluate(()=>{setView('result');render()});
+  await page.waitForFunction(()=>document.getElementById('resultStatus').textContent==='CLEAN保存済み結果',{timeout:35000});
+  const separateResult=await page.evaluate(()=>({
+   view:activeView,
+   resultVisible:!document.getElementById('resultSection').hidden,
+   detail:document.getElementById('resultDetail')?.textContent
+  }));
+  if(separateResult.view!=='result'||!separateResult.resultVisible||!separateResult.detail?.includes('2'))
+   throw Error('SEPARATE_RESULT_TAB_MISSING '+JSON.stringify(separateResult));
+  console.log('PASS: saved research forecast and confirmed result available on their respective race tabs');
   // Verify a real, newly archived 2026-10-31 forecast is visible through the published UI.
   await page.evaluate(()=>{s.date='2026-10-31';s.venue=23;s.race=1;datePinned=true;venueTouched=true;setView('forecast');render()});
   await page.waitForFunction(()=>displayedPredictionKey==='20261031-24-01'&&predictionTickets.length===10,{timeout:45000});
