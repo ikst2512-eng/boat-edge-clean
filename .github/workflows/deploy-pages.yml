@@ -73,8 +73,11 @@ jobs:
           test -s public/confirmed_results/202611031911.json
           test -s public/index.html
           test -s public/navigation.js
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      # Pages is already configured to deploy from GitHub Actions.
+      # Do not query the Pages settings API on every publish: its installation
+      # rate-limit previously blocked artifact upload before deployment began.
+      # Upload/deploy retain the existing github-pages environment and
+      # pages:write + id-token:write permissions; no bypass of deploy checks.
       - name: Upload public site
         uses: actions/upload-pages-artifact@v3
         with:
