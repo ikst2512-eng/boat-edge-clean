@@ -597,6 +597,53 @@ node() {
                         self.assertEqual(saved["published_head_sha"], head)
                         self.assertEqual(saved["published_base_sha"], "b" * 40)
 
+    def test_stale_main_blocks_paid_ai_request_before_credential_step(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        block = workflow.split(
+            "      - name: Refuse stale main before paid AI request\n", 1
+        )[1].split("      - name: Require configured AI credential\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in script.splitlines()
+        )
+        mocked = (
+            "gh() { if [[ \"$1\" == api ]]; then "
+            "printf '%s\\n' \"$MOCK_LIVE_MAIN\"; else return 8; fi; }\n"
+            + script
+        )
+        syntax = subprocess.run(["bash", "-n"], input=mocked,
+                                text=True, capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Fixture"],
+                           cwd=root, check=True)
+            (root / "navigation.js").write_text("original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "main"], cwd=root, check=True)
+            sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            for label, live, dispatched, expected in (
+                ("valid", sha, sha, True),
+                ("main-moved", "1" * 40, sha, False),
+                ("checkout-stale", sha, "2" * 40, False),
+                ("missing-main", "", sha, False),
+            ):
+                with self.subTest(case=label):
+                    env = dict(os.environ, MOCK_LIVE_MAIN=live,
+                               GITHUB_SHA=dispatched,
+                               GITHUB_REPOSITORY="example/repo")
+                    result = subprocess.run(["bash", "-c", mocked], cwd=root,
+                                            env=env, text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_ai_push_rejects_main_advance_after_commit(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
             encoding="utf-8")
