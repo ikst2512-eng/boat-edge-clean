@@ -57,15 +57,15 @@ def run(root=None, limit=240):
             continue
         winner = row["winning_ticket"]
         for key, candidate in prepared.items():
-                counts[key]["changed"] += int(candidate!=base)
-                for k in TOPS:
-                    old = winner in base[:k]
-                    new = winner in candidate[:k]
-                    bucket=counts[key]["topn"][f"top{k}"]
-                    bucket["baseline_hits"] += int(old)
-                    bucket["candidate_hits"] += int(new)
-                    bucket["gained"] += int(new and not old)
-                    bucket["lost"] += int(old and not new)
+            counts[key]["changed"] += int(candidate!=base)
+            for k in TOPS:
+                old = winner in base[:k]
+                new = winner in candidate[:k]
+                bucket=counts[key]["topn"][f"top{k}"]
+                bucket["baseline_hits"] += int(old)
+                bucket["candidate_hits"] += int(new)
+                bucket["gained"] += int(new and not old)
+                bucket["lost"] += int(old and not new)
         evaluated.append(code)
     n=len(evaluated)
     for scenario in counts.values():
