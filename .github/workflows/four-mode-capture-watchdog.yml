@@ -6,6 +6,15 @@ on:
     - cron: '50 12 * * *'
     - cron: '20 13 * * *'
   workflow_dispatch:
+  # Independent completion events can wake CLEAN recovery if GitHub omits
+  # this workflow's own cron. Only successful same-repository main schedules
+  # are trusted; script independently validates parent provenance.
+  workflow_run:
+    workflows:
+      - 'Four-mode prospective capture (research only)'
+      - 'CLEAN independent daily schedule capture'
+      - 'Preview capture (schedule)'
+    types: [completed]
   # Main updates provide an opportunistic fallback if GitHub drops cron events.
   # Check five minutes after each planned 15-minute capture. The 14-minute
   # success/cooldown window preserves separate slots while active jobs block
@@ -33,6 +42,7 @@ concurrency:
   queue: max
 jobs:
   watchdog:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -44,6 +54,9 @@ jobs:
         id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog
       - name: Check recent capture runs before fallback dispatch
+        # An independent schedule completion is only a CLEAN recovery wakeup;
+        # do not use this extra trigger to publish unrelated Four-mode runs.
+        if: ${{ github.event_name != 'workflow_run' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
@@ -121,7 +134,7 @@ jobs:
       # Separate from capture recovery: missing V2 nightly runs should not
       # silently pass merely because research PR tests were green.
       - name: Dispatch one missed V2 nightly research run
-        if: ${{ always() && github.event_name != 'pull_request' }}
+        if: ${{ always() && github.event_name != 'pull_request' && github.event_name != 'workflow_run' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
