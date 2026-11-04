@@ -60,8 +60,11 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
                          "topn_hits": hits,
                          "historical_topn_pct": {k: round(100 * v / len(eligible), 2)
                                                  if eligible else None for k, v in hits.items()}}
-    paired = {}
-    for left, right in (("narrow", "hit"), ("hit", "balance"), ("balance", "hole")):
+    # All six unordered mode pairs on exactly the same eligible race IDs.
+    # Keep the historical three adjacent pairs below for existing consumers.
+    pairwise = {}
+    for left, right in (("narrow", "hit"), ("narrow", "balance"), ("narrow", "hole"),
+                        ("hit", "balance"), ("hit", "hole"), ("balance", "hole")):
         topn = {}
         for n in (1, 3, 5, 10):
             key = f"top{n}"
@@ -78,17 +81,34 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
             topn[key] = counts
         # Preserve the old top10 contract for existing research consumers.
         ten = topn["top10"]
-        paired[left + "_vs_" + right] = {
+        pairwise[left + "_vs_" + right] = {
             "evaluated": len(eligible), "both_top10": ten["both"],
             "left_only_top10": ten["left_only"], "right_only_top10": ten["right_only"],
             "neither_top10": ten["neither"], "topn": topn, "formal": False}
+    legacy_pairs = {key: pairwise[key] for key in
+                    ("narrow_vs_hit", "hit_vs_balance", "balance_vs_hole")}
+    # The winning result is consulted only for retrospective audit, never for
+    # model ranking or deciding which candidate ticket to replace.
+    per_race = [
+        {"race_code": row["race_code"],
+         "winning_ticket": row.get("winning_ticket"),
+         "modes": {mode: {
+             "winning_rank": row["modes"][mode]["winning_rank"],
+             "top1": row["modes"][mode]["winning_rank"] == 1,
+             "top3": row["modes"][mode]["top3"],
+             "top5": row["modes"][mode]["top5"],
+             "top10": row["modes"][mode]["top10"],
+             "coverage_diagnostic": row["modes"][mode]["coverage_diagnostic"]}
+             for mode in MODES}}
+        for row in eligible]
     return {"schema": "FOUR_MODE_HISTORICAL_AI_BATCH_V1",
             "formal": False, "simulated_only": True, "model_improvement_proven": False,
             "remote_first_seen_verified": False,
             "requested": len(codes), "historical_comparable": len(eligible),
             "unavailable": [{"race_code": row.get("race_code"), "status": row.get("status")}
                             for row in rows if row not in eligible],
-            "modes": by_mode, "paired_top10": paired,
+            "modes": by_mode, "paired_top10": legacy_pairs,
+            "pairwise_topn": pairwise, "per_race": per_race,
             "warning": "Historical coverage only; not independently predeadline verified. No racing dynamics cause inferred."}
 
 
