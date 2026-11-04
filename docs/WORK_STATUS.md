@@ -1,3 +1,17 @@
+## 2026-11-04 20:15 JST 実証：公式展示6艇＋オッズ120通りがT−12前に揃った1レース
+- PR #1628初期head `82e821fdbd7f4b65da00b40a829b19510c00c6b1` の既存CI `41819205922`（event=pull_request）success。下関7R `202611041907`、締切20:25/T−12=20:13に対し、公式beforeinfo JSON受信20:11:46.513411、公式odds HTML受信20:11:55.812353。展示タイム・チルト・ST・展示進入6艇、120通りが全て原本から検証され、both_complete_before_t12=true。桐生12Rは同runで展示未完成、falseのまま。
+- Artifact `13315119405` `independent-late-preview-41819205922`（28,215 bytes）を実ダウンロード。ZIP SHA256 `6f5ee2e9ead169dad4bed4b3ed314507ccf3d77c931c12ece0088a6d0ddb1616` をGitHub digestと一致確認、安全展開して既存`audit_joint_official_receipts.audit_pair`で両レースを独立再監査。下関7Rの全7component checks=true、missing_components=[]を再確認。
+- ダウンロードしたZIPと再監査JSONは `docs/observations/official_joint_ci_41819205922.zip` / `official_joint_ci_41819205922_recheck.json` に非期限切れのGit原本として保存。最初の20:07手動負例も別名ZIPのまま保持し、成功例へ書き換えていない。
+- これはPR実行による2ソースの実測であり、scheduleの無人実行成功ではない。公式出走表原本と最終実進入は別未達のため、full_t12_source_certified=false、forecast_usable=false、t12_eligible=falseを維持。予想原本・買い目・正式採点分母は変更なし。CSV収集独立性を追加した最新headのCIを確認後に統合する。
+
+## 2026-11-04 20:08 JST 継続：公式原本の定期保存接続（PR検証待ち）
+- 既存の `Research independent late preview evidence` はCSV原本行だけを保存し、#1617で表示可能になった公式展示JSONを定期保存していなかった。新しいcron/Workflowを増やさず、既存5分間隔ジョブへ公式ソースペア収集を追加。
+- `scripts/capture_joint_preview_batch.py` は当日・ソース日程一致・締切まで12分40秒超/1時間未満の最大2レースだけを選定。既存beforeinfo JSON / official odds HTML collector、atomic publish、joint原文再監査、T−12 decisionを再利用。公式JSONから得た締切以外をオッズ判定に使わず、受信中にT−12を跨げばオッズ取得を止める。上書き禁止・symlink root拒否・失敗時もbatch reportを保存。
+- 公式取得の失敗で既存CSV処理を止めないよう、公式stepの失敗を一時保持してCSV収集・既存研究archiveを独立に実行し、その後に専用stepでジョブをfailさせる。artifact uploadはalwaysを維持。
+- 原本は `official_joint_evidence/` に隔離し、既存artifact（90日保持）に同梱。既存CSV由来late_research_candidates、予想原本、モデル、採点、旧サイト、Render APIには接続しない。source_capture_failedはジョブを失敗させ、候補なし/未完成/取得失敗/完全ペアを区別。完全ペアでも公式出走表・最終進入は別なので full_t12_source_certified=false、forecast_usable=falseを維持。
+- ローカル手動実測20:07 JST: 下関7R・桐生12Rの公式JSON2件と公式オッズHTML2件（各120通り）を原文保存、SHA256と原文再監査一致。両方ともT−12前に受信したが展示/STが未完成でcomplete_pairs_before_t12=0。未完成を成功へ昇格しない。summaryは `docs/observations/official_joint_batch_20261104_2007.json`、原文＋manifest9ファイルは同名ZIPへ保存。
+- ローカル回帰: batch orchestration7件、CSV paired coverage4件、official joint audit7件成功（計18件）。PR CIと実ジョブartifactを確認してから統合・定期保存の反映を判定する。これは無人オッズ監視#1593の復旧認定ではない。
+
 ## 2026-11-04 19:58 JST 継続完了：公式展示補完をRender API・画面で実証
 - オッズ記録 #1615 を `b58734f38b818de9ee91505a32489d65744fc592` で統合。exact-head `deeec31428f525229ace9f3d5f5b3ac40dcfb6f5` / CI `41816503204` 成功（27+18+42+9件）。PRイベントの実サンプルも3/3 HTTP200、原応答120通り再検証3、ソース締切T−12相対2。PR/manualを無人実行へ算入しない。最初のPRイベントでCI未起動・mergeable unknownが続いたため、同PRのclose/reopenを1回だけ行い既存CIを再起動。新規重複PR/cronなし。他担当の #1618（14日集計の原応答再検証）もmainに保持。
 - 公式展示補完 #1617 は最新head `d3e99714c44981aa895072e2e0fcef51d3055c3c` の6ワークフロー全てsuccessを確認し、`a80cce16a459f117e5cdbd773d023fc13a368cc4` でmain統合。Navigation `41817312504` のChromium/WebKit成功。実ソース検査 `41817312224` job `126531237592` は19:54:39 JST 下関6R（19:56締切）の公式展示6艇・ST6艇を実取得して成功。過去時刻の偽装や未取得の成功化なし。

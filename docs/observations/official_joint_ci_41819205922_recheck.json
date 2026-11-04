@@ -1,0 +1,71 @@
+{
+  "workflow_run_id": 41819205922,
+  "event": "pull_request",
+  "artifact_id": 13315119405,
+  "zip_sha256": "6f5ee2e9ead169dad4bed4b3ed314507ccf3d77c931c12ece0088a6d0ddb1616",
+  "pairs": [
+    {
+      "race_code": "202611041907",
+      "cutoff_jst": "2026-11-04T20:13:00+09:00",
+      "before_received_jst": "2026-11-04T20:11:46.513411+09:00",
+      "odds_received_jst": "2026-11-04T20:11:55.812353+09:00",
+      "originals_hash_verified": true,
+      "exhibition_complete": true,
+      "odds_120_complete": true,
+      "both_complete_before_t12": true,
+      "component_checks": {
+        "six_unique_boats": true,
+        "exhibition_time_six": true,
+        "tilt_six": true,
+        "start_exhibition_six": true,
+        "beforeinfo_received_by_t12": true,
+        "official_odds_120": true,
+        "odds_received_by_t12": true
+      },
+      "missing_components": [],
+      "independent_source_coverage": {
+        "official_racecard_original": false,
+        "official_entry_original": false,
+        "official_beforeinfo_original": true,
+        "official_odds_original": true
+      },
+      "full_t12_source_certified": false,
+      "forecast_usable": false,
+      "t12_eligible": false
+    },
+    {
+      "race_code": "202611040112",
+      "cutoff_jst": "2026-11-04T20:19:00+09:00",
+      "before_received_jst": "2026-11-04T20:12:04.127920+09:00",
+      "odds_received_jst": "2026-11-04T20:12:14.469524+09:00",
+      "originals_hash_verified": true,
+      "exhibition_complete": false,
+      "odds_120_complete": true,
+      "both_complete_before_t12": false,
+      "component_checks": {
+        "six_unique_boats": true,
+        "exhibition_time_six": false,
+        "tilt_six": true,
+        "start_exhibition_six": false,
+        "beforeinfo_received_by_t12": true,
+        "official_odds_120": true,
+        "odds_received_by_t12": true
+      },
+      "missing_components": [
+        "exhibition_time_six",
+        "start_exhibition_six"
+      ],
+      "independent_source_coverage": {
+        "official_racecard_original": false,
+        "official_entry_original": false,
+        "official_beforeinfo_original": true,
+        "official_odds_original": true
+      },
+      "full_t12_source_certified": false,
+      "forecast_usable": false,
+      "t12_eligible": false
+    }
+  ],
+  "formal": false,
+  "forecast_usable": false
+}
