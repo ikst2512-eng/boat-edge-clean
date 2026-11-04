@@ -413,6 +413,11 @@ def main():
         "upstream_event": trigger.get("upstream_event"),
         "upstream_run_id": trigger.get("upstream_run_id"),
         "direct_schedule_guard": schedule_guard}), flush=True)
+    # A marked recovery that fails freshness/branch validation must fail the
+    # workflow, not quietly produce a green job with skipped odds sampling.
+    # The ineligible JSON artifact has already been written above.
+    if event == "workflow_dispatch" and trigger.get("rescue_slot_jst") and not allowed:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
