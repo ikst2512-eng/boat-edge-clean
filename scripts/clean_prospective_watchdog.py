@@ -24,6 +24,8 @@ TRUSTED_SCHEDULES = frozenset({
     # odds probe 22:07 JST and entry T−12 research archive 21:15 JST.
     "CLEAN live official trifecta odds probe",
     "Entry research T-minus-12 baseline archival",
+    # Observed independent main schedule run #41836305578 (22:14 JST).
+    "Research independent late preview evidence",
 })
 
 

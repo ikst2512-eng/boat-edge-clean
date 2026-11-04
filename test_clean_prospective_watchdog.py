@@ -114,6 +114,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "Preview capture (schedule)",
             "CLEAN live official trifecta odds probe",
             "Entry research T-minus-12 baseline archival",
+            "Research independent late preview evidence",
         )
         for source in allowed:
             with self.subTest(source=source):
@@ -179,6 +180,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "Preview capture (schedule)",
             "CLEAN live official trifecta odds probe",
             "Entry research T-minus-12 baseline archival",
+            "Research independent late preview evidence",
         ):
             self.assertIn("- '" + name + "'", workflow)
         self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
@@ -188,6 +190,16 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", workflow)
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
         self.assertIn("cron: '13,29,44 13 * * *'", workflow)
+
+    def test_late_preview_parent_is_an_existing_independent_schedule(self):
+        independent = Path(
+            ".github/workflows/research-live-preview-evidence.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("name: Research independent late preview evidence", independent)
+        self.assertIn("  schedule:", independent)
+        # The watcher does not react to this parent's PR/manual jobs:
+        # only verified successful same-repository main schedule completions.
+        self.assertIn("    - cron: '*/5 0-12 * * *'", independent)
 
     def test_untrusted_workflow_run_writes_no_dispatch_evidence_without_api(self):
         from scripts import clean_prospective_watchdog as mod
