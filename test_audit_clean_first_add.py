@@ -148,7 +148,8 @@ class FirstAddAuditTests(unittest.TestCase):
         self.assertEqual(result["rejection_reasons"],
                          {"source_receipt_after_generation":1})
         self.assertEqual(result["by_day"],{"20261104":{
-            "total":2,"local_audit_passed":1,"rejected":1}})
+            "total":2,"local_audit_passed":1,"rejected":1,
+            "rejection_reasons":{"source_receipt_after_generation":1}}})
         self.assertEqual(result["rejected_records"][0]["race_code"],"202611040404")
         self.assertFalse(result["formal"])
         self.assertFalse(result["remote_first_seen_verified"])
@@ -169,9 +170,12 @@ class FirstAddAuditTests(unittest.TestCase):
         self.assertEqual(output["local_audit_passed"],1)
         self.assertEqual(output["rejected"],2)
         self.assertEqual(output["by_day"],{
-            "20261028":{"total":1,"local_audit_passed":0,"rejected":1},
-            "20261104":{"total":1,"local_audit_passed":0,"rejected":1},
-            "20261105":{"total":1,"local_audit_passed":1,"rejected":0}})
+            "20261028":{"total":1,"local_audit_passed":0,"rejected":1,
+                         "rejection_reasons":{"source_receipt_after_generation":1}},
+            "20261104":{"total":1,"local_audit_passed":0,"rejected":1,
+                         "rejection_reasons":{"source_receipt_after_generation":1}},
+            "20261105":{"total":1,"local_audit_passed":1,"rejected":0,
+                         "rejection_reasons":{}}})
         self.assertFalse(output["formal"])
         self.assertFalse(output["remote_first_seen_verified"])
 
