@@ -329,6 +329,94 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Check a real JST-day race across four published tabs (diagnostic)
+        timeout-minutes: 4
+        # Live sources are external and may not have published today's card yet.
+        # An unavailable source is reported as UNVERIFIED, not as a passed live test.
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const fs=require('node:fs');
+          const summary=message=>fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,message+'\n');
+          (async()=>{
+            const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replaceAll('-','');
+            const browser=await chromium.launch({headless:true});
+            let selected=null;
+            try{
+              const api=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              const schedule=await api.request.get('https://boat-edge-clean.onrender.com/api/clean-schedule?date='+day,{timeout:20000});
+              if(schedule.status()!==200)throw Error('schedule_http_'+schedule.status());
+              const feed=await schedule.json();
+              if(feed.ok!==true||feed.date!==day||!Array.isArray(feed.races))throw Error('schedule_unverified');
+              // Take only explicitly named CLEAN races; never infer missing venues or numbers.
+              const candidates=feed.races.filter(x=>/^\d{2}$/.test(x.venue_code||'')&&
+                Number(x.venue_code)>=1&&Number(x.venue_code)<=24&&
+                Number.isInteger(x.race_no)&&x.race_no>=1&&x.race_no<=12).slice(0,8);
+              for(const race of candidates){
+                const query='hd='+day+'&jcd='+Number(race.venue_code)+'&rno='+race.race_no;
+                let result;
+                try{result=await api.request.get('https://boat-edge-clean.onrender.com/api/clean-racecard?'+query,{timeout:12000})}
+                catch(_){continue}
+                if(result.status()!==200)continue;
+                const card=await result.json();
+                const key=day+'-'+race.venue_code+'-'+String(race.race_no).padStart(2,'0');
+                if(card.race_key===key&&Array.isArray(card.racers)&&card.racers.length===6&&
+                  new Set(card.racers.map(x=>x.lane)).size===6){selected={race,key};break}
+              }
+              if(!selected)throw Error('no_verified_six_racer_card_in_first_eight_published_races');
+              const url=new URL(process.env.PAGE_URL);
+              url.searchParams.set('date',day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8));
+              url.searchParams.set('venue',selected.race.venue_code);
+              url.searchParams.set('race',String(selected.race.race_no));
+              url.searchParams.set('view','card');
+              url.searchParams.delete('follow');
+              const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+              const failures=[];page.on('pageerror',e=>failures.push(e.message));
+              const publicPage=await page.goto(url.toString(),{waitUntil:'domcontentloaded',timeout:30000});
+              if(!publicPage||publicPage.status()!==200)throw Error('published_page_http_'+publicPage?.status());
+              // Exercise the same user click that invokes render/loadRaceData.
+              // setView('card') alone only toggles visibility; it does not fetch racers.
+              // Deep-linked Pages may initially show the home view with race tabs hidden.
+              // Transition to the selected race with the same setView+render sequence
+              // that navigation.js runs after a real user selects a race tab.
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              await page.evaluate(()=>{setView('card');render()});
+              try{
+                await page.waitForFunction(()=>document.querySelectorAll('#mobileRaceCards .mobile-racer').length===6,null,{timeout:30000});
+              }catch(error){
+                const state=await page.evaluate(()=>({
+                  race:typeof sameRaceKey==='function'?sameRaceKey():null,
+                  active:typeof activeView==='string'?activeView:null,
+                  dataStatus:document.getElementById('raceDataStatus')?.textContent,
+                  source:document.getElementById('raceDataSource')?.textContent,
+                  venueState:document.getElementById('venueState')?.textContent,
+                  cardCount:document.querySelectorAll('#mobileRaceCards .mobile-racer').length
+                }));
+                throw Error('six_racer_browser_unverified '+JSON.stringify(state)+' '+error.message);
+              }
+              await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              if(await page.evaluate(()=>sameRaceKey())!==selected.key)throw Error('race_changed_during_display');
+              for(const view of ['card','exhibit','forecast','result']){
+                await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
+                if(await page.evaluate(()=>activeView)!==view)throw Error('tab_not_selected_'+view);
+                if(await page.evaluate(()=>sameRaceKey())!==selected.key)throw Error('race_changed_in_'+view);
+              }
+              if(failures.length)throw Error('browser_js_errors_'+failures.join(';').slice(0,240));
+              console.log('CLEAN_LIVE_DAY_BROWSER_VERIFIED',selected.key);
+              summary('Live JST-day Pages browser (390px, 4 tabs, six racers): **VERIFIED** '+selected.key+
+                ' (source card verified on Render; predictions/exhibition/results not claimed complete)');
+            }catch(error){
+              console.error('CLEAN_LIVE_DAY_BROWSER_UNVERIFIED',day,selected?.key||'',error.message);
+              summary('Live JST-day Pages browser: **UNVERIFIED** '+day+' '+(selected?.key||'')+
+                ' reason='+String(error.message).replace(/[\r\n]/g,' ').slice(0,240)+
+                ' (does not change historic browser or formal forecast results)');
+              throw error;
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
       - name: Browser-check deployed page
         timeout-minutes: 2
         env:

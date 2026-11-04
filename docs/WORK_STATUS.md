@@ -1,3 +1,9 @@
+## 2026-11-04 JST サイト担当：実開催日の公開Pagesブラウザ観測を既存ワークフローへ追加（PR #1565）
+- 未完了ゲート: 当日レースのRender API HTTP200（例：2026-11-04 桐生1R・芦屋1R）は取得済みだが、同じ当日レースの公開Pages 4タブ実ブラウザ表示は未証明。既存Pages成功run #41684583216 は保存済み過去レースの4タブ・結果・390px Chromiumを検証済み。iPhone Safari実機の証拠ではない。
+- 新しいワークフローを増やさず、既存 `.github/workflows/deploy-pages.yml` に当日JST開催日程→Renderの同一レース6艇HTTP200確認→公開Pagesで選択レース一致・6艇カード・4タブ切替を観測する**診断ステップ**を追加。外部取得源が未公開・障害の場合は `UNVERIFIED` と実行サマリーに明記し、診断失敗だけでは既存Pagesの過去レース公開試験を失敗にしない。
+- PR #1565 head `5b4badacb3495b73cacbbd614ec42fa1af1f7e1a` の公開スモーク／チェックCIは成功。現時点で当日実ブラウザの `VERIFIED`、iPhone Safari実機、予想・展示・結果データの全件実証は**未取得**。PRのmain統合と公開後の当該診断ログを確認して結果を追記する。
+- 予想モデル・精度検証・原本・旧repo・旧サイト・旧scheduled workflowsは未変更。旧サイト停止は独立原本保存・復旧・公開同等性を証明するまで禁止。
+
 ## 2026-11-04 JST サイト担当：部分開催日程で出走表を誤って遮断しない（PR準備）
 - 既存PR #786の開催場・レースピッカー修正はRender `40f4c8ed` live。今回の読取では当日2026-11-04の `schedule_snapshots/20261104.json` はmainに存在せず、Renderの `/api/clean-schedule` 200 と住之江1R/5R `/api/clean-racecard` 404 を記録。API 200だけで全開催の完全性・住之江開催有無は断定しない。
 - `index.html` の `loadRaceData` が `partial_coverage!==true` だけで存在しないレース扱いしており、選択ガード側が除外している `historical_result_only===true` の部分的な結果復元まで誤遮断する不一致を確認。すでに導入済みの共通 `completeHeldSchedule()` を出走表経路でも使い、事実未確認で404扱いや「開催なし」表示をしない。
