@@ -37,7 +37,10 @@ permissions:
   actions: read
   contents: read
 concurrency:
-  group: four-mode-watchdog-main
+  # The main schedule, trusted independent workflow_run and main-push rescue
+  # must serialize to avoid racing to dispatch the same CLEAN capture.
+  # PR unit tests and known-ineligible parents cannot delay that queue.
+  group: ${{ github.event_name == 'pull_request' && format('four-mode-watchdog-pr-{0}', github.run_id) || (github.event_name == 'workflow_run' && (github.event.workflow_run.event != 'schedule' || github.event.workflow_run.head_branch != 'main' || github.event.workflow_run.conclusion != 'success')) && format('four-mode-watchdog-ineligible-{0}', github.run_id) || 'four-mode-watchdog-main' }}
   cancel-in-progress: false
   queue: max
 jobs:

@@ -211,6 +211,25 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
                  "clean-prospective-watchdog-decision.json").read_text())
             self.assertEqual(report["action"], "no_dispatch")
 
+    def test_pr_and_untrusted_parent_cannot_block_operational_watchdog_queue(self):
+        workflow = Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        concurrency = workflow.split("concurrency:", 1)[1].split("jobs:", 1)[0]
+        # The same operational group must serialize main push, schedule and
+        # trusted scheduled-workflow completions to prevent double dispatch.
+        self.assertIn("'four-mode-watchdog-main'", concurrency)
+        self.assertIn("github.event_name == 'pull_request'", concurrency)
+        self.assertIn("format('four-mode-watchdog-pr-{0}', github.run_id)", concurrency)
+        self.assertIn("github.event_name == 'workflow_run'", concurrency)
+        self.assertIn("github.event.workflow_run.event != 'schedule'", concurrency)
+        self.assertIn("github.event.workflow_run.head_branch != 'main'", concurrency)
+        self.assertIn("github.event.workflow_run.conclusion != 'success'", concurrency)
+        self.assertIn("format('four-mode-watchdog-ineligible-{0}', github.run_id)", concurrency)
+        self.assertIn("cancel-in-progress: false", concurrency)
+        self.assertIn("queue: max", concurrency)
+        # No additional wake-up schedule or authorization added by isolation.
+        self.assertEqual(workflow.count("- cron:"), 3)
+        self.assertIn("if: ${{ github.event_name != 'workflow_run'", workflow)
+
     def test_workflow_reuses_existing_schedule_and_immutable_collector(self):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
