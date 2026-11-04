@@ -42,13 +42,22 @@ def within_planned_recovery_slot(now):
         raise ValueError("timezone_required")
     local = now.astimezone(timezone(timedelta(hours=9)))
     minute_of_day = local.hour * 60 + local.minute
+    # The primary cron must have a chance to be registered/running before a
+    # separate push or workflow_run wakes a fallback. Align the normal grace
+    # with the independent Render wakeup's earliest +6 minute check.
+    grace_minutes = 6
     for hour in range(7, 22):
         for minute in (4, 19, 34, 49):
-            if 0 <= minute_of_day - (hour * 60 + minute) < WINDOW_MINUTES:
+            age = minute_of_day - (hour * 60 + minute)
+            if grace_minutes <= age < WINDOW_MINUTES:
                 return True
-    for minute in (4, 19, 28):
-        maximum_age = 5 if minute == 28 else WINDOW_MINUTES
-        if 0 <= minute_of_day - (22 * 60 + minute) < maximum_age:
+    # Late CLEAN slots include a one-off 22:28 attempt. The 22:19 fallback
+    # must not launch a new job at exactly 22:28 while the final cron starts.
+    if local.hour == 22 and 28 <= local.minute <= 32:
+        return local.minute >= 29
+    for minute in (4, 19):
+        age = minute_of_day - (22 * 60 + minute)
+        if grace_minutes <= age < WINDOW_MINUTES:
             return True
     return False
 
