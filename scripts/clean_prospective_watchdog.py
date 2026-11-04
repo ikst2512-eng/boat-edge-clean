@@ -15,12 +15,40 @@ from scripts.four_mode_watchdog_policy import should_dispatch
 WORKFLOW = "clean-prospective.yml"
 OUTPUT = Path("four-mode-evidence/clean-prospective-watchdog-decision.json")
 WINDOW_MINUTES = 14
+# Existing independent scheduled workflows; no extra cron or publication path.
+TRUSTED_SCHEDULES = frozenset({
+    "Four-mode prospective capture (research only)",
+    "CLEAN independent daily schedule capture",
+    "Preview capture (schedule)",
+})
 
 
-def decide(runs, now, event_name, ref):
-    """Only main's actual scheduled/manual executions may suppress recovery."""
+def trusted_schedule_completion(payload, repository):
+    """Accept only a successful scheduled main run of a known same-repo workflow."""
+    if not isinstance(payload, dict) or not repository:
+        return False
+    upstream = payload.get("workflow_run")
+    if not isinstance(upstream, dict):
+        return False
+    head_repo = upstream.get("head_repository")
+    return (
+        upstream.get("name") in TRUSTED_SCHEDULES
+        and upstream.get("event") == "schedule"
+        and upstream.get("head_branch") == "main"
+        and upstream.get("status") == "completed"
+        and upstream.get("conclusion") == "success"
+        and isinstance(head_repo, dict)
+        and head_repo.get("full_name") == repository
+    )
+
+
+def decide(runs, now, event_name, ref, *, trigger=None, repository=None):
+    """Only trusted main branch schedules can wake recovery from another workflow."""
     if ref != "refs/heads/main" or event_name not in (
-            "schedule", "push", "workflow_dispatch"):
+            "schedule", "push", "workflow_dispatch", "workflow_run"):
+        return False
+    if event_name == "workflow_run" and not trusted_schedule_completion(
+            trigger, repository):
         return False
     publication = [run for run in runs
                    if run.get("event") in ("schedule", "workflow_dispatch")
@@ -62,6 +90,14 @@ def main():
     now = datetime.now(timezone.utc)
     event = os.environ["GITHUB_EVENT_NAME"]
     ref = os.environ["GITHUB_REF"]
+    repository = os.environ.get("GH_REPOSITORY")
+    # workflow_run is privileged: never trust a PR/manual/foreign-repo parent.
+    # Refuse missing, malformed or incomplete provenance before API access.
+    trigger = None
+    if event == "workflow_run":
+        trigger_path = os.environ.get("GITHUB_EVENT_PATH")
+        if trigger_path:
+            trigger = json.loads(Path(trigger_path).read_text(encoding="utf-8"))
     report = {
         "schema": "CLEAN_PROSPECTIVE_WATCHDOG_DECISION_V1",
         "github_run_id": os.environ["GITHUB_RUN_ID"],
@@ -73,11 +109,22 @@ def main():
         "remote_first_seen_verified": False,
         "new_forecast_saved_proven": False,
         "action": "no_dispatch",
+        "upstream_workflow": (
+            trigger.get("workflow_run", {}).get("name")
+            if isinstance(trigger, dict) and isinstance(trigger.get("workflow_run"), dict)
+            else None
+        ),
+        "upstream_run_id": (
+            trigger.get("workflow_run", {}).get("id")
+            if isinstance(trigger, dict) and isinstance(trigger.get("workflow_run"), dict)
+            else None
+        ),
     }
     try:
         # No token/network needed outside main's pre-cutoff collection hours.
-        if not decide([], now, event, ref):
-            report["reason"] = "out_of_hours_or_nonmain"
+        if not decide([], now, event, ref,
+                      trigger=trigger, repository=repository):
+            report["reason"] = "out_of_hours_or_untrusted_trigger"
             return
         repo = os.environ["GH_REPOSITORY"]
         token = os.environ["GH_TOKEN"]
@@ -86,7 +133,8 @@ def main():
         report["observed_main_runs"] = len(main_runs)
         report["newest_main_run_utc"] = max(
             (r["created_at"] for r in main_runs), default=None)
-        if decide(runs, now, event, ref):
+        if decide(runs, now, event, ref,
+                  trigger=trigger, repository=repository):
             # At most one best-effort fallback per 14m window. The collector
             # itself retains all original T-12, 90s, append-only and audit gates.
             dispatch(root, headers)
