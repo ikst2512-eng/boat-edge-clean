@@ -1,10 +1,12 @@
 import hashlib
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, inspect_post_fix_record, post_fix_paths, with_execution_receipt, diagnostic_summary
+from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, inspect_post_fix_record, post_fix_paths, with_execution_receipt, diagnostic_summary, verify_model_provenance
 
 
 class PostFixCohortTests(unittest.TestCase):
@@ -65,7 +67,8 @@ class PostFixCohortTests(unittest.TestCase):
                     "input_sha256":digest}
             (root/path).write_text(json.dumps(record))
             with patch("audit_clean_post_fix_cohort.inspect",
-                       return_value={"race_code":"202611050404","formal":False}):
+                       return_value={"race_code":"202611050404","formal":False,"first_add_sha":"b"*40}), \
+                 patch("audit_clean_post_fix_cohort.verify_model_provenance",return_value={}):
                 result=inspect_post_fix_record(path,root)
             self.assertEqual(result["input_source_kind"],"public_pre_race_csv")
             self.assertFalse(result["raw_remote_receipt_verified"])
@@ -77,7 +80,8 @@ class PostFixCohortTests(unittest.TestCase):
             record["source_cards_sha256"]=title
             record["input_sha256"]=hashlib.sha256((title+":"+title).encode()).hexdigest()
             (root/path).write_text(json.dumps(record))
-            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={"first_add_sha":"b"*40}), \
+                 patch("audit_clean_post_fix_cohort.verify_model_provenance",return_value={}):
                 self.assertEqual(inspect_post_fix_record(path,root)["input_source_kind"],
                                  "nonofficial_openapi_v1")
             record["input_sha256"]="0"*64
@@ -116,7 +120,8 @@ class PostFixCohortTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError,"race identity"):
                         inspect_post_fix_record(path,root)
             (d/"202611050404.json").write_text(json.dumps(record))
-            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={"first_add_sha":"b"*40}), \
+                 patch("audit_clean_post_fix_cohort.verify_model_provenance",return_value={}):
                 result=inspect_post_fix_record(path,root)
             self.assertEqual(result["input_source_kind"],"public_pre_race_csv")
             self.assertFalse(result["raw_remote_receipt_verified"])
@@ -172,6 +177,49 @@ class PostFixCohortTests(unittest.TestCase):
         self.assertEqual(json.loads(diagnostic_summary({
             "status":"pending_no_new_capture","candidate_count":0
         }))["rejection_reasons"],{})
+
+    def test_model_provenance_uses_real_git_ancestry_and_original_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            subprocess.run(["git","init","-q"],cwd=root,check=True)
+            subprocess.run(["git","config","user.name","Audit test"],cwd=root,check=True)
+            subprocess.run(["git","config","user.email","audit@example.invalid"],cwd=root,check=True)
+            original=b"# frozen research model\\n"
+            (root/"research_model.py").write_bytes(original)
+            subprocess.run(["git","add","research_model.py"],cwd=root,check=True)
+            subprocess.run(["git","commit","-qm","model source"],cwd=root,check=True)
+            model_sha=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
+            (root/"candidate.txt").write_text("new candidate")
+            subprocess.run(["git","add","candidate.txt"],cwd=root,check=True)
+            subprocess.run(["git","commit","-qm","first freeze"],cwd=root,check=True)
+            first_sha=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
+            record={"model_git_sha":model_sha,
+                    "model_source_sha256":hashlib.sha256(original).hexdigest(),
+                    "model_dependency_scope":"research_model.py_only_not_complete_environment"}
+            result=verify_model_provenance(record,first_sha,root)
+            self.assertEqual(result["model_git_sha"],model_sha)
+            self.assertEqual(result["model_source_sha256"],record["model_source_sha256"])
+            with self.assertRaisesRegex(ValueError,"model provenance"):
+                verify_model_provenance({**record,"model_source_sha256":"0"*64},first_sha,root)
+            with self.assertRaisesRegex(ValueError,"model provenance"):
+                verify_model_provenance({**record,"model_dependency_scope":"complete"},first_sha,root)
+            (root/"research_model.py").write_text("later new model")
+            subprocess.run(["git","add","research_model.py"],cwd=root,check=True)
+            subprocess.run(["git","commit","-qm","new unrelated model"],cwd=root,check=True)
+            late_sha=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
+            with self.assertRaisesRegex(ValueError,"model provenance"):
+                verify_model_provenance({**record,"model_git_sha":late_sha,
+                                         "model_source_sha256":hashlib.sha256(
+                                             b"later new model").hexdigest()},first_sha,root)
+
+    def test_model_provenance_invalid_sha_cannot_invoke_git(self):
+        with patch("audit_clean_post_fix_cohort.subprocess.check_output") as git:
+            with self.assertRaisesRegex(ValueError,"model provenance"):
+                verify_model_provenance({"model_git_sha":"notasha",
+                    "model_source_sha256":"a"*64,
+                    "model_dependency_scope":"research_model.py_only_not_complete_environment"},
+                    "b"*40,Path("/tmp"))
+            git.assert_not_called()
 
     def test_no_new_capture_is_pending_not_success(self):
         with tempfile.TemporaryDirectory() as tmp:

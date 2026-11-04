@@ -26,6 +26,31 @@ def post_fix_paths(root=ROOT):
     )
 
 
+def verify_model_provenance(candidate, first_add_sha, root):
+    """Verify the archived model file at its ancestral Git commit."""
+    model_sha = candidate.get("model_git_sha")
+    source_sha = candidate.get("model_source_sha256")
+    if (not isinstance(model_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", model_sha)
+            or not isinstance(source_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", source_sha)
+            or not isinstance(first_add_sha, str)
+            or not re.fullmatch(r"[0-9a-f]{40}", first_add_sha)
+            or candidate.get("model_dependency_scope") != "research_model.py_only_not_complete_environment"):
+        raise ValueError("post-fix model provenance invalid")
+    try:
+        original = subprocess.check_output(
+            ["git", "show", model_sha + ":research_model.py"],
+            cwd=root, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", model_sha, first_add_sha],
+            cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError("post-fix model provenance invalid") from exc
+    if hashlib.sha256(original).hexdigest() != source_sha:
+        raise ValueError("post-fix model provenance invalid")
+    return {"model_git_sha": model_sha, "model_source_sha256": source_sha,
+            "model_dependency_scope": "research_model.py_only_not_complete_environment"}
+
+
 def inspect_post_fix_record(path, root=ROOT):
     """Require traceable input provenance on every post-fix local candidate."""
     result = inspect(path, root)
@@ -64,10 +89,11 @@ def inspect_post_fix_record(path, root=ROOT):
         raise ValueError("post-fix race identity invalid") from exc
     if deadline.strftime("%Y%m%d") != code[:8]:
         raise ValueError("post-fix race identity invalid")
+    model = verify_model_provenance(candidate, result["first_add_sha"], root)
     return {**result, "input_source_kind": kind,
             "source_title_sha256": title, "source_cards_sha256": cards,
             "input_sha256": combined,
-            "raw_remote_receipt_verified": False}
+            "raw_remote_receipt_verified": False, **model}
 
 
 def inspect_post_fix(root=ROOT, auditor=None):
