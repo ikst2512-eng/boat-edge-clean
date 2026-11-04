@@ -443,6 +443,17 @@ class AIReviewGuardTests(unittest.TestCase):
                                               env=env, capture_output=True, text=True)
                     self.assertEqual(response.returncode == 0, expected,
                                      label + response.stdout + response.stderr)
+            # The API list only mentions navigation.js. An additional
+            # changed file in the actual candidate commit must be rejected.
+            (root / "index.html").write_text("hidden committed change\\n")
+            subprocess.run(["git", "add", "index.html"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "hidden extra file"],
+                           cwd=root, check=True)
+            report.write_text(json.dumps(original_report))
+            hidden = subprocess.run(["python", "-c", code], cwd=root,
+                                    env=env, capture_output=True, text=True)
+            self.assertNotEqual(hidden.returncode, 0,
+                                "Extra Git commit file not listed by the PR API must fail")
 
     def test_two_file_candidate_artifact_contract_real_git(self):
         """Two legitimate AI-modified files pass; a bad digest never passes."""
