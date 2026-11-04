@@ -42,6 +42,7 @@ def validate(path=PROTOCOL, source=SOURCE):
             or p.get("predeclaration_race_date_jst") != "2026-11-05"
             or p.get("first_race_date_jst") != "2026-11-05"
             or p.get("last_race_date_jst") != "2026-12-31"
+            or p.get("remote_protocol_observation_before_jst") != "2026-11-05T07:00:00+09:00"
             or type(p.get("first_n_eligible_races")) is not int
             or p["first_n_eligible_races"] != 300
             or p.get("sample_order") != "deadline_jst_ascending_then_race_code_ascending"
