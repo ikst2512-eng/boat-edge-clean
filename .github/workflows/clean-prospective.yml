@@ -20,7 +20,11 @@ permissions:
   contents: write
   actions: write  # Dispatch the existing independent audit after an actual successful freeze push.
 concurrency:
-  group: clean-prospective-capture
+  # PR unit tests must not occupy the immutable publication queue. With
+  # GitHub's single pending run per group, a fresh PR can otherwise replace
+  # a pending scheduled collector before it runs. Schedule, manual dispatch
+  # and main push still serialize under the same single-writer group.
+  group: ${{ github.event_name == 'pull_request' && format('clean-prospective-pr-{0}', github.event.pull_request.number) || 'clean-prospective-capture' }}
   cancel-in-progress: false
 jobs:
   capture:
