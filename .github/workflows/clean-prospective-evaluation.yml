@@ -78,6 +78,10 @@ jobs:
                       'audit_run_id','audit_event_name','audit_checkout_sha',
                       'remote_first_seen_verified','formal')
               },sort_keys=True))
+              print('POST_FIX_REJECTIONS',json.dumps({
+                  'rejection_reasons':report.get('rejection_reasons',{}),
+                  'by_day':report.get('by_day',{})
+              },sort_keys=True))
           PY
       - name: Retain post-fix first-add evidence independently
         if: always()
