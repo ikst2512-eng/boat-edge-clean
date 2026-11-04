@@ -614,6 +614,9 @@ assert.ok(candidateHtml.includes("if(!structurallyValid)continue;\n   available+
 assert.ok(candidateHtml.includes("購入判断に使用しないでください"),'unverified remote first-seen must never become a purchase recommendation');
 assert.ok(!candidateHtml.includes('const recordedBeforeInput=generated<source'),'source inversion must not merely change warning copy');
 assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
+assert.ok(candidateHtml.includes('for(let start=0;start<upcoming.length&&available<6;start+=12)'),'candidate discovery must scan beyond the first 18 upcoming races');
+assert.ok(candidateHtml.includes('Promise.all(batch.map(async race=>'),'candidate discovery must use bounded parallel fetches');
+assert.ok(!candidateHtml.includes('upcoming.slice(0,18)'),'candidate discovery must not truncate potentially valid later races');
 
 // Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
