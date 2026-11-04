@@ -1,6 +1,6 @@
 import unittest
-from datetime import datetime, timezone, date
-from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, capture_window_health
+from datetime import datetime, timezone, date, timedelta
+from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, capture_window_health, audit_target_day
 
 NOW = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
 
@@ -99,6 +99,27 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
         self.assertEqual(result["today_in_nominal_window_run_ids"],[])
         self.assertEqual(result["today_unknown_start_run_ids"],[201,202,203])
         self.assertTrue(result["no_in_window_capture_start_today"])
+
+    def test_delayed_nightly_audit_targets_previous_capture_day(self):
+        # Nominal 11/04 23:17 JST audit executes after JST midnight.
+        now=datetime(2026,11,4,17,45,tzinfo=timezone.utc)
+        self.assertEqual(audit_target_day(now,True),date(2026,11,4))
+        self.assertEqual(audit_target_day(now,False),date(2026,11,5))
+        rows=[{"id":301,"event":"schedule",
+               "created_at":"2026-11-04T11:00:00Z",
+               "run_started_at":"2026-11-04T11:00:00Z"}]
+        target=audit_target_day(now,True)
+        self.assertEqual(capture_window_health(rows,target,True)["today_in_nominal_window_run_ids"],[301])
+
+    def test_on_time_nightly_and_pre_slot_boundary(self):
+        at_slot=datetime(2026,11,5,14,17,tzinfo=timezone.utc)  # 23:17 JST
+        before=at_slot-timedelta(seconds=1)
+        self.assertEqual(audit_target_day(at_slot,True),date(2026,11,5))
+        self.assertEqual(audit_target_day(before,True),date(2026,11,4))
+
+    def test_audit_target_day_rejects_naive_clock(self):
+        with self.assertRaisesRegex(ValueError,"timezone-aware"):
+            audit_target_day(datetime(2026,11,5,2,30),True)
 
 if __name__ == "__main__":
     unittest.main()
