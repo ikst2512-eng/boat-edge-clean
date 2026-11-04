@@ -889,5 +889,160 @@ node() {
                                      label + result.stdout + result.stderr)
 
 
+    def test_producer_archive_reviewer_round_trip_offline(self):
+        """Exercise real producer and reviewer code together without network/AI billing."""
+        import zipfile
+        from ai_repair_agent import propose
+
+        ai_output = {
+            "patches": [{"path": "navigation.js",
+                         "old": "const nav = null;\n",
+                         "new": "const nav = document.querySelector('nav');\n"}],
+            "reason": "Navigation control uses an absent selector",
+            "tests": "Run navigation contract and site regression",
+        }
+
+        class FakeGeminiResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, n):
+                return json.dumps({"candidates": [{
+                    "finishReason": "STOP",
+                    "content": {"parts": [{"text": json.dumps(ai_output)}]}
+                }]}).encode()
+
+        workflow = self.source()
+        section = workflow.split(
+            "      - name: Match proposed PR to originating AI report artifact\n", 1
+        )[1].split(
+            "      - name: Re-run independent UI and navigation tests\n", 1
+        )[0]
+        script = section.split("        run: |\n", 1)[1]
+        extraction = ("          mkdir -p /tmp/ai-source-evidence\n" +
+                      script.split("          mkdir -p /tmp/ai-source-evidence\n", 1)[1])
+        extraction = extraction.rsplit("          python - <<'PY'\n", 1)[0]
+        extraction = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in extraction.splitlines()
+        )
+        verifier = script.rsplit("          python - <<'PY'\n", 1)[1].split(
+            "          PY\n", 1
+        )[0]
+        verifier = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in verifier.splitlines()
+        )
+        for old, new in (
+            ("Path('/tmp/ai-source-evidence/ai_repair_proposal.json')",
+             "Path(os.environ['MOCK_REPORT'])"),
+            ("Path('/tmp/changed.json')", "Path(os.environ['MOCK_CHANGED'])"),
+            ("Path('/tmp/pr.json')", "Path(os.environ['MOCK_PR'])"),
+        ):
+            self.assertIn(old, verifier)
+            verifier = verifier.replace(old, new)
+        verifier = "import os\n" + verifier
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "fixture@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Fixture"], cwd=root,
+                           check=True)
+            target = root / "navigation.js"
+            target.write_text("const nav = null;\n", encoding="utf-8")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "main"], cwd=root, check=True)
+            parent = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+
+            # Real producer parses a mocked Gemini JSON response and writes the
+            # patched file; no HTTP request is possible with this transport.
+            result = propose(
+                "navigation selector is absent", root, "offline-key", "offline-model",
+                lambda request, timeout: FakeGeminiResponse()
+            )
+            self.assertEqual(result["status"], "proposed")
+            self.assertEqual(result["changed_files"], ["navigation.js"])
+            self.assertFalse(result["production_change_allowed"])
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm",
+                            "AI: propose narrow UI repair for review"],
+                           cwd=root, check=True)
+            head = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            report = {**result, "published_branch": "ai/repair-919191",
+                      "published_head_sha": head, "published_base_sha": parent}
+
+            # Reproduce producer artifact bytes, then run the actual reviewer
+            # shell's pinned-ID/digest/ZIP-member validation against them.
+            archive = root / "producer.zip"
+            with zipfile.ZipFile(archive, "w") as z:
+                z.writestr("ai_repair_proposal.json", json.dumps(report))
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            extracted = root / "extracted"
+            downloaded = root / "downloaded.zip"
+            unzip_shell = extraction.replace(
+                "/tmp/ai-source-evidence.zip", str(downloaded)
+            ).replace("/tmp/ai-source-evidence", str(extracted))
+            mock_gh = (
+                'gh() { if [[ "$1" == "api" && "$2" == '
+                '"repos/example/repo/actions/artifacts/123456/zip" ]]; then '
+                'cat "$MOCK_ARCHIVE"; else return 18; fi; }\n'
+            )
+            unzip_shell = "set -euo pipefail\n" + mock_gh + unzip_shell
+            env = dict(os.environ, GITHUB_REPOSITORY="example/repo",
+                       AI_ARTIFACT_ID="123456", AI_ARTIFACT_DIGEST="sha256:" + digest,
+                       MOCK_ARCHIVE=str(archive))
+            extraction_result = subprocess.run(
+                ["bash", "-c", unzip_shell], cwd=root, env=env,
+                text=True, capture_output=True
+            )
+            self.assertEqual(extraction_result.returncode, 0,
+                             extraction_result.stdout + extraction_result.stderr)
+            report_file = extracted / "ai_repair_proposal.json"
+            self.assertEqual(json.loads(report_file.read_text()), report)
+
+            pr_file = root / "pr.json"
+            pr_file.write_text(json.dumps({
+                "head": {"ref": "ai/repair-919191", "sha": head},
+                "base": {"sha": parent}
+            }))
+            changed_file = root / "changed.json"
+            changed_file.write_text(json.dumps([
+                {"filename": "navigation.js", "status": "modified"}
+            ]))
+            verify_env = dict(os.environ, MOCK_REPORT=str(report_file),
+                              MOCK_PR=str(pr_file), MOCK_CHANGED=str(changed_file))
+            for label, overrides, allowed in (
+                ("genuine-producer-report", {}, True),
+                ("tampered-reason", {"reason": ""}, False),
+                ("missing-test-plan", {"suggested_tests": None}, False),
+                ("tampered-file-hash", {"file_sha256": {
+                    "navigation.js": "0" * 64}}, False),
+                ("tampered-commit", {"published_head_sha": "f" * 40}, False),
+            ):
+                with self.subTest(case=label):
+                    report_file.write_text(json.dumps({**report, **overrides}))
+                    checked = subprocess.run(
+                        ["python", "-c", verifier], cwd=root, env=verify_env,
+                        text=True, capture_output=True
+                    )
+                    self.assertEqual(checked.returncode == 0, allowed,
+                                     label + checked.stdout + checked.stderr)
+
+            # Wrong SHA must fail before extracting any allegedly revised report.
+            bad_env = dict(env, AI_ARTIFACT_DIGEST="sha256:" + "0" * 64)
+            bad_sha = subprocess.run(
+                ["bash", "-c", unzip_shell], cwd=root, env=bad_env,
+                text=True, capture_output=True
+            )
+            self.assertNotEqual(bad_sha.returncode, 0, "Tampered archive passed SHA")
+
+
 if __name__ == "__main__":
     unittest.main()
