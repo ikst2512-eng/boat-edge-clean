@@ -19,9 +19,9 @@ on:
         default: 'Inspect navigation.js for a demonstrable UI/navigation issue. Only propose an exact safe fix if evidence supports it. Do not change prediction logic, data capture or tests.'
         type: string
       dry_run:
-        description: '無料の証拠ZIP動作確認。AI API呼出し・修正案作成なし'
+        description: '初期ON＝無料の証拠ZIP確認。OFFのみGemini API実行（課金の可能性）'
         required: true
-        default: false
+        default: true
         type: boolean
 permissions:
   contents: read
