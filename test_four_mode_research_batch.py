@@ -108,6 +108,12 @@ class BatchTests(unittest.TestCase):
             self.skipTest("No real frozen race/result pairs")
         self.assertEqual(result["requested"], 12)
         self.assertEqual(len(result["cohort_codes"]), 12)
+        self.assertFalse(result["cohort_membership_frozen"])
+        import hashlib
+        expected_hash = hashlib.sha256(
+            ("\n".join(sorted(result["cohort_codes"])) + "\n").encode("ascii")
+        ).hexdigest()
+        self.assertEqual(result["cohort_sha256"], expected_hash)
         self.assertEqual(len(result["per_race"]), result["historical_comparable"])
         self.assertEqual(len(result["pairwise_topn"]), 6)
         for pair, item in result["pairwise_topn"].items():
