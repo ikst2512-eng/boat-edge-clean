@@ -270,6 +270,63 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(result["saved"],1)
         self.assertTrue(saved)
 
+    def test_supplement_holding_outage_with_no_primary_candidate_fails_closed(self):
+        # A matched old CSV pair must not hide a failed public holding-list GET.
+        day=datetime.now(JST).strftime("%Y%m%d")
+        old=day+"0101"
+        t=datetime.now(JST)
+        titles=[{"レースコード":old,"電話投票締切予定":"00:00"}]
+        cards=[{"レースコード":old,**{
+            f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (titles if "/title/" in url else cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch("clean_direct_sources.holding_rows",side_effect=OSError("HTTP outage")), \
+             patch.object(capture,"model_provenance",return_value={}):
+            with self.assertRaisesRegex(ValueError,"supplement_holding_source_unavailable"):
+                capture.collect(day)
+            self.assertEqual(list((Path(tmp)/"prospective_predictions").glob("*.json")),[])
+
+    def test_supplement_direct_cards_exception_with_no_primary_fails_closed(self):
+        day=datetime.now(JST).strftime("%Y%m%d")
+        old,future=day+"0101",day+"0102"
+        t=datetime.now(JST)
+        titles=[{"レースコード":old,"電話投票締切予定":"00:00"}]
+        cards=[{"レースコード":old,**{
+            f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        holding=[{"レースコード":future,"電話投票締切予定":"23:59"}]
+        def primary(url):
+            return (titles if "/title/" in url else cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch("clean_direct_sources.holding_rows",return_value=(holding,t,"b"*64)), \
+             patch("clean_direct_sources.direct_cards",side_effect=TimeoutError("outage")), \
+             patch.object(capture,"model_provenance",return_value={}):
+            with self.assertRaisesRegex(ValueError,"supplement_direct_cards_unavailable"):
+                capture.collect(day)
+            self.assertEqual(list((Path(tmp)/"prospective_predictions").glob("*.json")),[])
+
+    def test_supplement_no_upcoming_schedule_remains_healthy_zero(self):
+        # A positive empty-schedule result is not a transport error.
+        day=datetime.now(JST).strftime("%Y%m%d")
+        old=day+"0101"
+        t=datetime.now(JST)
+        titles=[{"レースコード":old,"電話投票締切予定":"00:00"}]
+        cards=[{"レースコード":old,**{
+            f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (titles if "/title/" in url else cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch("clean_direct_sources.holding_rows",side_effect=ValueError("no_upcoming_schedule")), \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+        self.assertEqual((result["saved"],result["eligible"]),(0,0))
+
     def test_supplement_all_card_failures_with_no_primary_candidate_is_not_zero(self):
         # One old matched CSV pair does not make a failed future direct
         # card fetch a legitimate no-op. The existing cutoff still governs.
