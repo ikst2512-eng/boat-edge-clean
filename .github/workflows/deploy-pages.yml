@@ -500,6 +500,18 @@ jobs:
                   throw Error('Tab visibility not exclusive: '+view+' '+JSON.stringify(panels));
               }
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
+              // Pages has project-prefix URLs; navigation.js must preserve the review
+              // screen locally while directing candidate listings to CLEAN Render.
+              const candidateHref=await page.locator('.site-head a.header-candidate-tab[href*="/selection"]').getAttribute('href');
+              if(candidateHref!=='https://boat-edge-clean.onrender.com/selection')throw Error('PAGES_CANDIDATE_ROUTE_BROKEN '+candidateHref);
+              const reviewHref=await page.locator('.site-global-nav a').getAttribute('href');
+              const reviewUrl=new URL(reviewHref,process.env.PAGE_URL);
+              if(reviewUrl.origin!==new URL(process.env.PAGE_URL).origin||reviewUrl.searchParams.get('screen')!=='review')
+                throw Error('PAGES_REVIEW_ROUTE_BROKEN '+reviewHref);
+              const candidateResponse=await page.request.get(candidateHref,{timeout:20000});
+              if(candidateResponse.status()!==200||!(await candidateResponse.text()).includes('id="todayCandidateRaces"'))
+                throw Error('PUBLIC_CANDIDATE_PAGE_UNAVAILABLE '+candidateResponse.status());
+              console.log('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED',candidateHref,reviewHref);
               const shortcuts=page.locator('.race-detail-shortcuts button');
               if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
