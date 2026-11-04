@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -97,6 +98,17 @@ def collect(day=None):
     # record to the beginning of a fetch or a long-running batch.
     completed_generation=datetime.now(JST)
     output=finalize_records(output,t1,t2,completed_generation)
+    if not output:
+        # Diagnostic only. A zero eligible count must not be reported as a
+        # successful immutable freeze or as certified forecast availability.
+        codes=lambda rows: {r.get("レースコード") for r in rows if isinstance(r,dict)}
+        print("PROSPECTIVE_CAPTURE_ZERO "+json.dumps({
+            "day":day,"source_kind":source_kind,
+            "title_rows":len(titles),"card_rows":len(cards),
+            "matching_race_codes":len(codes(titles)&codes(cards)),
+            "reason":"no_pre_cutoff_eligible_races",
+            "formal":False,
+        },sort_keys=True),file=sys.stderr)
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)
