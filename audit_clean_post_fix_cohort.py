@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from audit_clean_first_add import ROOT, PATTERN, audit_records, inspect
 
@@ -50,6 +51,19 @@ def inspect_post_fix_record(path, root=ROOT):
     calculated = hashlib.sha256((title + ":" + cards).encode()).hexdigest()
     if combined != calculated or (kind == "nonofficial_openapi_v1" and title != cards):
         raise ValueError("post-fix source digest mismatch")
+    code = candidate.get("race_code")
+    deadline_value = candidate.get("source_deadline_jst")
+    if not (isinstance(code, str) and re.fullmatch(r"20[0-9]{10}", code)
+            and 1 <= int(code[8:10]) <= 24
+            and 1 <= int(code[10:12]) <= 12
+            and isinstance(deadline_value, str)):
+        raise ValueError("post-fix race identity invalid")
+    try:
+        deadline = datetime.fromisoformat(deadline_value)
+    except ValueError as exc:
+        raise ValueError("post-fix race identity invalid") from exc
+    if deadline.strftime("%Y%m%d") != code[:8]:
+        raise ValueError("post-fix race identity invalid")
     return {**result, "input_source_kind": kind,
             "source_title_sha256": title, "source_cards_sha256": cards,
             "input_sha256": combined,
