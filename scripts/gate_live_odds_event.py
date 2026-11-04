@@ -136,6 +136,22 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
                         or checked.tzinfo is None
                         or not wanted <= checked.astimezone(timezone.utc) <= wanted + timedelta(minutes=90)):
                     return "no_valid_odds"
+                on_time = []
+                for sample in data.get("samples", []):
+                    try:
+                        step = sample["attempts"][-1]
+                        finished = datetime.fromisoformat(
+                            step["finished_at_utc"].replace("Z", "+00:00"))
+                        if (finished.tzinfo is not None
+                                and wanted <= finished.astimezone(timezone.utc)
+                                <= wanted + timedelta(minutes=90)):
+                            on_time.append(sample)
+                    except (KeyError, IndexError, TypeError, AttributeError, ValueError):
+                        continue
+                if not on_time:
+                    return "no_valid_odds"
+                # Only in-slot samples can suppress a valid fallback.
+                data = {**data, "samples": on_time}
             except (KeyError, TypeError, AttributeError, ValueError):
                 return "no_valid_odds"
         if expected_slot is not None:
