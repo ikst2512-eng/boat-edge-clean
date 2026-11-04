@@ -5,6 +5,12 @@ import clean_racecard
 from research_model import JST
 
 class CleanRacecardTests(unittest.TestCase):
+    def setUp(self):
+        # Source adapter unit fixtures never make live official HTTP requests.
+        official = patch('official_preview.preview', return_value=(None, {'status':'not_published_or_unavailable'}))
+        official.start()
+        self.addCleanup(official.stop)
+
     def test_six_lanes_without_legacy_and_optional_preview(self):
         hd=(datetime.now(JST)+timedelta(days=1)).strftime("%Y%m%d")
         code=hd+"0101"
