@@ -5,7 +5,8 @@ const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'inline application script must exist');
 // The header exposes exactly one daily-candidate entry, never fake per-race tabs.
 assert.equal((html.match(/class="header-candidate-tab"/g)||[]).length,1);
-assert.ok(html.includes('class="header-candidate-tab" href="/selection"'));
+assert.ok(html.includes('class="header-candidate-tab" href="https://boat-edge-clean.onrender.com/selection"'),'candidate link must work from both GitHub Pages and Render');
+assert.ok(html.includes('aria-label="検証"><a href="https://boat-edge-clean.onrender.com/review"'),'review link must work from GitHub Pages');
 assert.ok(html.includes('>候補レース</a>'));
 assert.ok(!html.includes('href="/selection">購入候補</a>'),'avoid duplicate candidate navigation');
 // Candidate destination must not promote historical verified comparisons to today's tips.
