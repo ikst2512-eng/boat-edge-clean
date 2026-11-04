@@ -202,6 +202,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
     counts a prior green workflow as a valid odds sample.
     """
     if not repository or "/" not in repository or not token or not current_run_id:
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": "configuration", "reason": "missing_required_input"}), flush=True)
         return "fallback_lookup_unavailable"
     stage = "parse_upstream"
     page_seen = 0
@@ -209,6 +210,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
     try:
         source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
         if source.tzinfo is None:
+            print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "reason": "naive_timestamp"}), flush=True)
             return "fallback_lookup_unavailable"
         jst = timezone(timedelta(hours=9))
         local = source.astimezone(jst)
@@ -235,6 +237,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 payload = fetch_json(page_url, token)
             runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
             if not isinstance(runs, list):
+                print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "malformed_history_response"}), flush=True)
                 return "fallback_lookup_unavailable"
             older_than_slot = False
             for run in runs:
@@ -245,6 +248,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                     continue
                 created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
                 if created.tzinfo is None:
+                    print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "naive_run_timestamp"}), flush=True)
                     return "fallback_lookup_unavailable"
                 if created < slot:
                     older_than_slot = True
@@ -260,6 +264,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 if run.get("conclusion") == "success":
                     run_id = run.get("id")
                     if type(run_id) is not int or run_id <= 0:
+                        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "reason": "invalid_prior_run_id"}), flush=True)
                         return "fallback_lookup_unavailable"
                     stage = "prior_artifact"
                     if probe_check is None:
@@ -277,6 +282,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
             if older_than_slot or len(runs) < 100:
                 return "prior_fallback_absent_or_failed"
         # Five full pages with no older timestamp is an incomplete scan.
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": "history_page_limit", "page": page_seen, "runs_examined": runs_examined, "reason": "incomplete_scan"}), flush=True)
         return "fallback_lookup_unavailable"
     except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError) as exc:
         print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "error_class": type(exc).__name__, "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
