@@ -409,7 +409,11 @@ def fetch_history(repository, token, current, *, now=None):
                 continue
             stage = "artifact_zip"
             req = Request(root + "/actions/artifacts/" + str(item["id"]) + "/zip", headers={
-                "Authorization": "Bearer " + token, "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+                "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+            # GitHub redirects artifact ZIP downloads to a separate blob host.
+            # Authenticate only the initial GitHub request: urllib forwards
+            # regular headers (including Authorization) across redirects.
+            req.add_unredirected_header("Authorization", "Bearer " + token)
             with urlopen(req, timeout=25) as response:
                 raw = response.read(2_000_000)
             stage = "artifact_parse"
