@@ -38,6 +38,9 @@ class PostFixCohortTests(unittest.TestCase):
         self.assertIn("  immutable-archive-gate:\\n    if: github.event_name != 'schedule'".replace("\\n","\n"), workflow)
         self.assertIn("  workflow_dispatch:", workflow)
         self.assertIn("  push:", workflow)
+        self.assertIn("POST_FIX_REJECTIONS", workflow)
+        self.assertIn("report.get('rejection_reasons',{})", workflow)
+        self.assertIn("report.get('by_day',{})", workflow)
 
     @staticmethod
     def valid_tickets():
