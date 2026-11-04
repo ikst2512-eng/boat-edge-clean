@@ -9,6 +9,49 @@ API="https://api.github.com"
 REPO="ikst2512-eng/boat-edge-clean"
 WORKFLOW="late-preview-capture.yml"
 
+def capture_window_health(runs, today, scheduled_audit):
+    """Classify actual schedule-run starts, without certifying race data or T-12."""
+    jst=timezone(timedelta(hours=9))
+    in_window, outside, unknown=[], [], []
+
+    def aware(value):
+        if not isinstance(value, str):
+            return None
+        try:
+            stamp=datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return stamp if stamp.utcoffset() is not None else None
+        except ValueError:
+            return None
+
+    for run in runs:
+        if run.get("event")!="schedule":
+            continue
+        run_id=run.get("id")
+        if type(run_id) is not int or run_id<=0:
+            continue
+        started=aware(run.get("run_started_at"))
+        created=aware(run.get("created_at"))
+        cohort=started or created
+        if cohort is None or cohort.astimezone(jst).date()!=today:
+            continue
+        if started is None or created is None or started<created:
+            unknown.append(run_id)
+            continue
+        local=started.astimezone(jst)
+        if (8, 3)<=(local.hour, local.minute)<=(21, 58):
+            in_window.append(run_id)
+        else:
+            outside.append(run_id)
+
+    return {
+        "nominal_capture_window_jst": "08:03-21:58",
+        "today_in_nominal_window_run_ids": sorted(in_window),
+        "today_outside_nominal_window_run_ids": sorted(outside),
+        "today_unknown_start_run_ids": sorted(unknown),
+        "no_in_window_capture_start_today": bool(scheduled_audit and not in_window),
+        "window_check_is_t12_evidence": False,
+    }
+
 def summarize(runs, now=None):
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
@@ -70,6 +113,10 @@ def main():
     # actually ran today. Manual/PR audits remain diagnostic-only.
     report.update(daily_capture_health(data["workflow_runs"],datetime.now(timezone(timedelta(hours=9))).date(),
                                       os.environ.get("GITHUB_EVENT_NAME")=="schedule"))
+    report.update(capture_window_health(
+        data["workflow_runs"],
+        datetime.now(timezone(timedelta(hours=9))).date(),
+        os.environ.get("GITHUB_EVENT_NAME")=="schedule"))
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
     if path:
@@ -78,9 +125,12 @@ def main():
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
             file.write(f"Today JST scheduled: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
+            file.write(f"Nominal JST window: {report['nominal_capture_window_jst']}; in-window IDs: {report['today_in_nominal_window_run_ids']}; outside-window IDs: {report['today_outside_nominal_window_run_ids']}; unknown-start IDs: {report['today_unknown_start_run_ids']}. Run metadata only; not T-12 evidence.\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
     if report["schedule_missing_today"]:
         raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")
+    if report["no_in_window_capture_start_today"]:
+        raise SystemExit("NO_IN_WINDOW_SCHEDULED_PREVIEW_CAPTURE_TODAY")
     if report["all_today_captures_failed"]:
         raise SystemExit("ALL_TODAY_SCHEDULED_PREVIEW_CAPTURES_FAILED")
 
