@@ -327,6 +327,7 @@ class AIReviewGuardTests(unittest.TestCase):
     def test_artifact_zip_id_and_digest_match_before_extracting(self):
         """Exercise the REAL archive download shell offline; reject tampering."""
         import zipfile
+        import stat
         source = self.source()
         block = source.split(
             "      - name: Match proposed PR to originating AI report artifact\n", 1
@@ -359,6 +360,18 @@ class AIReviewGuardTests(unittest.TestCase):
                     for filename, data in entries:
                         z.writestr(filename, data)
                 invalid_archives[name] = candidate.read_bytes()
+            # A correctly digested archive is still unsafe if its ZIP structure
+            # is invalid or the JSON member is a symlink.
+            broken = root / "broken.zip"
+            broken.write_bytes(b"not a valid ZIP file")
+            invalid_archives["malformed-zip-valid-digest"] = broken.read_bytes()
+            linked = root / "symlink.zip"
+            info = zipfile.ZipInfo("ai_repair_proposal.json")
+            info.create_system = 3
+            info.external_attr = (stat.S_IFLNK | 0o777) << 16
+            with zipfile.ZipFile(linked, "w") as z:
+                z.writestr(info, "unexpected-target")
+            invalid_archives["symlink-valid-digest"] = linked.read_bytes()
             extracted = root / "extracted"
             downloaded = root / "downloaded.zip"
             script = script.replace("/tmp/ai-source-evidence.zip",
