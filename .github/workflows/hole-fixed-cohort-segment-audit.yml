@@ -26,6 +26,8 @@ jobs:
           import json
           r = json.load(open('hole_fixed_cohort_segment_report.json'))
           assert r["cohort_count"] == 120 and r["formal"] is False
+          assert r["cohort_overlap"] == {"shared":86,"original_only":34,"current_only":34}
+          assert r["historical_original_120"]["matches_20261102_archived_report"]
           assert not r["independent_first_receipt_verified"]
           assert r["overall"]["policies"]["baseline"]["hits"]["top10"] == 14
           assert r["overall"]["policies"]["same_pair"]["hits"]["top10"] == 17
@@ -40,6 +42,8 @@ jobs:
                               ==item["gain"][key]-item["loss"][key])
           print(json.dumps({
               "cohort_count":r["cohort_count"],
+              "historical_original_120":r["historical_original_120"],
+              "cohort_overlap":r["cohort_overlap"],
               "overall":r["overall"],
               "by_model_version":r["by_model_version"],
               "by_race_round_band":r["by_race_round_band"],
