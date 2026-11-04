@@ -38,7 +38,35 @@ jobs:
           shopt -s nullglob
           candidates=(prospective_predictions/*.json)
           if [ "${#candidates[@]}" -gt 0 ]; then
-            python audit_clean_first_add.py "${candidates[@]}"
+            mkdir -p test-results
+            # Preserve every individual rejection in a downloadable artifact.
+            # The audit must still exit nonzero if no record passes.
+            python audit_clean_first_add.py "${candidates[@]}" > test-results/first-add-audit.json
           else
             echo 'No prospective candidates to attest yet'
           fi
+      - name: Summarize immutable archive audit
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = Path('test-results/first-add-audit.json')
+          if not report.is_file():
+              print('FIRST_ADD_AUDIT_REPORT_UNAVAILABLE; no evidence certified')
+          else:
+              data = json.loads(report.read_text(encoding='utf-8'))
+              print('FIRST_ADD_AUDIT_SUMMARY', json.dumps({
+                  key: data[key] for key in (
+                      'total', 'local_audit_passed', 'rejected',
+                      'rejection_reasons', 'remote_first_seen_verified', 'formal')
+              }, sort_keys=True))
+          PY
+      - name: Archive full immutable candidate audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-first-add-audit-${{ github.run_id }}
+          path: test-results/first-add-audit.json
+          if-no-files-found: warn
+          retention-days: 30
