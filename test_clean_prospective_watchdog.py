@@ -54,7 +54,21 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertFalse(decide([], NOW, "pull_request", MAIN))
         self.assertFalse(decide([], NOW, "workflow_dispatch", "refs/heads/feature"))
         self.assertFalse(decide([], NOW - timedelta(hours=3), "schedule", MAIN))
-        self.assertFalse(decide([], NOW + timedelta(hours=12), "schedule", MAIN))
+        self.assertFalse(decide([], NOW + timedelta(hours=14), "schedule", MAIN))
+
+    def test_night_race_end_hour_and_cooldown(self):
+        # CLEAN captures 21:15 and 22:29 JST; 23:15 is outside hours.
+        late = NOW + timedelta(hours=12)
+        last = NOW + timedelta(hours=13, minutes=14)
+        after = NOW + timedelta(hours=14)
+        self.assertTrue(decide([], late, 'schedule', MAIN))
+        self.assertTrue(decide([], last, 'workflow_dispatch', MAIN))
+        self.assertFalse(decide([], after, 'schedule', MAIN))
+        self.assertFalse(decide([{
+            'created_at': (last - timedelta(minutes=3)).isoformat(),
+            'event': 'workflow_dispatch', 'status': 'completed',
+            'conclusion': 'failure', 'head_branch': 'main',
+        }], last, 'schedule', MAIN))
 
     def test_feature_branch_manual_and_pr_runs_do_not_mask_missed_main(self):
         events = [
@@ -141,8 +155,9 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("github.event.workflow_run.head_branch == 'main'", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
         self.assertIn("github.event_name != 'workflow_run'", workflow)
-        self.assertIn("cron: '12,27,42,57 22-23,0-11 * * *'", workflow)
+        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
+        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
 
     def test_untrusted_workflow_run_writes_no_dispatch_evidence_without_api(self):
         from scripts import clean_prospective_watchdog as mod
@@ -227,13 +242,14 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("cancel-in-progress: false", concurrency)
         self.assertIn("queue: max", concurrency)
         # No additional wake-up schedule or authorization added by isolation.
-        self.assertEqual(workflow.count("- cron:"), 3)
+        self.assertEqual(workflow.count("- cron:"), 4)
         self.assertIn("if: ${{ github.event_name != 'workflow_run'", workflow)
 
     def test_workflow_reuses_existing_schedule_and_immutable_collector(self):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
+        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
         # Explicit always() overrides GitHub's implicit success() condition:
         # a separate Four-mode/V2 API failure must not skip CLEAN recovery.
         self.assertIn("id: policy_tests", workflow)
@@ -250,7 +266,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("test_clean_prospective_watchdog", workflow)
         self.assertIn("four-mode-evidence/clean-prospective-watchdog-decision.json",
                       workflow)
-        self.assertIn("cron: '12,27,42,57 22-23,0-11 * * *'", workflow)
+        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
         self.assertIn("gh workflow run clean-prospective-evaluation.yml",
                       Path(".github/workflows/clean-prospective.yml").read_text())
 
