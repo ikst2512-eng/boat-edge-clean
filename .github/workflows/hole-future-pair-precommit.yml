@@ -1,0 +1,35 @@
+name: Hole future pair precommit research (nonformal)
+on:
+  pull_request:
+    paths:
+      - hole_future_pair_precommit.py
+      - test_hole_future_pair_precommit.py
+      - .github/workflows/hole-future-pair-precommit.yml
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify new predeclared research policies
+        run: python -m unittest -v test_hole_future_pair_precommit.py
+      - name: Prove Nov 5 is excluded before opening any forecast
+        run: |
+          python hole_future_pair_precommit.py 202611050101 > research_not_eligible.json
+          python - <<'PY'
+          import json
+          data=json.load(open('research_not_eligible.json'))
+          assert data['status']=='not_yet_eligible_or_invalid_code'
+          assert data['formal'] is False
+          assert data['production_forecast_changed'] is False
+          print(data['status'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-future-pair-precommit-readiness
+          path: research_not_eligible.json
