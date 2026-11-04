@@ -119,6 +119,7 @@ jobs:
           if (report.get('production_change_allowed') is not False
                   or not isinstance(claimed, list)
                   or any(not isinstance(path, str) for path in claimed)
+                  or not 0 <= len(claimed) <= 2
                   or len(claimed) != len(set(claimed))
                   or any(path not in allowed for path in actual + claimed)
                   or sorted(claimed) != sorted(actual)
@@ -189,6 +190,7 @@ jobs:
           if (report.get('status') != 'proposed' or
               report.get('production_change_allowed') is not False or
               not isinstance(claimed, list) or not claimed or
+              not 1 <= len(claimed) <= 2 or
               len(set(claimed)) != len(claimed) or
               any(name not in allowed for name in claimed) or
               not isinstance(expected, dict) or set(expected) != set(claimed) or
