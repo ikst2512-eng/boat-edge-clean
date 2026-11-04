@@ -296,6 +296,59 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIn("kind=='nonofficial_openapi_v1' and title_sha!=cards_sha",workflow)
         self.assertLess(workflow.index("Candidate source digest inconsistency: "),workflow.index("git commit -m 'data: freeze prospective pre-cutoff"))
 
+    def test_precommit_freeze_executes_race_identity_day_and_jst_gates(self):
+        # Exercise the exact embedded pre-commit validator in an isolated
+        # staged Git repository, not just a source-string assertion.
+        import hashlib
+        import subprocess
+        import sys
+        import textwrap
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        precommit=workflow.split("          python - <<'PY'\n",1)[1].split("\n          PY",1)[0]
+        script=textwrap.dedent(precommit)
+        self.assertIn("Invalid candidate race identity:",script)
+        self.assertIn("Candidate deadline does not match race day:",script)
+        self.assertIn("Candidate source/deadline must be JST:",script)
+        tickets=["1-2-3","1-2-4","1-3-2","1-3-4","1-4-2",
+                 "1-4-3","2-1-3","2-1-4","2-3-1","2-3-4"]
+        a,b="a"*64,"b"*64
+        base={
+            "race_code":"209901010104",
+            "predictions":tickets,"status":"prospective_candidate",
+            "validated":False,"formal":False,"scoring":False,
+            "input_source_kind":"public_pre_race_csv",
+            "source_title_sha256":a,"source_cards_sha256":b,
+            "input_sha256":hashlib.sha256((a+":"+b).encode()).hexdigest(),
+            "source_deadline_jst":"2099-01-01T23:59:00+09:00",
+            "cutoff_jst":"2099-01-01T23:47:00+09:00",
+            "source_title_received_jst":"2099-01-01T20:00:00+09:00",
+            "source_cards_received_jst":"2099-01-01T20:01:00+09:00",
+            "generated_at":"2099-01-01T20:02:00+09:00",
+        }
+        cases=[
+            ({},None),
+            ({"race_code":"209901012504"},"Invalid candidate race identity"),
+            ({"race_code":"209901010113"},"Invalid candidate race identity"),
+            ({"source_deadline_jst":"2099-01-02T23:59:00+09:00"},"Candidate deadline does not match race day"),
+            ({"generated_at":"2099-01-01T20:02:00+00:00"},"Candidate source/deadline must be JST"),
+        ]
+        for update,error in cases:
+            with self.subTest(update=update),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp)
+                target=root/"prospective_predictions"/(update.get("race_code",base["race_code"])+".json")
+                target.parent.mkdir(parents=True)
+                target.write_text(json.dumps({**base,**update}),encoding="utf-8")
+                subprocess.run(["git","init","-q"],cwd=root,check=True)
+                subprocess.run(["git","add","--","prospective_predictions/"],cwd=root,check=True)
+                result=subprocess.run([sys.executable,"-c",script],cwd=root,
+                                      capture_output=True,text=True)
+                if error:
+                    self.assertNotEqual(result.returncode,0,result.stdout)
+                    self.assertIn(error,result.stderr+result.stdout)
+                else:
+                    self.assertEqual(result.returncode,0,result.stderr)
+                    self.assertIn('"eligible_for_commit": 1',result.stdout)
+
     def test_successful_freeze_push_dispatches_existing_audit_only_once(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         audit=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")
