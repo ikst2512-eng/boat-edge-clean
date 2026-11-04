@@ -144,6 +144,30 @@ class ProspectiveTests(unittest.TestCase):
         self.assertFalse(saved["formal"])
         self.assertFalse(saved["scoring"])
 
+    def test_zero_candidate_run_reports_source_coverage_without_certification(self):
+        import io
+        day="20000101"
+        code=day+"0101"
+        title=[{"レースコード":code,"電話投票締切予定":"15:00"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (title if "/title/" in url else cards),datetime.now(JST),"a"*64
+        error=io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch.object(capture,"model_provenance",return_value={}), \
+             patch("sys.stderr",error):
+            result=capture.collect(day)
+        self.assertEqual(result["saved"],0)
+        self.assertEqual(result["eligible"],0)
+        self.assertIn("PROSPECTIVE_CAPTURE_ZERO ",error.getvalue())
+        diagnostic=json.loads(error.getvalue().split("PROSPECTIVE_CAPTURE_ZERO ",1)[1])
+        self.assertEqual(diagnostic["matching_race_codes"],1)
+        self.assertEqual(diagnostic["source_kind"],"public_pre_race_csv")
+        self.assertEqual(diagnostic["reason"],"no_pre_cutoff_eligible_races")
+        self.assertIs(diagnostic["formal"],False)
+
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
