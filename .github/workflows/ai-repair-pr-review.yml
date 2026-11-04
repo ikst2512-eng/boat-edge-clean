@@ -147,6 +147,45 @@ jobs:
               if file['filename'] not in allowed or file['status'] not in ('modified',):
                   raise SystemExit('Unexpected AI repair file: '+file['filename'])
           PY
+      - name: Match proposed PR to originating AI report artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python - <<'PY'
+          import json, re
+          from pathlib import Path
+          pr = json.loads(Path('/tmp/pr.json').read_text())
+          match = re.fullmatch(r'ai/repair-([0-9]+)', pr['head']['ref'])
+          if not match:
+              raise SystemExit('Missing originating AI run ID')
+          print(match.group(1))
+          PY
+          )"
+          mkdir -p /tmp/ai-source-evidence
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name "ai-repair-proposal-${run_id}" --dir /tmp/ai-source-evidence
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/ai-source-evidence/ai_repair_proposal.json').read_text(encoding='utf-8'))
+          changed = json.loads(Path('/tmp/changed.json').read_text(encoding='utf-8'))
+          allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
+          claimed = report.get('changed_files')
+          filenames = [entry['filename'] for entry in changed]
+          if (report.get('status') != 'proposed' or
+              report.get('production_change_allowed') is not False or
+              not isinstance(claimed, list) or not claimed or
+              any(not isinstance(name, str) or name not in allowed for name in claimed) or
+              len(set(claimed)) != len(claimed) or
+              sorted(filenames) != sorted(claimed) or
+              any(entry.get('status') != 'modified' for entry in changed)):
+              raise SystemExit('AI candidate PR files do not match the originating proposed patch')
+          print('AI artifact matches candidate draft PR files:', len(claimed))
+          PY
       - name: Re-run independent UI and navigation tests
         run: |
           python -m unittest -v tests.test_navigation_contract test_ai_repair_agent
