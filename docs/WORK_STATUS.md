@@ -1,3 +1,9 @@
+## 2026-11-04 JST サイト担当：当日候補「保存済み原本」と「公開描画」の切り分け（PR・公開検証待ち）
+- 16:25:42 JSTの開催日程 `schedule_snapshots/20261104.json` では締切前40レース、候補UIが先に照合する締切順18レース中、保存済み研究予想JSON存在16件／404が2件。16件はいずれも3連単10点・研究候補で、正式予想として採用しない。
+- **重要な時刻証拠のギャップ**: 16件の `generated_at=2026-11-04T11:01:33.627045+09:00` が `source_cards_received_jst=2026-11-04T11:01:33.766393+09:00` より約0.139秒前。従来のUIは `recordedBeforeInput` 警告付きで表示し得るが、入力後生成を証明できず「購入候補が16件ある」「予想精度が検証済み」とは扱わない。原本・初回Git時刻は書き換えず、別担当のPR #1571／#1569と競合しない。
+- `/selection`のHTML存在と、実際の予想カード描画は別。既存Pages公開ワークフローに **任意診断** を追加し、公開Render候補ページの実ブラウザ390pxで表示カード数、警告、保存済み買い目表示、JS例外をログ・step summaryに独立記録。外部データの取得失敗時はUNVERIFIED、ゼロ件の場合も成功した候補数に計上しない。
+- 変更は既存 `.github/workflows/deploy-pages.yml`、`tests/site-regression.cjs`、本ステータスのみ。新規ワークフロー・予想生成/原本/収集/holdout監査/旧サイト変更なし。公開実測の後に件数と本番確認を追記。
+
 ## 2026-11-04 JST サイト担当：公開Pagesの「候補レース」導線をブラウザ実証（PR #1577）
 - 最新main `a820c42d`、Render同commit LIVE。候補ページとトップへの修正PR #1576を維持。
 - 初期調査でroot相対 `/selection` と `/review` がPages上で不正に見えたが、既存 `navigation.js` がPages時に前者をRender `https://boat-edge-clean.onrender.com/selection`、後者をPagesの `screen=review` へ正しく置換する実装を確認。HTML直接書換は `test_navigation_contract` に違反していたため破棄（main未統合）。
