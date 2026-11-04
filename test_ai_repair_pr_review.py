@@ -336,7 +336,7 @@ class AIReviewGuardTests(unittest.TestCase):
         script = block.split("        run: |\n", 1)[1]
         script = script.split("          mkdir -p /tmp/ai-source-evidence\n", 1)[1]
         script = "          mkdir -p /tmp/ai-source-evidence\n" + script
-        script = script.split("          python - <<'PY'\n", 1)[0]
+        script = script.rsplit("          python - <<'PY'\n", 1)[0]
         script = "\n".join(
             line[10:] if line.startswith("          ") else line
             for line in script.splitlines()
