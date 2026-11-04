@@ -116,16 +116,24 @@ const {chromium}=require('playwright');
   })));
   if(list.length!==12||list.some((item,i)=>item.race!==(i+1)+'R'))throw Error('RESULT_LIST_RACE_ORDER_INVALID '+JSON.stringify(list));
   console.log('PASS: published venue 06 result list has 12 ordered race cards');
-  // A new venue selection must immediately expose twelve navigable placeholders
-  // while independent result/payout requests are still in flight.
+  // Venue switches must immediately retain twelve race rows and status text.
+  // Navigation intentionally compacts each row's redundant four/five controls
+  // to ONE "このレースの予想を見る" button; the four tabs live in the selected race panel.
+  // The old >=4-actions assertion confused this deliberate design with missing results.
   await page.evaluate(()=>{s.venue=0;s.race=1;setView('forecast');render();});
+  await page.waitForFunction(()=>
+    document.querySelectorAll('#resultList .clean-race-card').length===12&&
+    [...document.querySelectorAll('#resultList .clean-race-actions')].every(n=>n.dataset.compact==='1'),
+    null,{timeout:10000});
   const initialRows=await page.evaluate(()=>[...document.querySelectorAll('#resultList .clean-race-card')].map(node=>({
    name:node.querySelector('.clean-race-head strong')?.textContent,
-   actions:node.querySelectorAll('.clean-race-actions button').length
+   state:node.querySelector('.clean-race-state')?.textContent,
+   actions:[...node.querySelectorAll('.clean-race-actions button')].map(b=>b.textContent.trim())
   })));
-  if(initialRows.length!==12||initialRows.some((v,i)=>v.name!==(i+1)+'R'||v.actions<4))
-   throw Error('RESULTS_BLANK_DURING_FETCH '+JSON.stringify(initialRows));
-  console.log('PASS: 12 navigable result rows visible immediately on venue switch');
+  if(initialRows.length!==12||initialRows.some((v,i)=>
+      v.name!==(i+1)+'R'||!v.state||v.actions.length!==1||v.actions[0]!=='このレースの予想を見る'))
+   throw Error('RESULT_LIST_COMPACT_NAV_OR_STATUS_MISMATCH '+JSON.stringify(initialRows));
+  console.log('PASS: 12 result rows with status and single intentional forecast action on venue switch');
   // Independently verify all 12 completed races for two different venues.
   for(const venue of [0,2]){
    await page.evaluate(v=>{s.venue=v;s.race=1;setView('forecast');render();},venue);
