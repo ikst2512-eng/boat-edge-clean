@@ -19,6 +19,8 @@ on:
       - 'scripts/v2_nightly_watchdog_policy.py'
       - 'test_v2_nightly_watchdog_policy.py'
       - 'test_four_mode_watchdog_policy.py'
+      - 'scripts/clean_prospective_watchdog.py'
+      - 'test_clean_prospective_watchdog.py'
       - 'tests/test_watchdog_decision_artifact.py'
       - 'scripts/render_four_mode_dispatch.py'
       - 'test_render_four_mode_dispatch.py'
@@ -39,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test dispatch policy
-        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog
       - name: Check recent capture runs before fallback dispatch
         env:
           GH_TOKEN: ${{ github.token }}
@@ -180,6 +182,16 @@ jobs:
                                 encoding="utf-8")
               print("V2_NIGHTLY_WATCHDOG=" + json.dumps(verdict, sort_keys=True))
           PY
+      # Reuse this existing 15-minute watchdog (including its opportunistic
+      # main-push checks) to recover omitted CLEAN collector cron events.
+      # Dispatch is not proof of a saved forecast; the collector preserves
+      # its own T-12, append-only, raw-source and independent audit gates.
+      - name: Recover missed CLEAN prospective capture
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: python scripts/clean_prospective_watchdog.py
       - name: Preserve watchdog decision evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -188,5 +200,6 @@ jobs:
           path: |
             four-mode-evidence/watchdog-decision.json
             four-mode-evidence/v2-nightly-decision.json
+            four-mode-evidence/clean-prospective-watchdog-decision.json
           if-no-files-found: warn
           retention-days: 14
