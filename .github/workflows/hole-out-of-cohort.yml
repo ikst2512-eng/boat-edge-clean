@@ -4,6 +4,7 @@ on:
     paths:
       - hole_out_of_cohort_validation.py
       - test_hole_out_of_cohort_validation.py
+      - test_hole_result_blind_chronology.py
       - .github/workflows/hole-out-of-cohort.yml
   workflow_dispatch:
 jobs:
@@ -18,6 +19,8 @@ jobs:
           python-version: '3.11'
       - name: Test cohort isolation
         run: python -m unittest -v test_hole_out_of_cohort_validation.py
+      - name: Test result-blind candidate chronology
+        run: python -m unittest -v test_hole_result_blind_chronology.py
       - name: Run holdout comparison
         run: python hole_out_of_cohort_validation.py > hole_out_of_cohort_report.json
       - name: Validate boundaries and print results
