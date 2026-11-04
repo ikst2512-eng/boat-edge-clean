@@ -19,7 +19,8 @@ class HoleFixedCohortTest(unittest.TestCase):
         base=["1-2-3","1-2-4","1-3-4","1-3-2","1-4-2",
               "1-4-3","1-5-2","1-5-3","1-6-2","1-6-3"]
         fake={"model_version":"CLEAN_FOUR_MODES_V1_UNCALIBRATED",
-              "modes":{"hole":{"tickets":[{"combo":c} for c in base]}}}
+              "modes":{mode:{"tickets":[{"combo":c} for c in base]}
+                       for mode in ("hole","hit","balance")}}
         def select(_):
             events.append("proposals")
             return {name:list(base) for name in audit.POLICIES}
