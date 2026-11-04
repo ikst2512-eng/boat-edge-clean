@@ -119,11 +119,17 @@ jobs:
           for required_job in ('tests', 'propose'):
               matches = [job for job in jobs
                          if isinstance(job, dict) and job.get('name') == required_job]
-              if (len(matches) != 1 or matches[0].get('status') != 'completed' or
-                  matches[0].get('conclusion') != 'success'):
+              if (len(matches) != 1 or
+                  matches[0].get('status') != 'completed' or
+                  matches[0].get('conclusion') != 'success' or
+                  matches[0].get('run_id') != expected_id or
+                  matches[0].get('run_attempt') != run.get('run_attempt') or
+                  matches[0].get('head_sha') != os.environ['CHECKED_MAIN_SHA']):
                   raise SystemExit('Originating AI ' + required_job +
-                                   ' job is missing, duplicated, or unsuccessful')
+                                   ' job is missing, unsuccessful, or from another run/commit')
           if (run.get('id') != expected_id or
+              not isinstance(run.get('run_attempt'), int) or
+              run.get('run_attempt') < 1 or
               run.get('event') != 'workflow_dispatch' or
               run.get('path') != expected_path or
               run.get('head_branch') != 'main' or
