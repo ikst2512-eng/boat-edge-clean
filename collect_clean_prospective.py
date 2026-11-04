@@ -60,7 +60,17 @@ def collect(day=None):
     titles,t1,h1=read_rows(BASE+"title/"+path)
     cards,t2,h2=read_rows(BASE+"race_cards/"+path)
     provenance=model_provenance()
-    output=build(day,titles,cards,t1,t2,h1,h2,now,provenance)
+    # A prospective forecast cannot predate its own input receipts. The first
+    # timestamp above is only the capture-run start, not generation evidence.
+    started_generation=datetime.now(JST)
+    output=build(day,titles,cards,t1,t2,h1,h2,started_generation,provenance)
+    # This timestamp is after all model calculations; do not backdate a frozen
+    # record to the beginning of a fetch or a long-running batch.
+    completed_generation=datetime.now(JST)
+    output={code:{**record,"generated_at":completed_generation.isoformat()}
+            for code,record in output.items()
+            if max(t1,t2)<=completed_generation
+            and completed_generation<datetime.fromisoformat(record["cutoff_jst"])}
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)
