@@ -32,17 +32,28 @@ async function showTodayCandidates(){
    checked++;
    let pred;
    try{const response=await timed(rawBase+'prospective_predictions/'+raceCode+'.json');if(!response.ok)continue;pred=await response.json()}catch(_){continue}
-   const tickets=pred?.predictions,generated=Date.parse(pred?.generated_at),cutoff=Date.parse(pred?.cutoff_jst),source=Date.parse(pred?.source_cards_received_jst);
+   // Fail closed before counting or showing tickets: a source received after
+   // the claimed generation time is not a verified pre-race prediction.
+   const isJstStamp=value=>typeof value==='string'&&
+     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+09:00$/.test(value)&&Number.isFinite(Date.parse(value));
+   const tickets=pred?.predictions;
+   const times=['source_title_received_jst','source_cards_received_jst','generated_at','cutoff_jst','source_deadline_jst'];
+   const validTimes=times.every(key=>isJstStamp(pred?.[key]));
+   const titleReceived=Date.parse(pred?.source_title_received_jst);
+   const cardsReceived=Date.parse(pred?.source_cards_received_jst);
+   const generated=Date.parse(pred?.generated_at);
+   const cutoff=Date.parse(pred?.cutoff_jst);
+   const recordedDeadline=Date.parse(pred?.source_deadline_jst);
    const structurallyValid=pred?.race_code===raceCode&&pred?.formal===false&&pred?.scoring===false&&
      pred?.status==='prospective_candidate'&&Array.isArray(tickets)&&tickets.length>=1&&tickets.length<=10&&new Set(tickets).size===tickets.length&&
-     tickets.every(t=>/^[1-6]-[1-6]-[1-6]$/.test(t)&&new Set(t.split('-')).size===3)&&
-     Number.isFinite(generated)&&Number.isFinite(cutoff)&&generated<cutoff&&cutoff<limit&&Number.isFinite(source)&&source<cutoff;
+     tickets.every(t=>/^[1-6]-[1-6]-[1-6]$/.test(t)&&new Set(t.split('-')).size===3)&&validTimes&&
+     recordedDeadline===limit&&limit-cutoff===12*60*1000&&
+     titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff&&generated<=Date.now();
    if(!structurallyValid)continue;
    available++;
-   const recordedBeforeInput=generated<source;
    const card=document.createElement('article');card.className='card';
    const title=document.createElement('strong');title.textContent=names[race.venue-1]+' '+race.race+'R｜締切 '+race.deadline;card.append(title);
-   const provenance=document.createElement('p');provenance.className='notes';provenance.textContent=recordedBeforeInput?'研究予想・入力受信時刻の前後関係が未検証（購入判断に使用しないでください）':'締切前に保存された研究予想（Git初回登録・予測精度は未検証）';card.append(provenance);
+   const provenance=document.createElement('p');provenance.className='notes';provenance.textContent='研究予想・入力時刻の順序のみ検証（Git初回登録・遠隔初見・予測精度は未検証、購入判断に使用しないでください）';card.append(provenance);
    const all=document.createElement('p');all.className='notes';all.textContent='保存済み3連単 '+tickets.length+'点：'+tickets.join(' ／ ');card.append(all);
    const link=document.createElement('a');link.href=api+'/forecast?date='+date+'&venue='+race.venue+'&race='+race.race;link.textContent='このレースの予想・出走表・展示を見る';card.append(link);
    root.append(card);
