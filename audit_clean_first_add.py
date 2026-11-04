@@ -63,6 +63,14 @@ def first_add(path, root=ROOT):
             raise ValueError("unambiguous first addition not found")
         sha, stamp = history[0]
     else:
+        # Direct single-record audits must reject a shallow checkout too.
+        # Otherwise a truncated history may misidentify a later deployment
+        # commit as the original Git addition for this immutable record.
+        shallow=subprocess.check_output(
+            ["git","rev-parse","--is-shallow-repository"],
+            cwd=root,text=True).strip()
+        if shallow != "false":
+            raise ValueError("incomplete local git history")
         history=subprocess.check_output(
             ["git","log","--max-count=2","--format=%H %cI","--diff-filter=A","--",rel],
             cwd=root,text=True).splitlines()
