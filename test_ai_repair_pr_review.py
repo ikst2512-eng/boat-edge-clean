@@ -324,6 +324,81 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
 
+    def test_artifact_zip_id_and_digest_match_before_extracting(self):
+        """Exercise the REAL archive download shell offline; reject tampering."""
+        import zipfile
+        source = self.source()
+        block = source.split(
+            "      - name: Match proposed PR to originating AI report artifact\n", 1
+        )[1].split(
+            "      - name: Re-run independent UI and navigation tests\n", 1
+        )[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = script.split("          mkdir -p /tmp/ai-source-evidence\n", 1)[1]
+        script = "          mkdir -p /tmp/ai-source-evidence\n" + script
+        script = script.split("          python - <<'PY'\n", 1)[0]
+        script = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in script.splitlines()
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            zipfile_path = root / "source.zip"
+            with zipfile.ZipFile(zipfile_path, "w") as z:
+                z.writestr("ai_repair_proposal.json", '{"status":"proposed"}')
+            digest = hashlib.sha256(zipfile_path.read_bytes()).hexdigest()
+            extracted = root / "extracted"
+            downloaded = root / "downloaded.zip"
+            script = script.replace("/tmp/ai-source-evidence.zip",
+                                    str(downloaded))
+            script = script.replace("/tmp/ai-source-evidence",
+                                    str(extracted))
+            mock_gh = (
+                'gh() { if [[ "$1" == "api" && "$2" == '
+                '"repos/example/repo/actions/artifacts/123456/zip" ]]; then '
+                'cat "$MOCK_ARCHIVE"; else return 18; fi; }\n'
+            )
+            shell = "set -euo pipefail\n" + mock_gh + script
+            syntax = subprocess.run(["bash", "-n"], input=shell, text=True,
+                                    capture_output=True)
+            self.assertEqual(syntax.returncode, 0, syntax.stderr)
+            for label, artifact_id, expected_digest, archive_data, okay in (
+                ("correct", "123456", "sha256:" + digest,
+                 zipfile_path.read_bytes(), True),
+                ("wrong-sha", "123456", "sha256:" + "a" * 64,
+                 zipfile_path.read_bytes(), False),
+                ("incorrect-id", "123457", "sha256:" + digest,
+                 zipfile_path.read_bytes(), False),
+                ("empty-id", "", "sha256:" + digest,
+                 zipfile_path.read_bytes(), False),
+                ("invalid-digest", "123456", "invalid",
+                 zipfile_path.read_bytes(), False),
+                ("tampered-zip", "123456", "sha256:" + digest,
+                 zipfile_path.read_bytes() + b"tampered", False),
+            ):
+                with self.subTest(case=label):
+                    archive = root / "mock.zip"
+                    archive.write_bytes(archive_data)
+                    if downloaded.exists():
+                        downloaded.unlink()
+                    if extracted.exists():
+                        import shutil
+                        shutil.rmtree(extracted)
+                    env = dict(os.environ, MOCK_ARCHIVE=str(archive),
+                               AI_ARTIFACT_ID=artifact_id,
+                               AI_ARTIFACT_DIGEST=expected_digest,
+                               GITHUB_REPOSITORY="example/repo")
+                    outcome = subprocess.run(
+                        ["bash", "-c", shell], cwd=root, env=env,
+                        text=True, capture_output=True
+                    )
+                    self.assertEqual(outcome.returncode == 0, okay,
+                                     label + outcome.stdout + outcome.stderr)
+                    if okay:
+                        self.assertTrue(
+                            (extracted / "ai_repair_proposal.json").is_file()
+                        )
+
     def test_independent_review_checkout_must_match_exact_candidate_sha(self):
         workflow = self.source()
         block = workflow.split(
