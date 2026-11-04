@@ -8,7 +8,7 @@ from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, post_f
 class PostFixCohortTests(unittest.TestCase):
     def test_execution_receipt_correlates_run_without_certifying_remote_visibility(self):
         with patch("audit_clean_post_fix_cohort.subprocess.check_output",
-                   return_value="a"*40+"\\n") as git:
+                   return_value="a"*40) as git:
             report=with_execution_receipt(
                 {"status":"local_first_add_passed", "formal":True,
                  "remote_first_seen_verified":True},
