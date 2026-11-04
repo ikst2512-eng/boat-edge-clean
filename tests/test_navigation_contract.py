@@ -23,6 +23,20 @@ class NavigationContractTest(unittest.TestCase):
         self.assertNotIn("loadHomeRaceCards", self.index)
         self.assertIn("todayVenueRaces=data;renderDeadlines(data);", self.index)
 
+    def test_pages_schedule_snapshot_is_local_first_with_clean_fallback(self):
+        """Archived schedules should survive Raw outages without old-site data."""
+        pages = (ROOT / ".github" / "workflows" / "deploy-pages.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("'schedule_snapshots/**'", pages)
+        self.assertIn("cp -R schedule_snapshots public/schedule_snapshots", pages)
+        self.assertIn('SNAPSHOT_URL="${PAGE_URL%/}/schedule_snapshots/${SNAPSHOT_KEY}.json"', pages)
+        self.assertIn("location.hostname==='ikst2512-eng.github.io'", self.index)
+        self.assertIn("for(const endpoint of [pagesSchedule,rawSchedule].filter(Boolean))", self.index)
+        self.assertIn("if(response.ok){archive=response;break;}", self.index)
+        self.assertIn("'https://boat-edge-clean.onrender.com/api/clean-schedule?date='+dayCode", self.index)
+        self.assertNotIn("ikst2512-eng/boat-edge/main/today.json", self.index)
+
     def test_navigation_initialization_waits_for_nav_element(self):
         probe = self.nav.index("const nav=document.querySelector('.site-global-nav');")
         guard = self.nav.index("if(!nav)return;", probe)
