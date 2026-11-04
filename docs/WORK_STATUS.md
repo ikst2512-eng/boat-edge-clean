@@ -1,3 +1,11 @@
+## 2026-11-04 JST 継続：オッズ監視の再検証可能な原応答とT−12区分
+- 確認した不足: `sample_race` は120通りのHTTP200を実行時に検証していたが、保存artifactはstate/timestampsのみで、原応答・締切を保存していなかった。後から120通りとT−12を独立に再計算できない。
+- 既存 `scripts/probe_live_odds_health.py` に20KB以下のHTTP200原応答をBase64・SHA256で保存。同じレース・120通り・取得日時を原文から再検証し、保存された検証済みフラグを信用せず再計算する。大きすぎる応答・欠損・改変・119通りは再検証件数に入れない。
+- `source_deadline_jst` は同レースのソース時刻が一意な場合のみ保存。欠損・矛盾はunknown。締切ソースの受信時刻・digest・種別も保存する。
+- 通常のvalid HTTP200件数とは別に `replayable_120_odds_races` と `before_source_t12_races` を出力。後者は原応答のfetched_at≦HTTP完了時刻＜ソース締切−12分を要求する。**非公式ソース締切を用いた相対時刻検査であり、公式T−12認定・正式予想・無人監視復旧認定ではない**。formal=false、formal_t12_certified=falseを明示。既存cron・fallback admission・サンプリング枠・operational verdict・過去artifactを変更しない。
+- 手動実測（2026-11-04T19:36:53.852908+09:00、event=local_manual）: 3レース全てHTTP200、原応答から120通り再検証3件、ソース締切−12分より前の受信2件。`docs/observations/live_odds_replay_20261104.json`へ原文・hash・ソース時刻を保存。無人実行成功件数に算入せず、公式T−12認定もしない。
+- ローカルodds関連96テスト＋sampler18テスト成功。PR CI・現行スクリプトの実レース測定とmain統合は後続記録で確認する。#1593の11/05無人3枠の実測ゲートは継続。
+
 ## 2026-11-04 19:26 JST 引継ぎ実行：503・トップ締切表示の修正と本番実証
 
 - **統合済み #1606 / main `67173f32b1365419fb1b215a25c7768e6c484ce7`**: Render `/api/signal70-holdout-status` の恒常503を実ログから特定。`bulk_first_add` が浅いGit履歴を拒否していた。Render限定の既存バックグラウンドworkerで固定CLEAN Git URLを `fetch --unshallow --no-tags`、90秒上限・対話無効で補完する。checkout/reset/予想原本変更なし、失敗時の監査停止を維持。exact-head `7a1ade2602976178c8f6824c53eadc0cafaa2074` CIは12成功・1skip。Navigation run `41813248601`、Cross-model `41813248159`成功。既存bulkテストの浅い履歴ガード未追随も修正。
