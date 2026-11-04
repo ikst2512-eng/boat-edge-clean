@@ -203,6 +203,9 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
     """
     if not repository or "/" not in repository or not token or not current_run_id:
         return "fallback_lookup_unavailable"
+    stage = "parse_upstream"
+    page_seen = 0
+    runs_examined = 0
     try:
         source = datetime.fromisoformat(trigger["upstream_created_at"].replace("Z", "+00:00"))
         if source.tzinfo is None:
@@ -218,6 +221,8 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
         # A busy repository can produce more than 100 upstream PR events in
         # one slot. Search further pages or fail closed; never assume absence.
         for page in range(1, 6):
+            stage = "history_page"
+            page_seen = page
             page_url = url + "&page=" + str(page)
             if fetch_json is None:
                 request = Request(page_url, headers={
@@ -233,6 +238,7 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 return "fallback_lookup_unavailable"
             older_than_slot = False
             for run in runs:
+                runs_examined += 1
                 if not isinstance(run, dict) or run.get("event") != "workflow_run":
                     continue
                 if run.get("id") == current_run_id:
@@ -255,12 +261,15 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                     run_id = run.get("id")
                     if type(run_id) is not int or run_id <= 0:
                         return "fallback_lookup_unavailable"
+                    stage = "prior_artifact"
                     if probe_check is None:
                         state = direct_probe_evidence(
                             repository, token, run_id, expected_slot=slot,
                             run_created_at=created)
                     else:
                         state = probe_check(repository, token, run_id)
+                    if state == "unavailable":
+                        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "artifact_state": state, "prior_run_id": run_id}), flush=True)
                     if state == "valid":
                         return "prior_fallback_observed"
                     if state != "no_valid_odds":
@@ -269,7 +278,8 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
                 return "prior_fallback_absent_or_failed"
         # Five full pages with no older timestamp is an incomplete scan.
         return "fallback_lookup_unavailable"
-    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError):
+    except (KeyError, TypeError, ValueError, OSError, TimeoutError, HTTPError, URLError) as exc:
+        print("LIVE_ODDS_FALLBACK_DIAGNOSTIC " + json.dumps({"stage": stage, "page": page_seen, "runs_examined": runs_examined, "error_class": type(exc).__name__, "http_status": exc.code if isinstance(exc, HTTPError) else None}), flush=True)
         return "fallback_lookup_unavailable"
 
 

@@ -148,6 +148,29 @@ class FallbackGateTests(unittest.TestCase):
         self.assertFalse(gate.eligible("workflow_run", trigger, now=source + timedelta(hours=2)))
 
 
+    def test_fallback_lookup_failure_diagnostics_remain_fail_closed(self):
+        from datetime import datetime, timezone
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from urllib.error import HTTPError
+        trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
+        now = datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc)
+        output = StringIO()
+
+        def failing_fetch(url, token):
+            raise HTTPError(url, 403, "Forbidden", None, None)
+
+        with redirect_stdout(output):
+            state = gate.prior_fallback_guard(
+                trigger, "owner/repo", "secret-token", 100,
+                now=now, fetch_json=failing_fetch)
+        self.assertEqual(state, "fallback_lookup_unavailable")
+        diagnostic = output.getvalue()
+        self.assertIn("LIVE_ODDS_FALLBACK_DIAGNOSTIC", diagnostic)
+        self.assertIn('"stage": "history_page"', diagnostic)
+        self.assertIn('"http_status": 403', diagnostic)
+        self.assertNotIn("secret-token", diagnostic)
+
     def test_direct_schedule_guard_avoids_duplicate_and_allows_failed_retry(self):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
