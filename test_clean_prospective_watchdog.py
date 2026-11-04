@@ -86,6 +86,8 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "Four-mode prospective capture (research only)",
             "CLEAN independent daily schedule capture",
             "Preview capture (schedule)",
+            "CLEAN live official trifecta odds probe",
+            "Entry research T-minus-12 baseline archival",
         )
         for source in allowed:
             with self.subTest(source=source):
@@ -149,6 +151,8 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "Four-mode prospective capture (research only)",
             "CLEAN independent daily schedule capture",
             "Preview capture (schedule)",
+            "CLEAN live official trifecta odds probe",
+            "Entry research T-minus-12 baseline archival",
         ):
             self.assertIn("- '" + name + "'", workflow)
         self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
