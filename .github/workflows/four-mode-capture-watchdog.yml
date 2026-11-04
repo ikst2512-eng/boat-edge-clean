@@ -191,7 +191,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
-        run: python scripts/clean_prospective_watchdog.py
+        run: python -m scripts.clean_prospective_watchdog
       - name: Preserve watchdog decision evidence
         if: always()
         uses: actions/upload-artifact@v4

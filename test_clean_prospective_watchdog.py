@@ -1,5 +1,8 @@
 """Deterministic tests for the CLEAN capture missed-cron rescue."""
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -79,10 +82,33 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertFalse(record["remote_first_seen_verified"])
         self.assertFalse(record["formal"])
 
+    def test_exact_workflow_module_entrypoint_executes(self):
+        # Running a package file as a bare script changes sys.path on Actions:
+        # the sibling 'scripts' package is then missing. Exercise the exact
+        # module invocation instead of relying only on imported unit tests.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(__file__).resolve().parent
+            env = {
+                **os.environ,
+                "PYTHONPATH": str(repo_root),
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_REF": MAIN,
+                "GITHUB_RUN_ID": "321",
+            }
+            run = subprocess.run(
+                [sys.executable, "-m", "scripts.clean_prospective_watchdog"],
+                cwd=tmp, env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            report = json.loads(
+                (Path(tmp) / "four-mode-evidence" /
+                 "clean-prospective-watchdog-decision.json").read_text())
+            self.assertEqual(report["action"], "no_dispatch")
+
     def test_workflow_reuses_existing_schedule_and_immutable_collector(self):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
-        self.assertIn("python scripts/clean_prospective_watchdog.py", workflow)
+        self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
         self.assertIn("test_clean_prospective_watchdog", workflow)
         self.assertIn("four-mode-evidence/clean-prospective-watchdog-decision.json",
                       workflow)
