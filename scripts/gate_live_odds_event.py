@@ -351,11 +351,34 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
         return "fallback_lookup_unavailable"
 
 
+def rescue_slot_eligible(value, *, now=None):
+    """Only current JST 12:25/14:25/16:25 late receipts may be recovery."""
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        slot = datetime.fromisoformat(value)
+        if slot.tzinfo is None or slot.utcoffset() != timedelta(hours=9):
+            return False
+        if slot.hour not in (12, 14, 16) or slot.minute != 25 or slot.second or slot.microsecond:
+            return False
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            return False
+        elapsed = (now.astimezone(timezone.utc) - slot.astimezone(timezone.utc)).total_seconds() / 60
+        return 15 <= elapsed <= 120
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def main():
     trigger = event_provenance()
     event = trigger["event"]
     allowed = eligible(event, trigger)
     schedule_guard = "not_applicable"
+    if event == "workflow_dispatch" and trigger.get("rescue_slot_jst"):
+        allowed = bool(os.environ.get("GITHUB_REF") == "refs/heads/main"
+                       and rescue_slot_eligible(trigger["rescue_slot_jst"]))
+        schedule_guard = "recovery_slot_validated" if allowed else "invalid_or_stale_recovery_slot"
     if allowed and event == "workflow_run":
         schedule_guard = direct_schedule_guard(
             trigger, os.environ.get("GITHUB_REPOSITORY", ""),
