@@ -34,8 +34,7 @@ def run(root=None, limit=240):
     unavailable = []
     for code in later:
         status, archive = archived_four_modes(code, root)
-        row = compare_race(code, root)
-        if status != 200 or row.get("status") != "historical_comparison_only":
+        if status != 200:
             unavailable.append(code)
             continue
         modes = {name:[t["combo"] for t in archive["modes"][name]["tickets"]]
@@ -43,13 +42,21 @@ def run(root=None, limit=240):
         base = modes["hole"][:10]
         donor = {"hit":modes["hit"],"balance":modes["balance"],
                  "hit_balance":list(dict.fromkeys(modes["hit"]+modes["balance"]))}
-        winner = row["winning_ticket"]
+        # Freeze all six alternatives before observing the result.
+        prepared = {}
         for source, tickets in donor.items():
             for rank in (3,5):
                 key = f"{source}_rank{rank}"
                 candidate = propose(base,tickets,rank)
                 if len(candidate)!=len(base) or len(candidate)!=len(set(candidate)):
                     raise ValueError("invalid_ticket_budget")
+                prepared[key] = candidate
+        row = compare_race(code, root)
+        if row.get("status") != "historical_comparison_only":
+            unavailable.append(code)
+            continue
+        winner = row["winning_ticket"]
+        for key, candidate in prepared.items():
                 counts[key]["changed"] += int(candidate!=base)
                 for k in TOPS:
                     old = winner in base[:k]
