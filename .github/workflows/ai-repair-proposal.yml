@@ -209,6 +209,7 @@ jobs:
           python - <<'PY'
           import hashlib
           import json
+          import os
           import re
           import subprocess
           from pathlib import Path
@@ -222,8 +223,7 @@ jobs:
               ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
               text=True).splitlines()
           entries = [line.split('\t') for line in changes]
-          if (len(parents) != 2 or parents[1] != subprocess.check_output(
-                  ['git', 'rev-parse', 'HEAD^'], text=True).strip() or
+          if (len(parents) != 2 or parents[1] != os.environ.get('GITHUB_SHA') or
               not isinstance(claimed, list) or not claimed or
               not isinstance(digests, dict) or set(digests) != set(claimed) or
               any(len(entry) != 2 or entry[0] != 'M' for entry in entries) or
