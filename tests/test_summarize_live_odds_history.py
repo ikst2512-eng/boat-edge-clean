@@ -187,6 +187,46 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(history.summarize(rows)["eventual_valid_races"], 1)
 
+    def test_history_artifact_http_errors_keep_stage_and_status(self):
+        from urllib.error import HTTPError
+
+        fake_run = {"id": 52, "event": "schedule", "conclusion": "success",
+                    "created_at": "2026-11-03T04:00:00Z"}
+
+        def api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            if "/artifacts?" in url:
+                raise HTTPError(url, 403, "Forbidden", None, None)
+            raise AssertionError(url)
+
+        with patch.object(history, "api_json", side_effect=api):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(errors, [{"run_id": 52, "status": "HTTPError",
+                                   "stage": "artifact_metadata", "http_status": 403}])
+
+        def metadata(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 8, "expired": False}]}
+
+        def zip_failure(*_args, **_kwargs):
+            raise HTTPError("https://example.test/zip", 404, "Missing", None, None)
+
+        with patch.object(history, "api_json", side_effect=metadata), patch.object(
+                history, "urlopen", side_effect=zip_failure):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(errors, [{"run_id": 52, "status": "HTTPError",
+                                   "stage": "artifact_zip", "http_status": 404}])
+
     def test_invalid_same_race_run_does_not_inflate_eligible_runs(self):
         code = "202611030111"
         rows = [
