@@ -53,7 +53,8 @@ jobs:
             # The audit must still exit nonzero if no record passes.
             python audit_clean_first_add.py "${candidates[@]}" > test-results/first-add-audit.json
           else
-            echo 'No prospective candidates to attest yet'
+            echo '::error::No immutable prospective candidates found; cannot certify the archive' >&2
+            exit 1
           fi
       - name: Summarize immutable archive audit
         if: always()
