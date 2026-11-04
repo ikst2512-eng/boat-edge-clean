@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - index.html
+      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.
       - navigation.js
       - 'confirmed_results/**'
       - .github/workflows/deploy-pages.yml
