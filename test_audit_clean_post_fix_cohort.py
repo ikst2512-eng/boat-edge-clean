@@ -72,6 +72,15 @@ class PostFixCohortTests(unittest.TestCase):
                 result=inspect_post_fix_record(path,root)
             self.assertEqual(result["input_source_kind"],"public_pre_race_csv")
             self.assertFalse(result["raw_remote_receipt_verified"])
+            record["input_source_kind"]="direct_race_specific_pre_race"
+            (root/path).write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={"first_add_sha":"b"*40}), \
+                 patch("audit_clean_post_fix_cohort.verify_model_provenance",return_value={}):
+                direct=inspect_post_fix_record(path,root)
+            self.assertEqual(direct["source_title_sha256"],title)
+            self.assertEqual(direct["source_cards_sha256"],cards)
+            self.assertEqual(direct["input_source_kind"],"direct_race_specific_pre_race")
+            self.assertFalse(direct["raw_remote_receipt_verified"])
             record["input_source_kind"]="nonofficial_openapi_v1"
             (root/path).write_text(json.dumps(record))
             with patch("audit_clean_post_fix_cohort.inspect",return_value={}):

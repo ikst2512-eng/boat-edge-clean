@@ -64,7 +64,7 @@ def inspect_post_fix_record(path, root=ROOT):
             or len(set(tickets)) != 10):
         raise ValueError("post-fix trifecta tickets invalid")
     kind = candidate.get("input_source_kind")
-    if kind not in ("public_pre_race_csv", "nonofficial_openapi_v1"):
+    if kind not in ("public_pre_race_csv", "nonofficial_openapi_v1", "direct_race_specific_pre_race"):
         raise ValueError("post-fix source kind missing or invalid")
     title = candidate.get("source_title_sha256")
     cards = candidate.get("source_cards_sha256")

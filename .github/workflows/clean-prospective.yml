@@ -88,7 +88,7 @@ jobs:
               if rec.get('formal') is not False or rec.get('scoring') is not False:
                   raise SystemExit('Candidate is not research-only: '+path)
               kind=rec.get('input_source_kind')
-              if kind not in ('public_pre_race_csv','nonofficial_openapi_v1'):
+              if kind not in ('public_pre_race_csv','nonofficial_openapi_v1','direct_race_specific_pre_race'):
                   raise SystemExit('Invalid candidate input source kind: '+path)
               title_sha=rec.get('source_title_sha256')
               cards_sha=rec.get('source_cards_sha256')

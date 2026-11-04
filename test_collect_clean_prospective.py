@@ -168,6 +168,43 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(diagnostic["reason"],"no_pre_cutoff_eligible_races")
         self.assertIs(diagnostic["formal"],False)
 
+    def test_direct_source_only_after_both_daily_sources_unavailable(self):
+        day="20990101"
+        code=day+"0404"
+        t=datetime.now(JST)
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=OSError("daily HTTP 404")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")), \
+             patch("clean_direct_sources.holding_rows",return_value=(titles,t,"a"*64)) as holding, \
+             patch("clean_direct_sources.direct_cards",return_value=(
+                 cards,t,"c"*64,{code:"b"*64},{})) as direct, \
+             patch.object(capture,"model_provenance",return_value={}):
+            output=capture.collect(day)
+            saved=json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
+        holding.assert_called_once_with(day)
+        self.assertEqual(direct.call_args.args[:2],(day,titles))
+        self.assertEqual(output["saved"],1)
+        self.assertEqual(saved["input_source_kind"],"direct_race_specific_pre_race")
+        self.assertEqual(saved["source_title_sha256"],"a"*64)
+        self.assertEqual(saved["source_cards_sha256"],"b"*64)
+        self.assertEqual(saved["input_sha256"],__import__("hashlib").sha256(
+            ("a"*64+":"+"b"*64).encode()).hexdigest())
+        self.assertGreaterEqual(datetime.fromisoformat(saved["generated_at"]),t)
+        self.assertFalse(saved["formal"])
+        self.assertFalse(saved["scoring"])
+
+    def test_invalid_alternate_response_never_invokes_direct_source(self):
+        day="20990101"
+        with patch.object(capture,"read_rows",side_effect=OSError("daily HTTP 404")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("stadiums_invalid")), \
+             patch("clean_direct_sources.holding_rows") as direct:
+            with self.assertRaisesRegex(ValueError,"stadiums_invalid"):
+                capture.collect(day)
+        direct.assert_not_called()
+
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
@@ -179,13 +216,14 @@ class ProspectiveTests(unittest.TestCase):
     def test_missing_csv_and_missing_alt_are_not_fabricated_success(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=OSError("daily 404")), \
-             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")):
-            with self.assertRaisesRegex(ValueError,"no_valid_races"):
+             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")), \
+             patch("clean_direct_sources.holding_rows",side_effect=OSError("direct source 404")):
+            with self.assertRaisesRegex(ValueError,"all_pre_race_sources_unavailable"):
                 capture.collect(day)
 
     def test_precommit_freeze_blocks_unknown_source_and_untrusted_digest(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
-        self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1')",workflow)
+        self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1','direct_race_specific_pre_race')",workflow)
         self.assertIn("Candidate source digest inconsistency: ",workflow)
         self.assertIn("Candidate is not research-only: ",workflow)
         self.assertIn("hashlib.sha256((title_sha+':'+cards_sha).encode()).hexdigest()",workflow)
