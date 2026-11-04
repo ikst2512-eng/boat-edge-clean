@@ -206,7 +206,7 @@ assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
 assert.strictEqual((script.match(/\['展示タイム',r=>txt\(byLane\(preview,r\.lane\)\.exhibition_time\)\]/g)||[]).length,1,'mobile matrix exhibition time must occur once');
 assert.strictEqual((script.match(/\['チルト',r=>txt\(byLane\(preview,r\.lane\)\.tilt\)\]/g)||[]).length,1,'mobile matrix tilt must occur once');
-assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
+assert.ok(script.includes('対象レースの締切前6艇分の取得記録を検証できていません。'),'unverified exhibition values must be distinguished from transport failure or an unimplemented collector');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard must be designed to fit viewport');
 assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
 assert.ok(script.includes("['チルト',r=>txt("),'mobile matrix must show tilt');
