@@ -486,6 +486,20 @@ class FallbackGateTests(unittest.TestCase):
             fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
 
 
+    def test_skipped_artifact_cannot_suppress_a_real_fallback(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        self.assertIn("steps.gate.outputs.collect == 'true'", workflow)
+        self.assertIn("'live-odds-metrics' || 'live-odds-skipped'", workflow)
+        record = {"artifacts": [
+            {"name": "live-odds-skipped", "id": 71, "expired": False}]}
+        def should_not_open_zip(*_):
+            raise AssertionError("skipped artifact must never trigger ZIP fetch")
+        result = gate.direct_probe_evidence(
+            "a/b", "token", 23, fetch_json=lambda *_: record,
+            fetch_zip=should_not_open_zip)
+        self.assertEqual(result, "no_valid_odds")
+
     def test_artifact_redirect_does_not_forward_github_authorization(self):
         import io
         import contextlib

@@ -652,6 +652,38 @@ class OddsHistoryTests(unittest.TestCase):
             changed[key] = value
             self.assertFalse(history.include_current_event("workflow_run", {"trigger": changed}))
 
+    def test_skipped_receipt_excludes_noop_without_downloading_zip(self):
+        upstream = {"id": 999, "event": "workflow_run", "conclusion": "success",
+                    "created_at": "2026-11-03T05:45:00Z"}
+        calls = []
+        def fake_api(url, token):
+            calls.append(url)
+            if "/runs?status=" in url:
+                return {"workflow_runs": [upstream] if "&event=workflow_run&" in url else []}
+            return {"artifacts": [{"name": "live-odds-skipped", "id": 77, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", side_effect=AssertionError("ZIP must not be requested")):
+            records, count, errors = history.fetch_history(
+                "a/b", "token", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(records), 1)
+        self.assertTrue(any("/artifacts?" in url for url in calls))
+
+        # A skipped marker on a normal scheduled run is never an operational success
+        # and must remain visible as missing evidence.
+        upstream["event"] = "schedule"
+        with patch.object(history, "api_json", side_effect=lambda url, token: (
+                {"workflow_runs": [upstream] if "&event=schedule&" in url else []}
+                if "/runs?status=" in url else
+                {"artifacts": [{"name": "live-odds-skipped", "id": 77, "expired": False}]})):
+            records, count, errors = history.fetch_history(
+                "a/b", "token", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [{"run_id": 999, "status": "missing_artifact"}])
+
     def test_ineligible_fallback_artifact_does_not_raise_missing_evidence(self):
         record = {"checked_at_jst": "2026-11-03T14:50:00+09:00",
                   "source_status": "fallback_ineligible",
