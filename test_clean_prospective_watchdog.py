@@ -213,7 +213,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
 
     def test_pr_and_untrusted_parent_cannot_block_operational_watchdog_queue(self):
         workflow = Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
-        concurrency = workflow.split("concurrency:\\n", 1)[1].split("\\njobs:", 1)[0]
+        concurrency = workflow.split("concurrency:", 1)[1].split("jobs:", 1)[0]
         # The same operational group must serialize main push, schedule and
         # trusted scheduled-workflow completions to prevent double dispatch.
         self.assertIn("'four-mode-watchdog-main'", concurrency)
