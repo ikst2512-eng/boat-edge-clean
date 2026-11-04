@@ -5,8 +5,7 @@ const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'inline application script must exist');
 // The header exposes exactly one daily-candidate entry, never fake per-race tabs.
 assert.equal((html.match(/class="header-candidate-tab"/g)||[]).length,1);
-assert.ok(html.includes('class="header-candidate-tab" href="https://boat-edge-clean.onrender.com/selection"'),'candidate link must work from both GitHub Pages and Render');
-assert.ok(html.includes('aria-label="検証"><a href="https://boat-edge-clean.onrender.com/review"'),'review link must work from GitHub Pages');
+assert.ok(html.includes('class="header-candidate-tab" href="/selection"'));
 assert.ok(html.includes('>候補レース</a>'));
 assert.ok(!html.includes('href="/selection">購入候補</a>'),'avoid duplicate candidate navigation');
 // Candidate destination must not promote historical verified comparisons to today's tips.
@@ -610,3 +609,8 @@ assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must 
 assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
 assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
 assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
+
+// Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
+const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
+assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
