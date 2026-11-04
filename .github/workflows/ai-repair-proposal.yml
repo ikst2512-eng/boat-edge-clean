@@ -122,9 +122,16 @@ jobs:
             echo 'No safe patch proposed'
             exit 0
           fi
+          # UI tests must not silently alter the AI-reviewed patch.
+          before_diff="$(git diff --binary | sha256sum | cut -d' ' -f1)"
           python -m unittest -v tests.test_navigation_contract
           node tests/site-regression.cjs
           git diff --check
+          after_diff="$(git diff --binary | sha256sum | cut -d' ' -f1)"
+          if [[ "$before_diff" != "$after_diff" ]]; then
+            echo "::error::UI tests modified the AI repair diff; refusing publication."
+            exit 1
+          fi
       - name: Refuse stale main before publishing AI draft
         env:
           GH_TOKEN: ${{ github.token }}
