@@ -686,6 +686,29 @@ class ProspectiveTests(unittest.TestCase):
         self.assertLess(marker,retry)
         self.assertEqual(workflow.count("gh workflow run clean-prospective-evaluation.yml --ref main"),1)
 
+    def test_late_race_2245_stays_collectable_until_twelve_minute_cutoff(self):
+        # Real 2026-11-04 upstream title CSV contained a 22:45 JST deadline.
+        # Night schedule extension changes when acquisition runs, not T-12.
+        from datetime import datetime, timedelta
+        day='20261104'
+        code=day+'1912'
+        titles=[{'レースコード':code,'電話投票締切予定':'22:45'}]
+        cards=[{'レースコード':code, **{
+            f'艇{i}_全国勝率':'5.1' for i in range(1,7)}}]
+        received=datetime(2026,11,4,21,30,tzinfo=JST)
+        candidate=build(day,titles,cards,received,received,
+                        'a'*64,'b'*64,received,{})
+        self.assertIn(code,candidate)
+        self.assertEqual(candidate[code]['cutoff_jst'],
+                         '2026-11-04T22:33:00+09:00')
+        too_late=received+timedelta(minutes=64)
+        self.assertEqual(build(day,titles,cards,received,received,
+                               'a'*64,'b'*64,too_late,{}),{})
+        schedule=(Path(__file__).resolve().parent/
+                  '.github/workflows/clean-prospective.yml').read_text()
+        self.assertIn("cron: '0,15,30,45 0-12 * * *'",schedule)
+        self.assertIn("cron: '0,15,30 13 * * *'",schedule)
+
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
         row={"レースコード":"202610281201","電話投票締切予定":"14:00"}
