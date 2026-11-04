@@ -61,7 +61,28 @@ class JointBatchTests(unittest.TestCase):
    self.assertEqual(report['beforeinfo_originals_saved'],1)
    self.assertEqual(report['complete_pairs_before_t12'],0)
    self.assertEqual(report['observations'][0]['status'],'capture_or_audit_failed')
+   self.assertEqual(report['status'],'source_capture_failed')
    self.assertTrue((Path(root)/'batch_report.json').is_file())
+
+ def test_one_failed_odds_fetch_cannot_be_masked_by_another_complete_pair(self):
+  second={**ROW,'race_code':'202611040111','race_no':11,
+          'deadline_jst':'2026-11-04T20:32:00+09:00'}
+  requested=[]
+  def partial_odds(code,*args):
+   requested.append(code)
+   if len(requested)==2:raise OSError('source unavailable')
+   return odds(code,*args)
+  with tempfile.TemporaryDirectory() as root:
+   report=self.run_collect(root,
+       schedule_fetch=lambda day:(200,{**SCHEDULE,'races':[ROW,second]}),
+       odds=partial_odds)
+   self.assertEqual(report['eligible_candidates'],2)
+   self.assertEqual(report['beforeinfo_originals_saved'],2)
+   self.assertEqual(report['official_odds_originals_saved'],1)
+   self.assertEqual(report['complete_pairs_before_t12'],1)
+   self.assertEqual(report['status'],'source_capture_failed')
+   self.assertEqual(sum(x['status']=='capture_or_audit_failed' for x in report['observations']),1)
+   self.assertFalse(report['forecast_usable'])
 
  def test_workflow_preserves_csv_work_before_failing_official_outage(self):
   text=Path('.github/workflows/research-live-preview-evidence.yml').read_text()
