@@ -609,3 +609,8 @@ assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must 
 assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
 assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
 assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
+
+// Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
+const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
+assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');

@@ -1,3 +1,9 @@
+## 2026-11-04 JST サイト担当：公開Pagesの「候補レース」導線をブラウザ実証（PR #1577）
+- 最新main `a820c42d`、Render同commit LIVE。候補ページとトップへの修正PR #1576を維持。
+- 初期調査でroot相対 `/selection` と `/review` がPages上で不正に見えたが、既存 `navigation.js` がPages時に前者をRender `https://boat-edge-clean.onrender.com/selection`、後者をPagesの `screen=review` へ正しく置換する実装を確認。HTML直接書換は `test_navigation_contract` に違反していたため破棄（main未統合）。
+- PR #1577は既存 `deploy-pages.yml` の公開390pxブラウザ検証で、上記2リンクの**JS初期化後**の移動先を確かめ、候補ページのHTTP200と候補領域HTMLを照合する検査に切替。予想/原本/監査API/旧repoの変更なし。
+- CI・公開実ブラウザ証拠・Render反映前は完了判定しない。旧サイトの削除/停止は引き続き禁止。
+
 ## 2026-11-04 JST サイト担当：候補レース・トップ開催場表示の実用復旧（PR検証中）
 - ユーザーが、候補レースに実際の買い目がなく、トップページの締切前3レース・開催場が見えないと報告。既存`selection.html`は当日候補を固定「未確認」とするだけで、実際の`prospective_predictions`へ一切接続していなかった。11/4当日の日程保存ファイルと研究予想JSON多数がmainに実在。
 - 既存`selection.html`の候補セクションから、その日の日程スナップショット（失敗時CLEAN schedule API）を読み、まだ締切前のレースの保存済み研究用3連単1〜10点を日程時刻順に最大6件表示する。生成日時、ソース受信日時、締切・レースID、非正式・採点不可の保存条件を確認し、時刻逆転／Git初回登録未検証は明示。**予想の正式認定・購入推奨・確率捏造は行わない**。レース詳細タブへの遷移リンクを付加。
