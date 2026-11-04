@@ -294,10 +294,13 @@ class AIReviewGuardTests(unittest.TestCase):
             code = code.replace("Path('/tmp/pr.json')",
                                 "Path(os.environ['MOCK_PR'])")
             code = "import os\n" + code
-            (root / "navigation.js").write_bytes(b"reviewed-ai-change")
+            (root / "navigation.js").write_bytes(b"original")
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "main"], cwd=root, check=True)
+            (root / "navigation.js").write_bytes(b"reviewed-ai-change")
             subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
             pr_file.write_text(json.dumps({
