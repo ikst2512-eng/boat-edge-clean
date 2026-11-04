@@ -209,6 +209,53 @@ class RepairAgentTests(unittest.TestCase):
                 if expected:
                     self.assertIn("must be dispatched from main", result.stdout)
 
+    def test_proposal_report_matches_tracked_diff_before_publish(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Validate AI report against actual tracked diff\n", 1)[1]
+        block = block.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        self.assertEqual(subprocess.run(["bash", "-n"], input=script,
+                                        text=True, capture_output=True).returncode, 0)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "navigation.js").write_text("original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            report_file = root / "ai_repair_proposal.json"
+            cases = (
+                ("clean", None, "no_safe_patch", [], 0),
+                ("valid_patch", "changed\n", "proposed", ["navigation.js"], 0),
+                ("claimed_no_patch", "changed\n", "no_safe_patch", [], 1),
+                ("wrong_file", "changed\n", "proposed", ["index.html"], 1),
+                ("empty_claim", "changed\n", "proposed", [], 1),
+                ("false_claim", None, "proposed", ["navigation.js"], 1),
+                ("duplicate_claim", "changed\n", "proposed", ["navigation.js", "navigation.js"], 1),
+            )
+            for label, replacement, status, claimed, expected in cases:
+                with self.subTest(label=label):
+                    (root / "navigation.js").write_text(replacement or "original\n")
+                    report_file.write_text(json.dumps({
+                        "status": status, "changed_files": claimed,
+                        "production_change_allowed": False
+                    }))
+                    # The validation step exits before the independent UI tests
+                    # for clean runs, and fails early for inconsistent changes.
+                    result = subprocess.run(["bash", "-c", script], cwd=root,
+                                            text=True, capture_output=True)
+                    if expected:
+                        self.assertNotEqual(result.returncode, 0, label + result.stdout + result.stderr)
+                    elif replacement is None:
+                        self.assertEqual(result.returncode, 0, label + result.stdout + result.stderr)
+                    else:
+                        # In valid-patch case the guard passes, then the
+                        # unrelated site regression command may be absent.
+                        self.assertIn("AI proposal report/diff validated: proposed 1", result.stdout)
+
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
