@@ -26,7 +26,9 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
             part = row["modes"].get(mode)
             if not isinstance(part, dict):
                 raise ValueError("untrusted_mode_rows")
-            rank = part.get("winning_rank")
+            if "winning_rank" not in part:
+                raise ValueError("missing_winning_rank")
+            rank = part["winning_rank"]
             if rank is not None and (type(rank) is not int or rank < 1):
                 raise ValueError("invalid_winning_rank")
             flags = [part.get(f"top{n}") for n in (3, 5, 10)]
