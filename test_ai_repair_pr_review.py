@@ -248,6 +248,51 @@ class AIReviewGuardTests(unittest.TestCase):
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
 
+    def test_independent_tests_reject_tracked_checkout_mutation(self):
+        workflow = self.source()
+        segment = workflow.split("      - name: Re-run independent UI and navigation tests\n", 1)[1]
+        segment = segment.split("      - name: Check PR head did not change during validation\n", 1)[0]
+        script = segment.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] if line.startswith("          ") else line
+                           for line in script.splitlines())
+        mocked_tests = """python() { return 0; }
+node() {
+  if [[ "$MUTATE" == "1" ]]; then
+    printf '%s\\n' 'unreviewed-change' > navigation.js
+  fi
+}
+"""
+        script = mocked_tests + script
+        check = subprocess.run(["bash", "-n"], input=script,
+                               capture_output=True, text=True)
+        self.assertEqual(check.returncode, 0, check.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"],
+                           cwd=root, check=True)
+            (root / "navigation.js").write_text("candidate-source\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            for label, mutate, dirty_before, expected in (
+                ("clean", False, False, 0),
+                ("modified-by-tests", True, False, 1),
+                ("preexisting-staged", False, True, 1),
+            ):
+                with self.subTest(label=label):
+                    subprocess.run(["git", "reset", "--hard", "-q", "HEAD"],
+                                   cwd=root, check=True)
+                    if dirty_before:
+                        (root / "navigation.js").write_text("staged-change\n")
+                        subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+                    env = dict(os.environ, MUTATE="1" if mutate else "0")
+                    result = subprocess.run(["bash", "-c", script], cwd=root, env=env,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
         block = workflow.split("      - name: Check PR head did not change during validation\n", 1)[1]
