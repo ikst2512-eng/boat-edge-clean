@@ -18,6 +18,7 @@ on:
       - 'CLEAN live official trifecta odds probe'
       - 'Entry research T-minus-12 baseline archival'
       - 'Research independent late preview evidence'
+      - 'Entry course missed-cron activation watchdog'
     types: [completed]
   # Main updates provide an opportunistic fallback if GitHub drops cron events.
   # Check five minutes after each planned 15-minute capture. The 14-minute
