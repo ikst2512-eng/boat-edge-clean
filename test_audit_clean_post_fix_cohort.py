@@ -1,8 +1,10 @@
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, post_fix_paths, with_execution_receipt
+from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, inspect_post_fix_record, post_fix_paths, with_execution_receipt
 
 
 class PostFixCohortTests(unittest.TestCase):
@@ -36,6 +38,53 @@ class PostFixCohortTests(unittest.TestCase):
         self.assertIn("  immutable-archive-gate:\\n    if: github.event_name != 'schedule'".replace("\\n","\n"), workflow)
         self.assertIn("  workflow_dispatch:", workflow)
         self.assertIn("  push:", workflow)
+
+    def test_post_fix_source_provenance_validates_digests_without_remote_promotion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory=root/"prospective_predictions"
+            directory.mkdir()
+            path="prospective_predictions/202611050404.json"
+            title="a"*64
+            cards="b"*64
+            digest=hashlib.sha256((title+":"+cards).encode()).hexdigest()
+            record={"input_source_kind":"public_pre_race_csv",
+                    "source_title_sha256":title,"source_cards_sha256":cards,
+                    "input_sha256":digest}
+            (root/path).write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",
+                       return_value={"race_code":"202611050404","formal":False}):
+                result=inspect_post_fix_record(path,root)
+            self.assertEqual(result["input_source_kind"],"public_pre_race_csv")
+            self.assertFalse(result["raw_remote_receipt_verified"])
+            record["input_source_kind"]="nonofficial_openapi_v1"
+            (root/path).write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                with self.assertRaisesRegex(ValueError,"source digest mismatch"):
+                    inspect_post_fix_record(path,root)
+            record["source_cards_sha256"]=title
+            record["input_sha256"]=hashlib.sha256((title+":"+title).encode()).hexdigest()
+            (root/path).write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                self.assertEqual(inspect_post_fix_record(path,root)["input_source_kind"],
+                                 "nonofficial_openapi_v1")
+            record["input_sha256"]="0"*64
+            (root/path).write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                with self.assertRaisesRegex(ValueError,"source digest mismatch"):
+                    inspect_post_fix_record(path,root)
+
+    def test_post_fix_missing_or_unrecognized_source_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory=root/"prospective_predictions"
+            directory.mkdir()
+            path="prospective_predictions/202611050404.json"
+            for kind in (None, "unverified_post_results"):
+                (root/path).write_text(json.dumps({"input_source_kind":kind}))
+                with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                    with self.assertRaisesRegex(ValueError,"source kind"):
+                        inspect_post_fix_record(path,root)
 
     def test_no_new_capture_is_pending_not_success(self):
         with tempfile.TemporaryDirectory() as tmp:

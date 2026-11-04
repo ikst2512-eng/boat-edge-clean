@@ -3,11 +3,13 @@
 The legacy cohort stays rejected. This never certifies remote first-seen or
 promotes any research candidate to formal scoring.
 """
+import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
-from audit_clean_first_add import ROOT, PATTERN, audit_records
+from audit_clean_first_add import ROOT, PATTERN, audit_records, inspect
 
 POST_FIX_START = "20261105"
 
@@ -22,7 +24,30 @@ def post_fix_paths(root=ROOT):
     )
 
 
-def inspect_post_fix(root=ROOT, auditor=audit_records):
+def inspect_post_fix_record(path, root=ROOT):
+    """Require traceable input provenance on every post-fix local candidate."""
+    result = inspect(path, root)
+    candidate = json.loads((Path(root) / path).read_text(encoding="utf-8"))
+    kind = candidate.get("input_source_kind")
+    if kind not in ("public_pre_race_csv", "nonofficial_openapi_v1"):
+        raise ValueError("post-fix source kind missing or invalid")
+    title = candidate.get("source_title_sha256")
+    cards = candidate.get("source_cards_sha256")
+    combined = candidate.get("input_sha256")
+    digest = re.compile(r"^[0-9a-f]{64}$")
+    if any(not isinstance(v, str) or not digest.fullmatch(v)
+           for v in (title, cards, combined)):
+        raise ValueError("post-fix source digest mismatch")
+    calculated = hashlib.sha256((title + ":" + cards).encode()).hexdigest()
+    if combined != calculated or (kind == "nonofficial_openapi_v1" and title != cards):
+        raise ValueError("post-fix source digest mismatch")
+    return {**result, "input_source_kind": kind,
+            "source_title_sha256": title, "source_cards_sha256": cards,
+            "input_sha256": combined,
+            "raw_remote_receipt_verified": False}
+
+
+def inspect_post_fix(root=ROOT, auditor=None):
     paths = post_fix_paths(root)
     if not paths:
         return {
@@ -35,7 +60,8 @@ def inspect_post_fix(root=ROOT, auditor=audit_records):
             "remote_first_seen_verified": False,
             "formal": False,
         }
-    report = auditor(paths, root)
+    report = (audit_records(paths, root, inspector=inspect_post_fix_record)
+              if auditor is None else auditor(paths, root))
     return {
         **report,
         "schema": "CLEAN_POST_FIX_LOCAL_EVIDENCE_V1",

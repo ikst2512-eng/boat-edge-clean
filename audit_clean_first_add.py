@@ -151,6 +151,8 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "candidate changed since first add":"original_blob_mismatch",
                     "generated after cutoff":"generation_late",
                     "wrong archive type":"archive_type_invalid",
+                    "post-fix source kind missing or invalid":"source_kind_invalid",
+                    "post-fix source digest mismatch":"source_digest_invalid",
                 }
                 reason=known.get(str(exc),"other_rejection")
                 rejected.append({"race_code":path[len("prospective_predictions/"):-5],
