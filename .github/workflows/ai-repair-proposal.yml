@@ -91,28 +91,37 @@ jobs:
                   summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\n")
           print("Gemini proposal status:",status,"changed files:",len(files))
           PY
-      - name: Validate untrusted AI patch without write token
+      - name: Validate AI report against actual tracked diff
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
-          report=json.load(open('ai_repair_proposal.json'))
-          if report['status'] == 'disabled':
-              print('API key absent: no repair attempted')
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          actual = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--diff-filter=ACDMRTUXB'],
+              text=True).splitlines()
+          allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
+          claimed = report.get('changed_files')
+          status = report.get('status')
+          if (report.get('production_change_allowed') is not False
+                  or not isinstance(claimed, list)
+                  or any(not isinstance(path, str) for path in claimed)
+                  or len(claimed) != len(set(claimed))
+                  or any(path not in allowed for path in actual + claimed)
+                  or sorted(claimed) != sorted(actual)
+                  or (status == 'proposed') != bool(actual)
+                  or status not in ('proposed', 'no_safe_patch')):
+              raise SystemExit('AI proposal report/diff mismatch; refusing publication')
+          print('AI proposal report/diff validated:', status, len(actual))
           PY
           if git diff --quiet; then
             echo 'No safe patch proposed'
             exit 0
           fi
-          # AI has no permission to modify CI, workflow, model or data files.
-          git diff --name-only > /tmp/ai_changed_files
-          while IFS= read -r path; do
-            case "$path" in
-              index.html|navigation.js|secondary_navigation.js) ;;
-              *) echo "Unexpected changed file $path" >&2; exit 1 ;;
-            esac
-          done < /tmp/ai_changed_files
           python -m unittest -v tests.test_navigation_contract
           node tests/site-regression.cjs
           git diff --check
