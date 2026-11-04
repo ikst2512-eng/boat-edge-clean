@@ -20,6 +20,30 @@ def summarize_group(codes, root, include_per_race=False):
         report["per_race"] = [row for chunk in chunks for row in chunk["per_race"]]
         if len(report["per_race"]) != comparable:
             raise ValueError("per_race_denominator_mismatch")
+        # Aggregate the complete six-pair matrix from disjoint <=30-race
+        # chunks; reconcile all paired totals against the identical cohort.
+        pairs = {}
+        for name in chunks[0]["pairwise_topn"] if chunks else ():
+            left, right = name.split("_vs_")
+            topn = {}
+            for n in (1, 3, 5, 10):
+                key = f"top{n}"
+                counts = {tag: sum(chunk["pairwise_topn"][name]["topn"][key][tag]
+                                   for chunk in chunks)
+                          for tag in ("both", "left_only", "right_only", "neither")}
+                if (sum(counts.values()) != comparable
+                        or counts["both"] + counts["left_only"] != hits[left][key]
+                        or counts["both"] + counts["right_only"] != hits[right][key]):
+                    raise ValueError("pairwise_denominator_mismatch")
+                counts["evaluated"] = comparable
+                counts["net_additional_hits"] = counts["right_only"] - counts["left_only"]
+                counts["net_percentage_points"] = (
+                    round(100 * counts["net_additional_hits"] / comparable, 2)
+                    if comparable else None)
+                topn[key] = counts
+            pairs[name] = {"evaluated": comparable, "topn": topn,
+                           "formal": False}
+        report["pairwise_topn"] = pairs
     return report
 
 
@@ -129,6 +153,7 @@ if __name__ == "__main__":
         "requested": report["requested"],
         "comparable": report.get("historical_comparable"),
         "topn": report.get("topn_hits", {}),
+        "pairwise_topn": report.get("pairwise_topn", {}),
         "rank_and_miss_breakdown": report.get("rank_and_miss_breakdown", {}),
         "hole_second_pair_review": report.get("hole_second_pair_review", {}),
         "by_day": report.get("by_day", {}),
