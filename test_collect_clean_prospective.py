@@ -546,6 +546,62 @@ class ProspectiveTests(unittest.TestCase):
                     self.assertEqual(result.returncode,0,result.stderr)
                     self.assertIn('"eligible_for_commit": 1',result.stdout)
 
+    def test_post_rebase_receipt_gate_rechecks_actual_new_git_blob(self):
+        # Execute the exact workflow post-rebase gate on real Git commits.
+        # Successful pre-rebase checks do not prove the late push is safe.
+        import subprocess
+        import sys
+        import textwrap
+        from datetime import timedelta
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        rebase=workflow.index("git -c rebase.autoStash=true rebase origin/main")
+        gate=workflow.index("PROSPECTIVE_POST_REBASE_GATE",rebase)
+        push=workflow.index("if git push origin HEAD:main; then",rebase)
+        self.assertLess(rebase,gate)
+        self.assertLess(gate,push)
+        code=workflow[rebase:].split("            python - <<'PY'\n",1)[1].split("\n          PY",1)[0]
+        script=textwrap.dedent(code)
+        now=datetime.now(JST)
+        cases=[
+            ("valid", (now+timedelta(minutes=10)).isoformat(), None),
+            ("expired", (now+timedelta(seconds=30)).isoformat(),
+             "Post-rebase candidate receipt buffer expired"),
+            ("wrong_timezone", (now+timedelta(minutes=10)).astimezone(
+                __import__("datetime").timezone.utc).isoformat(),
+             "Non-JST cutoff after rebase"),
+            ("no_additions", None, "No immutable candidate additions after rebase"),
+        ]
+        for name,cutoff,error in cases:
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp)
+                def git(*args):
+                    return subprocess.run(
+                        ["git",*args],cwd=root,check=True,capture_output=True,text=True)
+                git("init","-q")
+                git("config","user.name","Test collector")
+                git("config","user.email","test@example.invalid")
+                (root/"README.md").write_text("base",encoding="utf-8")
+                git("add","README.md")
+                git("commit","-qm","initial")
+                if cutoff is None:
+                    (root/"another.txt").write_text("not a prediction",encoding="utf-8")
+                    git("add","another.txt")
+                else:
+                    target=root/"prospective_predictions"/"209901010101.json"
+                    target.parent.mkdir(parents=True)
+                    target.write_text(json.dumps({"cutoff_jst":cutoff}),encoding="utf-8")
+                    git("add","prospective_predictions/")
+                git("commit","-qm","candidate")
+                check=subprocess.run([sys.executable,"-c",script],cwd=root,
+                                     capture_output=True,text=True)
+                if error:
+                    self.assertNotEqual(check.returncode,0,check.stdout)
+                    self.assertIn(error,check.stderr+check.stdout)
+                else:
+                    self.assertEqual(check.returncode,0,check.stderr)
+                    self.assertIn("PROSPECTIVE_POST_REBASE_GATE",check.stdout)
+                    self.assertIn('"eligible_for_push": 1',check.stdout)
+
     def test_successful_freeze_push_dispatches_existing_audit_only_once(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         audit=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")
