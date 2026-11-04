@@ -20,11 +20,12 @@ permissions:
   contents: write
   actions: write  # Dispatch the existing independent audit after an actual successful freeze push.
 concurrency:
-  # PR unit tests must not occupy the immutable publication queue. With
-  # GitHub's single pending run per group, a fresh PR can otherwise replace
-  # a pending scheduled collector before it runs. Schedule, manual dispatch
-  # and main push still serialize under the same single-writer group.
-  group: ${{ github.event_name == 'pull_request' && format('clean-prospective-pr-{0}', github.event.pull_request.number) || 'clean-prospective-capture' }}
+  # PR and main push only run unit tests. Keep those high-frequency
+  # events out of the single-writer scheduled/manual publication queue:
+  # GitHub replaces a pending job when the same group gets another run.
+  # The independent main-push watchdog recovers omitted cron slots by
+  # dispatching the existing manual publication workflow when appropriate.
+  group: ${{ github.event_name == 'pull_request' && format('clean-prospective-pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'clean-prospective-main-push-ci' || 'clean-prospective-capture' }}
   cancel-in-progress: false
 jobs:
   capture:
@@ -38,7 +39,7 @@ jobs:
       - name: Unit tests
         run: python -m unittest -v test_collect_clean_prospective
       - name: Capture if public race cards are already published
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           # Preserve source HTTP bytes per run for independent SHA replays.
@@ -55,7 +56,7 @@ jobs:
           python collect_clean_prospective.py 2>&1 | tee test-results/prospective-capture.log
           test ${PIPESTATUS[0]} -eq 0
       - name: Freeze immutable candidate evidence
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,7 +177,7 @@ jobs:
             sleep "$attempt"
           done
       - name: Flag zero daily captures after midday JST
-        if: always() && github.event_name != 'pull_request'
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           python - <<'PY'
           from datetime import datetime
@@ -193,7 +194,7 @@ jobs:
                   print("::warning::No CLEAN prospective archives in checkout after midday JST; inspect public source and capture logs (not counted as forecast losses).")
           PY
       - name: Archive prospective capture diagnostics
-        if: always() && github.event_name != 'pull_request'
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-artifact@v4
         with:
           name: clean-prospective-capture-${{ github.run_id }}
