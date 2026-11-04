@@ -137,7 +137,13 @@ def summarize(records):
             # valid_200 label. Older historical artifacts lack replay bytes;
             # preserve their separately understood legacy classification.
             replay = {"response_verified": False, "before_source_t12": False}
-            if isinstance(run.get("deadline_source"), dict):
+            # From Nov 5 JST, missing deadline_source cannot grant legacy status.
+            try:
+                day = datetime.fromisoformat(stamp).astimezone(
+                    timezone(timedelta(hours=9))).strftime("%Y%m%d")
+            except (ValueError, TypeError, AttributeError):
+                day = "99999999"
+            if day >= "20261105" or isinstance(run.get("deadline_source"), dict):
                 replay = replay_saved_receipt(sample)
                 if steps[-1].get("state") == "valid_200" and not replay["response_verified"]:
                     steps = [dict(step) for step in steps]
