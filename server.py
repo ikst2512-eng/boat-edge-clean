@@ -306,11 +306,34 @@ def _compute_holdout_status():
             "first_add_probes": first_add_probes,
             "discovery_day": "20261029", "independently_validated": False}
 
+def _prepare_holdout_history():
+    """Hydrate Render's shallow checkout without changing HEAD or any files.
+
+    Runs only in the existing background worker. The audit still independently
+    rejects incomplete history and changed original blobs after this fetch.
+    """
+    if os.environ.get("RENDER") != "true":
+        return
+    import subprocess
+    shallow = subprocess.check_output(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=ROOT, text=True, timeout=10).strip()
+    if shallow == "false":
+        return
+    if shallow != "true":
+        raise ValueError("indeterminate local git history")
+    subprocess.run(
+        ["git", "fetch", "--unshallow", "--no-tags",
+         "https://github.com/ikst2512-eng/boat-edge-clean.git", "main"],
+        cwd=ROOT, check=True, timeout=90, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+
 def _refresh_holdout_status():
     with _HOLDOUT_LOCK:
         started = _HOLDOUT_STATE["started"] or time.monotonic()
     error = None
     try:
+        _prepare_holdout_history()
         result = _compute_holdout_status()
     except Exception as exc:
         logging.exception("holdout_status_unavailable")
