@@ -1,3 +1,9 @@
+## 2026-11-04 20:15 JST 実証：公式展示6艇＋オッズ120通りがT−12前に揃った1レース
+- PR #1628初期head `82e821fdbd7f4b65da00b40a829b19510c00c6b1` の既存CI `41819205922`（event=pull_request）success。下関7R `202611041907`、締切20:25/T−12=20:13に対し、公式beforeinfo JSON受信20:11:46.513411、公式odds HTML受信20:11:55.812353。展示タイム・チルト・ST・展示進入6艇、120通りが全て原本から検証され、both_complete_before_t12=true。桐生12Rは同runで展示未完成、falseのまま。
+- Artifact `13315119405` `independent-late-preview-41819205922`（28,215 bytes）を実ダウンロード。ZIP SHA256 `6f5ee2e9ead169dad4bed4b3ed314507ccf3d77c931c12ece0088a6d0ddb1616` をGitHub digestと一致確認、安全展開して既存`audit_joint_official_receipts.audit_pair`で両レースを独立再監査。下関7Rの全7component checks=true、missing_components=[]を再確認。
+- ダウンロードしたZIPと再監査JSONは `docs/observations/official_joint_ci_41819205922.zip` / `official_joint_ci_41819205922_recheck.json` に非期限切れのGit原本として保存。最初の20:07手動負例も別名ZIPのまま保持し、成功例へ書き換えていない。
+- これはPR実行による2ソースの実測であり、scheduleの無人実行成功ではない。公式出走表原本と最終実進入は別未達のため、full_t12_source_certified=false、forecast_usable=false、t12_eligible=falseを維持。予想原本・買い目・正式採点分母は変更なし。CSV収集独立性を追加した最新headのCIを確認後に統合する。
+
 ## 2026-11-04 20:08 JST 継続：公式原本の定期保存接続（PR検証待ち）
 - 既存の `Research independent late preview evidence` はCSV原本行だけを保存し、#1617で表示可能になった公式展示JSONを定期保存していなかった。新しいcron/Workflowを増やさず、既存5分間隔ジョブへ公式ソースペア収集を追加。
 - `scripts/capture_joint_preview_batch.py` は当日・ソース日程一致・締切まで12分40秒超/1時間未満の最大2レースだけを選定。既存beforeinfo JSON / official odds HTML collector、atomic publish、joint原文再監査、T−12 decisionを再利用。公式JSONから得た締切以外をオッズ判定に使わず、受信中にT−12を跨げばオッズ取得を止める。上書き禁止・symlink root拒否・失敗時もbatch reportを保存。
