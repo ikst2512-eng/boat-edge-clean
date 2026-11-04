@@ -606,6 +606,9 @@ assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="ч╖ах
 assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
 assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
 assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
+assert.ok(candidateHtml.includes("formatToParts(new Date()).filter(p=>p.type!=='literal')"),'race date must use locale-independent JST calendar parts');
+assert.ok(candidateHtml.includes('const code=dateParts.year+dateParts.month+dateParts.day;'),'race key must preserve YYYYMMDD order');
+assert.ok(!candidateHtml.includes("format(new Date()).replaceAll('-','')"),'a locale may display en-CA dates with slashes and must not break race keys');
 assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
 assert.ok(candidateHtml.includes("titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff"),'inverted source timestamps must exclude tickets before rendering');
 assert.ok(candidateHtml.includes("const validTimes=times.every(key=>isJstStamp(pred?.[key]))"),'missing or non-JST source timestamps must fail closed');
