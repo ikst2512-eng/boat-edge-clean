@@ -132,12 +132,11 @@ class OddsRescuePolicyTest(unittest.TestCase):
              patch.object(rescue, "OUTPUT", Path(tmp) / "decision.json"), \
              patch.object(rescue, "fetch_history") as fetch, \
              patch.object(rescue, "dispatch") as dispatch, \
-             patch.object(rescue, "datetime") as clock, \
+             patch.object(rescue, "now_utc", return_value=at(22, 10)), \
              patch.dict("os.environ", {
                  "GITHUB_EVENT_NAME": "push", "GITHUB_REF": MAIN,
                  "GH_REPOSITORY": REPO, "GITHUB_RUN_ID": "8",
              }):
-            clock.now.return_value = at(22, 10)
             rescue.main()
             result = json.loads((Path(tmp) / "decision.json").read_text())
             self.assertEqual(result["action"], "no_dispatch")
