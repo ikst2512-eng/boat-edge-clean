@@ -614,3 +614,10 @@ assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not p
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
 assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
+
+// Record the actual candidate list rather than only the candidate route HTTP200.
+const publicCandidateWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
+assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'published candidate list must be observed in browser');
+assert.ok(publicCandidateWorkflow.includes("document.querySelectorAll('#candidateCards > article.card')"),'candidate report must count rendered cards');
+assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must be distinct from displayed candidates');
+assert.ok(publicCandidateWorkflow.includes('candidate_warning_or_tickets_missing'),'public candidate page must retain research warning');
