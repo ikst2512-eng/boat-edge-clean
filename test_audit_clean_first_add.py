@@ -92,6 +92,33 @@ class FirstAddAuditTests(unittest.TestCase):
                 self.assertEqual(audit._BULK.state[1]["prospective_predictions/202610281201.json"][0][0], "a"*40)
         self.assertEqual(run.call_count, 2)
 
+    def test_mixed_candidate_batch_preserves_rejections_and_other_valid_rows(self):
+        paths=["prospective_predictions/202611040404.json",
+               "prospective_predictions/202611040405.json"]
+        def local_inspect(path,root):
+            if path.endswith("0404.json"):
+                raise ValueError("source received after candidate generation")
+            return {"race_code":"202611040405","formal":False,
+                    "remote_first_seen_verified":False}
+        from contextlib import nullcontext
+        with patch.object(audit,"bulk_first_add",return_value=nullcontext()) as scan:
+            result=audit.audit_records(paths,inspector=local_inspect)
+        scan.assert_called_once()
+        self.assertEqual(result["total"],2)
+        self.assertEqual(result["local_audit_passed"],1)
+        self.assertEqual(result["rejected"],1)
+        self.assertEqual(result["rejection_reasons"],
+                         {"source_receipt_after_generation":1})
+        self.assertEqual(result["rejected_records"][0]["race_code"],"202611040404")
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["remote_first_seen_verified"])
+
+    def test_batch_rejects_duplicate_or_untrusted_paths_before_history_scan(self):
+        p="prospective_predictions/202611040404.json"
+        for paths in ([p,p],["../" + p],[p,"prospective_predictions/missing.json"]):
+            with self.assertRaises(ValueError):
+                audit.audit_records(paths)
+
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
