@@ -1,4 +1,5 @@
 import tempfile
+import hashlib
 import os
 import subprocess
 import unittest
@@ -61,6 +62,9 @@ class RepairAgentTests(unittest.TestCase):
             result=propose("navigation sample",root,"fake-key","gemini-2.5-flash-lite",fake_transport)
             self.assertEqual(result["status"],"proposed")
             self.assertEqual(result["changed_files"],["navigation.js"])
+            self.assertEqual(result["file_sha256"], {
+                "navigation.js": hashlib.sha256(b"beta").hexdigest()
+            })
             self.assertFalse(result["production_change_allowed"])
             self.assertEqual((root/"navigation.js").read_text(),"beta")
 
@@ -166,6 +170,9 @@ class RepairAgentTests(unittest.TestCase):
             updated = (root/"navigation.js").read_text(encoding="utf-8")
             self.assertEqual(result["status"], "proposed")
             self.assertEqual(result["changed_files"], ["navigation.js"])
+            self.assertEqual(result["file_sha256"], {
+                "navigation.js": hashlib.sha256(updated.encode("utf-8")).hexdigest()
+            })
             self.assertFalse(result["production_change_allowed"])
             self.assertIn("const nav=document.querySelector('nav.site-global-nav');", updated)
             self.assertEqual(original.count("const nav=document.querySelector('.site-global-nav');"), 1)
