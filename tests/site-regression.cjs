@@ -590,3 +590,7 @@ assert.ok(script.includes("document.getElementById('followingRace').disabled=s.r
 // Playwright Locator has no children() API; query direct descendants explicitly.
 assert.ok(archivePublish.includes("page.locator('#predictionRows > *').count()"),'live status diagnostic must use supported locator selector');
 assert.ok(!archivePublish.includes("page.locator('#predictionRows').children()"),'live status diagnostic must not call nonexistent children() API');
+
+// Pre-race preview collector is implemented; unavailable or unverified values must not be labeled as "not implemented".
+assert.ok(script.includes('対象レースの締切前6艇分の取得記録を検証できていません。'),'unverified exhibition copy must reflect evidence state');
+assert.ok(!script.includes('直前データ収集が未実装'),'do not mislabel unverified source evidence as unimplemented collection');
