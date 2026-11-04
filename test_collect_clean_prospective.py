@@ -327,6 +327,60 @@ class ProspectiveTests(unittest.TestCase):
             result=capture.collect(day)
         self.assertEqual((result["saved"],result["eligible"]),(0,0))
 
+    def test_partial_supplement_card_success_with_other_http_error_is_not_clean_zero(self):
+        # One parseable direct card need not produce any eligible model ticket.
+        # Its presence must not conceal a second race's failed HTTP acquisition.
+        day="20990101"
+        card_code,failed_code=day+"0101",day+"0102"
+        t=datetime(2026,11,4,12,0,tzinfo=JST)
+        holding=[{"レースコード":code,"電話投票締切予定":"23:59"}
+                 for code in (card_code,failed_code)]
+        incomplete={"レースコード":card_code,
+                    **{f"艇{i}_全国勝率":"5.1" for i in range(1,6)}}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch("clean_direct_sources.holding_rows",
+                   return_value=(holding,t,"a"*64)), \
+             patch("clean_direct_sources.direct_cards",
+                   return_value=([incomplete],t,"b"*64,
+                                 {card_code:"c"*64},{"HTTPError":1})):
+            with self.assertRaisesRegex(
+                    ValueError,"supplement_no_eligible_cards_with_fetch_errors"):
+                capture.supplement_unlisted(day,[],[],{},{})
+        # A non-failing but unqualified supplemental card remains no eligible
+        # candidate, not a fabricated forecast.
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch("clean_direct_sources.holding_rows",
+                   return_value=(holding,t,"a"*64)), \
+             patch("clean_direct_sources.direct_cards",
+                   return_value=([incomplete],t,"b"*64,
+                                 {card_code:"c"*64},{})):
+            self.assertEqual(capture.supplement_unlisted(day,[],[],{},{}),{})
+
+    def test_full_direct_fallback_partial_http_failure_and_zero_model_fails(self):
+        day="20990101"
+        usable_code,failed_code=day+"0101",day+"0102"
+        t=datetime(2026,11,4,12,0,tzinfo=JST)
+        holding=[{"レースコード":code,"電話投票締切予定":"23:59"}
+                 for code in (usable_code,failed_code)]
+        incomplete={"レースコード":usable_code,
+                    **{f"艇{i}_全国勝率":"5.1" for i in range(1,6)}}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=OSError("daily unavailable")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")), \
+             patch("clean_direct_sources.holding_rows",
+                   return_value=(holding,t,"a"*64)), \
+             patch("clean_direct_sources.direct_cards",
+                   return_value=([incomplete],t,"b"*64,
+                                 {usable_code:"c"*64},{"HTTPError":1})), \
+             patch.object(capture,"model_provenance",return_value={}):
+            with self.assertRaisesRegex(
+                    ValueError,"direct_no_eligible_cards_with_fetch_errors"):
+                capture.collect(day)
+            self.assertFalse(list((Path(tmp)/"prospective_predictions").glob("*.json")))
+
     def test_supplement_all_card_failures_with_no_primary_candidate_is_not_zero(self):
         # One old matched CSV pair does not make a failed future direct
         # card fetch a legitimate no-op. The existing cutoff still governs.
