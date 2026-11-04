@@ -4,6 +4,8 @@ on:
     paths:
       - hole_fixed_cohort_segment_audit.py
       - test_hole_fixed_cohort_segment_audit.py
+      - hole_nov04_disjoint_research.py
+      - test_hole_nov04_disjoint_research.py
       - .github/workflows/hole-fixed-cohort-segment-audit.yml
   workflow_dispatch:
 jobs:
@@ -50,6 +52,37 @@ jobs:
               "warnings":r["warning"]
           }, ensure_ascii=False, sort_keys=True))
           PY
+      - name: Test disjoint Nov4 retrospective selection
+        run: python -m unittest -v test_hole_nov04_disjoint_research.py
+      - name: Compare disjoint Nov4 races without result-aided selection
+        run: python hole_nov04_disjoint_research.py > hole_nov04_disjoint_research.json
+      - name: Validate disjoint Nov4 denominators
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open("hole_nov04_disjoint_research.json"))
+          assert d["comparable"] == 93
+          assert d["file_counts"]["paired_available"] == 110
+          assert d["file_counts"]["already_in_prior_cohort"] == 17
+          assert d["formal"] is False and d["prospective_validation"] is False
+          assert d["independent_first_receipt_verified"] is False
+          base = d["overall"]["policies"]["baseline"]
+          for name in ("same_pair","two_pairs"):
+              tested = d["overall"]["policies"][name]
+              for top in ("top1","top3","top5"):
+                  assert tested["hits"][top] == base["hits"][top]
+              for top in ("top1","top3","top5","top10"):
+                  assert tested["hits"][top]-base["hits"][top] == (
+                      tested["gain"][top]-tested["loss"][top])
+          print(json.dumps({"comparable":d["comparable"],"file_counts":d["file_counts"],
+                            "overall":d["overall"],"by_model_version":d["by_model_version"],
+                            "by_race_round_band":d["by_race_round_band"]},
+                           ensure_ascii=False,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-nov04-disjoint-retrospective
+          path: hole_nov04_disjoint_research.json
       - uses: actions/upload-artifact@v4
         with:
           name: hole-fixed120-segment-audit
