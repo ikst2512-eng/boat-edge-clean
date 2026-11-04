@@ -155,9 +155,9 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("github.event.workflow_run.head_branch == 'main'", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
         self.assertIn("github.event_name != 'workflow_run'", workflow)
-        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", workflow)
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
-        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
+        self.assertIn("cron: '13,29,44 13 * * *'", workflow)
 
     def test_untrusted_workflow_run_writes_no_dispatch_evidence_without_api(self):
         from scripts import clean_prospective_watchdog as mod
@@ -249,7 +249,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
         self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
-        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
+        self.assertIn("cron: '13,29,44 13 * * *'", workflow)
         # Explicit always() overrides GitHub's implicit success() condition:
         # a separate Four-mode/V2 API failure must not skip CLEAN recovery.
         self.assertIn("id: policy_tests", workflow)
@@ -266,7 +266,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertIn("test_clean_prospective_watchdog", workflow)
         self.assertIn("four-mode-evidence/clean-prospective-watchdog-decision.json",
                       workflow)
-        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", workflow)
         self.assertIn("gh workflow run clean-prospective-evaluation.yml",
                       Path(".github/workflows/clean-prospective.yml").read_text())
 
