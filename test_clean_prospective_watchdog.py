@@ -105,6 +105,22 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
                  "clean-prospective-watchdog-decision.json").read_text())
             self.assertEqual(report["action"], "no_dispatch")
 
+    def test_clean_recovery_step_runs_after_unrelated_watchdog_failure(self):
+        # GitHub implicitly inserts success() when an if expression has no
+        # status function. The CLEAN rescue must survive a failed V2 or
+        # four-mode probe, but never run after cancellation or for PR/branches.
+        workflow=Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        step=workflow.split("      - name: Recover missed CLEAN prospective capture\n",1)[1]
+        step=step.split("      - name: Preserve watchdog decision evidence\n",1)[0]
+        self.assertIn(
+            "if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}",
+            step)
+        self.assertIn("run: python -m scripts.clean_prospective_watchdog",step)
+        self.assertIn("GH_TOKEN: ${{ github.token }}",step)
+        self.assertLess(workflow.index("      - name: Dispatch one missed V2 nightly research run"),
+                        workflow.index("      - name: Recover missed CLEAN prospective capture"))
+        self.assertNotIn("if: ${{ always() }}",step)
+
     def test_workflow_reuses_existing_schedule_and_immutable_collector(self):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
