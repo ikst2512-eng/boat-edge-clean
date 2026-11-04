@@ -5,6 +5,8 @@ on:
       - pinned_four_mode_cohort_audit.py
       - four_mode_latest_main_inventory.py
       - forward_hole_saved_evidence_gate.py
+      - forward_hole_300_membership.py
+      - test_forward_hole_300_membership.py
       - test_forward_hole_saved_evidence_gate.py
       - test_four_mode_latest_main_inventory.py
       - pinned_hole_rank3_research.py
@@ -33,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
       - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
