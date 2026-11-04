@@ -91,7 +91,7 @@ class ExternalWakeupTests(unittest.TestCase):
         request, calls = mocked()
         data = mod.run(token="TEST_ONLY", now=dt(7, 10), request=request)
         self.assertEqual([m for m, *_ in calls],
-                         ["GET", "GET", "POST", "GET", "GET", "POST"])
+                         ["GET", "GET", "GET", "GET", "POST", "POST"])
         self.assertEqual(
             data["workflows"]["clean"]["action"],
             "dispatch_accepted_not_forecast_proof")
@@ -201,6 +201,20 @@ class ExternalWakeupTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "pagination_incomplete"):
             mod.run(token="TEST", now=dt(7, 10), request=request)
         self.assertFalse(any(m == "POST" for m, *_ in calls))
+
+    def test_second_history_error_prevents_any_partial_dispatch(self):
+        calls = []
+        def request(req, timeout):
+            calls.append((req.get_method(), req.full_url))
+            if req.get_method() == "POST":
+                self.fail("first dispatch must not happen before second workflow check")
+            if ("four-mode-prospective-capture.yml" in req.full_url
+                    and "event=schedule" in req.full_url):
+                return Response(b'{"message":"history temporarily unavailable"}')
+            return Response(b'{"workflow_runs":[]}')
+        with self.assertRaisesRegex(ValueError, "github_history_missing_or_malformed"):
+            mod.run(token="TEST", now=dt(7, 10), request=request)
+        self.assertEqual([m for m, _ in calls], ["GET", "GET", "GET"])
 
     def test_refused_dispatch_fails_job(self):
         def request(req, timeout):
