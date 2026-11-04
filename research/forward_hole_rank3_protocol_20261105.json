@@ -77,5 +77,6 @@
     "pre_result_roster_complete_only_if_run_inventory_exhaustive": true,
     "insufficient_300_before_study_end_remains_inconclusive": true
   },
-  "protocol_refinement_note": "Pre-result 300-member enrollment clarified on 2026-11-05 JST before first configured four-mode capture slot; amendment Git commit is separate from initial protocol commit, and neither commit clock alone is independent publication proof."
+  "protocol_refinement_note": "Pre-result 300-member enrollment clarified on 2026-11-05 JST before first configured four-mode capture slot; amendment Git commit is separate from initial protocol commit, and neither commit clock alone is independent publication proof.",
+  "remote_protocol_observation_before_jst": "2026-11-05T07:00:00+09:00"
 }
