@@ -142,6 +142,7 @@ class OddsRescuePolicyTest(unittest.TestCase):
             self.assertEqual(result["slot_jst"], at(12, 25).isoformat())
             self.assertEqual(fetch.call_count, 2)
             dispatch.assert_called_once()
+            self.assertEqual(dispatch.call_args.args[2], at(12, 25))
 
     def test_missing_ambiguous_truncated_api_history_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "invalid_odds_run_history"):
@@ -172,6 +173,24 @@ class OddsRescuePolicyTest(unittest.TestCase):
             self.assertFalse(result["on_time_slot_verified"])
             fetch.assert_not_called()
             dispatch.assert_not_called()
+
+    def test_dispatch_marks_recovery_slot_in_github_webhook_payload(self):
+        captured = []
+        class Response:
+            status = 204
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+        def mock_open(req, timeout):
+            captured.append(req)
+            return Response()
+        with patch.object(rescue, "urlopen", side_effect=mock_open):
+            rescue.dispatch("https://api.github.com/repos/example/repo/actions/workflows/live-official-odds-probe.yml",
+                            {"Authorization": "Bearer token"}, at(12, 25))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].get_method(), "POST")
+        self.assertEqual(json.loads(captured[0].data),
+                         {"ref": "main", "inputs": {"rescue_slot_jst":
+                          "2026-11-04T12:25:00+09:00"}})
 
     def test_watchdog_uses_existing_cadence_and_independent_evidence(self):
         wf = Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
