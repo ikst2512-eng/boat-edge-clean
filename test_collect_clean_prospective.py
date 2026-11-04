@@ -445,7 +445,7 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIn("FOUR_MODE_RAW_RECEIPT_DIR: test-results/prospective-source-originals",capture_step)
         self.assertIn("test-results/prospective-capture.log",archive_step)
         self.assertIn("test-results/prospective-source-originals/",archive_step)
-        self.assertIn("if: always() && github.event_name != 'pull_request'",archive_step)
+        self.assertIn("if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",archive_step)
         raw=b'{"raw":"prospective-only"}'
         received=datetime(2026,11,4,12,0,tzinfo=JST)
         url="https://race.boatcast.jp/api_txt/getHoldingList2_20261104.json"
