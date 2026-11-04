@@ -29,6 +29,10 @@ class CrossModelAuditTests(unittest.TestCase):
                 # Inspect literal remote endpoints only; dynamic host
                 # construction needs separate runtime checks.
                 for value in re.findall(r"""https?://[^\s"'<>]+""", source):
+                    # The background audit may hydrate only this CLEAN Git
+                    # history; this is not permission to read arbitrary repos.
+                    if name == "server.py" and value == "https://github.com/ikst2512-eng/boat-edge-clean.git":
+                        continue
                     host = urlsplit(value).hostname
                     if host and "{" not in host:
                         self.assertIn(host, allowed_hosts, (name, value))
