@@ -30,9 +30,9 @@ jobs:
           if status!=200 or raw.strip()!=b'ok':raise AssertionError('healthz not healthy: '+str(status))
           report('Health: HTTP 200, ok')
           day=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d')
-          status,raw=fetch('/api/clean-schedule?date='+day)
-          report('Schedule '+day+': HTTP '+str(status))
-          if status!=200:
+          schedule_status,raw=fetch('/api/clean-schedule?date='+day)
+          report('Schedule '+day+': HTTP '+str(schedule_status))
+          if schedule_status!=200:
               report('Schedule not verifiable now; no race or cutoff invented.')
           else:
               data=json.loads(raw)
@@ -122,7 +122,8 @@ jobs:
           # V2 is counted only when a real immutable saved archive carries V2 provenance.
           # Probe a bounded handful of published races, without generating any predictions.
           checked=0;v2=[]
-          for entry in data.get('races',[])[:36] if status==200 else []:
+          # Use the schedule response status, not the last historical fixture status.
+          for entry in data.get('races',[])[:36] if schedule_status==200 else []:
               if not isinstance(entry,dict):continue
               try:race_code=day+str(int(entry['venue_code'])).zfill(2)+str(int(entry['race_no'])).zfill(2)
               except (KeyError,TypeError,ValueError):continue
