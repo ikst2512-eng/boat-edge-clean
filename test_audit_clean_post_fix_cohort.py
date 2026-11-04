@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, inspect_post_fix_record, post_fix_paths, with_execution_receipt
+from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, inspect_post_fix_record, post_fix_paths, with_execution_receipt, diagnostic_summary
 
 
 class PostFixCohortTests(unittest.TestCase):
@@ -120,6 +120,18 @@ class PostFixCohortTests(unittest.TestCase):
                 with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
                     with self.assertRaisesRegex(ValueError,"research classification"):
                         inspect_post_fix_record(path,root)
+
+    def test_diagnostic_summary_preserves_rejection_categories_and_days(self):
+        report = {"status":"post_fix_evidence_rejected", "candidate_count":2,
+                  "rejection_reasons":{"source_digest_invalid":1},
+                  "by_day":{"20261105":{"total":2,"local_audit_passed":1,"rejected":1}}}
+        result = json.loads(diagnostic_summary(report))
+        self.assertEqual(result["rejection_reasons"]["source_digest_invalid"],1)
+        self.assertEqual(result["by_day"]["20261105"]["rejected"],1)
+        self.assertEqual(result["status"],"post_fix_evidence_rejected")
+        self.assertEqual(json.loads(diagnostic_summary({
+            "status":"pending_no_new_capture","candidate_count":0
+        }))["rejection_reasons"],{})
 
     def test_no_new_capture_is_pending_not_success(self):
         with tempfile.TemporaryDirectory() as tmp:
