@@ -10,6 +10,9 @@ class HoleFixedCohortTest(unittest.TestCase):
         self.assertEqual(len(set(codes)),120)
         self.assertEqual(codes[0],"202610280101")
         self.assertEqual(codes[-1],"202611042401")
+        older = audit.original_codes()
+        self.assertEqual(len(older),120)
+        self.assertEqual(len(set(older)&set(codes)),86)
 
     def test_result_is_opened_after_proposals(self):
         events=[]
