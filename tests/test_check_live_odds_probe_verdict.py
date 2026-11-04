@@ -70,6 +70,13 @@ class OddsOperationalVerdictTests(unittest.TestCase):
         self.assertEqual(verdict(record([self.sample("valid_200", 200)], checked=None)),
                          "no_valid_200")
 
+    def test_missing_null_or_empty_attempts_fail_closed(self):
+        for missing in ({}, {"attempts": None}, {"attempts": []}):
+            bad_sample = {"race_code": "202611030111", **missing}
+            self.assertEqual(verdict(record([bad_sample])), "no_valid_200")
+            self.assertEqual(verdict(record([bad_sample, self.sample("valid_200", 200)])),
+                             "valid_200_observed")
+
     def test_out_of_run_timestamps_fail_closed(self):
         self.assertEqual(verdict(record([self.sample("valid_200", 200)],
                                         checked="2026-11-04T12:00:00+09:00")),
