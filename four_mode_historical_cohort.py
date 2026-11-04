@@ -13,7 +13,7 @@ def summarize_group(codes, root):
     chunks = [summarize(codes[i:i+30], root=root) for i in range(0, len(codes), 30)]
     comparable = sum(x["historical_comparable"] for x in chunks)
     hits = {m: {f"top{n}": sum(x["modes"][m]["topn_hits"][f"top{n}"] for x in chunks)
-                for n in (3,5,10)} for m in MODES}
+                for n in (1,3,5,10)} for m in MODES}
     return {"requested": len(codes), "historical_comparable": comparable,
             "topn_hits": hits, "formal": False}
 
