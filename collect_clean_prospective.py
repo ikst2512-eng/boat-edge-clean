@@ -52,6 +52,15 @@ def build(day, titles, cards, title_received, cards_received, title_digest, card
             continue
     return items
 
+def finalize_records(output, title_received, cards_received, completed):
+    """Mark actual post-calculation time; drop any item that crossed T-12."""
+    if any(t.tzinfo is None for t in (title_received,cards_received,completed)):
+        raise ValueError("timezone-aware capture timestamps required")
+    return {code:{**record,"generated_at":completed.isoformat()}
+            for code,record in output.items()
+            if max(title_received,cards_received)<=completed
+            and completed<datetime.fromisoformat(record["cutoff_jst"])}
+
 def collect(day=None):
     now = datetime.now(JST)
     day = day or now.strftime("%Y%m%d")
@@ -67,10 +76,7 @@ def collect(day=None):
     # This timestamp is after all model calculations; do not backdate a frozen
     # record to the beginning of a fetch or a long-running batch.
     completed_generation=datetime.now(JST)
-    output={code:{**record,"generated_at":completed_generation.isoformat()}
-            for code,record in output.items()
-            if max(t1,t2)<=completed_generation
-            and completed_generation<datetime.fromisoformat(record["cutoff_jst"])}
+    output=finalize_records(output,t1,t2,completed_generation)
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)
