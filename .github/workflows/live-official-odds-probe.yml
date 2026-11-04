@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/live-official-odds-probe.yml'
       - 'scripts/probe_live_odds_health.py'
+      - 'scripts/diagnose_live_odds_failure.py'
       - 'scripts/gate_live_odds_event.py'
       - 'tests/test_gate_live_odds_event.py'
       - 'tests/test_probe_live_odds_health.py'
@@ -53,6 +54,10 @@ jobs:
       - name: Fail unhealthy unattended odds sampling
         if: steps.gate.outputs.collect == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_run')
         run: python scripts/check_live_odds_probe_verdict.py
+      - name: Preserve failed-source HTML after operational verdict
+        if: always() && steps.gate.outputs.collect == 'true'
+        continue-on-error: true
+        run: timeout --signal=TERM --kill-after=5s 35s python scripts/diagnose_live_odds_failure.py
       - name: Verify fallback event classification
         if: steps.gate.outputs.collect == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
         run: python -m unittest discover -s tests -p test_gate_live_odds_event.py -v
@@ -85,4 +90,14 @@ jobs:
             live_odds_metrics.json
             live_odds_14day_trend.json
           if-no-files-found: warn
+          retention-days: 14
+      # Keep large diagnostic HTML separate: operational artifact ZIP readers
+      # enforce a strict 2MB cap and must never download these extra bytes.
+      - name: Preserve failure-only official HTML diagnostics
+        if: always() && steps.gate.outputs.collect == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-odds-forensics
+          path: live_odds_failure_evidence/
+          if-no-files-found: ignore
           retention-days: 14
