@@ -110,6 +110,23 @@ class SavedShadowGateTest(unittest.TestCase):
         self.assertFalse(out["formal"])
         self.assertFalse(out["complete_capture_run_inventory_verified"])
 
+    def test_enrollment_never_reads_result(self):
+        out = self.inspect(score_outcome=False)
+        self.assertEqual(out["status"], "pre_result_evidence_consistent_research_only")
+        self.assertEqual(out["deadline_jst"], "2026-11-05T12:00:00+09:00")
+        self.assertEqual(len(out["baseline_top10"]), 10)
+        self.assertEqual(len(out["candidate_top10"]), 10)
+        self.assertEqual(self.calls, ["git-diff-tree", "git-show"])
+        self.assertFalse(out["result_accessed"])
+        self.assertFalse(out["capture_run_inventory_verified"])
+        self.assertNotIn("winning_ticket", out)
+        self.assertNotIn("topn", out)
+
+    def test_invalid_score_mode_blocked(self):
+        with self.assertRaisesRegex(ValueError, "invalid_scoring_gate"):
+            self.inspect(score_outcome=1)
+        self.assertEqual(self.calls, [])
+
     def test_missing_result_never_counts_as_loss(self):
         out = self.inspect(result_reader=lambda *_: {"status": "result_unavailable"})
         self.assertEqual(out["status"], "pending_independent_result")
