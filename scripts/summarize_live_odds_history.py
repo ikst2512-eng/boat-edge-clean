@@ -33,6 +33,57 @@ def replay_saved_receipt(sample):
 
 
 
+def verified_direct_cron_slot(record, *, run_created_at=None):
+    """Independently certify a new direct cron artifact's intended slot.
+
+    GitHub run creation time alone cannot identify which of several cron
+    expressions fired. Only Nov 5+ original HTTP receipts earn this stricter
+    coverage; older artifacts retain their documented legacy classification.
+    """
+    try:
+        checked = datetime.fromisoformat(record["checked_at_jst"])
+        if checked.tzinfo is None:
+            return False
+        jst = timezone(timedelta(hours=9))
+        checked_local = checked.astimezone(jst)
+        if checked_local.strftime("%Y%m%d") < "20261105":
+            return True
+        trigger = record["trigger"]
+        if not isinstance(trigger, dict) or trigger.get("event") != "schedule":
+            return False
+        cron_hours = {"25 3 * * *": 12, "25 5 * * *": 14, "25 7 * * *": 16}
+        hour = cron_hours.get(trigger.get("cron"))
+        if hour is None:
+            return False
+        start = checked_local.replace(hour=hour, minute=25, second=0, microsecond=0)
+        end = start + timedelta(minutes=90)
+        if not start <= checked_local <= end:
+            return False
+        if run_created_at is not None:
+            created = datetime.fromisoformat(run_created_at.replace("Z", "+00:00"))
+            if created.tzinfo is None or not start <= created.astimezone(jst) <= end:
+                return False
+        for sample in record.get("samples", []):
+            if not isinstance(sample, dict):
+                continue
+            steps = sample.get("attempts")
+            if not isinstance(steps, list) or not steps:
+                continue
+            if not consistent_observation_times(steps, record["checked_at_jst"]):
+                continue
+            final = steps[-1]
+            if final.get("state") != "valid_200" or final.get("http") != 200:
+                continue
+            completed = datetime.fromisoformat(final["finished_at_utc"].replace("Z", "+00:00"))
+            if (completed.tzinfo is not None
+                    and start <= completed.astimezone(jst) <= end
+                    and replay_saved_receipt(sample)["response_verified"]):
+                return True
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+    return False
+
+
 def consistent_attempts(steps):
     """Reject internally contradictory HTTP/status claims before computing rates."""
     if not isinstance(steps, list) or not 1 <= len(steps) <= 3:
@@ -465,6 +516,10 @@ def fetch_history(repository, token, current, *, now=None):
                 continue
             if run.get("event") == "workflow_run" and not include_current_event("workflow_run", evidence):
                 raise ValueError("FALLBACK_PROVENANCE_INVALID")
+            if (run.get("event") == "schedule"
+                    and not verified_direct_cron_slot(evidence, run_created_at=run["created_at"])):
+                errors.append({"run_id": run_id, "status": "schedule_slot_unverified"})
+                continue
             # Only evidence with the source's actual observation timestamp.
             stamp = datetime.fromisoformat(evidence["checked_at_jst"])
             observed = stamp.astimezone(timezone.utc) if stamp.tzinfo is not None else None
@@ -483,7 +538,7 @@ def fetch_history(repository, token, current, *, now=None):
 def include_current_event(event, evidence=None):
     """Only independently verifiable operational events enter reliability rates."""
     if event == "schedule":
-        return True
+        return evidence is None or verified_direct_cron_slot(evidence)
     if event != "workflow_run" or not isinstance(evidence, dict):
         return False
     trigger = evidence.get("trigger")

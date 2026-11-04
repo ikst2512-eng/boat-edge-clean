@@ -238,6 +238,85 @@ class OddsHistoryTests(unittest.TestCase):
                                             race("202611030111", ["fake_success"])]}])
         self.assertEqual(m["race_observations"], 0)
 
+    def test_post_upgrade_direct_run_requires_true_cron_slot_and_120_way_receipt(self):
+        record = {
+            "source_status": "ok",
+            "checked_at_jst": "2026-11-05T14:26:00+09:00",
+            "trigger": {"event": "schedule", "cron": "25 5 * * *"},
+            "samples": [race("202611050111", ["valid_200"])],
+        }
+        step = record["samples"][0]["attempts"][0]
+        step.update(started_at_utc="2026-11-05T05:26:02+00:00",
+                    finished_at_utc="2026-11-05T05:26:03+00:00")
+        with patch.object(history, "replay_saved_receipt", return_value={
+                "response_verified": True, "before_source_t12": False}):
+            self.assertTrue(history.verified_direct_cron_slot(
+                record, run_created_at="2026-11-05T05:25:18Z"))
+            self.assertTrue(history.include_current_event("schedule", record))
+            record["trigger"]["cron"] = "25 3 * * *"
+            self.assertFalse(history.verified_direct_cron_slot(
+                record, run_created_at="2026-11-05T05:25:18Z"))
+            self.assertFalse(history.include_current_event("schedule", record))
+            record["trigger"]["cron"] = "25 5 * * *"
+            self.assertFalse(history.verified_direct_cron_slot(
+                record, run_created_at="2026-11-05T03:26:00Z"))
+            record["trigger"]["event"] = "workflow_dispatch"
+            self.assertFalse(history.verified_direct_cron_slot(record))
+            record["trigger"]["event"] = "schedule"
+            step["finished_at_utc"] = "2026-11-05T07:02:03+00:00"
+            self.assertFalse(history.verified_direct_cron_slot(record))
+            step["finished_at_utc"] = "2026-11-05T05:26:03+00:00"
+            record["checked_at_jst"] = "2026-11-05T16:01:00+09:00"
+            self.assertFalse(history.verified_direct_cron_slot(record))
+            record["checked_at_jst"] = "2026-11-05T14:26:00+09:00"
+            self.assertTrue(history.verified_direct_cron_slot(record))
+        # Correct schedule and times without original-body verification are
+        # still NOT eligible to earn on-time operational monitoring credit.
+        self.assertFalse(history.verified_direct_cron_slot(record))
+
+    def test_post_upgrade_wrong_cron_artifact_stays_visible_as_unverified(self):
+        record = {
+            "source_status": "ok",
+            "checked_at_jst": "2026-11-05T14:26:00+09:00",
+            "trigger": {"event": "schedule", "cron": "25 3 * * *"},
+            "samples": [race("202611050111", ["valid_200"])],
+        }
+        record["samples"][0]["attempts"][0].update(
+            started_at_utc="2026-11-05T05:26:02+00:00",
+            finished_at_utc="2026-11-05T05:26:03+00:00")
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w") as archive:
+            archive.writestr(history.FILE, json.dumps(record))
+        run = {"id": 95, "event": "schedule", "conclusion": "success",
+               "created_at": "2026-11-05T05:25:18Z"}
+        def api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [run] if "&event=schedule&" in url else []}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 52, "expired": False}]}
+        source = {"source_status": "no_upcoming_race", "samples": []}
+        with patch.object(history, "api_json", side_effect=api), patch.object(
+                history, "urlopen", return_value=io.BytesIO(stream.getvalue())), patch.object(
+                history, "replay_saved_receipt", return_value={
+                    "response_verified": True, "before_source_t12": False}):
+            rows, count, errors = history.fetch_history(
+                "a/b", "token", source,
+                now=datetime(2026, 11, 5, 6, 0, tzinfo=timezone.utc))
+            self.assertEqual(count, 1)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(errors, [{"run_id": 95, "status": "schedule_slot_unverified"}])
+            # Same on-time bytes may count if their archived cron is correct.
+            record["trigger"]["cron"] = "25 5 * * *"
+            stream = io.BytesIO()
+            with zipfile.ZipFile(stream, "w") as archive:
+                archive.writestr(history.FILE, json.dumps(record))
+            with patch.object(history, "urlopen", return_value=io.BytesIO(stream.getvalue())):
+                rows, count, errors = history.fetch_history(
+                    "a/b", "token", source,
+                    now=datetime(2026, 11, 5, 6, 0, tzinfo=timezone.utc))
+            self.assertEqual(count, 1)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(errors, [])
+
     def test_load_prior_scheduled_artifact_from_zip(self):
         record = {"checked_at_jst": "2026-11-03T13:00:00+09:00", "source_status": "ok",
                   "samples": [race("202611030111", ["valid_200"])]}
