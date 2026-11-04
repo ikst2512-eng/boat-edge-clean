@@ -106,6 +106,8 @@ def inspect(path, root=ROOT):
         raise ValueError("source received after cutoff")
     if any(t>generated for t in times):
         raise ValueError("source received after candidate generation")
+    if first_committer_at<generated:
+        raise ValueError("first Git commit predates candidate generation")
     if first_committer_at>=cutoff:
         raise ValueError("first Git commit not before prospective cutoff")
     return {"race_code":code,"first_add_sha":sha,
@@ -144,6 +146,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "source received after candidate generation":"source_receipt_after_generation",
                     "source received after cutoff":"source_late",
                     "first Git commit not before prospective cutoff":"first_commit_late",
+                    "first Git commit predates candidate generation":"first_commit_before_generation",
                     "unambiguous first addition not found":"first_add_missing_or_ambiguous",
                     "candidate changed since first add":"original_blob_mismatch",
                     "generated after cutoff":"generation_late",
