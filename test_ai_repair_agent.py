@@ -217,6 +217,48 @@ class RepairAgentTests(unittest.TestCase):
                 if expected:
                     self.assertIn("must be dispatched from main", result.stdout)
 
+    def test_producer_report_gate_rejects_three_changed_files(self):
+        """Even a forged agent report cannot publish three allowed files."""
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        report_step = workflow.split(
+            "      - name: Validate AI report against actual tracked diff\n", 1
+        )[1].split("      - name: Refuse stale main before publishing AI draft\n", 1)[0]
+        report_python = report_step.split("          python - <<'PY'\n", 1)[1].split(
+            "          PY\n", 1
+        )[0]
+        report_python = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in report_python.splitlines()
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Fixture"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "fixture@example.com"],
+                           cwd=root, check=True)
+            names = ["navigation.js", "secondary_navigation.js", "index.html"]
+            for name in names:
+                (root / name).write_text("before\n")
+            subprocess.run(["git", "add", "--", *names], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            for count in (1, 2, 3):
+                with self.subTest(count=count):
+                    for index, name in enumerate(names):
+                        (root / name).write_text(
+                            "after\n" if index < count else "before\n")
+                    (root / "ai_repair_proposal.json").write_text(
+                        json.dumps({
+                            "status": "proposed", "changed_files": names[:count],
+                            "production_change_allowed": False
+                        }))
+                    outcome = subprocess.run(
+                        ["python", "-c", report_python], cwd=root,
+                        text=True, capture_output=True
+                    )
+                    self.assertEqual(outcome.returncode == 0, count <= 2,
+                                     outcome.stdout + outcome.stderr)
+
     def test_proposal_report_matches_tracked_diff_before_publish(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Validate AI report against actual tracked diff\n", 1)[1]
