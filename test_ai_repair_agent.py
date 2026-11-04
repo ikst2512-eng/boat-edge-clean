@@ -1013,5 +1013,51 @@ node() {
 
 
 
+    def test_free_push_artifact_receipt_script(self):
+        """Execute the real free CI smoke script without a key or network."""
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("  free_artifact_smoke:\n", workflow)
+        block = workflow.split("  free_artifact_smoke:\n", 1)[1]
+        self.assertIn("    if: github.event_name == 'push'", block)
+        self.assertIn("    needs: tests", block)
+        self.assertNotIn("GEMINI_API_KEY", block)
+        self.assertNotIn("gh pr create", block)
+        self.assertIn("          name: ai-repair-free-smoke-${{ github.run_id }}", block)
+        self.assertIn("          if-no-files-found: error", block)
+        section = block.split("      - name: Emit no-AI push smoke receipt\n", 1)[1]
+        section = section.split("      - name: Upload free smoke evidence ZIP\n", 1)[0]
+        bash = section.split("        run: |\n", 1)[1]
+        bash = "\n".join(line[10:] if line.startswith("          ") else line
+                         for line in bash.splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            untouched = root / "navigation.js"
+            untouched.write_text("unmodified", encoding="utf-8")
+            env = dict(os.environ, SMOKE_HEAD_SHA="a" * 40, SMOKE_RUN_ID="123456")
+            env.pop("GEMINI_API_KEY", None)
+            valid = subprocess.run(["bash", "-c", bash], cwd=root, env=env,
+                                   capture_output=True, text=True)
+            self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
+            receipt = json.loads((root / "ai_repair_proposal.json").read_text())
+            self.assertEqual(receipt["status"], "no_safe_patch")
+            self.assertIs(receipt["dry_run"], True)
+            self.assertEqual(receipt["smoke_origin"], "push")
+            self.assertEqual(receipt["head_sha"], "a" * 40)
+            self.assertEqual(receipt["run_id"], "123456")
+            self.assertEqual(receipt["changed_files"], [])
+            self.assertEqual(receipt["file_sha256"], {})
+            self.assertIs(receipt["production_change_allowed"], False)
+            self.assertEqual(untouched.read_text(), "unmodified")
+            for name, bad in (("bad-head", dict(env, SMOKE_HEAD_SHA="bad")),
+                              ("bad-id", dict(env, SMOKE_RUN_ID="0"))):
+                with self.subTest(name=name):
+                    (root / "ai_repair_proposal.json").unlink()
+                    invalid = subprocess.run(["bash", "-c", bash], cwd=root,
+                                             env=bad, capture_output=True, text=True)
+                    self.assertNotEqual(invalid.returncode, 0)
+                    self.assertFalse((root / "ai_repair_proposal.json").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
