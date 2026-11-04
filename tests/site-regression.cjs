@@ -607,7 +607,12 @@ assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on 
 assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
 assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
 assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
-assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
+assert.ok(candidateHtml.includes("titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff"),'inverted source timestamps must exclude tickets before rendering');
+assert.ok(candidateHtml.includes("const validTimes=times.every(key=>isJstStamp(pred?.[key]))"),'missing or non-JST source timestamps must fail closed');
+assert.ok(candidateHtml.includes("recordedDeadline===limit&&limit-cutoff===12*60*1000"),'source deadline must match the schedule and T-12 boundary');
+assert.ok(candidateHtml.includes("if(!structurallyValid)continue;\n   available++;"),'invalid candidates must not increase displayed count');
+assert.ok(candidateHtml.includes("購入判断に使用しないでください"),'unverified remote first-seen must never become a purchase recommendation');
+assert.ok(!candidateHtml.includes('const recordedBeforeInput=generated<source'),'source inversion must not merely change warning copy');
 assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
 
 // Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
