@@ -206,7 +206,7 @@ assert.ok(html.includes('min-width:0!important;max-width:100%;table-layout:fixed
 assert.ok(script.includes("['チルト',r=>txt(byLane(preview,r.lane).tilt)]"),'tilt row must explicitly render');
 assert.strictEqual((script.match(/\['展示タイム',r=>txt\(byLane\(preview,r\.lane\)\.exhibition_time\)\]/g)||[]).length,1,'mobile matrix exhibition time must occur once');
 assert.strictEqual((script.match(/\['チルト',r=>txt\(byLane\(preview,r\.lane\)\.tilt\)\]/g)||[]).length,1,'mobile matrix tilt must occur once');
-assert.ok(script.includes('直前データ収集が未実装'),'unavailable tilt must be distinguished from loading error');
+assert.ok(script.includes('対象レースの締切前6艇分の取得記録を検証できていません。'),'unverified exhibition values must be distinguished from transport failure or an unimplemented collector');
 assert.ok(html.includes('横スクロール不要'),'mobile racecard must be designed to fit viewport');
 assert.ok(html.includes('table-layout:fixed'),'six-boat columns must fit screen');
 assert.ok(script.includes("['チルト',r=>txt("),'mobile matrix must show tilt');
@@ -370,7 +370,7 @@ const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues(
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
 assert.ok(scheduleLoader.includes("try{archive=await fetchTimed(")&&scheduleLoader.includes("}catch(_){}"),'historical archive transport failures must reach alternate sources');
-assert.ok(scheduleLoader.includes("archive?.status===404||(date<fmt(jst())&&(!archive||!archive.ok))"),'historical archive 403/429/5xx/network failures must reach CLEAN API and results CSV');
+assert.ok(scheduleLoader.includes("else if(!archive?.ok){"),'all Raw archive non-2xx/network failures must reach CLEAN API, including today');
 assert.ok(scheduleLoader.includes("if(archive?.ok){data=await archive.json()"),'valid archived schedule remains preferred');
 assert.ok(scheduleLoader.includes('partial_coverage:feed.partial_coverage===true'),'partial fallback coverage must survive the API-to-UI transform');
 assert.ok(scheduleLoader.includes("else throw Error('SCHEDULE_ARCHIVE_HTTP_'+archive.status)"),'current date must still reject unexpected archive errors');
@@ -580,3 +580,32 @@ assert.ok(raceDataGate.includes('if(completeHeldSchedule())'), 'partial/recovere
 assert.ok(!raceDataGate.includes('todayVenueRaces.partial_coverage!==true'), 'racecard path must reuse the centralized complete-coverage gate');
 assert.ok(script.includes("document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1)"), 'previous button must reflect confirmed absent race');
 assert.ok(script.includes("document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1)"), 'next button must reflect confirmed absent race');
+
+ // Live Pages browser test must report data states separately from four-tab navigation.
+ assert.ok(archivePublish.includes('CLEAN_LIVE_DAY_TAB_STATUS'),'real-day published browser test must log tab status evidence');
+ assert.ok(archivePublish.includes('tabEvidence[view].race!==selected.key'),'live tab data observation must retain race identity');
+ assert.ok(archivePublish.includes("tabEvidence.result.confirmed="),'result tab must distinguish confirmed content from tab visibility');
+ assert.ok(archivePublish.includes('not proof of complete sources'),'incomplete source evidence must remain explicitly qualified');
+
+// Playwright Locator has no children() API; query direct descendants explicitly.
+assert.ok(archivePublish.includes("page.locator('#predictionRows > *').count()"),'live status diagnostic must use supported locator selector');
+assert.ok(!archivePublish.includes("page.locator('#predictionRows').children()"),'live status diagnostic must not call nonexistent children() API');
+
+// Pre-race preview collector is implemented; unavailable or unverified values must not be labeled as "not implemented".
+assert.ok(script.includes('対象レースの締切前6艇分の取得記録を検証できていません。'),'unverified exhibition copy must reflect evidence state');
+assert.ok(!script.includes('直前データ収集が未実装'),'do not mislabel unverified source evidence as unimplemented collection');
+
+// Real-day site diagnostics distinguish six visible placeholders from verified beforeinfo.
+assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'published exhibition diagnostic must include source verification flag');
+assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
+assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
+
+// Candidate availability regression: real saved pre-deadline forecasts are reachable.
+assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut is available from any race view');
+assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut must work on GitHub Pages');
+assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
+assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
+assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
+assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
+assert.ok(candidateHtml.includes('recordedBeforeInput'),'candidate page must flag evidence time inversions');
+assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
