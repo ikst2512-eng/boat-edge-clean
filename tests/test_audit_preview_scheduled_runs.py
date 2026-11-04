@@ -173,5 +173,46 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"schedule_listing_changed"):
             collect_schedule_history(fetch,date(2026,11,4))
 
+    def test_daytime_failure_cannot_be_masked_by_nighttime_success(self):
+        runs=[
+            {"id":401,"event":"schedule","created_at":"2026-11-04T11:00:00Z",
+             "run_started_at":"2026-11-04T11:00:00Z",
+             "status":"completed","conclusion":"failure"},
+            {"id":402,"event":"schedule","created_at":"2026-11-04T17:45:45Z",
+             "run_started_at":"2026-11-04T17:45:45Z",
+             "status":"completed","conclusion":"success"},
+        ]
+        day=date(2026,11,4)
+        health=capture_window_health(runs,day,True)
+        self.assertEqual(health["today_in_window_failed_run_ids"],[401])
+        self.assertEqual(health["today_in_window_successful_run_ids"],[])
+        self.assertTrue(health["no_successful_in_window_capture_today"])
+        self.assertFalse(daily_capture_health(runs,day,True)["all_today_captures_failed"])
+
+    def test_genuine_in_window_success_satisfies_schedule_health_only(self):
+        runs=[
+            {"id":410,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+             "run_started_at":"2026-11-04T12:00:00Z",
+             "status":"completed","conclusion":"success"},
+            {"id":411,"event":"schedule","created_at":"2026-11-04T17:45:00Z",
+             "run_started_at":"2026-11-04T17:45:00Z",
+             "status":"completed","conclusion":"failure"},
+        ]
+        health=capture_window_health(runs,date(2026,11,4),True)
+        self.assertEqual(health["today_in_window_successful_run_ids"],[410])
+        self.assertFalse(health["no_successful_in_window_capture_today"])
+        self.assertFalse(health["window_check_is_t12_evidence"])
+
+    def test_pending_in_window_run_is_not_confirmed_success(self):
+        runs=[
+            {"id":420,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+             "run_started_at":"2026-11-04T12:00:00Z",
+             "status":"in_progress","conclusion":None},
+        ]
+        health=capture_window_health(runs,date(2026,11,4),True)
+        self.assertEqual(health["today_in_window_pending_or_unknown_run_ids"],[420])
+        self.assertTrue(health["no_successful_in_window_capture_today"])
+        self.assertFalse(capture_window_health(runs,date(2026,11,4),False)["no_successful_in_window_capture_today"])
+
 if __name__ == "__main__":
     unittest.main()
