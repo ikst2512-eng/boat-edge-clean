@@ -351,11 +351,34 @@ def prior_fallback_guard(trigger, repository, token, current_run_id, *, now=None
         return "fallback_lookup_unavailable"
 
 
+def rescue_slot_eligible(value, *, now=None):
+    """Only current JST 12:25/14:25/16:25 late receipts may be recovery."""
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        slot = datetime.fromisoformat(value)
+        if slot.tzinfo is None or slot.utcoffset() != timedelta(hours=9):
+            return False
+        if slot.hour not in (12, 14, 16) or slot.minute != 25 or slot.second or slot.microsecond:
+            return False
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            return False
+        elapsed = (now.astimezone(timezone.utc) - slot.astimezone(timezone.utc)).total_seconds() / 60
+        return 15 <= elapsed <= 120
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def main():
     trigger = event_provenance()
     event = trigger["event"]
     allowed = eligible(event, trigger)
     schedule_guard = "not_applicable"
+    if event == "workflow_dispatch" and trigger.get("rescue_slot_jst"):
+        allowed = bool(os.environ.get("GITHUB_REF") == "refs/heads/main"
+                       and rescue_slot_eligible(trigger["rescue_slot_jst"]))
+        schedule_guard = "recovery_slot_validated" if allowed else "invalid_or_stale_recovery_slot"
     if allowed and event == "workflow_run":
         schedule_guard = direct_schedule_guard(
             trigger, os.environ.get("GITHUB_REPOSITORY", ""),
@@ -378,7 +401,10 @@ def main():
             "source_status": "fallback_ineligible",
             "trigger": trigger,
             "samples": [],
-            "reason": schedule_guard if event == "workflow_run" else "upstream_not_verified_or_outside_bounded_fallback_window",
+            "reason": schedule_guard if (
+                event == "workflow_run"
+                or (event == "workflow_dispatch" and trigger.get("rescue_slot_jst"))
+            ) else "upstream_not_verified_or_outside_bounded_fallback_window",
         }
         Path("live_odds_metrics.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -387,6 +413,11 @@ def main():
         "upstream_event": trigger.get("upstream_event"),
         "upstream_run_id": trigger.get("upstream_run_id"),
         "direct_schedule_guard": schedule_guard}), flush=True)
+    # A marked recovery that fails freshness/branch validation must fail the
+    # workflow, not quietly produce a green job with skipped odds sampling.
+    # The ineligible JSON artifact has already been written above.
+    if event == "workflow_dispatch" and trigger.get("rescue_slot_jst") and not allowed:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

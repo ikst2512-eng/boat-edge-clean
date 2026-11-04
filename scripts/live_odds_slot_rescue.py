@@ -105,8 +105,10 @@ def fetch_history(root, headers, event):
         return json.load(response)
 
 
-def dispatch(root, headers):
-    req = Request(root + "/dispatches", data=b'{"ref":"main"}',
+def dispatch(root, headers, slot):
+    body = json.dumps({"ref": "main", "inputs": {
+        "rescue_slot_jst": slot.isoformat()}}, separators=(",", ":")).encode("utf-8")
+    req = Request(root + "/dispatches", data=body,
                   headers={**headers, "Content-Type": "application/json"},
                   method="POST")
     with urlopen(req, timeout=16) as response:
@@ -157,7 +159,7 @@ def main():
         previous = fetch_history(root, headers, "workflow_dispatch")
         report.update(decision(scheduled, previous, now, event, ref, trigger, repo))
         if report["action"] == "eligible_for_recovery":
-            dispatch(root, headers)
+            dispatch(root, headers, datetime.fromisoformat(report["slot_jst"]))
             report["action"] = "fallback_dispatch_accepted_not_sample_proof"
     except Exception as exc:
         report["action"] = "rescue_check_or_dispatch_failed"

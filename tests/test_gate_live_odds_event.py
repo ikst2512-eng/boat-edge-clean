@@ -61,7 +61,8 @@ class FallbackGateTests(unittest.TestCase):
         self.assertIn(
             "      - name: Fail unhealthy unattended odds sampling\n"
             "        if: steps.gate.outputs.collect == 'true' && "
-            "(github.event_name == 'schedule' || github.event_name == 'workflow_run')\n",
+            "(github.event_name == 'schedule' || github.event_name == 'workflow_run' || "
+            "(github.event_name == 'workflow_dispatch' && inputs.rescue_slot_jst != ''))\n",
             workflow)
         self.assertIn("      - name: Preserve per-race statuses and timings\n"
                       "        if: always()\n", workflow)
@@ -90,6 +91,48 @@ class FallbackGateTests(unittest.TestCase):
         # UTC 03:25 / 05:25 / 07:25 are JST 12:25 / 14:25 / 16:25.
         self.assertEqual({(int(parts.split()[1]) + 9) % 24
                           for parts in cron}, {12, 14, 16})
+
+    def test_recovery_dispatch_has_strict_verdict_and_main_only_marker(self):
+        from datetime import datetime, timezone, timedelta
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        self.assertIn("      rescue_slot_jst:", workflow)
+        self.assertIn("inputs.rescue_slot_jst != ''", workflow)
+        self.assertIn("run: python scripts/check_live_odds_probe_verdict.py", workflow)
+        jst = timezone(timedelta(hours=9))
+        slot = datetime(2026, 11, 5, 12, 25, tzinfo=jst)
+        self.assertTrue(gate.rescue_slot_eligible(
+            slot.isoformat(), now=slot + timedelta(minutes=18)))
+        for invalid in (
+            "", "2026-11-05T12:24:00+09:00",
+            "2026-11-05T12:25:00+00:00",
+            "2026-11-05T12:25:00",
+            "2026-11-05T22:25:00+09:00",
+        ):
+            self.assertFalse(gate.rescue_slot_eligible(
+                invalid, now=slot + timedelta(minutes=18)), invalid)
+        self.assertFalse(gate.rescue_slot_eligible(
+            slot.isoformat(), now=slot + timedelta(minutes=121)))
+
+    def test_stale_recovery_dispatch_cannot_claim_operational_sample(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = os.getcwd()
+            os.chdir(folder)
+            try:
+                with patch.dict(os.environ, {
+                    "GITHUB_REF": "refs/heads/main", "GITHUB_OUTPUT": "out",
+                }), patch.object(gate, "event_provenance", return_value={
+                    "event": "workflow_dispatch",
+                    "rescue_slot_jst": "2026-11-01T12:25:00+09:00"}):
+                    with self.assertRaises(SystemExit) as rejection:
+                        gate.main()
+                    self.assertEqual(rejection.exception.code, 2)
+                record = json.loads(Path("live_odds_metrics.json").read_text())
+                self.assertEqual(record["source_status"], "fallback_ineligible")
+                self.assertEqual(record["reason"], "invalid_or_stale_recovery_slot")
+                self.assertIn("collect=false", Path("out").read_text())
+            finally:
+                os.chdir(previous)
 
     def test_only_approved_schedule_upstream_is_operational(self):
         from datetime import datetime, timezone

@@ -276,8 +276,13 @@ def event_provenance():
     upstream = payload.get("workflow_run")
     if not isinstance(upstream, dict):
         upstream = {}
+    inputs = payload.get("inputs")
+    if not isinstance(inputs, dict):
+        inputs = {}
     return {
         "event": event,
+        # Preserve the rescue marker, never relabel as a direct GitHub cron.
+        "rescue_slot_jst": inputs.get("rescue_slot_jst") if event == "workflow_dispatch" else None,
         "cron": payload.get("schedule") if event == "schedule" else None,
         "upstream_event": upstream.get("event") if event == "workflow_run" else None,
         "upstream_workflow": upstream.get("name") if event == "workflow_run" else None,
