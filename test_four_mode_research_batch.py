@@ -50,6 +50,7 @@ class BatchTests(unittest.TestCase):
         def faulty(code, root):
             modes = {mode: {"coverage_diagnostic": "winner_head_absent",
                            "race_dynamics_cause": "not_determined",
+                           "winning_rank": None,
                            "top3": False, "top5": False, "top10": False}
                      for mode in ("narrow", "hit", "balance", "hole")}
             modes["hit"]["top3"] = True
@@ -95,6 +96,22 @@ class BatchTests(unittest.TestCase):
         x = summarize(["202610280101"], comparator=case)
         self.assertEqual(x["modes"]["hit"]["topn_hits"]["top1"], 0)
         self.assertEqual(x["modes"]["hit"]["topn_hits"]["top3"], 1)
+
+    def test_real_cohort_top1_same_denominator(self):
+        from four_mode_historical_cohort import run
+        result = run(limit=12)
+        if result["status"] != "historical_research_only":
+            self.skipTest("No real frozen race/result pairs")
+        self.assertEqual(result["requested"], 12)
+        self.assertEqual(len(result["cohort_codes"]), 12)
+        n = result["historical_comparable"]
+        self.assertGreater(n, 0)
+        for mode in ("narrow", "hit", "balance", "hole"):
+            counts = result["topn_hits"][mode]
+            self.assertLessEqual(counts["top1"], counts["top3"])
+            self.assertLessEqual(counts["top3"], counts["top5"])
+            self.assertLessEqual(counts["top5"], counts["top10"])
+            self.assertLessEqual(counts["top10"], n)
 
     def test_duplicates_rejected(self):
         with self.assertRaises(ValueError):
