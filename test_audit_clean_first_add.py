@@ -30,6 +30,21 @@ class FirstAddAuditTests(unittest.TestCase):
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T13:50:00+09:00"))):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
+    def test_first_commit_before_generation_is_not_valid_freeze_evidence(self):
+        obj={"race_code":"202611050404","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-05T12:16:00+09:00",
+             "cutoff_jst":"2026-11-05T12:04:00+09:00",
+             "generated_at":"2026-11-05T10:00:00+09:00",
+             "source_title_received_jst":"2026-11-05T09:59:00+09:00",
+             "source_cards_received_jst":"2026-11-05T09:59:01+09:00"}
+        with patch.object(audit,"first_add",return_value=(
+            json.dumps(obj).encode(),"b"*40,
+            datetime.fromisoformat("2026-11-05T09:59:59+09:00"))):
+            with self.assertRaisesRegex(ValueError,
+                                        "first Git commit predates candidate generation"):
+                audit.inspect("prospective_predictions/202611050404.json")
+
     def test_receipts_after_forecast_generation_denied_even_before_cutoff(self):
         # Observed in 202611040404: generated 11:01:33.627, title and cards
         # not received until 11:01:33.708 and 11:01:33.766 respectively.
