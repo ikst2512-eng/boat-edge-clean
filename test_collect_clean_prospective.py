@@ -221,6 +221,31 @@ class ProspectiveTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"all_pre_race_sources_unavailable"):
                 capture.collect(day)
 
+    def test_workflow_archives_actual_source_http_bytes_without_certification(self):
+        import hashlib
+        import os
+        from four_mode_raw_receipt import preserve
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        capture_step=workflow.split("      - name: Capture if public race cards are already published",1)[1].split("      - name: Freeze immutable candidate evidence",1)[0]
+        archive_step=workflow.split("      - name: Archive prospective capture diagnostics",1)[1]
+        self.assertIn("FOUR_MODE_RAW_RECEIPT_DIR: test-results/prospective-source-originals",capture_step)
+        self.assertIn("test-results/prospective-capture.log",archive_step)
+        self.assertIn("test-results/prospective-source-originals/",archive_step)
+        self.assertIn("if: always() && github.event_name != 'pull_request'",archive_step)
+        raw=b'{"raw":"prospective-only"}'
+        received=datetime(2026,11,4,12,0,tzinfo=JST)
+        url="https://race.boatcast.jp/api_txt/getHoldingList2_20261104.json"
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,{"FOUR_MODE_RAW_RECEIPT_DIR":tmp}):
+            receipt=preserve(url,raw,received)
+            manifest_files=list(Path(tmp).glob("*.json"))
+            originals=list(Path(tmp).glob("*.bin"))
+            self.assertEqual(len(manifest_files),1)
+            self.assertEqual(len(originals),1)
+            self.assertEqual(originals[0].read_bytes(),raw)
+            self.assertEqual(receipt["sha256"],hashlib.sha256(raw).hexdigest())
+            self.assertEqual(receipt["received_at_jst"],received.isoformat())
+            self.assertIs(receipt["independent_remote_receipt_verified"],False)
+
     def test_precommit_freeze_blocks_unknown_source_and_untrusted_digest(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1','direct_race_specific_pre_race')",workflow)
