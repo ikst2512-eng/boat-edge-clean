@@ -198,6 +198,43 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
 
+    def test_independent_reviewer_rejects_three_modified_files(self):
+        workflow = self.source()
+        block = workflow.split(
+            "      - name: Validate changed-file allowlist\n", 1
+        )[1].split(
+            "      - name: Match proposed PR to originating AI report artifact\n", 1
+        )[0]
+        python_code = block.split("          python - <<'PY'\n", 1)[1].split(
+            "          PY\n", 1
+        )[0]
+        python_code = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in python_code.splitlines()
+        )
+        python_code = python_code.replace(
+            "Path('/tmp/changed.json')", "Path(os.environ['MOCK_CHANGED'])"
+        )
+        python_code = "import os\n" + python_code
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "changed.json"
+            env = dict(os.environ, MOCK_CHANGED=str(file))
+            for label, names, allowed in (
+                ("one", ["navigation.js"], True),
+                ("two", ["navigation.js", "index.html"], True),
+                ("three", ["navigation.js", "index.html", "secondary_navigation.js"], False),
+            ):
+                with self.subTest(case=label):
+                    file.write_text(json.dumps([
+                        {"filename": name, "status": "modified"} for name in names
+                    ]))
+                    result = subprocess.run(
+                        ["python", "-c", python_code], env=env,
+                        capture_output=True, text=True
+                    )
+                    self.assertEqual(result.returncode == 0, allowed,
+                                     label + result.stderr)
+
     def test_ai_source_artifact_matches_candidate_pr_files(self):
         workflow = self.source()
         block = workflow.split("      - name: Match proposed PR to originating AI report artifact\n", 1)[1]
