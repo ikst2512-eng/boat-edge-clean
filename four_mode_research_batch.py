@@ -26,9 +26,14 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
             part = row["modes"].get(mode)
             if not isinstance(part, dict):
                 raise ValueError("untrusted_mode_rows")
+            rank = part.get("winning_rank")
+            if rank is not None and (type(rank) is not int or rank < 1):
+                raise ValueError("invalid_winning_rank")
             flags = [part.get(f"top{n}") for n in (3, 5, 10)]
             if any(type(flag) is not bool for flag in flags):
                 raise ValueError("invalid_topn_flags")
+            if any(flag != (rank is not None and rank <= n) for flag, n in zip(flags, (3, 5, 10))):
+                raise ValueError("rank_topn_mismatch")
             if (flags[0] and not flags[1]) or (flags[1] and not flags[2]):
                 raise ValueError("nonmonotonic_topn")
             if part.get("coverage_diagnostic") not in CATEGORIES:
@@ -40,15 +45,15 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
     by_mode = {}
     for mode in MODES:
         counts = Counter()
-        hits = {f"top{n}": 0 for n in (3, 5, 10)}
+        hits = {f"top{n}": 0 for n in (1, 3, 5, 10)}
         for row in eligible:
             part = row["modes"][mode]
             category = part["coverage_diagnostic"]
             if category not in CATEGORIES or part.get("race_dynamics_cause") != "not_determined":
                 raise ValueError("untrusted diagnostic")
             counts[category] += 1
-            for n in (3, 5, 10):
-                hits[f"top{n}"] += int(part[f"top{n}"] is True)
+            for n in (1, 3, 5, 10):
+                hits[f"top{n}"] += int(part["winning_rank"] == 1 if n == 1 else part[f"top{n}"] is True)
         by_mode[mode] = {"evaluated": len(eligible), "coverage": dict(counts),
                          "topn_hits": hits,
                          "historical_topn_pct": {k: round(100 * v / len(eligible), 2)
@@ -56,12 +61,12 @@ def summarize(codes, root=Path(__file__).resolve().parent, comparator=compare_ra
     paired = {}
     for left, right in (("narrow", "hit"), ("hit", "balance"), ("balance", "hole")):
         topn = {}
-        for n in (3, 5, 10):
+        for n in (1, 3, 5, 10):
             key = f"top{n}"
             counts = {"both": 0, "left_only": 0, "right_only": 0, "neither": 0}
             for row in eligible:
-                l = row["modes"][left][key] is True
-                rr = row["modes"][right][key] is True
+                l = (row["modes"][left]["winning_rank"] == 1 if n == 1 else row["modes"][left][key] is True)
+                rr = (row["modes"][right]["winning_rank"] == 1 if n == 1 else row["modes"][right][key] is True)
                 group = "both" if l and rr else "left_only" if l else "right_only" if rr else "neither"
                 counts[group] += 1
             counts["net_additional_hits"] = counts["right_only"] - counts["left_only"]
