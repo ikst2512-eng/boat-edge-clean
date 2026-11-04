@@ -28,6 +28,37 @@ class FirstAddAuditTests(unittest.TestCase):
         with patch.object(audit,"first_add",return_value=(json.dumps(obj).encode(),"a"*40,datetime.fromisoformat("2026-10-28T13:50:00+09:00"))):
             with self.assertRaises(ValueError):
                 audit.inspect("prospective_predictions/202610281201.json")
+    def test_receipts_after_forecast_generation_denied_even_before_cutoff(self):
+        # Observed in 202611040404: generated 11:01:33.627, title and cards
+        # not received until 11:01:33.708 and 11:01:33.766 respectively.
+        obj={"race_code":"202611040404","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-04T12:16:00+09:00",
+             "cutoff_jst":"2026-11-04T12:04:00+09:00",
+             "generated_at":"2026-11-04T11:01:33.627045+09:00",
+             "source_title_received_jst":"2026-11-04T11:01:33.708274+09:00",
+             "source_cards_received_jst":"2026-11-04T11:01:33.766393+09:00"}
+        with patch.object(audit,"first_add",return_value=(
+            json.dumps(obj).encode(),"b"*40,
+            datetime.fromisoformat("2026-11-04T11:02:00+09:00"))):
+            with self.assertRaisesRegex(ValueError, "source received after candidate generation"):
+                audit.inspect("prospective_predictions/202611040404.json")
+
+    def test_equal_or_earlier_input_receipts_remain_eligible_for_research(self):
+        obj={"race_code":"202611040404","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-04T12:16:00+09:00",
+             "cutoff_jst":"2026-11-04T12:04:00+09:00",
+             "generated_at":"2026-11-04T11:01:33.627045+09:00",
+             "source_title_received_jst":"2026-11-04T11:01:33.620000+09:00",
+             "source_cards_received_jst":"2026-11-04T11:01:33.627045+09:00"}
+        with patch.object(audit,"first_add",return_value=(
+            json.dumps(obj).encode(),"b"*40,
+            datetime.fromisoformat("2026-11-04T11:02:00+09:00"))):
+            result=audit.inspect("prospective_predictions/202611040404.json")
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["remote_first_seen_verified"])
+
     def test_first_add_bounds_git_history_without_skipping_ambiguity(self):
         root = Path("/tmp/first-add-check")
         rel = "prospective_predictions/202610281201.json"
