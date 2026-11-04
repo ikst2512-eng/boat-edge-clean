@@ -486,6 +486,30 @@ class FallbackGateTests(unittest.TestCase):
             fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
 
 
+    def test_artifact_redirect_does_not_forward_github_authorization(self):
+        import io
+        import contextlib
+        from urllib.request import HTTPRedirectHandler
+
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 73, "expired": False}]}
+        requests = []
+        def redirected_archive(request, **_):
+            requests.append(request)
+            redirected = HTTPRedirectHandler().redirect_request(
+                request, None, 302, "Found", {},
+                "https://storage.example.test/odds.zip?sig=dummy")
+            self.assertIn("Authorization", request.unredirected_hdrs)
+            self.assertNotIn("Authorization", request.headers)
+            self.assertNotIn("Authorization", redirected.headers)
+            self.assertNotIn("Authorization", redirected.unredirected_hdrs)
+            raise OSError("transport unavailable")
+
+        with patch.object(gate, "urlopen", side_effect=redirected_archive), contextlib.redirect_stdout(io.StringIO()):
+            result = gate.direct_probe_evidence("a/b", "token", 77, fetch_json=artifacts)
+        self.assertEqual(result, "unavailable")
+        self.assertEqual(len(requests), 1)
+
     def test_artifact_api_error_diagnostics_remain_fail_closed(self):
         import contextlib
         import io

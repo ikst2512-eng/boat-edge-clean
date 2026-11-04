@@ -400,16 +400,23 @@ def fetch_history(repository, token, current, *, now=None):
         if run.get("conclusion") != "success":
             errors.append({"run_id": run_id, "status": "workflow_" + str(run.get("conclusion") or "unknown")})
             continue
+        stage = "artifact_metadata"
         try:
             artifacts = api_json(root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100", token).get("artifacts", [])
             item = next((x for x in artifacts if x.get("name") == ARTIFACT and not x.get("expired")), None)
             if not item:
                 errors.append({"run_id": run_id, "status": "missing_artifact"})
                 continue
+            stage = "artifact_zip"
             req = Request(root + "/actions/artifacts/" + str(item["id"]) + "/zip", headers={
-                "Authorization": "Bearer " + token, "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+                "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+            # GitHub redirects artifact ZIP downloads to a separate blob host.
+            # Authenticate only the initial GitHub request: urllib forwards
+            # regular headers (including Authorization) across redirects.
+            req.add_unredirected_header("Authorization", "Bearer " + token)
             with urlopen(req, timeout=25) as response:
                 raw = response.read(2_000_000)
+            stage = "artifact_parse"
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
                 if FILE not in archive.namelist():
                     raise ValueError("METRICS_JSON_MISSING")
@@ -433,7 +440,9 @@ def fetch_history(repository, token, current, *, now=None):
                 raise ValueError("METRICS_TIME_INVALID")
             history.append(evidence)
         except (HTTPError, URLError, OSError, ValueError, KeyError, zipfile.BadZipFile, TimeoutError) as exc:
-            errors.append({"run_id": run_id, "status": type(exc).__name__})
+            errors.append({"run_id": run_id, "status": type(exc).__name__,
+                           "stage": stage,
+                           "http_status": exc.code if isinstance(exc, HTTPError) else None})
     return history, len(selected), errors
 
 
