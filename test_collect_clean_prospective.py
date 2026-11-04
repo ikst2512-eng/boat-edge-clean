@@ -116,9 +116,33 @@ class ProspectiveTests(unittest.TestCase):
         alternate.assert_called_once_with(day)
 
     def test_nonmatching_daily_race_lists_use_alternate(self):
-        source=(Path(__file__).resolve().parent/"collect_clean_prospective.py").read_text()
-        self.assertIn("title_codes & card_codes",source)
-        self.assertIn("incomplete daily pre-race CSV coverage",source)
+        day="20990101"
+        target=day+"0404"
+        t=datetime.now(JST)
+        daily_titles=[{"レースコード":day+"0101","電話投票締切予定":"23:59"}]
+        daily_cards=[{"レースコード":day+"0202","艇1_全国勝率":"5.1"}]
+        alternate_titles=[{"レースコード":target,"電話投票締切予定":"23:59"}]
+        alternate_cards=[{"レースコード":target,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (daily_titles if "/title/" in url else daily_cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary) as fetch, \
+             patch("clean_openapi_sources.load",return_value=(
+                 alternate_titles,alternate_cards,t,"b"*64,{"source":"nonofficial_openapi_v1"})) as fallback, \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+            saved=json.loads((Path(tmp)/"prospective_predictions"/(target+".json")).read_text())
+        self.assertEqual(fetch.call_count,2)
+        fallback.assert_called_once_with(day)
+        self.assertEqual(result["saved"],1)
+        self.assertEqual(saved["race_code"],target)
+        self.assertEqual(saved["input_source_kind"],"nonofficial_openapi_v1")
+        self.assertEqual(saved["source_title_sha256"],"b"*64)
+        self.assertEqual(saved["source_cards_sha256"],"b"*64)
+        self.assertGreaterEqual(datetime.fromisoformat(saved["generated_at"]),t)
+        self.assertFalse(saved["formal"])
+        self.assertFalse(saved["scoring"])
 
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
