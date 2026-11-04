@@ -33,7 +33,8 @@ def verify_model_provenance(candidate, first_add_sha, root):
     if (not isinstance(model_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", model_sha)
             or not isinstance(source_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", source_sha)
             or not isinstance(first_add_sha, str)
-            or not re.fullmatch(r"[0-9a-f]{40}", first_add_sha)):
+            or not re.fullmatch(r"[0-9a-f]{40}", first_add_sha)
+            or candidate.get("model_dependency_scope") != "research_model.py_only_not_complete_environment"):
         raise ValueError("post-fix model provenance invalid")
     try:
         original = subprocess.check_output(
