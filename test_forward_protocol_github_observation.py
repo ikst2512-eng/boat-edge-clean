@@ -9,7 +9,7 @@ REPO = "ikst2512-eng/boat-edge-clean"
 HEAD = "c" * 40
 RAW = PROTOCOL.read_bytes()
 
-def response(date="Thu, 05 Nov 2026 00:00:00 GMT", *, content=RAW,
+def response(date="Wed, 04 Nov 2026 20:00:00 GMT", *, content=RAW,
              path=REMOTE_PATH, sha=None, age=None):
     return {
         "server_date": date, "cache_age": age,
