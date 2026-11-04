@@ -292,7 +292,13 @@ jobs:
               any(len(entry) != 2 or entry[0] != 'M' for entry in git_entries) or
               sorted(entry[1] for entry in git_entries) != sorted(filenames)):
               raise SystemExit('Candidate Git commit changes do not match the PR API file list')
+          # Reject AI evidence without the producer's review rationale and test plan.
+          reason = report.get('reason')
+          suggested_tests = report.get('suggested_tests')
           if (report.get('status') != 'proposed' or
+              not isinstance(reason, str) or not reason.strip() or len(reason) > 700 or
+              not isinstance(suggested_tests, str) or
+              not suggested_tests.strip() or len(suggested_tests) > 700 or
               report.get('published_branch') != source_pr['head']['ref'] or
               report.get('published_head_sha') != source_pr['head']['sha'] or
               report.get('published_base_sha') != source_pr['base']['sha'] or
