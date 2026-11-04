@@ -428,7 +428,7 @@ jobs:
               }
               tabEvidence.exhibit.count=await page.locator('#exhibitionGrid .exhibition-boat').count();
               // Exhibition cards without measured source values are not exhibition-data proof.
-              tabEvidence.forecast.forecastRows=await page.locator('#predictionRows').children().count();
+              tabEvidence.forecast.forecastRows=await page.locator('#predictionRows > *').count();
               tabEvidence.result.confirmed=await page.locator('#resultDetail .result-combo .boat-num').count()===3;
               console.log('CLEAN_LIVE_DAY_TAB_STATUS',selected.key,JSON.stringify(tabEvidence));
               summary('Live JST-day tab data states (not proof of complete sources): '+selected.key+
