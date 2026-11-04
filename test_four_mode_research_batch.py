@@ -8,10 +8,13 @@ class BatchTests(unittest.TestCase):
                     "formal": False, "remote_first_seen_verified": False,
                     "modes": {m: {"coverage_diagnostic": "covered" if m == "hit" else "winner_head_absent",
                                    "race_dynamics_cause": "not_determined",
+                                   "winning_rank": 1 if m == "hit" else None,
                                    "top3": m == "hit", "top5": m == "hit", "top10": m == "hit"}
                               for m in ("hit", "balance", "hole", "narrow")}}
         result = summarize(["202610280101", "202610280102"], comparator=case)
+        self.assertEqual(result["modes"]["hit"]["topn_hits"]["top1"], 2)
         self.assertEqual(result["modes"]["hit"]["topn_hits"]["top3"], 2)
+        self.assertEqual(result["paired_top10"]["narrow_vs_hit"]["topn"]["top1"]["right_only"], 2)
         self.assertEqual(result["modes"]["hole"]["topn_hits"]["top10"], 0)
         paired = result["paired_top10"]["narrow_vs_hit"]
         self.assertEqual(paired["right_only_top10"], 2)
@@ -35,7 +38,7 @@ class BatchTests(unittest.TestCase):
         def faulty(code, root):
             modes = {mode: {"coverage_diagnostic": "winner_head_absent",
                            "race_dynamics_cause": "not_determined",
-                           "top3": False, "top5": False, "top10": False}
+                           "winning_rank": None, "top3": False, "top5": False, "top10": False}
                      for mode in ("narrow", "hit", "balance", "hole")}
             del modes["hole"]["top5"]
             return {"race_code": code, "status": "historical_comparison_only",
@@ -50,9 +53,10 @@ class BatchTests(unittest.TestCase):
                            "top3": False, "top5": False, "top10": False}
                      for mode in ("narrow", "hit", "balance", "hole")}
             modes["hit"]["top3"] = True
+            modes["hit"]["winning_rank"] = 4
             return {"race_code": code, "status": "historical_comparison_only",
                     "formal": False, "remote_first_seen_verified": False, "modes": modes}
-        with self.assertRaisesRegex(ValueError, "nonmonotonic_topn"):
+        with self.assertRaisesRegex(ValueError, "rank_topn_mismatch"):
             summarize(["202610280101"], comparator=faulty)
 
     def test_covered_beyond_top10_is_valid(self):
@@ -61,12 +65,25 @@ class BatchTests(unittest.TestCase):
                     "formal": False, "remote_first_seen_verified": False,
                     "modes": {m: {"coverage_diagnostic": "covered",
                                   "race_dynamics_cause": "not_determined",
-                                  "top3": False, "top5": False, "top10": False}
+                                  "winning_rank": 11, "top3": False, "top5": False, "top10": False}
                               for m in ("narrow", "hit", "balance", "hole")}}
         result = summarize(["202610280101"], comparator=case)
         self.assertEqual(result["historical_comparable"], 1)
         self.assertEqual(result["modes"]["hit"]["coverage"]["covered"], 1)
         self.assertEqual(result["modes"]["hit"]["topn_hits"]["top10"], 0)
+
+    def test_rank_2_is_not_top1(self):
+        def case(code, root):
+            return {"race_code": code, "status": "historical_comparison_only",
+                    "formal": False, "remote_first_seen_verified": False,
+                    "modes": {m: {"coverage_diagnostic": "covered",
+                                   "race_dynamics_cause": "not_determined",
+                                   "winning_rank": 2, "top3": True,
+                                   "top5": True, "top10": True}
+                              for m in ("hit", "balance", "hole", "narrow")}}
+        x = summarize(["202610280101"], comparator=case)
+        self.assertEqual(x["modes"]["hit"]["topn_hits"]["top1"], 0)
+        self.assertEqual(x["modes"]["hit"]["topn_hits"]["top3"], 1)
 
     def test_duplicates_rejected(self):
         with self.assertRaises(ValueError):
