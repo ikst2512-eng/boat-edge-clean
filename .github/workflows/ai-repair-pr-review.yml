@@ -97,6 +97,7 @@ jobs:
           PY
           )"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > /tmp/ai-proposal-run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > /tmp/ai-proposal-jobs.json
           python - <<'PY'
           import json, os
           from pathlib import Path
@@ -104,6 +105,12 @@ jobs:
           pr = json.loads(Path('/tmp/pr.json').read_text())
           expected_id = int(pr['head']['ref'].split('-')[-1])
           expected_path = '.github/workflows/ai-repair-proposal.yml'
+          jobs_response = json.loads(Path('/tmp/ai-proposal-jobs.json').read_text())
+          jobs = jobs_response.get('jobs') if isinstance(jobs_response, dict) else None
+          propose_jobs = [job for job in jobs if job.get('name') == 'propose'] if isinstance(jobs, list) else []
+          if (len(propose_jobs) != 1 or propose_jobs[0].get('status') != 'completed' or
+              propose_jobs[0].get('conclusion') != 'success'):
+              raise SystemExit('Originating AI proposal job did not complete successfully')
           if (run.get('id') != expected_id or
               run.get('event') != 'workflow_dispatch' or
               run.get('path') != expected_path or
