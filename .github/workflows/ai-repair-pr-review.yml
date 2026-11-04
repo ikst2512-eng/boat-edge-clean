@@ -171,6 +171,7 @@ jobs:
           import hashlib
           import json
           import re
+          import subprocess
           from pathlib import Path
 
           report = json.loads(Path('/tmp/ai-source-evidence/ai_repair_proposal.json').read_text(encoding='utf-8'))
@@ -195,8 +196,13 @@ jobs:
               any(entry.get('status') != 'modified' for entry in changed)):
               raise SystemExit('AI candidate PR does not match the originating proposal evidence')
           for name in claimed:
-              if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digests[name]:
-                  raise SystemExit('AI candidate file content differs from the originating proposal')
+              # An identical byte digest must not hide a symlink or mode change.
+              tree_entry = subprocess.check_output(
+                  ['git', 'ls-tree', 'HEAD', '--', name], text=True).split()
+              if (len(tree_entry) != 4 or tree_entry[0] != '100644' or
+                  tree_entry[1] != 'blob' or Path(name).is_symlink() or
+                  hashlib.sha256(Path(name).read_bytes()).hexdigest() != digests[name]):
+                  raise SystemExit('AI candidate file bytes or Git mode differ from the originating proposal')
           print('AI artifact SHA-256 matches candidate draft files:', len(claimed))
           PY
       - name: Re-run independent UI and navigation tests
