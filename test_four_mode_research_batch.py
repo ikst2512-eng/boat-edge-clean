@@ -109,6 +109,15 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(result["requested"], 12)
         self.assertEqual(len(result["cohort_codes"]), 12)
         self.assertEqual(len(result["per_race"]), result["historical_comparable"])
+        self.assertEqual(len(result["pairwise_topn"]), 6)
+        for pair, item in result["pairwise_topn"].items():
+            left, right = pair.split("_vs_")
+            for k in ("top1", "top3", "top5", "top10"):
+                v = item["topn"][k]
+                self.assertEqual(sum(v[x] for x in ("both", "left_only", "right_only", "neither")),
+                                 result["historical_comparable"])
+                self.assertEqual(v["both"] + v["left_only"], result["topn_hits"][left][k])
+                self.assertEqual(v["both"] + v["right_only"], result["topn_hits"][right][k])
         self.assertEqual({row["race_code"] for row in result["per_race"]},
                          set(result["cohort_codes"]))
         n = result["historical_comparable"]
