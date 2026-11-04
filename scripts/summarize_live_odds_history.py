@@ -23,6 +23,15 @@ ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
 
 
+def replay_saved_receipt(sample):
+    """Recheck new-format actual bytes with the existing operational parser."""
+    try:
+        from probe_live_odds_health import replay_receipt
+    except ModuleNotFoundError:
+        from scripts.probe_live_odds_health import replay_receipt
+    return replay_receipt(sample)
+
+
 
 def consistent_attempts(steps):
     """Reject internally contradictory HTTP/status claims before computing rates."""
@@ -123,9 +132,20 @@ def summarize(records):
                 continue
             if not consistent_observation_times(steps, stamp):
                 continue
+            # New-format odds artifacts include a deadline-source receipt and
+            # exact HTTP body. Recheck that body instead of trusting a saved
+            # valid_200 label. Older historical artifacts lack replay bytes;
+            # preserve their separately understood legacy classification.
+            replay = {"response_verified": False, "before_source_t12": False}
+            if isinstance(run.get("deadline_source"), dict):
+                replay = replay_saved_receipt(sample)
+                if steps[-1].get("state") == "valid_200" and not replay["response_verified"]:
+                    steps = [dict(step) for step in steps]
+                    steps[-1]["state"] = "invalid_200"
             seen.add(key)
             eligible_runs.add(stamp)
-            observations.append({"code": code, "steps": steps, "elapsed": sample.get("elapsed_ms")})
+            observations.append({"code": code, "steps": steps,
+                                 "replay": replay, "elapsed": sample.get("elapsed_ms")})
     http = Counter(str(step.get("http")) for item in observations for step in item["steps"])
     first_valid = sum(item["steps"][0]["state"] == "valid_200" for item in observations)
     pending = [item for item in observations if item["steps"][0]["state"] == "pending_202"]
@@ -144,6 +164,8 @@ def summarize(records):
         "other_http_or_transport": sum(http.values()) - http["200"] - http["202"] - http["503"],
         "first_attempt_valid_races": first_valid,
         "eventual_valid_races": valid,
+        "replayable_120_odds_races": sum(item["replay"]["response_verified"] for item in observations),
+        "before_source_t12_races": sum(item["replay"]["before_source_t12"] for item in observations),
         "eventual_valid_rate_pct": round(valid * 100 / len(observations), 1) if observations else None,
         "initially_pending_races": len(pending),
         "pending_recovered": len(recovered),
