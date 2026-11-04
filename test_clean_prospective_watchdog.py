@@ -66,6 +66,112 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         events.append(run(3, event="schedule", branch="main"))
         self.assertFalse(decide(events, NOW, "schedule", MAIN))
 
+    def test_independent_schedule_completion_wakes_only_main_capture(self):
+        repo = "ikst2512-eng/boat-edge-clean"
+        allowed = (
+            "Four-mode prospective capture (research only)",
+            "CLEAN independent daily schedule capture",
+            "Preview capture (schedule)",
+        )
+        for source in allowed:
+            with self.subTest(source=source):
+                parent = {"workflow_run": {
+                    "name": source,
+                    "event": "schedule",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_repository": {"full_name": repo},
+                    "id": 987,
+                }}
+                self.assertTrue(decide(
+                    [], NOW, "workflow_run", MAIN,
+                    trigger=parent, repository=repo))
+                self.assertFalse(decide(
+                    [run(5)], NOW, "workflow_run", MAIN,
+                    trigger=parent, repository=repo))
+                self.assertFalse(decide(
+                    [run(3, status="in_progress", conclusion=None)],
+                    NOW, "workflow_run", MAIN,
+                    trigger=parent, repository=repo))
+
+    def test_independent_wakeup_rejects_wrong_source_type_or_repo(self):
+        repo = "ikst2512-eng/boat-edge-clean"
+        valid = {
+            "name": "Preview capture (schedule)",
+            "event": "schedule",
+            "head_branch": "main",
+            "status": "completed",
+            "conclusion": "success",
+            "head_repository": {"full_name": repo},
+        }
+        self.assertFalse(decide([], NOW, "workflow_run", MAIN, repository=repo))
+        self.assertFalse(decide(
+            [], NOW, "workflow_run", "refs/heads/feature",
+            trigger={"workflow_run": valid}, repository=repo))
+        for prop, bad in (
+            ("name", "Attacker PR"),
+            ("event", "pull_request"),
+            ("event", "workflow_dispatch"),
+            ("head_branch", "feature"),
+            ("status", "in_progress"),
+            ("conclusion", "failure"),
+            ("head_repository", {"full_name": "attacker/fork"}),
+        ):
+            with self.subTest(prop=prop, bad=bad):
+                self.assertFalse(decide(
+                    [], NOW, "workflow_run", MAIN,
+                    trigger={"workflow_run": {**valid, prop: bad}},
+                    repository=repo))
+        self.assertFalse(decide(
+            [], NOW - timedelta(hours=3), "workflow_run", MAIN,
+            trigger={"workflow_run": valid}, repository=repo))
+
+    def test_independent_wakeup_is_clean_only_and_does_not_expand_cron(self):
+        workflow = Path(".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        self.assertIn("workflow_run:", workflow)
+        self.assertIn("types: [completed]", workflow)
+        for name in (
+            "Four-mode prospective capture (research only)",
+            "CLEAN independent daily schedule capture",
+            "Preview capture (schedule)",
+        ):
+            self.assertIn("- '" + name + "'", workflow)
+        self.assertIn("github.event.workflow_run.event == 'schedule'", workflow)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'", workflow)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+        self.assertIn("github.event_name != 'workflow_run'", workflow)
+        self.assertIn("cron: '12,27,42,57 22-23,0-11 * * *'", workflow)
+        self.assertIn("run: python -m scripts.clean_prospective_watchdog", workflow)
+
+    def test_untrusted_workflow_run_writes_no_dispatch_evidence_without_api(self):
+        from scripts import clean_prospective_watchdog as mod
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            payload=base/"event.json"
+            payload.write_text(json.dumps({"workflow_run": {
+                "name": "Preview capture (schedule)",
+                "event": "pull_request",
+                "head_branch": "main",
+                "status": "completed",
+                "conclusion": "success",
+                "head_repository": {"full_name": "ikst2512-eng/boat-edge-clean"},
+            }}))
+            with patch.object(mod, "OUTPUT", base/"decision.json"), \
+                 patch.dict("os.environ", {
+                     "GITHUB_EVENT_NAME": "workflow_run",
+                     "GITHUB_REF": MAIN,
+                     "GITHUB_RUN_ID": "987",
+                     "GITHUB_EVENT_PATH": str(payload),
+                     "GH_REPOSITORY": "ikst2512-eng/boat-edge-clean",
+                 }), \
+                 patch.object(mod, "fetch_runs") as fetch:
+                mod.main()
+                fetch.assert_not_called()
+            report = json.loads((base/"decision.json").read_text())
+            self.assertEqual(report["action"], "no_dispatch")
+            self.assertFalse(report["new_forecast_saved_proven"])
+
     def test_evidence_written_even_when_no_dispatch(self):
         from scripts import clean_prospective_watchdog as mod
         with tempfile.TemporaryDirectory() as tmp, \
