@@ -819,8 +819,8 @@ class ProspectiveTests(unittest.TestCase):
                                'a'*64,'b'*64,too_late,{}),{})
         schedule=(Path(__file__).resolve().parent/
                   '.github/workflows/clean-prospective.yml').read_text()
-        self.assertIn("cron: '0,15,30,45 0-12 * * *'",schedule)
-        self.assertIn("cron: '0,15,30 13 * * *'",schedule)
+        self.assertIn("cron: '4,19,34,49 0-12 * * *'",schedule)
+        self.assertIn("cron: '4,19,28 13 * * *'",schedule)
 
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
