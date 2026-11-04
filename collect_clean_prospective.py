@@ -76,8 +76,12 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
     card_counts=Counter(r.get("レースコード") for r in cards if isinstance(r,dict))
     # Even a malformed matched pair remains owned by its primary source:
     # never silently replace it with another vendor's values.
-    complete={code for code,n in title_counts.items()
-              if n==1 and card_counts.get(code)==1}
+    # A partially malformed or duplicated primary entry must not be
+    # silently repaired by a different source. Only genuinely absent pairs
+    # are eligible for independent direct supplementation.
+    complete={code for code in title_counts if card_counts.get(code)}
+    blocked={code for code,n in title_counts.items() if n>1}
+    blocked.update(code for code,n in card_counts.items() if n>1)
     primary_titles={r["レースコード"]:r for r in titles
                     if isinstance(r,dict) and r.get("レースコード")
                     and title_counts[r["レースコード"]]==1}
@@ -94,7 +98,8 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
     conflicts=0
     for row in holding:
         code=row.get("レースコード") if isinstance(row,dict) else None
-        if not isinstance(code,str) or code in complete or code in frozen or code in existing_output:
+        if (not isinstance(code,str) or code in complete or code in blocked
+                or code in frozen or code in existing_output):
             continue
         known=primary_titles.get(code)
         if known and known.get("電話投票締切予定")!=row.get("電話投票締切予定"):
