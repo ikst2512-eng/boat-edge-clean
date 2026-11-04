@@ -201,9 +201,10 @@ const {chromium}=require('playwright');
   const separateResult=await page.evaluate(()=>({
    view:activeView,
    resultVisible:!document.getElementById('resultSection').hidden,
-   detail:document.getElementById('resultDetail')?.textContent
+   order:[...document.querySelectorAll('#resultDetail .result-summary .boat-num')].map(n=>n.textContent.trim())
   }));
-  if(separateResult.view!=='result'||!separateResult.resultVisible||!separateResult.detail?.includes('2'))
+  if(separateResult.view!=='result'||!separateResult.resultVisible||
+      JSON.stringify(separateResult.order)!==JSON.stringify(['2','3','1']))
    throw Error('SEPARATE_RESULT_TAB_MISSING '+JSON.stringify(separateResult));
   console.log('PASS: saved research forecast and confirmed result available on their respective race tabs');
   // Verify a real, newly archived 2026-10-31 forecast is visible through the published UI.
