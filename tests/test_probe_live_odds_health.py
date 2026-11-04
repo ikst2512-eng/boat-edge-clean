@@ -112,6 +112,11 @@ class ProbeTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/live-official-odds-probe.yml").read_text()
         self.assertIn("live_odds_failure_evidence/", workflow)
+        self.assertIn("name: live-odds-forensics", workflow)
+        # Large HTML must not expand the operational artifact beyond 2MB.
+        metrics_start = workflow.index("name: ${{ steps.gate.outputs.collect")
+        diagnostic_step = workflow.index("- name: Preserve failure-only official HTML diagnostics")
+        self.assertNotIn("live_odds_failure_evidence/", workflow[metrics_start:diagnostic_step])
         self.assertIn("if: always()", workflow)
         self.assertIn("25 3 * * *", workflow)
         self.assertIn("25 5 * * *", workflow)
