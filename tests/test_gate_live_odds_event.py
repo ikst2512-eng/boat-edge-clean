@@ -238,6 +238,63 @@ class FallbackGateTests(unittest.TestCase):
                          fetch_json=lambda *_: {"workflow_runs": []}), "direct_schedule_absent_or_failed")
 
 
+    def test_direct_schedule_artifact_requires_matching_cron_and_in_slot_http(self):
+        from datetime import datetime, timezone
+        import io
+        import zipfile
+        slot = datetime(2026, 11, 5, 5, 25, tzinfo=timezone.utc)
+        evidence = {"source_status": "ok",
+                    "checked_at_jst": "2026-11-05T14:26:00+09:00",
+                    "trigger": {"event": "schedule", "cron": "25 5 * * *"},
+                    "samples": [{"race_code": "202611050111", "attempts": [{
+                        "finished_at_utc": "2026-11-05T05:26:03+00:00"}]}]}
+        artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics",
+                                               "id": 62, "expired": False}]}
+        def archive(*_):
+            stream = io.BytesIO()
+            with zipfile.ZipFile(stream, "w") as writer:
+                writer.writestr("live_odds_metrics.json", json.dumps(evidence))
+            return stream.getvalue()
+        with patch.object(gate, "verdict", return_value="valid_200_observed"):
+            def check():
+                return gate.direct_probe_evidence(
+                    "a/b", "token", 62, fetch_json=artifacts,
+                    fetch_zip=archive, expected_direct_slot=slot)
+            self.assertEqual(check(), "valid")
+            # The 12:25 cron delayed into the 14:25 window must NOT satisfy it.
+            evidence["trigger"]["cron"] = "25 3 * * *"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["trigger"]["cron"] = "25 5 * * *"
+            evidence["trigger"]["event"] = "workflow_dispatch"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["trigger"]["event"] = "schedule"
+            # Correct cron but HTTP only after the 90-minute slot grace.
+            evidence["samples"][0]["attempts"][0]["finished_at_utc"] = "2026-11-05T07:01:00+00:00"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["samples"][0]["attempts"][0]["finished_at_utc"] = "2026-11-05T05:26:03+00:00"
+            evidence["checked_at_jst"] = "2026-11-05T16:01:00+09:00"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["checked_at_jst"] = "2026-11-05T14:26:00+09:00"
+            self.assertEqual(check(), "valid")
+
+    def test_direct_guard_passes_exact_slot_to_provenance_check(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-05T05:45:00Z"}
+        now = datetime(2026, 11, 5, 5, 50, tzinfo=timezone.utc)
+        direct = {"id": 62, "event": "schedule",
+                  "created_at": "2026-11-05T05:26:00Z",
+                  "status": "completed", "conclusion": "success"}
+        observed = []
+        def probe(repo, token, run_id, *, expected_direct_slot=None):
+            observed.append(expected_direct_slot)
+            return "no_valid_odds"
+        with patch.object(gate, "direct_probe_evidence", side_effect=probe):
+            result = gate.direct_schedule_guard(
+                trigger, "a/b", "token", now=now,
+                fetch_json=lambda *_: {"workflow_runs": [direct]})
+        self.assertEqual(result, "direct_schedule_absent_or_failed")
+        self.assertEqual(observed, [datetime(2026, 11, 5, 5, 25, tzinfo=timezone.utc)])
+
     def test_saved_artifact_with_verified_200_suppresses_fallback(self):
         import io
         import zipfile
