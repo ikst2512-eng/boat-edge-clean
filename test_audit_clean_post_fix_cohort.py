@@ -39,6 +39,12 @@ class PostFixCohortTests(unittest.TestCase):
         self.assertIn("  workflow_dispatch:", workflow)
         self.assertIn("  push:", workflow)
 
+    @staticmethod
+    def valid_tickets():
+        return ["-".join(map(str, t)) for t in (
+            (1,2,3),(1,2,4),(1,3,2),(1,3,4),(1,4,2),
+            (1,4,3),(2,1,3),(2,1,4),(2,3,1),(2,3,4))]
+
     def test_post_fix_source_provenance_validates_digests_without_remote_promotion(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
@@ -49,6 +55,7 @@ class PostFixCohortTests(unittest.TestCase):
             cards="b"*64
             digest=hashlib.sha256((title+":"+cards).encode()).hexdigest()
             record={"input_source_kind":"public_pre_race_csv",
+                    "validated":False, "predictions":self.valid_tickets(),
                     "source_title_sha256":title,"source_cards_sha256":cards,
                     "input_sha256":digest}
             (root/path).write_text(json.dumps(record))
@@ -81,9 +88,37 @@ class PostFixCohortTests(unittest.TestCase):
             directory.mkdir()
             path="prospective_predictions/202611050404.json"
             for kind in (None, "unverified_post_results"):
-                (root/path).write_text(json.dumps({"input_source_kind":kind}))
+                (root/path).write_text(json.dumps({"input_source_kind":kind,"validated":False,
+                                                "predictions":self.valid_tickets()}))
                 with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
                     with self.assertRaisesRegex(ValueError,"source kind"):
+                        inspect_post_fix_record(path,root)
+
+    def test_reject_invalid_ticket_shape_duplicate_and_nonresearch_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory=root/"prospective_predictions"
+            directory.mkdir()
+            path="prospective_predictions/202611050404.json"
+            record={"validated":False,"predictions":self.valid_tickets()}
+            for tickets in (
+                ["1-1-2"]+self.valid_tickets()[1:],
+                ["1-2-7"]+self.valid_tickets()[1:],
+                self.valid_tickets()[:9],
+                [self.valid_tickets()[0]]*10,
+                [123]+self.valid_tickets()[1:],
+            ):
+                record["predictions"]=tickets
+                (root/path).write_text(json.dumps(record))
+                with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                    with self.assertRaisesRegex(ValueError,"trifecta tickets"):
+                        inspect_post_fix_record(path,root)
+            record["predictions"]=self.valid_tickets()
+            for flag in (True,None,0):
+                record["validated"]=flag
+                (root/path).write_text(json.dumps(record))
+                with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                    with self.assertRaisesRegex(ValueError,"research classification"):
                         inspect_post_fix_record(path,root)
 
     def test_no_new_capture_is_pending_not_success(self):

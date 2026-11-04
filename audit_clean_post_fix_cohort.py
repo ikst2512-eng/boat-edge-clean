@@ -28,6 +28,14 @@ def inspect_post_fix_record(path, root=ROOT):
     """Require traceable input provenance on every post-fix local candidate."""
     result = inspect(path, root)
     candidate = json.loads((Path(root) / path).read_text(encoding="utf-8"))
+    if candidate.get("validated") is not False:
+        raise ValueError("post-fix research classification invalid")
+    tickets = candidate.get("predictions")
+    if (not isinstance(tickets, list) or len(tickets) != 10
+            or not all(isinstance(t, str) and re.fullmatch(r"[1-6]-[1-6]-[1-6]", t)
+                       and len(set(t.split("-"))) == 3 for t in tickets)
+            or len(set(tickets)) != 10):
+        raise ValueError("post-fix trifecta tickets invalid")
     kind = candidate.get("input_source_kind")
     if kind not in ("public_pre_race_csv", "nonofficial_openapi_v1"):
         raise ValueError("post-fix source kind missing or invalid")
