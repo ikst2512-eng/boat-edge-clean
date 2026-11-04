@@ -96,6 +96,8 @@ def inspect(path, root=ROOT):
         raise ValueError("generated after cutoff")
     if any(t>=cutoff for t in times):
         raise ValueError("source received after cutoff")
+    if any(t>generated for t in times):
+        raise ValueError("source received after candidate generation")
     if first_committer_at>=cutoff:
         raise ValueError("first Git commit not before prospective cutoff")
     return {"race_code":code,"first_add_sha":sha,
