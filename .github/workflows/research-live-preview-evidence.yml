@@ -48,6 +48,8 @@ jobs:
       - name: Test bounded official source-pair capture
         run: python -m unittest discover -s tests -p 'test_capture_joint_preview_batch.py' -v
       - name: Preserve official preview and odds originals before CSV collection
+        id: official_pair_capture
+        continue-on-error: true  # Keep the existing CSV collection independent.
         run: python -m scripts.capture_joint_preview_batch
       - name: Capture eligible predeadline preview rows
         run: python scripts/collect_live_preview_evidence.py
@@ -122,6 +124,11 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
               out.write("\\n".join(lines)+"\\n")
           PY
+      - name: Fail official capture only after preserving independent CSV work
+        if: always() && steps.official_pair_capture.outcome == 'failure'
+        run: |
+          echo 'Official acquisition failed; independent CSV evidence was still attempted.'
+          exit 1
       - name: Archive separately from research predictions
         if: always()
         uses: actions/upload-artifact@v4

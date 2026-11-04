@@ -62,3 +62,13 @@ class JointBatchTests(unittest.TestCase):
    self.assertEqual(report['complete_pairs_before_t12'],0)
    self.assertEqual(report['observations'][0]['status'],'capture_or_audit_failed')
    self.assertTrue((Path(root)/'batch_report.json').is_file())
+
+ def test_workflow_preserves_csv_work_before_failing_official_outage(self):
+  text=Path('.github/workflows/research-live-preview-evidence.yml').read_text()
+  official=text.index('      - name: Preserve official preview and odds originals')
+  csv=text.index('      - name: Capture eligible predeadline preview rows')
+  final=text.index('      - name: Fail official capture only after preserving independent CSV work')
+  upload=text.index('      - name: Archive separately from research predictions')
+  self.assertIn('continue-on-error: true',text[official:csv])
+  self.assertIn("steps.official_pair_capture.outcome == 'failure'",text[final:upload])
+  self.assertLess(official,csv);self.assertLess(csv,final);self.assertLess(final,upload)
