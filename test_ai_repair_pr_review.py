@@ -180,6 +180,53 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
 
+    def test_ai_source_artifact_matches_candidate_pr_files(self):
+        workflow = self.source()
+        block = workflow.split("      - name: Match proposed PR to originating AI report artifact\n", 1)[1]
+        block = block.split("      - name: Re-run independent UI and navigation tests\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        self.assertIn("gh run download", script)
+        self.assertIn("ai-repair-proposal-", script)
+        code = script.split("          python - <<'PY'\n", 2)[2].split("          PY\n", 1)[0]
+        code = "\n".join(line[10:] if line.startswith("          ") else line
+                         for line in code.splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report_file = root / "ai_repair_proposal.json"
+            changed_file = root / "changed.json"
+            code = code.replace("Path('/tmp/ai-source-evidence/ai_repair_proposal.json')",
+                                "Path(os.environ['MOCK_REPORT'])")
+            code = code.replace("Path('/tmp/changed.json')",
+                                "Path(os.environ['MOCK_CHANGED'])")
+            code = "import os\n" + code
+            env = dict(os.environ, MOCK_REPORT=str(report_file),
+                       MOCK_CHANGED=str(changed_file))
+            valid_report = {"status": "proposed",
+                            "production_change_allowed": False,
+                            "changed_files": ["navigation.js"]}
+            valid_files = [{"filename": "navigation.js", "status": "modified"}]
+            cases = (
+                ("valid", {}, valid_files, True),
+                ("no-patch-run", {"status": "no_safe_patch", "changed_files": []},
+                 valid_files, False),
+                ("disabled", {"status": "disabled"}, valid_files, False),
+                ("wrong-file", {"changed_files": ["index.html"]}, valid_files, False),
+                ("duplicate-files", {"changed_files": ["navigation.js", "navigation.js"]},
+                 valid_files, False),
+                ("production-allowed", {"production_change_allowed": True}, valid_files, False),
+                ("extra-pr-file", {}, valid_files +
+                 [{"filename": "index.html", "status": "modified"}], False),
+                ("deleted-pr-file", {}, [{"filename": "navigation.js", "status": "removed"}], False),
+            )
+            for label, changes, files, expected in cases:
+                with self.subTest(case=label):
+                    report_file.write_text(json.dumps({**valid_report, **changes}))
+                    changed_file.write_text(json.dumps(files))
+                    result = subprocess.run(["python", "-c", code], env=env,
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
         block = workflow.split("      - name: Check PR head did not change during validation\n", 1)[1]
