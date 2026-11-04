@@ -147,9 +147,33 @@ class FirstAddAuditTests(unittest.TestCase):
         self.assertEqual(result["rejected"],1)
         self.assertEqual(result["rejection_reasons"],
                          {"source_receipt_after_generation":1})
+        self.assertEqual(result["by_day"],{"20261104":{
+            "total":2,"local_audit_passed":1,"rejected":1}})
         self.assertEqual(result["rejected_records"][0]["race_code"],"202611040404")
         self.assertFalse(result["formal"])
         self.assertFalse(result["remote_first_seen_verified"])
+
+    def test_daily_counts_separate_legacy_rejection_from_new_candidate(self):
+        paths=["prospective_predictions/202610280101.json",
+               "prospective_predictions/202611040404.json",
+               "prospective_predictions/202611050404.json"]
+        def inspect_one(path,root):
+            if "20261105" in path:
+                return {"race_code":"202611050404","formal":False,
+                        "remote_first_seen_verified":False}
+            raise ValueError("source received after candidate generation")
+        from contextlib import nullcontext
+        with patch.object(audit,"bulk_first_add",return_value=nullcontext()):
+            output=audit.audit_records(paths,inspector=inspect_one)
+        self.assertEqual(output["total"],3)
+        self.assertEqual(output["local_audit_passed"],1)
+        self.assertEqual(output["rejected"],2)
+        self.assertEqual(output["by_day"],{
+            "20261028":{"total":1,"local_audit_passed":0,"rejected":1},
+            "20261104":{"total":1,"local_audit_passed":0,"rejected":1},
+            "20261105":{"total":1,"local_audit_passed":1,"rejected":0}})
+        self.assertFalse(output["formal"])
+        self.assertFalse(output["remote_first_seen_verified"])
 
     def test_batch_rejects_duplicate_or_untrusted_paths_before_history_scan(self):
         p="prospective_predictions/202611040404.json"
