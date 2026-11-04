@@ -49,8 +49,9 @@ class WatchdogPolicyTests(unittest.TestCase):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/four-mode-capture-watchdog.yml").read_text()
-        self.assertIn("cron: '12,27,42,57 22-23,0-11 * * *'", workflow)
+        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
         self.assertIn("recent_minutes=14, cooldown_minutes=14", workflow)
+        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
 
     def test_fifteen_minute_watchdog_recovers_missed_slot(self):
         # A successful run 20 minutes ago must not hide a missed 15-minute slot.
@@ -96,6 +97,18 @@ class WatchdogPolicyTests(unittest.TestCase):
         self.assertTrue(should_dispatch([offbranch, failed_main], self.now,
                                         "schedule", recent_minutes=14,
                                         cooldown_minutes=14))
+
+    def test_clean_night_hours_do_not_extend_other_watchdogs(self):
+        from datetime import timedelta
+        late = self.now + timedelta(hours=13, minutes=29)  # 22:29 JST
+        self.assertFalse(should_dispatch([], late, 'schedule'))
+        self.assertTrue(should_dispatch([], late, 'schedule',
+                                        recent_minutes=14, cooldown_minutes=14,
+                                        end_hour_jst=22))
+        self.assertFalse(should_dispatch([], late + timedelta(minutes=31),
+                                         'schedule', end_hour_jst=22))
+        with self.assertRaisesRegex(ValueError, 'invalid_dispatch_window'):
+            should_dispatch([], late, 'schedule', end_hour_jst=24)
 
     def test_timezone_required(self):
         with self.assertRaises(ValueError):
