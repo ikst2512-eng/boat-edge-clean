@@ -1,0 +1,34 @@
+name: Frozen historical four-mode cohort research
+on:
+  pull_request:
+    paths:
+      - pinned_four_mode_cohort_audit.py
+      - test_pinned_four_mode_cohort_audit.py
+      - research/locked_four_mode_cohorts_20261105.json
+      - four_mode_research_batch.py
+      - four_mode_historical_cohort.py
+      - .github/workflows/four-mode-pinned-cohort-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retrospective:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test manifest integrity and missing-evidence refusal
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch
+      - name: Compare three exact frozen race cohorts
+        run: python pinned_four_mode_cohort_audit.py
+      - name: Retain evidence on both success and failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinned-four-mode-historical-${{ github.run_id }}
+          path: pinned_four_mode_cohort_report.json
+          if-no-files-found: warn
+          retention-days: 90
