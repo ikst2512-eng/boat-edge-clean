@@ -171,6 +171,30 @@ class FallbackGateTests(unittest.TestCase):
         self.assertIn('"http_status": 403', diagnostic)
         self.assertNotIn("secret-token", diagnostic)
 
+    def test_malformed_history_response_is_diagnosed_and_rejected(self):
+        from datetime import datetime, timezone
+        from contextlib import redirect_stdout
+        from io import StringIO
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.prior_fallback_guard(
+                {"upstream_created_at": "2026-11-03T03:45:00Z"},
+                "owner/repo", "token", 100,
+                now=datetime(2026, 11, 3, 3, 50, tzinfo=timezone.utc),
+                fetch_json=lambda *_: {"workflow_runs": None})
+        self.assertEqual(result, "fallback_lookup_unavailable")
+        self.assertIn("malformed_history_response", output.getvalue())
+        self.assertNotIn('"token"', output.getvalue())
+
+    def test_missing_configuration_is_diagnosed_and_rejected(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        output = StringIO()
+        with redirect_stdout(output):
+            result = gate.prior_fallback_guard({}, "owner/repo", "", 0)
+        self.assertEqual(result, "fallback_lookup_unavailable")
+        self.assertIn("missing_required_input", output.getvalue())
+
     def test_direct_schedule_guard_avoids_duplicate_and_allows_failed_retry(self):
         from datetime import datetime, timezone
         trigger = {"upstream_created_at": "2026-11-03T03:45:00Z"}
