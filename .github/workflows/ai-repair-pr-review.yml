@@ -116,10 +116,13 @@ jobs:
           if (not isinstance(jobs, list) or
               jobs_response.get('total_count') != len(jobs)):
               raise SystemExit('Originating AI proposal jobs response is incomplete')
-          propose_jobs = [job for job in jobs if isinstance(job, dict) and job.get('name') == 'propose']
-          if (len(propose_jobs) != 1 or propose_jobs[0].get('status') != 'completed' or
-              propose_jobs[0].get('conclusion') != 'success'):
-              raise SystemExit('Originating AI proposal job did not complete successfully')
+          for required_job in ('tests', 'propose'):
+              matches = [job for job in jobs
+                         if isinstance(job, dict) and job.get('name') == required_job]
+              if (len(matches) != 1 or matches[0].get('status') != 'completed' or
+                  matches[0].get('conclusion') != 'success'):
+                  raise SystemExit('Originating AI ' + required_job +
+                                   ' job is missing, duplicated, or unsuccessful')
           if (run.get('id') != expected_id or
               run.get('event') != 'workflow_dispatch' or
               run.get('path') != expected_path or
