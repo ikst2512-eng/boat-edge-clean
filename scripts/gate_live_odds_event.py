@@ -99,7 +99,15 @@ def direct_probe_evidence(repository, token, run_id, *, fetch_json=None, fetch_z
         stage = "artifact_zip"
         archive_url = root + "/actions/artifacts/" + str(artifact_id) + "/zip"
         if fetch_zip is None:
-            with urlopen(Request(archive_url, headers=headers), timeout=20) as response:
+            # ZIP redirects leave api.github.com; never forward its bearer
+            # Authorization to the external artifact storage host.
+            request = Request(archive_url, headers={
+                "Accept": headers["Accept"],
+                "X-GitHub-Api-Version": headers["X-GitHub-Api-Version"],
+                "User-Agent": headers["User-Agent"],
+            })
+            request.add_unredirected_header("Authorization", "Bearer " + token)
+            with urlopen(request, timeout=20) as response:
                 raw = response.read(2_000_001)
         else:
             raw = fetch_zip(archive_url, token)
