@@ -236,6 +236,22 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(saved,[a])
         cards_get.assert_not_called()
 
+    def test_duplicate_primary_rows_are_not_masked_by_direct_supplement(self):
+        day="20990101"
+        code=day+"0101"
+        t=datetime.now(JST)
+        title={"レースコード":code,"電話投票締切予定":"23:59"}
+        card={"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}
+        for titles,cards in (([title,title],[card]),([], [card,card])):
+            with self.subTest(titles=len(titles),cards=len(cards)), \
+                 tempfile.TemporaryDirectory() as tmp, \
+                 patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+                 patch("clean_direct_sources.holding_rows",return_value=([title],t,"a"*64)), \
+                 patch("clean_direct_sources.direct_cards") as card_get:
+                supplemented=capture.supplement_unlisted(day,titles,cards,{}, {})
+            self.assertEqual(supplemented,{})
+            card_get.assert_not_called()
+
     def test_partial_daily_supplement_outage_does_not_erase_primary(self):
         day="20990101"
         code=day+"0101"
