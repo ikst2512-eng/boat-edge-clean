@@ -86,3 +86,13 @@ jobs:
             live_odds_14day_trend.json
           if-no-files-found: warn
           retention-days: 14
+      # Keep large diagnostic HTML separate: operational artifact ZIP readers
+      # enforce a strict 2MB cap and must never download these extra bytes.
+      - name: Preserve failure-only official HTML diagnostics
+        if: always() && steps.gate.outputs.collect == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-odds-forensics
+          path: live_odds_failure_evidence/
+          if-no-files-found: ignore
+          retention-days: 14

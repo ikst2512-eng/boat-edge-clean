@@ -191,6 +191,76 @@ def summarize(samples):
 
 
 
+
+def preserve_failed_official_html(samples, *, request=urlopen,
+                                  directory=Path("live_odds_failure_evidence")):
+    """Bounded SECOND fetch of public official HTML after an odds API failure.
+
+    This is forensic follow-up, not the exact upstream response served to
+    Render, a successful odds sample, or a formal T-12 source receipt.
+    Keep raw bytes + SHA256 so parser failures can later be reproduced.
+    """
+    failures = []
+    for sample in samples:
+        if not isinstance(sample, dict):
+            continue
+        code = sample.get("race_code")
+        attempts = sample.get("attempts")
+        if not (isinstance(code, str) and len(code) == 12
+                and code.isascii() and code.isdigit()
+                and isinstance(attempts, list) and attempts):
+            continue
+        last = attempts[-1]
+        if not isinstance(last, dict) or not (
+                last.get("http") == 503 or
+                (last.get("http") == 200 and last.get("state") == "invalid_200")):
+            continue
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        url = ("https://www.boatrace.jp/owpc/pc/race/odds3t?hd=" + code[:8] +
+               "&jcd=" + code[8:10] + "&rno=" + str(int(code[10:12])))
+        started = datetime.now(timezone.utc).isoformat()
+        report = {
+            "race_code": code,
+            "diagnostic_only": True,
+            "same_bytes_as_render_api_request": False,
+            "formal": False,
+            "source_url": url,
+            "failed_api_http": last.get("http"),
+            "failed_api_state": last.get("state"),
+            "followup_started_at_utc": started,
+            "result": "unavailable",
+        }
+        try:
+            diagnostic = Request(url, headers={
+                "User-Agent": USER_AGENT, "Accept": "text/html"})
+            with request(diagnostic, timeout=10) as response:
+                status = response.status
+                content_type = response.headers.get("Content-Type", "")
+                raw = response.read(1_500_001)
+            report["source_http"] = status
+            report["source_content_type"] = content_type[:100]
+            if (status == 200 and "html" in content_type.lower()
+                    and 0 < len(raw) <= 1_500_000):
+                with (directory / (code + ".html")).open("xb") as out:
+                    out.write(raw)
+                report.update(result="captured_followup_html",
+                              raw_bytes=len(raw),
+                              raw_sha256=hashlib.sha256(raw).hexdigest())
+            else:
+                report["result"] = "unusable_followup_source"
+                report["raw_bytes"] = len(raw)
+        except (OSError, TimeoutError, ValueError, HTTPError, URLError) as error:
+            report["result"] = "followup_error"
+            report["error_type"] = type(error).__name__
+        report["followup_finished_at_utc"] = datetime.now(timezone.utc).isoformat()
+        with (directory / (code + ".json")).open("x", encoding="utf-8") as out:
+            json.dump(report, out, sort_keys=True, ensure_ascii=False)
+            out.write("\n")
+        failures.append(report)
+    return failures
+
+
 def event_provenance():
     """Record actual workflow event and safe upstream identity in saved evidence."""
     event = os.environ.get("GITHUB_EVENT_NAME", "")
@@ -238,6 +308,14 @@ def main():
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError) as error:
         data["source_status"] = "unavailable:" + type(error).__name__
     data["summary"] = summarize(data["samples"])
+    # Read-only second-source diagnostics after the operational verdict has
+    # already been measured. Never change its state based on this later fetch.
+    try:
+        data["failure_diagnostics"] = preserve_failed_official_html(data["samples"])
+    except (OSError, ValueError) as error:
+        data["failure_diagnostics"] = [{
+            "diagnostic_only": True, "result": "archive_unavailable",
+            "error_type": type(error).__name__}]
     out = Path("live_odds_metrics.json")
     out.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     summary = data["summary"]
