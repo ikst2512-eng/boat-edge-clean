@@ -722,6 +722,11 @@ node() {
                  original, True),
             ):
                 with self.subTest(case=label):
+                    # Previous fail-closed scenario may leave staged changes.
+                    # Reset only this throwaway fixture repository.
+                    subprocess.run(
+                        ["git", "reset", "--hard", "-q"], cwd=root, check=True
+                    )
                     subprocess.run(
                         ["git", "switch", "-C", "negative-" + run_id, original],
                         cwd=root, check=True, capture_output=True,
