@@ -4,6 +4,8 @@ on:
     paths:
       - audit_clean_first_add.py
       - test_audit_clean_first_add.py
+      - audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_cohort.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
@@ -15,6 +17,8 @@ on:
       - 'prospective_predictions/**'
       - audit_clean_first_add.py
       - test_audit_clean_first_add.py
+      - audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_cohort.py
       - evaluate_clean_prospective.py
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
@@ -33,7 +37,49 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check prospective evaluator and first-add audit contracts
-        run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add
+        run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add test_audit_clean_post_fix_cohort
+  post-fix-cohort-evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect only immutable records frozen from 2026-11-05 onward
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          # Never certify pending empty cohorts. Keep diagnostics even on failure.
+          python audit_clean_post_fix_cohort.py > test-results/post-fix-first-add.json
+      - name: Summarize post-fix local evidence without formal promotion
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('test-results/post-fix-first-add.json')
+          if not path.is_file():
+              print('POST_FIX_REPORT_UNAVAILABLE; no evidence certified')
+          else:
+              report=json.loads(path.read_text(encoding='utf-8'))
+              print('POST_FIX_LOCAL_EVIDENCE',json.dumps({
+                  key:report[key] for key in (
+                      'post_fix_start','status','candidate_count',
+                      'local_audit_passed','rejected',
+                      'remote_first_seen_verified','formal')
+              },sort_keys=True))
+          PY
+      - name: Retain post-fix first-add evidence independently
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-post-fix-first-add-${{ github.run_id }}
+          path: test-results/post-fix-first-add.json
+          if-no-files-found: warn
+          retention-days: 30
   immutable-archive-gate:
     runs-on: ubuntu-24.04
     steps:
