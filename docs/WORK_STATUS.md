@@ -1,10 +1,18 @@
+## 2026-11-04 19:58 JST 継続完了：公式展示補完をRender API・画面で実証
+- オッズ記録 #1615 を `b58734f38b818de9ee91505a32489d65744fc592` で統合。exact-head `deeec31428f525229ace9f3d5f5b3ac40dcfb6f5` / CI `41816503204` 成功（27+18+42+9件）。PRイベントの実サンプルも3/3 HTTP200、原応答120通り再検証3、ソース締切T−12相対2。PR/manualを無人実行へ算入しない。最初のPRイベントでCI未起動・mergeable unknownが続いたため、同PRのclose/reopenを1回だけ行い既存CIを再起動。新規重複PR/cronなし。他担当の #1618（14日集計の原応答再検証）もmainに保持。
+- 公式展示補完 #1617 は最新head `d3e99714c44981aa895072e2e0fcef51d3055c3c` の6ワークフロー全てsuccessを確認し、`a80cce16a459f117e5cdbd773d023fc13a368cc4` でmain統合。Navigation `41817312504` のChromium/WebKit成功。実ソース検査 `41817312224` job `126531237592` は19:54:39 JST 下関6R（19:56締切）の公式展示6艇・ST6艇を実取得して成功。過去時刻の偽装や未取得の成功化なし。
+- Render deploy `dep-dblguhuct3oc73a9dnv0` は `a80cce16` で LIVE（2026-11-04T10:56:58Z）。公開API桐生11R（20:03締切）は19:57:23 JSTにHTTP200・出走表6艇・展示6艇・展示ST6艇・チルト6艇を公式補完で返した。CSVでは当該レース未掲載のまま。公式応答SHA256=78d8b71f24f5addd2fe56b90ee63a4b2beeee95c00ddf2b5c0607f8f90da1b14。HTTP原文・ハッシュを `docs/observations/official_preview_production_202611040111.json` に保存。
+- 公開ブラウザで桐生11Rの展示画面を確認。展示タイム6.66/6.68/6.59/6.81/6.63/6.67、ST F.01/F.03/F.06/.08/.03/.06、チルト全艇−0.5が表示。実進入の認定とは別で、UIの「実進入：未取得・未検証」は維持。iPhone Safari実機ではなく公開Chromium＋CI WebKit。
+- 同時観測の下関7R（20:25締切）は公式展示が未完成のためpreview=nullのまま、出走表6艇をHTTP200で保持。reason=incomplete_official_exhibition。負例の原応答も `docs/observations/official_preview_production_202611041907.json` に保存。未完成の6艇値を捏造しない。
+- 残課題は #1593 の11/05無人3枠の実証、公式T−12の独立証明、4モード元仕様と新規予想の適格保存、旧P0原本独立保全。展示表示復旧や手動/PR実測を、正式予想・予想精度・無人監視復旧と混同しない。予想原本・モデル・採点ゲート・旧サイトは変更していない。
+
 ## 2026-11-04 JST 継続：オッズ監視の再検証可能な原応答とT−12区分
 - 確認した不足: `sample_race` は120通りのHTTP200を実行時に検証していたが、保存artifactはstate/timestampsのみで、原応答・締切を保存していなかった。後から120通りとT−12を独立に再計算できない。
 - 既存 `scripts/probe_live_odds_health.py` に20KB以下のHTTP200原応答をBase64・SHA256で保存。同じレース・120通り・取得日時を原文から再検証し、保存された検証済みフラグを信用せず再計算する。大きすぎる応答・欠損・改変・119通りは再検証件数に入れない。
 - `source_deadline_jst` は同レースのソース時刻が一意な場合のみ保存。欠損・矛盾はunknown。締切ソースの受信時刻・digest・種別も保存する。
 - 通常のvalid HTTP200件数とは別に `replayable_120_odds_races` と `before_source_t12_races` を出力。後者は原応答のfetched_at≦HTTP完了時刻＜ソース締切−12分を要求する。**非公式ソース締切を用いた相対時刻検査であり、公式T−12認定・正式予想・無人監視復旧認定ではない**。formal=false、formal_t12_certified=falseを明示。既存cron・fallback admission・サンプリング枠・operational verdict・過去artifactを変更しない。
 - 手動実測（2026-11-04T19:36:53.852908+09:00、event=local_manual）: 3レース全てHTTP200、原応答から120通り再検証3件、ソース締切−12分より前の受信2件。`docs/observations/live_odds_replay_20261104.json`へ原文・hash・ソース時刻を保存。無人実行成功件数に算入せず、公式T−12認定もしない。
-- ローカルodds関連96テスト＋sampler18テスト成功。PR CI・現行スクリプトの実レース測定とmain統合は後続記録で確認する。#1593の11/05無人3枠の実測ゲートは継続。
+- ローカルodds関連96テスト成功（sampler18件を含む）。PR CI・現行スクリプトの実レース測定とmain統合は後続記録で確認する。#1593の11/05無人3枠の実測ゲートは継続。
 
 ## 2026-11-04 19:26 JST 引継ぎ実行：503・トップ締切表示の修正と本番実証
 
