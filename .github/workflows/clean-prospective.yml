@@ -36,6 +36,10 @@ jobs:
       - name: Capture if public race cards are already published
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          # Preserve source HTTP bytes per run for independent SHA replays.
+          # This is a local Actions artifact, NOT remote first-seen proof.
+          FOUR_MODE_RAW_RECEIPT_DIR: test-results/prospective-source-originals
         run: |
           set -euo pipefail
           hour=$(TZ=Asia/Tokyo date +%H)
@@ -178,6 +182,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clean-prospective-capture-${{ github.run_id }}
-          path: test-results/prospective-capture.log
+          path: |
+            test-results/prospective-capture.log
+            test-results/prospective-source-originals/
           if-no-files-found: warn
           retention-days: 30
