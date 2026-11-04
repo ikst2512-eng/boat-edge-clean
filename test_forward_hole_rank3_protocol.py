@@ -51,6 +51,17 @@ class ForwardProtocolTests(unittest.TestCase):
             "selection_after_outcome_forbidden", False),
             "predeclared_selector_changed")
 
+    def test_no_post_result_selection_or_slot_replacement(self):
+        self.alter(lambda x: x["enrollment"].__setitem__(
+            "decision_inputs", "results_and_archive"),
+            "pre_result_enrollment_contract_changed")
+        self.alter(lambda x: x["enrollment"].__setitem__(
+            "pending_result_retains_original_enrolled_slot", False),
+            "pre_result_enrollment_contract_changed")
+        self.alter(lambda x: x["enrollment"].__setitem__(
+            "first_n_pre_result_eligible_races", 100),
+            "pre_result_enrollment_contract_changed")
+
     def test_selector_file_mutation_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             modified = Path(tmp) / "selector.py"
