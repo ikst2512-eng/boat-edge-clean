@@ -41,6 +41,53 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertTrue(history.consistent_observation_times(
             race("202611030111", ["valid_200"])["attempts"], None))
 
+    def test_new_artifact_replays_120_bytes_before_counting_valid(self):
+        import base64
+        import hashlib
+        from itertools import permutations
+        code = "202611030111"
+        keys = {"-".join(map(str, p)): 1.5
+                for p in permutations(range(1, 7), 3)}
+        raw = json.dumps({"ok": True, "hd": "20261103", "jcd": "01",
+                          "rno": 11, "odds": keys,
+                          "fetched_at": "2026-11-03T03:25:05+00:00"}).encode()
+        attempt = {"http": 200, "state": "valid_200", "latency_ms": 400,
+                   "started_at_utc": "2026-11-03T03:25:04+00:00",
+                   "finished_at_utc": "2026-11-03T03:25:05+00:00",
+                   "response_base64": base64.b64encode(raw).decode("ascii"),
+                   "response_sha256": hashlib.sha256(raw).hexdigest()}
+        sample = {"race_code": code, "attempts": [attempt], "elapsed_ms": 400,
+                  "source_deadline_jst": "2026-11-03T16:00:00+09:00"}
+        run = {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
+               "samples": [sample], "deadline_source": {"source": {"source": "nonofficial_openapi_v1"}}}
+        valid = history.summarize([run])
+        self.assertEqual(valid["race_observations"], 1)
+        self.assertEqual(valid["eventual_valid_races"], 1)
+        self.assertEqual(valid["replayable_120_odds_races"], 1)
+        self.assertEqual(valid["before_source_t12_races"], 1)
+
+        # A claimed valid_200 with a missing value or altered SHA must never
+        # increase the successful count in the new-format historical trend.
+        for corrupted in (raw.replace(b'"1-2-3": 1.5, ', b""), raw + b" "):
+            item = json.loads(json.dumps(run))
+            item["samples"][0]["attempts"][0]["response_base64"] = base64.b64encode(corrupted).decode("ascii")
+            metric = history.summarize([item])
+            self.assertEqual(metric["race_observations"], 1)
+            self.assertEqual(metric["eventual_valid_races"], 0)
+            self.assertEqual(metric["http_200"], 1)
+            self.assertEqual(metric["replayable_120_odds_races"], 0)
+            self.assertEqual(metric["before_source_t12_races"], 0)
+
+        # Older artifacts without the replay source keep their legacy rate,
+        # but are not reported as independently replayed 120-ticket proof.
+        legacy = json.loads(json.dumps(run))
+        del legacy["deadline_source"]
+        legacy["samples"][0]["attempts"][0].pop("response_base64")
+        legacy["samples"][0]["attempts"][0].pop("response_sha256")
+        metric = history.summarize([legacy])
+        self.assertEqual(metric["eventual_valid_races"], 1)
+        self.assertEqual(metric["replayable_120_odds_races"], 0)
+
     def test_history_rejects_timestamped_200_from_different_run(self):
         sample = race("202611030111", ["valid_200"])
         sample["attempts"][0].update(
