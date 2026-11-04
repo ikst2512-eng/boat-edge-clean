@@ -1,12 +1,12 @@
 name: CLEAN prospective pre-cutoff capture
 on:
   schedule:
-    - cron: '0,15,30,45 22 * * *' # 07:00-07:45 JST, early pre-cutoff coverage
-    - cron: '0,15,30,45 23 * * *'
-    - cron: '0,15,30,45 0-12 * * *'
+    - cron: '4,19,34,49 22 * * *' # 07:04-07:49 JST, avoid busy minute 00
+    - cron: '4,19,34,49 23 * * *'
+    - cron: '4,19,34,49 0-12 * * *'
     # Public race schedule contains 22:45 JST deadlines; preserve late
     # pre-cutoff opportunities rather than ending all collection at 20:45.
-    - cron: '0,15,30 13 * * *' # 22:00-22:30 JST
+    - cron: '4,19,28 13 * * *' # 22:04/22:19/22:28 JST; 22:45 T-12=22:33
   workflow_dispatch:
   pull_request:
     paths:
