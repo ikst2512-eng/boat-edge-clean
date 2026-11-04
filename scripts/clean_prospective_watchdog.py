@@ -55,7 +55,8 @@ def decide(runs, now, event_name, ref, *, trigger=None, repository=None):
                    and run.get("head_branch") == "main"]
     return should_dispatch(
         publication, now, event_name,
-        recent_minutes=WINDOW_MINUTES, cooldown_minutes=WINDOW_MINUTES)
+        recent_minutes=WINDOW_MINUTES, cooldown_minutes=WINDOW_MINUTES,
+        end_hour_jst=22)
 
 
 def fetch_runs(repo, token):
