@@ -6,6 +6,7 @@ forecast publication or predeadline provenance from job success.
 import argparse
 import json
 import os
+from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -27,12 +28,27 @@ def inventory(repo, token, fetch=None, limit=20):
     if not isinstance(payload, dict) or not isinstance(payload.get("workflow_runs"), list):
         raise ValueError("invalid GitHub response")
     runs = []
+    unavailable_job_details = []
     for x in payload["workflow_runs"]:
         if not isinstance(x, dict) or x.get("event") != "schedule":
             raise ValueError("unexpected workflow event")
         if not isinstance(x.get("id"), int) or x["id"] <= 0:
             raise ValueError("invalid run id")
-        job_data = fetch(f"https://api.github.com/repos/{repo}/actions/runs/{x['id']}/jobs?per_page=100")
+        try:
+            job_data = fetch(f"https://api.github.com/repos/{repo}/actions/runs/{x['id']}/jobs?per_page=100")
+        except HTTPError as exc:
+            # GitHub may forbid/throttle per-run jobs even after the scheduled
+            # run listing succeeded. Preserve observed run metadata, but never
+            # infer that the capture job passed or that an archive was saved.
+            if exc.code not in (403, 429):
+                raise
+            unavailable_job_details.append({"run_id": x["id"], "http_status": exc.code})
+            runs.append({"id": x["id"], "created_at": x.get("created_at"),
+                         "capture_conclusion": None, "failed_steps": None,
+                         "job_details_status": "http_unavailable",
+                         "status": x.get("status"), "conclusion": x.get("conclusion"),
+                         "html_url": x.get("html_url")})
+            continue
         if not isinstance(job_data, dict) or not isinstance(job_data.get("jobs"), list):
             raise ValueError("invalid GitHub jobs response")
         captures = [j for j in job_data["jobs"] if isinstance(j, dict) and j.get("name") == "capture"]
@@ -47,10 +63,13 @@ def inventory(repo, token, fetch=None, limit=20):
         runs.append({"id": x["id"], "created_at": x.get("created_at"),
                      "capture_conclusion": capture.get("conclusion"),
                      "failed_steps": failures,
+                     "job_details_status": "verified",
                      "status": x.get("status"), "conclusion": x.get("conclusion"),
                      "html_url": x.get("html_url")})
     return {"schema": "FOUR_MODE_SCHEDULE_HISTORY_V1",
             "scheduled_run_count": len(runs), "runs": runs,
+            "job_details_complete": not unavailable_job_details,
+            "job_details_unavailable": unavailable_job_details,
             "v2_saved_proven": False, "model_accuracy_proven": False}
 
 def main():
@@ -72,6 +91,9 @@ def main():
             for x in result["runs"]:
                 f.write(f"- Run {x['id']}: {x['created_at']} — {x['status']} / {x['conclusion']}; failed={x['failed_steps']}\n")
             f.write("- V2 publication confirmed: **no** (requires Git commit/source audit)\n")
+            f.write(f"- Detailed job coverage complete: **{result['job_details_complete']}**\n")
+    if not result["job_details_complete"]:
+        raise SystemExit("INCOMPLETE: GitHub HTTP 403/429 blocked capture job verification; metadata retained, not PASS")
 
 if __name__ == "__main__":
     main()
