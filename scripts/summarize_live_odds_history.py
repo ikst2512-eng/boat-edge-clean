@@ -404,6 +404,12 @@ def fetch_history(repository, token, current, *, now=None):
         try:
             artifacts = api_json(root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100", token).get("artifacts", [])
             item = next((x for x in artifacts if x.get("name") == ARTIFACT and not x.get("expired")), None)
+            if (not item and run.get("event") == "workflow_run"
+                    and any(isinstance(x, dict) and x.get("name") == "live-odds-skipped"
+                            and not x.get("expired") for x in artifacts)):
+                # Skipped upstream PR/push/manual triggers preserve a named
+                # receipt, without claiming any operational sample or ZIP.
+                continue
             if not item:
                 errors.append({"run_id": run_id, "status": "missing_artifact"})
                 continue
