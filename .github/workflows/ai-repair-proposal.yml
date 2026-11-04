@@ -205,6 +205,42 @@ jobs:
           print('Validated staged AI files against proposal:', len(claimed))
           PY
           git commit -m "AI: propose narrow UI repair for review"
+          # Recheck the actual commit tree, not just the pre-commit index.
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          claimed = report.get('changed_files')
+          digests = report.get('file_sha256')
+          parents = subprocess.check_output(
+              ['git', 'rev-list', '--parents', '-n', '1', 'HEAD'], text=True).split()
+          changes = subprocess.check_output(
+              ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
+              text=True).splitlines()
+          entries = [line.split('\t') for line in changes]
+          if (len(parents) != 2 or parents[1] != subprocess.check_output(
+                  ['git', 'rev-parse', 'HEAD^'], text=True).strip() or
+              not isinstance(claimed, list) or not claimed or
+              not isinstance(digests, dict) or set(digests) != set(claimed) or
+              any(len(entry) != 2 or entry[0] != 'M' for entry in entries) or
+              sorted(entry[1] for entry in entries) != sorted(claimed)):
+              raise SystemExit('AI commit tree differs from validated proposal')
+          for name in claimed:
+              digest = digests[name]
+              tree_mode = subprocess.check_output(
+                  ['git', 'ls-tree', 'HEAD', '--', name], text=True).split()
+              data = subprocess.check_output(['git', 'show', 'HEAD:' + name])
+              if (not isinstance(digest, str) or
+                  not re.fullmatch(r'[a-f0-9]{64}', digest) or
+                  not tree_mode or tree_mode[0] != '100644' or
+                  hashlib.sha256(data).hexdigest() != digest):
+                  raise SystemExit('Committed AI patch SHA-256 or mode mismatch')
+          print('AI committed tree validated:', len(claimed))
+          PY
           # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
