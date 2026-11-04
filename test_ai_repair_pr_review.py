@@ -127,13 +127,17 @@ class AIReviewGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             pr_file, run_file = root / "pr.json", root / "run.json"
+            jobs_file = root / "jobs.json"
             validator = validator.replace("Path('/tmp/ai-proposal-run.json')",
                                           "Path(os.environ['MOCK_RUN'])")
+            validator = validator.replace("Path('/tmp/ai-proposal-jobs.json')",
+                                          "Path(os.environ['MOCK_JOBS'])")
             validator = validator.replace("Path('/tmp/pr.json')",
                                           "Path(os.environ['MOCK_PR'])")
             pr_file.write_text(json.dumps({"head": {"ref": "ai/repair-321"}}))
             env = dict(os.environ, MOCK_PR=str(pr_file), MOCK_RUN=str(run_file),
-                       CHECKED_MAIN_SHA="base-a", GITHUB_REPOSITORY="example/repo")
+                       MOCK_JOBS=str(jobs_file), CHECKED_MAIN_SHA="base-a",
+                       GITHUB_REPOSITORY="example/repo")
             valid = {"id": 321, "event": "workflow_dispatch",
                      "path": ".github/workflows/ai-repair-proposal.yml",
                      "head_branch": "main", "head_sha": "base-a",
@@ -150,6 +154,9 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("failure", {"conclusion": "failure"}, False),
                 ("wrong-repository", {"repository": {"full_name": "other/repo"}}, False),
             )
+            jobs = {"jobs": [{"name": "tests", "status": "completed", "conclusion": "success"},
+                             {"name": "propose", "status": "completed", "conclusion": "success"}]}
+            jobs_file.write_text(json.dumps(jobs))
             for label, overrides, expected in cases:
                 with self.subTest(case=label):
                     run_file.write_text(json.dumps({**valid, **overrides}))
@@ -157,6 +164,21 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode == 0, expected,
                                      label + result.stdout + result.stderr)
+            # Workflow run success is insufficient when the publish/propose job
+            # was skipped or failed, or its page of jobs is incomplete.
+            for label, proposed_jobs in (
+                ("propose-skipped", [{"name": "propose", "status": "completed", "conclusion": "skipped"}]),
+                ("propose-failed", [{"name": "propose", "status": "completed", "conclusion": "failure"}]),
+                ("propose-in-progress", [{"name": "propose", "status": "in_progress", "conclusion": None}]),
+                ("propose-missing", [{"name": "tests", "status": "completed", "conclusion": "success"}]),
+                ("propose-duplicate", [{"name": "propose", "status": "completed", "conclusion": "success"}] * 2),
+            ):
+                with self.subTest(case=label):
+                    run_file.write_text(json.dumps(valid))
+                    jobs_file.write_text(json.dumps({"jobs": proposed_jobs}))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, label)
 
     def test_final_head_main_and_draft_state_race_guard(self):
         workflow = self.source()
