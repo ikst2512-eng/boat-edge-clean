@@ -15,6 +15,10 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(result["modes"]["hit"]["topn_hits"]["top1"], 2)
         self.assertEqual(result["modes"]["hit"]["topn_hits"]["top3"], 2)
         self.assertEqual(result["paired_top10"]["narrow_vs_hit"]["topn"]["top1"]["right_only"], 2)
+        self.assertEqual(len(result["pairwise_topn"]), 6)
+        self.assertEqual(result["pairwise_topn"]["hit_vs_hole"]["topn"]["top1"]["left_only"], 2)
+        self.assertEqual(len(result["per_race"]), 2)
+        self.assertEqual(result["per_race"][0]["modes"]["hit"]["winning_rank"], 1)
         self.assertEqual(result["modes"]["hole"]["topn_hits"]["top10"], 0)
         paired = result["paired_top10"]["narrow_vs_hit"]
         self.assertEqual(paired["right_only_top10"], 2)
@@ -104,6 +108,9 @@ class BatchTests(unittest.TestCase):
             self.skipTest("No real frozen race/result pairs")
         self.assertEqual(result["requested"], 12)
         self.assertEqual(len(result["cohort_codes"]), 12)
+        self.assertEqual(len(result["per_race"]), result["historical_comparable"])
+        self.assertEqual({row["race_code"] for row in result["per_race"]},
+                         set(result["cohort_codes"]))
         n = result["historical_comparable"]
         self.assertGreater(n, 0)
         for mode in ("narrow", "hit", "balance", "hole"):
