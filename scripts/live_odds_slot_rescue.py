@@ -87,7 +87,10 @@ def decision(schedule_payload, dispatch_payload, now, event, ref, trigger, repos
     }
     if dispatched:
         return {**record, "action": "no_dispatch", "reason": "prior_slot_dispatch_exists"}
-    if any(r.get("status") != "completed" or r.get("conclusion") == "success"
+    # Unknown or skipped outcome is not evidence that direct sampling failed.
+    # Only explicit terminal failure, cancellation or timeout permits rescue.
+    if any(r.get("status") != "completed"
+           or r.get("conclusion") not in ("failure", "cancelled", "timed_out")
            for r in direct):
         return {**record, "action": "no_dispatch",
                 "reason": "direct_schedule_success_or_active"}
