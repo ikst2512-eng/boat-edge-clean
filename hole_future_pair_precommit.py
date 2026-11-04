@@ -93,6 +93,10 @@ def freeze(code,root,started_at=None,completed_at=None):
     source_bytes=path.read_bytes()
     # Pin selector Git blobs, not merely semantic function names.
     locked=verify_locked_selection(root)
+    method_source=Path(__file__).resolve()
+    if method_source.is_symlink() or not method_source.is_file():
+        raise ValueError("unsafe_method_source")
+    method_sha256=hashlib.sha256(method_source.read_bytes()).hexdigest()
     choices=select(archive)
     completed_at=completed_at or datetime.now(timezone.utc)
     if not isinstance(completed_at,datetime) or completed_at.utcoffset() is None:
@@ -112,6 +116,7 @@ def freeze(code,root,started_at=None,completed_at=None):
         "local_finish_jst":completed_at.astimezone(JST).isoformat(),
         "source_sha256":hashlib.sha256(source_bytes).hexdigest(),
         "locked_selector_git_blobs":locked,
+        "method_source_sha256":method_sha256,
         "candidates":choices,
         "candidates_sha256":canonical_digest(choices),
         "formal":False,"prospective_validation":False,
@@ -153,6 +158,10 @@ def review(record,root):
     except (ValueError,KeyError,TypeError):
         return {"status":"timing_mismatch","comparable":0,"formal":False}
     locked=verify_locked_selection(root)
+    method_source=Path(__file__).resolve()
+    if (method_source.is_symlink() or not method_source.is_file() or
+            hashlib.sha256(method_source.read_bytes()).hexdigest()!=record.get("method_source_sha256")):
+        return {"status":"method_source_changed","comparable":0,"formal":False}
     if record.get("locked_selector_git_blobs")!=locked:
         return {"status":"selector_changed","comparable":0,"formal":False}
     # Replay BEFORE opening settled result; a wrong ticket is not scored.
