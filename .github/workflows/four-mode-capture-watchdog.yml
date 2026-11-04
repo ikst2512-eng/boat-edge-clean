@@ -187,7 +187,11 @@ jobs:
       # Dispatch is not proof of a saved forecast; the collector preserves
       # its own T-12, append-only, raw-source and independent audit gates.
       - name: Recover missed CLEAN prospective capture
-        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        # This recovery must still run when preceding four-mode or nightly
+        # watchdog checks fail. Without a status function Actions implicitly
+        # adds success() and skips precisely when recovery matters most.
+        # !cancelled() preserves cancellation and explicit main/PR safety.
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
