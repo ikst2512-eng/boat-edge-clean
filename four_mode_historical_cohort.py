@@ -8,14 +8,19 @@ from four_mode_archive_api import archived_four_modes
 
 ROOT = Path(__file__).resolve().parent
 
-def summarize_group(codes, root):
+def summarize_group(codes, root, include_per_race=False):
     # summarize accepts max 30 codes; keep every subgroup bounded.
     chunks = [summarize(codes[i:i+30], root=root) for i in range(0, len(codes), 30)]
     comparable = sum(x["historical_comparable"] for x in chunks)
     hits = {m: {f"top{n}": sum(x["modes"][m]["topn_hits"][f"top{n}"] for x in chunks)
                 for n in (1,3,5,10)} for m in MODES}
-    return {"requested": len(codes), "historical_comparable": comparable,
-            "topn_hits": hits, "formal": False}
+    report = {"requested": len(codes), "historical_comparable": comparable,
+              "topn_hits": hits, "formal": False}
+    if include_per_race:
+        report["per_race"] = [row for chunk in chunks for row in chunk["per_race"]]
+        if len(report["per_race"]) != comparable:
+            raise ValueError("per_race_denominator_mismatch")
+    return report
 
 
 def run(root=ROOT, limit=120):
@@ -105,7 +110,7 @@ def run(root=ROOT, limit=120):
                     "winner_third_absent": "third_absent"}.get(m["coverage_diagnostic"])
             if miss:
                 breakdown[mode][miss] += 1
-    overall = summarize_group(codes, root)
+    overall = summarize_group(codes, root, include_per_race=True)
     codes.sort()
     days = sorted(set(code[:8] for code in codes))
     venues = sorted(set(code[8:10] for code in codes))
