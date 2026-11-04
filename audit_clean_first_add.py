@@ -155,6 +155,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "post-fix source digest mismatch":"source_digest_invalid",
                     "post-fix research classification invalid":"research_flag_invalid",
                     "post-fix trifecta tickets invalid":"trifecta_ticket_invalid",
+                    "post-fix race identity invalid":"race_identity_invalid",
                 }
                 reason=known.get(str(exc),"other_rejection")
                 rejected.append({"race_code":path[len("prospective_predictions/"):-5],
