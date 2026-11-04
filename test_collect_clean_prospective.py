@@ -183,6 +183,15 @@ class ProspectiveTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"no_valid_races"):
                 capture.collect(day)
 
+    def test_precommit_freeze_blocks_unknown_source_and_untrusted_digest(self):
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1')",workflow)
+        self.assertIn("Candidate source digest inconsistency: ",workflow)
+        self.assertIn("Candidate is not research-only: ",workflow)
+        self.assertIn("hashlib.sha256((title_sha+':'+cards_sha).encode()).hexdigest()",workflow)
+        self.assertIn("kind=='nonofficial_openapi_v1' and title_sha!=cards_sha",workflow)
+        self.assertLess(workflow.index("Candidate source digest inconsistency: "),workflow.index("git commit -m 'data: freeze prospective pre-cutoff"))
+
     def test_successful_freeze_push_dispatches_existing_audit_only_once(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         audit=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")
