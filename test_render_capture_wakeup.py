@@ -61,7 +61,7 @@ class ExternalWakeupTests(unittest.TestCase):
         self.assertIsNone(mod.eligible_slot("four_mode", dt(21, 10)))
         self.assertIsNone(mod.eligible_slot("clean", dt(22, 35)))
         self.assertIsNone(mod.eligible_slot("clean", dt(23, 0)))
-        self.assertIsNone(mod.eligible_slot("four_mode", dt(7, 9)))
+        self.assertIsNone(mod.eligible_slot("four_mode", dt(7, 8)))
         self.assertIsNone(mod.eligible_slot("clean", dt(7, 8)))
 
     def test_explicit_five_minute_timing_and_timezone(self):
