@@ -80,11 +80,11 @@ class ProspectiveTests(unittest.TestCase):
         titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
         cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
         received=datetime.now(JST)
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \\
-             patch.object(capture,"read_rows",side_effect=OSError("daily CSV unavailable")) as primary, \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=OSError("daily CSV unavailable")) as primary, \
              patch("clean_openapi_sources.load",return_value=(titles,cards,received,"d"*64,
-                 {"source":"nonofficial_openapi_v1","valid":1,"rejected":0})) as alternate, \\
+                 {"source":"nonofficial_openapi_v1","valid":1,"rejected":0})) as alternate, \
              patch.object(capture,"model_provenance",return_value={"model_git_sha":"a"*40}):
             result=capture.collect(day)
             saved=json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
@@ -100,7 +100,7 @@ class ProspectiveTests(unittest.TestCase):
 
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
-        with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \\
+        with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
              patch("clean_openapi_sources.load") as alternate:
             with self.assertRaisesRegex(ValueError,"source too large"):
                 capture.collect(day)
@@ -108,7 +108,7 @@ class ProspectiveTests(unittest.TestCase):
 
     def test_missing_csv_and_missing_alt_are_not_fabricated_success(self):
         day="20990101"
-        with patch.object(capture,"read_rows",side_effect=OSError("daily 404")), \\
+        with patch.object(capture,"read_rows",side_effect=OSError("daily 404")), \
              patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")):
             with self.assertRaisesRegex(ValueError,"no_valid_races"):
                 capture.collect(day)
