@@ -4,6 +4,9 @@ on:
     paths:
       - pinned_four_mode_cohort_audit.py
       - pinned_hole_rank3_research.py
+      - forward_hole_rank3_protocol.py
+      - test_forward_hole_rank3_protocol.py
+      - research/forward_hole_rank3_protocol_20261105.json
       - test_pinned_hole_rank3_research.py
       - hole_upper_rank_pair_protection.py
       - test_pinned_four_mode_cohort_audit.py
@@ -24,11 +27,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
       - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
         run: python pinned_hole_rank3_research.py
+      - name: Verify fixed forward experiment protocol (no data scored)
+        run: python forward_hole_rank3_protocol.py > forward_hole_rank3_protocol_audit.json
       - name: Retain evidence on both success and failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -37,5 +42,6 @@ jobs:
           path: |
             pinned_four_mode_cohort_report.json
             pinned_hole_rank3_research_report.json
+            forward_hole_rank3_protocol_audit.json
           if-no-files-found: warn
           retention-days: 90
