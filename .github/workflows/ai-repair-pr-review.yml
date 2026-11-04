@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 jobs:
   syntax:
     runs-on: ubuntu-latest
@@ -76,6 +77,42 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as f:
               f.write('sha='+p['head']['sha']+'\n')
               f.write('main_sha='+main+'\n')
+          PY
+      - name: Verify completed AI proposal workflow provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          CHECKED_MAIN_SHA: ${{ steps.pr.outputs.main_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(python - <<'PY'
+          import json, re
+          from pathlib import Path
+          p = json.loads(Path('/tmp/pr.json').read_text())
+          match = re.fullmatch(r'ai/repair-([0-9]+)', p['head']['ref'])
+          if match is None:
+              raise SystemExit('Invalid AI proposal workflow run ID')
+          print(match.group(1))
+          PY
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > /tmp/ai-proposal-run.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          run = json.loads(Path('/tmp/ai-proposal-run.json').read_text())
+          pr = json.loads(Path('/tmp/pr.json').read_text())
+          expected_id = int(pr['head']['ref'].split('-')[-1])
+          expected_path = '.github/workflows/ai-repair-proposal.yml@main'
+          if (run.get('id') != expected_id or
+              run.get('event') != 'workflow_dispatch' or
+              run.get('path') != expected_path or
+              run.get('head_branch') != 'main' or
+              run.get('head_sha') != os.environ['CHECKED_MAIN_SHA'] or
+              run.get('status') != 'completed' or
+              run.get('conclusion') != 'success' or
+              run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']):
+              raise SystemExit('AI draft PR is not backed by a completed successful proposal workflow')
           PY
       - uses: actions/checkout@v4
         with:
