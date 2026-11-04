@@ -65,5 +65,17 @@
     "official_accuracy_requires_separate_independent_certification": true,
     "github_server_observation_does_not_prove_first_receipt": true,
     "trial_registration_does_not_certify_any_actual_forecast": true
-  }
+  },
+  "enrollment": {
+    "decision_inputs": "verified_pre_result_archive_and_saved_shadow_and_remote_observation_only",
+    "first_n_pre_result_eligible_races": 300,
+    "first_n_order": "deadline_jst_ascending_then_race_code_ascending",
+    "no_results_payouts_or_postrace_indicators_allowed": true,
+    "pending_result_retains_original_enrolled_slot": true,
+    "no_replacing_enrolled_races_with_later_winning_races": true,
+    "no_early_optional_peek_for_efficacy": true,
+    "pre_result_roster_complete_only_if_run_inventory_exhaustive": true,
+    "insufficient_300_before_study_end_remains_inconclusive": true
+  },
+  "protocol_refinement_note": "Pre-result 300-member enrollment clarified on 2026-11-05 JST before first configured four-mode capture slot; amendment Git commit is separate from initial protocol commit, and neither commit clock alone is independent publication proof."
 }
