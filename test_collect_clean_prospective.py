@@ -98,6 +98,23 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIs(saved["formal"],False)
         self.assertIs(saved["scoring"],False)
 
+    def test_empty_published_daily_csv_uses_pre_race_alternate(self):
+        day="20990101"
+        code=day+"0404"
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        received=datetime.now(JST)
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",return_value=([],received,"a"*64)) as primary, \
+             patch("clean_openapi_sources.load",return_value=(titles,cards,received,"b"*64,
+                 {"source":"nonofficial_openapi_v1"})) as alternate, \
+             patch.object(capture,"model_provenance",return_value={}):
+            output=capture.collect(day)
+        self.assertEqual(output["saved"],1)
+        self.assertEqual(primary.call_count,2)
+        alternate.assert_called_once_with(day)
+
     def test_primary_bad_data_does_not_silently_fall_back(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
