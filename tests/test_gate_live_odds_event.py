@@ -470,5 +470,42 @@ class FallbackGateTests(unittest.TestCase):
             fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
 
 
+    def test_artifact_api_error_diagnostics_remain_fail_closed(self):
+        import contextlib
+        import io
+        from urllib.error import HTTPError
+
+        output = io.StringIO()
+        def forbidden(*_):
+            raise HTTPError("https://example.test/artifacts", 403, "Forbidden", None, None)
+        with contextlib.redirect_stdout(output):
+            result = gate.direct_probe_evidence(
+                "a/b", "token", 91, fetch_json=forbidden)
+        self.assertEqual(result, "unavailable")
+        line = next(line for line in output.getvalue().splitlines()
+                    if line.startswith("LIVE_ODDS_ARTIFACT_DIAGNOSTIC "))
+        details = json.loads(line.split(" ", 1)[1])
+        self.assertEqual(details["stage"], "artifact_metadata")
+        self.assertEqual(details["run_id"], 91)
+        self.assertEqual(details["http_status"], 403)
+        self.assertEqual(details["error_class"], "HTTPError")
+
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 33, "expired": False}]}
+        output = io.StringIO()
+        def missing_zip(*_):
+            raise HTTPError("https://example.test/archive.zip", 404, "Missing", None, None)
+        with contextlib.redirect_stdout(output):
+            result = gate.direct_probe_evidence(
+                "a/b", "token", 92, fetch_json=artifacts, fetch_zip=missing_zip)
+        self.assertEqual(result, "unavailable")
+        line = next(line for line in output.getvalue().splitlines()
+                    if line.startswith("LIVE_ODDS_ARTIFACT_DIAGNOSTIC "))
+        details = json.loads(line.split(" ", 1)[1])
+        self.assertEqual(details["stage"], "artifact_zip")
+        self.assertEqual(details["run_id"], 92)
+        self.assertEqual(details["http_status"], 404)
+
+
 if __name__ == "__main__":
     unittest.main()
