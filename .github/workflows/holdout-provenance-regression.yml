@@ -1,0 +1,21 @@
+name: Holdout provenance fail-closed regression
+on:
+  pull_request:
+    paths:
+      - server.py
+      - tests/test_holdout_status_fail_closed.py
+      - .github/workflows/holdout-provenance-regression.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  holdout-error-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify missing Git history never produces certified holdout data
+        run: python -m unittest discover -s tests -p test_holdout_status_fail_closed.py -v
