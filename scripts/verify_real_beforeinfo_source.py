@@ -92,11 +92,17 @@ def main(day=None):
         code=row.get("レースコード","")
         clock=row.get("締切時刻","")
         if len(code)!=12 or not clock or code in seen:continue
+        try:
+            deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        except (ValueError,TypeError):
+            continue
+        # Closed races cannot pass the adapter's real receipt clock. Skip
+        # them before spending the six-race budget and more network fetches.
+        if deadline <= datetime.now(JST):continue
         seen.add(code)
         if checked>=6:break
         checked+=1
         try:
-            deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
             preview,audit=_fetch_preview(code,day,deadline)
             status=audit.get("status", "unknown")
             status_counts[status]=status_counts.get(status,0)+1
