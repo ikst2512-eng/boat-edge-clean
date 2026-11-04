@@ -68,6 +68,41 @@ class RepairAgentTests(unittest.TestCase):
             self.assertFalse(result["production_change_allowed"])
             self.assertEqual((root/"navigation.js").read_text(),"beta")
 
+    def test_proposed_patch_requires_rationale_and_test_plan_before_edit(self):
+        """A model patch without review evidence must not mutate tracked files."""
+        class FakeResponse:
+            def __init__(self, proposal):
+                self.proposal = proposal
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, n):
+                return json.dumps({"candidates": [{"finishReason": "STOP",
+                    "content": {"parts": [{"text": json.dumps(self.proposal)}]}}]}).encode()
+
+        base = {"patches": [{"path": "navigation.js", "old": "alpha", "new": "beta"}],
+                "reason": "Specific navigation defect", "tests": "Run navigation contract"}
+        for label, overrides in (
+            ("missing-reason", {"reason": None}),
+            ("blank-reason", {"reason": "  "}),
+            ("wrong-reason-type", {"reason": ["not text"]}),
+            ("oversized-reason", {"reason": "x" * 701}),
+            ("missing-tests", {"tests": None}),
+            ("blank-tests", {"tests": "  "}),
+            ("wrong-tests-type", {"tests": 3}),
+            ("oversized-tests", {"tests": "x" * 701}),
+        ):
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                target = root / "navigation.js"
+                target.write_text("alpha", encoding="utf-8")
+                payload = {**base, **overrides}
+                with self.assertRaisesRegex(ValueError, "missing_patch_rationale_or_tests"):
+                    propose("navigation issue", root, "fake-key", "mock",
+                            lambda req, timeout: FakeResponse(payload))
+                self.assertEqual(target.read_text(encoding="utf-8"), "alpha")
+
     def test_mock_ai_rejects_disallowed_workflow_edit(self):
         class FakeResponse:
             def __enter__(self): return self
