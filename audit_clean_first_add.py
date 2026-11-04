@@ -153,6 +153,8 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "wrong archive type":"archive_type_invalid",
                     "post-fix source kind missing or invalid":"source_kind_invalid",
                     "post-fix source digest mismatch":"source_digest_invalid",
+                    "post-fix research classification invalid":"research_flag_invalid",
+                    "post-fix trifecta tickets invalid":"trifecta_ticket_invalid",
                 }
                 reason=known.get(str(exc),"other_rejection")
                 rejected.append({"race_code":path[len("prospective_predictions/"):-5],
