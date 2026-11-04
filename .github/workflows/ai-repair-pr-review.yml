@@ -84,6 +84,7 @@ jobs:
               f.write('main_sha='+main+'\n')
           PY
       - name: Verify completed AI proposal workflow provenance
+        id: source_evidence
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
@@ -152,6 +153,13 @@ jobs:
               artifact.get('workflow_run', {}).get('head_sha') != os.environ['CHECKED_MAIN_SHA'] or
               not (started <= created <= completed)):
               raise SystemExit('AI evidence artifact was not uploaded by the verified proposal job')
+          import re
+          artifact_id = artifact.get('id')
+          archive_digest = artifact.get('digest')
+          if (type(artifact_id) is not int or artifact_id <= 0 or
+              not isinstance(archive_digest, str) or
+              not re.fullmatch(r'sha256:[a-f0-9]{64}', archive_digest)):
+              raise SystemExit('AI evidence artifact lacks a verifiable ID or ZIP digest')
           if (run.get('id') != expected_id or
               not isinstance(run.get('run_attempt'), int) or
               run.get('run_attempt') < 1 or
@@ -163,6 +171,9 @@ jobs:
               run.get('conclusion') != 'success' or
               run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']):
               raise SystemExit('AI draft PR is not backed by a completed successful proposal workflow')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('artifact_id=' + str(artifact_id) + '\n')
+              output.write('artifact_digest=' + archive_digest + '\n')
           PY
       - uses: actions/checkout@v4
         with:
@@ -210,6 +221,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
+          AI_ARTIFACT_ID: ${{ steps.source_evidence.outputs.artifact_id }}
+          AI_ARTIFACT_DIGEST: ${{ steps.source_evidence.outputs.artifact_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -224,8 +237,13 @@ jobs:
           PY
           )"
           mkdir -p /tmp/ai-source-evidence
-          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
-            --name "ai-repair-proposal-${run_id}" --dir /tmp/ai-source-evidence
+          if [[ ! "$AI_ARTIFACT_ID" =~ ^[1-9][0-9]*$ || ! "$AI_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::Missing pinned AI artifact ID or SHA-256 digest."
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${AI_ARTIFACT_ID}/zip" > /tmp/ai-source-evidence.zip
+          printf '%s  %s\n' "${AI_ARTIFACT_DIGEST#sha256:}" /tmp/ai-source-evidence.zip | sha256sum --check --status
+          unzip -q /tmp/ai-source-evidence.zip -d /tmp/ai-source-evidence
           python - <<'PY'
           import hashlib
           import json
