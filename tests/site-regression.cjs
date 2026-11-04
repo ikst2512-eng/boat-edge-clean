@@ -614,3 +614,8 @@ assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not p
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
 assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
+
+// Public Pages browser independently counts rendered non-formal saved candidate cards.
+assert.ok(publishWorkflow.includes('CLEAN_PUBLIC_CANDIDATE_COUNT'),'browser must log real candidate-card count');
+assert.ok(publishWorkflow.includes('CLEAN_PUBLIC_CANDIDATE_UNVERIFIED'),'timeout must not be mislabeled as zero');
+assert.ok(publishWorkflow.includes('CANDIDATE_STATUS_COUNT_MISMATCH'),'displayed count must match the page status');
