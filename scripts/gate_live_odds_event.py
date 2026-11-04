@@ -401,7 +401,10 @@ def main():
             "source_status": "fallback_ineligible",
             "trigger": trigger,
             "samples": [],
-            "reason": schedule_guard if event == "workflow_run" else "upstream_not_verified_or_outside_bounded_fallback_window",
+            "reason": schedule_guard if (
+                event == "workflow_run"
+                or (event == "workflow_dispatch" and trigger.get("rescue_slot_jst"))
+            ) else "upstream_not_verified_or_outside_bounded_fallback_window",
         }
         Path("live_odds_metrics.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
