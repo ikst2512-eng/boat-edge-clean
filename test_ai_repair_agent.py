@@ -257,6 +257,44 @@ class RepairAgentTests(unittest.TestCase):
                         # unrelated site regression command may be absent.
                         self.assertIn("AI proposal report/diff validated: proposed 1", result.stdout)
 
+    def test_ui_test_side_effect_cannot_change_validated_ai_patch(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        segment = workflow.split("      - name: Validate AI report against actual tracked diff\n", 1)[1]
+        segment = segment.split("      - name: Refuse stale main before publishing AI draft\n", 1)[0]
+        snippet = "          before_diff=" + segment.split("          before_diff=", 1)[1]
+        snippet = "\n".join(line[10:] if line.startswith("          ") else line
+                            for line in snippet.splitlines())
+        # Substitute local test fixtures for external regression executables.
+        mock_commands = """python() { return 0; }
+node() {
+    if [[ "$MUTATE_PATCH" == "1" ]]; then
+        printf 'unexpected-after-test\\n' > navigation.js
+    fi
+}
+"""
+        command = mock_commands + "\n" + snippet
+        check = subprocess.run(["bash", "-n"], input=command,
+                               text=True, capture_output=True)
+        self.assertEqual(check.returncode, 0, check.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "navigation.js").write_text("original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            for mutate, expected in ((False, 0), (True, 1)):
+                with self.subTest(mutate=mutate):
+                    (root / "navigation.js").write_text("reviewed-ai-patch\n")
+                    env = dict(os.environ, MUTATE_PATCH="1" if mutate else "0")
+                    result = subprocess.run(["bash", "-c", command], cwd=root,
+                                            env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, expected,
+                                     result.stdout + result.stderr)
+                    if mutate:
+                        self.assertIn("tests modified the AI repair diff", result.stdout)
+
     def test_stale_main_prevents_ai_draft_publication(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         preflight = workflow.split("      - name: Refuse stale main before publishing AI draft\n", 1)[1]
