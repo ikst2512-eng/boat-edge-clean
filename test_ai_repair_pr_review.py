@@ -141,7 +141,7 @@ class AIReviewGuardTests(unittest.TestCase):
             pr_file.write_text(json.dumps({"head": {"ref": "ai/repair-321"}}))
             env = dict(os.environ, MOCK_PR=str(pr_file), MOCK_RUN=str(run_file),
                        MOCK_JOBS=str(jobs_file), MOCK_ARTIFACTS=str(artifacts_file),
-                       CHECKED_MAIN_SHA="base-a",
+                       CHECKED_MAIN_SHA="base-a", GITHUB_OUTPUT=str(root / "outputs"),
                        GITHUB_REPOSITORY="example/repo")
             valid = {"id": 321, "run_attempt": 1, "event": "workflow_dispatch",
                      "path": ".github/workflows/ai-repair-proposal.yml",
@@ -171,6 +171,8 @@ class AIReviewGuardTests(unittest.TestCase):
                              {"name": "propose", **job_base}]}
             jobs_file.write_text(json.dumps(jobs))
             artifact = {
+                "id": 123456,
+                "digest": "sha256:" + "a" * 64,
                 "name": "ai-repair-proposal-321", "created_at": "2026-11-04T10:03:00Z",
                 "expired": False,
                 "workflow_run": {"id": 321, "head_sha": "base-a"}
@@ -214,6 +216,10 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("previous-attempt-artifact", {"created_at": "2026-11-04T09:59:59Z"}, False),
                 ("post-job-artifact", {"created_at": "2026-11-04T10:05:01Z"}, False),
                 ("invalid-artifact-time", {"created_at": "invalid"}, False),
+                ("missing-artifact-digest", {"digest": None}, False),
+                ("malformed-artifact-digest", {"digest": "sha256:wrong"}, False),
+                ("missing-artifact-id", {"id": None}, False),
+                ("invalid-artifact-id", {"id": 0}, False),
             ):
                 with self.subTest(case=label):
                     artifacts_file.write_text(json.dumps({
