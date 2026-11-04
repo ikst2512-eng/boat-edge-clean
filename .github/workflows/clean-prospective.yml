@@ -103,9 +103,20 @@ jobs:
               if (combined_sha!=hashlib.sha256((title_sha+':'+cards_sha).encode()).hexdigest()
                       or (kind=='nonofficial_openapi_v1' and title_sha!=cards_sha)):
                   raise SystemExit('Candidate source digest inconsistency: '+path)
+              # Freeze only real current-calendar races. Once a bad new
+              # original reaches Git, the write-once rule cannot repair it.
+              code=rec['race_code']
+              if (not isinstance(code,str) or not re.fullmatch(r'20[0-9]{10}',code)
+                      or not 1<=int(code[8:10])<=24
+                      or not 1<=int(code[10:12])<=12):
+                  raise SystemExit('Invalid candidate race identity: '+path)
               deadline=datetime.fromisoformat(rec['source_deadline_jst'])
               cutoff=datetime.fromisoformat(rec['cutoff_jst'])
               source_times=[datetime.fromisoformat(rec[k]) for k in ('source_title_received_jst','source_cards_received_jst','generated_at')]
+              if deadline.strftime('%Y%m%d')!=code[:8]:
+                  raise SystemExit('Candidate deadline does not match race day: '+path)
+              if any(t.utcoffset()!=timedelta(hours=9) for t in (deadline,cutoff,*source_times)):
+                  raise SystemExit('Candidate source/deadline must be JST: '+path)
               if source_times[0]>source_times[2] or source_times[1]>source_times[2]:
                   raise SystemExit('Source receipt after candidate generation: '+path)
               if deadline-cutoff!=timedelta(minutes=12) or max(source_times)>=cutoff or rec['formal'] or rec['scoring']:
