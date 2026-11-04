@@ -51,12 +51,14 @@ def _tickets(value):
 
 
 def inspect_race(code, root, publication, hole_shadow, observation, *,
-                 git=None, result_reader=compare_race):
+                 git=None, result_reader=compare_race, score_outcome=True):
     """Fail closed and only read independently confirmed outcome LAST.
 
     This checks consistency of captured GitHub observations, not the
     authenticity of a downloaded ZIP or exhaustive Action-run inventory.
     """
+    if type(score_outcome) is not bool:
+        raise ValueError("invalid_scoring_gate")
     if type(code) is not str or CODE.fullmatch(code) is None:
         raise ValueError("invalid_race_code")
     if not ("20261105" <= code[:8] <= "20261231"):
@@ -174,6 +176,26 @@ def inspect_race(code, root, publication, hole_shadow, observation, *,
     except (OSError, ValueError, TypeError, KeyError, AttributeError,
             UnicodeError, subprocess.SubprocessError) as exc:
         return _invalid("source_or_freeze_evidence_mismatch_" + type(exc).__name__, code)
+
+    # Pre-result enrollment must not inspect the confirmed finish, payout or
+    # any other after-race data. The roster must be frozen independently.
+    if not score_outcome:
+        return {
+            "race_code": code,
+            "status": "pre_result_evidence_consistent_research_only",
+            "deadline_jst": archive["deadline_jst"],
+            "source_git_commit_sha": sha,
+            "source_sha256": original_hash,
+            "github_server_observed_at_utc": remote["github_api_server_date_utc"],
+            "baseline_top10": baseline,
+            "candidate_top10": expected,
+            "formal": False,
+            "first_remote_receipt_verified": False,
+            "capture_run_inventory_verified": False,
+            "original_actions_artifact_origin_authenticated": False,
+            "result_accessed": False,
+            "warning": "Only pre-result field consistency; not real independently attested original or complete capture inventory.",
+        }
 
     # All original/source/shadow/remote evidence checked BEFORE result access.
     result = result_reader(code, root)
