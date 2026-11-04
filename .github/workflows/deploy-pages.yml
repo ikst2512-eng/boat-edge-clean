@@ -7,6 +7,7 @@ on:
       - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.
       - navigation.js
       - 'confirmed_results/**'
+      - 'schedule_snapshots/**'
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
@@ -64,6 +65,9 @@ jobs:
           mkdir -p public
           cp index.html navigation.js public/
           cp -R confirmed_results public/confirmed_results
+          cp -R schedule_snapshots public/schedule_snapshots
+          test -s public/schedule_snapshots/20261030.json
+          test -s public/schedule_snapshots/20261104.json
           test -s public/confirmed_results/202610270101.json
           test -s public/confirmed_results/202610310708.json
           test -s public/confirmed_results/202611031911.json
@@ -116,7 +120,20 @@ jobs:
                   sleep 10
                   continue
                 fi
-                echo "Public HTML, navigation.js, and 2 confirmed results byte-identical PASS: $PAGE_URL"
+                schedule_ok=1
+                for SNAPSHOT_KEY in 20261030 20261104; do
+                  SNAPSHOT_URL="${PAGE_URL%/}/schedule_snapshots/${SNAPSHOT_KEY}.json"
+                  if ! curl --fail --silent --show-error --location --max-time 20 "$SNAPSHOT_URL" -o "/tmp/clean-deployed-schedule-${SNAPSHOT_KEY}.json" || ! cmp -s "public/schedule_snapshots/${SNAPSHOT_KEY}.json" "/tmp/clean-deployed-schedule-${SNAPSHOT_KEY}.json"; then
+                    echo "Published CLEAN schedule snapshot missing or changed: ${SNAPSHOT_KEY} (attempt $attempt)" >&2
+                    schedule_ok=0
+                    break
+                  fi
+                done
+                if [ "$schedule_ok" -ne 1 ]; then
+                  sleep 10
+                  continue
+                fi
+                echo "Public HTML, navigation.js, 3 confirmed results and 2 CLEAN schedule snapshots byte-identical PASS: $PAGE_URL"
                 echo "Public HTML: **PASS** (byte-identical to deployed revision)" >> "$GITHUB_STEP_SUMMARY"
                 sha256sum public/index.html
                 exit 0

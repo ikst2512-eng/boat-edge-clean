@@ -369,7 +369,11 @@ assert.ok(cardLoader.includes("if(!response.ok)throw Error('HTTP_'+response.stat
 const scheduleLoader=script.slice(script.indexOf('async function loadHeldVenues('),script.indexOf('function mergeVerifiedRaceSnapshots('));
 assert.ok(scheduleLoader.includes("if(api?.status===404&&date>=fmt(jst()))throw Error('SCHEDULE_NOT_PUBLISHED')"),'only current/future 404 may be unavailable');
 assert.ok(scheduleLoader.includes("if(date<fmt(jst()))data=await historicalHeldVenues(date)"),'historical 404 and 503 must reach results-based schedule');
-assert.ok(scheduleLoader.includes("try{archive=await fetchTimed(")&&scheduleLoader.includes("}catch(_){}"),'historical archive transport failures must reach alternate sources');
+assert.ok(scheduleLoader.includes("const pagesSchedule=location.hostname==='ikst2512-eng.github.io'")&&
+          scheduleLoader.includes("for(const endpoint of [pagesSchedule,rawSchedule].filter(Boolean))")&&
+          scheduleLoader.includes("const response=await fetchTimed(endpoint,{cache:'no-store'})")&&
+          scheduleLoader.includes("}catch(_){/* Keep trying CLEAN sources; do not use legacy today.json. */}"),
+          'same-origin Pages failure must fall back through CLEAN Raw and Render sources');
 assert.ok(scheduleLoader.includes("else if(!archive?.ok){"),'all Raw archive non-2xx/network failures must reach CLEAN API, including today');
 assert.ok(scheduleLoader.includes("if(archive?.ok){data=await archive.json()"),'valid archived schedule remains preferred');
 assert.ok(scheduleLoader.includes('partial_coverage:feed.partial_coverage===true'),'partial fallback coverage must survive the API-to-UI transform');
