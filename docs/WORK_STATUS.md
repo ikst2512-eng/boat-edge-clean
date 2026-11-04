@@ -1,3 +1,47 @@
+## 2026-11-04 20:15 JST 実証：公式展示6艇＋オッズ120通りがT−12前に揃った1レース
+- PR #1628初期head `82e821fdbd7f4b65da00b40a829b19510c00c6b1` の既存CI `41819205922`（event=pull_request）success。下関7R `202611041907`、締切20:25/T−12=20:13に対し、公式beforeinfo JSON受信20:11:46.513411、公式odds HTML受信20:11:55.812353。展示タイム・チルト・ST・展示進入6艇、120通りが全て原本から検証され、both_complete_before_t12=true。桐生12Rは同runで展示未完成、falseのまま。
+- Artifact `13315119405` `independent-late-preview-41819205922`（28,215 bytes）を実ダウンロード。ZIP SHA256 `6f5ee2e9ead169dad4bed4b3ed314507ccf3d77c931c12ece0088a6d0ddb1616` をGitHub digestと一致確認、安全展開して既存`audit_joint_official_receipts.audit_pair`で両レースを独立再監査。下関7Rの全7component checks=true、missing_components=[]を再確認。
+- ダウンロードしたZIPと再監査JSONは `docs/observations/official_joint_ci_41819205922.zip` / `official_joint_ci_41819205922_recheck.json` に非期限切れのGit原本として保存。最初の20:07手動負例も別名ZIPのまま保持し、成功例へ書き換えていない。
+- これはPR実行による2ソースの実測であり、scheduleの無人実行成功ではない。公式出走表原本と最終実進入は別未達のため、full_t12_source_certified=false、forecast_usable=false、t12_eligible=falseを維持。予想原本・買い目・正式採点分母は変更なし。CSV収集独立性を追加した最新headのCIを確認後に統合する。
+
+## 2026-11-04 20:08 JST 継続：公式原本の定期保存接続（PR検証待ち）
+- 既存の `Research independent late preview evidence` はCSV原本行だけを保存し、#1617で表示可能になった公式展示JSONを定期保存していなかった。新しいcron/Workflowを増やさず、既存5分間隔ジョブへ公式ソースペア収集を追加。
+- `scripts/capture_joint_preview_batch.py` は当日・ソース日程一致・締切まで12分40秒超/1時間未満の最大2レースだけを選定。既存beforeinfo JSON / official odds HTML collector、atomic publish、joint原文再監査、T−12 decisionを再利用。公式JSONから得た締切以外をオッズ判定に使わず、受信中にT−12を跨げばオッズ取得を止める。上書き禁止・symlink root拒否・失敗時もbatch reportを保存。
+- 公式取得の失敗で既存CSV処理を止めないよう、公式stepの失敗を一時保持してCSV収集・既存研究archiveを独立に実行し、その後に専用stepでジョブをfailさせる。artifact uploadはalwaysを維持。
+- 原本は `official_joint_evidence/` に隔離し、既存artifact（90日保持）に同梱。既存CSV由来late_research_candidates、予想原本、モデル、採点、旧サイト、Render APIには接続しない。source_capture_failedはジョブを失敗させ、候補なし/未完成/取得失敗/完全ペアを区別。完全ペアでも公式出走表・最終進入は別なので full_t12_source_certified=false、forecast_usable=falseを維持。
+- ローカル手動実測20:07 JST: 下関7R・桐生12Rの公式JSON2件と公式オッズHTML2件（各120通り）を原文保存、SHA256と原文再監査一致。両方ともT−12前に受信したが展示/STが未完成でcomplete_pairs_before_t12=0。未完成を成功へ昇格しない。summaryは `docs/observations/official_joint_batch_20261104_2007.json`、原文＋manifest9ファイルは同名ZIPへ保存。
+- ローカル回帰: batch orchestration7件、CSV paired coverage4件、official joint audit7件成功（計18件）。PR CIと実ジョブartifactを確認してから統合・定期保存の反映を判定する。これは無人オッズ監視#1593の復旧認定ではない。
+
+## 2026-11-04 19:58 JST 継続完了：公式展示補完をRender API・画面で実証
+- オッズ記録 #1615 を `b58734f38b818de9ee91505a32489d65744fc592` で統合。exact-head `deeec31428f525229ace9f3d5f5b3ac40dcfb6f5` / CI `41816503204` 成功（27+18+42+9件）。PRイベントの実サンプルも3/3 HTTP200、原応答120通り再検証3、ソース締切T−12相対2。PR/manualを無人実行へ算入しない。最初のPRイベントでCI未起動・mergeable unknownが続いたため、同PRのclose/reopenを1回だけ行い既存CIを再起動。新規重複PR/cronなし。他担当の #1618（14日集計の原応答再検証）もmainに保持。
+- 公式展示補完 #1617 は最新head `d3e99714c44981aa895072e2e0fcef51d3055c3c` の6ワークフロー全てsuccessを確認し、`a80cce16a459f117e5cdbd773d023fc13a368cc4` でmain統合。Navigation `41817312504` のChromium/WebKit成功。実ソース検査 `41817312224` job `126531237592` は19:54:39 JST 下関6R（19:56締切）の公式展示6艇・ST6艇を実取得して成功。過去時刻の偽装や未取得の成功化なし。
+- Render deploy `dep-dblguhuct3oc73a9dnv0` は `a80cce16` で LIVE（2026-11-04T10:56:58Z）。公開API桐生11R（20:03締切）は19:57:23 JSTにHTTP200・出走表6艇・展示6艇・展示ST6艇・チルト6艇を公式補完で返した。CSVでは当該レース未掲載のまま。公式応答SHA256=78d8b71f24f5addd2fe56b90ee63a4b2beeee95c00ddf2b5c0607f8f90da1b14。HTTP原文・ハッシュを `docs/observations/official_preview_production_202611040111.json` に保存。
+- 公開ブラウザで桐生11Rの展示画面を確認。展示タイム6.66/6.68/6.59/6.81/6.63/6.67、ST F.01/F.03/F.06/.08/.03/.06、チルト全艇−0.5が表示。実進入の認定とは別で、UIの「実進入：未取得・未検証」は維持。iPhone Safari実機ではなく公開Chromium＋CI WebKit。
+- 同時観測の下関7R（20:25締切）は公式展示が未完成のためpreview=nullのまま、出走表6艇をHTTP200で保持。reason=incomplete_official_exhibition。負例の原応答も `docs/observations/official_preview_production_202611041907.json` に保存。未完成の6艇値を捏造しない。
+- 残課題は #1593 の11/05無人3枠の実証、公式T−12の独立証明、4モード元仕様と新規予想の適格保存、旧P0原本独立保全。展示表示復旧や手動/PR実測を、正式予想・予想精度・無人監視復旧と混同しない。予想原本・モデル・採点ゲート・旧サイトは変更していない。
+
+## 2026-11-04 JST 継続：オッズ監視の再検証可能な原応答とT−12区分
+- 確認した不足: `sample_race` は120通りのHTTP200を実行時に検証していたが、保存artifactはstate/timestampsのみで、原応答・締切を保存していなかった。後から120通りとT−12を独立に再計算できない。
+- 既存 `scripts/probe_live_odds_health.py` に20KB以下のHTTP200原応答をBase64・SHA256で保存。同じレース・120通り・取得日時を原文から再検証し、保存された検証済みフラグを信用せず再計算する。大きすぎる応答・欠損・改変・119通りは再検証件数に入れない。
+- `source_deadline_jst` は同レースのソース時刻が一意な場合のみ保存。欠損・矛盾はunknown。締切ソースの受信時刻・digest・種別も保存する。
+- 通常のvalid HTTP200件数とは別に `replayable_120_odds_races` と `before_source_t12_races` を出力。後者は原応答のfetched_at≦HTTP完了時刻＜ソース締切−12分を要求する。**非公式ソース締切を用いた相対時刻検査であり、公式T−12認定・正式予想・無人監視復旧認定ではない**。formal=false、formal_t12_certified=falseを明示。既存cron・fallback admission・サンプリング枠・operational verdict・過去artifactを変更しない。
+- 手動実測（2026-11-04T19:36:53.852908+09:00、event=local_manual）: 3レース全てHTTP200、原応答から120通り再検証3件、ソース締切−12分より前の受信2件。`docs/observations/live_odds_replay_20261104.json`へ原文・hash・ソース時刻を保存。無人実行成功件数に算入せず、公式T−12認定もしない。
+- ローカルodds関連96テスト成功（sampler18件を含む）。PR CI・現行スクリプトの実レース測定とmain統合は後続記録で確認する。#1593の11/05無人3枠の実測ゲートは継続。
+
+## 2026-11-04 19:26 JST 引継ぎ実行：503・トップ締切表示の修正と本番実証
+
+- **統合済み #1606 / main `67173f32b1365419fb1b215a25c7768e6c484ce7`**: Render `/api/signal70-holdout-status` の恒常503を実ログから特定。`bulk_first_add` が浅いGit履歴を拒否していた。Render限定の既存バックグラウンドworkerで固定CLEAN Git URLを `fetch --unshallow --no-tags`、90秒上限・対話無効で補完する。checkout/reset/予想原本変更なし、失敗時の監査停止を維持。exact-head `7a1ade2602976178c8f6824c53eadc0cafaa2074` CIは12成功・1skip。Navigation run `41813248601`、Cross-model `41813248159`成功。既存bulkテストの浅い履歴ガード未追随も修正。
+- **本番503実測**: Render `2026-11-04T10:22:02Z` log は `holdout_refresh_finished duration_seconds=27.81 outcome=ready`。HTTP200で later_holdout_days=6、archived_candidates=762、audit_rejected_races=762（全て source_receipt_after_generation）、evaluated_holdout_races=0。過去不適格原本を合格に変更していない。デプロイでcacheが消えるため初回集計中は従来どおり `HOLDOUT_PENDING` 503となり得る。サイト全体の障害と混同しない。
+- **統合済み #1610 / main `2f7e88975c2a123de7376fed4e32197e87fe9a50`**: `loadHeldVenues` 成功後に削除済み `loadHomeRaceCards()` を呼ぶ残骸がReferenceError→catch→正常日程消去を起こしていた。呼出1箇所だけ除去。新規画面なし。既存navigation workflowへ、成功日程4レース→次3レース表示・開催場より上の位置を検証する390px Chromium/WebKit試験を追加。CI `41813672504` job `126518904757`: `CLEAN_HOME_SCHEDULE_CHROMIUM_PASS` / `...WEBKIT_PASS`。対象head `6f0e19a2654629622700cf1c5f12a1b6fa50b0ac` は8成功・1skip。
+- **本番トップ実測 19:24 JST**: Render deploy `dep-dblgf8ln7bfs7389k6m0` LIVE（10:24:28Z）、commit=`2f7e8897`。実ブラウザで12開催場、開催場の上に下関5R19:30・丸亀10R19:39・大村10R19:48の3件を表示。保存日程が11:40取得のため30分超の古さ警告は残る。iPhone Safari実機は未検証（WebKit試験と区別）。
+- **実レース取得**: 19:15 JST 大村9R（締切19:16）で出走表6艇、展示タイム6艇、展示ST/進入/気象とソース別取得時刻・SHA256をAPI応答から確認。ただしT−12ではない。19:22台の桐生10R・下関5R・丸亀10Rは各出走表6艇とオッズ120通りHTTP200、展示は当時not_published_or_unavailable。`docs/observations/production_receipts_20261104.json` は手動read-only観測で、後続raw UTF-8応答とSHA256も保存。無人監視・公式原本・T−12証明として使わない。
+- **候補レース**: 19:16 JST実ブラウザで締切前18件を検査、表示安全条件を満たす保存済み研究予想0件。空欄のUI故障とは区別。時刻逆転原本を修正して埋めない。11/05の新規scheduled保存・初回Git・遠隔初見・候補DOM検証が必要。
+- **#1593 無人監視**: public Actions RESTでevent=schedule履歴4件全件を確認。最新11/03 `41624217156`、11/04直接scheduleは0件。workflowはactive。PR/manualの成功を監視成功に数えない。既存#1603等の修正を重複実装せず、既存11/05 12:25/14:25/16:25 JST（各90分猶予）の実行・artifact実sample検証を継続。新規重複cron/automationなし、復旧未認定。
+- **#71/#958/#294 4モード**: 現行アーカイブ120件を既存`four_mode_historical_cohort.run()`でread-only再集計。Top3/5/10件数: 絞り18/30/30、本命18/30/46、バランス19/29/45、穴2/4/13。`formal=false`、歴史研究であり独立前向き精度ではない。厳密点数の元合意は追加検索でも未回収。`絞り < 本命 < バランス < 穴`と矛盾する5/30/20/12を勝手に正とせず、復元未完了。原本・モデル不変更。
+- **#708/#329 移行**: 既存artifact `13280103552` / run `41738920306` のZIPを再ダウンロード・解析。SHA256=`a8434d92a9eaf27363c7e36ad50b83b53b1ccd06a6d348e026cac619af38fd19`、matched1200 / compared124 / uncomparable1076 / unresolved0 / copy_authorized=false / delete_authorized=false。P0 5,578原本の独立保全・復元は未達。旧repo・書込・Pages停止/削除なし。
+- **競合保護**: main進行中の#1607/#1609を維持し、用途別worktreeとSHA固定PRで作業。#1560/#1563のAI修正Draft、#1559保全Draft、#1558/#832等の研究PRは未統合のまま保護。#722と#832は旧/代替関係であり両方を機械的に統合しない。古いブランチの強制push/閉鎖なし。
+- **次の最優先**: 11/05新規収集・無人オッズの実証、T−12で展示を取得できる範囲の確立、4モードの元仕様回収、P0原本の独立復元。正式採点ゲート・予想原本・既存証拠は維持。
+
 ## 2026-11-04 JST サイト担当：当日候補「保存済み原本」と「公開描画」の切り分け（PR・公開検証待ち）
 - 16:25:42 JSTの開催日程 `schedule_snapshots/20261104.json` では締切前40レース、候補UIが先に照合する締切順18レース中、保存済み研究予想JSON存在16件／404が2件。16件はいずれも3連単10点・研究候補で、正式予想として採用しない。
 - **重要な時刻証拠のギャップ**: 16件の `generated_at=2026-11-04T11:01:33.627045+09:00` が `source_cards_received_jst=2026-11-04T11:01:33.766393+09:00` より約0.139秒前。従来のUIは `recordedBeforeInput` 警告付きで表示し得るが、入力後生成を証明できず「購入候補が16件ある」「予想精度が検証済み」とは扱わない。原本・初回Git時刻は書き換えず、別担当のPR #1571／#1569と競合しない。
@@ -1256,3 +1300,12 @@
 - 日付・場分散120件のうち、穴モードで1着艇を買い目に含むが正しい1-2着ペアがない84件を再照合。1着固定時の2着候補数1艇64件・2艇11件・3艇8件・4艇1件。本命には正しいペアが67件、バランスには61件存在。勝ち艇の2着分布は1号艇23、2号艇21、3号艇18、4号艇12、5号艇10。
 - `four_mode_historical_cohort.py` にアーカイブ再読込によるfail-closed照合、件数と限定的なレース事例を追加。CI #41465608023 success、PR #1097 main squash `f516fd07c186095fc0e6a17d0cc2a75b3302f718`。
 - 過去の研究値であり、2着増設による精度改善は未実証。予想ロジックと公開買い目不変更。
+
+
+## 2026-11-04 JST 継続：CSV未掲載時の公式展示補完（PR検証待ち）
+- 根拠: 19:39:21 JSTに桐生11Rの公式 beforeinfo JSONを実取得。締切20:03、6艇の展示タイム/チルト/ST/進入あり。CLEAN APIは同時点でCSVの対象レース未掲載によりbeforeinfo=null。同APIと公式の登録番号6艇が完全一致。公式原文・manifestは `docs/observations/official_preview_20261104/`、テスト用同一原文は `tests/fixtures/official_preview_202611040111.json`。原文SHA256=40e7859d3841f6a9b6329b1a7426cad46dd65f98562a38e3f06cc4fa24a02d01。
+- `official_preview.py` は既存公式JSON検査器を再利用し、HTTP200・最終URL・1MB上限、日付/場/R/締切、登録番号6艇、欠場なし、展示タイム5〜9・チルト−1〜3、ST/進入6艇完全性、JST受信時刻<締切を全て要求。CSVで展示が取得できない締切前レースだけ補完し、既存CSV優先・締切済み参照では公式取得しない。失敗時は出走表を保持し、CSV理由と公式失敗理由を残す。原本/モデル/予想生成/正式採点ゲート不変更。気象の補完は含めない。
+- 実コードでracecard(20261104,01,11)を19:44:34 JSTに再取得し、公式6艇タイム6.66/6.68/6.59/6.81/6.63/6.67、ST F.01/F.03/F.06/.08/.03/.06の正規化とstatus=okを確認。source SHA256=f7b256e8ea4ea63da4df2321426cb42b6586e849398dfc12163d7224b59047f4。T−12より前のHTTP観測だが、独立の上流測定時刻証明・正式T−12認定ではなくformal_t12_certified=falseを維持。
+- ローカル試験: 公式adapter/統合8件、出走表14件、既存展示完全性7件、出所5件、ナビ14件とNode site-regression成功。既存navigation workflowに新adapter/実原文fixtureの回帰検査を追加。PR CI・main統合・Render API/ブラウザ表示は別途確認し、未反映の段階では本番復旧と呼ばない。
+
+- PR #1617初回CIで既存`Verify REAL beforeinfo source`が`REAL_BEFOREINFO_NO_VERIFIED_RACE`。実ログで昨日の日程へ現在の受信時刻を使うため常時締切後拒否となる検査を特定。既定対象日を当日へ修正し、CSVに未掲載なら現行production adapterから当日の締切前6艇を実取得して検証する。空/締切後/不完全は引き続きfailure、歴史日付を現在の公式取得で代用しない。追加回帰2件。cron自体は変更しない。

@@ -41,6 +41,79 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertTrue(history.consistent_observation_times(
             race("202611030111", ["valid_200"])["attempts"], None))
 
+    def test_post_nov4_missing_source_marker_cannot_bypass_replay(self):
+        # This is the first full operational day after immutable HTTP bodies
+        # were added. New evidence without those bytes is not legacy.
+        sample = race("202611050111", ["valid_200"])
+        sample["attempts"][0].update(
+            started_at_utc="2026-11-05T03:25:02+00:00",
+            finished_at_utc="2026-11-05T03:25:03+00:00")
+        item = {"source_status": "ok",
+                "checked_at_jst": "2026-11-05T12:25:00+09:00",
+                "samples": [sample]}
+        metrics = history.summarize([item])
+        self.assertEqual(metrics["race_observations"], 1)
+        self.assertEqual(metrics["http_200"], 1)
+        self.assertEqual(metrics["eventual_valid_races"], 0)
+        self.assertEqual(metrics["replayable_120_odds_races"], 0)
+        item["deadline_source"] = None
+        self.assertEqual(history.summarize([item])["eventual_valid_races"], 0)
+        # Pre-upgrade legacy history retains its distinct old classification.
+        old = json.loads(json.dumps(item))
+        old["checked_at_jst"] = "2026-11-03T12:25:00+09:00"
+        old["samples"][0]["race_code"] = "202611030111"
+        old["samples"][0]["attempts"][0].update(
+            started_at_utc="2026-11-03T03:25:02+00:00",
+            finished_at_utc="2026-11-03T03:25:03+00:00")
+        self.assertEqual(history.summarize([old])["eventual_valid_races"], 1)
+
+    def test_new_artifact_replays_120_bytes_before_counting_valid(self):
+        import base64
+        import hashlib
+        from itertools import permutations
+        code = "202611030111"
+        keys = {"-".join(map(str, p)): 1.5
+                for p in permutations(range(1, 7), 3)}
+        raw = json.dumps({"ok": True, "hd": "20261103", "jcd": "01",
+                          "rno": 11, "odds": keys,
+                          "fetched_at": "2026-11-03T03:25:05+00:00"}).encode()
+        attempt = {"http": 200, "state": "valid_200", "latency_ms": 400,
+                   "started_at_utc": "2026-11-03T03:25:04+00:00",
+                   "finished_at_utc": "2026-11-03T03:25:05+00:00",
+                   "response_base64": base64.b64encode(raw).decode("ascii"),
+                   "response_sha256": hashlib.sha256(raw).hexdigest()}
+        sample = {"race_code": code, "attempts": [attempt], "elapsed_ms": 400,
+                  "source_deadline_jst": "2026-11-03T16:00:00+09:00"}
+        run = {"source_status": "ok", "checked_at_jst": "2026-11-03T12:25:00+09:00",
+               "samples": [sample], "deadline_source": {"source": {"source": "nonofficial_openapi_v1"}}}
+        valid = history.summarize([run])
+        self.assertEqual(valid["race_observations"], 1)
+        self.assertEqual(valid["eventual_valid_races"], 1)
+        self.assertEqual(valid["replayable_120_odds_races"], 1)
+        self.assertEqual(valid["before_source_t12_races"], 1)
+
+        # A claimed valid_200 with a missing value or altered SHA must never
+        # increase the successful count in the new-format historical trend.
+        for corrupted in (raw.replace(b'"1-2-3": 1.5, ', b""), raw + b" "):
+            item = json.loads(json.dumps(run))
+            item["samples"][0]["attempts"][0]["response_base64"] = base64.b64encode(corrupted).decode("ascii")
+            metric = history.summarize([item])
+            self.assertEqual(metric["race_observations"], 1)
+            self.assertEqual(metric["eventual_valid_races"], 0)
+            self.assertEqual(metric["http_200"], 1)
+            self.assertEqual(metric["replayable_120_odds_races"], 0)
+            self.assertEqual(metric["before_source_t12_races"], 0)
+
+        # Older artifacts without the replay source keep their legacy rate,
+        # but are not reported as independently replayed 120-ticket proof.
+        legacy = json.loads(json.dumps(run))
+        del legacy["deadline_source"]
+        legacy["samples"][0]["attempts"][0].pop("response_base64")
+        legacy["samples"][0]["attempts"][0].pop("response_sha256")
+        metric = history.summarize([legacy])
+        self.assertEqual(metric["eventual_valid_races"], 1)
+        self.assertEqual(metric["replayable_120_odds_races"], 0)
+
     def test_history_rejects_timestamped_200_from_different_run(self):
         sample = race("202611030111", ["valid_200"])
         sample["attempts"][0].update(
@@ -187,6 +260,78 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(history.summarize(rows)["eventual_valid_races"], 1)
 
+    def test_history_zip_redirect_never_carries_bearer(self):
+        from urllib.error import HTTPError
+        from urllib.request import HTTPRedirectHandler
+        fake_run = {"id": 84, "event": "schedule", "conclusion": "success",
+                    "created_at": "2026-11-03T04:00:00Z"}
+        def api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 8, "expired": False}]}
+
+        requests = []
+        def archive(request, **_):
+            requests.append(request)
+            redirected = HTTPRedirectHandler().redirect_request(
+                request, None, 302, "Found", {},
+                "https://artifact-cdn.example.test/file.zip?sig=test")
+            self.assertIn("Authorization", request.unredirected_hdrs)
+            self.assertNotIn("Authorization", request.headers)
+            self.assertNotIn("Authorization", redirected.headers)
+            self.assertNotIn("Authorization", redirected.unredirected_hdrs)
+            raise HTTPError("https://artifact-cdn.example.test", 401, "Unauthorized", None, None)
+
+        with patch.object(history, "api_json", side_effect=api), patch.object(
+                history, "urlopen", side_effect=archive):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(errors[0]["http_status"], 401)
+
+    def test_history_artifact_http_errors_keep_stage_and_status(self):
+        from urllib.error import HTTPError
+
+        fake_run = {"id": 52, "event": "schedule", "conclusion": "success",
+                    "created_at": "2026-11-03T04:00:00Z"}
+
+        def api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            if "/artifacts?" in url:
+                raise HTTPError(url, 403, "Forbidden", None, None)
+            raise AssertionError(url)
+
+        with patch.object(history, "api_json", side_effect=api):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(errors, [{"run_id": 52, "status": "HTTPError",
+                                   "stage": "artifact_metadata", "http_status": 403}])
+
+        def metadata(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 8, "expired": False}]}
+
+        def zip_failure(*_args, **_kwargs):
+            raise HTTPError("https://example.test/zip", 404, "Missing", None, None)
+
+        with patch.object(history, "api_json", side_effect=metadata), patch.object(
+                history, "urlopen", side_effect=zip_failure):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(errors, [{"run_id": 52, "status": "HTTPError",
+                                   "stage": "artifact_zip", "http_status": 404}])
+
     def test_invalid_same_race_run_does_not_inflate_eligible_runs(self):
         code = "202611030111"
         rows = [
@@ -301,7 +446,8 @@ class OddsHistoryTests(unittest.TestCase):
                 now=datetime(2026, 11, 3, 5, 0, tzinfo=timezone.utc))
         self.assertEqual(count, 1)
         self.assertEqual(len(records), 1)
-        self.assertEqual(errors, [{"run_id": 8, "status": "ValueError"}])
+        self.assertEqual(errors, [{"run_id": 8, "status": "ValueError",
+                                   "stage": "artifact_parse", "http_status": None}])
 
     def test_second_history_page_can_recover_older_scheduled_evidence(self):
         # A busy repo's first 100 entries can contain unrelated completed PR runs.
@@ -578,6 +724,38 @@ class OddsHistoryTests(unittest.TestCase):
             changed = dict(base)
             changed[key] = value
             self.assertFalse(history.include_current_event("workflow_run", {"trigger": changed}))
+
+    def test_skipped_receipt_excludes_noop_without_downloading_zip(self):
+        upstream = {"id": 999, "event": "workflow_run", "conclusion": "success",
+                    "created_at": "2026-11-03T05:45:00Z"}
+        calls = []
+        def fake_api(url, token):
+            calls.append(url)
+            if "/runs?status=" in url:
+                return {"workflow_runs": [upstream] if "&event=workflow_run&" in url else []}
+            return {"artifacts": [{"name": "live-odds-skipped", "id": 77, "expired": False}]}
+        with patch.object(history, "api_json", side_effect=fake_api), patch.object(
+                history, "urlopen", side_effect=AssertionError("ZIP must not be requested")):
+            records, count, errors = history.fetch_history(
+                "a/b", "token", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(records), 1)
+        self.assertTrue(any("/artifacts?" in url for url in calls))
+
+        # A skipped marker on a normal scheduled run is never an operational success
+        # and must remain visible as missing evidence.
+        upstream["event"] = "schedule"
+        with patch.object(history, "api_json", side_effect=lambda url, token: (
+                {"workflow_runs": [upstream] if "&event=schedule&" in url else []}
+                if "/runs?status=" in url else
+                {"artifacts": [{"name": "live-odds-skipped", "id": 77, "expired": False}]})):
+            records, count, errors = history.fetch_history(
+                "a/b", "token", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 6, tzinfo=timezone.utc))
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [{"run_id": 999, "status": "missing_artifact"}])
 
     def test_ineligible_fallback_artifact_does_not_raise_missing_evidence(self):
         record = {"checked_at_jst": "2026-11-03T14:50:00+09:00",

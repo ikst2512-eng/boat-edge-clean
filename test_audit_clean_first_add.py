@@ -171,6 +171,48 @@ class FirstAddAuditTests(unittest.TestCase):
         self.assertFalse(result["formal"])
         self.assertFalse(result["remote_first_seen_verified"])
 
+    def test_corrupted_original_does_not_suppress_other_candidate_verdicts(self):
+        paths=["prospective_predictions/202611050404.json",
+               "prospective_predictions/202611050405.json",
+               "prospective_predictions/202611050406.json"]
+        def inspect_one(path,root):
+            if path.endswith("0404.json"):
+                raise UnicodeDecodeError("utf-8",b"\\xff",0,1,"invalid start byte")
+            if path.endswith("0405.json"):
+                raise FileNotFoundError("original frozen record missing")
+            return {"race_code":"202611050406","formal":False,
+                    "remote_first_seen_verified":False}
+        from contextlib import nullcontext
+        with patch.object(audit,"bulk_first_add",return_value=nullcontext()):
+            result=audit.audit_records(paths,inspector=inspect_one)
+        self.assertEqual(result["total"],3)
+        self.assertEqual(result["local_audit_passed"],1)
+        self.assertEqual(result["rejected"],2)
+        self.assertEqual(len(result["rejected_records"]),2)
+        self.assertEqual(result["rejection_reasons"],{"other_rejection":2})
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["remote_first_seen_verified"])
+
+    def test_unreadable_original_git_blob_rejects_only_that_record(self):
+        paths=["prospective_predictions/202611050404.json",
+               "prospective_predictions/202611050405.json"]
+        def inspector(path,root):
+            if path.endswith("0404.json"):
+                raise subprocess.CalledProcessError(
+                    128,["git","show","badsha:prospective_predictions/202611050404.json"])
+            return {"race_code":"202611050405","formal":False,
+                    "remote_first_seen_verified":False}
+        from contextlib import nullcontext
+        with patch.object(audit,"bulk_first_add",return_value=nullcontext()):
+            report=audit.audit_records(paths,inspector=inspector)
+        self.assertEqual(report["total"],2)
+        self.assertEqual(report["local_audit_passed"],1)
+        self.assertEqual(report["rejected"],1)
+        self.assertEqual(report["rejection_reasons"],{"other_rejection":1})
+        self.assertEqual(report["by_day"]["20261105"]["rejected"],1)
+        self.assertFalse(report["formal"])
+        self.assertFalse(report["remote_first_seen_verified"])
+
     def test_daily_counts_separate_legacy_rejection_from_new_candidate(self):
         paths=["prospective_predictions/202610280101.json",
                "prospective_predictions/202611040404.json",

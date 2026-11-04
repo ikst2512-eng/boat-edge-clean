@@ -74,6 +74,124 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIs(saved["formal"],False)
         self.assertIs(saved["scoring"],False)
 
+    def test_daily_csv_http_failure_uses_pre_race_fallback_without_formal_promotion(self):
+        day="20990101"
+        code=day+"0404"
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        received=datetime.now(JST)
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=OSError("daily CSV unavailable")) as primary, \
+             patch("clean_openapi_sources.load",return_value=(titles,cards,received,"d"*64,
+                 {"source":"nonofficial_openapi_v1","valid":1,"rejected":0})) as alternate, \
+             patch.object(capture,"model_provenance",return_value={"model_git_sha":"a"*40}):
+            result=capture.collect(day)
+            saved=json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
+        self.assertEqual(result["saved"],1)
+        self.assertEqual(primary.call_count,1)
+        alternate.assert_called_once_with(day)
+        self.assertEqual(saved["input_source_kind"],"nonofficial_openapi_v1")
+        self.assertEqual(saved["source_title_sha256"],"d"*64)
+        self.assertEqual(saved["source_cards_sha256"],"d"*64)
+        self.assertGreaterEqual(datetime.fromisoformat(saved["generated_at"]),received)
+        self.assertIs(saved["formal"],False)
+        self.assertIs(saved["scoring"],False)
+
+    def test_empty_published_daily_csv_uses_pre_race_alternate(self):
+        day="20990101"
+        code=day+"0404"
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        received=datetime.now(JST)
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",return_value=([],received,"a"*64)) as primary, \
+             patch("clean_openapi_sources.load",return_value=(titles,cards,received,"b"*64,
+                 {"source":"nonofficial_openapi_v1"})) as alternate, \
+             patch.object(capture,"model_provenance",return_value={}):
+            output=capture.collect(day)
+        self.assertEqual(output["saved"],1)
+        self.assertEqual(primary.call_count,2)
+        alternate.assert_called_once_with(day)
+
+    def test_nonmatching_daily_race_lists_use_alternate(self):
+        day="20990101"
+        target=day+"0404"
+        t=datetime.now(JST)
+        daily_titles=[{"レースコード":day+"0101","電話投票締切予定":"23:59"}]
+        daily_cards=[{"レースコード":day+"0202","艇1_全国勝率":"5.1"}]
+        alternate_titles=[{"レースコード":target,"電話投票締切予定":"23:59"}]
+        alternate_cards=[{"レースコード":target,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (daily_titles if "/title/" in url else daily_cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary) as fetch, \
+             patch("clean_openapi_sources.load",return_value=(
+                 alternate_titles,alternate_cards,t,"b"*64,{"source":"nonofficial_openapi_v1"})) as fallback, \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+            saved=json.loads((Path(tmp)/"prospective_predictions"/(target+".json")).read_text())
+        self.assertEqual(fetch.call_count,2)
+        fallback.assert_called_once_with(day)
+        self.assertEqual(result["saved"],1)
+        self.assertEqual(saved["race_code"],target)
+        self.assertEqual(saved["input_source_kind"],"nonofficial_openapi_v1")
+        self.assertEqual(saved["source_title_sha256"],"b"*64)
+        self.assertEqual(saved["source_cards_sha256"],"b"*64)
+        self.assertGreaterEqual(datetime.fromisoformat(saved["generated_at"]),t)
+        self.assertFalse(saved["formal"])
+        self.assertFalse(saved["scoring"])
+
+    def test_zero_candidate_run_reports_source_coverage_without_certification(self):
+        import io
+        day="20000101"
+        code=day+"0101"
+        title=[{"レースコード":code,"電話投票締切予定":"15:00"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (title if "/title/" in url else cards),datetime.now(JST),"a"*64
+        error=io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch.object(capture,"model_provenance",return_value={}), \
+             patch("sys.stderr",error):
+            result=capture.collect(day)
+        self.assertEqual(result["saved"],0)
+        self.assertEqual(result["eligible"],0)
+        self.assertIn("PROSPECTIVE_CAPTURE_ZERO ",error.getvalue())
+        diagnostic=json.loads(error.getvalue().split("PROSPECTIVE_CAPTURE_ZERO ",1)[1])
+        self.assertEqual(diagnostic["matching_race_codes"],1)
+        self.assertEqual(diagnostic["source_kind"],"public_pre_race_csv")
+        self.assertEqual(diagnostic["reason"],"no_pre_cutoff_eligible_races")
+        self.assertIs(diagnostic["formal"],False)
+
+    def test_primary_bad_data_does_not_silently_fall_back(self):
+        day="20990101"
+        with patch.object(capture,"read_rows",side_effect=ValueError("source too large")), \
+             patch("clean_openapi_sources.load") as alternate:
+            with self.assertRaisesRegex(ValueError,"source too large"):
+                capture.collect(day)
+        alternate.assert_not_called()
+
+    def test_missing_csv_and_missing_alt_are_not_fabricated_success(self):
+        day="20990101"
+        with patch.object(capture,"read_rows",side_effect=OSError("daily 404")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")):
+            with self.assertRaisesRegex(ValueError,"no_valid_races"):
+                capture.collect(day)
+
+    def test_precommit_freeze_blocks_unknown_source_and_untrusted_digest(self):
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1')",workflow)
+        self.assertIn("Candidate source digest inconsistency: ",workflow)
+        self.assertIn("Candidate is not research-only: ",workflow)
+        self.assertIn("hashlib.sha256((title_sha+':'+cards_sha).encode()).hexdigest()",workflow)
+        self.assertIn("kind=='nonofficial_openapi_v1' and title_sha!=cards_sha",workflow)
+        self.assertLess(workflow.index("Candidate source digest inconsistency: "),workflow.index("git commit -m 'data: freeze prospective pre-cutoff"))
+
     def test_successful_freeze_push_dispatches_existing_audit_only_once(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         audit=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")

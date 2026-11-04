@@ -138,7 +138,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
             try:
                 accepted.append(inspector(path,root))
                 counts["local_audit_passed"]+=1
-            except (ValueError,KeyError,TypeError,json.JSONDecodeError) as exc:
+            except (ValueError, KeyError, TypeError, UnicodeDecodeError, FileNotFoundError, subprocess.CalledProcessError) as exc:
                 counts["rejected"]+=1
                 # Keep a bounded, stable reason category. No candidate may be
                 # counted as an evaluated race from this diagnostic output.
@@ -151,6 +151,11 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "candidate changed since first add":"original_blob_mismatch",
                     "generated after cutoff":"generation_late",
                     "wrong archive type":"archive_type_invalid",
+                    "post-fix source kind missing or invalid":"source_kind_invalid",
+                    "post-fix source digest mismatch":"source_digest_invalid",
+                    "post-fix research classification invalid":"research_flag_invalid",
+                    "post-fix trifecta tickets invalid":"trifecta_ticket_invalid",
+                    "post-fix race identity invalid":"race_identity_invalid",
                 }
                 reason=known.get(str(exc),"other_rejection")
                 rejected.append({"race_code":path[len("prospective_predictions/"):-5],

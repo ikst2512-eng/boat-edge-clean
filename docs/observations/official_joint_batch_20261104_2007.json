@@ -1,0 +1,181 @@
+{
+  "event": "local_manual",
+  "checked_at_jst": "2026-11-04T20:07:00.287722+09:00",
+  "date": "20261104",
+  "formal": false,
+  "forecast_usable": false,
+  "full_t12_source_certified": false,
+  "eligible_candidates": 2,
+  "beforeinfo_originals_saved": 2,
+  "official_odds_originals_saved": 2,
+  "complete_pairs_before_t12": 0,
+  "observations": [
+    {
+      "race_code": "202611041907",
+      "status": "pair_not_ready",
+      "forecast_usable": false,
+      "beforeinfo": {
+        "race_code": "202611041907",
+        "url": "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261104&jcd=19&rno=7",
+        "request_started_at_jst": "2026-11-04T20:07:08.155845+09:00",
+        "t12_eligible": false,
+        "forecast_usable": false,
+        "received_at_jst": "2026-11-04T20:07:15.631683+09:00",
+        "race_number": "7",
+        "deadline_display": "20:25",
+        "racers_listed": 6,
+        "six_unique_boats": true,
+        "exhibition_time_nonempty_six": false,
+        "exhibition_time_observed_boats": 0,
+        "tilt_observed_boats": 6,
+        "start_exhibition_rows": 0,
+        "start_exhibition_six_rows_observed": false,
+        "start_exhibition_six_valid_rows": false,
+        "exhibition_course_to_boat": {},
+        "status": "official_json_observed_not_t12_certified",
+        "sha256": "edf28f59162c0f20a33bd8ba2f65106647d64fb668456956822415086a484bb5",
+        "bytes": 3948
+      },
+      "cutoff_gate": {
+        "status": "fetch_odds",
+        "cutoff_jst": "2026-11-04T20:13:00+09:00",
+        "both_complete_before_t12": false,
+        "forecast_usable": false
+      },
+      "odds": {
+        "race_code": "202611041907",
+        "official_url": "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=20261104&jcd=19&rno=7",
+        "request_started_at_jst": "2026-11-04T20:07:15.632926+09:00",
+        "deadline_at_jst": "2026-11-04T20:25:00+09:00",
+        "forecast_usable": false,
+        "t12_eligible": false,
+        "received_at_jst": "2026-11-04T20:07:23.541923+09:00",
+        "observed_at_jst": "2026-11-04T20:07:23.541923+09:00",
+        "odds_entries": 120,
+        "valid_120_combinations": true,
+        "observed_before_t12": true,
+        "complete_odds_observed_before_t12": true,
+        "source_immutability_verified": false,
+        "status": "official_odds_observed_research_only",
+        "sha256": "60facb6b6979aeb056ae69842ed8c2cd7892cda8d96f2e05e03afc48edf65b3d",
+        "bytes": 46074
+      },
+      "joint_audit": {
+        "race_code": "202611041907",
+        "cutoff_jst": "2026-11-04T20:13:00+09:00",
+        "before_received_jst": "2026-11-04T20:07:15.631683+09:00",
+        "odds_received_jst": "2026-11-04T20:07:23.541923+09:00",
+        "originals_hash_verified": true,
+        "exhibition_complete": false,
+        "odds_120_complete": true,
+        "both_complete_before_t12": false,
+        "component_checks": {
+          "six_unique_boats": true,
+          "exhibition_time_six": false,
+          "tilt_six": true,
+          "start_exhibition_six": false,
+          "beforeinfo_received_by_t12": true,
+          "official_odds_120": true,
+          "odds_received_by_t12": true
+        },
+        "missing_components": [
+          "exhibition_time_six",
+          "start_exhibition_six"
+        ],
+        "independent_source_coverage": {
+          "official_racecard_original": false,
+          "official_entry_original": false,
+          "official_beforeinfo_original": true,
+          "official_odds_original": true
+        },
+        "full_t12_source_certified": false,
+        "forecast_usable": false,
+        "t12_eligible": false
+      }
+    },
+    {
+      "race_code": "202611040112",
+      "status": "pair_not_ready",
+      "forecast_usable": false,
+      "beforeinfo": {
+        "race_code": "202611040112",
+        "url": "https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd=20261104&jcd=01&rno=12",
+        "request_started_at_jst": "2026-11-04T20:07:23.556114+09:00",
+        "t12_eligible": false,
+        "forecast_usable": false,
+        "received_at_jst": "2026-11-04T20:07:32.556936+09:00",
+        "race_number": "12",
+        "deadline_display": "20:31",
+        "racers_listed": 6,
+        "six_unique_boats": true,
+        "exhibition_time_nonempty_six": false,
+        "exhibition_time_observed_boats": 0,
+        "tilt_observed_boats": 6,
+        "start_exhibition_rows": 0,
+        "start_exhibition_six_rows_observed": false,
+        "start_exhibition_six_valid_rows": false,
+        "exhibition_course_to_boat": {},
+        "status": "official_json_observed_not_t12_certified",
+        "sha256": "160c0d8bf4744b4cd22575f363330ffe4bab6e53c5d822a7e80d9a83e20cb6c5",
+        "bytes": 4122
+      },
+      "cutoff_gate": {
+        "status": "fetch_odds",
+        "cutoff_jst": "2026-11-04T20:19:00+09:00",
+        "both_complete_before_t12": false,
+        "forecast_usable": false
+      },
+      "odds": {
+        "race_code": "202611040112",
+        "official_url": "https://www.boatrace.jp/owpc/pc/race/odds3t?hd=20261104&jcd=01&rno=12",
+        "request_started_at_jst": "2026-11-04T20:07:32.558070+09:00",
+        "deadline_at_jst": "2026-11-04T20:31:00+09:00",
+        "forecast_usable": false,
+        "t12_eligible": false,
+        "received_at_jst": "2026-11-04T20:07:40.054125+09:00",
+        "observed_at_jst": "2026-11-04T20:07:40.054125+09:00",
+        "odds_entries": 120,
+        "valid_120_combinations": true,
+        "observed_before_t12": true,
+        "complete_odds_observed_before_t12": true,
+        "source_immutability_verified": false,
+        "status": "official_odds_observed_research_only",
+        "sha256": "7ea79f8775542a534201c1a8c2510107b3e91eaffcde6132f527a68cdf723a7f",
+        "bytes": 46234
+      },
+      "joint_audit": {
+        "race_code": "202611040112",
+        "cutoff_jst": "2026-11-04T20:19:00+09:00",
+        "before_received_jst": "2026-11-04T20:07:32.556936+09:00",
+        "odds_received_jst": "2026-11-04T20:07:40.054125+09:00",
+        "originals_hash_verified": true,
+        "exhibition_complete": false,
+        "odds_120_complete": true,
+        "both_complete_before_t12": false,
+        "component_checks": {
+          "six_unique_boats": true,
+          "exhibition_time_six": false,
+          "tilt_six": true,
+          "start_exhibition_six": false,
+          "beforeinfo_received_by_t12": true,
+          "official_odds_120": true,
+          "odds_received_by_t12": true
+        },
+        "missing_components": [
+          "exhibition_time_six",
+          "start_exhibition_six"
+        ],
+        "independent_source_coverage": {
+          "official_racecard_original": false,
+          "official_entry_original": false,
+          "official_beforeinfo_original": true,
+          "official_odds_original": true
+        },
+        "full_t12_source_certified": false,
+        "forecast_usable": false,
+        "t12_eligible": false
+      }
+    }
+  ],
+  "status": "sources_saved_pair_not_ready"
+}

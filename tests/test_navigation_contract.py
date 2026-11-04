@@ -19,6 +19,10 @@ class NavigationContractTest(unittest.TestCase):
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
         cls.secondary = (ROOT / "secondary_navigation.js").read_text(encoding="utf-8")
 
+    def test_schedule_success_does_not_call_deleted_home_cards(self):
+        self.assertNotIn("loadHomeRaceCards", self.index)
+        self.assertIn("todayVenueRaces=data;renderDeadlines(data);", self.index)
+
     def test_navigation_initialization_waits_for_nav_element(self):
         probe = self.nav.index("const nav=document.querySelector('.site-global-nav');")
         guard = self.nav.index("if(!nav)return;", probe)

@@ -23,11 +23,16 @@ on:
       - test_evaluate_clean_prospective.py
       - .github/workflows/clean-prospective-evaluation.yml
       - .github/workflows/clean-first-add-evidence.yml
+  # Independent backup if collector GitHub-token push succeeded but audit dispatch did not.
+  # 12:30 and 21:30 JST; scheduled run is read-only and never regenerates forecasts.
+  schedule:
+    - cron: '30 3,12 * * *'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   unit-tests:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +45,7 @@ jobs:
         run: python -m unittest -v test_evaluate_clean_prospective test_audit_clean_first_add test_audit_clean_post_fix_cohort
   post-fix-cohort-evidence:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +78,10 @@ jobs:
                       'audit_run_id','audit_event_name','audit_checkout_sha',
                       'remote_first_seen_verified','formal')
               },sort_keys=True))
+              print('POST_FIX_REJECTIONS',json.dumps({
+                  'rejection_reasons':report.get('rejection_reasons',{}),
+                  'by_day':report.get('by_day',{})
+              },sort_keys=True))
           PY
       - name: Retain post-fix first-add evidence independently
         if: always()
@@ -82,6 +92,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
   immutable-archive-gate:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
