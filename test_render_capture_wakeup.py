@@ -249,7 +249,7 @@ class ExternalWakeupTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 yaml = Path(workflow).read_text(encoding="utf-8")
                 declarations = re.findall(
-                    r"(?m)^\\s+- cron: '([^']+)'", yaml)
+                    r"(?m)^\s+- cron: '([^']+)'", yaml)
                 self.assertTrue(declarations, "source cron missing")
                 actual = set()
                 for expression in declarations:
