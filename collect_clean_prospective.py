@@ -65,6 +65,72 @@ def finalize_records(output, title_received, cards_received, completed):
             if max(title_received,cards_received)<=completed
             and completed<datetime.fromisoformat(record["cutoff_jst"])}
 
+def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=12):
+    """Add only separately received direct-source pairs for races absent in both daily files.
+
+    No CSV/OpenAPI row is ever combined with a direct-source row. A failed
+    optional supplement must not discard already valid daily candidates.
+    """
+    from clean_direct_sources import holding_rows, direct_cards
+    title_counts=Counter(r.get("レースコード") for r in titles if isinstance(r,dict))
+    card_counts=Counter(r.get("レースコード") for r in cards if isinstance(r,dict))
+    # Even a malformed matched pair remains owned by its primary source:
+    # never silently replace it with another vendor's values.
+    # A partially malformed or duplicated primary entry must not be
+    # silently repaired by a different source. Only genuinely absent pairs
+    # are eligible for independent direct supplementation.
+    complete={code for code in title_counts if card_counts.get(code)}
+    blocked={code for code,n in title_counts.items() if n>1}
+    blocked.update(code for code,n in card_counts.items() if n>1)
+    primary_titles={r["レースコード"]:r for r in titles
+                    if isinstance(r,dict) and r.get("レースコード")
+                    and title_counts[r["レースコード"]]==1}
+    frozen={p.stem for p in STORE.glob(day+"????.json")}
+    try:
+        holding,t1,h1=holding_rows(day)
+    except (OSError,TimeoutError,ValueError,UnicodeError) as exc:
+        print("PROSPECTIVE_SUPPLEMENT_UNAVAILABLE "+json.dumps({
+            "day":day,"error_type":type(exc).__name__,
+            "daily_candidates_retained":len(existing_output)
+        },sort_keys=True),file=sys.stderr)
+        return {}
+    extra=[]
+    conflicts=0
+    for row in holding:
+        code=row.get("レースコード") if isinstance(row,dict) else None
+        if (not isinstance(code,str) or code in complete or code in blocked
+                or code in frozen or code in existing_output):
+            continue
+        known=primary_titles.get(code)
+        if known and known.get("電話投票締切予定")!=row.get("電話投票締切予定"):
+            conflicts+=1
+            continue
+        extra.append(row)
+    if not extra:
+        return {}
+    try:
+        extra_cards,t2,_,card_hashes,failed=direct_cards(
+            day,extra,existing_codes=frozen|set(existing_output),limit=limit)
+    except (OSError,TimeoutError,ValueError,UnicodeError) as exc:
+        print("PROSPECTIVE_SUPPLEMENT_UNAVAILABLE "+json.dumps({
+            "day":day,"error_type":type(exc).__name__,
+            "daily_candidates_retained":len(existing_output)
+        },sort_keys=True),file=sys.stderr)
+        return {}
+    later=build(day,extra,extra_cards,t1,t2,h1,card_hashes,
+                datetime.now(JST),{**provenance,
+                   "input_source_kind":"direct_race_specific_pre_race"})
+    final=finalize_records(later,t1,t2,datetime.now(JST))
+    if set(final)&set(existing_output):
+        raise ValueError("source pair overlap prohibited")
+    print("PROSPECTIVE_SUPPLEMENT "+json.dumps({
+        "day":day,"unlisted_titles":len(extra),"direct_cards":len(extra_cards),
+        "eligible":len(final),"deadline_conflicts_rejected":conflicts,
+        "fetch_error_counts":failed,"formal":False
+    },sort_keys=True),file=sys.stderr)
+    return final
+
+
 def collect(day=None):
     now = datetime.now(JST)
     day = day or now.strftime("%Y%m%d")
@@ -124,6 +190,15 @@ def collect(day=None):
     # record to the beginning of a fetch or a long-running batch.
     completed_generation=datetime.now(JST)
     output=finalize_records(output,t1,t2,completed_generation)
+    # A daily publication can include one valid race while omitting many
+    # upcoming cards. A missing pair gets an entirely independent direct
+    # holding-list + six-racer card receipt, never mixed-source fields.
+    if source_kind in ("public_pre_race_csv","nonofficial_openapi_v1"):
+        # Do not delay Git first-add for a primary record nearing T-12.
+        nearest=min((datetime.fromisoformat(r["cutoff_jst"]) for r in output.values()),
+                    default=None)
+        if nearest is None or nearest-datetime.now(JST)>timedelta(minutes=4):
+            output.update(supplement_unlisted(day,titles,cards,output,provenance))
     if not output:
         # Diagnostic only. A zero eligible count must not be reported as a
         # successful immutable freeze or as certified forecast availability.
