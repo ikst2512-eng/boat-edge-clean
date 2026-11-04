@@ -74,6 +74,22 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIs(saved["formal"],False)
         self.assertIs(saved["scoring"],False)
 
+    def test_successful_freeze_push_dispatches_existing_audit_only_once(self):
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        audit=(Path(__file__).resolve().parent/".github/workflows/clean-prospective-evaluation.yml").read_text(encoding="utf-8")
+        self.assertIn("actions: write",workflow)
+        self.assertIn("GH_TOKEN: ${{ github.token }}",workflow)
+        self.assertIn("workflow_dispatch:",audit)
+        # A capture with zero additions or a failed push must never claim audit dispatch.
+        success=workflow.index("if git push origin HEAD:main; then")
+        dispatch=workflow.index("gh workflow run clean-prospective-evaluation.yml --ref main")
+        marker=workflow.index("PROSPECTIVE_FIRST_ADD_AUDIT_DISPATCHED")
+        retry=workflow.index('if [ "$attempt" -eq 3 ]; then',success)
+        self.assertLess(success,dispatch)
+        self.assertLess(dispatch,marker)
+        self.assertLess(marker,retry)
+        self.assertEqual(workflow.count("gh workflow run clean-prospective-evaluation.yml --ref main"),1)
+
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
         row={"レースコード":"202610281201","電話投票締切予定":"14:00"}

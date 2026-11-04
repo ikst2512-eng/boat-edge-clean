@@ -11,6 +11,8 @@ on:
   push:
     branches: [main]
     paths:
+      # Newly frozen candidate records must trigger independent evidence checks.
+      - 'prospective_predictions/**'
       - audit_clean_first_add.py
       - test_audit_clean_first_add.py
       - evaluate_clean_prospective.py
