@@ -555,6 +555,16 @@ node() {
                         self.assertEqual(saved["published_head_sha"], head)
                         self.assertEqual(saved["published_base_sha"], "b" * 40)
 
+    def test_review_artifact_is_required_for_successful_proposal_run(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        archive = workflow.split("      - name: Archive proposal\n", 1)[1]
+        self.assertIn("        if: always()\n", archive)
+        self.assertIn("          name: ai-repair-proposal-${{ github.run_id }}\n", archive)
+        self.assertIn("          path: ai_repair_proposal.json\n", archive)
+        self.assertIn("          if-no-files-found: error\n", archive)
+        self.assertNotIn("          if-no-files-found: warn\n", archive)
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
