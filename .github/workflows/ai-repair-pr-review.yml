@@ -206,6 +206,15 @@ jobs:
           claimed = report.get('changed_files')
           digests = report.get('file_sha256')
           filenames = [entry['filename'] for entry in changed]
+          # Independently compare the selected commit's exact Git tree diff.
+          # Do not trust the PR files API as the sole source of changed paths.
+          git_entries = [line.split('\\t') for line in subprocess.check_output(
+              ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
+              text=True).splitlines()]
+          if (len(git_entries) != len(filenames) or
+              any(len(entry) != 2 or entry[0] != 'M' for entry in git_entries) or
+              sorted(entry[1] for entry in git_entries) != sorted(filenames)):
+              raise SystemExit('Candidate Git commit changes do not match the PR API file list')
           if (report.get('status') != 'proposed' or
               report.get('published_branch') != source_pr['head']['ref'] or
               report.get('published_head_sha') != source_pr['head']['sha'] or
