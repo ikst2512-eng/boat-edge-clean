@@ -616,6 +616,101 @@ node() {
         self.assertIn("          if-no-files-found: error\n", archive)
         self.assertNotIn("          if-no-files-found: warn\n", archive)
 
+    def test_full_publish_script_offline_with_local_git_remote(self):
+        """Run the REAL publish shell, but stub gh and use a local Git remote."""
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        block = workflow.split(
+            "      - name: Publish reviewed-by-CI patch as draft PR\n", 1
+        )[1].split("      - name: Archive proposal\n", 1)[0]
+        script = block.split("        run: |\n", 1)[1]
+        script = "\n".join(
+            line[10:] if line.startswith("          ") else line
+            for line in script.splitlines()
+        )
+        self.assertEqual(
+            subprocess.run(["bash", "-n"], input=script,
+                           text=True, capture_output=True).returncode, 0
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            remote = base / "remote.git"
+            root = base / "candidate"
+            root.mkdir()
+            subprocess.run(["git", "init", "--bare", "-q", str(remote)],
+                           check=True)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "remote", "add", "origin", str(remote)],
+                           cwd=root, check=True)
+            for name in ("index.html", "navigation.js", "secondary_navigation.js"):
+                (root / name).write_text("original\n", encoding="utf-8")
+            subprocess.run(["git", "add", "--", "index.html", "navigation.js",
+                            "secondary_navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            original = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            (root / "navigation.js").write_text("reviewed change\n", encoding="utf-8")
+            digest = hashlib.sha256(b"reviewed change\n").hexdigest()
+            report = root / "ai_repair_proposal.json"
+            report.write_text(json.dumps({
+                "status": "proposed", "changed_files": ["navigation.js"],
+                "file_sha256": {"navigation.js": digest},
+                "production_change_allowed": False,
+            }), encoding="utf-8")
+            bin_dir = base / "bin"
+            bin_dir.mkdir()
+            fake_gh = bin_dir / "gh"
+            fake_gh.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "case \"$1 $2\" in\n"
+                "  'api repos/example/repo/git/ref/heads/main')"
+                " printf '%s\\n' \"$MOCK_LIVE_MAIN\" ;;\n"
+                "  'auth setup-git') exit 0 ;;\n"
+                "  'pr create') printf '%s\\n' 'fake draft PR'; exit 0 ;;\n"
+                "  *) echo \"unexpected gh invocation: $*\" >&2; exit 9 ;;\n"
+                "esac\n"
+            )
+            fake_gh.chmod(0o755)
+            summary = base / "summary"
+            env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
+                       GITHUB_SHA=original, MOCK_LIVE_MAIN=original,
+                       GITHUB_RUN_ID="980123", GITHUB_REPOSITORY="example/repo",
+                       GH_TOKEN="offline-fixture", AI_ISSUE="navigation issue",
+                       GITHUB_STEP_SUMMARY=str(summary))
+            result = subprocess.run(["bash", "-c", script], cwd=root, env=env,
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            branch = "ai/repair-980123"
+            remote_head = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "rev-parse", "refs/heads/" + branch],
+                text=True
+            ).strip()
+            published = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(published["published_branch"], branch)
+            self.assertEqual(published["published_head_sha"], remote_head)
+            self.assertEqual(published["published_base_sha"], original)
+            self.assertFalse(published["production_change_allowed"])
+            self.assertEqual(subprocess.check_output(
+                ["git", "--git-dir", str(remote), "show", remote_head + ":navigation.js"]
+            ), b"reviewed change\n")
+            self.assertEqual(subprocess.check_output(
+                ["git", "--git-dir", str(remote), "diff-tree", "--no-commit-id",
+                 "--name-only", "-r", remote_head], text=True
+            ).splitlines(), ["navigation.js"])
+            self.assertIn("Review-ready draft PR created", summary.read_text())
+            # The published commit must not include the evidence report itself.
+            names = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only",
+                 remote_head], text=True
+            ).splitlines()
+            self.assertNotIn("ai_repair_proposal.json", names)
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
