@@ -126,6 +126,13 @@ def inspect_race(code, root, publication, hole_shadow, observation, *,
                 or sorted(names) != sorted("four_mode_forecasts/" + x + ".json"
                                           for x in shadow_codes)):
             raise ValueError("first_add_roster_not_matched")
+        # A Draft-branch or unattached SHA must never masquerade as an
+        # immutable original already on production main. Require ancestry
+        # against the caller's freshly fetched remote main ref.
+        ancestor = git(["merge-base", "--is-ancestor", sha,
+                        "refs/remotes/origin/main"])
+        if type(ancestor) is not bytes or ancestor:
+            raise ValueError("untrusted_main_ancestry")
         original = git(["show", sha + ":" + path])
         if type(original) is not bytes or len(original) > 30000:
             raise ValueError("invalid_git_original")
