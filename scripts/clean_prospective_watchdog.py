@@ -7,7 +7,7 @@ new immutable prediction or of a successful independent first-add audit.
 import json
 import os
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from scripts.four_mode_watchdog_policy import should_dispatch
@@ -46,6 +46,27 @@ def trusted_schedule_completion(payload, repository):
     )
 
 
+def last_night_slot_view(runs, now):
+    """At 22:29-22:32 JST, do not mistake 22:19's success for 22:28.
+
+    Earlier active jobs still block duplicate publication. A completed
+    earlier manual retry is not evidence that the distinct 22:28 slot ran.
+    No new writer, cron, or relaxation of the collector's T-12 gate.
+    """
+    local = now.astimezone(timezone(timedelta(hours=9)))
+    if local.hour != 22 or not 29 <= local.minute <= 32:
+        return runs
+    slot_start = local.replace(minute=28, second=0, microsecond=0).astimezone(timezone.utc)
+    visible = []
+    for run in runs:
+        created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            raise ValueError("run_time_timezone_required")
+        if created >= slot_start or run["status"] != "completed":
+            visible.append(run)
+    return visible
+
+
 def decide(runs, now, event_name, ref, *, trigger=None, repository=None):
     """Only trusted main branch schedules can wake recovery from another workflow."""
     if ref != "refs/heads/main" or event_name not in (
@@ -57,6 +78,7 @@ def decide(runs, now, event_name, ref, *, trigger=None, repository=None):
     publication = [run for run in runs
                    if run.get("event") in ("schedule", "workflow_dispatch")
                    and run.get("head_branch") == "main"]
+    publication = last_night_slot_view(publication, now)
     return should_dispatch(
         publication, now, event_name,
         recent_minutes=WINDOW_MINUTES, cooldown_minutes=WINDOW_MINUTES,
