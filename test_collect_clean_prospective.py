@@ -1,7 +1,12 @@
 import unittest
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from research_model import JST
 from collect_clean_prospective import build, finalize_records
+import collect_clean_prospective as capture
 
 class ProspectiveTests(unittest.TestCase):
     def test_pre_cutoff_and_no_formal_promotion(self):
@@ -43,6 +48,31 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(finalize_records(tentative,source_time,source_time,
                          datetime(2026,11,4,12,3,59,tzinfo=JST))["202611040404"]["generated_at"],
                          "2026-11-04T12:03:59+09:00")
+
+    def test_end_to_end_source_receipts_precede_frozen_generated_at(self):
+        day="20990101"
+        code=day+"0404"
+        titles=[{"レースコード":code,"電話投票締切予定":"12:16"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        received=[]
+        def fake_read(url):
+            now=datetime.now(JST)
+            received.append(now)
+            return (titles if "/title/" in url else cards),now,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=fake_read) as calls, \
+             patch.object(capture,"model_provenance",return_value={
+                 "model_git_sha":"a"*40,"model_source_sha256":"b"*64}):
+            result=capture.collect(day)
+            self.assertEqual(result["saved"],1)
+            saved=json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
+        self.assertEqual(calls.call_count,2)
+        generated=datetime.fromisoformat(saved["generated_at"])
+        self.assertGreaterEqual(generated,max(received))
+        self.assertEqual(saved["race_code"],code)
+        self.assertIs(saved["formal"],False)
+        self.assertIs(saved["scoring"],False)
 
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
