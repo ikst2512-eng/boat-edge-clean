@@ -1,7 +1,12 @@
 import unittest
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from research_model import JST
 from collect_clean_prospective import build
+import collect_clean_prospective as capture
 
 class ProspectiveTests(unittest.TestCase):
     def test_pre_cutoff_and_no_formal_promotion(self):
@@ -36,6 +41,30 @@ class ProspectiveTests(unittest.TestCase):
         cards=[{"レースコード":"202611040404",**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
         self.assertEqual(build("20261104",title,cards,now.replace(tzinfo=None),
                                now,"a"*64,"b"*64,now,{}),{})
+
+    def test_collect_stamps_generation_after_both_actual_fetches(self):
+        day="20990101"
+        code=day+"0404"
+        title=[{"レースコード":code,"電話投票締切予定":"12:16"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        received=[]
+        def source_fetch(url):
+            observed=datetime.now(JST)
+            received.append(observed)
+            return (title if "/title/" in url else cards),observed,"a"*64
+        with tempfile.TemporaryDirectory() as td, \
+                patch.object(capture,"STORE",Path(td)/"prospective_predictions"), \
+                patch.object(capture,"read_rows",side_effect=source_fetch) as fetch, \
+                patch.object(capture,"model_provenance",return_value={
+                    "model_git_sha":"a"*40,"model_source_sha256":"b"*64}):
+            result=capture.collect(day)
+            self.assertEqual(result["saved"],1)
+            saved=json.loads((Path(td)/"prospective_predictions"/(code+".json")).read_text())
+        self.assertEqual(fetch.call_count,2)
+        self.assertEqual(saved["race_code"],code)
+        self.assertGreaterEqual(datetime.fromisoformat(saved["generated_at"]),max(received))
+        self.assertFalse(saved["formal"])
+        self.assertFalse(saved["scoring"])
 
     def test_duplicate_inputs_rejected(self):
         now=datetime(2026,10,28,10,0,tzinfo=JST)
