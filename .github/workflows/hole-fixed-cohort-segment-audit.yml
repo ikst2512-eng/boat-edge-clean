@@ -1,0 +1,52 @@
+name: Hole fixed 120 stratification and result-blind comparison
+on:
+  pull_request:
+    paths:
+      - hole_fixed_cohort_segment_audit.py
+      - test_hole_fixed_cohort_segment_audit.py
+      - .github/workflows/hole-fixed-cohort-segment-audit.yml
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify fixed cohort and result-access ordering
+        run: python -m unittest -v test_hole_fixed_cohort_segment_audit.py
+      - name: Recompute all 120 paired archived races
+        run: python hole_fixed_cohort_segment_audit.py > hole_fixed_cohort_segment_report.json
+      - name: Check reconciliation and report stratified summary
+        run: |
+          python - <<'PY'
+          import json
+          r = json.load(open('hole_fixed_cohort_segment_report.json'))
+          assert r["cohort_count"] == 120 and r["formal"] is False
+          assert not r["independent_first_receipt_verified"]
+          assert r["overall"]["policies"]["baseline"]["hits"]["top10"] == 14
+          assert r["overall"]["policies"]["same_pair"]["hits"]["top10"] == 17
+          assert r["overall"]["policies"]["two_pairs"]["hits"]["top10"] == 17
+          for key in ["by_model_version","by_date","by_race_round_band","by_venue"]:
+              assert sum(g["n"] for g in r[key].values()) == 120
+          for group in ["overall", *r["by_model_version"].values(), *r["by_race_round_band"].values()]:
+              for name, item in group["policies"].items():
+                  for k in (1,3,5,10):
+                      key=f"top{k}"
+                      assert (item["hits"][key]-group["policies"]["baseline"]["hits"][key]
+                              ==item["gain"][key]-item["loss"][key])
+          print(json.dumps({
+              "cohort_count":r["cohort_count"],
+              "overall":r["overall"],
+              "by_model_version":r["by_model_version"],
+              "by_race_round_band":r["by_race_round_band"],
+              "warnings":r["warning"]
+          }, ensure_ascii=False, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-fixed120-segment-audit
+          path: hole_fixed_cohort_segment_report.json
