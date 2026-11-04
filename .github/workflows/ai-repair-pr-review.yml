@@ -24,29 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ai-repair-pr-review.yml"); puts "workflow YAML parsed"'
       - run: python -m unittest -v test_ai_repair_pr_review
-      # TEMPORARY READ-ONLY SMOKE. Remove after proving pinned ZIP retrieval.
-      - name: Audit probe of live GitHub artifact ZIP retrieval (temporary)
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/13116450137/zip" > /tmp/ai-archive-readonly-smoke.zip
-          printf '%s  %s\n' 'a0189228cb5ba69898cb7738333536cc3629124f903124738389b3a3c715ebe9' /tmp/ai-archive-readonly-smoke.zip | sha256sum --check
-          python - <<'PY'
-          import zipfile
-          with zipfile.ZipFile('/tmp/ai-archive-readonly-smoke.zip') as archive:
-              assert archive.namelist() == ['ai_repair_proposal.json'], archive.namelist()
-              print('Verified real GitHub artifact ZIP download and expected member.')
-          PY
   verify:
     if: github.event_name == 'workflow_dispatch'
     needs: syntax
