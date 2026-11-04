@@ -131,7 +131,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
         for path in paths:
             race_code=path[len("prospective_predictions/"):-5]
             day=race_code[:8]
-            counts=by_day.setdefault(day,{"total":0,"local_audit_passed":0,"rejected":0})
+            counts=by_day.setdefault(day,{"total":0,"local_audit_passed":0,"rejected":0,"rejection_reasons":{}})
             counts["total"]+=1
             try:
                 accepted.append(inspector(path,root))
@@ -153,6 +153,8 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                 rejected.append({"race_code":path[len("prospective_predictions/"):-5],
                                  "reason":reason})
                 reasons[reason]=reasons.get(reason,0)+1
+                daily_reasons=counts["rejection_reasons"]
+                daily_reasons[reason]=daily_reasons.get(reason,0)+1
     return {"schema":"CLEAN_PROSPECTIVE_LOCAL_FIRST_ADD_DIAGNOSTIC_V1",
             "formal":False,"remote_first_seen_verified":False,
             "total":len(paths),"local_audit_passed":len(accepted),
