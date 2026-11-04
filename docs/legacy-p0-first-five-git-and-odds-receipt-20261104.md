@@ -20,18 +20,20 @@ Local handoff CSV: `boat_edge_first_git_proof_5r_20261104.csv`, SHA256 `6b6190c5
 
 **Decision: DELETE_BLOCKED / LEGACY_WRITER_STOP_BLOCKED.**
 
-## Additional byte-level odds SHA256 verification (2026-11-04 JST)
+## Corrected byte-level odds SHA256 verification (2026-11-04 JST)
 
-Using direct GitHub source-file text at pinned legacy SHA, re-encoded as UTF-8 bytes, a locally implemented SHA256 routine was first checked against standard ASCII `abc` vector (`ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`). The following *raw file byte* hashes were calculated; **all three differ** from the immutable snapshot's expected `odds_sha256`:
+**Correction to superseded 2026-11-04 SHA mismatch claim in Issue #708.** The initial manual hashing implementation incorrectly reused mutated SHA256 internal state across successive inputs. A preliminary isolated recheck revealed that error. Recomputed hashes with fresh initial SHA256 constants **on every call**, restricted to the eight SHA256 output words, and validated against two independent standard test vectors including repeated-input consistency: `SHA256("")=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` and `SHA256("abc")=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`.
 
-| Race | Computed SHA256 of tracked `site_odds` content | Frozen snapshot expected SHA256 | Result |
+| Race | SHA256 of bytes re-encoded from GitHub-fetched JSON file | Frozen snapshot `odds_sha256` | Verdict |
 | --- | --- | --- | --- |
-| 5R | `e88d1557c496f3e6d0155d3f097666f2e9f0954e07c254d0030792be93d549de` | `e49b68d44f27bc7cc22bc7f471a76b1372f97dbaa3925727359fe2406d28757c` | **MISMATCH** |
-| 6R | `6e53cf35ba60d8e903268b51c4ed9602bdee70e0fa565491326ae73d02e7e112` | `cf6ac10fc6c11991c128a0f5eb5276cc3aae857de8bcf5812490e3c09a21fed2` | **MISMATCH** |
-| 7R | `46a0f6c6606e1ca5b745f4f97643ed627bc0b358802b5bb279c9e7a33b7165fa` | `e8eee54b9dde1dc8da48e5de4b11b78893cf3d236aa94a7b8242ea35d7f2f151` | **MISMATCH** |
+| 5R | `e49b68d44f27bc7cc22bc7f471a76b1372f97dbaa3925727359fe2406d28757c` | same | **MATCH** |
+| 6R | `cf6ac10fc6c11991c128a0f5eb5276cc3aae857de8bcf5812490e3c09a21fed2` | same | **MATCH** |
+| 7R | `e8eee54b9dde1dc8da48e5de4b11b78893cf3d236aa94a7b8242ea35d7f2f151` | same | **MATCH** |
 
-Independent checks: the same `data/site_odds/{race}.json` blob Git SHA1 is present already at **each forecast's own first Git-add commit**, and matches the later pinned-tree blob SHA1 (5R `95637302850009d287159c2ac9caf6ecba96c2d5`, 6R `499af20bff8743d4de9cc3d039e9981308cae106`, 7R `651dc71f5f21fb1a4450fa7c5b4e4e58a04e7a46`). Thus it is **not justified** to explain the mismatch as merely a later file mutation. It may be a distinct frozen earlier source or incorrect snapshot linkage; causal explanation **unverified**.
+The same odds file Git blob is visible at the respective forecast's own first-add commit and later pinned tree; content size and source record were consistent. These observations provide **a byte-content hash match on three fetched original odds documents**, not separate official HTML source extraction or independent durable backup.
 
-Checked expected SHA-named archival paths under `data/site_prediction_snapshots/odds_v214/` for 5R/6R/7R at the pinned tree: all three returned 404. That does not rule out another archive or an earlier Git object elsewhere. The only supported conclusion is **no byte-exact matching 120-way odds original found among checked paths**.
+The reported three MISMATCH findings from prior Issue #708 comment `6616340961` are **WITHDRAWN as false positives**. This document supersedes them. No source modifications or retrospective 'fixes' are justified.
 
-**Safety implication:** even with 120 entries, same-race keys, PRE_RESULT phase, and source timestamps before forecast creation, 5R–7R cannot be certified as odds-linked valid frozen predictions by their current raw source. This is not proof that those predictions are invalid or fabricated; it is an unresolved cryptographic provenance gap. Keep source data immutable, no formal promotion, no automatic repair.
+The early 5R/6R/7R snapshot's self-reported 10.3m / 1.16m / 15.18m lead intervals are outside the strict V229 2–10m window, regardless of correct odds provenance. `SITE_REFERENCE_POST_SETTLEMENT_ONLY_NOT_FORMAL_FRESH` still applies. Keep old predictions separate from formal Fresh. The original 3R missing odds and 4R post-forecast sidecar remain unverified. Long-term backup/readback remain pending.
+
+**DELETE_BLOCKED / LEGACY_WRITER_STOP_BLOCKED.**
