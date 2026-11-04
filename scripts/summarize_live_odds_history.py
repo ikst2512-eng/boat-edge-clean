@@ -23,6 +23,15 @@ ARTIFACT = "live-odds-metrics"
 FILE = "live_odds_metrics.json"
 
 
+def replay_saved_receipt(sample):
+    """Recheck new-format actual bytes with the existing operational parser."""
+    try:
+        from probe_live_odds_health import replay_receipt
+    except ModuleNotFoundError:
+        from scripts.probe_live_odds_health import replay_receipt
+    return replay_receipt(sample)
+
+
 
 def consistent_attempts(steps):
     """Reject internally contradictory HTTP/status claims before computing rates."""
@@ -123,9 +132,26 @@ def summarize(records):
                 continue
             if not consistent_observation_times(steps, stamp):
                 continue
+            # New-format odds artifacts include a deadline-source receipt and
+            # exact HTTP body. Recheck that body instead of trusting a saved
+            # valid_200 label. Older historical artifacts lack replay bytes;
+            # preserve their separately understood legacy classification.
+            replay = {"response_verified": False, "before_source_t12": False}
+            # From Nov 5 JST, missing deadline_source cannot grant legacy status.
+            try:
+                day = datetime.fromisoformat(stamp).astimezone(
+                    timezone(timedelta(hours=9))).strftime("%Y%m%d")
+            except (ValueError, TypeError, AttributeError):
+                day = "99999999"
+            if day >= "20261105" or isinstance(run.get("deadline_source"), dict):
+                replay = replay_saved_receipt(sample)
+                if steps[-1].get("state") == "valid_200" and not replay["response_verified"]:
+                    steps = [dict(step) for step in steps]
+                    steps[-1]["state"] = "invalid_200"
             seen.add(key)
             eligible_runs.add(stamp)
-            observations.append({"code": code, "steps": steps, "elapsed": sample.get("elapsed_ms")})
+            observations.append({"code": code, "steps": steps,
+                                 "replay": replay, "elapsed": sample.get("elapsed_ms")})
     http = Counter(str(step.get("http")) for item in observations for step in item["steps"])
     first_valid = sum(item["steps"][0]["state"] == "valid_200" for item in observations)
     pending = [item for item in observations if item["steps"][0]["state"] == "pending_202"]
@@ -144,6 +170,8 @@ def summarize(records):
         "other_http_or_transport": sum(http.values()) - http["200"] - http["202"] - http["503"],
         "first_attempt_valid_races": first_valid,
         "eventual_valid_races": valid,
+        "replayable_120_odds_races": sum(item["replay"]["response_verified"] for item in observations),
+        "before_source_t12_races": sum(item["replay"]["before_source_t12"] for item in observations),
         "eventual_valid_rate_pct": round(valid * 100 / len(observations), 1) if observations else None,
         "initially_pending_races": len(pending),
         "pending_recovered": len(recovered),
@@ -400,16 +428,29 @@ def fetch_history(repository, token, current, *, now=None):
         if run.get("conclusion") != "success":
             errors.append({"run_id": run_id, "status": "workflow_" + str(run.get("conclusion") or "unknown")})
             continue
+        stage = "artifact_metadata"
         try:
             artifacts = api_json(root + "/actions/runs/" + str(run_id) + "/artifacts?per_page=100", token).get("artifacts", [])
             item = next((x for x in artifacts if x.get("name") == ARTIFACT and not x.get("expired")), None)
+            if (not item and run.get("event") == "workflow_run"
+                    and any(isinstance(x, dict) and x.get("name") == "live-odds-skipped"
+                            and not x.get("expired") for x in artifacts)):
+                # Skipped upstream PR/push/manual triggers preserve a named
+                # receipt, without claiming any operational sample or ZIP.
+                continue
             if not item:
                 errors.append({"run_id": run_id, "status": "missing_artifact"})
                 continue
+            stage = "artifact_zip"
             req = Request(root + "/actions/artifacts/" + str(item["id"]) + "/zip", headers={
-                "Authorization": "Bearer " + token, "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+                "User-Agent": "BOAT-EDGE-CLEAN-ODDS-TREND/1.0"})
+            # GitHub redirects artifact ZIP downloads to a separate blob host.
+            # Authenticate only the initial GitHub request: urllib forwards
+            # regular headers (including Authorization) across redirects.
+            req.add_unredirected_header("Authorization", "Bearer " + token)
             with urlopen(req, timeout=25) as response:
                 raw = response.read(2_000_000)
+            stage = "artifact_parse"
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
                 if FILE not in archive.namelist():
                     raise ValueError("METRICS_JSON_MISSING")
@@ -433,7 +474,9 @@ def fetch_history(repository, token, current, *, now=None):
                 raise ValueError("METRICS_TIME_INVALID")
             history.append(evidence)
         except (HTTPError, URLError, OSError, ValueError, KeyError, zipfile.BadZipFile, TimeoutError) as exc:
-            errors.append({"run_id": run_id, "status": type(exc).__name__})
+            errors.append({"run_id": run_id, "status": type(exc).__name__,
+                           "stage": stage,
+                           "http_status": exc.code if isinstance(exc, HTTPError) else None})
     return history, len(selected), errors
 
 

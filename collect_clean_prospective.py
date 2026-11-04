@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -66,9 +67,29 @@ def collect(day=None):
     day = day or now.strftime("%Y%m%d")
     datetime.strptime(day, "%Y%m%d")
     path=f"{day[:4]}/{day[4:6]}/{day[6:]}.csv"
-    titles,t1,h1=read_rows(BASE+"title/"+path)
-    cards,t2,h2=read_rows(BASE+"race_cards/"+path)
-    provenance=model_provenance()
+    try:
+        titles,t1,h1=read_rows(BASE+"title/"+path)
+        cards,t2,h2=read_rows(BASE+"race_cards/"+path)
+        # Both files can be nonempty yet contain disjoint race sets while
+        # the publisher is updating the day's archives. Never mix their rows
+        # or silently report zero saved forecasts in that case.
+        title_codes={row.get("レースコード") for row in titles if isinstance(row,dict)}
+        card_codes={row.get("レースコード") for row in cards if isinstance(row,dict)}
+        if not titles or not cards or not (title_codes & card_codes):
+            raise OSError("incomplete daily pre-race CSV coverage")
+        source_kind="public_pre_race_csv"
+    except (OSError, TimeoutError, ValueError) as exc:
+        if isinstance(exc,ValueError) and str(exc)!="source unavailable":
+            raise
+        # Fail over only to the existing strictly pre-race day source.
+        # A missing or malformed alternate source is a failed capture, never a
+        # result-derived forecast or a fabricated successful candidate.
+        from clean_openapi_sources import load
+        titles,cards,received,digest,source=load(day)
+        t1=t2=received
+        h1=h2=digest
+        source_kind=source["source"]
+    provenance={**model_provenance(),"input_source_kind":source_kind}
     # A prospective forecast cannot predate its own input receipts. The first
     # timestamp above is only the capture-run start, not generation evidence.
     started_generation=datetime.now(JST)
@@ -77,6 +98,17 @@ def collect(day=None):
     # record to the beginning of a fetch or a long-running batch.
     completed_generation=datetime.now(JST)
     output=finalize_records(output,t1,t2,completed_generation)
+    if not output:
+        # Diagnostic only. A zero eligible count must not be reported as a
+        # successful immutable freeze or as certified forecast availability.
+        codes=lambda rows: {r.get("レースコード") for r in rows if isinstance(r,dict)}
+        print("PROSPECTIVE_CAPTURE_ZERO "+json.dumps({
+            "day":day,"source_kind":source_kind,
+            "title_rows":len(titles),"card_rows":len(cards),
+            "matching_race_codes":len(codes(titles)&codes(cards)),
+            "reason":"no_pre_cutoff_eligible_races",
+            "formal":False,
+        },sort_keys=True),file=sys.stderr)
     saved=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)

@@ -1155,7 +1155,7 @@ async function loadHeldVenues(force=false){
    status.textContent='この日付の開催情報は確認できません（全24場から選択可能）';
    return;
   }
-  todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1);document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1);if(activeView==='home')loadHomeRaceCards();
+  todayVenueRaces=data;renderDeadlines(data);updateRacePickerLabels();syncActiveRaceDeadline();document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1);document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1);
   if(pendingVenuePick?.date===date&&pendingVenuePick.venue===s.venue&&pendingVenuePick.race===s.race){pendingVenuePick=null;const choice=nextRaceForVenue(s.venue+1);if(choice!==s.race){s.race=choice;render()}}
   const available=new Set(data.venues.filter(v=>Array.isArray(v.races)&&v.races.length>0&&/^\d{2}$/.test(v.jcd)).map(v=>Number(v.jcd)));
   [...vb.children].forEach((b,i)=>{const held=available.has(i+1);b.classList.toggle('held',held);if(held)b.dataset.held='true';else b.removeAttribute('data-held')});

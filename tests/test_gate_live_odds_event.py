@@ -238,6 +238,63 @@ class FallbackGateTests(unittest.TestCase):
                          fetch_json=lambda *_: {"workflow_runs": []}), "direct_schedule_absent_or_failed")
 
 
+    def test_direct_schedule_artifact_requires_matching_cron_and_in_slot_http(self):
+        from datetime import datetime, timezone
+        import io
+        import zipfile
+        slot = datetime(2026, 11, 5, 5, 25, tzinfo=timezone.utc)
+        evidence = {"source_status": "ok",
+                    "checked_at_jst": "2026-11-05T14:26:00+09:00",
+                    "trigger": {"event": "schedule", "cron": "25 5 * * *"},
+                    "samples": [{"race_code": "202611050111", "attempts": [{
+                        "finished_at_utc": "2026-11-05T05:26:03+00:00"}]}]}
+        artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics",
+                                               "id": 62, "expired": False}]}
+        def archive(*_):
+            stream = io.BytesIO()
+            with zipfile.ZipFile(stream, "w") as writer:
+                writer.writestr("live_odds_metrics.json", json.dumps(evidence))
+            return stream.getvalue()
+        with patch.object(gate, "verdict", return_value="valid_200_observed"):
+            def check():
+                return gate.direct_probe_evidence(
+                    "a/b", "token", 62, fetch_json=artifacts,
+                    fetch_zip=archive, expected_direct_slot=slot)
+            self.assertEqual(check(), "valid")
+            # The 12:25 cron delayed into the 14:25 window must NOT satisfy it.
+            evidence["trigger"]["cron"] = "25 3 * * *"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["trigger"]["cron"] = "25 5 * * *"
+            evidence["trigger"]["event"] = "workflow_dispatch"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["trigger"]["event"] = "schedule"
+            # Correct cron but HTTP only after the 90-minute slot grace.
+            evidence["samples"][0]["attempts"][0]["finished_at_utc"] = "2026-11-05T07:01:00+00:00"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["samples"][0]["attempts"][0]["finished_at_utc"] = "2026-11-05T05:26:03+00:00"
+            evidence["checked_at_jst"] = "2026-11-05T16:01:00+09:00"
+            self.assertEqual(check(), "no_valid_odds")
+            evidence["checked_at_jst"] = "2026-11-05T14:26:00+09:00"
+            self.assertEqual(check(), "valid")
+
+    def test_direct_guard_passes_exact_slot_to_provenance_check(self):
+        from datetime import datetime, timezone
+        trigger = {"upstream_created_at": "2026-11-05T05:45:00Z"}
+        now = datetime(2026, 11, 5, 5, 50, tzinfo=timezone.utc)
+        direct = {"id": 62, "event": "schedule",
+                  "created_at": "2026-11-05T05:26:00Z",
+                  "status": "completed", "conclusion": "success"}
+        observed = []
+        def probe(repo, token, run_id, *, expected_direct_slot=None):
+            observed.append(expected_direct_slot)
+            return "no_valid_odds"
+        with patch.object(gate, "direct_probe_evidence", side_effect=probe):
+            result = gate.direct_schedule_guard(
+                trigger, "a/b", "token", now=now,
+                fetch_json=lambda *_: {"workflow_runs": [direct]})
+        self.assertEqual(result, "direct_schedule_absent_or_failed")
+        self.assertEqual(observed, [datetime(2026, 11, 5, 5, 25, tzinfo=timezone.utc)])
+
     def test_saved_artifact_with_verified_200_suppresses_fallback(self):
         import io
         import zipfile
@@ -277,6 +334,27 @@ class FallbackGateTests(unittest.TestCase):
         evidence["samples"][0]["attempts"][-1]["http"] = 202
         self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
                           fetch_zip=lambda *_: archive_of(evidence)), "no_valid_odds")
+
+    def test_post_upgrade_unreplayable_200_cannot_suppress_fallback(self):
+        import io
+        import zipfile
+        # A successful workflow artifact is not proof of 120 valid tickets.
+        record = {"source_status": "ok",
+                  "checked_at_jst": "2026-11-05T12:25:00+09:00",
+                  "samples": [{"race_code": "202611050111",
+                               "attempts": [{
+                                   "http": 200, "state": "valid_200",
+                                   "latency_ms": 30,
+                                   "started_at_utc": "2026-11-05T03:25:01+00:00",
+                                   "finished_at_utc": "2026-11-05T03:25:02+00:00"}]}]}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as out:
+            out.writestr("live_odds_metrics.json", json.dumps(record))
+        artifacts = lambda *_: {"artifacts": [{
+            "name": "live-odds-metrics", "id": 91, "expired": False}]}
+        self.assertEqual(gate.direct_probe_evidence(
+            "a/b", "token", 91, fetch_json=artifacts,
+            fetch_zip=lambda *_: archive.getvalue()), "no_valid_odds")
 
     def test_failed_artifact_download_does_not_assume_direct_success(self):
         artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics", "id": 7, "expired": False}]}
@@ -485,6 +563,44 @@ class FallbackGateTests(unittest.TestCase):
             trigger, "a/b", "token", 12, now=now,
             fetch_json=lambda *_: {"workflow_runs": []}), "prior_fallback_absent_or_failed")
 
+
+    def test_skipped_artifact_cannot_suppress_a_real_fallback(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/live-official-odds-probe.yml").read_text()
+        self.assertIn("steps.gate.outputs.collect == 'true'", workflow)
+        self.assertIn("'live-odds-metrics' || 'live-odds-skipped'", workflow)
+        record = {"artifacts": [
+            {"name": "live-odds-skipped", "id": 71, "expired": False}]}
+        def should_not_open_zip(*_):
+            raise AssertionError("skipped artifact must never trigger ZIP fetch")
+        result = gate.direct_probe_evidence(
+            "a/b", "token", 23, fetch_json=lambda *_: record,
+            fetch_zip=should_not_open_zip)
+        self.assertEqual(result, "no_valid_odds")
+
+    def test_artifact_redirect_does_not_forward_github_authorization(self):
+        import io
+        import contextlib
+        from urllib.request import HTTPRedirectHandler
+
+        artifacts = lambda *_: {"artifacts": [
+            {"name": "live-odds-metrics", "id": 73, "expired": False}]}
+        requests = []
+        def redirected_archive(request, **_):
+            requests.append(request)
+            redirected = HTTPRedirectHandler().redirect_request(
+                request, None, 302, "Found", {},
+                "https://storage.example.test/odds.zip?sig=dummy")
+            self.assertIn("Authorization", request.unredirected_hdrs)
+            self.assertNotIn("Authorization", request.headers)
+            self.assertNotIn("Authorization", redirected.headers)
+            self.assertNotIn("Authorization", redirected.unredirected_hdrs)
+            raise OSError("transport unavailable")
+
+        with patch.object(gate, "urlopen", side_effect=redirected_archive), contextlib.redirect_stdout(io.StringIO()):
+            result = gate.direct_probe_evidence("a/b", "token", 77, fetch_json=artifacts)
+        self.assertEqual(result, "unavailable")
+        self.assertEqual(len(requests), 1)
 
     def test_artifact_api_error_diagnostics_remain_fail_closed(self):
         import contextlib

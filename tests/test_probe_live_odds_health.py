@@ -1,6 +1,8 @@
 """Offline tests for live-odds evidence classification; never depend on production."""
 import importlib.util
 import io
+import base64
+import hashlib
 import json
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -36,6 +38,56 @@ def valid_body():
 
 
 class ProbeTests(unittest.TestCase):
+    def receipt(self, *, seconds=0, deadline="2026-11-03T14:13:00+09:00"):
+        raw = json.dumps(valid_body()).encode()
+        return {"race_code": CODE, "source_deadline_jst": deadline,
+                "final_state": "valid_200", "elapsed_ms": 1,
+                "attempts": [{"http": 200, "state": "valid_200", "latency_ms": 1,
+                    "started_at_utc": NOW.isoformat(),
+                    "finished_at_utc": (NOW + timedelta(seconds=seconds)).isoformat(),
+                    "response_base64": base64.b64encode(raw).decode(),
+                    "response_sha256": hashlib.sha256(raw).hexdigest()}]}
+
+    def test_replays_exact_120_odds_and_source_t12_separately(self):
+        sample = self.receipt()
+        self.assertEqual(probe.replay_receipt(sample),
+                         {"response_verified": True, "before_source_t12": True})
+        # Equality with T-12 is too late; response can still be valid odds.
+        self.assertEqual(probe.replay_receipt(self.receipt(seconds=60)),
+                         {"response_verified": True, "before_source_t12": False})
+        for deadline in (None, "bad", "2026-11-03T14:13:00", "2026-11-04T14:13:00+09:00"):
+            state = probe.replay_receipt(self.receipt(deadline=deadline))
+            self.assertTrue(state["response_verified"])
+            self.assertFalse(state["before_source_t12"])
+
+    def test_changed_body_hash_and_incomplete_odds_fail_replay(self):
+        sample = self.receipt()
+        sample["attempts"][0]["response_sha256"] = "0" * 64
+        self.assertFalse(probe.replay_receipt(sample)["response_verified"])
+        sample = self.receipt()
+        body = valid_body(); body["odds"].pop("1-2-3")
+        raw = json.dumps(body).encode()
+        sample["attempts"][0].update(response_base64=base64.b64encode(raw).decode(),
+                                     response_sha256=hashlib.sha256(raw).hexdigest())
+        self.assertFalse(probe.replay_receipt(sample)["response_verified"])
+        sample["attempts"][0]["response_base64"] = "invalid!"
+        self.assertFalse(probe.replay_receipt(sample)["response_verified"])
+
+    def test_replay_summary_does_not_trust_claimed_verification_flags(self):
+        sample = self.receipt()
+        sample["receipt_verification"] = {"response_verified": False, "before_source_t12": False}
+        self.assertEqual(probe.summarize([sample])["before_source_t12_races"], 1)
+        sample["attempts"][0]["response_sha256"] = "0" * 64
+        sample["receipt_verification"] = {"response_verified": True, "before_source_t12": True}
+        self.assertEqual(probe.summarize([sample])["replayable_120_odds_races"], 0)
+
+    def test_deadline_requires_one_consistent_same_race_source(self):
+        row = {"レースコード": CODE, "電話投票締切予定": "14:13"}
+        self.assertEqual(probe.source_deadline([row], CODE), "2026-11-03T14:13:00+09:00")
+        self.assertEqual(probe.source_deadline([row, row], CODE), "2026-11-03T14:13:00+09:00")
+        self.assertIsNone(probe.source_deadline([], CODE))
+        self.assertIsNone(probe.source_deadline([row, {**row, "電話投票締切予定":"14:14"}], CODE))
+
     def test_attempts_save_real_request_and_response_timestamps(self):
         before = datetime.now(timezone.utc)
         result = probe.sample_race(
@@ -51,6 +103,9 @@ class ProbeTests(unittest.TestCase):
         self.assertLessEqual(started, finished)
         self.assertLessEqual(finished, after)
         self.assertEqual(attempt["state"], "valid_200")
+        raw = base64.b64decode(attempt["response_base64"], validate=True)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), attempt["response_sha256"])
+        self.assertEqual(json.loads(raw), valid_body())
 
     def test_pending_retry_saves_independent_attempt_timestamps(self):
         calls = []

@@ -4,6 +4,9 @@ Only independently sourced upcoming races. A returned HTTP 202 is never success.
 No forecast model, saved prediction or result data is used.
 """
 import json
+import base64
+import binascii
+import hashlib
 import os
 import statistics
 import sys
@@ -42,12 +45,41 @@ def valid_odds(payload, race_code, now):
         return False
 
 
-def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep, now=None):
+def replay_receipt(sample):
+    """Recheck saved response bytes; a valid 200 alone does not prove T-12."""
+    out = {"response_verified": False, "before_source_t12": False}
+    try:
+        step = sample["attempts"][-1]
+        raw = base64.b64decode(step["response_base64"], validate=True)
+        if len(raw) > 20_000 or hashlib.sha256(raw).hexdigest() != step["response_sha256"]:
+            return out
+        received = datetime.fromisoformat(step["finished_at_utc"])
+        if (step["http"] != 200 or step["state"] != "valid_200"
+                or received.tzinfo is None
+                or not valid_odds(json.loads(raw), sample["race_code"], received)):
+            return out
+        out["response_verified"] = True
+        deadline = datetime.fromisoformat(sample["source_deadline_jst"])
+        # The deadline must belong to this race's JST calendar day.
+        jst = timezone(timedelta(hours=9))
+        if deadline.utcoffset() != timedelta(hours=9) or deadline.strftime("%Y%m%d") != sample["race_code"][:8]:
+            return out
+        fetched = datetime.fromisoformat(json.loads(raw)["fetched_at"])
+        cutoff = deadline - timedelta(minutes=12)
+        out["before_source_t12"] = fetched <= received < cutoff
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError, binascii.Error):
+        pass
+    return out
+
+
+def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep, now=None,
+                deadline_jst=None):
     now = now or datetime.now(timezone.utc)
     url = BASE_URL + "/api/odds?hd=" + code[:8] + "&jcd=" + code[8:10] + "&rno=" + str(int(code[10:12]))
     attempts = []
     total_start = clock()
     for attempt in range(3):
+        raw = None
         start = clock()
         started_at_utc = datetime.now(timezone.utc).isoformat()
         try:
@@ -78,6 +110,12 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
                          "latency_ms": round((clock() - start) * 1000),
                          "started_at_utc": started_at_utc,
                          "finished_at_utc": finished_at_utc})
+        # A bounded exact response allows independent 120-ticket validation.
+        # Larger/failed responses retain their HTTP verdict but cannot earn
+        # replayable-response or T-12 certification.
+        if status == 200 and isinstance(raw, bytes) and len(raw) <= 20_000:
+            attempts[-1].update(response_base64=base64.b64encode(raw).decode("ascii"),
+                                response_sha256=hashlib.sha256(raw).hexdigest())
         # One bounded retry for an observed transient timeout. HTTP 202
         # retains its existing three-attempt policy; other failures stop.
         if state == "pending_202" and attempt < 2:
@@ -87,8 +125,25 @@ def sample_race(code, *, request=urlopen, clock=time.monotonic, pause=time.sleep
             pause(2)
             continue
         break
-    return {"race_code": code, "attempts": attempts, "final_state": attempts[-1]["state"],
-            "elapsed_ms": round((clock() - total_start) * 1000)}
+    sample = {"race_code": code, "attempts": attempts, "final_state": attempts[-1]["state"],
+              "elapsed_ms": round((clock() - total_start) * 1000),
+              "source_deadline_jst": deadline_jst}
+    sample["receipt_verification"] = replay_receipt(sample)
+    return sample
+
+
+def source_deadline(titles, code):
+    """Conflicting/missing source deadlines are unknown, never inferred."""
+    found = set()
+    for row in titles:
+        if row.get("レースコード") != code:
+            continue
+        try:
+            value = datetime.strptime(code[:8] + row["電話投票締切予定"], "%Y%m%d%H:%M")
+            found.add(value.replace(tzinfo=timezone(timedelta(hours=9))).isoformat())
+        except (KeyError, TypeError, ValueError):
+            return None
+    return next(iter(found)) if len(found) == 1 else None
 
 
 def select_candidates(titles, day, now, jst):
@@ -118,7 +173,10 @@ def summarize(samples):
     recovered = [item for item in initially_pending if item["final_state"] == "valid_200"]
     exhausted = [item for item in initially_pending if item["final_state"] == "pending_202"]
     latencies = [step["latency_ms"] for step in requests]
+    replayed = [replay_receipt(sample) for sample in samples]
     return {"races_sampled": len(samples), "requests": len(requests),
+            "replayable_120_odds_races": sum(r["response_verified"] for r in replayed),
+            "before_source_t12_races": sum(r["before_source_t12"] for r in replayed),
             "http_counts": counts, "non_200_202_503": len(requests) - sum(counts.values()),
             "final_states": final_states,
             "valid_200_races": final_states.get("valid_200", 0),
@@ -165,14 +223,18 @@ def main():
     from research_model import JST
     now = datetime.now(JST)
     day = now.strftime("%Y%m%d")
-    data = {"checked_at_jst": now.isoformat(), "date": day, "scope": "live upcoming read-only odds",
+    data = {"formal": False, "formal_t12_certified": False,
+            "t12_scope": "HTTP receipt relative to recorded source deadline; not independent official T-12 certification",
+            "checked_at_jst": now.isoformat(), "date": day, "scope": "live upcoming read-only odds",
             "sampling": "up to 3 upcoming races; 3 attempts on HTTP 202, 1 retry on first-attempt timeout",
             "source_status": "unknown", "trigger": event_provenance(), "samples": []}
     try:
-        titles, _, _, _, _ = load(day, now=now)
+        titles, _, received, digest, source = load(day, now=now)
+        data["deadline_source"] = {"received_at_jst": received.isoformat(),
+                                   "sha256": digest, "source": source}
         codes = select_candidates(titles, day, now, JST)
         data["source_status"] = "ok" if codes else "no_upcoming_race"
-        data["samples"] = [sample_race(code) for code in codes]
+        data["samples"] = [sample_race(code, deadline_jst=source_deadline(titles, code)) for code in codes]
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError) as error:
         data["source_status"] = "unavailable:" + type(error).__name__
     data["summary"] = summarize(data["samples"])
@@ -199,6 +261,9 @@ def main():
                          "; median race elapsed (ms): " + str(summary["median_race_elapsed_ms"]) +
                          "; median recovered race elapsed (ms): " + str(summary["median_recovered_race_elapsed_ms"]) + "\n\n")
             stream.write("No samples is not success. Full per-attempt evidence is in the artifact.\n")
+            stream.write("Replayable exact 120-odds responses: " + str(summary["replayable_120_odds_races"]) +
+                         "; received before recorded source T-12: " + str(summary["before_source_t12_races"]) + "\n\n")
+            stream.write("Source-relative timing only; not independent official T-12 certification.\n")
 
 
 if __name__ == "__main__":

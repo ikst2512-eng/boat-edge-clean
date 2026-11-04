@@ -8,6 +8,74 @@ import server
 
 
 class HoldoutAsyncTests(unittest.TestCase):
+    def test_real_shallow_checkout_recovers_history_without_changing_head_or_bytes(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            source, checkout = Path(tmp)/"source", Path(tmp)/"checkout"
+            source.mkdir()
+            def git(*args, cwd=source):
+                return subprocess.check_output(["git", *args], cwd=cwd, text=True).strip()
+            git("init", "-b", "main")
+            git("config", "user.name", "Fixture")
+            git("config", "user.email", "fixture@example.test")
+            (source/"original.json").write_text('{"immutable":true}')
+            git("add", ".")
+            git("commit", "-m", "original")
+            original = git("rev-parse", "HEAD")
+            (source/"later.txt").write_text("later")
+            git("add", ".")
+            git("commit", "-m", "later")
+            git("clone", "--depth=1", source.as_uri(), str(checkout))
+            before = git("rev-parse", "HEAD", cwd=checkout)
+            real_run = subprocess.run
+            def local_fetch(command, **kwargs):
+                command = list(command)
+                if command[:2] != ["git", "fetch"]:
+                    return real_run(command, **kwargs)
+                self.assertEqual(command[-2], "https://github.com/ikst2512-eng/boat-edge-clean.git")
+                command[-2] = source.as_uri()
+                return real_run(command, **kwargs)
+            with patch.dict(server.os.environ, {"RENDER":"true"}), patch.object(
+                server, "ROOT", checkout), patch("subprocess.run", side_effect=local_fetch):
+                server._prepare_holdout_history()
+            self.assertEqual(git("rev-parse", "--is-shallow-repository", cwd=checkout), "false")
+            self.assertEqual(git("rev-parse", "HEAD", cwd=checkout), before)
+            self.assertEqual(git("show", original+":original.json", cwd=checkout), '{"immutable":true}')
+            self.assertEqual(git("status", "--porcelain", cwd=checkout), "")
+
+    def test_render_history_fetch_is_bounded_and_never_checks_out_files(self):
+        import subprocess
+        with patch.dict(server.os.environ, {"RENDER": "true"}), patch(
+            "subprocess.check_output", return_value="true\n"), patch("subprocess.run") as run:
+            server._prepare_holdout_history()
+        args, kwargs = run.call_args
+        self.assertEqual(args[0], ["git", "fetch", "--unshallow", "--no-tags",
+            "https://github.com/ikst2512-eng/boat-edge-clean.git", "main"])
+        self.assertEqual(kwargs["timeout"], 90)
+        self.assertTrue(kwargs["check"])
+        self.assertEqual(kwargs["env"]["GIT_TERMINAL_PROMPT"], "0")
+
+    def test_complete_history_and_non_render_never_fetch(self):
+        with patch.dict(server.os.environ, {"RENDER": "true"}), patch(
+            "subprocess.check_output", return_value="false\n"), patch("subprocess.run") as run:
+            server._prepare_holdout_history()
+            run.assert_not_called()
+        with patch.dict(server.os.environ, {"RENDER": ""}), patch("subprocess.run") as run:
+            server._prepare_holdout_history()
+            run.assert_not_called()
+
+    def test_history_failure_never_runs_evaluation(self):
+        import subprocess
+        with patch.object(server, "_prepare_holdout_history", side_effect=
+            subprocess.TimeoutExpired("git", 90)), patch.object(server, "_compute_holdout_status") as compute:
+            server._refresh_holdout_status()
+        compute.assert_not_called()
+        with server._HOLDOUT_LOCK:
+            self.assertIsNone(server._HOLDOUT_STATE["value"])
+            self.assertEqual(server._HOLDOUT_STATE["last_error"], "TimeoutExpired")
+
     def setUp(self):
         with server._HOLDOUT_LOCK:
             server._HOLDOUT_STATE.update(value=None, expires=0.0, running=False,
