@@ -231,6 +231,7 @@ def collect(day=None):
             "formal":False,
         },sort_keys=True),file=sys.stderr)
     saved=0
+    already_frozen=0
     for code,record in sorted(output.items()):
         STORE.mkdir(exist_ok=True)
         target=STORE/(code+".json")
@@ -245,7 +246,18 @@ def collect(day=None):
         except FileExistsError:
             if json.loads(target.read_text(encoding="utf-8")).get("race_code")!=code:
                 raise ValueError("existing candidate conflict")
+            already_frozen+=1
+    if output and not saved:
+        # An unchanged write-once archive is a healthy no-new-first-add, not
+        # a missed source or a newly certified forecast. Count exact paths.
+        print("PROSPECTIVE_ALL_ALREADY_FROZEN "+json.dumps({
+            "day":day,"eligible":len(output),
+            "already_frozen":already_frozen,
+            "newly_saved":saved,"formal":False,
+            "remote_first_seen_verified":False,
+        },sort_keys=True),file=sys.stderr)
     return {"date":day,"saved":saved,"eligible":len(output),
+            "already_frozen":already_frozen,
             "formal_predictions":0,"scoring_enabled":False}
 
 if __name__=="__main__":

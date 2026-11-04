@@ -75,6 +75,65 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIs(saved["formal"],False)
         self.assertIs(saved["scoring"],False)
 
+    def test_repeat_capture_is_all_already_frozen_not_zero_eligible(self):
+        import io
+        day="20990101"
+        code=day+"0404"
+        title=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        card=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def daily(url):
+            return (title if "/title/" in url else card),datetime.now(JST),"a"*64
+        diagnostic=io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=daily), \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
+             patch.object(capture,"model_provenance",return_value={}), \
+             patch("sys.stderr",diagnostic):
+            original=capture.collect(day)
+            target=Path(tmp)/"prospective_predictions"/(code+".json")
+            first_bytes=target.read_bytes()
+            repeated=capture.collect(day)
+            self.assertEqual(target.read_bytes(),first_bytes)
+        self.assertEqual((original["saved"],original["already_frozen"],original["eligible"]),(1,0,1))
+        self.assertEqual((repeated["saved"],repeated["already_frozen"],repeated["eligible"]),(0,1,1))
+        self.assertNotIn("PROSPECTIVE_CAPTURE_ZERO",diagnostic.getvalue())
+        prefix="PROSPECTIVE_ALL_ALREADY_FROZEN "
+        self.assertIn(prefix,diagnostic.getvalue())
+        payload=json.loads(diagnostic.getvalue().split(prefix,1)[1].splitlines()[0])
+        self.assertEqual(payload["day"],day)
+        self.assertEqual(payload["eligible"],1)
+        self.assertEqual(payload["already_frozen"],1)
+        self.assertEqual(payload["newly_saved"],0)
+        self.assertIs(payload["formal"],False)
+        self.assertIs(payload["remote_first_seen_verified"],False)
+
+    def test_partial_reuse_counts_frozen_and_new_without_false_zero_warning(self):
+        import io
+        day="20990101"
+        codes=[day+"0404",day+"0405"]
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"} for code in codes]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}} for code in codes]
+        def daily(url):
+            return (titles if "/title/" in url else cards),datetime.now(JST),"a"*64
+        diagnostics=io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=daily), \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
+             patch.object(capture,"model_provenance",return_value={}), \
+             patch("sys.stderr",diagnostics):
+            folder=Path(tmp)/"prospective_predictions"
+            folder.mkdir()
+            previous=folder/(codes[0]+".json")
+            previous.write_text(json.dumps({"race_code":codes[0],"record":"untouched"}))
+            original=previous.read_bytes()
+            result=capture.collect(day)
+            self.assertEqual(previous.read_bytes(),original)
+            self.assertTrue((folder/(codes[1]+".json")).is_file())
+        self.assertEqual((result["saved"],result["already_frozen"],result["eligible"]),(1,1,2))
+        self.assertNotIn("PROSPECTIVE_ALL_ALREADY_FROZEN",diagnostics.getvalue())
+
     def test_daily_csv_http_failure_uses_pre_race_fallback_without_formal_promotion(self):
         day="20990101"
         code=day+"0404"
