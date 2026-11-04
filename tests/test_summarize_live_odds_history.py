@@ -41,6 +41,32 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertTrue(history.consistent_observation_times(
             race("202611030111", ["valid_200"])["attempts"], None))
 
+    def test_post_nov4_missing_source_marker_cannot_bypass_replay(self):
+        # This is the first full operational day after immutable HTTP bodies
+        # were added. New evidence without those bytes is not legacy.
+        sample = race("202611050111", ["valid_200"])
+        sample["attempts"][0].update(
+            started_at_utc="2026-11-05T03:25:02+00:00",
+            finished_at_utc="2026-11-05T03:25:03+00:00")
+        item = {"source_status": "ok",
+                "checked_at_jst": "2026-11-05T12:25:00+09:00",
+                "samples": [sample]}
+        metrics = history.summarize([item])
+        self.assertEqual(metrics["race_observations"], 1)
+        self.assertEqual(metrics["http_200"], 1)
+        self.assertEqual(metrics["eventual_valid_races"], 0)
+        self.assertEqual(metrics["replayable_120_odds_races"], 0)
+        item["deadline_source"] = None
+        self.assertEqual(history.summarize([item])["eventual_valid_races"], 0)
+        # Pre-upgrade legacy history retains its distinct old classification.
+        old = json.loads(json.dumps(item))
+        old["checked_at_jst"] = "2026-11-03T12:25:00+09:00"
+        old["samples"][0]["race_code"] = "202611030111"
+        old["samples"][0]["attempts"][0].update(
+            started_at_utc="2026-11-03T03:25:02+00:00",
+            finished_at_utc="2026-11-03T03:25:03+00:00")
+        self.assertEqual(history.summarize([old])["eventual_valid_races"], 1)
+
     def test_new_artifact_replays_120_bytes_before_counting_valid(self):
         import base64
         import hashlib
