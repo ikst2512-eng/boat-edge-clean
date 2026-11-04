@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime, timezone, date, timedelta
-from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, capture_window_health, audit_target_day
+from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, capture_window_health, audit_target_day, collect_schedule_history
 
 NOW = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
 
@@ -120,6 +120,58 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
     def test_audit_target_day_rejects_naive_clock(self):
         with self.assertRaisesRegex(ValueError,"timezone-aware"):
             audit_target_day(datetime(2026,11,5,2,30),True)
+
+    def test_pagination_includes_older_same_day_runs(self):
+        first=[{"id":1000+i,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+                "run_started_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        second=[{"id":1100+i,"event":"schedule","created_at":"2026-11-04T02:00:00Z",
+                 "run_started_at":"2026-11-04T02:00:00Z",
+                 "status":"completed","conclusion":"failure"} for i in range(100)]
+        third=[{"id":1200+i,"event":"schedule","created_at":"2026-11-02T12:00:00Z",
+                "run_started_at":"2026-11-02T12:00:00Z"} for i in range(5)]
+        pages={1:first,2:second,3:third}
+        requested=[]
+        def fetch(page):
+            requested.append(page)
+            return {"total_count":205,"workflow_runs":pages[page]}
+        result=collect_schedule_history(fetch,date(2026,11,4))
+        self.assertEqual(requested,[1,2,3])
+        self.assertEqual(result["history_rows_inspected"],205)
+        self.assertEqual(result["history_pages_read"],3)
+        self.assertTrue(result["full_day_metadata_coverage"])
+        day=daily_capture_health(result["workflow_runs"],date(2026,11,4),True)
+        self.assertEqual(day["today_scheduled_runs"],200)
+
+    def test_truncated_page_is_not_successful_coverage(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            return {"total_count":201,"workflow_runs":page if n==1 else []}
+        with self.assertRaisesRegex(ValueError,"truncated_schedule_history_page"):
+            collect_schedule_history(fetch,date(2026,11,4))
+
+    def test_duplicate_across_pages_is_rejected(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            return {"total_count":101,"workflow_runs":page if n==1 else [
+                {"id":1,"event":"schedule","created_at":"2026-11-03T12:00:00Z"}]}
+        with self.assertRaisesRegex(ValueError,"invalid_or_duplicate"):
+            collect_schedule_history(fetch,date(2026,11,4))
+
+    def test_source_failure_propagates_without_success(self):
+        from urllib.error import HTTPError
+        def denied(_):
+            raise HTTPError("https://api.github.com",403,"Forbidden",None,None)
+        with self.assertRaises(HTTPError):
+            collect_schedule_history(denied,date(2026,11,4))
+
+    def test_page_count_drift_is_rejected(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            if n==1:
+                return {"total_count":201,"workflow_runs":page}
+            return {"total_count":202,"workflow_runs":[]}
+        with self.assertRaisesRegex(ValueError,"schedule_listing_changed"):
+            collect_schedule_history(fetch,date(2026,11,4))
 
 if __name__ == "__main__":
     unittest.main()
