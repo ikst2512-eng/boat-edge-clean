@@ -1,5 +1,6 @@
 """Human-review-gated AI repair proposer. Only exact-match patches in a narrow allowlist."""
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -118,15 +119,39 @@ def propose(issue, root, api_key, model, transport=urlopen):
             raise RuntimeError("Gemini API key or project authorization failed. No code changed.") from None
         raise RuntimeError(f"Gemini API HTTP {exc.code}: no code changed.") from None
     try:
-        candidate = result["candidates"][0]
+        candidates = result["candidates"]
+        if not isinstance(candidates, list) or len(candidates) != 1:
+            raise ValueError("ambiguous_gemini_candidates")
+        candidate = candidates[0]
+        if candidate["finishReason"] != "STOP":
+            raise ValueError("incomplete_gemini_generation")
         parts = candidate["content"]["parts"]
-        proposal = json.loads("".join(part["text"] for part in parts if "text" in part))
-    except (KeyError,IndexError,TypeError,ValueError) as exc:
+        if not isinstance(parts, list) or not parts:
+            raise ValueError("invalid_gemini_parts")
+        texts = [part["text"] for part in parts]
+        if any(not isinstance(value, str) for value in texts):
+            raise ValueError("invalid_gemini_text")
+        proposal = json.loads("".join(texts))
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
         raise ValueError("invalid_gemini_response") from exc
     patches = parse_patches(proposal)
+    # Reject reviewless proposed changes before touching the checkout. A JSON
+    # patch without a concrete rationale and test plan is not review-ready.
+    if patches:
+        reason = proposal.get("reason")
+        tests = proposal.get("tests")
+        if (not isinstance(reason, str) or not reason.strip()
+                or len(reason) > 700 or not isinstance(tests, str)
+                or not tests.strip() or len(tests) > 700):
+            raise ValueError("missing_patch_rationale_or_tests")
     changed = apply(root, patches) if patches else []
+    file_sha256 = {
+        name: hashlib.sha256((Path(root) / name).read_bytes()).hexdigest()
+        for name in changed
+    }
     return {"status": "proposed" if changed else "no_safe_patch",
-            "changed_files": changed, "reason": str(proposal.get("reason", ""))[:700],
+            "changed_files": changed, "file_sha256": file_sha256,
+            "reason": str(proposal.get("reason", ""))[:700],
             "suggested_tests": str(proposal.get("tests", ""))[:700],
             "production_change_allowed": False}
 

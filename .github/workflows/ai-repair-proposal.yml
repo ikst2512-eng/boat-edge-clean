@@ -1,5 +1,11 @@
 name: AI repair proposal (manual and review-gated)
 on:
+  # Always run free safety unit tests for audit code pushes as well as PRs.
+  push:
+    paths:
+      - ai_repair_agent.py
+      - test_ai_repair_agent.py
+      - .github/workflows/ai-repair-proposal.yml
   pull_request:
     paths:
       - ai_repair_agent.py
@@ -40,6 +46,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Refuse AI repair dispatch outside main
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        shell: bash
+        run: |
+          if [[ "$DISPATCH_REF" != "refs/heads/main" ]]; then
+            echo "::error::AI repair proposals must be dispatched from main."
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -48,6 +63,18 @@ jobs:
           python-version: '3.12'
       - name: Test patch guardrails
         run: python -m unittest -v test_ai_repair_agent
+      - name: Refuse stale main before paid AI request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD)"
+          live_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ -z "$checked_out" || -z "$live_main" || "$checked_out" != "$GITHUB_SHA" || "$live_main" != "$GITHUB_SHA" ]]; then
+            echo "::error::main moved since dispatch, or checkout differs; refusing AI request."
+            exit 1
+          fi
       - name: Require configured AI credential
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -82,31 +109,64 @@ jobs:
                   summary.write("- Outcome: Gemini returned no safe, exact-match changes; no PR expected.\n")
           print("Gemini proposal status:",status,"changed files:",len(files))
           PY
-      - name: Validate untrusted AI patch without write token
+      - name: Validate AI report against actual tracked diff
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
-          report=json.load(open('ai_repair_proposal.json'))
-          if report['status'] == 'disabled':
-              print('API key absent: no repair attempted')
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          # The publish step commits staged changes too. Reject pre-staged files,
+          # which would otherwise bypass this unstaged-diff allowlist check.
+          subprocess.run(['git', 'diff', '--cached', '--quiet'], check=True)
+          actual = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--diff-filter=ACDMRTUXB'],
+              text=True).splitlines()
+          allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
+          claimed = report.get('changed_files')
+          status = report.get('status')
+          if (report.get('production_change_allowed') is not False
+                  or not isinstance(claimed, list)
+                  or any(not isinstance(path, str) for path in claimed)
+                  or not 0 <= len(claimed) <= 2
+                  or len(claimed) != len(set(claimed))
+                  or any(path not in allowed for path in actual + claimed)
+                  or sorted(claimed) != sorted(actual)
+                  or (status == 'proposed') != bool(actual)
+                  or status not in ('proposed', 'no_safe_patch')):
+              raise SystemExit('AI proposal report/diff mismatch; refusing publication')
+          print('AI proposal report/diff validated:', status, len(actual))
           PY
           if git diff --quiet; then
             echo 'No safe patch proposed'
             exit 0
           fi
-          # AI has no permission to modify CI, workflow, model or data files.
-          git diff --name-only > /tmp/ai_changed_files
-          while IFS= read -r path; do
-            case "$path" in
-              index.html|navigation.js|secondary_navigation.js) ;;
-              *) echo "Unexpected changed file $path" >&2; exit 1 ;;
-            esac
-          done < /tmp/ai_changed_files
+          # UI tests must not silently alter the AI-reviewed patch.
+          before_diff="$(git diff --binary | sha256sum | cut -d' ' -f1)"
           python -m unittest -v tests.test_navigation_contract
           node tests/site-regression.cjs
           git diff --check
+          after_diff="$(git diff --binary | sha256sum | cut -d' ' -f1)"
+          if [[ "$before_diff" != "$after_diff" ]]; then
+            echo "::error::UI tests modified the AI repair diff; refusing publication."
+            exit 1
+          fi
+      - name: Refuse stale main before publishing AI draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          base_sha="$(git rev-parse HEAD)"
+          live_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ -z "$base_sha" || -z "$live_main" || "$base_sha" != "$live_main" ]]; then
+            echo "::error::main changed while generating AI repair; refusing stale draft."
+            exit 1
+          fi
       - name: Publish reviewed-by-CI patch as draft PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,16 +174,121 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! git diff --cached --quiet; then
+            echo "::error::Unexpected staged changes before AI repair publication."
+            exit 1
+          fi
           if git diff --quiet; then echo 'No repair to publish'; exit 0; fi
           branch="ai/repair-${GITHUB_RUN_ID}"
           git switch -c "$branch"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- index.html navigation.js secondary_navigation.js
+          # Compare the exact staged bytes to the recorded AI evidence before push.
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          expected = report.get('file_sha256')
+          claimed = report.get('changed_files')
+          changed = subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-status'], text=True).splitlines()
+          entries = [line.split('\t') for line in changed]
+          allowed = {'index.html', 'navigation.js', 'secondary_navigation.js'}
+          if (report.get('status') != 'proposed' or
+              report.get('production_change_allowed') is not False or
+              not isinstance(claimed, list) or not claimed or
+              not 1 <= len(claimed) <= 2 or
+              len(set(claimed)) != len(claimed) or
+              any(name not in allowed for name in claimed) or
+              not isinstance(expected, dict) or set(expected) != set(claimed) or
+              any(len(entry) != 2 or entry[0] != 'M' for entry in entries) or
+              sorted(entry[1] for entry in entries) != sorted(claimed)):
+              raise SystemExit('Staged AI patch does not match proposal evidence')
+          for name in claimed:
+              digest = expected[name]
+              # git commit uses index blobs, not working-tree files.
+              staged_bytes = subprocess.check_output(['git', 'show', ':' + name])
+              indexed_mode = subprocess.check_output(
+                  ['git', 'ls-files', '--stage', '--', name],
+                  text=True).split()
+              if (not isinstance(digest, str) or
+                  not re.fullmatch(r'[a-f0-9]{64}', digest) or
+                  not indexed_mode or indexed_mode[0] != '100644' or
+                  hashlib.sha256(staged_bytes).hexdigest() != digest or
+                  hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest):
+                  raise SystemExit('Staged AI content SHA-256 or file mode mismatch')
+          print('Validated staged AI files against proposal:', len(claimed))
+          PY
           git commit -m "AI: propose narrow UI repair for review"
+          # Recheck the actual commit tree, not just the pre-commit index.
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          report = json.loads(Path('ai_repair_proposal.json').read_text(encoding='utf-8'))
+          claimed = report.get('changed_files')
+          digests = report.get('file_sha256')
+          parents = subprocess.check_output(
+              ['git', 'rev-list', '--parents', '-n', '1', 'HEAD'], text=True).split()
+          changes = subprocess.check_output(
+              ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
+              text=True).splitlines()
+          entries = [line.split('\t') for line in changes]
+          if (len(parents) != 2 or parents[1] != os.environ.get('GITHUB_SHA') or
+              not isinstance(claimed, list) or not claimed or
+              not isinstance(digests, dict) or set(digests) != set(claimed) or
+              any(len(entry) != 2 or entry[0] != 'M' for entry in entries) or
+              sorted(entry[1] for entry in entries) != sorted(claimed)):
+              raise SystemExit('AI commit tree differs from validated proposal')
+          for name in claimed:
+              digest = digests[name]
+              tree_mode = subprocess.check_output(
+                  ['git', 'ls-tree', 'HEAD', '--', name], text=True).split()
+              data = subprocess.check_output(['git', 'show', 'HEAD:' + name])
+              if (not isinstance(digest, str) or
+                  not re.fullmatch(r'[a-f0-9]{64}', digest) or
+                  not tree_mode or tree_mode[0] != '100644' or
+                  hashlib.sha256(data).hexdigest() != digest):
+                  raise SystemExit('Committed AI patch SHA-256 or mode mismatch')
+          print('AI committed tree validated:', len(claimed))
+          PY
+          # main can advance after the earlier stale-base check and tests.
+          # Refuse to push a stale AI proposal even if the commit itself is valid.
+          live_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          committed_base="$(git rev-parse HEAD^)"
+          if [[ -z "$live_main" || "$live_main" != "$committed_base" || "$committed_base" != "$GITHUB_SHA" ]]; then
+            echo "::error::main advanced before AI draft push; refusing stale candidate."
+            exit 1
+          fi
           # checkout uses persist-credentials:false; explicitly authorize only this publish step.
           gh auth setup-git
           git -c credential.helper='!gh auth git-credential' push origin "HEAD:$branch"
+          # Bind the archived AI evidence to the precise published branch and commit.
+          AI_PUBLISHED_BRANCH="$branch" AI_PUBLISHED_SHA="$(git rev-parse HEAD)" \
+          AI_PUBLISHED_BASE="$(git rev-parse HEAD^)" python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          path = Path('ai_repair_proposal.json')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          if (report.get('status') != 'proposed' or
+              not re.fullmatch(r'ai/repair-[0-9]+', os.environ['AI_PUBLISHED_BRANCH']) or
+              not re.fullmatch(r'[a-f0-9]{40}', os.environ['AI_PUBLISHED_SHA']) or
+              not re.fullmatch(r'[a-f0-9]{40}', os.environ['AI_PUBLISHED_BASE'])):
+              raise SystemExit('Cannot bind non-proposed AI report to published commit')
+          report['published_branch'] = os.environ['AI_PUBLISHED_BRANCH']
+          report['published_head_sha'] = os.environ['AI_PUBLISHED_SHA']
+          report['published_base_sha'] = os.environ['AI_PUBLISHED_BASE']
+          path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
           # Some repositories disable PR creation by GitHub Actions even with
           # pull-requests:write. Keep the reviewed patch branch available.
           # A repository policy rejection has a manual-review fallback.
@@ -148,5 +313,7 @@ jobs:
         with:
           name: ai-repair-proposal-${{ github.run_id }}
           path: ai_repair_proposal.json
-          if-no-files-found: warn
+          # The independent reviewer requires this exact artifact. Missing
+          # evidence is a failed proposal run, not a successful warning.
+          if-no-files-found: error
           retention-days: 30
