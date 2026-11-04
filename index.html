@@ -1384,7 +1384,7 @@ async function loadRaceData(force=false){
     courseNotice.append(line);
    }
   }else courseNotice.textContent='コース別1・2・3着率／決まり手：未取得・未検証（全国・当地の成績から推定しません）';
-  if(!safePreview){const note=document.createElement('p');note.textContent='展示タイム・チルト・展示STはCLEANの直前データ収集が未実装のため未取得です。値を推定表示しません。';courseNotice.append(note)}
+  if(!safePreview){const note=document.createElement('p');note.textContent='展示タイム・チルト・展示STは、対象レースの締切前6艇分の取得記録を検証できていません。未公開・取得失敗・記録不足を区別できない場合は数値を表示しません。';courseNotice.append(note)}
   const exhibitGrid=document.getElementById('exhibitionGrid');
   exhibitGrid.replaceChildren();
   const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
