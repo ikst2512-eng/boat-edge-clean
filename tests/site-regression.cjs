@@ -625,6 +625,7 @@ assert.ok(candidateHtml.includes('候補なしとは断定できません。'),'
 // Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
+assert.ok(publishWorkflow.includes('      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.'),'candidate page updates must trigger published browser checks');
 assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
 
 // Record the actual candidate list rather than only the candidate route HTTP200.
