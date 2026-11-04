@@ -72,6 +72,17 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(result["modes"]["hit"]["coverage"]["covered"], 1)
         self.assertEqual(result["modes"]["hit"]["topn_hits"]["top10"], 0)
 
+    def test_missing_rank_rejected(self):
+        def case(code, root):
+            return {"race_code": code, "status": "historical_comparison_only",
+                    "formal": False, "remote_first_seen_verified": False,
+                    "modes": {m: {"coverage_diagnostic": "winner_head_absent",
+                                   "race_dynamics_cause": "not_determined",
+                                   "top3": False, "top5": False, "top10": False}
+                              for m in ("hit", "balance", "hole", "narrow")}}
+        with self.assertRaisesRegex(ValueError, "missing_winning_rank"):
+            summarize(["202610280101"], comparator=case)
+
     def test_rank_2_is_not_top1(self):
         def case(code, root):
             return {"race_code": code, "status": "historical_comparison_only",
