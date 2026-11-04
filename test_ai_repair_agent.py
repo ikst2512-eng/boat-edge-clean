@@ -418,6 +418,23 @@ node() {
                                     cwd=root, text=True, capture_output=True)
             self.assertNotEqual(result.returncode, 0,
                                 "Working tree changed after staging must be rejected")
+            # A benign working-tree copy cannot sanitize a different index
+            # blob: git commit writes the index, not the working tree.
+            file.write_bytes(b"malicious-index-bytes\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            file.write_bytes(b"reviewed\n")
+            result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                    cwd=root, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0,
+                                "Index content must be hashed, not just working-tree bytes")
+            # Reject mode-only tampering on a file with otherwise correct bytes.
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "update-index", "--chmod=+x", "navigation.js"],
+                           cwd=root, check=True)
+            result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                    cwd=root, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0,
+                                "Unexpected executable mode must be rejected")
 
     def test_ai_publish_step_shell_syntax(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
