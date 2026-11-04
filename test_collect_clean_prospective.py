@@ -460,6 +460,30 @@ class ProspectiveTests(unittest.TestCase):
             self.assertEqual(receipt["received_at_jst"],received.isoformat())
             self.assertIs(receipt["independent_remote_receipt_verified"],False)
 
+    def test_pr_unit_checks_do_not_replace_pending_immutable_collector(self):
+        workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
+        concurrency=workflow.split("concurrency:\n",1)[1].split("\njobs:",1)[0]
+        expected=(
+            "group: ${{ github.event_name == 'pull_request' && "
+            "format('clean-prospective-pr-{0}', github.event.pull_request.number) "
+            "|| 'clean-prospective-capture' }}"
+        )
+        self.assertIn(expected,concurrency)
+        self.assertIn("cancel-in-progress: false",concurrency)
+        # PR jobs only unit-test, never stage, freeze, or push a candidate.
+        capture=workflow.split("      - name: Capture if public race cards are already published",1)[1].split(
+            "      - name: Freeze immutable candidate evidence",1)[0]
+        freeze=workflow.split("      - name: Freeze immutable candidate evidence",1)[1].split(
+            "      - name: Flag zero daily captures after midday JST",1)[0]
+        self.assertIn("if: github.event_name != 'pull_request'",capture)
+        self.assertIn("if: github.event_name != 'pull_request'",freeze)
+        self.assertIn("git commit -m 'data: freeze prospective pre-cutoff",freeze)
+        # All non-PR events keep one publication group, no independent
+        # schedule or extra writer and no cancel-in-progress relaxation.
+        self.assertIn("  schedule:",workflow)
+        self.assertIn("  workflow_dispatch:",workflow)
+        self.assertIn("  push:",workflow)
+
     def test_precommit_freeze_blocks_unknown_source_and_untrusted_digest(self):
         workflow=(Path(__file__).resolve().parent/".github/workflows/clean-prospective.yml").read_text(encoding="utf-8")
         self.assertIn("kind not in ('public_pre_race_csv','nonofficial_openapi_v1','direct_race_specific_pre_race')",workflow)
