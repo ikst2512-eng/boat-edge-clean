@@ -138,7 +138,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
             try:
                 accepted.append(inspector(path,root))
                 counts["local_audit_passed"]+=1
-            except (ValueError, KeyError, TypeError, UnicodeDecodeError, FileNotFoundError) as exc:
+            except (ValueError, KeyError, TypeError, UnicodeDecodeError, FileNotFoundError, subprocess.CalledProcessError) as exc:
                 counts["rejected"]+=1
                 # Keep a bounded, stable reason category. No candidate may be
                 # counted as an evaluated race from this diagnostic output.
