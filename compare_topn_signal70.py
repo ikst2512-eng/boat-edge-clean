@@ -19,6 +19,7 @@ def rejection_reason(exc):
         "first Git commit not before prospective cutoff": "first_commit_late",
         "generated after cutoff": "generation_late",
         "source received after cutoff": "source_late",
+        "source received after candidate generation": "source_receipt_after_generation",
         "cutoff interval invalid": "cutoff_interval_invalid",
         "wrong archive type": "archive_type_invalid",
         "non-JST timestamp": "timestamp_invalid",

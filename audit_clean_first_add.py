@@ -21,6 +21,14 @@ _BULK = local()
 @contextmanager
 def bulk_first_add(root=ROOT):
     root = Path(root).resolve()
+    # Deployment checkouts may contain only a shallow Git history. In such a
+    # checkout, a later commit can appear to be the original add, producing
+    # a false late-cutoff verdict. Withhold the entire bulk audit instead.
+    shallow = subprocess.check_output(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=root, text=True).strip()
+    if shallow != "false":
+        raise ValueError("incomplete local git history")
     raw = subprocess.check_output(
         ["git", "log", "--format=COMMIT %H %cI", "--name-only",
          "--diff-filter=A", "--", "prospective_predictions"],
@@ -55,6 +63,14 @@ def first_add(path, root=ROOT):
             raise ValueError("unambiguous first addition not found")
         sha, stamp = history[0]
     else:
+        # Direct single-record audits must reject a shallow checkout too.
+        # Otherwise a truncated history may misidentify a later deployment
+        # commit as the original Git addition for this immutable record.
+        shallow=subprocess.check_output(
+            ["git","rev-parse","--is-shallow-repository"],
+            cwd=root,text=True).strip()
+        if shallow != "false":
+            raise ValueError("incomplete local git history")
         history=subprocess.check_output(
             ["git","log","--max-count=2","--format=%H %cI","--diff-filter=A","--",rel],
             cwd=root,text=True).splitlines()
@@ -88,6 +104,10 @@ def inspect(path, root=ROOT):
         raise ValueError("generated after cutoff")
     if any(t>=cutoff for t in times):
         raise ValueError("source received after cutoff")
+    if any(t>generated for t in times):
+        raise ValueError("source received after candidate generation")
+    if first_committer_at<generated:
+        raise ValueError("first Git commit predates candidate generation")
     if first_committer_at>=cutoff:
         raise ValueError("first Git commit not before prospective cutoff")
     return {"race_code":code,"first_add_sha":sha,
@@ -95,9 +115,66 @@ def inspect(path, root=ROOT):
             "candidate_unchanged":True,"git_commit_before_cutoff":True,
             "remote_first_seen_verified":False,"formal":False,"scoring":False}
 
+# Report a mixed archive as a whole. An invalid frozen record is a rejected
+# candidate, never a fabricated miss or an amended first-add receipt.
+# The CLI exit is only "audit completed", not a statement that all rows passed.
+def audit_records(paths, root=ROOT, inspector=inspect):
+    paths=list(paths)
+    if not paths or len(set(paths))!=len(paths):
+        raise ValueError("unique nonempty candidate paths required")
+    if any(not isinstance(path,str) or PATTERN.fullmatch(path) is None for path in paths):
+        raise ValueError("invalid candidate path")
+    accepted=[]
+    rejected=[]
+    reasons={}
+    by_day={}
+    # The CLI must use the same full-history requirement as production bulk audits.
+    with bulk_first_add(root):
+        for path in paths:
+            race_code=path[len("prospective_predictions/"):-5]
+            day=race_code[:8]
+            counts=by_day.setdefault(day,{"total":0,"local_audit_passed":0,"rejected":0,"rejection_reasons":{}})
+            counts["total"]+=1
+            try:
+                accepted.append(inspector(path,root))
+                counts["local_audit_passed"]+=1
+            except (ValueError,KeyError,TypeError,json.JSONDecodeError) as exc:
+                counts["rejected"]+=1
+                # Keep a bounded, stable reason category. No candidate may be
+                # counted as an evaluated race from this diagnostic output.
+                known={
+                    "source received after candidate generation":"source_receipt_after_generation",
+                    "source received after cutoff":"source_late",
+                    "first Git commit not before prospective cutoff":"first_commit_late",
+                    "first Git commit predates candidate generation":"first_commit_before_generation",
+                    "unambiguous first addition not found":"first_add_missing_or_ambiguous",
+                    "candidate changed since first add":"original_blob_mismatch",
+                    "generated after cutoff":"generation_late",
+                    "wrong archive type":"archive_type_invalid",
+                }
+                reason=known.get(str(exc),"other_rejection")
+                rejected.append({"race_code":path[len("prospective_predictions/"):-5],
+                                 "reason":reason})
+                reasons[reason]=reasons.get(reason,0)+1
+                daily_reasons=counts["rejection_reasons"]
+                daily_reasons[reason]=daily_reasons.get(reason,0)+1
+    return {"schema":"CLEAN_PROSPECTIVE_LOCAL_FIRST_ADD_DIAGNOSTIC_V1",
+            "formal":False,"remote_first_seen_verified":False,
+            "total":len(paths),"local_audit_passed":len(accepted),
+            "rejected":len(rejected),"rejection_reasons":reasons,
+            "by_day":dict(sorted(by_day.items())),
+            "local_passed_records":accepted,"rejected_records":rejected}
+
 if __name__=="__main__":
     import argparse
     p=argparse.ArgumentParser()
     p.add_argument("paths",nargs="+")
     args=p.parse_args()
-    print(json.dumps([inspect(f) for f in args.paths],ensure_ascii=False))
+    output=audit_records(args.paths)
+    print(json.dumps(output,ensure_ascii=False))
+    if output["rejected"]:
+        import sys
+        print(f"::warning::Prospective local first-add audit rejected {output['rejected']} / {output['total']} frozen candidates; none count as verified outcomes.",file=sys.stderr)
+    if output["local_audit_passed"]==0:
+        raise SystemExit("No locally auditable candidates: do not certify the archive")
+
