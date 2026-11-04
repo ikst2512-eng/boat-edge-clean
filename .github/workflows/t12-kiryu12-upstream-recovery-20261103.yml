@@ -8,7 +8,10 @@ permissions:
 jobs:
   recover-observation:
     # Accept success or failure from a genuine scheduled upstream run on main.\n    # Its unrelated research/publication failures do not invalidate fresh,\n    # independently fetched T12 originals. Reject cancellation, PR, dispatch.
-    if: ${{ github.event.workflow_run.event == 'schedule' && (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') && github.event.workflow_run.head_branch == 'main' }}
+    # This was a ONE-DAY Nov 3 research-only recovery. Later successful
+    # scheduled upstream runs must skip this job, not fail with expired T12.
+    # The Python gate below still enforces the exact JST window for that day.
+    if: ${{ startsWith(github.event.workflow_run.run_started_at, '2026-11-03T') && github.event.workflow_run.event == 'schedule' && (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     concurrency:

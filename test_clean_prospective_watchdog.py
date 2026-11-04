@@ -317,6 +317,23 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertEqual(workflow.count("- cron:"), 4)
         self.assertIn("if: ${{ github.event_name != 'workflow_run'", workflow)
 
+    def test_expired_kiryu12_recovery_skips_unrelated_future_schedules(self):
+        # A Nov-3-only forensic recovery was actually triggered by the
+        # 2026-11-04 23:25 JST four-mode schedule (run 41847531763).
+        # Its expiry is not a failure of the healthy future collector.
+        flow = Path(
+            ".github/workflows/t12-kiryu12-upstream-recovery-20261103.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "startsWith(github.event.workflow_run.run_started_at, "
+            "'2026-11-03T')", flow)
+        self.assertIn(
+            "github.event.workflow_run.event == 'schedule'", flow)
+        self.assertIn(
+            "github.event.workflow_run.head_branch == 'main'", flow)
+        self.assertIn("check_window(datetime.now(timezone.utc)", flow)
+        self.assertIn("--race-code 202611030112", flow)
+
     def test_workflow_reuses_existing_schedule_and_immutable_collector(self):
         p = Path(".github/workflows/four-mode-capture-watchdog.yml")
         workflow = p.read_text(encoding="utf-8")
