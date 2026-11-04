@@ -57,7 +57,7 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertFalse(decide([], NOW + timedelta(hours=14), "schedule", MAIN))
 
     def test_night_race_end_hour_and_cooldown(self):
-        # CLEAN captures 21:15 and 22:29 JST; 23:15 is outside hours.
+        # CLEAN final slot is 22:28 and its rescue is at 22:29; 23:15 is outside hours.
         late = NOW + timedelta(hours=12)
         last = NOW + timedelta(hours=13, minutes=14)
         after = NOW + timedelta(hours=14)
@@ -65,10 +65,36 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
         self.assertTrue(decide([], last, 'workflow_dispatch', MAIN))
         self.assertFalse(decide([], after, 'schedule', MAIN))
         self.assertFalse(decide([{
-            'created_at': (last - timedelta(minutes=3)).isoformat(),
+            'created_at': (last - timedelta(minutes=1)).isoformat(),
             'event': 'workflow_dispatch', 'status': 'completed',
             'conclusion': 'failure', 'head_branch': 'main',
         }], last, 'schedule', MAIN))
+
+    def test_last_2228_slot_is_not_masked_by_2219_success(self):
+        last = datetime(2026, 11, 4, 13, 29, tzinfo=timezone.utc)  # 22:29 JST
+        def observed(minute, event="schedule", status="completed",
+                     conclusion="success"):
+            return {
+                "created_at": last.replace(minute=minute).isoformat(),
+                "event": event, "status": status,
+                "conclusion": conclusion, "head_branch": "main",
+            }
+        # Earlier completed attempts belong to the 22:19 slot, not 22:28.
+        self.assertTrue(decide([observed(19)], last, "schedule", MAIN))
+        self.assertTrue(decide([observed(19, "workflow_dispatch")],
+                               last, "push", MAIN))
+        # The real 22:28 schedule, same-slot fallback, and older active
+        # writer still prevent redundant dispatch.
+        self.assertFalse(decide([observed(28)], last, "schedule", MAIN))
+        self.assertFalse(decide([observed(28, "workflow_dispatch",
+                                          conclusion="failure")],
+                                last, "push", MAIN))
+        self.assertFalse(decide([observed(19, status="queued",
+                                          conclusion=None)],
+                                last, "schedule", MAIN))
+        # Before the dedicated 22:29 check, ordinary 14m policy is unchanged.
+        self.assertFalse(decide([observed(19)],
+                                last - timedelta(minutes=1), "schedule", MAIN))
 
     def test_feature_branch_manual_and_pr_runs_do_not_mask_missed_main(self):
         events = [
