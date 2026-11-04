@@ -20,6 +20,10 @@ TRUSTED_SCHEDULES = frozenset({
     "Four-mode prospective capture (research only)",
     "CLEAN independent daily schedule capture",
     "Preview capture (schedule)",
+    # Independently observed completed main/schedule runs on 2026-11-04:
+    # odds probe 22:07 JST and entry T−12 research archive 21:15 JST.
+    "CLEAN live official trifecta odds probe",
+    "Entry research T-minus-12 baseline archival",
 })
 
 
