@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from audit_clean_first_add import ROOT, PATTERN, audit_records, inspect
 
@@ -99,8 +100,19 @@ def with_execution_receipt(report, root=ROOT, environ=None):
             "remote_first_seen_verified": False, "formal": False}
 
 
+def diagnostic_summary(report):
+    """Bounded Action-log explanation; full evidence stays in JSON artifact."""
+    return json.dumps({
+        "status": report["status"],
+        "candidate_count": report["candidate_count"],
+        "rejection_reasons": report.get("rejection_reasons", {}),
+        "by_day": report.get("by_day", {}),
+    }, ensure_ascii=False, sort_keys=True)
+
+
 if __name__ == "__main__":
     output = with_execution_receipt(inspect_post_fix())
     print(json.dumps(output, ensure_ascii=False))
+    print("POST_FIX_DIAGNOSTIC " + diagnostic_summary(output), file=sys.stderr)
     if output["status"] != "local_first_add_passed":
         raise SystemExit("Post-fix candidate evidence not yet locally certified")
