@@ -617,6 +617,10 @@ assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not p
 assert.ok(candidateHtml.includes('for(let start=0;start<upcoming.length&&available<6;start+=12)'),'candidate discovery must scan beyond the first 18 upcoming races');
 assert.ok(candidateHtml.includes('Promise.all(batch.map(async race=>'),'candidate discovery must use bounded parallel fetches');
 assert.ok(!candidateHtml.includes('upcoming.slice(0,18)'),'candidate discovery must not truncate potentially valid later races');
+assert.ok(candidateHtml.includes("signal:AbortSignal.timeout(4500)"),'candidate batches must bound per-race HTTP waits');
+assert.ok(candidateHtml.includes('if(response.status===404)return null;'),'missing archive must be distinct from upstream network failure');
+assert.ok(candidateHtml.includes('if(pred.fetchFailure===true){fetchFailures++;continue}'),'network failures cannot count as valid candidate tickets');
+assert.ok(candidateHtml.includes('候補なしとは断定できません。'),'network outages must not be reported as no safe candidates');
 
 // Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
