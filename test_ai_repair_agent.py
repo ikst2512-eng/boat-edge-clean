@@ -379,6 +379,40 @@ node() {
         self.assertEqual(check.returncode, 0, check.stderr)
         self.assertIn("gh pr create --draft", script)
 
+    def test_published_ai_evidence_binds_exact_commit_and_parent(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        block = block.split("      - name: Archive proposal\n", 1)[0]
+        self.assertIn("AI_PUBLISHED_SHA=\"$(git rev-parse HEAD)\"", block)
+        self.assertIn("AI_PUBLISHED_BASE=\"$(git rev-parse HEAD^)\"", block)
+        code = block.split("          import json, os, re\n", 1)[1].split("          PY\n", 1)[0]
+        code = "import json, os, re\n" + "\n".join(
+            line[10:] if line.startswith("          ") else line for line in code.splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "ai_repair_proposal.json"
+            good = {"status": "proposed", "changed_files": ["navigation.js"],
+                    "file_sha256": {"navigation.js": "a" * 64}}
+            for label, status, branch, head, expected in (
+                ("valid", "proposed", "ai/repair-123", "a" * 40, True),
+                ("not-proposed", "no_safe_patch", "ai/repair-123", "a" * 40, False),
+                ("wrong-branch", "proposed", "ai/repair-other", "a" * 40, False),
+                ("wrong-head", "proposed", "ai/repair-123", "not-sha", False),
+            ):
+                with self.subTest(case=label):
+                    report.write_text(json.dumps({**good, "status": status}))
+                    env = dict(os.environ, AI_PUBLISHED_BRANCH=branch,
+                               AI_PUBLISHED_SHA=head, AI_PUBLISHED_BASE="b" * 40)
+                    result = subprocess.run(["python", "-c", code], cwd=root, env=env,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     result.stdout + result.stderr)
+                    if expected:
+                        saved = json.loads(report.read_text())
+                        self.assertEqual(saved["published_branch"], branch)
+                        self.assertEqual(saved["published_head_sha"], head)
+                        self.assertEqual(saved["published_base_sha"], "b" * 40)
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
