@@ -187,7 +187,7 @@ class AIReviewGuardTests(unittest.TestCase):
         script = block.split("        run: |\n", 1)[1]
         self.assertIn("gh run download", script)
         self.assertIn("ai-repair-proposal-", script)
-        code = script.split("          python - <<'PY'\n", 2)[2].split("          PY\n", 1)[0]
+        code = script.split("          python - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         code = "\n".join(line[10:] if line.startswith("          ") else line
                          for line in code.splitlines())
         with tempfile.TemporaryDirectory() as directory:
