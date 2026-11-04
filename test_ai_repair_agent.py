@@ -971,6 +971,19 @@ node() {
             encoding="utf-8")
         self.assertIn("      dry_run:\n", workflow)
         self.assertIn("        default: false\n        type: boolean", workflow)
+        # Dry-run remains main-only, but does not consume quota or publish.
+        dispatch_guard = workflow.split(
+            "      - name: Refuse AI repair dispatch outside main\n", 1
+        )[1].split("      - uses: actions/checkout@v4\n", 1)[0]
+        self.assertIn('if [[ "$DISPATCH_REF" != "refs/heads/main" ]]', dispatch_guard)
+        stale_gate = workflow.split(
+            "      - name: Refuse stale main before paid AI request\n", 1
+        )[1].split(
+            "      - name: Require configured AI credential\n", 1
+        )[0]
+        self.assertIn("        if: ${{ !inputs.dry_run }}", stale_gate)
+        self.assertIn('live_main="$(gh api ', stale_gate)
+        self.assertIn('"$live_main" != "$GITHUB_SHA"', stale_gate)
         self.assertIn(
             "      - name: Require configured AI credential\n        if: ${{ !inputs.dry_run }}",
             workflow)
