@@ -711,6 +711,55 @@ node() {
             ).splitlines()
             self.assertNotIn("ai_repair_proposal.json", names)
 
+            # Repeat the actual publish step for negative scenarios, using
+            # separate local branches and run IDs. None may reach the remote.
+            for label, run_id, issue_status, expected_digest, live_main, expected in (
+                ("tampered-evidence", "980124", "proposed", "0" * 64,
+                 original, False),
+                ("main-moved", "980125", "proposed", digest,
+                 "1" * 40, False),
+                ("no-safe-patch", "980126", "no_safe_patch", None,
+                 original, True),
+            ):
+                with self.subTest(case=label):
+                    subprocess.run(
+                        ["git", "switch", "-C", "negative-" + run_id, original],
+                        cwd=root, check=True, capture_output=True,
+                    )
+                    if issue_status == "proposed":
+                        (root / "navigation.js").write_text(
+                            "reviewed change\n", encoding="utf-8"
+                        )
+                        changed_files = ["navigation.js"]
+                        digests = {"navigation.js": expected_digest}
+                    else:
+                        changed_files = []
+                        digests = {}
+                    report.write_text(json.dumps({
+                        "status": issue_status,
+                        "changed_files": changed_files,
+                        "file_sha256": digests,
+                        "production_change_allowed": False,
+                    }), encoding="utf-8")
+                    local_env = dict(env, GITHUB_RUN_ID=run_id,
+                                     MOCK_LIVE_MAIN=live_main)
+                    outcome = subprocess.run(
+                        ["bash", "-c", script], cwd=root,
+                        env=local_env, text=True, capture_output=True,
+                    )
+                    self.assertEqual(outcome.returncode == 0, expected,
+                                     label + outcome.stdout + outcome.stderr)
+                    remote_check = subprocess.run([
+                        "git", "--git-dir", str(remote), "show-ref", "--verify",
+                        "--quiet", "refs/heads/ai/repair-" + run_id
+                    ], capture_output=True)
+                    self.assertNotEqual(remote_check.returncode, 0,
+                                        label + " must not publish a branch")
+                    self.assertNotIn(
+                        "published_head_sha", json.loads(report.read_text()),
+                        label + " must not bind unpublished evidence",
+                    )
+
     def test_no_api_key_no_network(self):
         with tempfile.TemporaryDirectory() as directory:
             def forbidden(*args,**kwargs):
