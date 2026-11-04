@@ -970,7 +970,9 @@ node() {
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
             encoding="utf-8")
         self.assertIn("      dry_run:\n", workflow)
-        self.assertIn("        default: false\n        type: boolean", workflow)
+        # Default to a free receipt; the user must explicitly disable it for Gemini.
+        self.assertIn("        default: true\n        type: boolean", workflow)
+        self.assertIn("OFFのみGemini API実行", workflow)
         # Dry-run remains main-only, but does not consume quota or publish.
         dispatch_guard = workflow.split(
             "      - name: Refuse AI repair dispatch outside main\n", 1
