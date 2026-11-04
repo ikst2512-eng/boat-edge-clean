@@ -1,13 +1,73 @@
 """Read-only GitHub Actions schedule audit. No saved race evidence is inferred from a CI success."""
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 API="https://api.github.com"
 REPO="ikst2512-eng/boat-edge-clean"
 WORKFLOW="late-preview-capture.yml"
+
+def collect_schedule_history(fetch_page, target_day, max_pages=20):
+    """Read enough actual scheduled runs to cover a full JST day.
+
+    Inspect the preceding JST day as a buffer for a delayed started_at.
+    An incomplete/truncated listing never certifies schedule health.
+    Fetch errors (including HTTP 403 and 404) propagate as failures.
+    """
+    if not isinstance(target_day, date) or isinstance(target_day, datetime):
+        raise ValueError("invalid_target_day")
+    if type(max_pages) is not int or max_pages<1:
+        raise ValueError("invalid_page_limit")
+    earlier_than=target_day-timedelta(days=1)
+    seen=set()
+    runs=[]
+    expected_total=None
+    previous=None
+    for page in range(1,max_pages+1):
+        data=fetch_page(page)
+        if (not isinstance(data,dict)
+                or type(data.get("total_count")) is not int
+                or data["total_count"]<0
+                or not isinstance(data.get("workflow_runs"),list)
+                or len(data["workflow_runs"])>100):
+            raise ValueError("invalid_schedule_history_page")
+        if expected_total is None:
+            expected_total=data["total_count"]
+        if expected_total!=data["total_count"]:
+            raise ValueError("schedule_listing_changed_during_pagination")
+        boundary=False
+        for run in data["workflow_runs"]:
+            if (not isinstance(run,dict) or run.get("event")!="schedule"
+                    or type(run.get("id")) is not int or run["id"]<=0
+                    or run["id"] in seen):
+                raise ValueError("invalid_or_duplicate_schedule_run")
+            try:
+                created=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+            except (KeyError,AttributeError,ValueError,TypeError) as exc:
+                raise ValueError("invalid_schedule_creation_clock") from exc
+            if created.utcoffset() is None or (previous is not None and created>previous):
+                raise ValueError("nonmonotonic_schedule_history")
+            previous=created
+            seen.add(run["id"])
+            runs.append(run)
+            if created.astimezone(timezone(timedelta(hours=9))).date()<earlier_than:
+                boundary=True
+        if len(runs)>expected_total:
+            raise ValueError("schedule_history_count_overflow")
+        if boundary or len(runs)==expected_total:
+            return {
+                "workflow_runs":runs,
+                "total_count":expected_total,
+                "history_pages_read":page,
+                "history_rows_inspected":len(runs),
+                "full_day_metadata_coverage":True,
+            }
+        if len(data["workflow_runs"])!=100:
+            raise ValueError("truncated_schedule_history_page")
+    raise ValueError("schedule_history_pagination_limit")
+
 
 def audit_target_day(now, scheduled_audit):
     """Choose the JST date of the latest nominal 23:17 nightly audit slot.
@@ -113,13 +173,21 @@ def daily_capture_health(runs, today, scheduled_audit):
 def main():
     token=os.environ.get("GITHUB_TOKEN")
     if not token:raise SystemExit("GITHUB_TOKEN required")
-    url=f"{API}/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?event=schedule&per_page=100"
-    req=Request(url,headers={"Accept":"application/vnd.github+json",
-                             "Authorization":"Bearer "+token,
-                             "User-Agent":"BOAT-EDGE-CLEAN-AUDIT"})
-    with urlopen(req,timeout=15) as resp:
-        data=json.load(resp)
+    scheduled_audit=os.environ.get("GITHUB_EVENT_NAME")=="schedule"
+    target_day=audit_target_day(datetime.now(timezone.utc),scheduled_audit)
+    def fetch_page(page):
+        url=(f"{API}/repos/{REPO}/actions/workflows/{WORKFLOW}/runs"
+             f"?event=schedule&per_page=100&page={page}")
+        req=Request(url,headers={"Accept":"application/vnd.github+json",
+                                 "Authorization":"Bearer "+token,
+                                 "User-Agent":"BOAT-EDGE-CLEAN-AUDIT"})
+        with urlopen(req,timeout=15) as resp:
+            return json.load(resp)
+    data=collect_schedule_history(fetch_page,target_day)
     report=summarize(data["workflow_runs"])
+    report["history_pages_read"]=data["history_pages_read"]
+    report["history_rows_inspected"]=data["history_rows_inspected"]
+    report["full_day_metadata_coverage"]=data["full_day_metadata_coverage"]
     with urlopen(Request(f"{API}/repos/{REPO}/actions/workflows/{WORKFLOW}",headers={"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"User-Agent":"BOAT-EDGE-CLEAN-AUDIT"}),timeout=15) as response:
         workflow=json.load(response)
     report["workflow_state"]=workflow.get("state")
@@ -127,8 +195,6 @@ def main():
     report["total_scheduled_runs_reported"]=data.get("total_count")
     # Scheduled nightly audit must not succeed silently when no capture schedule
     # actually ran today. Manual/PR audits remain diagnostic-only.
-    scheduled_audit=os.environ.get("GITHUB_EVENT_NAME")=="schedule"
-    target_day=audit_target_day(datetime.now(timezone.utc),scheduled_audit)
     report["audited_day_jst"]=target_day.isoformat()
     report["audited_day_is_nominal_slot_inference"]=scheduled_audit
     report.update(daily_capture_health(data["workflow_runs"],target_day,scheduled_audit))
@@ -138,7 +204,7 @@ def main():
     if path:
         with open(path,"a") as file:
             file.write("## Scheduled capture run audit\n")
-            file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
+            file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; inspected {report['history_rows_inspected']} across {report['history_pages_read']} page(s), full-day covered: {report['full_day_metadata_coverage']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
             file.write(f"Audited JST day: {report['audited_day_jst']} (nominal-slot inference: {report['audited_day_is_nominal_slot_inference']}); scheduled runs: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
             file.write(f"Nominal JST window: {report['nominal_capture_window_jst']}; in-window IDs: {report['today_in_nominal_window_run_ids']}; outside-window IDs: {report['today_outside_nominal_window_run_ids']}; unknown-start IDs: {report['today_unknown_start_run_ids']}. Run metadata only; not T-12 evidence.\n")
