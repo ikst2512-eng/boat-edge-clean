@@ -348,3 +348,56 @@ jobs:
           # evidence is a failed proposal run, not a successful warning.
           if-no-files-found: error
           retention-days: 30
+  free_artifact_smoke:
+    name: Free evidence ZIP smoke (push only; no AI)
+    if: github.event_name == 'push'
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Emit no-AI push smoke receipt
+        shell: bash
+        env:
+          SMOKE_HEAD_SHA: ${{ github.sha }}
+          SMOKE_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          head = os.environ['SMOKE_HEAD_SHA']
+          run = os.environ['SMOKE_RUN_ID']
+          if not re.fullmatch(r'[0-9a-f]{40}', head) or not re.fullmatch(r'[1-9][0-9]*', run):
+              raise SystemExit('Invalid smoke workflow head or run ID')
+          receipt = {
+              'status': 'no_safe_patch',
+              'dry_run': True,
+              'smoke_origin': 'push',
+              'run_id': run,
+              'head_sha': head,
+              'changed_files': [],
+              'file_sha256': {},
+              'reason': 'Free CI artifact plumbing test; Gemini was never called.',
+              'suggested_tests': 'Verify actual GitHub run/job, artifact ID, ZIP digest and report.',
+              'production_change_allowed': False,
+          }
+          Path('ai_repair_proposal.json').write_text(
+              json.dumps(receipt, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print('FREE_PUSH_ARTIFACT_SMOKE_NO_AI', run, head)
+          PY
+      - name: Upload free smoke evidence ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-repair-free-smoke-${{ github.run_id }}
+          path: ai_repair_proposal.json
+          if-no-files-found: error
+          retention-days: 7
