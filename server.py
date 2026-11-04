@@ -314,7 +314,9 @@ def _refresh_holdout_status():
         result = _compute_holdout_status()
     except Exception as exc:
         logging.exception("holdout_status_unavailable")
-        error = type(exc).__name__
+        error = ("GIT_HISTORY_INCOMPLETE" if isinstance(exc, ValueError)
+                 and str(exc) == "incomplete local git history"
+                 else type(exc).__name__)
         result = None
     elapsed = time.monotonic() - started
     with _HOLDOUT_LOCK:
@@ -343,9 +345,12 @@ def holdout_status():
     if fresh:
         return 200, value
     # Report operational status only. Never fabricate research evidence.
+    git_history_incomplete = last_error == "GIT_HISTORY_INCOMPLETE" and not running
     return 503, {"ok": False,
-                 "error": "HOLDOUT_PENDING" if running else "HOLDOUT_UNAVAILABLE",
-                 "retryable": True,
+                 "error": ("HOLDOUT_PENDING" if running else
+                           "HOLDOUT_GIT_HISTORY_INCOMPLETE" if git_history_incomplete else
+                           "HOLDOUT_UNAVAILABLE"),
+                 "retryable": not git_history_incomplete,
                  "running": running,
                  "elapsed_seconds": round(max(0, now - started), 1) if running and started is not None else None,
                  "last_duration_seconds": last_duration,
