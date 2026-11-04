@@ -191,10 +191,17 @@ jobs:
               raise SystemExit('Staged AI patch does not match proposal evidence')
           for name in claimed:
               digest = expected[name]
+              # git commit uses index blobs, not working-tree files.
+              staged_bytes = subprocess.check_output(['git', 'show', ':' + name])
+              indexed_mode = subprocess.check_output(
+                  ['git', 'ls-files', '--stage', '--', name],
+                  text=True).split()
               if (not isinstance(digest, str) or
                   not re.fullmatch(r'[a-f0-9]{64}', digest) or
+                  not indexed_mode or indexed_mode[0] != '100644' or
+                  hashlib.sha256(staged_bytes).hexdigest() != digest or
                   hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest):
-                  raise SystemExit('Staged AI content SHA-256 mismatch')
+                  raise SystemExit('Staged AI content SHA-256 or file mode mismatch')
           print('Validated staged AI files against proposal:', len(claimed))
           PY
           git commit -m "AI: propose narrow UI repair for review"
