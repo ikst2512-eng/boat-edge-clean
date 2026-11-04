@@ -546,6 +546,8 @@ class AIReviewGuardTests(unittest.TestCase):
                             "published_head_sha": "a" * 40,
                             "published_base_sha": "b" * 40,
                             "production_change_allowed": False,
+                            "reason": "Specific navigation defect",
+                            "suggested_tests": "Run navigation contract and site regression",
                             "changed_files": ["navigation.js"],
                             "file_sha256": {"navigation.js": hashlib.sha256(
                                 b"reviewed-ai-change").hexdigest()}}
@@ -554,6 +556,14 @@ class AIReviewGuardTests(unittest.TestCase):
                 ("valid", {}, valid_files, True),
                 ("no-patch-run", {"status": "no_safe_patch", "changed_files": []},
                  valid_files, False),
+                ("missing-rationale", {"reason": None}, valid_files, False),
+                ("blank-rationale", {"reason": "  "}, valid_files, False),
+                ("wrong-rationale-type", {"reason": []}, valid_files, False),
+                ("oversized-rationale", {"reason": "x" * 701}, valid_files, False),
+                ("missing-tests", {"suggested_tests": None}, valid_files, False),
+                ("blank-tests", {"suggested_tests": "  "}, valid_files, False),
+                ("wrong-tests-type", {"suggested_tests": 123}, valid_files, False),
+                ("oversized-tests", {"suggested_tests": "x" * 701}, valid_files, False),
                 ("disabled", {"status": "disabled"}, valid_files, False),
                 ("wrong-file", {"changed_files": ["index.html"]}, valid_files, False),
                 ("tampered-file-digest", {"file_sha256": {"navigation.js": "0"*64}},
@@ -651,6 +661,8 @@ class AIReviewGuardTests(unittest.TestCase):
                 "published_branch": "ai/repair-980123",
                 "published_head_sha": head, "published_base_sha": parent,
                 "production_change_allowed": False,
+                            "reason": "Specific navigation defect",
+                            "suggested_tests": "Run navigation contract and site regression",
             }
             pr_file.write_text(json.dumps({
                 "head": {"ref": "ai/repair-980123", "sha": head},
@@ -750,6 +762,8 @@ class AIReviewGuardTests(unittest.TestCase):
                 "published_head_sha": head,
                 "published_base_sha": parent,
                 "production_change_allowed": False,
+                            "reason": "Specific navigation defect",
+                            "suggested_tests": "Run navigation contract and site regression",
             }
             pr.write_text(json.dumps({
                 "head": {"ref": "ai/repair-7777", "sha": head},
