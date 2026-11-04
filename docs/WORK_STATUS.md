@@ -1,3 +1,8 @@
+## 2026-11-04 JST サイト担当：本日の保存済み候補の実ブラウザ件数診断（PR検証中）
+- PR #1577の公開Pagesでは「候補レース」リンク先のHTTP200と `todayCandidateRaces` DOM存在を検証済み。ただし当日レースの買い目カード実件数は未測定。
+- 既存 `.github/workflows/deploy-pages.yml` の公開後390px browser smokeに、Render /selectionへ実際に遷移して非同期処理完了後 `#candidateCards article.card` 件数・保存済み3連単の明記・表示ステータス・タイトルを記録する診断を追加。0件でも事実として記録し、タイムアウトは `UNVERIFIED` と区別。最大6件／ステータス整合のガード付き。予想順位や正式採点を追加・変更しない。
+- 公開CI完了前は実件数を断言しない。旧サイト・原本・API・予想モデルには変更なし。前回のholdout CI first-add不一致は監査担当PR #1569へ証拠連携済みで未解決。
+
 ## 2026-11-04 JST サイト担当：公開Pagesの「候補レース」導線をブラウザ実証（PR #1577）
 - 最新main `a820c42d`、Render同commit LIVE。候補ページとトップへの修正PR #1576を維持。
 - 初期調査でroot相対 `/selection` と `/review` がPages上で不正に見えたが、既存 `navigation.js` がPages時に前者をRender `https://boat-edge-clean.onrender.com/selection`、後者をPagesの `screen=review` へ正しく置換する実装を確認。HTML直接書換は `test_navigation_contract` に違反していたため破棄（main未統合）。
