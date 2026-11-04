@@ -1,6 +1,12 @@
 name: CLEAN live official trifecta odds probe
 on:
   workflow_dispatch:
+    inputs:
+      rescue_slot_jst:
+        description: 'Optional recovery slot in JST ISO8601, never direct-cron proof'
+        required: false
+        default: ''
+        type: string
   pull_request:
     paths:
       - '.github/workflows/live-official-odds-probe.yml'
@@ -52,7 +58,7 @@ jobs:
         if: steps.gate.outputs.collect == 'true'
         run: python scripts/probe_live_odds_health.py
       - name: Fail unhealthy unattended odds sampling
-        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_run')
+        if: steps.gate.outputs.collect == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.rescue_slot_jst != ''))
         run: python scripts/check_live_odds_probe_verdict.py
       - name: Preserve failed-source HTML after operational verdict
         if: always() && steps.gate.outputs.collect == 'true'
