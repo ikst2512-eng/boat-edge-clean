@@ -9,6 +9,22 @@ API="https://api.github.com"
 REPO="ikst2512-eng/boat-edge-clean"
 WORKFLOW="late-preview-capture.yml"
 
+def audit_target_day(now, scheduled_audit):
+    """Choose the JST date of the latest nominal 23:17 nightly audit slot.
+
+    Delayed scheduled runners after JST midnight must audit the *previous*
+    completed capture day. GitHub does not expose the exact originating cron
+    slot in run timestamps, so this is a conservative nominal-day assignment,
+    not proof that the originating slot fired on time.
+    """
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("timezone-aware audit clock required")
+    local=now.astimezone(timezone(timedelta(hours=9)))
+    if scheduled_audit and (local.hour,local.minute)<(23,17):
+        return local.date()-timedelta(days=1)
+    return local.date()
+
+
 def capture_window_health(runs, today, scheduled_audit):
     """Classify actual schedule-run starts, without certifying race data or T-12."""
     jst=timezone(timedelta(hours=9))
@@ -111,12 +127,12 @@ def main():
     report["total_scheduled_runs_reported"]=data.get("total_count")
     # Scheduled nightly audit must not succeed silently when no capture schedule
     # actually ran today. Manual/PR audits remain diagnostic-only.
-    report.update(daily_capture_health(data["workflow_runs"],datetime.now(timezone(timedelta(hours=9))).date(),
-                                      os.environ.get("GITHUB_EVENT_NAME")=="schedule"))
-    report.update(capture_window_health(
-        data["workflow_runs"],
-        datetime.now(timezone(timedelta(hours=9))).date(),
-        os.environ.get("GITHUB_EVENT_NAME")=="schedule"))
+    scheduled_audit=os.environ.get("GITHUB_EVENT_NAME")=="schedule"
+    target_day=audit_target_day(datetime.now(timezone.utc),scheduled_audit)
+    report["audited_day_jst"]=target_day.isoformat()
+    report["audited_day_is_nominal_slot_inference"]=scheduled_audit
+    report.update(daily_capture_health(data["workflow_runs"],target_day,scheduled_audit))
+    report.update(capture_window_health(data["workflow_runs"],target_day,scheduled_audit))
     print(json.dumps(report,ensure_ascii=False,indent=2))
     path=os.environ.get("GITHUB_STEP_SUMMARY")
     if path:
@@ -124,7 +140,7 @@ def main():
             file.write("## Scheduled capture run audit\n")
             file.write(f"Scheduled runs reported: {report['total_scheduled_runs_reported']}; last 100: {report['scheduled_runs']}; success: {report['success']}; failed: {report['failed']}; pending: {report['pending']}\n")
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
-            file.write(f"Today JST scheduled: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
+            file.write(f"Audited JST day: {report['audited_day_jst']} (nominal-slot inference: {report['audited_day_is_nominal_slot_inference']}); scheduled runs: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
             file.write(f"Nominal JST window: {report['nominal_capture_window_jst']}; in-window IDs: {report['today_in_nominal_window_run_ids']}; outside-window IDs: {report['today_outside_nominal_window_run_ids']}; unknown-start IDs: {report['today_unknown_start_run_ids']}. Run metadata only; not T-12 evidence.\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
     if report["schedule_missing_today"]:
