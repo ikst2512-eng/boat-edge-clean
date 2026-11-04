@@ -124,6 +124,26 @@ jobs:
                 message.includes('confirmed_results/')&&message.includes('due to access control checks')
               ));
               if(realFaults.length)throw Error('JS errors: '+realFaults.join('; '));
+              // Exercise the successful schedule path: exceptions here are
+              // caught by the UI and would evade pageerror-only smoke tests.
+              const home=await browser.newPage({viewport:{width:390,height:844}});
+              await home.route('https://raw.githubusercontent.com/**',route=>{
+                if(route.request().url().endsWith('/schedule_snapshots/20990101.json'))
+                  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+                    date:'2099-01-01',phase:'PRE_RESULT',results_seen:false,unlock:false,scoring:false,
+                    source_received_jst:new Date().toISOString(),venues:[{jcd:'01',races:[
+                      {race_no:1,deadline:'10:00'},{race_no:2,deadline:'11:00'},
+                      {race_no:3,deadline:'12:00'},{race_no:4,deadline:'13:00'}]}]})});
+                return route.fulfill({status:404,contentType:'application/json',body:'{}'});
+              });
+              await home.route('https://boat-edge-clean.onrender.com/**',route=>route.fulfill({status:404,body:'{}'}));
+              await home.goto('file://'+process.cwd()+'/index.html?date=2099-01-01',{waitUntil:'domcontentloaded'});
+              await home.waitForFunction(()=>document.querySelector('#venueState').textContent.includes('開催情報：1場'));
+              if(await home.locator('#deadlineList .deadline-item').count()!==3)throw Error('Successful schedule lost next-three races');
+              const order=await home.evaluate(()=>document.querySelector('#deadlineSection').compareDocumentPosition(document.querySelector('#venueChooser')) & Node.DOCUMENT_POSITION_FOLLOWING);
+              if(!order)throw Error('Next-three must precede venue chooser');
+              console.log('CLEAN_HOME_SCHEDULE_'+engine.toUpperCase()+'_PASS');
+              await home.close();
               console.log('CLEAN_PR_MOBILE_'+engine.toUpperCase()+'_PASS');
             } finally {await browser.close();}
             }
