@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 
 JST = timezone(timedelta(hours=9))
 
-def should_dispatch(runs, now, event, *, recent_minutes=27, cooldown_minutes=20):
-    if recent_minutes <= 0 or cooldown_minutes <= 0:
+def should_dispatch(runs, now, event, *, recent_minutes=27, cooldown_minutes=20, end_hour_jst=20):
+    if recent_minutes <= 0 or cooldown_minutes <= 0 or not 7 <= end_hour_jst <= 23:
         raise ValueError("invalid_dispatch_window")
     if now.tzinfo is None:
         raise ValueError("timezone_required")
-    if event == "pull_request" or not 7 <= now.astimezone(JST).hour <= 20:
+    if event == "pull_request" or not 7 <= now.astimezone(JST).hour <= end_hour_jst:
         return False
     def age(run):
         created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
