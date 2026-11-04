@@ -62,6 +62,7 @@ class ProspectiveTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
              patch.object(capture,"read_rows",side_effect=fake_read) as calls, \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
              patch.object(capture,"model_provenance",return_value={
                  "model_git_sha":"a"*40,"model_source_sha256":"b"*64}):
             result=capture.collect(day)
@@ -85,6 +86,7 @@ class ProspectiveTests(unittest.TestCase):
              patch.object(capture,"read_rows",side_effect=OSError("daily CSV unavailable")) as primary, \
              patch("clean_openapi_sources.load",return_value=(titles,cards,received,"d"*64,
                  {"source":"nonofficial_openapi_v1","valid":1,"rejected":0})) as alternate, \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
              patch.object(capture,"model_provenance",return_value={"model_git_sha":"a"*40}):
             result=capture.collect(day)
             saved=json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
@@ -109,6 +111,7 @@ class ProspectiveTests(unittest.TestCase):
              patch.object(capture,"read_rows",return_value=([],received,"a"*64)) as primary, \
              patch("clean_openapi_sources.load",return_value=(titles,cards,received,"b"*64,
                  {"source":"nonofficial_openapi_v1"})) as alternate, \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
              patch.object(capture,"model_provenance",return_value={}):
             output=capture.collect(day)
         self.assertEqual(output["saved"],1)
@@ -130,6 +133,7 @@ class ProspectiveTests(unittest.TestCase):
              patch.object(capture,"read_rows",side_effect=primary) as fetch, \
              patch("clean_openapi_sources.load",return_value=(
                  alternate_titles,alternate_cards,t,"b"*64,{"source":"nonofficial_openapi_v1"})) as fallback, \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
              patch.object(capture,"model_provenance",return_value={}):
             result=capture.collect(day)
             saved=json.loads((Path(tmp)/"prospective_predictions"/(target+".json")).read_text())
@@ -156,6 +160,7 @@ class ProspectiveTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
              patch.object(capture,"read_rows",side_effect=primary), \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
              patch.object(capture,"model_provenance",return_value={}), \
              patch("sys.stderr",error):
             result=capture.collect(day)
@@ -167,6 +172,103 @@ class ProspectiveTests(unittest.TestCase):
         self.assertEqual(diagnostic["source_kind"],"public_pre_race_csv")
         self.assertEqual(diagnostic["reason"],"no_pre_cutoff_eligible_races")
         self.assertIs(diagnostic["formal"],False)
+
+    def test_partial_daily_csv_is_supplemented_only_by_complete_direct_pairs(self):
+        import hashlib
+        day="20990101"
+        a,b,c=(day+"0101",day+"0102",day+"0103")
+        t=datetime.now(JST)
+        primary_titles=[{"レースコード":a,"電話投票締切予定":"23:59"},
+                        {"レースコード":b,"電話投票締切予定":"23:59"}]
+        primary_cards=[{"レースコード":a,**{f"艇{i}_全国勝率":"4.1" for i in range(1,7)}}]
+        holding=primary_titles+[{"レースコード":c,"電話投票締切予定":"23:59"}]
+        direct_cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}
+                      for code in (b,c)]
+        def read(url):
+            rows=primary_titles if "/title/" in url else primary_cards
+            return rows,t,("a" if "/title/" in url else "b")*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=read), \
+             patch("clean_direct_sources.holding_rows",return_value=(holding,t,"c"*64)) as holding_get, \
+             patch("clean_direct_sources.direct_cards",return_value=(
+                 direct_cards,t,"x"*64,{b:"d"*64,c:"e"*64},{})) as card_get, \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+            records={code:json.loads((Path(tmp)/"prospective_predictions"/(code+".json")).read_text())
+                     for code in (a,b,c)}
+        self.assertEqual(result["saved"],3)
+        holding_get.assert_called_once_with(day)
+        self.assertEqual([r["レースコード"] for r in card_get.call_args.args[1]],[b,c])
+        self.assertEqual(card_get.call_args.kwargs["limit"],12)
+        self.assertEqual(records[a]["input_source_kind"],"public_pre_race_csv")
+        self.assertEqual(records[a]["source_title_sha256"],"a"*64)
+        self.assertEqual(records[a]["source_cards_sha256"],"b"*64)
+        for code,card_sha in ((b,"d"*64),(c,"e"*64)):
+            record=records[code]
+            self.assertEqual(record["input_source_kind"],"direct_race_specific_pre_race")
+            self.assertEqual(record["source_title_sha256"],"c"*64)
+            self.assertEqual(record["source_cards_sha256"],card_sha)
+            self.assertEqual(record["input_sha256"],
+                hashlib.sha256(("c"*64+":"+card_sha).encode()).hexdigest())
+            self.assertGreaterEqual(datetime.fromisoformat(record["generated_at"]),t)
+            self.assertIs(record["formal"],False)
+            self.assertIs(record["scoring"],False)
+
+    def test_partial_daily_deadline_conflict_is_never_supplemented(self):
+        day="20990101"
+        a,b=day+"0101",day+"0102"
+        t=datetime.now(JST)
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"} for code in (a,b)]
+        cards=[{"レースコード":a,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        holding=[{"レースコード":b,"電話投票締切予定":"23:58"}]
+        def primary(url):
+            return (titles if "/title/" in url else cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch("clean_direct_sources.holding_rows",return_value=(holding,t,"b"*64)), \
+             patch("clean_direct_sources.direct_cards") as cards_get, \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+            saved=[p.stem for p in (Path(tmp)/"prospective_predictions").glob("*.json")]
+        self.assertEqual(result["saved"],1)
+        self.assertEqual(saved,[a])
+        cards_get.assert_not_called()
+
+    def test_duplicate_primary_rows_are_not_masked_by_direct_supplement(self):
+        day="20990101"
+        code=day+"0101"
+        t=datetime.now(JST)
+        title={"レースコード":code,"電話投票締切予定":"23:59"}
+        card={"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}
+        for titles,cards in (([title,title],[card]),([], [card,card])):
+            with self.subTest(titles=len(titles),cards=len(cards)), \
+                 tempfile.TemporaryDirectory() as tmp, \
+                 patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+                 patch("clean_direct_sources.holding_rows",return_value=([title],t,"a"*64)), \
+                 patch("clean_direct_sources.direct_cards") as card_get:
+                supplemented=capture.supplement_unlisted(day,titles,cards,{}, {})
+            self.assertEqual(supplemented,{})
+            card_get.assert_not_called()
+
+    def test_partial_daily_supplement_outage_does_not_erase_primary(self):
+        day="20990101"
+        code=day+"0101"
+        t=datetime.now(JST)
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        cards=[{"レースコード":code,**{f"艇{i}_全国勝率":"5.1" for i in range(1,7)}}]
+        def primary(url):
+            return (titles if "/title/" in url else cards),t,"a"*64
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=primary), \
+             patch("clean_direct_sources.holding_rows",side_effect=OSError("supplement unavailable")), \
+             patch.object(capture,"model_provenance",return_value={}):
+            result=capture.collect(day)
+            saved=(Path(tmp)/"prospective_predictions"/(code+".json")).is_file()
+        self.assertEqual(result["saved"],1)
+        self.assertTrue(saved)
 
     def test_direct_source_only_after_both_daily_sources_unavailable(self):
         day="20990101"
