@@ -125,6 +125,19 @@ jobs:
           python -m unittest -v tests.test_navigation_contract
           node tests/site-regression.cjs
           git diff --check
+      - name: Refuse stale main before publishing AI draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          base_sha="$(git rev-parse HEAD)"
+          live_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ -z "$base_sha" || -z "$live_main" || "$base_sha" != "$live_main" ]]; then
+            echo "::error::main changed while generating AI repair; refusing stale draft."
+            exit 1
+          fi
       - name: Publish reviewed-by-CI patch as draft PR
         env:
           GH_TOKEN: ${{ github.token }}
