@@ -69,6 +69,7 @@ jobs:
                   key:report[key] for key in (
                       'post_fix_start','status','candidate_count',
                       'local_audit_passed','rejected',
+                      'audit_run_id','audit_event_name','audit_checkout_sha',
                       'remote_first_seen_verified','formal')
               },sort_keys=True))
           PY

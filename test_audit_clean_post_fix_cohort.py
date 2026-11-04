@@ -1,10 +1,32 @@
 import tempfile
 import unittest
 from pathlib import Path
-from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, post_fix_paths
+from unittest.mock import patch
+from audit_clean_post_fix_cohort import POST_FIX_START, inspect_post_fix, post_fix_paths, with_execution_receipt
 
 
 class PostFixCohortTests(unittest.TestCase):
+    def test_execution_receipt_correlates_run_without_certifying_remote_visibility(self):
+        with patch("audit_clean_post_fix_cohort.subprocess.check_output",
+                   return_value="a"*40) as git:
+            report=with_execution_receipt(
+                {"status":"local_first_add_passed", "formal":True,
+                 "remote_first_seen_verified":True},
+                root=Path("/tmp"),environ={
+                    "GITHUB_RUN_ID":"12345","GITHUB_EVENT_NAME":"workflow_dispatch"})
+        self.assertEqual(report["audit_run_id"],"12345")
+        self.assertEqual(report["audit_event_name"],"workflow_dispatch")
+        self.assertEqual(report["audit_checkout_sha"],"a"*40)
+        self.assertFalse(report["remote_first_seen_verified"])
+        self.assertFalse(report["formal"])
+        git.assert_called_once()
+
+    def test_execution_receipt_rejects_invalid_checkout_hash(self):
+        with patch("audit_clean_post_fix_cohort.subprocess.check_output",
+                   return_value="not-a-sha"):
+            with self.assertRaisesRegex(ValueError,"invalid checkout commit"):
+                with_execution_receipt({"status":"pending_no_new_capture"},environ={})
+
     def test_no_new_capture_is_pending_not_success(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = inspect_post_fix(Path(tmp))
