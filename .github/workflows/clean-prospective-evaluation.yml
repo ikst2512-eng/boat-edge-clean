@@ -59,7 +59,8 @@ jobs:
               print('FIRST_ADD_AUDIT_SUMMARY', json.dumps({
                   key: data[key] for key in (
                       'total', 'local_audit_passed', 'rejected',
-                      'rejection_reasons', 'remote_first_seen_verified', 'formal')
+                      'rejection_reasons', 'by_day',
+                      'remote_first_seen_verified', 'formal')
               }, sort_keys=True))
           PY
       - name: Archive full immutable candidate audit
