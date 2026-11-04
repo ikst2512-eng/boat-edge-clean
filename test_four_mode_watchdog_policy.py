@@ -49,9 +49,9 @@ class WatchdogPolicyTests(unittest.TestCase):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/four-mode-capture-watchdog.yml").read_text()
-        self.assertIn("cron: '12,27,42,57 22-23,0-12 * * *'", workflow)
+        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", workflow)
         self.assertIn("recent_minutes=14, cooldown_minutes=14", workflow)
-        self.assertIn("cron: '12,27,42 13 * * *'", workflow)
+        self.assertIn("cron: '13,29,44 13 * * *'", workflow)
 
     def test_fifteen_minute_watchdog_recovers_missed_slot(self):
         # A successful run 20 minutes ago must not hide a missed 15-minute slot.
@@ -97,6 +97,31 @@ class WatchdogPolicyTests(unittest.TestCase):
         self.assertTrue(should_dispatch([offbranch, failed_main], self.now,
                                         "schedule", recent_minutes=14,
                                         cooldown_minutes=14))
+
+    def test_staggered_watchdog_follows_both_capture_schedules(self):
+        from pathlib import Path
+        collection=(Path(__file__).resolve().parent/
+                    ".github/workflows/clean-prospective.yml").read_text()
+        watchdog=(Path(__file__).resolve().parent/
+                  ".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        # Parse the actual workflow cron, not a mirrored expectation.
+        regular_collection=next(line for line in collection.splitlines()
+                                if "0-12 * * *" in line and "cron:" in line)
+        regular_watchdog=next(line for line in watchdog.splitlines()
+                              if "0-12 * * *" in line and "cron:" in line)
+        def minutes(line):
+            return tuple(int(v) for v in line.split("'")[1].split()[0].split(","))
+        collector_minutes=minutes(regular_collection)
+        watchdog_minutes=minutes(regular_watchdog)
+        self.assertEqual(len(collector_minutes),4)
+        self.assertTrue(all(minute != 0 for minute in collector_minutes))
+        self.assertTrue(all(b-a == 15 for a,b in
+                            zip(collector_minutes,collector_minutes[1:])))
+        self.assertEqual(watchdog_minutes,
+                         tuple(minute+9 for minute in collector_minutes))
+        # Existing V2 start slots remain 7/22/37/52: six-minute rescue.
+        self.assertIn("cron: '50 12 * * *'", watchdog)
+        self.assertIn("cron: '20 13 * * *'", watchdog)
 
     def test_clean_night_hours_do_not_extend_other_watchdogs(self):
         from datetime import timedelta
