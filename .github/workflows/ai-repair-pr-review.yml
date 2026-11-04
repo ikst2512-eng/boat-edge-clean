@@ -208,7 +208,7 @@ jobs:
           filenames = [entry['filename'] for entry in changed]
           # Independently compare the selected commit's exact Git tree diff.
           # Do not trust the PR files API as the sole source of changed paths.
-          git_entries = [line.split('\\t') for line in subprocess.check_output(
+          git_entries = [line.split(chr(9)) for line in subprocess.check_output(
               ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD'],
               text=True).splitlines()]
           if (len(git_entries) != len(filenames) or
