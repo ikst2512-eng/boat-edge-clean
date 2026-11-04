@@ -50,24 +50,35 @@ def run(root=ROOT, limit=240):
     }
     for code in held:
         status, archive = archived_four_modes(code, root)
-        record = compare_race(code, root)
-        if status != 200 or record.get("status") != "historical_comparison_only":
+        if status != 200:
             unavailable.append({"race_code": code, "archive_status": status,
-                                "comparison_status": record.get("status")})
+                                "comparison_status": "not_checked_invalid_archive"})
             continue
         modes = {name: [t["combo"] for t in archive["modes"][name]["tickets"]]
                  for name in ("hole", "hit", "balance")}
         base = modes["hole"][:10]
         donors = {"hit": modes["hit"], "balance": modes["balance"],
                   "hit_balance": list(dict.fromkeys(modes["hit"] + modes["balance"]))}
-        winning = record["winning_ticket"]
-        scenarios = {}
+        # Freeze every candidate before any confirmed outcome is read.
+        prepared = {}
         for source, donor in donors.items():
             for rank in (3, 5):
                 name = f"{source}_rank{rank}"
                 modified = propose(base, donor, rank)
                 if len(modified) != len(base) or len(modified) != len(set(modified)):
                     raise ValueError("ticket_budget_violation")
+                prepared[name] = modified
+        record = compare_race(code, root)
+        if record.get("status") != "historical_comparison_only":
+            unavailable.append({"race_code": code, "archive_status": status,
+                                "comparison_status": record.get("status")})
+            continue
+        winning = record["winning_ticket"]
+        scenarios = {}
+        for source, donor in donors.items():
+            for rank in (3, 5):
+                name = f"{source}_rank{rank}"
+                modified = prepared[name]
                 totals[name]["changed"] += int(modified != base)
                 scenario = {"changed": modified != base, "topn": {}}
                 for k in TOPS:
