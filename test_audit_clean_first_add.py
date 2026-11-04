@@ -244,6 +244,12 @@ class FirstAddAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"candidate changed since first add"):
                 audit.inspect(path,root)
 
+    def test_cli_mixed_archive_gate_remains_fail_closed(self):
+        source=(Path(__file__).parent/"audit_clean_first_add.py").read_text()
+        self.assertIn('if output["local_audit_passed"]==0:',source)
+        self.assertIn('if output["rejected"]>0:',source)
+        self.assertIn('Mixed archive contains rejected candidates',source)
+
     def test_untrusted_path(self):
         with self.assertRaises(ValueError):
             audit.first_add("../legacy/anything.json")
