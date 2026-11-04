@@ -367,6 +367,65 @@ node() {
                                     cwd=root, env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_final_ai_commit_tree_matches_original_proposal(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
+        block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        script = block.split("        run: |\n", 1)[1]
+        validator = script.split(
+            "          # Recheck the actual commit tree, not just the pre-commit index.\n", 1
+        )[1].split("          # checkout uses persist-credentials:false", 1)[0]
+        validator = "\n".join(line[10:] if line.startswith("          ") else line
+                              for line in validator.splitlines())
+        syntax = subprocess.run(["bash", "-n"], input=validator,
+                                text=True, capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "navigation.js").write_bytes(b"old\n")
+            (root / "index.html").write_bytes(b"unchanged\n")
+            subprocess.run(["git", "add", "navigation.js", "index.html"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+            (root / "navigation.js").write_bytes(b"new\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "AI test commit"], cwd=root, check=True)
+            good = hashlib.sha256(b"new\n").hexdigest()
+            report = root / "ai_repair_proposal.json"
+            cases = (
+                ("valid", ["navigation.js"], {"navigation.js": good}, True),
+                ("tampered-digest", ["navigation.js"], {"navigation.js": "0"*64}, False),
+                ("missing-file", ["index.html"], {"index.html": good}, False),
+                ("extra-claimed-file", ["navigation.js", "index.html"],
+                 {"navigation.js": good, "index.html": good}, False),
+            )
+            for label, claimed, digests, expected in cases:
+                with self.subTest(case=label):
+                    report.write_text(json.dumps({
+                        "status": "proposed", "changed_files": claimed,
+                        "file_sha256": digests, "production_change_allowed": False
+                    }))
+                    outcome = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                             cwd=root, text=True, capture_output=True)
+                    self.assertEqual(outcome.returncode == 0, expected,
+                                     label + outcome.stdout + outcome.stderr)
+            # A commit containing two files must be rejected even if its report
+            # claims only one of them.
+            (root / "index.html").write_bytes(b"unexpected\n")
+            subprocess.run(["git", "add", "index.html"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "unreviewed extra"], cwd=root, check=True)
+            report.write_text(json.dumps({
+                "status": "proposed", "changed_files": ["navigation.js"],
+                "file_sha256": {"navigation.js": good},
+                "production_change_allowed": False
+            }))
+            outcome = subprocess.run(["bash", "-c", "set -euo pipefail\n" + validator],
+                                     cwd=root, text=True, capture_output=True)
+            self.assertNotEqual(outcome.returncode, 0,
+                                "Extra committed files must be rejected")
+
     def test_prepush_staged_ai_content_matches_evidence(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(encoding="utf-8")
         block = workflow.split("      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
