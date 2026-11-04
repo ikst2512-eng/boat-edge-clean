@@ -1119,7 +1119,19 @@ async function loadHeldVenues(force=false){
   // A failed GitHub Raw request must not block past-date CLEAN/CSV fallback.
   // Current/future dates retain their strict unpublished/error handling.
   let archive=null;
-  try{archive=await fetchTimed('https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json',{cache:'no-store'})}catch(_){}
+  // Pages ships CLEAN's immutable daily snapshots with the HTML; avoid
+  // depending on cross-origin GitHub Raw for dates already published there.
+  // For Render and for not-yet-deployed dates, retain the exact same CLEAN
+  // Raw/Render fallback and downstream date/phase/score safety checks.
+  const rawSchedule='https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/schedule_snapshots/'+dayCode+'.json';
+  const pagesSchedule=location.hostname==='ikst2512-eng.github.io'?'schedule_snapshots/'+dayCode+'.json':null;
+  for(const endpoint of [pagesSchedule,rawSchedule].filter(Boolean)){
+   try{
+    const response=await fetchTimed(endpoint,{cache:'no-store'});
+    if(response.ok){archive=response;break;}
+    if(!archive)archive=response;
+   }catch(_){/* Keep trying CLEAN sources; do not use legacy today.json. */}
+  }
   if(archive?.ok){data=await archive.json();data.updated_at=data.source_received_jst;}
   else if(!archive?.ok){
    let api;
