@@ -84,5 +84,6 @@ jobs:
           path: |
             live_odds_metrics.json
             live_odds_14day_trend.json
+            live_odds_failure_evidence/
           if-no-files-found: warn
           retention-days: 14
