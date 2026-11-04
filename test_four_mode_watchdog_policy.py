@@ -104,13 +104,21 @@ class WatchdogPolicyTests(unittest.TestCase):
                     ".github/workflows/clean-prospective.yml").read_text()
         watchdog=(Path(__file__).resolve().parent/
                   ".github/workflows/four-mode-capture-watchdog.yml").read_text()
-        # Nine minutes after each CLEAN regular 15-minute slot.
-        for minute in (4,19,34,49):
-            self.assertIn(str(minute), "4,19,34,49")
-        self.assertEqual(tuple(int(v) for v in "13,28,43,58".split(",")),
-                         tuple(v+9 for v in (4,19,34,49)))
-        self.assertIn("cron: '13,28,43,58 22-23,0-12 * * *'", watchdog)
-        self.assertIn("cron: '4,19,34,49 0-12 * * *'", collection)
+        # Parse the actual workflow cron, not a mirrored expectation.
+        regular_collection=next(line for line in collection.splitlines()
+                                if "0-12 * * *" in line and "cron:" in line)
+        regular_watchdog=next(line for line in watchdog.splitlines()
+                              if "0-12 * * *" in line and "cron:" in line)
+        def minutes(line):
+            return tuple(int(v) for v in line.split("'")[1].split()[0].split(","))
+        collector_minutes=minutes(regular_collection)
+        watchdog_minutes=minutes(regular_watchdog)
+        self.assertEqual(len(collector_minutes),4)
+        self.assertTrue(all(minute != 0 for minute in collector_minutes))
+        self.assertTrue(all(b-a == 15 for a,b in
+                            zip(collector_minutes,collector_minutes[1:])))
+        self.assertEqual(watchdog_minutes,
+                         tuple(minute+9 for minute in collector_minutes))
         # Existing V2 start slots remain 7/22/37/52: six-minute rescue.
         self.assertIn("cron: '50 12 * * *'", watchdog)
         self.assertIn("cron: '20 13 * * *'", watchdog)
