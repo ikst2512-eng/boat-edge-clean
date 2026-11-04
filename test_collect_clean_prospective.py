@@ -196,6 +196,47 @@ class ProspectiveTests(unittest.TestCase):
         self.assertFalse(saved["formal"])
         self.assertFalse(saved["scoring"])
 
+    def test_direct_fallback_all_already_frozen_is_zero_not_failed(self):
+        day="20990101"
+        code=day+"0404"
+        t=datetime.now(JST)
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            store=Path(tmp)/"prospective_predictions"
+            store.mkdir()
+            original=store/(code+".json")
+            original.write_text(json.dumps({"race_code":code,"status":"prospective_candidate"}))
+            frozen=original.read_bytes()
+            with patch.object(capture,"STORE",store), \
+                 patch.object(capture,"read_rows",side_effect=OSError("daily unavailable")), \
+                 patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")), \
+                 patch("clean_direct_sources.holding_rows",return_value=(titles,t,"a"*64)), \
+                 patch("clean_direct_sources.direct_cards",return_value=(
+                     [],t,"",{},{})) as direct, \
+                 patch.object(capture,"model_provenance",return_value={}):
+                output=capture.collect(day)
+            self.assertEqual(output["saved"],0)
+            self.assertEqual(output["eligible"],0)
+            self.assertEqual(original.read_bytes(),frozen)
+            self.assertEqual(direct.call_args.kwargs["existing_codes"],{code})
+            self.assertEqual(direct.call_args.kwargs["limit"],18)
+
+    def test_direct_fallback_failed_card_fetch_is_not_silent_zero(self):
+        day="20990101"
+        code=day+"0404"
+        t=datetime.now(JST)
+        titles=[{"レースコード":code,"電話投票締切予定":"23:59"}]
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=OSError("daily unavailable")), \
+             patch("clean_openapi_sources.load",side_effect=ValueError("no_valid_races")), \
+             patch("clean_direct_sources.holding_rows",return_value=(titles,t,"a"*64)), \
+             patch("clean_direct_sources.direct_cards",return_value=(
+                 [],t,"",{},{"HTTPError":1})), \
+             patch.object(capture,"model_provenance",return_value={}):
+            with self.assertRaisesRegex(ValueError,"all_pre_race_sources_unavailable"):
+                capture.collect(day)
+
     def test_invalid_alternate_response_never_invokes_direct_source(self):
         day="20990101"
         with patch.object(capture,"read_rows",side_effect=OSError("daily HTTP 404")), \
