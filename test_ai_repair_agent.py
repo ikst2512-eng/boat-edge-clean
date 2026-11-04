@@ -373,7 +373,7 @@ node() {
         script = block.split("        run: |\n", 1)[1]
         validator = script.split(
             "          # Recheck the actual commit tree, not just the pre-commit index.\n", 1
-        )[1].split("          # checkout uses persist-credentials:false", 1)[0]
+        )[1].split("          # main can advance after the earlier stale-base check and tests.", 1)[0]
         validator = "\n".join(line[10:] if line.startswith("          ") else line
                               for line in validator.splitlines())
         syntax = subprocess.run(["bash", "-n"], input=validator,
