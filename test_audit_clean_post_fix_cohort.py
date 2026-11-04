@@ -57,7 +57,9 @@ class PostFixCohortTests(unittest.TestCase):
             title="a"*64
             cards="b"*64
             digest=hashlib.sha256((title+":"+cards).encode()).hexdigest()
-            record={"input_source_kind":"public_pre_race_csv",
+            record={"race_code":"202611050404",
+                    "source_deadline_jst":"2026-11-05T12:16:00+09:00",
+                    "input_source_kind":"public_pre_race_csv",
                     "validated":False, "predictions":self.valid_tickets(),
                     "source_title_sha256":title,"source_cards_sha256":cards,
                     "input_sha256":digest}
@@ -83,6 +85,41 @@ class PostFixCohortTests(unittest.TestCase):
             with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
                 with self.assertRaisesRegex(ValueError,"source digest mismatch"):
                     inspect_post_fix_record(path,root)
+
+    def test_post_fix_rejects_invalid_race_id_or_deadline_day(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            d=root/"prospective_predictions"
+            d.mkdir()
+            path="prospective_predictions/202611050404.json"
+            title="a"*64
+            cards="b"*64
+            record={
+                "race_code":"202611050404",
+                "source_deadline_jst":"2026-11-05T12:16:00+09:00",
+                "validated":False,
+                "predictions":self.valid_tickets(),
+                "input_source_kind":"public_pre_race_csv",
+                "source_title_sha256":title,
+                "source_cards_sha256":cards,
+                "input_sha256":hashlib.sha256((title+":"+cards).encode()).hexdigest(),
+            }
+            for race in ("202611050004","202611052501","202611050413"):
+                (d/"202611050404.json").write_text(json.dumps({**record,"race_code":race}))
+                with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                    with self.assertRaisesRegex(ValueError,"race identity"):
+                        inspect_post_fix_record(path,root)
+            for deadline in ("2026-11-06T12:16:00+09:00","not-a-timestamp"):
+                (d/"202611050404.json").write_text(json.dumps({
+                    **record,"source_deadline_jst":deadline}))
+                with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                    with self.assertRaisesRegex(ValueError,"race identity"):
+                        inspect_post_fix_record(path,root)
+            (d/"202611050404.json").write_text(json.dumps(record))
+            with patch("audit_clean_post_fix_cohort.inspect",return_value={}):
+                result=inspect_post_fix_record(path,root)
+            self.assertEqual(result["input_source_kind"],"public_pre_race_csv")
+            self.assertFalse(result["raw_remote_receipt_verified"])
 
     def test_post_fix_missing_or_unrecognized_source_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
