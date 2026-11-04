@@ -184,6 +184,34 @@ class AIReviewGuardTests(unittest.TestCase):
                                             text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0, label)
 
+            # Both producer safety tests and the publish job must succeed.
+            # A success-looking run cannot bypass the original test gate.
+            for label, test_jobs in (
+                ("tests-skipped", [
+                    {"name": "tests", "status": "completed", "conclusion": "skipped"},
+                    {"name": "propose", "status": "completed", "conclusion": "success"}]),
+                ("tests-failed", [
+                    {"name": "tests", "status": "completed", "conclusion": "failure"},
+                    {"name": "propose", "status": "completed", "conclusion": "success"}]),
+                ("tests-missing", [
+                    {"name": "propose", "status": "completed", "conclusion": "success"}]),
+                ("tests-duplicate", [
+                    {"name": "tests", "status": "completed", "conclusion": "success"},
+                    {"name": "tests", "status": "completed", "conclusion": "success"},
+                    {"name": "propose", "status": "completed", "conclusion": "success"}]),
+                ("tests-not-completed", [
+                    {"name": "tests", "status": "in_progress", "conclusion": None},
+                    {"name": "propose", "status": "completed", "conclusion": "success"}]),
+            ):
+                with self.subTest(case=label):
+                    run_file.write_text(json.dumps(valid))
+                    jobs_file.write_text(json.dumps({
+                        "total_count": len(test_jobs), "jobs": test_jobs
+                    }))
+                    result = subprocess.run(["python", "-c", validator], env=env,
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0, label)
+
             # Missing, short or forged total_count must fail closed; the
             # reviewer only fetches the first API page of origin jobs.
             run_file.write_text(json.dumps(valid))
