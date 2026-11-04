@@ -81,6 +81,8 @@ class SavedShadowGateTest(unittest.TestCase):
         self.calls.append("git-" + args[0])
         if args[0] == "diff-tree":
             return ("four_mode_forecasts/" + CODE + ".json\n").encode()
+        if args[0] == "merge-base":
+            return b""
         if args[0] == "show":
             return self.raw
         raise AssertionError(args)
@@ -103,7 +105,7 @@ class SavedShadowGateTest(unittest.TestCase):
     def test_result_read_last_and_saved_rank3_gain(self):
         out = self.inspect()
         self.assertEqual(out["status"], "matched_saved_shadow_and_remote_observation_research_only")
-        self.assertEqual(self.calls, ["git-diff-tree", "git-show", "result"])
+        self.assertEqual(self.calls, ["git-diff-tree", "git-merge-base", "git-show", "result"])
         self.assertTrue(out["topn"]["top3"]["gained"])
         self.assertTrue(out["topn"]["top10"]["gained"])
         self.assertFalse(out["topn"]["top1"]["gained"])
@@ -116,7 +118,7 @@ class SavedShadowGateTest(unittest.TestCase):
         self.assertEqual(out["deadline_jst"], "2026-11-05T12:00:00+09:00")
         self.assertEqual(len(out["baseline_top10"]), 10)
         self.assertEqual(len(out["candidate_top10"]), 10)
-        self.assertEqual(self.calls, ["git-diff-tree", "git-show"])
+        self.assertEqual(self.calls, ["git-diff-tree", "git-merge-base", "git-show"])
         self.assertFalse(out["result_accessed"])
         self.assertFalse(out["capture_run_inventory_verified"])
         self.assertNotIn("winning_ticket", out)
@@ -148,6 +150,16 @@ class SavedShadowGateTest(unittest.TestCase):
     def test_remote_clock_forgery_refused(self):
         self.remote["records"][0]["github_api_server_date_utc"] = "2026-11-05T03:00:00+00:00"
         out = self.inspect()
+        self.assertEqual(out["status"], "excluded_unverified_evidence")
+        self.assertNotIn("result", self.calls)
+
+    def test_non_main_commit_rejected_before_result(self):
+        import subprocess
+        def invalid_git(args):
+            if args[0] == "merge-base":
+                raise subprocess.CalledProcessError(1, args)
+            return self.git(args)
+        out = self.inspect(git=invalid_git)
         self.assertEqual(out["status"], "excluded_unverified_evidence")
         self.assertNotIn("result", self.calls)
 
