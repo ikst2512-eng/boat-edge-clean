@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - clean_racecard.py
+      - official_preview.py
+      - tests/test_real_preview_probe.py
       - scripts/verify_real_beforeinfo_source.py
       - .github/workflows/verify-real-beforeinfo.yml
   workflow_dispatch:
@@ -16,5 +18,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Probe published real HTTPS CSV (no fixture)
+      - name: Verify current-source probe classification
+        run: python -m unittest discover -s tests -p test_real_preview_probe.py -v
+      - name: Probe current real HTTPS CSV/official adapter (no fixture)
         run: python scripts/verify_real_beforeinfo_source.py

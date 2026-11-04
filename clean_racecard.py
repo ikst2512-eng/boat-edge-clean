@@ -225,6 +225,13 @@ def racecard(hd,jcd,rno):
           "motor":{"no":_num(fields.get(p+"モーター番号")),"quinella_rate":_num(fields.get(p+"モーター2連対率")),"trio_rate":_num(fields.get(p+"モーター3連対率"))},
           "boat":{"no":_num(fields.get(p+"ボート番号")),"quinella_rate":_num(fields.get(p+"ボート2連対率")),"trio_rate":_num(fields.get(p+"ボート3連対率"))}})
     beforeinfo,before_audit=(None,{"status":"not_verified_historical"}) if historical else _fetch_preview(code,path,deadline)
+    if beforeinfo is None and not historical:
+        from official_preview import preview
+        official,official_audit=preview(code,deadline,racers)
+        if official is not None:
+            beforeinfo,before_audit=official,{**official_audit,"csv_audit":before_audit}
+        else:
+            before_audit={**before_audit,"official_fallback":official_audit}
     return {"schema_version":"boat-edge-race-v5","race_key":f"{hd}-{int(jcd):02d}-{int(rno):02d}",
        "meta":{"date":f"{hd[:4]}-{hd[4:6]}-{hd[6:8]}","venue_code":f"{int(jcd):02d}","race_no":int(rno),
          "deadline":deadline_text,"phase":"HISTORICAL_READ_ONLY" if historical else "PRE_RESULT","results_seen":False,"unlock":False,"scoring":False,

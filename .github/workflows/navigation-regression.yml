@@ -13,6 +13,9 @@ on:
       - 'tests/test_saved_prospective_api.py'
       - 'tests/test_preview_completeness.py'
       - 'clean_racecard.py'
+      - 'official_preview.py'
+      - 'tests/test_official_preview.py'
+      - 'tests/fixtures/official_preview_202611040111.json'
       - '.github/workflows/navigation-regression.yml'
   push:
     branches: [main]
@@ -28,6 +31,9 @@ on:
       - 'tests/test_saved_prospective_api.py'
       - 'tests/test_preview_completeness.py'
       - 'clean_racecard.py'
+      - 'official_preview.py'
+      - 'tests/test_official_preview.py'
+      - 'tests/fixtures/official_preview_202611040111.json'
       - '.github/workflows/navigation-regression.yml'
 jobs:
   navigation-contract:
@@ -45,6 +51,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_forecast_preview_origin.py' -v
           python -m unittest discover -s tests -p 'test_saved_prospective_api.py' -v
           python -m unittest discover -s tests -p 'test_preview_completeness.py' -v
+          python -m unittest discover -s tests -p 'test_official_preview.py' -v
           python -m unittest -v test_holdout_status_async
           python -m unittest -v test_bulk_first_add
 

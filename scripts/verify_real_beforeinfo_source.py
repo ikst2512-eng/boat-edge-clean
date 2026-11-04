@@ -1,5 +1,6 @@
 """Read actual BoatraceCSV source files, never fixture data, and report schema/evidence."""
 import json
+import re
 import sys
 from pathlib import Path
 from datetime import datetime,timedelta
@@ -7,8 +8,52 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clean_racecard import _preview_rows
 
+def verify_current_adapter(day, now=None, schedule_fetch=None, card_fetch=None):
+    """Require a real current, still-open six-boat adapter response.
+
+    Historical CSV schemas cannot prove a new predeadline HTTP receipt.
+    """
+    from research_model import JST
+    from clean_schedule import clean_schedule
+    from clean_racecard import racecard
+    now = now or datetime.now(JST)
+    if day != now.strftime("%Y/%m/%d.csv"):
+        return []
+    hd = now.strftime("%Y%m%d")
+    status, schedule = (schedule_fetch or clean_schedule)(hd)
+    if status != 200:
+        return []
+    candidates = sorted((r for r in schedule.get("races", [])
+                         if datetime.fromisoformat(r["deadline_jst"]) > now),
+                        key=lambda r: r["deadline_jst"])
+    for race in candidates[:3]:
+        try:
+            data = (card_fetch or racecard)(hd, race["venue_code"], str(race["race_no"]))
+            info, audit = data.get("beforeinfo") or {}, data.get("source_audit", {}).get("beforeinfo", {})
+            deadline = datetime.fromisoformat(race["deadline_jst"])
+            observed = datetime.fromisoformat(audit.get("fetched_at", ""))
+            expected = hd + "-" + race["venue_code"] + "-" + str(race["race_no"]).zfill(2)
+            exhibits = info.get("racers", [])
+            six = (sorted(r["lane"] for r in exhibits) == list(range(1,7))
+                   and all(type(r.get("exhibition_time")) in (int,float)
+                           and 5 <= r["exhibition_time"] <= 9
+                           and type(r.get("tilt")) in (int,float) and -1 <= r["tilt"] <= 3
+                           for r in exhibits))
+            starts = info.get("start_exhibition", [])
+            if (data.get("race_key") == expected and audit.get("status") == "ok"
+                    and observed.utcoffset() is not None and observed < deadline and six
+                    and sorted(r["lane"] for r in starts) == list(range(1,7))
+                    and sorted(r["course"] for r in starts) == list(range(1,7))
+                    and all(re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})", str(r.get("st", ""))) for r in starts)):
+                return [{"race_code": race["race_code"], "source_audit": audit,
+                         "exhibition_times": 6, "start_exhibition": 6,
+                         "formal_t12_certified": False}]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return []
+
 def main(day=None):
-    day=day or (datetime.now(ZoneInfo("Asia/Tokyo"))-timedelta(days=1)).strftime("%Y/%m/%d.csv")
+    day=day or datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y/%m/%d.csv")
     evidence={}
     for kind in ("tkz","stt","sui"):
         rows,sha=_preview_rows(kind,day)
@@ -47,11 +92,17 @@ def main(day=None):
         code=row.get("レースコード","")
         clock=row.get("締切時刻","")
         if len(code)!=12 or not clock or code in seen:continue
+        try:
+            deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
+        except (ValueError,TypeError):
+            continue
+        # Closed races cannot pass the adapter's real receipt clock. Skip
+        # them before spending the six-race budget and more network fetches.
+        if deadline <= datetime.now(JST):continue
         seen.add(code)
         if checked>=6:break
         checked+=1
         try:
-            deadline=datetime.strptime(code[:8]+clock,"%Y%m%d%H:%M").replace(tzinfo=JST)
             preview,audit=_fetch_preview(code,day,deadline)
             status=audit.get("status", "unknown")
             status_counts[status]=status_counts.get(status,0)+1
@@ -92,10 +143,17 @@ def main(day=None):
         except (ValueError,KeyError):
             continue
     if not matched:
+        # A current official response can be complete while the CSV exporter
+        # has not yet published this race. Use the production adapter itself;
+        # do not backdate a historical fetch or turn an empty probe green.
+        live = verify_current_adapter(day)
+        evidence["live_adapter_observations"] = live
+        matched = [item["race_code"] for item in live]
+    if not matched:
         raise RuntimeError("REAL_BEFOREINFO_NO_VERIFIED_RACE: source columns exist but no actual race passes full adapter checks")
     evidence["verified_race_code"]=matched[0]
     evidence["coverage_sample"]={"checked":checked,"verified":len(matched),"statuses":status_counts,"verified_race_codes":matched}
     evidence["forecast_timing_comparison"]=timing
-    print(json.dumps({"source":"BoatraceCSV real HTTPS","day":day,"evidence":evidence},ensure_ascii=False))
+    print(json.dumps({"source":"CLEAN real HTTPS CSV/official adapter","day":day,"evidence":evidence},ensure_ascii=False))
 if __name__=="__main__":
     main(sys.argv[1] if len(sys.argv)>1 else None)
