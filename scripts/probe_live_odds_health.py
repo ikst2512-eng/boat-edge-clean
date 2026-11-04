@@ -5,6 +5,7 @@ No forecast model, saved prediction or result data is used.
 """
 import json
 import base64
+import binascii
 import hashlib
 import os
 import statistics
@@ -66,7 +67,7 @@ def replay_receipt(sample):
         fetched = datetime.fromisoformat(json.loads(raw)["fetched_at"])
         cutoff = deadline - timedelta(minutes=12)
         out["before_source_t12"] = fetched <= received < cutoff
-    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError, binascii.Error):
         pass
     return out
 
