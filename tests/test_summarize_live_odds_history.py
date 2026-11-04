@@ -187,6 +187,38 @@ class OddsHistoryTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(history.summarize(rows)["eventual_valid_races"], 1)
 
+    def test_history_zip_redirect_never_carries_bearer(self):
+        from urllib.error import HTTPError
+        from urllib.request import HTTPRedirectHandler
+        fake_run = {"id": 84, "event": "schedule", "conclusion": "success",
+                    "created_at": "2026-11-03T04:00:00Z"}
+        def api(url, token):
+            if "/runs?status=" in url:
+                return {"workflow_runs": [fake_run] if "&event=schedule&" in url else []}
+            return {"artifacts": [{"name": history.ARTIFACT, "id": 8, "expired": False}]}
+
+        requests = []
+        def archive(request, **_):
+            requests.append(request)
+            redirected = HTTPRedirectHandler().redirect_request(
+                request, None, 302, "Found", {},
+                "https://artifact-cdn.example.test/file.zip?sig=test")
+            self.assertIn("Authorization", request.unredirected_hdrs)
+            self.assertNotIn("Authorization", request.headers)
+            self.assertNotIn("Authorization", redirected.headers)
+            self.assertNotIn("Authorization", redirected.unredirected_hdrs)
+            raise HTTPError("https://artifact-cdn.example.test", 401, "Unauthorized", None, None)
+
+        with patch.object(history, "api_json", side_effect=api), patch.object(
+                history, "urlopen", side_effect=archive):
+            rows, selected, errors = history.fetch_history(
+                "a/b", "fake", {"source_status": "no_upcoming_race", "samples": []},
+                now=datetime(2026, 11, 3, 5, tzinfo=timezone.utc))
+        self.assertEqual(selected, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(errors[0]["http_status"], 401)
+
     def test_history_artifact_http_errors_keep_stage_and_status(self):
         from urllib.error import HTTPError
 
