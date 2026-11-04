@@ -27,6 +27,51 @@ def run(age, event="schedule", status="completed", conclusion="success",
 
 
 class CleanProspectiveWatchdogTests(unittest.TestCase):
+    def test_wakeup_only_dispatches_after_actual_clean_slot(self):
+        # A main push is not a missed cron. In particular, 07:00 precedes
+        # today's first 07:04 slot, and 22:44 is after the 22:33 T-12 gate.
+        jst = timezone(timedelta(hours=9))
+        cases = (
+            (7, 0, False), (7, 3, False),
+            (7, 4, True), (7, 10, True), (7, 17, True),
+            (7, 18, False), (7, 19, True),
+            (21, 59, True), (22, 0, True), (22, 3, False),
+            (22, 4, True), (22, 18, True), (22, 19, True),
+            (22, 28, True), (22, 32, True),
+            (22, 33, False), (22, 44, False),
+        )
+        for hour, minute, expected in cases:
+            with self.subTest(hour=hour, minute=minute):
+                now = datetime(2026, 11, 5, hour, minute, tzinfo=jst)
+                self.assertEqual(decide([], now, "push", MAIN), expected)
+        # This also applies to a legitimate independent wakeup.
+        from scripts.clean_prospective_watchdog import trusted_schedule_completion
+        self.assertTrue(trusted_schedule_completion({
+            "workflow_run": {"name": "Preview capture (schedule)",
+                             "event": "schedule", "head_branch": "main",
+                             "status": "completed", "conclusion": "success",
+                             "head_repository": {"full_name":
+                                "ikst2512-eng/boat-edge-clean"}}
+        }, "ikst2512-eng/boat-edge-clean"))
+
+    def test_no_fetch_before_first_scheduled_capture(self):
+        from scripts import clean_prospective_watchdog as mod
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(mod, "OUTPUT", Path(tmp) / "decision.json"), \\
+                 patch.dict("os.environ", {
+                     "GITHUB_EVENT_NAME": "push",
+                     "GITHUB_REF": MAIN,
+                     "GITHUB_RUN_ID": "20261105",
+                 }), \\
+                 patch.object(mod, "fetch_runs") as fetch, \\
+                 patch.object(mod, "datetime") as clock:
+                clock.now.return_value = datetime(
+                    2026, 11, 4, 22, 0, tzinfo=timezone.utc)
+                mod.main()
+                fetch.assert_not_called()
+                decision = json.loads((Path(tmp) / "decision.json").read_text())
+                self.assertEqual(decision["action"], "no_dispatch")
+
     def test_missing_unattended_slot_triggers_bounded_main_only_recovery(self):
         self.assertTrue(decide([], NOW, "schedule", MAIN))
         self.assertTrue(decide([run(20)], NOW, "push", MAIN))
