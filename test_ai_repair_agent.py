@@ -555,6 +555,57 @@ node() {
                         self.assertEqual(saved["published_head_sha"], head)
                         self.assertEqual(saved["published_base_sha"], "b" * 40)
 
+    def test_ai_push_rejects_main_advance_after_commit(self):
+        workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
+            encoding="utf-8")
+        publish = workflow.split(
+            "      - name: Publish reviewed-by-CI patch as draft PR\n", 1)[1]
+        guard = publish.split(
+            "          # main can advance after the earlier stale-base check and tests.\n", 1
+        )[1].split(
+            "          # checkout uses persist-credentials:false", 1
+        )[0]
+        guard = "\n".join(line[10:] if line.startswith("          ") else line
+                          for line in guard.splitlines())
+        script = (
+            'set -euo pipefail\n'
+            'gh() { if [[ "$1" == "api" ]]; then printf "%s\\n" "$MOCK_MAIN"; '
+            'else return 2; fi; }\n' + guard
+        )
+        syntax = subprocess.run(["bash", "-n"], input=script,
+                                text=True, capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"],
+                           cwd=root, check=True)
+            file = root / "navigation.js"
+            file.write_bytes(b"original\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "main"], cwd=root, check=True)
+            main_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            file.write_bytes(b"reviewed change\n")
+            subprocess.run(["git", "add", "navigation.js"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "proposal"], cwd=root, check=True)
+            for label, live, dispatched, expected in (
+                ("matches", main_sha, main_sha, True),
+                ("main-advanced", "1" * 40, main_sha, False),
+                ("wrong-dispatch-base", main_sha, "2" * 40, False),
+                ("missing-main", "", main_sha, False),
+            ):
+                with self.subTest(case=label):
+                    env = dict(os.environ, MOCK_MAIN=live,
+                               GITHUB_SHA=dispatched,
+                               GITHUB_REPOSITORY="example/repo")
+                    result = subprocess.run(["bash", "-c", script], cwd=root,
+                                            env=env, text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected,
+                                     label + result.stdout + result.stderr)
+
     def test_review_artifact_is_required_for_successful_proposal_run(self):
         workflow = Path(".github/workflows/ai-repair-proposal.yml").read_text(
             encoding="utf-8")
