@@ -278,6 +278,27 @@ class FallbackGateTests(unittest.TestCase):
         self.assertEqual(gate.direct_probe_evidence("a/b", "token", 17, fetch_json=artifacts,
                           fetch_zip=lambda *_: archive_of(evidence)), "no_valid_odds")
 
+    def test_post_upgrade_unreplayable_200_cannot_suppress_fallback(self):
+        import io
+        import zipfile
+        # A successful workflow artifact is not proof of 120 valid tickets.
+        record = {"source_status": "ok",
+                  "checked_at_jst": "2026-11-05T12:25:00+09:00",
+                  "samples": [{"race_code": "202611050111",
+                               "attempts": [{
+                                   "http": 200, "state": "valid_200",
+                                   "latency_ms": 30,
+                                   "started_at_utc": "2026-11-05T03:25:01+00:00",
+                                   "finished_at_utc": "2026-11-05T03:25:02+00:00"}]}]}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as out:
+            out.writestr("live_odds_metrics.json", json.dumps(record))
+        artifacts = lambda *_: {"artifacts": [{
+            "name": "live-odds-metrics", "id": 91, "expired": False}]}
+        self.assertEqual(gate.direct_probe_evidence(
+            "a/b", "token", 91, fetch_json=artifacts,
+            fetch_zip=lambda *_: archive.getvalue()), "no_valid_odds")
+
     def test_failed_artifact_download_does_not_assume_direct_success(self):
         artifacts = lambda *_: {"artifacts": [{"name": "live-odds-metrics", "id": 7, "expired": False}]}
         def inaccessible(*_):

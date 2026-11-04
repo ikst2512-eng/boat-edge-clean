@@ -24,6 +24,39 @@ class OddsOperationalVerdictTests(unittest.TestCase):
     def sample(state, http):
         return {"race_code": "202611030111", "attempts": [attempt(state, http)]}
 
+    def test_post_upgrade_verdict_requires_replayable_120_response(self):
+        import base64
+        import hashlib
+        import json
+        from itertools import permutations
+        code = "202611050111"
+        checked = "2026-11-05T12:25:00+09:00"
+        attempt = {"http": 200, "state": "valid_200", "latency_ms": 44,
+                   "started_at_utc": "2026-11-05T03:25:01+00:00",
+                   "finished_at_utc": "2026-11-05T03:25:02+00:00"}
+        sample = {"race_code": code, "attempts": [attempt],
+                  "source_deadline_jst": "2026-11-05T16:30:00+09:00"}
+        row = record([sample], checked=checked)
+        self.assertEqual(verdict(row), "no_valid_200")
+        odds = {"-".join(map(str, p)): 3.5 for p in permutations(range(1, 7), 3)}
+        raw = json.dumps({"ok": True, "hd": "20261105", "jcd": "01",
+                          "rno": 11, "odds": odds,
+                          "fetched_at": "2026-11-05T03:25:02+00:00"}).encode()
+        attempt["response_base64"] = base64.b64encode(raw).decode()
+        attempt["response_sha256"] = hashlib.sha256(raw).hexdigest()
+        self.assertEqual(verdict(row), "valid_200_observed")
+        attempt["response_sha256"] = "0" * 64
+        self.assertEqual(verdict(row), "no_valid_200")
+        attempt["response_sha256"] = hashlib.sha256(raw).hexdigest()
+        attempt["response_base64"] = base64.b64encode(raw.replace(
+            b'"1-2-3": 3.5, ', b"")).decode()
+        attempt["response_sha256"] = hashlib.sha256(base64.b64decode(
+            attempt["response_base64"])).hexdigest()
+        self.assertEqual(verdict(row), "no_valid_200")
+        # An invalid Base64 receipt is rejected rather than raising.
+        attempt["response_base64"] = "%%%INVALID%%%"
+        self.assertEqual(verdict(row), "no_valid_200")
+
     def test_healthy_saved_response(self):
         self.assertEqual(verdict(record([self.sample("valid_200", 200)])),
                          "valid_200_observed")

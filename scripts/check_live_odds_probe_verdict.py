@@ -6,8 +6,10 @@ The raw observation artifact is uploaded even if this check fails.
 import json
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from summarize_live_odds_history import consistent_observation_times
+from probe_live_odds_health import replay_receipt
 
 
 def verdict(record):
@@ -16,6 +18,13 @@ def verdict(record):
     samples = record.get("samples")
     if not isinstance(samples, list) or not samples:
         return "no_eligible_races"
+    try:
+        stamp = datetime.fromisoformat(record["checked_at_jst"])
+        if stamp.tzinfo is None:
+            return "no_valid_200"
+        post_upgrade = stamp.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d") >= "20261105"
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return "no_valid_200"
     for sample in samples:
         if not isinstance(sample, dict):
             continue
@@ -31,7 +40,10 @@ def verdict(record):
                         and "finished_at_utc" in step for step in attempts)
                 and consistent_observation_times(attempts, record.get("checked_at_jst"))
                 and attempts[-1]["state"] == "valid_200"
-                and attempts[-1]["http"] == 200):
+                and attempts[-1]["http"] == 200
+                # From the first full day after exact HTTP bodies were added,
+                # an unverified status label is never operational success.
+                and (not post_upgrade or replay_receipt(sample)["response_verified"])):
             return "valid_200_observed"
     return "no_valid_200"
 
