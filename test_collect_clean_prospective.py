@@ -84,11 +84,11 @@ class ProspectiveTests(unittest.TestCase):
         def daily(url):
             return (title if "/title/" in url else card),datetime.now(JST),"a"*64
         diagnostic=io.StringIO()
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \\
-             patch.object(capture,"read_rows",side_effect=daily), \\
-             patch.object(capture,"supplement_unlisted",return_value={}), \\
-             patch.object(capture,"model_provenance",return_value={}), \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=daily), \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
+             patch.object(capture,"model_provenance",return_value={}), \
              patch("sys.stderr",diagnostic):
             original=capture.collect(day)
             target=Path(tmp)/"prospective_predictions"/(code+".json")
@@ -117,11 +117,11 @@ class ProspectiveTests(unittest.TestCase):
         def daily(url):
             return (titles if "/title/" in url else cards),datetime.now(JST),"a"*64
         diagnostics=io.StringIO()
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \\
-             patch.object(capture,"read_rows",side_effect=daily), \\
-             patch.object(capture,"supplement_unlisted",return_value={}), \\
-             patch.object(capture,"model_provenance",return_value={}), \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(capture,"STORE",Path(tmp)/"prospective_predictions"), \
+             patch.object(capture,"read_rows",side_effect=daily), \
+             patch.object(capture,"supplement_unlisted",return_value={}), \
+             patch.object(capture,"model_provenance",return_value={}), \
              patch("sys.stderr",diagnostics):
             folder=Path(tmp)/"prospective_predictions"
             folder.mkdir()
