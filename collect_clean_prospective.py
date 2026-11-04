@@ -117,6 +117,11 @@ def supplement_unlisted(day, titles, cards, existing_output, provenance, limit=1
             "daily_candidates_retained":len(existing_output)
         },sort_keys=True),file=sys.stderr)
         return {}
+    # If the partial primary files yielded no valid candidate, then failed
+    # attempted direct-card requests are an upstream failure, not a legitimate
+    # empty eligible set. Preserve primary candidates when any survived.
+    if not extra_cards and failed and not existing_output:
+        raise ValueError("supplement_all_card_fetches_failed")
     later=build(day,extra,extra_cards,t1,t2,h1,card_hashes,
                 datetime.now(JST),{**provenance,
                    "input_source_kind":"direct_race_specific_pre_race"})
