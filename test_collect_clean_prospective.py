@@ -445,7 +445,7 @@ class ProspectiveTests(unittest.TestCase):
         self.assertIn("FOUR_MODE_RAW_RECEIPT_DIR: test-results/prospective-source-originals",capture_step)
         self.assertIn("test-results/prospective-capture.log",archive_step)
         self.assertIn("test-results/prospective-source-originals/",archive_step)
-        self.assertIn("if: always() && github.event_name != 'pull_request'",archive_step)
+        self.assertIn("if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')",archive_step)
         raw=b'{"raw":"prospective-only"}'
         received=datetime(2026,11,4,12,0,tzinfo=JST)
         url="https://race.boatcast.jp/api_txt/getHoldingList2_20261104.json"
@@ -466,20 +466,33 @@ class ProspectiveTests(unittest.TestCase):
         expected=(
             "group: ${{ github.event_name == 'pull_request' && "
             "format('clean-prospective-pr-{0}', github.event.pull_request.number) "
+            "|| github.event_name == 'push' && 'clean-prospective-main-push-ci' "
             "|| 'clean-prospective-capture' }}"
         )
         self.assertIn(expected,concurrency)
         self.assertIn("cancel-in-progress: false",concurrency)
-        # PR jobs only unit-test, never stage, freeze, or push a candidate.
+        # PR and main push jobs only unit-test; no high-frequency event may
+        # replace a pending scheduled immutable publication.
         capture=workflow.split("      - name: Capture if public race cards are already published",1)[1].split(
             "      - name: Freeze immutable candidate evidence",1)[0]
         freeze=workflow.split("      - name: Freeze immutable candidate evidence",1)[1].split(
             "      - name: Flag zero daily captures after midday JST",1)[0]
-        self.assertIn("if: github.event_name != 'pull_request'",capture)
-        self.assertIn("if: github.event_name != 'pull_request'",freeze)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",capture)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",freeze)
         self.assertIn("git commit -m 'data: freeze prospective pre-cutoff",freeze)
-        # All non-PR events keep one publication group, no independent
-        # schedule or extra writer and no cancel-in-progress relaxation.
+        # Only schedule and manual recovery keep the single-writer group.
+        # Main push still runs the unit tests and independently wakes the
+        # existing watchdog when a scheduled slot was omitted.
+        watchdog=(Path(__file__).resolve().parent/".github/workflows/four-mode-capture-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn("  push:\n    branches: [main]",watchdog)
+        self.assertIn("run: python -m scripts.clean_prospective_watchdog",watchdog)
+        monitor=workflow.split("      - name: Flag zero daily captures after midday JST",1)[1].split(
+            "      - name: Archive prospective capture diagnostics",1)[0]
+        archive=workflow.split("      - name: Archive prospective capture diagnostics",1)[1]
+        safe="github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'"
+        self.assertIn(safe,monitor)
+        self.assertIn(safe,archive)
+        # No new writer, no new schedule, no T-12 relaxation.
         self.assertIn("  schedule:",workflow)
         self.assertIn("  workflow_dispatch:",workflow)
         self.assertIn("  push:",workflow)
