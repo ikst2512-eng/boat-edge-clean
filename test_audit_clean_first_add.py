@@ -45,6 +45,47 @@ class FirstAddAuditTests(unittest.TestCase):
                                         "first Git commit predates candidate generation"):
                 audit.inspect("prospective_predictions/202611050404.json")
 
+    def test_real_nov5_same_second_commit_is_ambiguous_not_certified(self):
+        # Original incident 202611050101: Git %cI 11:04:24 JST,
+        # JSON generated_at 11:04:24.496897 JST. Git lacks subseconds.
+        path="prospective_predictions/202611050101.json"
+        obj={"race_code":"202611050101","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-05T15:20:00+09:00",
+             "cutoff_jst":"2026-11-05T15:08:00+09:00",
+             "generated_at":"2026-11-05T11:04:24.496897+09:00",
+             "source_title_received_jst":"2026-11-05T11:04:24.112108+09:00",
+             "source_cards_received_jst":"2026-11-05T11:04:24.475890+09:00"}
+        original=json.dumps(obj).encode()
+        history=(original,"a"*40,datetime.fromisoformat("2026-11-05T11:04:24+09:00"))
+        with patch.object(audit,"first_add",return_value=history):
+            with self.assertRaisesRegex(ValueError,"same-second order unverified"):
+                audit.inspect(path)
+        with patch.object(audit,"first_add",return_value=history), \
+             patch.object(audit,"bulk_first_add",return_value=__import__("contextlib").nullcontext()):
+            report=audit.audit_records([path])
+        self.assertEqual(report["total"],1)
+        self.assertEqual(report["local_audit_passed"],0)
+        self.assertEqual(report["rejected"],1)
+        self.assertEqual(report["rejection_reasons"],
+                         {"first_commit_generation_same_second_ambiguous":1})
+        self.assertFalse(report["remote_first_seen_verified"])
+
+    def test_strictly_earlier_git_commit_stays_chronology_rejection(self):
+        path="prospective_predictions/202611050101.json"
+        obj={"race_code":"202611050101","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-05T15:20:00+09:00",
+             "cutoff_jst":"2026-11-05T15:08:00+09:00",
+             "generated_at":"2026-11-05T11:04:24.496897+09:00",
+             "source_title_received_jst":"2026-11-05T11:04:24.112108+09:00",
+             "source_cards_received_jst":"2026-11-05T11:04:24.475890+09:00"}
+        with patch.object(audit,"first_add",return_value=(
+            json.dumps(obj).encode(),"a"*40,
+            datetime.fromisoformat("2026-11-05T11:04:23+09:00"))):
+            with self.assertRaisesRegex(ValueError,"predates candidate generation"):
+                audit.inspect(path)
+
     def test_receipts_after_forecast_generation_denied_even_before_cutoff(self):
         # Observed in 202611040404: generated 11:01:33.627, title and cards
         # not received until 11:01:33.708 and 11:01:33.766 respectively.
