@@ -4,7 +4,7 @@ import datetime as dt
 import tempfile
 import unittest
 from pathlib import Path
-from research_venue_wind_outcomes import classify, export, study, wilson
+from scripts.research_venue_wind_outcomes import classify, export, study, wilson
 
 
 DAY = dt.date(2026, 10, 1)
