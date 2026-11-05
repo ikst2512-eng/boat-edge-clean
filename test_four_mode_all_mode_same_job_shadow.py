@@ -8,7 +8,7 @@ from pathlib import Path
 
 from clean_four_modes import rank_modes
 from research_model import probabilities
-from four_mode_all_mode_same_job_shadow import candidate_modes, capture, SIZES, PROTECTED
+from four_mode_all_mode_same_job_shadow import candidate_modes, capture, audit_historical_input_day, SIZES, PROTECTED
 
 JST = timezone(timedelta(hours=9))
 SHA = "a" * 40
@@ -140,6 +140,17 @@ class FrozenAllModeTests(unittest.TestCase):
         raw["finish_order"]=[1,2,3]
         with self.assertRaisesRegex(ValueError,"postrace_content_in_forecast"):
             candidate_modes(raw)
+
+    def test_historical_input_replay_does_not_require_outcome(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            fixture(root)
+            report=audit_historical_input_day(root,"20261107")
+            self.assertEqual(report["original_v2_races"],1)
+            self.assertFalse(report["result_files_read"])
+            self.assertFalse(report["formal"])
+            self.assertEqual(report["excluded"],{})
+            self.assertEqual(report["changes"]["hole"]["changed_top1"],0)
 
     def test_corrupt_pub_addition_roster_is_hard_error(self):
         with tempfile.TemporaryDirectory() as d:
