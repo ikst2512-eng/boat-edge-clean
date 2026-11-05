@@ -203,10 +203,33 @@ def publish(raw, root, run_id, attempt, remote_read, remote_create, observer, gi
                 previous.get("observed_before_t_minus_12",0)+
                     previous.get("observed_late_or_ambiguous",0)!=document["frozen_count"]):
             raise ValueError("existing_observation_note_collision")
+        try:
+            prior_when=datetime.fromisoformat(previous["candidate_observed_github_server_date_utc"])
+        except (ValueError,KeyError,TypeError) as exc:
+            raise ValueError("existing_observation_time_invalid") from exc
+        if prior_when.utcoffset()!=timedelta(0):
+            raise ValueError("existing_observation_time_not_UTC")
+        expected=[]
+        for row in document["records"]:
+            if row["status"]!="frozen_local_before_T_minus_12_research_only":
+                continue
+            cutoff=datetime.fromisoformat(row["candidate_last_safe_jst"])
+            generated=datetime.fromisoformat(row["frozen_at_jst"])
+            state=("github_observed_candidate_before_T12" if
+                   generated+timedelta(seconds=1)<prior_when<cutoff else
+                   "candidate_observation_late_or_same_second")
+            expected.append({"race_code":row["race_code"],"status":state})
+        if (previous["records"]!=expected or
+                previous["observed_before_t_minus_12"]!=sum(
+                    r["status"]=="github_observed_candidate_before_T12" for r in expected) or
+                previous["observed_late_or_ambiguous"]!=sum(
+                    r["status"]!="github_observed_candidate_before_T12" for r in expected)):
+            raise ValueError("existing_observation_note_timing_inconsistent")
         if remote_read(note_path)!=old_note:
             raise ValueError("existing_observation_note_changed")
         report=previous
         note_status="existing_identical_observation_note"
+    report["status"]=status
     report["immutable_observation_note_path"]=note_path
     report["immutable_observation_note_status"]=note_status
     return report
