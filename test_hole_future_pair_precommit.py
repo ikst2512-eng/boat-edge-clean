@@ -1,4 +1,6 @@
 """Fail-closed regression gates for research-only hole pair precommit."""
+import json
+import sys
 import tempfile
 import unittest
 from datetime import datetime,timezone,timedelta
@@ -135,6 +137,46 @@ class PairPrecommitTest(unittest.TestCase):
                 with patch.object(s,"compare_race",side_effect=AssertionError("opened result")):
                     result=s.review(record,root)
                 self.assertEqual(result["status"],"invalid_method_or_claim")
+
+
+    def test_cli_writes_complete_candidates_once_without_overwriting(self):
+        # Captured stdout intentionally omits picks; only immutable output holds
+        # the full exact tickets and checksums needed for later result-blind audit.
+        with tempfile.TemporaryDirectory() as temp:
+            output=Path(temp)/"frozen-hole-pair.json"
+            picks={
+                "baseline":BASE[:],
+                "same_pair_two_thirds":BASE[:5]+["1-5-2","1-5-3"]+BASE[5:8],
+                "two_pairs_one_third":BASE[:5]+["1-5-2","2-4-1"]+BASE[5:8],
+            }
+            record={
+                "schema":"HOLE_PAIR_FUTURE_FREEZE_V1",
+                "status":"locally_frozen_unverified",
+                "race_code":CODE,
+                "candidates":picks,
+                "candidates_sha256":s.canonical_digest(picks),
+                "locked_selector_git_blobs":{"selector":"original-hash"},
+                "source_sha256":"0"*64,
+                "formal":False,
+                "prospective_validation":False,
+                "independent_first_receipt_verified":False,
+                "production_forecast_changed":False,
+            }
+            argv=["hole_future_pair_precommit.py",CODE,"--root",temp,
+                  "--output",str(output)]
+            with patch.object(sys,"argv",argv), \
+                 patch.object(s,"freeze",return_value=record):
+                s.main()
+                self.assertTrue(output.exists())
+                saved=json.loads(output.read_text(encoding="utf-8"))
+                self.assertEqual(saved,record)
+                self.assertEqual(saved["candidates_sha256"],
+                                 s.canonical_digest(saved["candidates"]))
+                self.assertEqual(saved["candidates"]["baseline"][:5],
+                                 saved["candidates"]["same_pair_two_thirds"][:5])
+                with self.assertRaisesRegex(ValueError,"already_exists"):
+                    s.main()
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")),record)
 
     def test_corrupt_or_false_attestation_prevents_outcome_read(self):
         with tempfile.TemporaryDirectory() as temp:
