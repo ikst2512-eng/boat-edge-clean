@@ -17,6 +17,7 @@ BASE=["1-2-3","1-2-4","1-3-2","1-3-4","2-1-3",
 def archive():
     tickets=lambda xs:[{"combo":x,"p":3.0} for x in xs]
     return {"deadline_jst":(CUTOFF+timedelta(minutes=12)).isoformat(),
+            "generated_at_jst":(START-timedelta(minutes=1)).isoformat(),
             "model_version":"CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
             "modes":{"hole":{"tickets":tickets(BASE)},
                      "hit":{"tickets":tickets(["1-5-2","1-5-3","2-4-1","2-5-1"]+BASE)},
@@ -98,6 +99,42 @@ class PairPrecommitTest(unittest.TestCase):
         d2=s.top10_loss_diagnostic(original,candidate2,"2-3-4")
         self.assertFalse(d2["first_second_pair_still_covered"])
         self.assertEqual(d2["cause"],"winning_first_second_pair_removed")
+
+    def test_source_must_exist_before_freeze_starts(self):
+        # No candidate can be labelled frozen before its source forecast exists.
+        future=archive()
+        future["generated_at_jst"]=(START+timedelta(seconds=1)).isoformat()
+        with patch.object(s,"archived_four_modes",return_value=(200,future)), \\
+             patch.object(s,"select",side_effect=AssertionError("opened selector")):
+            r=s.freeze(CODE,".",started_at=START,completed_at=FINISH)
+        self.assertEqual(r["status"],"source_not_generated_before_freeze")
+        self.assertFalse(r["formal"])
+        missing=archive()
+        missing.pop("generated_at_jst")
+        with patch.object(s,"archived_four_modes",return_value=(200,missing)), \\
+             patch.object(s,"select",side_effect=AssertionError("opened selector")):
+            r=s.freeze(CODE,".",started_at=START,completed_at=FINISH)
+        self.assertEqual(r["status"],"source_not_generated_before_freeze")
+
+    def test_replay_refuses_impossible_source_chronology_and_false_formal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            (root/"four_mode_forecasts").mkdir()
+            (root/"four_mode_forecasts"/(CODE+".json")).write_text("archived",encoding="utf-8")
+            with patch.object(s,"archived_four_modes",return_value=(200,archive())), \\
+                 patch.object(s,"verify_locked_selection",return_value={"pinned":"sha"}):
+                record=s.freeze(CODE,root,started_at=START,completed_at=FINISH)
+                self.assertEqual(record["status"],"locally_frozen_unverified")
+                impossible=archive()
+                impossible["generated_at_jst"]=(START+timedelta(seconds=1)).isoformat()
+                with patch.object(s,"archived_four_modes",return_value=(200,impossible)), \\
+                     patch.object(s,"compare_race",side_effect=AssertionError("opened result")):
+                    result=s.review(record,root)
+                self.assertEqual(result["status"],"timing_mismatch")
+                record["formal"]=True
+                with patch.object(s,"compare_race",side_effect=AssertionError("opened result")):
+                    result=s.review(record,root)
+                self.assertEqual(result["status"],"invalid_method_or_claim")
 
     def test_corrupt_or_false_attestation_prevents_outcome_read(self):
         with tempfile.TemporaryDirectory() as temp:
