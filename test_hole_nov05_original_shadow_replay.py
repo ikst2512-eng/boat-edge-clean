@@ -8,6 +8,18 @@ from unittest.mock import patch
 import hole_nov05_original_shadow_replay as m
 
 class Nov05OriginalShadowTest(unittest.TestCase):
+    def test_server_forecast_observed_before_later_shadow_is_not_shadow_receipt(self):
+        from datetime import datetime
+        obs=datetime.fromisoformat("2026-11-05T02:15:17+00:00")
+        cutoff=datetime.fromisoformat("2026-11-05T15:08:00+09:00")
+        rec={"local_freeze_at_jst":"2026-11-05T11:15:42+09:00"}
+        result=m.shadow_vs_source_clock(rec,obs,cutoff)
+        self.assertTrue(result["source_observed_before_shadow_freeze"])
+        self.assertEqual(result["source_observation_to_shadow_freeze_seconds"],25.0)
+        rec["local_freeze_at_jst"]="2026-11-05T15:08:00+09:00"
+        with self.assertRaisesRegex(ValueError,"shadow_local_freeze_not_before_t12"):
+            m.shadow_vs_source_clock(rec,obs,cutoff)
+
     def test_empty_capture_fails_not_empty_success(self):
         with tempfile.TemporaryDirectory() as t:
             with self.assertRaisesRegex(ValueError,"missing_or_unsafe_artifact"):
