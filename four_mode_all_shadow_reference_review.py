@@ -27,8 +27,10 @@ def fail(reason):
 
 def validate_capture_before_any_results(captures, root):
     """Fail closed for a partial/mixed capture; never substitute successful rows."""
-    if type(captures) is not list or not captures:
-        return [], Counter(), 0
+    if type(captures) is not list:
+        raise ValueError("invalid_capture_input")
+    if not captures:
+        return {}, Counter(), 0
     root = Path(root)
     method_path = Path(__file__).resolve().parent/"four_mode_all_mode_same_job_shadow.py"
     actual_method_sha = hashlib.sha256(method_path.read_bytes()).hexdigest()
