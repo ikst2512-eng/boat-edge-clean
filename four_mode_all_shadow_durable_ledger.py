@@ -160,7 +160,7 @@ def publish(raw, root, run_id, attempt, remote_read, remote_create, observer, gi
         rows.append({"race_code":row["race_code"],"status":state})
     if len(rows)!=document["frozen_count"] or before+after!=len(rows):
         raise ValueError("remote_observation_partition_error")
-    return {"schema":"FOUR_MODE_ALL_REMOTE_LEDGER_V1","status":status,
+    report = {"schema":"FOUR_MODE_ALL_REMOTE_LEDGER_V1","status":status,
             "stored":True,"formal":False,"model_promotion_allowed":False,
             "candidate_first_remote_receipt_verified":False,
             "candidate_github_server_observation_not_first_receipt":True,
@@ -171,6 +171,45 @@ def publish(raw, root, run_id, attempt, remote_read, remote_create, observer, gi
             "locally_frozen_count":document["frozen_count"],
             "observed_before_t_minus_12":before,
             "observed_late_or_ambiguous":after,"records":rows}
+    # Preserve the observation separately so its *reported* GitHub server Date
+    # cannot disappear when the Actions artifact expires after 30 days.
+    # This is a readback observation, NOT proof of independent first receipt.
+    note_path=path.replace("four_mode_all/","four_mode_all_observation/",1)
+    old_note=remote_read(note_path)
+    if old_note is None:
+        frozen_note=(json.dumps(report,ensure_ascii=False,sort_keys=True,
+                     separators=(",",":"))+"\n").encode("utf-8")
+        remote_create(note_path,frozen_note,run_id)
+        note_status="new_immutable_observation_note"
+        if remote_read(note_path)!=frozen_note:
+            raise ValueError("observation_note_remote_readback_mismatch")
+    else:
+        if type(old_note) is not bytes or len(old_note)>100_000:
+            raise ValueError("invalid_prior_observation_note")
+        try:
+            previous=json.loads(old_note)
+        except (ValueError,UnicodeError) as exc:
+            raise ValueError("corrupt_prior_observation_note") from exc
+        if (type(previous) is not dict or
+                previous.get("schema")!="FOUR_MODE_ALL_REMOTE_LEDGER_V1" or
+                previous.get("path")!=path or
+                previous.get("candidate_sha256")!=report["candidate_sha256"] or
+                previous.get("capture_run_id")!=run_id or
+                previous.get("capture_run_attempt")!=attempt or
+                previous.get("formal") is not False or
+                previous.get("candidate_first_remote_receipt_verified") is not False or
+                type(previous.get("records")) is not list or
+                len(previous["records"])!=document["frozen_count"] or
+                previous.get("observed_before_t_minus_12",0)+
+                    previous.get("observed_late_or_ambiguous",0)!=document["frozen_count"]):
+            raise ValueError("existing_observation_note_collision")
+        if remote_read(note_path)!=old_note:
+            raise ValueError("existing_observation_note_changed")
+        report=previous
+        note_status="existing_identical_observation_note"
+    report["immutable_observation_note_path"]=note_path
+    report["immutable_observation_note_status"]=note_status
+    return report
 
 
 def main():
