@@ -56,6 +56,13 @@ jobs:
           assert x["github_observed_before_t12_not_first_receipt"]==106
           assert x["comparable_confirmed"]==x["replay_verified_candidate_count"]==106
           assert x["frozen_without_scored_result"]==0
+          assert x["captured_cohort_all_results_matched"] is True
+          assert x["status"]=="captured_cohort_all_results_matched_nonformal"
+          assert x["source_forecast_github_observed_before_t12"]==106
+          assert x["shadow_local_freeze_before_t12_count"]==106
+          assert x["source_observed_before_shadow_freeze_count"]==106
+          assert x["source_remote_observation_is_shadow_receipt"] is False
+          assert x["shadow_first_remote_receipt_independently_verified"] is False
           assert not x["replay_excluded_by_reason"]
           assert x["formal"] is False and x["prospective_validation"] is False
           assert x["independent_first_receipt_verified"] is False
@@ -65,6 +72,9 @@ jobs:
               "capture_run":x["original_capture_run"],
               "total_original_snapshots":x["original_frozen_count"],
               "before_t12_github_observations":x["github_observed_before_t12_not_first_receipt"],
+              "source_observed_before_shadow_freeze":x["source_observed_before_shadow_freeze_count"],
+              "source_to_shadow_clock_gap_seconds":x["source_observation_to_shadow_freeze_seconds_range"],
+              "independent_shadow_first_receipt":x["shadow_first_remote_receipt_independently_verified"],
               "verified_candidates":x["replay_verified_candidate_count"],
               "confirmed_now":x["comparable_confirmed"],
               "pending_or_unscored":x["frozen_without_scored_result"],
