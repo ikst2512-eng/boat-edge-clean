@@ -125,6 +125,7 @@ def inspect(root, artifact):
     # and original remote publication records have been fully validated.
     heads=Counter()
     pair_misses=Counter()
+    by_race={}
     for row in rows:
         code=row["race_code"]
         rec=original[code]
@@ -139,7 +140,39 @@ def inspect(root, artifact):
         heads["rank1_correct_head"]+=int(frozen[0].split("-")[0]==winning.split("-")[0])
         heads["rank1_exact_trifecta"]+=int(frozen[0]==winning)
         heads["head_exists_anywhere_top10"]+=int(any(t.split("-")[0]==winning.split("-")[0] for t in frozen))
-        pair_misses[classify_ticket_miss(frozen,winning)]+=1
+        miss_class=classify_ticket_miss(frozen,winning)
+        pair_misses[miss_class]+=1
+        ranks={}
+        for name in POLICIES:
+            p=rec["future_locked_candidates"][name]
+            ranks[name]=p.index(winning)+1 if winning in p else 0
+            if bool(0<ranks[name]<=10) != row["flags"][name]["top10"]:
+                raise ValueError("winning_rank_and_flag_conflict")
+        by_race[code]={
+            "winning_ticket":winning,
+            "baseline_miss_class":miss_class,
+            "frozen_candidate_winning_ranks":ranks,
+            "baseline_top1_head_match":frozen[0].split("-")[0]==winning.split("-")[0]
+        }
+    paired_changes={}
+    for name in POLICIES[1:]:
+        gained=[];lost=[]
+        for row in rows:
+            code=row["race_code"]
+            old=row["flags"]["baseline"]["top10"]
+            new=row["flags"][name]["top10"]
+            if new and not old:gained.append({"race_code":code,**by_race[code]})
+            if old and not new:lost.append({"race_code":code,**by_race[code]})
+        if (len(gained)!=scored["delta"][name]["top10"]["gained"]
+                or len(lost)!=scored["delta"][name]["top10"]["lost"]):
+            raise ValueError("race_level_gain_loss_mismatch")
+        paired_changes[name]={
+            "gained":gained, "lost":lost,
+            "gained_winning_ticket_distribution":dict(sorted(
+                Counter(item["winning_ticket"] for item in gained).items())),
+            "lost_winning_ticket_distribution":dict(sorted(
+                Counter(item["winning_ticket"] for item in lost).items())),
+        }
     return {
         "schema":"HOLE_NOV05_ORIGINAL_106_SHADOW_REPLAY_V1",
         "status":"partial_day_replay_nonformal",
@@ -154,6 +187,8 @@ def inspect(root, artifact):
         "replay_excluded_by_reason":scored.get("excluded_by_reason",{}),
         "head_metrics":dict(heads),
         "baseline_top10_miss_classes":dict(pair_misses),
+        "paired_top10_change_cases":paired_changes,
+        "per_race_winning_rank_evidence":by_race,
         "hits":scored["hits"],
         "gain_loss":scored["delta"],
         "race_codes_scored":[r["race_code"] for r in rows],
