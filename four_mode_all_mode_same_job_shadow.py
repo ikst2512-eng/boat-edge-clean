@@ -245,13 +245,57 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
     return result
 
 
+
+def audit_historical_input_day(root, day):
+    """Replay all saved originals WITHOUT reading results; not an accuracy test."""
+    if not isinstance(day,str) or not re.fullmatch(r"20[0-9]{6}",day):
+        raise ValueError("invalid_historical_day")
+    root=Path(root)
+    files=sorted((root/"four_mode_forecasts").glob(day+"*.json"))
+    out={"schema":"FOUR_MODE_SHADOW_RESULT_BLIND_INPUT_REPLAY_V1",
+         "day":day,"formal":False,"result_files_read":False,
+         "original_v2_races":0,"excluded":{},"changes":{m:{
+             "changed_all_tickets":0, "changed_top1":0,"changed_top3":0,
+             "changed_top5":0,"changed_top10":0} for m in SIZES}}
+    excluded={}
+    for path in files:
+        if (path.is_symlink() or not path.is_file() or path.stat().st_size>30000
+                or not re.fullmatch(day+r"(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])",path.stem)):
+            excluded["unsafe_or_nonrace_file"]=excluded.get("unsafe_or_nonrace_file",0)+1
+            continue
+        try:
+            saved=json.loads(path.read_bytes())
+            if saved.get("model_version")!=VERSION or saved.get("race_code")!=path.stem:
+                raise ValueError("version_or_race_mismatch")
+            base,candidate=candidate_modes(saved)
+        except (OSError,UnicodeError,TypeError,KeyError,ValueError,OverflowError,AssertionError) as exc:
+            label=str(exc)[:60] or type(exc).__name__
+            excluded[label]=excluded.get(label,0)+1
+            continue
+        out["original_v2_races"]+=1
+        for m in SIZES:
+            row=out["changes"][m]
+            row["changed_all_tickets"]+=int(base[m]!=candidate[m])
+            for k in (1,3,5,10):
+                row[f"changed_top{k}"]+=int(base[m][:k]!=candidate[m][:k])
+    out["excluded"]=dict(sorted(excluded.items()))
+    out["status"]="historical_input_replay_only" if out["original_v2_races"] else "no_reproducible_v2_originals"
+    return out
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", default=".")
     p.add_argument("--publication", default="four-mode-evidence/publication.json")
     p.add_argument("--observation", default="four-mode-evidence/github-server-observation.json")
     p.add_argument("--output", default="four-mode-evidence/all-mode-shadow.json")
+    p.add_argument("--audit-historical-input-day")
     a = p.parse_args()
+    if a.audit_historical_input_day:
+        print("FOUR_MODE_SHADOW_HISTORICAL_INPUT=" + json.dumps(
+            audit_historical_input_day(a.root,a.audit_historical_input_day),
+            ensure_ascii=False,sort_keys=True))
+        return
     report = capture(a.root,a.publication,a.observation)
     out=Path(a.output)
     out.parent.mkdir(parents=True, exist_ok=True)
