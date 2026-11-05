@@ -1,0 +1,37 @@
+{
+  "schema": "FOUR_MODE_ALL_MODES_FORWARD_PROTOCOL_V1",
+  "registered_before_future_races": true,
+  "research_only": true,
+  "baseline_day_for_hypotheses": "2026-11-05",
+  "baseline_day_races": 106,
+  "baseline_status": "historical_comparison_only",
+  "eligible_deadline_start_jst": "2026-11-07T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+  "ticket_budget": {
+    "narrow": 5,
+    "hit": 10,
+    "balance": 16,
+    "hole": 22
+  },
+  "metrics": [
+    "top1",
+    "top3",
+    "top5",
+    "top10"
+  ],
+  "primary_metric": "paired_top10_exact_trifecta",
+  "selection_order": "deadline_jst_then_race_code_ascending",
+  "pilot_races": 300,
+  "confirmation_races": 300,
+  "minimum_distinct_confirmation_dates": 5,
+  "multiple_comparisons": "four_mode_top10_holm_two_sided_0.05",
+  "early_stopping_allowed": false,
+  "selector_policy": "sha256_pinned_before_first_candidate_for_each_mode_no_changes_during_pilot_or_confirmation",
+  "candidate_policy": "four_mode_same_budget_per_race_pre_outcome_read_and_independently_observed_before_T_minus_12",
+  "feature_policy": "only_original_predeadline_captured_official_features_with_source_sha256_and_clock_no_postrace_weather",
+  "eligibility_policy": "freeze_without_result_then_independent_result_read_no_result_dependent_replacement",
+  "adoption_policy": "manual_review_only_no_automatic_merge_no_production_promotion",
+  "formal_evidence_policy": "external_independent_first_remote_receipt_and_complete_capture_run_inventory_required_for_formal_accuracy",
+  "analysis_policy": "nov05_prior_and_venue_wind_tables_are_hypothesis_generators_only_not_the_confirmation_holdout"
+}
