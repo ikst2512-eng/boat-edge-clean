@@ -4,6 +4,9 @@ on:
     paths:
       - four_mode_version_topn_audit.py
       - test_four_mode_version_topn_audit.py
+      - four_mode_forward_paired_score.py
+      - test_four_mode_forward_paired_score.py
+      - research/four_mode_all_modes_forward_protocol_20261106.json
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
 permissions:
@@ -19,6 +22,10 @@ jobs:
           python-version: '3.12'
       - name: Validate audit logic
         run: python -m unittest -v test_four_mode_version_topn_audit
+      - name: Check frozen future-only four-mode study policy and leakage refusal
+        run: python -m unittest -v test_four_mode_forward_paired_score
+      - name: Report forward gate status (no candidate or result invented)
+        run: python four_mode_forward_paired_score.py
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
