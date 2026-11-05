@@ -73,6 +73,42 @@ class WatchdogPolicyTests(unittest.TestCase):
                                          self.now, "schedule",
                                          recent_minutes=14, cooldown_minutes=14))
 
+    def test_independent_hole_rollup_completion_can_rescue_missing_v2(self):
+        from datetime import timedelta
+        from pathlib import Path
+        from scripts.clean_prospective_watchdog import trusted_schedule_completion
+        repository = "ikst2512-eng/boat-edge-clean"
+        name = "Hole cumulative evidence rollup (research only)"
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        self.assertIn("- '" + name + "'", workflow)
+        self.assertIn("github.event.workflow_run.name == '" + name + "'", workflow)
+        self.assertIn('if os.environ["EVENT_NAME"] == "workflow_run":', workflow)
+        payload = {"workflow_run": {
+            "name": name, "event": "schedule", "head_branch": "main",
+            "status": "completed", "conclusion": "success",
+            "head_repository": {"full_name": repository}}}
+        self.assertTrue(trusted_schedule_completion(payload, repository))
+        for key, invalid in (("event", "pull_request"),
+                             ("head_branch", "feature"),
+                             ("conclusion", "failure")):
+            altered = {"workflow_run": dict(payload["workflow_run"], **{key: invalid})}
+            self.assertFalse(trusted_schedule_completion(altered, repository))
+        foreign = {"workflow_run": dict(payload["workflow_run"],
+                   head_repository={"full_name": "other/fork"})}
+        self.assertFalse(trusted_schedule_completion(foreign, repository))
+        at = datetime(2026, 11, 5, 22, 32, tzinfo=timezone.utc)  # 07:32 JST
+        self.assertTrue(should_dispatch([], at, "workflow_run",
+                                        recent_minutes=14, cooldown_minutes=14))
+        healthy = {"created_at": (at-timedelta(minutes=4)).isoformat(),
+                   "status": "completed", "event": "schedule",
+                   "conclusion": "success", "head_branch": "main"}
+        self.assertFalse(should_dispatch([healthy], at, "workflow_run",
+                                         recent_minutes=14, cooldown_minutes=14))
+        active = dict(healthy, status="queued", conclusion=None)
+        self.assertFalse(should_dispatch([active], at, "workflow_run",
+                                         recent_minutes=14, cooldown_minutes=14))
+
     def test_nonmain_manual_dispatch_does_not_suppress_main_recovery(self):
         other = dict(run(5, event="workflow_dispatch", conclusion="success"),
                      head_branch="research/alternative")
