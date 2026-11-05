@@ -35,3 +35,12 @@
 - CI: [既存4モードcaptureのPRテスト #42075854969](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42075854969) **success**（PRイベントのcapture本体は**skip**）、[4モード研究CI #42075854928](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42075854928) **success**。将来の実運用・正式認定の成功を示すものではない。
 
 次に必要なのは、元原本と候補の真の受領証拠の保存、個々の公式T−12完全原本と候補SHAの外部観測の突合、**事前固定した別期間**の実レースで同一レース比較を成立させること。研究PRの本番統合・無人収集への接続は審査後の判断。
+
+
+## 2026-11-06 03時台以降：候補の長期保存とGitHub候補原本観測
+
+- 研究PRだけに `four_mode_all_shadow_durable_ledger.py` を追加。既存の `v2-third-rate-evidence-ledger` ブランチを共用し、新しいcron・GitHubブランチ・外部保存サービスを増やさない。PRイベントでは**本番captureはskip**。現行main、Render、予想モデル、公開買い目は変更しない。
+- 親ファイル `four-mode-evidence/all-mode-shadow.json` を結果閲覧より前に検証して、`four_mode_all/YYYYMMDD/run-ID-attempt-N.json` として**追記専用**で保存する設計。重複保存なら原文完全一致、異なれば競合エラーで拒否。対象runが追加した全予想コード、元原本のfirst-add Git commit/blob、ローカル候補SHA、4モード全点数、締切時刻を整合確認。
+- 保存済み候補をGitHub APIから**原文バイト列・Git blob SHA・GitHubサーバーDate**で読戻し、T−12より前か（同一秒の曖昧性を含めて）区別する。観測報告も別の `four_mode_all_observation/YYYYMMDD/run-ID-attempt-N.json` に追記専用で保存。従来の30日Actions artifactだけに依存しない。ただし**GitHub Dateは初回遠隔受領時刻ではなく読取り観測時刻**。候補の真正なfirst remote receiptと独立出走表・展示・オッズの公式T−12整合が証明されない限り `formal=false`。
+- [CI #42089031046](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42089031046) 研究側成功、[CI #42089031024](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42089031024) capture既存179テスト成功（本番収集stepはskip）。新たな耐障害・改ざん・日付判定テスト9件が成功。追加途中に発生した「保存ファイルが1個から2個に増えたことに対する旧テスト断言」の失敗はテストを修正して最終CI合格とした。
+- 次は手動コード審査で実際の保存・時刻証拠を点検。**Draftのままで、実運用で候補がGitHubへ長期保存されたことを現時点では主張しない。** 2026-11-07以降の候補・結果の前向き比較は依然0件で未開始。
