@@ -104,14 +104,14 @@ class PairPrecommitTest(unittest.TestCase):
         # No candidate can be labelled frozen before its source forecast exists.
         future=archive()
         future["generated_at_jst"]=(START+timedelta(seconds=1)).isoformat()
-        with patch.object(s,"archived_four_modes",return_value=(200,future)), \\
+        with patch.object(s,"archived_four_modes",return_value=(200,future)), \
              patch.object(s,"select",side_effect=AssertionError("opened selector")):
             r=s.freeze(CODE,".",started_at=START,completed_at=FINISH)
         self.assertEqual(r["status"],"source_not_generated_before_freeze")
         self.assertFalse(r["formal"])
         missing=archive()
         missing.pop("generated_at_jst")
-        with patch.object(s,"archived_four_modes",return_value=(200,missing)), \\
+        with patch.object(s,"archived_four_modes",return_value=(200,missing)), \
              patch.object(s,"select",side_effect=AssertionError("opened selector")):
             r=s.freeze(CODE,".",started_at=START,completed_at=FINISH)
         self.assertEqual(r["status"],"source_not_generated_before_freeze")
@@ -121,13 +121,13 @@ class PairPrecommitTest(unittest.TestCase):
             root=Path(temp)
             (root/"four_mode_forecasts").mkdir()
             (root/"four_mode_forecasts"/(CODE+".json")).write_text("archived",encoding="utf-8")
-            with patch.object(s,"archived_four_modes",return_value=(200,archive())), \\
+            with patch.object(s,"archived_four_modes",return_value=(200,archive())), \
                  patch.object(s,"verify_locked_selection",return_value={"pinned":"sha"}):
                 record=s.freeze(CODE,root,started_at=START,completed_at=FINISH)
                 self.assertEqual(record["status"],"locally_frozen_unverified")
                 impossible=archive()
                 impossible["generated_at_jst"]=(START+timedelta(seconds=1)).isoformat()
-                with patch.object(s,"archived_four_modes",return_value=(200,impossible)), \\
+                with patch.object(s,"archived_four_modes",return_value=(200,impossible)), \
                      patch.object(s,"compare_race",side_effect=AssertionError("opened result")):
                     result=s.review(record,root)
                 self.assertEqual(result["status"],"timing_mismatch")
