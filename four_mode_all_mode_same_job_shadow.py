@@ -56,6 +56,8 @@ def candidate_modes(raw):
     if (type(raw) is not dict or raw.get("schema") != "CLEAN_FOUR_MODES_PREDEADLINE_V1"
             or raw.get("model_version") != VERSION or raw.get("validated") is not False):
         raise ValueError("invalid_v2_original")
+    if any(k in raw for k in ("finish_order", "winning_ticket", "confirmed_result", "result", "payout", "confirmed_at_jst")):
+        raise ValueError("postrace_content_in_forecast")
     rates = raw.get("input_national_win_rates")
     if (type(rates) is not list or len(rates) != 6 or
             any(type(x) not in (float, int) or not math.isfinite(x)
@@ -110,7 +112,7 @@ def _empty(status):
             "validation_error_count": 0}
 
 
-def capture(root, publication_path, observation_path, now=None, git=None):
+def capture(root, publication_path, observation_path, now=None, git=None, clock=None):
     """Freeze only newly published exact blobs with verified ORIGINAL observations.
 
     The observation can establish early retrievability of the ORIGINAL but is
@@ -205,8 +207,8 @@ def capture(root, publication_path, observation_path, now=None, git=None):
             else:
                 baseline, candidate = candidate_modes(archive)
                 # Prevent a concurrent clock crossing T-12 while selecting.
-                finish = datetime.now(JST) if git is None and now is not None else now
-                if not now < finish < cutoff and not (git is not None and now == finish):
+                finish = (clock() if clock is not None else datetime.now(JST))
+                if (finish.utcoffset() != timedelta(hours=9) or not now < finish < cutoff):
                     item["reason"] = "freeze_time_or_cutoff_ambiguous"
                 else:
                     item.update({
