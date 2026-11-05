@@ -57,7 +57,9 @@ class DurableLedgerTests(unittest.TestCase):
             self.assertEqual(out["records"][0]["race_code"],CODE)
             second=publish(raw,root,"1234567","1",get,put,observer,git=git)
             self.assertEqual(second["status"],"existing_identical_candidate")
-            self.assertEqual(len(store),1)
+            self.assertEqual(len(store),2)
+            self.assertIn("four_mode_all_observation/20261107/run-1234567-attempt-1.json",store)
+            self.assertEqual(second["immutable_observation_note_status"],"existing_identical_observation_note")
 
     def test_after_cutoff_not_misclassified_as_early(self):
         with tempfile.TemporaryDirectory() as d:
@@ -90,6 +92,23 @@ class DurableLedgerTests(unittest.TestCase):
             observe=lambda p:(datetime(2026,11,6,23,10,3,tzinfo=UTC),b"tampered")
             with self.assertRaisesRegex(ValueError,"candidate_server_observation_not_verified"):
                 publish(raw,root,"1234567","1",read,create,observe,git=git)
+
+    def test_tampered_prior_observation_note_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);raw,git=valid_shadow(root)
+            store={}
+            def get(p):return store.get(p)
+            def put(p,b,run):store[p]=b
+            observer=lambda p:(datetime(2026,11,6,23,10,3,tzinfo=UTC),store[p])
+            first=publish(raw,root,"1234567","1",get,put,observer,git=git)
+            note=first["immutable_observation_note_path"]
+            corrupted=json.loads(store[note])
+            corrupted["observed_before_t_minus_12"]=0
+            corrupted["observed_late_or_ambiguous"]=1
+            corrupted["records"][0]["status"]="candidate_observation_late_or_same_second"
+            store[note]=(json.dumps(corrupted,sort_keys=True)+"\n").encode()
+            with self.assertRaisesRegex(ValueError,"existing_observation_note_timing_inconsistent"):
+                publish(raw,root,"1234567","1",get,put,observer,git=git)
 
     def test_changed_existing_blob_cannot_be_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
