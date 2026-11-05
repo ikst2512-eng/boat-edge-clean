@@ -4,6 +4,8 @@ on:
     paths:
       - pinned_four_mode_cohort_audit.py
       - four_mode_latest_main_inventory.py
+      - nov05_four_mode_snapshot_audit.py
+      - test_nov05_four_mode_snapshot_audit.py
       - forward_hole_saved_evidence_gate.py
       - forward_hole_300_membership.py
       - test_forward_hole_300_membership.py
@@ -35,7 +37,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership test_nov05_four_mode_snapshot_audit
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
       - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
@@ -69,6 +71,13 @@ jobs:
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: Inspect latest main tree for November 5+ files (no accuracy scored)
         run: python four_mode_latest_main_inventory.py
+      - name: Inspect exact latest main Nov 5 archived modes and confirmed results (research only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_checkout="$RUNNER_TEMP/four-mode-nov05-main-$GITHUB_RUN_ID"
+          git worktree add --detach "$main_checkout" refs/remotes/origin/main
+          python nov05_four_mode_snapshot_audit.py --main-root "$main_checkout"
       - name: Retain evidence on both success and failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,5 +89,6 @@ jobs:
             forward_hole_rank3_protocol_audit.json
             forward_protocol_github_observation.json
             four_mode_latest_main_inventory.json
+            nov05_four_mode_snapshot_audit.json
           if-no-files-found: warn
           retention-days: 90
