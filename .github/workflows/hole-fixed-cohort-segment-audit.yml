@@ -6,6 +6,8 @@ on:
       - test_hole_fixed_cohort_segment_audit.py
       - hole_nov04_disjoint_research.py
       - test_hole_nov04_disjoint_research.py
+      - hole_nov05_frozen_observation_audit.py
+      - test_hole_nov05_frozen_observation_audit.py
       - .github/workflows/hole-fixed-cohort-segment-audit.yml
   workflow_dispatch:
 jobs:
@@ -13,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,6 +86,48 @@ jobs:
         with:
           name: hole-nov04-disjoint-retrospective
           path: hole_nov04_disjoint_research.json
+      - name: Test Nov5 frozen observed evidence gate
+        run: python -m unittest -v test_hole_nov05_frozen_observation_audit.py
+      - name: Fetch immutable Nov5 source job evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p nov05_original_capture
+          gh run download 41953950959 --repo "${GITHUB_REPOSITORY}" --name "four-mode-capture-41953950959" --dir nov05_original_capture
+          test -s nov05_original_capture/four-mode-evidence/hole-shadow.json
+          test -s nov05_original_capture/four-mode-evidence/github-server-observation.json
+      - name: Match Nov5 frozen tickets against official stored results
+        run: |
+          python hole_nov05_frozen_observation_audit.py \
+            --root . \
+            --shadow nov05_original_capture/four-mode-evidence/hole-shadow.json \
+            --observed nov05_original_capture/four-mode-evidence/github-server-observation.json \
+            > hole_nov05_frozen_observation_comparison.json
+          python - <<'PY'
+          import json
+          d=json.load(open("hole_nov05_frozen_observation_comparison.json"))
+          assert d["formal"] is False and d["prospective_validation"] is False
+          assert d["independent_first_receipt_verified"] is False
+          assert d["production_forecast_changed"] is False
+          assert d["observed_pre_t12"] == 106
+          assert d["frozen_selector_replay_eligible"] == 106
+          assert 0 <= d["paired_confirmed"] <= 106
+          assert d["not_yet_comparable"] == 106-d["paired_confirmed"]
+          assert set(d["replayed_pair_policies"]) == {"baseline","same_pair","two_pairs"}
+          print("NOV05_FROZEN_SUMMARY",json.dumps({
+              k:d[k] for k in ("status","observed_pre_t12",
+                "frozen_selector_replay_eligible","paired_confirmed",
+                "not_yet_comparable","frozen_policies","frozen_delta",
+                "replayed_pair_policies","replayed_pair_delta",
+                "replayed_existing_top10_rank_worse","excluded_by_reason")
+          },ensure_ascii=False,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hole-nov05-frozen-server-observed-research
+          path: hole_nov05_frozen_observation_comparison.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: hole-fixed120-segment-audit
