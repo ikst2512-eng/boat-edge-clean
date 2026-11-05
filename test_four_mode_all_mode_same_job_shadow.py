@@ -1,0 +1,158 @@
+"""Research-only frozen all-mode shadow tests. Never uses confirmed results."""
+import hashlib
+import json
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from clean_four_modes import rank_modes
+from research_model import probabilities
+from four_mode_all_mode_same_job_shadow import candidate_modes, capture, SIZES, PROTECTED
+
+JST = timezone(timedelta(hours=9))
+SHA = "a" * 40
+CODE = "202611070101"
+FILE = "four_mode_forecasts/" + CODE + ".json"
+
+
+def make_original():
+    rates = [6.0, 5.2, 5.0, 4.6, 4.2, 3.7]
+    return {
+        "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
+        "model_version": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+        "validated": False,
+        "race_code": CODE,
+        "input_national_win_rates": rates,
+        "source_title_received_jst": "2026-11-07T08:05:00+09:00",
+        "source_cards_received_jst": "2026-11-07T08:06:00+09:00",
+        "generated_at_jst": "2026-11-07T08:07:00+09:00",
+        "deadline_jst": "2026-11-07T08:35:00+09:00",
+        "modes": rank_modes(probabilities(rates)),
+    }
+
+
+def fixture(root, original=None, include_obs=True):
+    original = original or make_original()
+    path = root / FILE
+    path.parent.mkdir(parents=True,exist_ok=True)
+    raw = json.dumps(original,sort_keys=True).encode("utf-8")
+    path.write_bytes(raw)
+    digest=hashlib.sha256(raw).hexdigest()
+    publication=root/"publication.json"
+    observation=root/"observation.json"
+    publication.write_text(json.dumps({"outcome":"pushed_to_main",
+        "commit_sha":SHA,"added_forecasts":1}),encoding="utf-8")
+    if include_obs:
+        observation.write_text(json.dumps({
+            "schema":"FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
+            "publication_commit_sha":SHA,
+            "records":[{"race_code":CODE,"status":"github_server_observed_before_t_minus_12",
+                "first_add_blob_matches_remote":True,
+                "first_add_commit":SHA,"original_sha256":digest,
+                "github_api_server_date_utc":"2026-11-06T23:09:00+00:00"}],
+        }),encoding="utf-8")
+    def git(args):
+        if args[:2]==["rev-parse","HEAD"]:
+            return (SHA+"\n").encode()
+        if args[0]=="diff-tree":
+            return (FILE+"\n").encode()
+        if args==["show",SHA+":"+FILE]:
+            return raw
+        raise AssertionError(args)
+    return publication,observation,git
+
+
+class FrozenAllModeTests(unittest.TestCase):
+    def test_all_modes_result_blind_candidate_budgets_and_protected_prefix(self):
+        original=make_original()
+        base,chosen=candidate_modes(original)
+        self.assertEqual(set(base),set(SIZES))
+        self.assertEqual(set(chosen),set(SIZES))
+        for mode,n in SIZES.items():
+            self.assertEqual(len(base[mode]),n)
+            self.assertEqual(len(chosen[mode]),n)
+            self.assertEqual(len(set(chosen[mode])),n)
+            self.assertEqual(base[mode][:PROTECTED[mode]],chosen[mode][:PROTECTED[mode]])
+        self.assertEqual((base,chosen),candidate_modes(original))
+
+    def test_pre_result_frozen_github_original_not_shadow_receipt(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            p,o,git=fixture(root)
+            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+            self.assertEqual(report["frozen_count"],1)
+            self.assertEqual(report["validation_error_count"],0)
+            self.assertFalse(report["formal"])
+            self.assertFalse(report["candidate_first_remote_receipt_verified"])
+            row=report["records"][0]
+            self.assertEqual(row["status"],"frozen_local_before_T_minus_12_research_only")
+            self.assertFalse(row["remote_first_receipt_of_candidate"])
+            self.assertFalse(row["official_beforeinfo_six_verified"])
+            self.assertFalse(row["official_odds_120_verified"])
+            self.assertEqual(set(row["candidate"]),set(SIZES))
+
+    def test_after_cutoff_never_freezes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            p,o,git=fixture(root)
+            report=capture(root,p,o,now=datetime(2026,11,7,8,24,tzinfo=JST),git=git)
+            self.assertEqual(report["ineligible_count"],1)
+            self.assertEqual(report["frozen_count"],0)
+            self.assertEqual(report["records"][0]["reason"],"not_frozen_strictly_before_T_minus_12")
+
+    def test_missing_or_bad_remote_observation_cannot_freeze(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            p,o,git=fixture(root)
+            o.unlink()
+            self.assertEqual(capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)["status"],
+                             "no_original_remote_observation")
+            _,o,git=fixture(root)
+            obj=json.loads(o.read_text())
+            obj["records"][0]["original_sha256"]="b"*64
+            o.write_text(json.dumps(obj))
+            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+            self.assertEqual(report["frozen_count"],0)
+            self.assertEqual(report["records"][0]["reason"],"original_remote_observation_not_verified")
+
+    def test_unreproduced_saved_probabilities_rejected(self):
+        row=make_original()
+        row["modes"]["hit"]["tickets"][0]["p"]=987.0
+        with self.assertRaisesRegex(ValueError,"original_not_exactly_reproducible"):
+            candidate_modes(row)
+
+    def test_old_discovery_date_does_not_enter_future_cohort(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            row=make_original()
+            row["race_code"]="202611050101"
+            row["deadline_jst"]="2026-11-05T08:35:00+09:00"
+            p,o,git=fixture(root,row)
+            report=capture(root,p,o,now=datetime(2026,11,5,8,10,tzinfo=JST),git=git)
+            self.assertEqual(report["frozen_count"],0)
+            self.assertEqual(report["records"][0]["reason"],"discovery_period_or_before_registration")
+
+    def test_result_field_not_passed_through_original_model(self):
+        raw=make_original()
+        raw["finish_order"]=[1,2,3]
+        # No code ever reads the result field; selection is identical and output
+        # contains no winning ticket. Production evidence attestation still
+        # needs independent proof that these fields were unavailable pre-race.
+        a,b=candidate_modes(raw)
+        raw.pop("finish_order")
+        self.assertEqual((a,b),candidate_modes(raw))
+
+    def test_corrupt_pub_addition_roster_is_hard_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            p,o,git=fixture(root)
+            pub=json.loads(p.read_text())
+            pub["added_forecasts"]=2
+            p.write_text(json.dumps(pub))
+            with self.assertRaisesRegex(ValueError,"first_add_and_observation_roster_disagree"):
+                capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+
+
+if __name__=="__main__":
+    unittest.main()
