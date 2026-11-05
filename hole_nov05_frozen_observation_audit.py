@@ -109,6 +109,11 @@ def score(root, shadow_path, observed_path):
     gained={p:Counter() for p in scenarios}
     lost={p:Counter() for p in scenarios}
     retained_rank_worse=Counter()
+    frozen_top1={p:0 for p in POLICIES}
+    frozen_head_first={p:0 for p in POLICIES}
+    frozen_head_in_top10={p:0 for p in POLICIES}
+    pair_top1={p:0 for p in scenarios}
+    pair_head_first={p:0 for p in scenarios}
     full_rows=[]
     for row in rows:
         code=row["race_code"]
@@ -122,6 +127,17 @@ def score(root, shadow_path, observed_path):
         if result.get("status")!="historical_comparison_only":
             raise ValueError("settled_result_disappeared:"+code)
         winner=result["winning_ticket"]
+        stored=by_code[code]["future_locked_candidates"]
+        for policy in POLICIES:
+            frozen_picks=stored[policy]
+            frozen_top1[policy]+=int(frozen_picks[0]==winner)
+            frozen_head_first[policy]+=int(frozen_picks[0].split("-")[0]==winner.split("-")[0])
+            frozen_head_in_top10[policy]+=int(any(
+                t.split("-")[0]==winner.split("-")[0] for t in frozen_picks[:10]))
+        for policy in scenarios:
+            pair_top1[policy]+=int(candidates[policy][0]==winner)
+            pair_head_first[policy]+=int(
+                candidates[policy][0].split("-")[0]==winner.split("-")[0])
         flags={p:{f"top{k}":winner in picks[:k] for k in TOPS}
                for p,picks in candidates.items()}
         if flags["baseline"]!=row["flags"]["baseline"]:
@@ -167,8 +183,13 @@ def score(root, shadow_path, observed_path):
         "paired_confirmed":len(rows),
         "not_yet_comparable":len(codes)-len(rows),
         "frozen_policies":frozen["hits"],
+        "frozen_top1_exact_ticket":frozen_top1,
+        "frozen_head_of_first_ticket_correct":frozen_head_first,
+        "frozen_head_represented_in_top10":frozen_head_in_top10,
         "frozen_delta":frozen["delta"],
         "replayed_pair_policies":hits,
+        "replayed_top1_exact_ticket":pair_top1,
+        "replayed_head_of_first_ticket_correct":pair_head_first,
         "replayed_pair_delta":{p:{f"top{k}":{"gained":gained[p][f"top{k}"],
                                           "lost":lost[p][f"top{k}"],
                                           "net":gained[p][f"top{k}"]-lost[p][f"top{k}"]}
