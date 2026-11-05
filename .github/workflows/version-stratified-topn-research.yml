@@ -7,6 +7,8 @@ on:
       - four_mode_forward_paired_score.py
       - four_mode_all_mode_same_job_shadow.py
       - test_four_mode_all_mode_same_job_shadow.py
+      - four_mode_all_shadow_reference_review.py
+      - test_four_mode_all_shadow_reference_review.py
       - test_four_mode_forward_paired_score.py
       - research/four_mode_all_modes_forward_protocol_20261106.json
       - .github/workflows/version-stratified-topn-research.yml
@@ -28,6 +30,10 @@ jobs:
         run: python -m unittest -v test_four_mode_forward_paired_score
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Check original and candidate replay before any result lookup
+        run: python -m unittest -v test_four_mode_all_shadow_reference_review
+      - name: Report reference review readiness (no invented frozen artifact)
+        run: python four_mode_all_shadow_reference_review.py
       - name: Report forward gate status (no candidate or result invented)
         run: python four_mode_forward_paired_score.py
       - name: Audit real frozen historical archives by version and day
