@@ -106,6 +106,12 @@ def inspect(path, root=ROOT):
         raise ValueError("source received after cutoff")
     if any(t>generated for t in times):
         raise ValueError("source received after candidate generation")
+    # Git %cI records whole seconds, but generated_at may carry microseconds.
+    # A same-second commit cannot establish that the immutable candidate was
+    # generated before it; equally it cannot establish an actual reversal.
+    # Withhold local certification rather than mislabel or round the record.
+    if first_committer_at.replace(microsecond=0)==generated.replace(microsecond=0):
+        raise ValueError("first Git commit same-second ordering unverified")
     if first_committer_at<generated:
         raise ValueError("first Git commit predates candidate generation")
     if first_committer_at>=cutoff:
@@ -147,6 +153,7 @@ def audit_records(paths, root=ROOT, inspector=inspect):
                     "source received after cutoff":"source_late",
                     "first Git commit not before prospective cutoff":"first_commit_late",
                     "first Git commit predates candidate generation":"first_commit_before_generation",
+                    "first Git commit same-second ordering unverified":"first_commit_same_second_unverified",
                     "unambiguous first addition not found":"first_add_missing_or_ambiguous",
                     "candidate changed since first add":"original_blob_mismatch",
                     "generated after cutoff":"generation_late",
