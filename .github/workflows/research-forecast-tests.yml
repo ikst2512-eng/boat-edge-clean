@@ -26,6 +26,10 @@ on:
       - 'collect_research_daily.py'
       - 'test_collect_research_daily.py'
       - 'test_collect_research_input_integrity.py'
+      - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'test_venue_wind_holdout_venue_mix_audit.py'
+      - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
+      - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
       - '.github/workflows/research-forecast-tests.yml'
       - 'advanced_card_preview_v392.py'
       - 'test_advanced_card_preview_v392.py'
@@ -53,6 +57,10 @@ on:
       - 'test_research_capture_workflow.py'
       - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
+      - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'test_venue_wind_holdout_venue_mix_audit.py'
+      - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
+      - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
       - '.github/workflows/research-forecast-tests.yml'
       - 'advanced_card_preview_v392.py'
       - 'test_advanced_card_preview_v392.py'
@@ -91,3 +99,5 @@ jobs:
         run: python scripts/verify_legacy_preservation_samples.py
       - name: Measure chronological research holdout without overwriting saved forecasts
         run: python research_chronological_calibration.py
+      - name: Verify observational wind venue-mix holdout and rejection tests
+        run: python -m unittest -v test_venue_wind_holdout_venue_mix_audit
