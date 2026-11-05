@@ -28,6 +28,8 @@ TRUSTED_SCHEDULES = frozenset({
     "Research independent late preview evidence",
     # Same-repository main schedule run #41835996367 (22:12 JST).
     "Entry course missed-cron activation watchdog",
+    # Independent 07:32 JST completion observed Nov 5 while captures missed.
+    "Hole cumulative evidence rollup (research only)",
 })
 
 
