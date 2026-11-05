@@ -76,6 +76,7 @@ def analyze(historical, holdout, national_min_n=100, venue_min_n=30):
     if holdout.get("period") != "2026-11-01..2026-11-05":
         raise ValueError("holdout_period_not_fixed")
     result = {}
+    unrounded_baselines = {}
     for band in BANDS:
         s = holdout["national"][band]
         n = s["n"]
@@ -102,6 +103,8 @@ def analyze(historical, holdout, national_min_n=100, venue_min_n=30):
             if v[band]["n"] >= venue_min_n
             and v["0-2m"]["n"] >= venue_min_n
         ]
+        if supported:
+            unrounded_baselines[band] = old_calm_expected
         result[band] = {
             "n": n,
             "winner_course1_count": s["winner_course_counts"][0],
@@ -120,12 +123,11 @@ def analyze(historical, holdout, national_min_n=100, venue_min_n=30):
         target = result[band]
         if target["n"] and baseline["n"]:
             target["raw_vs_holdout_calm_pt"] = round(
-                target["observed_course1_pct"] - baseline["observed_course1_pct"], 2)
-            if (target["old_calm_pct_reweighted_to_holdout_venue_mix"] is not None
-                    and baseline["old_calm_pct_reweighted_to_holdout_venue_mix"] is not None):
+                100 * holdout["national"][band]["winner_course_counts"][0] / target["n"]
+                - 100 * holdout["national"]["0-2m"]["winner_course_counts"][0] / baseline["n"], 2)
+            if band in unrounded_baselines and "0-2m" in unrounded_baselines:
                 target["venue_composition_only_shift_pt"] = round(
-                    target["old_calm_pct_reweighted_to_holdout_venue_mix"]
-                    - baseline["old_calm_pct_reweighted_to_holdout_venue_mix"], 2)
+                    unrounded_baselines[band] - unrounded_baselines["0-2m"], 2)
                 target["remainder_not_attributable_to_wind_pt"] = round(
                     target["raw_vs_holdout_calm_pt"]
                     - target["venue_composition_only_shift_pt"], 2)
