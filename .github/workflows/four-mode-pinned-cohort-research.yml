@@ -5,6 +5,8 @@ on:
       - pinned_four_mode_cohort_audit.py
       - four_mode_latest_main_inventory.py
       - nov05_four_mode_snapshot_audit.py
+      - nov05_hole_rank3_post_result_replay.py
+      - test_nov05_hole_rank3_post_result_replay.py
       - test_nov05_four_mode_snapshot_audit.py
       - forward_hole_saved_evidence_gate.py
       - forward_hole_300_membership.py
@@ -37,7 +39,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test manifest integrity and missing-evidence refusal
-        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership test_nov05_four_mode_snapshot_audit
+        run: python -m unittest -v test_pinned_four_mode_cohort_audit test_four_mode_research_batch test_pinned_hole_rank3_research test_forward_hole_rank3_protocol test_four_mode_latest_main_inventory test_forward_hole_saved_evidence_gate test_forward_protocol_github_observation test_forward_hole_300_membership test_nov05_four_mode_snapshot_audit test_nov05_hole_rank3_post_result_replay
       - name: Compare three exact frozen race cohorts
         run: python pinned_four_mode_cohort_audit.py
       - name: Reproduce predeclared outcome-blind hole rank3 on locked 240 races
@@ -78,6 +80,7 @@ jobs:
           main_checkout="$RUNNER_TEMP/four-mode-nov05-main-$GITHUB_RUN_ID"
           git worktree add --detach "$main_checkout" refs/remotes/origin/main
           python nov05_four_mode_snapshot_audit.py --main-root "$main_checkout"
+          python nov05_hole_rank3_post_result_replay.py --main-root "$main_checkout"
       - name: Retain evidence on both success and failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,5 +93,6 @@ jobs:
             forward_protocol_github_observation.json
             four_mode_latest_main_inventory.json
             nov05_four_mode_snapshot_audit.json
+            nov05_hole_rank3_post_result_replay.json
           if-no-files-found: warn
           retention-days: 90
