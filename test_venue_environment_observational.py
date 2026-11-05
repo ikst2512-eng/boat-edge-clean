@@ -29,6 +29,13 @@ class VenueWindResearchTests(unittest.TestCase):
         self.assertEqual(record["winner_course"], 1)
         self.assertEqual(record["winner_boat"], 2)
 
+    def test_real_result_file_method_spacings(self):
+        for method, expected in (("逃　げ", "逃げ"), ("差　し", "差し"),
+                                 ("抜　き", "抜き"), ("まくり差し", "まくり差し")):
+            with self.subTest(method=method):
+                parsed = parse_result(row(method=method, wind="2.0", direction="3"))
+                self.assertEqual(parsed["method"], expected)
+
     def test_missing_weather_not_zero(self):
         out = analyze_rows(
             [row(wind=""), row(code="202611050102", wind="0", direction="")],
