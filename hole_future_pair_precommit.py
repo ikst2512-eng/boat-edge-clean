@@ -103,6 +103,17 @@ def freeze(code,root,started_at=None,completed_at=None):
     if started_at>=cutoff:
         return {"race_code":code,"status":"after_t_minus_12",
                 "formal":False,"production_forecast_changed":False}
+    # An apparent freeze cannot precede the creation of its exact source forecast.
+    # These local clocks are only fail-closed checks, NOT independent receipt proof.
+    try:
+        source_generated=datetime.fromisoformat(archive["generated_at_jst"])
+        valid_source_clock=(source_generated.utcoffset()==timedelta(hours=9)
+                            and source_generated<started_at and source_generated<cutoff)
+    except (KeyError,TypeError,ValueError,AttributeError):
+        valid_source_clock=False
+    if not valid_source_clock:
+        return {"race_code":code,"status":"source_not_generated_before_freeze",
+                "formal":False,"production_forecast_changed":False}
     path=root/"four_mode_forecasts"/(code+".json")
     if path.is_symlink() or not path.is_file() or path.stat().st_size>30000:
         raise ValueError("unsafe_source_file")
@@ -150,7 +161,10 @@ def review(record,root):
     code=record.get("race_code")
     if (not eligible(code) or record.get("schema")!="HOLE_PAIR_FUTURE_FREEZE_V1"
             or record.get("method")!=METHOD or
-            record.get("independent_first_receipt_verified") is not False):
+            record.get("independent_first_receipt_verified") is not False or
+            record.get("formal") is not False or
+            record.get("prospective_validation") is not False or
+            record.get("production_forecast_changed") is not False):
         return {"status":"invalid_method_or_claim","comparable":0,"formal":False}
     state,archive=archived_four_modes(code,root)
     if state!=200:return {"status":"archive_invalid","comparable":0,"formal":False}
@@ -162,8 +176,11 @@ def review(record,root):
         start=datetime.fromisoformat(record["local_start_jst"])
         finish=datetime.fromisoformat(record["local_finish_jst"])
         deadline=datetime.fromisoformat(archive["deadline_jst"])
+        generated=datetime.fromisoformat(archive["generated_at_jst"])
         cutoff=deadline-timedelta(minutes=12)
-        if (start.utcoffset()!=timedelta(hours=9) or
+        if (generated.utcoffset()!=timedelta(hours=9) or
+                generated>=start or generated>=cutoff or
+                start.utcoffset()!=timedelta(hours=9) or
                 finish.utcoffset()!=timedelta(hours=9) or
                 deadline.utcoffset()!=timedelta(hours=9) or
                 start>finish or finish>=cutoff or
