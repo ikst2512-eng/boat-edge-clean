@@ -118,6 +118,17 @@ def inspect(root, artifact):
         clock_rows[code]=shadow_vs_source_clock(rec,observed_time,cutoff)
     if seen != set(original):
         raise ValueError("remote_roster_incomplete")
+    # Source-level candidate identity: this comparison is entirely outcome-blind.
+    def count_same(a,b):
+        return sum(rec["future_locked_candidates"][a]==
+                   rec["future_locked_candidates"][b]
+                   for rec in original.values())
+    policy_equivalence={
+        "donor_order_equals_max_ticket_score":count_same("donor_order","max_ticket_score"),
+        "donor_order_equals_third_national_rate":count_same("donor_order","third_national_rate"),
+        "donor_order_equals_baseline":count_same("donor_order","baseline"),
+        "third_national_rate_equals_baseline":count_same("third_national_rate","baseline"),
+    }
     scored=replay(root,shadow_path)
     if (scored.get("formal") is not False
             or scored.get("independent_first_receipt_verified") is not False
@@ -215,6 +226,7 @@ def inspect(root, artifact):
         "captured_cohort_all_results_matched":len(rows)==len(replay_codes)==EXPECTED_PUBLISHED,
         "replay_excluded_by_reason":scored.get("excluded_by_reason",{}),
         "head_metrics":dict(heads),
+        "policy_equivalence_frozen_without_results":policy_equivalence,
         "baseline_top10_miss_classes":dict(pair_misses),
         "paired_top10_change_cases":paired_changes,
         "per_race_winning_rank_evidence":by_race,
