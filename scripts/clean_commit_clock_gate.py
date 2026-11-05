@@ -29,10 +29,19 @@ def candidate_paths(stage, root=Path(".")):
     return paths
 
 
-def load_records(paths, root=Path(".")):
+def load_records(paths, root=Path("."), source="worktree"):
+    """Read the exact staged/committed immutable bytes when verifying Git."""
     records = []
     for path in paths:
-        record = json.loads((root / path).read_text(encoding="utf-8"))
+        if source == "staged":
+            raw = subprocess.check_output(["git", "show", f":{path}"], cwd=root)
+        elif source == "committed":
+            raw = subprocess.check_output(["git", "show", f"HEAD:{path}"], cwd=root)
+        elif source == "worktree":
+            raw = (root / path).read_bytes()
+        else:
+            raise ValueError("unknown CLEAN record source")
+        record = json.loads(raw)
         code = PATH.fullmatch(path).group(1)
         if record.get("race_code") != code:
             raise ValueError("CLEAN first-add race identity mismatch")
@@ -84,7 +93,8 @@ def prepare(records, clock=None, pause=None):
 
 def run(stage, root=Path(".")):
     paths = candidate_paths(stage, root)
-    records = load_records(paths, root)
+    records = load_records(paths, root, source=(
+        "staged" if stage == "precommit" else "committed"))
     if stage == "precommit":
         when = prepare(records)
     elif stage == "postcommit":
