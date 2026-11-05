@@ -45,6 +45,20 @@ class FirstAddAuditTests(unittest.TestCase):
                                         "first Git commit predates candidate generation"):
                 audit.inspect("prospective_predictions/202611050404.json")
 
+    def test_same_second_git_timestamp_is_unverified(self):
+        obj={"race_code":"202611050101","status":"prospective_candidate",
+             "formal":False,"scoring":False,
+             "source_deadline_jst":"2026-11-05T15:20:00+09:00",
+             "cutoff_jst":"2026-11-05T15:08:00+09:00",
+             "generated_at":"2026-11-05T11:04:24.496897+09:00",
+             "source_title_received_jst":"2026-11-05T11:04:24.112108+09:00",
+             "source_cards_received_jst":"2026-11-05T11:04:24.475890+09:00"}
+        with patch.object(audit,"first_add",return_value=(
+                json.dumps(obj).encode(),"c"*40,
+                datetime.fromisoformat("2026-11-05T11:04:24+09:00"))):
+            with self.assertRaisesRegex(ValueError,"same-second ordering unverified"):
+                audit.inspect("prospective_predictions/202611050101.json")
+
     def test_receipts_after_forecast_generation_denied_even_before_cutoff(self):
         # Observed in 202611040404: generated 11:01:33.627, title and cards
         # not received until 11:01:33.708 and 11:01:33.766 respectively.
