@@ -27,6 +27,8 @@ on:
       - 'test_collect_research_daily.py'
       - 'test_collect_research_input_integrity.py'
       - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_outcomes.py'
+      - 'tests/test_research_venue_wind_outcomes.py'
       - 'test_venue_wind_holdout_venue_mix_audit.py'
       - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
       - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
@@ -58,6 +60,8 @@ on:
       - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
       - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_outcomes.py'
+      - 'tests/test_research_venue_wind_outcomes.py'
       - 'test_venue_wind_holdout_venue_mix_audit.py'
       - 'docs/research/venue_wind_202608_202610_24venues_research_only.json'
       - 'docs/research/venue_wind_nov01_05_out_of_period_research_only.json'
@@ -101,3 +105,5 @@ jobs:
         run: python research_chronological_calibration.py
       - name: Verify observational wind venue-mix holdout and rejection tests
         run: python -m unittest -v test_venue_wind_holdout_venue_mix_audit
+      - name: Verify six-finisher wind cohort sensitivity tests
+        run: python -m unittest discover -s tests -p 'test_research_venue_wind_outcomes.py' -v
