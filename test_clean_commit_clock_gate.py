@@ -1,5 +1,6 @@
 """Incident-based tests for CLEAN's real whole-second Git commit gate."""
 import json
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -81,6 +82,36 @@ class CommitClockTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "timestamp invalid"):
                 load_records(["prospective_predictions/202611050803.json"], root)
 
+    def test_staged_and_committed_blobs_are_used_not_mutable_worktree(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "config", "user.name", "CI clock gate test"],
+                           cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "ci@example.invalid"],
+                           cwd=root, check=True)
+            relative = "prospective_predictions/202611050803.json"
+            path = root / relative
+            path.parent.mkdir()
+            original = {"race_code": "202611050803",
+                        "generated_at": BASE.isoformat(),
+                        "cutoff_jst": CUTOFF.isoformat()}
+            path.write_text(json.dumps(original), encoding="utf-8")
+            subprocess.run(["git", "add", relative], cwd=root, check=True)
+            original["race_code"] = "202611050804"
+            path.write_text(json.dumps(original), encoding="utf-8")
+            self.assertEqual(load_records([relative], root, source="staged"), RECORDS)
+            with self.assertRaisesRegex(ValueError, "identity mismatch"):
+                load_records([relative], root, source="worktree")
+            subprocess.run(["git", "commit", "-qm", "freeze"], cwd=root, check=True)
+            original["generated_at"] = CUTOFF.isoformat()
+            path.write_text(json.dumps(original), encoding="utf-8")
+            self.assertEqual(load_records([relative], root, source="committed"), RECORDS)
+            with self.assertRaisesRegex(ValueError, "identity mismatch"):
+                load_records([relative], root, source="worktree")
+            with self.assertRaisesRegex(ValueError, "unknown CLEAN record source"):
+                load_records([relative], root, source="unsupported")
+
     def test_collector_workflow_keeps_real_time_gate_and_immutable_push(self):
         content = (Path(__file__).resolve().parent /
                    ".github/workflows/clean-prospective.yml").read_text()
@@ -90,6 +121,11 @@ class CommitClockTests(unittest.TestCase):
         self.assertLess(content.index(gate_pre), content.index(git_commit))
         self.assertLess(content.index(git_commit), content.index(gate_post))
         self.assertLess(content.index(gate_post), content.index("git push origin HEAD:main"))
+        self.assertEqual(content.count(gate_post), 2)
+        self.assertLess(content.index("git -c rebase.autoStash=true rebase origin/main"),
+                        content.rindex(gate_post))
+        self.assertLess(content.rindex(gate_post),
+                        content.index("if git push origin HEAD:main"))
         self.assertIn("git -c rebase.autoStash=true rebase origin/main", content)
         self.assertIn("test_clean_commit_clock_gate", content)
 
