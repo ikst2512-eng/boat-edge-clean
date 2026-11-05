@@ -52,6 +52,22 @@ def select(archive):
     return proposals
 
 
+def top10_loss_diagnostic(original, proposed, winner):
+    """Post-result attribution only; never used to select frozen tickets."""
+    if winner not in original or winner in proposed:
+        return None
+    survivor = pair(winner) in {pair(ticket) for ticket in proposed}
+    return {
+        "original_rank": original.index(winner) + 1,
+        "lost_ticket": winner,
+        "first_second_pair_still_covered": survivor,
+        "cause": ("third_choice_removed_despite_pair_coverage" if survivor
+                  else "winning_first_second_pair_removed"),
+        "removed_tickets": [ticket for ticket in original if ticket not in proposed],
+        "added_tickets": [ticket for ticket in proposed if ticket not in original],
+    }
+
+
 def canonical_digest(data):
     return hashlib.sha256(json.dumps(
         data,ensure_ascii=False,sort_keys=True,separators=(",",":")
@@ -188,9 +204,18 @@ def review(record,root):
     if any(gains[name][f"top{k}"]["gained"] or
            gains[name][f"top{k}"]["lost"] for name in POLICIES[1:] for k in (1,3,5)):
         raise ValueError("protected_top5_changed")
+    # Explain losses only AFTER winner has been independently read and candidates replayed.
+    top10_losses = {
+        name: top10_loss_diagnostic(choices["baseline"], choices[name], winner)
+        for name in POLICIES[1:]
+    }
+    if any(int(top10_losses[name] is not None) != gains[name]["top10"]["lost"]
+           for name in POLICIES[1:]):
+        raise ValueError("top10_loss_diagnostic_mismatch")
     return {
         "status":"reference_scored_without_independent_receipt",
         "race_code":code,"comparable":1,"ranks":rank,"flags":flags,"gain_loss":gains,
+        "top10_loss_diagnostics":top10_losses,
         "formal":False,"prospective_validation":False,
         "independent_first_receipt_verified":False,
         "production_forecast_changed":False,
