@@ -20,6 +20,20 @@ CAPTURE_RUN = 41953950959
 EXPECTED_PUBLISHED = 106
 EXPECTED_COMMIT = "e5fd8ffacd7e0f1a721cfe7d755b9085df5f04fa"
 
+def shadow_vs_source_clock(rec, observed, cutoff):
+    """A GitHub observation of the SOURCE cannot attest a later shadow freeze."""
+    local=datetime.fromisoformat(rec["local_freeze_at_jst"])
+    if (local.utcoffset()!=timedelta(hours=9)
+            or observed.utcoffset()!=timedelta(0)
+            or cutoff.utcoffset()!=timedelta(hours=9)):
+        raise ValueError("invalid_source_shadow_timezone")
+    if local>=cutoff:
+        raise ValueError("shadow_local_freeze_not_before_t12")
+    return {"source_observed_before_shadow_freeze":observed<local,
+            "shadow_local_freeze_before_t12":True,
+            "source_observation_to_shadow_freeze_seconds":round(
+                  (local-observed).total_seconds(),6)}
+
 def safe_json(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>4_000_000:
@@ -79,6 +93,7 @@ def inspect(root, artifact):
             raise ValueError("duplicate_or_not_frozen_shadow")
         original[code]=rec
     seen=set()
+    clock_rows={}
     for obs in observed:
         if not isinstance(obs,dict):
             raise ValueError("invalid_remote_row")
@@ -100,6 +115,7 @@ def inspect(root, artifact):
                 or cutoff.isoformat()!=rec.get("t_minus_12_jst")
                 or not observed_time<cutoff):
             raise ValueError("remote_timestamp_not_early")
+        clock_rows[code]=shadow_vs_source_clock(rec,observed_time,cutoff)
     if seen != set(original):
         raise ValueError("remote_roster_incomplete")
     scored=replay(root,shadow_path)
@@ -175,15 +191,28 @@ def inspect(root, artifact):
         }
     return {
         "schema":"HOLE_NOV05_ORIGINAL_106_SHADOW_REPLAY_V1",
-        "status":"partial_day_replay_nonformal",
+        "status":("captured_cohort_all_results_matched_nonformal"
+                  if len(rows)==EXPECTED_PUBLISHED else "partial_day_replay_nonformal"),
         "original_capture_run":CAPTURE_RUN,
         "original_publication_commit":EXPECTED_COMMIT,
         "race_date_jst":"2026-11-05",
         "original_frozen_count":EXPECTED_PUBLISHED,
         "github_observed_before_t12_not_first_receipt":len(seen),
+        "source_forecast_github_observed_before_t12":len(seen),
+        "source_observed_before_shadow_freeze_count":sum(
+            r["source_observed_before_shadow_freeze"] for r in clock_rows.values()),
+        "shadow_local_freeze_before_t12_count":sum(
+            r["shadow_local_freeze_before_t12"] for r in clock_rows.values()),
+        "source_observation_to_shadow_freeze_seconds_range":{
+            "min":min(r["source_observation_to_shadow_freeze_seconds"] for r in clock_rows.values()),
+            "max":max(r["source_observation_to_shadow_freeze_seconds"] for r in clock_rows.values()),
+        },
+        "source_remote_observation_is_shadow_receipt":False,
+        "shadow_first_remote_receipt_independently_verified":False,
         "replay_verified_candidate_count":len(replay_codes),
         "comparable_confirmed":len(rows),
         "frozen_without_scored_result":len(replay_codes)-len(rows),
+        "captured_cohort_all_results_matched":len(rows)==len(replay_codes)==EXPECTED_PUBLISHED,
         "replay_excluded_by_reason":scored.get("excluded_by_reason",{}),
         "head_metrics":dict(heads),
         "baseline_top10_miss_classes":dict(pair_misses),
@@ -196,7 +225,7 @@ def inspect(root, artifact):
         "capture_window_complete_proven":False,
         "formal":False,"independent_first_receipt_verified":False,
         "prospective_validation":False,"production_forecast_changed":False,
-        "warning":"Original same-job shadow and GitHub server observations pre-T12; NOT independently authenticated first remote receipt. Results may be late; only currently confirmed and replay-validated rows scored. Avoid promoting research to live claims."
+        "warning":"GitHub server observations apply only to original forecast blobs, NOT to the later-produced shadow candidate list; these 106 shadow freezes all happened after original forecast observation. Both clocks are before T-12 but no independent first remote receipt exists for shadow candidates. This is historical research, not formal live accuracy."
     }
 
 def main():
