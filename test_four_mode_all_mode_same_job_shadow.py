@@ -34,7 +34,9 @@ def make_original():
 
 def fixture(root, original=None, include_obs=True):
     original = original or make_original()
-    path = root / FILE
+    code=original["race_code"]
+    filename="four_mode_forecasts/" + code + ".json"
+    path = root / filename
     path.parent.mkdir(parents=True,exist_ok=True)
     raw = json.dumps(original,sort_keys=True).encode("utf-8")
     path.write_bytes(raw)
@@ -47,7 +49,7 @@ def fixture(root, original=None, include_obs=True):
         observation.write_text(json.dumps({
             "schema":"FOUR_MODE_GITHUB_REMOTE_OBSERVATION_V1",
             "publication_commit_sha":SHA,
-            "records":[{"race_code":CODE,"status":"github_server_observed_before_t_minus_12",
+            "records":[{"race_code":code,"status":"github_server_observed_before_t_minus_12",
                 "first_add_blob_matches_remote":True,
                 "first_add_commit":SHA,"original_sha256":digest,
                 "github_api_server_date_utc":"2026-11-06T23:09:00+00:00"}],
@@ -56,8 +58,8 @@ def fixture(root, original=None, include_obs=True):
         if args[:2]==["rev-parse","HEAD"]:
             return (SHA+"\n").encode()
         if args[0]=="diff-tree":
-            return (FILE+"\n").encode()
-        if args==["show",SHA+":"+FILE]:
+            return (filename+"\n").encode()
+        if args==["show",SHA+":"+filename]:
             return raw
         raise AssertionError(args)
     return publication,observation,git
@@ -80,7 +82,7 @@ class FrozenAllModeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             p,o,git=fixture(root)
-            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,7,8,10,1,tzinfo=JST))
             self.assertEqual(report["frozen_count"],1)
             self.assertEqual(report["validation_error_count"],0)
             self.assertFalse(report["formal"])
@@ -96,7 +98,7 @@ class FrozenAllModeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             p,o,git=fixture(root)
-            report=capture(root,p,o,now=datetime(2026,11,7,8,24,tzinfo=JST),git=git)
+            report=capture(root,p,o,now=datetime(2026,11,7,8,24,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,7,8,24,1,tzinfo=JST))
             self.assertEqual(report["ineligible_count"],1)
             self.assertEqual(report["frozen_count"],0)
             self.assertEqual(report["records"][0]["reason"],"not_frozen_strictly_before_T_minus_12")
@@ -106,13 +108,13 @@ class FrozenAllModeTests(unittest.TestCase):
             root=Path(d)
             p,o,git=fixture(root)
             o.unlink()
-            self.assertEqual(capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)["status"],
+            self.assertEqual(capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,7,8,10,1,tzinfo=JST))["status"],
                              "no_original_remote_observation")
             _,o,git=fixture(root)
             obj=json.loads(o.read_text())
             obj["records"][0]["original_sha256"]="b"*64
             o.write_text(json.dumps(obj))
-            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+            report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,7,8,10,1,tzinfo=JST))
             self.assertEqual(report["frozen_count"],0)
             self.assertEqual(report["records"][0]["reason"],"original_remote_observation_not_verified")
 
@@ -129,19 +131,15 @@ class FrozenAllModeTests(unittest.TestCase):
             row["race_code"]="202611050101"
             row["deadline_jst"]="2026-11-05T08:35:00+09:00"
             p,o,git=fixture(root,row)
-            report=capture(root,p,o,now=datetime(2026,11,5,8,10,tzinfo=JST),git=git)
+            report=capture(root,p,o,now=datetime(2026,11,5,8,10,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,5,8,10,1,tzinfo=JST))
             self.assertEqual(report["frozen_count"],0)
             self.assertEqual(report["records"][0]["reason"],"discovery_period_or_before_registration")
 
-    def test_result_field_not_passed_through_original_model(self):
+    def test_postrace_field_rejected_even_if_selector_would_ignore_it(self):
         raw=make_original()
         raw["finish_order"]=[1,2,3]
-        # No code ever reads the result field; selection is identical and output
-        # contains no winning ticket. Production evidence attestation still
-        # needs independent proof that these fields were unavailable pre-race.
-        a,b=candidate_modes(raw)
-        raw.pop("finish_order")
-        self.assertEqual((a,b),candidate_modes(raw))
+        with self.assertRaisesRegex(ValueError,"postrace_content_in_forecast"):
+            candidate_modes(raw)
 
     def test_corrupt_pub_addition_roster_is_hard_error(self):
         with tempfile.TemporaryDirectory() as d:
@@ -151,7 +149,7 @@ class FrozenAllModeTests(unittest.TestCase):
             pub["added_forecasts"]=2
             p.write_text(json.dumps(pub))
             with self.assertRaisesRegex(ValueError,"first_add_and_observation_roster_disagree"):
-                capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git)
+                capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),git=git,clock=lambda: datetime(2026,11,7,8,10,1,tzinfo=JST))
 
 
 if __name__=="__main__":
