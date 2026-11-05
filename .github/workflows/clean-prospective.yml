@@ -14,6 +14,8 @@ on:
       - test_collect_clean_prospective.py
       - scripts/clean_capture_local_accounting.py
       - test_clean_capture_local_accounting.py
+      - scripts/clean_commit_clock_gate.py
+      - test_clean_commit_clock_gate.py
       - .github/workflows/clean-prospective.yml
   push:
     branches: [main]
@@ -22,6 +24,8 @@ on:
       - test_collect_clean_prospective.py
       - scripts/clean_capture_local_accounting.py
       - test_clean_capture_local_accounting.py
+      - scripts/clean_commit_clock_gate.py
+      - test_clean_commit_clock_gate.py
       - .github/workflows/clean-prospective.yml
 permissions:
   contents: write
@@ -43,7 +47,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Unit tests
-        run: python -m unittest -v test_collect_clean_prospective test_clean_capture_local_accounting
+        run: python -m unittest -v test_collect_clean_prospective test_clean_capture_local_accounting test_clean_commit_clock_gate
       - name: Capture if public race cards are already published
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
@@ -146,7 +150,15 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Git stores committer time only to whole seconds. Real 2026-11-05
+          # originals were generated in the same second as their commit, so
+          # independent first-add chronology could not be proven locally.
+          # Wait for a real later wall-clock second (never alter timestamps).
+          python scripts/clean_commit_clock_gate.py precommit
           git commit -m 'data: freeze prospective pre-cutoff candidates (not yet formal)'
+          # Fail closed if Git metadata still cannot order the commit after
+          # every candidate's immutable generated_at. Nothing may be pushed.
+          python scripts/clean_commit_clock_gate.py postcommit
           # Other CLEAN writers update main frequently. Retry only while every
           # newly committed candidate still has a 90-second receipt buffer.
           for attempt in 1 2 3; do
