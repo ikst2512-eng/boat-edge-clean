@@ -28,7 +28,24 @@ jobs:
           gh run download 41953950959 -R ikst2512-eng/boat-edge-clean -n four-mode-capture-41953950959 -D original-nov05
           test -s original-nov05/four-mode-evidence/hole-shadow.json
           test -s original-nov05/four-mode-evidence/github-server-observation.json
-      - name: Replay original frozen locked tickets against currently confirmed results
+      - name: Load November 5 confirmed results from pinned latest-main data snapshot
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 1a6612f9039a3ed87eef6bebb00c73f7419ee32a
+          test "$(git rev-parse FETCH_HEAD)" = "1a6612f9039a3ed87eef6bebb00c73f7419ee32a"
+          # CI workspace only: restore RESULT files from pinned main; never change
+          # the original pre-T12 forecasts or the 106 frozen shadow candidates.
+          git restore --source=FETCH_HEAD --staged --worktree -- confirmed_results/
+          python - <<'PY'
+          from pathlib import Path
+          root=Path("confirmed_results")
+          actual={p.stem for p in root.glob("20261105????.json")}
+          expected={p.stem for p in Path("four_mode_forecasts").glob("20261105????.json")}
+          assert len(expected)==106 and expected<=actual, (len(expected),len(expected-actual))
+          print("PINNED_RESULT_MAIN_SHA","1a6612f9039a3ed87eef6bebb00c73f7419ee32a")
+          print("NOV05_FORECASTS",len(expected),"NOV05_PAIRED_RESULTS",len(expected & actual))
+          PY
+      - name: Replay original frozen locked tickets against pinned complete results
         run: python hole_nov05_original_shadow_replay.py --capture-dir original-nov05 > hole_nov05_original_replay.json
       - name: Report exact denominators and guardrails
         run: |
@@ -37,7 +54,9 @@ jobs:
           x=json.load(open("hole_nov05_original_replay.json"))
           assert x["original_frozen_count"]==106
           assert x["github_observed_before_t12_not_first_receipt"]==106
-          assert 0<x["comparable_confirmed"]<=x["replay_verified_candidate_count"]<=106
+          assert x["comparable_confirmed"]==x["replay_verified_candidate_count"]==106
+          assert x["frozen_without_scored_result"]==0
+          assert not x["replay_excluded_by_reason"]
           assert x["formal"] is False and x["prospective_validation"] is False
           assert x["independent_first_receipt_verified"] is False
           assert x["capture_window_complete_proven"] is False
