@@ -1,3 +1,8 @@
+## 2026-11-06 04:00 JST — 公式3原本の継続収集は未証明（監査責任境界）
+- mainの公式3原本観測workflowはworkflow_dispatch/PRのみ、11/06のscheduled実行は設定されていない。専用外部Git証拠ブランチ `external_three_t12/` は11/03しかなく、Render登録サービスはWeb1件のみ（有料cron未準備）。
+- [Draft #1694](https://github.com/ikst2512-eng/boat-edge-clean/pull/1694) は既存監査CIで11/06の日付別監査JSONを保存できる状態に改善。原本のない11/06は0件/pending、11/05は111件/同一秒不明で継続不合格。[実装検証 #42089564003](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42089564003) で同時に両方証明。監査対象として成功判定は出さない。
+- 収集担当①は正式T−12に必要な出走表・beforeinfo・120オッズ・公式締切・Git遠隔初回受領・最終進入までの原本収集を別途検討。監査担当は自動スケジュール・Render有料課金・本番モデルには触れない。詳細 `docs/audits/t12-independent-early-20261106.md`。
+
 ## 2026-11-06 03:50 JST — T−12独立証拠監査（開催前・Draft #1694）
 
 - main `71ab5352c98634246a00bfa3c1a2c32b5b92ab09` のGit Tree全件で11/06 CLEAN 0件、4モード0件、日程保存0件。未取得は失敗レース・的中率分母に数えない。正式認定0件は対象原本なしの現時点確認であり、改善率は測定不可。
