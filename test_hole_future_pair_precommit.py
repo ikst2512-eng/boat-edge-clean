@@ -78,6 +78,26 @@ class PairPrecommitTest(unittest.TestCase):
             self.assertEqual(reviewed["gain_loss"]["same_pair_two_thirds"]["top10"]["gained"],1)
             self.assertEqual(reviewed["gain_loss"]["two_pairs_one_third"]["top10"]["gained"],1)
             self.assertEqual(reviewed["gain_loss"]["two_pairs_one_third"]["top5"]["gained"],0)
+            self.assertIsNone(reviewed["top10_loss_diagnostics"]["same_pair_two_thirds"])
+            self.assertIsNone(reviewed["top10_loss_diagnostics"]["two_pairs_one_third"])
+
+    def test_top10_loss_diagnostic_distinguishes_dropped_third_from_dropped_pair(self):
+        # Synthetic, outcome-independent regression: original 2-3 pair has two
+        # third choices; replacing just one can lose a hit despite pair coverage.
+        original=BASE[:]
+        candidate=original[:9]+["1-5-2"]
+        d=s.top10_loss_diagnostic(original,candidate,"2-3-4")
+        self.assertEqual(d["original_rank"],10)
+        self.assertEqual(d["lost_ticket"],"2-3-4")
+        self.assertTrue(d["first_second_pair_still_covered"])
+        self.assertEqual(d["cause"],"third_choice_removed_despite_pair_coverage")
+        self.assertEqual(d["removed_tickets"],["2-3-4"])
+        self.assertEqual(d["added_tickets"],["1-5-2"])
+        self.assertIsNone(s.top10_loss_diagnostic(original,candidate,"1-2-3"))
+        candidate2=original[:8]+["1-5-2","1-5-3"]
+        d2=s.top10_loss_diagnostic(original,candidate2,"2-3-4")
+        self.assertFalse(d2["first_second_pair_still_covered"])
+        self.assertEqual(d2["cause"],"winning_first_second_pair_removed")
 
     def test_corrupt_or_false_attestation_prevents_outcome_read(self):
         with tempfile.TemporaryDirectory() as temp:
