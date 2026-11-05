@@ -62,6 +62,18 @@ class DailyPostFixIsolationTests(unittest.TestCase):
             self.assertEqual(result["rejected"], 1)
             self.assertFalse(result["formal"])
 
+    def test_independent_day_does_not_include_later_dates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp) / "prospective_predictions"
+            directory.mkdir()
+            for code in ("202611050101", "202611060101", "202611070101"):
+                (directory / (code + ".json")).write_text("{}")
+            self.assertEqual(post_fix_paths(tmp, day="20261106"),
+                             ["prospective_predictions/202611060101.json"])
+            self.assertEqual(post_fix_paths(tmp, day="20261107"),
+                             ["prospective_predictions/202611070101.json"])
+            self.assertEqual(len(post_fix_paths(tmp)), 3)
+
     def test_invalid_or_earlier_days_fail_closed(self):
         for day in ("20261104", "20261131", "20261306", "2026116",
                     "2026-11-06", "xyz", "", 20261106, True):
