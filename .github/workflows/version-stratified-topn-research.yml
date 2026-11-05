@@ -9,6 +9,8 @@ on:
       - test_four_mode_all_mode_same_job_shadow.py
       - four_mode_all_shadow_reference_review.py
       - test_four_mode_all_shadow_reference_review.py
+      - four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_all_shadow_durable_ledger.py
       - test_four_mode_forward_paired_score.py
       - research/four_mode_all_modes_forward_protocol_20261106.json
       - docs/research/four_mode_forward_all_modes_20261106.md
@@ -33,6 +35,8 @@ jobs:
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
       - name: Replay real Nov 5 original forecasts without reading results
         run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
+      - name: Test append-only GitHub candidate receipt and strict remote observation clock
+        run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
       - name: Report reference review readiness (no invented frozen artifact)
