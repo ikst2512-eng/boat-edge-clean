@@ -65,7 +65,7 @@ def parse_result(row):
     # Source expresses wind in integer m/s. Do not put 2.5m in '3-4m'.
     if not speed.is_integer():
         raise ValueError("wind_noninteger_out_of_band_definition")
-    method = str(row.get("決まり手") or "").strip()
+    # Historical result data uses full-width spaces: 逃　げ / 差　し / 抜　き.\n    method = "".join(str(row.get("決まり手") or "").split())
     if method not in METHODS:
         raise ValueError("winning_method_missing_or_invalid")
     direction = str(row.get("風向") or "").strip()
