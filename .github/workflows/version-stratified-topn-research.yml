@@ -30,6 +30,8 @@ jobs:
         run: python -m unittest -v test_four_mode_forward_paired_score
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Replay real Nov 5 original forecasts without reading results
+        run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
       - name: Check original and candidate replay before any result lookup
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
       - name: Report reference review readiness (no invented frozen artifact)
