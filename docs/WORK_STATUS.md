@@ -1,3 +1,11 @@
+## 2026-11-06 03:50 JST — T−12独立証拠監査（開催前・Draft #1694）
+
+- main `71ab5352c98634246a00bfa3c1a2c32b5b92ab09` のGit Tree全件で11/06 CLEAN 0件、4モード0件、日程保存0件。未取得は失敗レース・的中率分母に数えない。正式認定0件は対象原本なしの現時点確認であり、改善率は測定不可。
+- 実schedule [#42082749439](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42082749439)（03:17 JST）はjob successだが `capture_source_status=not_yet_expected`、上流5/5系統未取得、6艇ペア0、T−12観測0。監視 [#42078433737](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42078433737)（02:49 JST）は時間帯外でno_dispatch。HTTP未取得・起動成功と公式T−12成功は分離。
+- [#42074151538](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42074151538)原本ログで11/05 111/111 `first_commit_same_second_unverified`、累積1,085件は過去974件の受領後生成時系列不正と111件の同一秒不明。全件正式判定を保留し、旧原本は不変。
+- #1690はmainに統合済みだが11/06新規Git原本での実効性とremote first-receiptは未証明。監査側の [Draft #1694](https://github.com/ikst2512-eng/boat-edge-clean/pull/1694) は日付別ローカル初回Git保存診断、回帰テスト、既存監査CI、および [詳細報告](docs/audits/t12-independent-early-20261106.md) のみ。自動統合・正式昇格・収集本体変更は禁止。
+- 次は11/06開催時間帯の初回追加後に出走表・公式beforeinfo/6艇展示・公式3連単120通りの原本SHA/受信時刻・公式締切とT−12・初回Git原本/遠隔初回受領を同一レースIDで厳密照合。保留理由をレース単位で残す。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
