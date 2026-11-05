@@ -39,3 +39,17 @@ As of this snapshot Nov 6: **0 candidates were available to assess**, **0 formal
 Run `python audit_clean_post_fix_cohort.py --day 20261106` on a full-history checkout, archive its stdout and actual run ID, then check Git first-add-original byte equality, first committer chronology and remote observation **separately** from raw official three-source manifests. Record a per-race PASS / REJECT / UNVERIFIED (with exact failure reason), not a fabricated overall rate. The collector, writer, cron and Render are owned by thread ①, and this independent audit must not duplicate any writer change.
 
 **Change scope of this PR:** audit-only day filter, tests/CI, and this observation report. No `main` writes, model changes, official approval or auto-merge.
+
+
+## Independent source-capture continuity gap (inspected at ~04:00 JST)
+
+- [`official-three-original-t12-observation.yml`](../../.github/workflows/official-three-original-t12-observation.yml) has **no `schedule` trigger**: only `workflow_dispatch` and code-path `pull_request` (the Nov 3 matrix was retired intentionally to avoid stale live race IDs). It does not automatically collect a Nov 6 triple.
+- Dedicated `research-t12-external-evidence` branch exists, but Git tree `external_three_t12/` contains only the **`20261103/`** date at SHA `d0ed89f146dff117021c2bc042b20259d6715515`, last archival commit Nov 3 17:01 JST. No Nov 6 three-original evidence has been remotely archived there at inspection time.
+- Render service inventory (workspace `tea-db8svlcs728c73avi3h0`) lists the **`boat-edge-clean` web service only**, not a dedicated recurring Cron Job. The external research runner exists in code, but no configured live external automatic observation was confirmed. New paid recurring infrastructure is not provisioned without operator approval.
+- Thus even a later *locally* well-timed Nov 6 CLEAN Git first-add **cannot by itself prove official three-original T−12 coverage**. The capture-owner workflow ① must separately decide a supported race-time evidence collector; this independent audit does **not** add a scheduled writer, dispatch race jobs before official dates are known, or quietly relax source and final-entry gates.
+
+## 04:00 JST — actual PR dry-run of date-scoped evidence
+
+- The existing audit-only workflow now executes the same checkout twice: the original all-post-fix gate **remains failed** for Nov 5's 111 same-second unverified candidates, then a deliberately non-certifying **per-JST-day report** is uploaded, even if there are no current-day candidates. No additional scheduled workflows or production collection calls.
+- Exact PR-head [Actions run #42089564003](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42089564003) logs `POST_FIX_CURRENT_JST_DAY` at `day_jst=20261106`, `candidate_count=0`, `status=pending_no_new_capture`, `formal=false`, `remote_first_seen_verified=false` with archived artifact `13444722031`. Distinct immutable archive audit remains red by design; no historical false promotion.
+- [CI #42089563834](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42089563834) succeeds; full independent-evaluation unit-test job in #42089564003 executes **43/43 tests successfully** while global original-evidence gates remain deliberately failed.
