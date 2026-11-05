@@ -205,6 +205,12 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
                   or receipts[code].get("first_add_commit") != sha):
                 item["reason"] = "original_remote_observation_not_verified"
             else:
+                original_observed_utc = datetime.fromisoformat(receipts[code]["github_api_server_date_utc"])
+                if (original_observed_utc.utcoffset() != timedelta(0) or
+                        original_observed_utc + timedelta(seconds=1) >= now):
+                    item["reason"] = "original_observation_candidate_chronology_not_proven"
+                    result["records"].append(item)
+                    continue
                 baseline, candidate = candidate_modes(archive)
                 # Prevent a concurrent clock crossing T-12 while selecting.
                 finish = (clock() if clock is not None else datetime.now(JST))
@@ -214,6 +220,7 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
                     item.update({
                         "status": "frozen_local_before_T_minus_12_research_only",
                         "source_generated_at_jst": generated.isoformat(),
+                        "original_observed_at_utc": original_observed_utc.isoformat(),
                         "frozen_at_jst": finish.isoformat(),
                         "baseline": baseline, "candidate": candidate,
                         "mode_selector_sha256": {m: result["candidate_method_sha256"]
