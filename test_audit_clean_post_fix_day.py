@@ -8,6 +8,20 @@ from audit_clean_post_fix_cohort import inspect_post_fix, post_fix_paths
 
 
 class DailyPostFixIsolationTests(unittest.TestCase):
+    def test_scheduled_backup_also_archives_jst_day_without_hiding_global_failure(self):
+        wf=(Path(__file__).resolve().parent /
+            ".github/workflows/clean-prospective-evaluation.yml").read_text()
+        self.assertIn("python audit_clean_post_fix_cohort.py > test-results/post-fix-first-add.json", wf)
+        self.assertIn('python audit_clean_post_fix_cohort.py --day "$day" > test-results/post-fix-first-add-day.json', wf)
+        self.assertIn("day=$(TZ=Asia/Tokyo date +%Y%m%d)", wf)
+        self.assertIn("if: always()", wf)
+        self.assertIn("data['formal'] is not False", wf)
+        self.assertIn("data['remote_first_seen_verified'] is not False", wf)
+        self.assertIn("test-results/post-fix-first-add-day.json", wf)
+        self.assertIn("  schedule:", wf)
+        self.assertIn("    - cron: '30 3,12 * * *'", wf)
+        self.assertIn("    - name: Audit existing immutable candidate commits if present", wf)
+
     def test_nov5_failure_cannot_mask_nov6_local_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp) / "prospective_predictions"
