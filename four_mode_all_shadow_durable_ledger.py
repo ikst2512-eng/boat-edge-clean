@@ -121,8 +121,8 @@ def remote_observe(repository, path):
     return server, content
 
 
-def publish(raw, root, run_id, attempt, remote_read, remote_create, observer):
-    path=prepare(raw, root, run_id, attempt)
+def publish(raw, root, run_id, attempt, remote_read, remote_create, observer, git=None):
+    path=prepare(raw, root, run_id, attempt, git=git)
     if path is None:
         return {"schema":"FOUR_MODE_ALL_REMOTE_LEDGER_V1",
                 "status":"nothing_published_in_capture",
