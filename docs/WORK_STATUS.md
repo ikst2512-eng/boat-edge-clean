@@ -1,3 +1,11 @@
+## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
+- 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
+- 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
+- PR #1690 head efe17878f0bb9d729b99a9f32a848bccd4985850 のCI #42058807358 は57件成功（取得と保存はPRイベントでskip）。mainとの間の2コミット38変更ファイルはPRの3変更ファイルと重複0。2026-11-06 JST、squashでmain 489ceb404f67f810a6fe21d6a791b073f5aae1a8へ統合。main push CLEAN CI #42069789862 success（テストのみ）。
+- CLEANはステージ済み原本を検査し、実際の次秒を待ってGit commitし、HEAD実コミッター時刻を検査。rebase後に再検査して90秒余裕・append-only・既存T−12ゲートを保持。原本、予想・T−12判定ロジック、UIは不変更。ローカル時刻合格だけで遠隔初見・公式T−12・正式採点を承認しない。
+- Render workspace tea-db8svlcs728c73avi3h0 は boat-edge-clean Web service 1件のみ。Render cronサービスは未存在。外部wake-up entrypoint scripts/render_capture_wakeup.pyは実行資源がなく、重複の本番稼働証拠なし。既存GitHub 4モードwatchdogのCLEAN救済ロジックは維持、新cronは作らない。
+- 残る実証: 11/06 07:04 JST以降のscheduled/救済 capture run ごとに取得ログ、生成件数、append-only Git first-add件数と時刻、push後remote main継続、失敗内訳を別々に確認。Render autoDeploy完了とmain SHA一致を検査。未証明の保存・採点を成功に昇格しない。
+
 ## 2026-11-04 20:15 JST 実証：公式展示6艇＋オッズ120通りがT−12前に揃った1レース
 - PR #1628初期head `82e821fdbd7f4b65da00b40a829b19510c00c6b1` の既存CI `41819205922`（event=pull_request）success。下関7R `202611041907`、締切20:25/T−12=20:13に対し、公式beforeinfo JSON受信20:11:46.513411、公式odds HTML受信20:11:55.812353。展示タイム・チルト・ST・展示進入6艇、120通りが全て原本から検証され、both_complete_before_t12=true。桐生12Rは同runで展示未完成、falseのまま。
 - Artifact `13315119405` `independent-late-preview-41819205922`（28,215 bytes）を実ダウンロード。ZIP SHA256 `6f5ee2e9ead169dad4bed4b3ed314507ccf3d77c931c12ece0088a6d0ddb1616` をGitHub digestと一致確認、安全展開して既存`audit_joint_official_receipts.audit_pair`で両レースを独立再監査。下関7Rの全7component checks=true、missing_components=[]を再確認。
