@@ -108,7 +108,7 @@ class SavedActualShadowAuditTests(unittest.TestCase):
 
     def test_wrong_day_or_duplicate_race_rejected(self):
         self.shadow["records"][0]["race_code"] = "202611040101"
-        with self.assertRaisesRegex(ValueError, "cross_artifact_race_roster_disagrees"):
+        with self.assertRaisesRegex(ValueError, "duplicate_or_invalid_frozen_race_code"):
             _common_codes(self.publication, self.shadow, self.remote, self.links)
         self.shadow["records"][0]["race_code"] = CODES[1]
         with self.assertRaisesRegex(ValueError, "duplicate_or_invalid_frozen_race_code"):
