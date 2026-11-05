@@ -180,6 +180,10 @@ jobs:
           PY
             git fetch origin main
             git -c rebase.autoStash=true rebase origin/main
+            # Rebase can rewrite the publication commit. Reverify the
+            # exact committed candidate blobs and new Git committer second.
+            # The original pre-push gate alone cannot attest a rewritten HEAD.
+            python scripts/clean_commit_clock_gate.py postcommit
             # Rebase can consume the 90s safety margin or change the
             # publication commit. Check its exact first-add files again,
             # immediately before attempting a remote push.
