@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from collect_clean_results import BASE as CONFIRMED_RESULT_SOURCE_BASE
+
 PROTOCOL = Path(__file__).resolve().parent / "research/four_mode_all_modes_forward_protocol_20261106.json"
 COUNTS = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 TOPS = (1, 3, 5, 10)
@@ -118,11 +120,19 @@ def score(pre_result_rows, results, p):
             continue
         outcome = results[code]
         try:
-            if (not isinstance(outcome,dict) or outcome.get("race_code") != code or
+            expected_result_url = (CONFIRMED_RESULT_SOURCE_BASE + code[:4] + "/"
+                                   + code[4:6] + "/" + code[6:8] + ".csv")
+            if not isinstance(outcome,dict):
+                raise ValueError("untrusted_result_or_time")
+            confirmed = clock(outcome.get("confirmed_at_jst"))
+            collected = clock(outcome.get("collected_at_jst"))
+            if (outcome.get("race_code") != code or
                 outcome.get("status") != "confirmed" or
-                not isinstance(outcome.get("source_url"),str) or not outcome["source_url"].startswith("https://") or
-                not isinstance(outcome.get("source_sha256"),str) or not SHA.fullmatch(outcome["source_sha256"]) or
-                clock(outcome["confirmed_at_jst"]) <= row["deadline"]):
+                outcome.get("source_url") != expected_result_url or
+                not isinstance(outcome.get("source_sha256"),str) or
+                not SHA.fullmatch(outcome["source_sha256"]) or
+                confirmed <= row["deadline"] or
+                confirmed > collected + timedelta(minutes=3)):
                 raise ValueError("untrusted_result_or_time")
             finish = outcome.get("finish_order")
             if (type(finish) is not list or len(finish) != 3 or
