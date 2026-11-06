@@ -119,6 +119,19 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"original_first_add_digest_mismatch"):
                 compare([cap],root)
 
+    def test_replay_rejects_original_observation_before_generation(self):
+        # A locally frozen candidate is not a valid pre-result source
+        # if the claimed original remote observation predates its generation.
+        for observed in ("2026-11-06T23:06:00+00:00",
+                         "2026-11-06T23:07:00.500000+00:00"):
+            with self.subTest(observed=observed), tempfile.TemporaryDirectory() as d:
+                root=Path(d)
+                frozen=self.fresh(root)
+                frozen["records"][0]["original_observed_at_utc"]=observed
+                with self.assertRaisesRegex(ValueError,
+                        "candidate_cutoff_or_chronology_unproven"):
+                    compare([frozen],root)
+
     def test_selector_drift_hard_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);cap=self.fresh(root)
