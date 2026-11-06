@@ -83,6 +83,19 @@ class FourModeForwardTests(unittest.TestCase):
         self.assertIn("incomplete_or_postrace_feature",
                       score([row],{},self.policy)["excluded_before_result_read"])
 
+    def test_mixed_invalid_future_roster_refused_without_backfill(self):
+        valid = self.row()
+        rejected = copy.deepcopy(valid)
+        rejected["race_code"] = "202611070102"
+        rejected["deadline_jst"] = "2026-11-07T08:40:00+09:00"
+        rejected["candidate_github_observed_jst"] = rejected["candidate_generated_jst"]
+        # The second row must not be silently omitted and replaced by a
+        # later valid candidate in the first fixed 600 forecast slots.
+        with self.assertRaisesRegex(ValueError, "incomplete_candidate_roster_no_replacement"):
+            score([valid, rejected], {valid["race_code"]: self.result()}, self.policy)
+        with self.assertRaisesRegex(ValueError, "incomplete_candidate_roster_no_replacement"):
+            score([rejected, valid], {valid["race_code"]: self.result()}, self.policy)
+
     def test_candidate_rank_losses_cannot_be_hidden(self):
         row=self.row()
         original=row["candidate"]["hit"]
