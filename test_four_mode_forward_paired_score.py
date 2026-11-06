@@ -38,7 +38,9 @@ class FourModeForwardTests(unittest.TestCase):
     def result(self):
         return {"race_code":"202611070101", "status":"confirmed", "finish_order":[1,2,3],
                 "confirmed_at_jst":"2026-11-07T08:50:00+09:00",
-                "source_url":"https://example.org/confirmed.csv","source_sha256":"e"*64}
+                "collected_at_jst":"2026-11-07T08:51:00+09:00",
+                "source_url":"https://boatracecsv.github.io/data/results/realtime/2026/11/07.csv",
+                "source_sha256":"e"*64}
 
     def test_protocol_is_locked_and_nov05_cannot_enter(self):
         self.assertEqual(protocol_check(self.policy)["pilot_races"],300)
@@ -97,6 +99,22 @@ class FourModeForwardTests(unittest.TestCase):
             score([a,b],{},self.policy)
         with self.assertRaisesRegex(ValueError,"duplicate_candidate"):
             score([a,a],{},self.policy)
+
+    def test_forged_source_or_collection_clock_is_excluded(self):
+        row=self.row()
+        for field,replacement in (
+            ("source_url","https://example.org/confirmed.csv"),
+            ("collected_at_jst","2026-11-07T08:00:00+09:00"),
+        ):
+            with self.subTest(field=field):
+                result=self.result()
+                result[field]=replacement
+                report=score([row],{row["race_code"]:result},self.policy)
+                self.assertEqual(report["matched_by_phase"],{})
+                self.assertEqual(report["scores"]["pilot"]["hit"]["top10"]
+                                 ["denominator_reference_only"],0)
+                self.assertIn("untrusted_result_or_time",
+                              report["invalid_result_counts"])
 
     def test_untrusted_result_is_not_scored(self):
         row=self.row();result=self.result()
