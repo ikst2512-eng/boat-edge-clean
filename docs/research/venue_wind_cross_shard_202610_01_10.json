@@ -1,0 +1,62 @@
+{
+  "schema": "COURSE_TACTIC_WIND_SHARD_V1",
+  "period": "2026-10-01..2026-10-10",
+  "research_only": true,
+  "postrace_observation_not_T12": true,
+  "files": [
+    {
+      "day": "2026-10-01",
+      "sha": "369794d043ce8dce12da784cfa57ed506e3e124a",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-02",
+      "sha": "3f2b3a77c8aad5423b8207e29f2919664ef9c3ca",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-03",
+      "sha": "00726576d360dfd61e6326d4a03c3ca1fb20b92a",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-04",
+      "sha": "17b031f8d95d99cb0bd10571ed233538a151038c",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-05",
+      "sha": "51f53f443249421adc9c942289c1743a05ea2f98",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-06",
+      "sha": "f5a9011f9950173adb4e332da5a09e500e9a153b",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-07",
+      "sha": "09966558473842abfc8c83d6d0ebc4604d397359",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-08",
+      "sha": "c0e5b2fa397df4d6854bcc582a88452cf9ed55b0",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-09",
+      "sha": "b4d7311b19b4da5f4bf3eeec380445f4380c9af3",
+      "rows": 0
+    },
+    {
+      "day": "2026-10-10",
+      "sha": "4060160aa470f7d9c18d4f3598371b448b4f708d",
+      "rows": 0
+    }
+  ],
+  "input_rows": 0,
+  "accepted": 0,
+  "exclusions": {},
+  "groups": {}
+}
