@@ -29,6 +29,8 @@ on:
       - 'venue_wind_holdout_venue_mix_audit.py'
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
+      - 'venue_environment_observational.py'
+      - 'test_venue_environment_observational.py'
       - 'tests/test_research_official_c1_rate_gap_f_audit.py'
       - 'tests/test_research_venue_wind_outcomes.py'
       - 'test_venue_wind_holdout_venue_mix_audit.py'
@@ -64,6 +66,8 @@ on:
       - 'venue_wind_holdout_venue_mix_audit.py'
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
+      - 'venue_environment_observational.py'
+      - 'test_venue_environment_observational.py'
       - 'tests/test_research_official_c1_rate_gap_f_audit.py'
       - 'tests/test_research_venue_wind_outcomes.py'
       - 'test_venue_wind_holdout_venue_mix_audit.py'
@@ -111,5 +115,7 @@ jobs:
         run: python -m unittest -v test_venue_wind_holdout_venue_mix_audit
       - name: Verify six-finisher wind cohort sensitivity tests
         run: python -m unittest discover -s tests -p 'test_research_venue_wind_outcomes.py' -v
+      - name: Verify original venue observational parser and safety checks
+        run: python -m unittest -v test_venue_environment_observational
       - name: Verify official venue-rate F denominator research audit
         run: python -m unittest discover -s tests -p 'test_research_official_c1_rate_gap_f_audit.py' -v
