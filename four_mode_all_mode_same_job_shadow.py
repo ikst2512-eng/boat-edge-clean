@@ -207,6 +207,7 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
             else:
                 original_observed_utc = datetime.fromisoformat(receipts[code]["github_api_server_date_utc"])
                 if (original_observed_utc.utcoffset() != timedelta(0) or
+                        generated + timedelta(seconds=1) >= original_observed_utc or
                         original_observed_utc + timedelta(seconds=1) >= now):
                     item["reason"] = "original_observation_candidate_chronology_not_proven"
                     result["records"].append(item)
