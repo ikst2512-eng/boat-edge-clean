@@ -105,6 +105,7 @@ def validate_capture_before_any_results(captures, root):
             freeze=at_jst(item["frozen_at_jst"])
             observed=datetime.fromisoformat(item["original_observed_at_utc"])
             if (observed.utcoffset()!=timedelta(0)
+                    or not gen+timedelta(seconds=1) < observed
                     or not observed+timedelta(seconds=1) < freeze
                     or not gen < freeze < deadline-timedelta(minutes=12)
                     or item.get("deadline_jst") != deadline.isoformat()
