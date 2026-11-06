@@ -118,6 +118,22 @@ class FrozenAllModeTests(unittest.TestCase):
             self.assertEqual(report["frozen_count"],0)
             self.assertEqual(report["records"][0]["reason"],"original_remote_observation_not_verified")
 
+    def test_original_observation_cannot_precede_forecast_generation(self):
+        for observed in ("2026-11-06T23:06:00+00:00",
+                         "2026-11-06T23:07:00.500000+00:00"):
+            with self.subTest(observed=observed), tempfile.TemporaryDirectory() as d:
+                root=Path(d)
+                p,o,git=fixture(root)
+                receipt=json.loads(o.read_text(encoding="utf-8"))
+                receipt["records"][0]["github_api_server_date_utc"]=observed
+                o.write_text(json.dumps(receipt),encoding="utf-8")
+                report=capture(root,p,o,now=datetime(2026,11,7,8,10,tzinfo=JST),
+                               git=git,clock=lambda:datetime(2026,11,7,8,10,1,tzinfo=JST))
+                self.assertEqual(report["frozen_count"],0)
+                self.assertEqual(report["ineligible_count"],1)
+                self.assertEqual(report["records"][0]["reason"],
+                                 "original_observation_candidate_chronology_not_proven")
+
     def test_unreproduced_saved_probabilities_rejected(self):
         row=make_original()
         row["modes"]["hit"]["tickets"][0]["p"]=987.0
