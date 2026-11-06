@@ -49,6 +49,7 @@ class CaptureInventoryTests(unittest.TestCase):
    (dest/"publication.json").write_text(json.dumps({"outcome":"pushed_to_main"}))
    data={"status":"research_only_after_confirmed_push",
          "records":[{"status":"shadow_frozen_unverified",
+         "race_code":"202611060101",
          "future_locked_candidates":{p:["1-2-3"] for p in
           ("baseline","donor_order","max_ticket_score","third_national_rate")}}]}
    (dest/"hole-shadow.json").write_text(json.dumps(data))
