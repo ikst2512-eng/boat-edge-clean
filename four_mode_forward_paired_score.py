@@ -106,6 +106,10 @@ def score(pre_result_rows, results, p):
         if row["code"] in roster:
             raise ValueError("duplicate_candidate")
         roster[row["code"]] = row
+    # Do not silently replace a rejected pre-result candidate with a later race
+    # to fill the fixed 300+300 cohort. An incomplete mixed roster is unscorable.
+    if excluded and roster:
+        raise ValueError("incomplete_candidate_roster_no_replacement")
     # All selector and method bytes must be fixed BEFORE any result lookup.
     if len({(r["selectors"],r["method"]) for r in roster.values()}) > 1:
         raise ValueError("selector_changed_across_future_races")
