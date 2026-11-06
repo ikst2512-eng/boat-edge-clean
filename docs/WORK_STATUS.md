@@ -1,3 +1,9 @@
+## 2026-11-06 17:30 JST T−12独立監査：鳴門10Rの公式2原本をschedule＋ZIP原文で実証
+- 前回12:55 JSTの「公式2原本workflow 11/6 schedule実行0件」は時点観測であり、その後**14:47 JST**に実際の定期実行 #42170457446／job #127736799093が成功。既存`research-live-preview-evidence.yml`の自動収集が少なくとも1回動いた。17:30時点のGitHub schedule先頭100件（11/6の実行64件を包含）で同名実行1件のみ、5分間隔の継続運転は**未証明**。収集担当①が既存workflowの起動継続性を調べ、新cronは監査側で作らない。
+- 元artifact `independent-late-preview-42170457446` ID `13480945699` ZIP 22,712Bを実ダウンロード。GitHub digestと再計算SHA256 `f6e167d79648bb67ec0a3727cc61272291ba00b11c67fad9a186c281e5db89c1`一致、19ファイル、CRC異常0。**鳴門10R 202611061410**：締切15:05、T−12=14:53。公式beforeinfo受信14:47:38.371341（6艇展示・チルト・スタート展示、4524B、sha256 `8fc561b85b00cdbe8072b155500e6306e10f4d4a3143e5b7c89135eed37b8d38`）、公式120通りオッズ受信14:47:48.721444（46469B、sha256 `3d547d9acd4df3d37e0277b5bbbce34fb528052de2ab0b2734e928f0ad2092fe`）。両manifestと元ファイルhash一致、オッズ実HTMLから3連単6×5×4=120組を独立再構成（重複・欠落0）。11/6の公式2原本同一レースT−12前取得**1件**を研究証拠として確認。
+- 同runの別候補 202611060810 は元締切10:54、beforeinfo 14:47受領でT−12超過、正式候補にしない。鳴門10RのCLEAN生成は10:15:39、4モード生成は10:15:36で公式受信14:47より**先**。よって公式データをその予想の入力として遡及認定不可。公式出走表原本・正式入力後生成・GitHub初回遠隔受領が不足し、全3原本正式認定0件、精度分母未定義を維持。
+- 11/6 mainの予想原本CLEAN132／4モード130のまま。既存Draft #1694に原本SHA・取得時刻・unverified gatesを追記。収集本体・原本・モデル・T−12の判定・main・Renderは無変更。監査一次情報は`docs/audits/t12-independent-early-20261106.md`、run #42170457446。
+
 ## 2026-11-06 12:55 JST T−12監査：既存公式2原本ワークフローの無人実行欠落を追加確認
 - `research-live-preview-evidence.yml`はJST 09:00–21:55の5分間隔scheduleと、既存`capture_joint_preview_batch`による公式beforeinfo＋公式オッズの研究用原本保存を**コード上は実装済み**。別`official-three-original-t12-observation.yml`はscheduleなし。前回の「公式3原本専用の自動収集がない」は正しいが、「公式2原本自動取得処理そのものがない」ではない。
 - 2026-11-06 12:55 JSTにGitHub RESTのschedule先頭100件を確認（最古2026-11-05T01:57:53Z、最新2026-11-06T03:22:54Z）。11/6 JSTのscheduled実行53件に`Research independent late preview evidence`が**0件**。最終確認済み同workflowのscheduleは2026-11-05 22:44:55 JST／#42038507697。原因は未確定。GitHub schedule無実行と公式HTTP取得失敗を混同しない。
