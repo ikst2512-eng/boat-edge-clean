@@ -48,6 +48,7 @@ def audit(root: Path, baseline: Path):
             reader = csv.DictReader(f)
             required = {"レースコード", "1着_艇番", "1コース_F", "1コース_スタートタイミング"}
             required.update(f"{i}コース_艇番" for i in range(1, 7))
+            required.update(f"{i}着_艇番" for i in range(1, 7))
             if not required.issubset(reader.fieldnames or ()):
                 raise ValueError(f"missing_result_columns:{p}")
             for row in reader:
@@ -72,6 +73,12 @@ def audit(root: Path, baseline: Path):
                 c["first_course_wins"] += int(parsed["winner_course"] == 1)
                 flying = (row.get("1コース_F") or "").strip() == "F"
                 c["first_course_F_mark"] += int(flying)
+                first_course_boat = (row.get("1コース_艇番") or "").strip()
+                ranked = any((row.get(f"{i}着_艇番") or "").strip() == first_course_boat
+                             for i in range(1, 7))
+                c["first_course_ranked"] += int(ranked)
+                c["first_course_unranked_nonF"] += int(not ranked and not flying)
+                c["first_course_ranked_F_conflicts"] += int(ranked and flying)
                 st = (row.get("1コース_スタートタイミング") or "").strip()
                 try:
                     negative = float(st) < 0
@@ -89,30 +96,39 @@ def audit(root: Path, baseline: Path):
         n, wins, f = c["eligible"], c["first_course_wins"], c["first_course_F_mark"]
         if n == 0 or f >= n:
             raise ValueError(f"invalid_denominator_{code}")
+        ranked = c["first_course_ranked"]
+        if ranked == 0 or ranked > n or wins > ranked:
+            raise ValueError(f"invalid_ranked_denominator_{code}")
         official = float(by_code[code]["c1_win_pct"])
         raw = 100 * wins / n
         without_f = 100 * wins / (n - f)
+        ranked_only = 100 * wins / ranked
         result.append({
             "code": code, "name": by_code[code]["venue_name"],
             "raw_rows": c["raw"], "study_eligible": n, "excluded": c["excluded_from_earlier_wind_study"],
             "c1_wins": wins, "c1_F_mark": f, "c1_negative_ST": c["first_course_negative_ST"],
             "F_vs_negative_ST_conflicts": c["F_mark_ST_sign_conflict"],
+            "c1_ranked_finish_n": ranked,
+            "c1_unranked_nonF": c["first_course_unranked_nonF"],
+            "c1_ranked_F_conflicts": c["first_course_ranked_F_conflicts"],
             "study_c1_win_pct": round(raw, 2),
             "excluding_c1_F_c1_win_pct": round(without_f, 2),
+            "only_c1_with_ranked_finish_win_pct": round(ranked_only, 2),
             "official_c1_win_pct": official,
             "original_gap_official_minus_study_pt": round(official - raw, 2),
             "remaining_gap_after_F_exclusion_pt": round(official - without_f, 2),
+            "remaining_gap_after_ranked_finish_subset_pt": round(official - ranked_only, 2),
             "cause_established": False,
         })
     return {
-        "schema": "OFFICIAL_C1_RATE_GAP_F_SENSITIVITY_RESEARCH_V1",
+        "schema": "OFFICIAL_C1_RATE_GAP_DENOMINATOR_SENSITIVITY_RESEARCH_V2",
         "research_only": True, "approved_for_forecasting": False,
         "source": "BoatraceCSV post-race result CSV, source-origin unverified",
         "official_primary_result_rows_reconciled": False,
         "official_course_baseline_period": f"{START}..{END}",
-        "sampling_rule": "same source eligibility as venue_environment_observational.parse_result; removes only F-marked first course in sensitivity",
+        "sampling_rule": "same source eligibility as venue_environment_observational.parse_result; compares all, excluding F and 1C with recorded 1-6 finish; not asserted official formula",
         "official_formula_verified": False,
-        "finding": "Removing F rows moves all four gaps closer but is insufficient; remaining denominator/status differences and official-source reconciliation unresolved",
+        "finding": "Removing first-course F and separately restricting to first-course ranked finishes shrink but do not eliminate official rate gaps; status/original result reconciliation remains unresolved",
         "venues": result, "source_manifest": manifest,
     }
 
