@@ -21,7 +21,7 @@ def fixture(directory: Path):
     fields = ["レースコード", "1着_艇番", "決まり手", "風速(m)", "風向",
               "1コース_F", "1コース_スタートタイミング"] + [
                   f"{i}コース_艇番" for i in range(1, 7)
-              ]
+              ] + [f"{i}着_艇番" for i in range(2, 7)]
     rows_day = []
     for code in FOCUS:
         for race, winner, fmark, st in [(1, "1", "", "0.13"), (2, "2", "F", "-0.01")]:
@@ -30,6 +30,8 @@ def fixture(directory: Path):
                    "風速(m)": "3", "風向": "2",
                    "1コース_F": fmark, "1コース_スタートタイミング": st}
             row.update({f"{i}コース_艇番": str(i) for i in range(1, 7)})
+            row.update({f"{i}着_艇番": str(i) if winner == "1" else
+                        (str(i + 1) if i <= 5 else "") for i in range(1, 7)})
             rows_day.append(row)
     for offset in range((END-START).days+1):
         date = START + dt.timedelta(days=offset)
@@ -56,6 +58,10 @@ class TestFStudy(unittest.TestCase):
                 self.assertEqual([v["raw_rows"], v["study_eligible"], v["c1_wins"], v["c1_F_mark"]], [2, 2, 1, 1])
                 self.assertEqual(v["study_c1_win_pct"], 50.0)
                 self.assertEqual(v["excluding_c1_F_c1_win_pct"], 100.0)
+                self.assertEqual(v["c1_ranked_finish_n"], 1)
+                self.assertEqual(v["c1_unranked_nonF"], 0)
+                self.assertEqual(v["only_c1_with_ranked_finish_win_pct"], 100.0)
+                self.assertEqual(v["remaining_gap_after_ranked_finish_subset_pt"], -20.0)
                 self.assertEqual(v["original_gap_official_minus_study_pt"], 30.0)
                 self.assertEqual(v["remaining_gap_after_F_exclusion_pt"], -20.0)
                 self.assertFalse(v["cause_established"])
