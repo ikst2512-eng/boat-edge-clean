@@ -65,7 +65,13 @@ def freeze(row, p):
         co = clock(row["candidate_github_observed_jst"])
     except KeyError as e:
         raise ValueError("missing_clock") from e
-    if not (source < bg < bo < cutoff and source < cg < co < cutoff):
+    # The original must be remotely observable BEFORE the candidate is
+    # generated. GitHub's Date header has one-second resolution, so require
+    # a full-second gap around both original and candidate observations.
+    if not (source < bg and
+            bg + timedelta(seconds=1) < bo and
+            bo + timedelta(seconds=1) < cg and
+            cg + timedelta(seconds=1) < co < cutoff):
         raise ValueError("late_or_same_second_T12")
     if (row.get("official_beforeinfo_complete_6") is not True or
         row.get("official_odds_complete_120") is not True or
