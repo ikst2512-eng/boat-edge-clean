@@ -1,3 +1,29 @@
+## 2026-11-06 12:16 JST — Live first-add audit (supersedes the early zero-record snapshot below)
+
+**Evidence scope:** `main` Git Tree at `9c514682eddeef576cefcc58fabdf04ba9af3a86`; GitHub commits, Actions original job logs and current Draft PR #1694 day-only audit. The 03:50 pre-opening zeros below remain valid **only for that earlier time**. No source records, production forecasts or old candidates changed by this audit.
+
+| Day and gate | Nov 5 JST | Nov 6 JST |
+| --- | ---: | ---: |
+| Immutable CLEAN candidate JSON in main | 111 | **132** |
+| Four-mode candidate JSON in main | 106 | **130** |
+| CLEAN local first-add audit passed | 0 | **132** |
+| CLEAN local first-add rejected | **111 same-second unverified** | **0** |
+| Independently proved *first* GitHub remote receipt | unverified | **unverified** |
+| Official three-original complete, independently T−12 certified | 0 | **0** |
+
+**Confirmed recovery after merged #1690 and #1695:**
+
+1. [Real CLEAN capture run #42142599867](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42142599867) `workflow_dispatch` 10:15 JST logs `eligible_generated=132, locally_created=132, already_frozen=0`. Both post-commit and post-rebase clock guards report `candidate_count=132, local_timestamp_order_passed=true`; `PROSPECTIVE_POST_REBASE_GATE eligible_for_push=132`; actual push completes and the downstream independent-audit dispatch is logged.
+2. [Original CLEAN first-add commit `f77a0ddbf5d52947d10e13d2ba07152577f14333`](https://github.com/ikst2512-eng/boat-edge-clean/commit/f77a0ddbf5d52947d10e13d2ba07152577f14333) is **132 added / 0 modified** `prospective_predictions/20261106*.json` files, first committed **10:15:40 JST**. Example original `202611060101` has title receipt **10:15:39.484204**, card receipt **10:15:39.619474**, generation **10:15:39.642861**, then Git committer **10:15:40**, T−12 **15:08**. This is valid **local** chronology, not remote initial-receipt certification.
+3. [PR day-only actual audit run #42143693723](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42143693723) explicitly prints `POST_FIX_DAILY_LOCAL_DIAGNOSTIC_PASS day=20261106 (NOT formal)` with **132 passed / 0 rejected**. Its global history gate remains correctly red because the immutable Nov 5 111 were not repaired; full-history gate **1,085 rejected of 1,217**, including Oct 28–Nov 4 historical 974 input/source chronology failures. Daily successes do not overwrite these rejection cohorts.
+4. [Original four-mode publication commit `523345006432ef93ef1d394d3bf32e3c7d932935`](https://github.com/ikst2512-eng/boat-edge-clean/commit/523345006432ef93ef1d394d3bf32e3c7d932935) adds **130/130** new Nov 6 JSON at **10:15:48 JST**. [Real four-mode run #42142593707](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42142593707) logs `observed_before_t_minus_12=130`, `observed_after_t_minus_12=0`, `github_server_observation_not_first_receipt=true`, `independent_first_remote_receipt_verified=false`, `formal=false`, followed by an immutable server-observation ledger. `beforeinfo="optional_not_in_snapshot"` in the original four-mode records, so this V2 research source is **not an official six-boat exhibition proof**.
+5. The two CLEAN-only Nov 6 race files absent from the four-mode tree are **`202611060501` and `202611061005`**. This is a scoped inventory discrepancy, not automatically a capture defect or a missed result. The V2 initial source log separately reports **130 saved, 12 rejected for `invalid six national win rates`, and 14 `cutoff_skipped`**; no documented per-race explanation was independently established for those two, so **do not assign a speculative reason**.
+6. [12:06 JST late-preview run #42154503539](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42154503539) fetched all five **research CSV sources** (212 source rows), saved five race-kind items, and found a six-boat STT+TKZ pair only for **`202611062204`**. Published schedule deadline **12:09 JST**, T−12 **11:57**; STT receipt **12:06:49.882658**, TKZ **12:06:49.991676**, both about **9m50s after T−12**. Real audited `paired_complete_6boat_stt_tkz=1` but `paired_complete_12min_observable=0`, `both_too_late=1`. These CSV rows must **not** be called original official beforeinfo, racelist, or verified 120-way official odds. An `official_probe_failed` line for **202611010708** in the run is from its **unit test** and must not be misrepresented as a live Nov 6 official endpoint outage.
+
+**Unresolved, per same-race before formal promotion:** immutable genuine official racelist/registration six, official beforeinfo/exhibition 6 with observed HTTP receipt, complete official trifecta **120 unique odds** original + SHA, official deadline and independent T−12 cutoff, provenance of *first* remote GitHub receipt, and final entry. In current evidence **no Nov 6 race** has the complete official three-original conjunction; **formal certified=0**, **formal accuracy denominator undefined**. Continue per-race original checks in live hours; keep all records `formal=false`. The capture writer and rescue cron belong exclusively to owner ①, so this Draft PR remains audit-only and unmerged.
+
+---
+
 # 2026-11-06 JST — Independent T−12 evidence audit (pre-opening snapshot)
 
 **Scope:** read-only independent inspection of GitHub `main`, original GitHub Actions job logs and the already-connected Render deploy inventory. Evidence at **2026-11-06 03:50 JST**. This is not a forecast or a certification and does not imply full-day completeness.
