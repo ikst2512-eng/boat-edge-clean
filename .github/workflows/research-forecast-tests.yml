@@ -27,6 +27,8 @@ on:
       - 'test_collect_research_daily.py'
       - 'test_collect_research_input_integrity.py'
       - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_course_method_92day.py'
+      - 'tests/test_research_venue_wind_course_method_92day.py'
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'venue_environment_observational.py'
@@ -64,6 +66,8 @@ on:
       - 'scripts/verify_new_research_snapshots.py'
       - '.github/workflows/daily-research-forecast.yml'
       - 'venue_wind_holdout_venue_mix_audit.py'
+      - 'scripts/research_venue_wind_course_method_92day.py'
+      - 'tests/test_research_venue_wind_course_method_92day.py'
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'venue_environment_observational.py'
@@ -119,3 +123,15 @@ jobs:
         run: python -m unittest -v test_venue_environment_observational
       - name: Verify official venue-rate F denominator research audit
         run: python -m unittest discover -s tests -p 'test_research_official_c1_rate_gap_f_audit.py' -v
+      - name: Verify 92-day course-by-method research parsing and safety gates
+        run: python -m unittest discover -s tests -p 'test_research_venue_wind_course_method_92day.py' -v
+      - name: Reconcile 92 historical postrace CSV sources (PR research only)
+        if: github.event_name == 'pull_request'
+        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json
+      - name: Preserve 92-day postrace study artifact (not prediction evidence)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: venue-wind-course-method-postrace
+          path: research_evidence/venue_wind_course_method_202608_202610.json
+          if-no-files-found: error
