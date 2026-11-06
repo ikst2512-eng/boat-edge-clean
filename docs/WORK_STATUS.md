@@ -1,3 +1,10 @@
+## 2026-11-06 12:55 JST T−12監査：既存公式2原本ワークフローの無人実行欠落を追加確認
+- `research-live-preview-evidence.yml`はJST 09:00–21:55の5分間隔scheduleと、既存`capture_joint_preview_batch`による公式beforeinfo＋公式オッズの研究用原本保存を**コード上は実装済み**。別`official-three-original-t12-observation.yml`はscheduleなし。前回の「公式3原本専用の自動収集がない」は正しいが、「公式2原本自動取得処理そのものがない」ではない。
+- 2026-11-06 12:55 JSTにGitHub RESTのschedule先頭100件を確認（最古2026-11-05T01:57:53Z、最新2026-11-06T03:22:54Z）。11/6 JSTのscheduled実行53件に`Research independent late preview evidence`が**0件**。最終確認済み同workflowのscheduleは2026-11-05 22:44:55 JST／#42038507697。原因は未確定。GitHub schedule無実行と公式HTTP取得失敗を混同しない。
+- 12:22 JST CLEAN schedule #42156143585は`eligible=94, already_frozen=94, newly_saved=0`。同時刻V2 schedule #42156195043は`already_saved=130, new_saved=0, cutoff_skipped=19, invalid six national win rates=7`。新しい予想は増えていないが、既存保存を正しく認識したno-new。これは収集保存の再障害・正式認定を意味しない。
+- 既存watchdogの`workflow_run`リストに研究公式2原本workflowがあっても救済先はCLEAN/V2であり、公式2原本workflow自体の欠落を救済した証拠ではない。改善は収集担当①が既存workflowの継続起動・原本・source receipt/shaと、公式出走表6艇の追加原本・初回GitHub受領証明を確認。別cronを監査担当が新設しない。
+- GitHub監査原本は`docs/audits/t12-independent-early-20261106.md`。formal=0、正式精度分母は未定義、過去原本・予想・既存安全ゲートは未変更。PR #1694はDraft／未統合。
+
 ## 2026-11-06 12:39 JST T−12 独立監査：4モード差分2件の原因を特定（Draft #1694）
 - mainに初回追加された11/06 CLEAN 132件と4モード130件の差分 `202611060501`／`202611061005` は、既存V2コード `clean_four_mode_capture.py` の締切 **20分前** 安全条件に該当。CLEAN原本のソース締切は各10:30／10:33 JST、CLEAN生成は10:15:39.642861でT−12（10:18／10:21）より前だが、V2の期限10:10／10:13は過ぎていた。V2収集実行 #42142593707 は156入力→130保存、12件全国勝率不正、14件期限超過で一致。2件は不正12件に含まれず、保存済130件にもない。正式公式締切原本の確認とは別で、モデル・安全ゲートは変更しない。
 - 同実行の4モード130件はGitHubサーバーでT−12前観測されたものの、独立した初回遠隔受領時刻は未証明。CLEAN 132件も初回Git追加のローカル時刻ガード合格であり正式T−12認定ではない。11/06研究用CSV 6艇ペア1レースの受信もT−12後（run #42154503539）。出走表・beforeinfo・公式120通りオッズの3原本を同一レースで期限前に固定した原本の確認は0件、正式採点分母は未定義。
