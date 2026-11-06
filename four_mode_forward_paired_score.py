@@ -74,6 +74,7 @@ def freeze(row, p):
             cg + timedelta(seconds=1) < co < cutoff):
         raise ValueError("late_or_same_second_T12")
     if (row.get("official_beforeinfo_complete_6") is not True or
+        row.get("official_exhibition_complete_6") is not True or
         row.get("official_odds_complete_120") is not True or
         row.get("result_based_features_used") is not False):
         raise ValueError("incomplete_or_postrace_feature")

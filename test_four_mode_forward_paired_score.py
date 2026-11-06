@@ -23,6 +23,7 @@ class FourModeForwardTests(unittest.TestCase):
             "candidate_generated_jst": "2026-11-07T08:10:05+09:00",
             "candidate_github_observed_jst": "2026-11-07T08:10:07+09:00",
             "official_beforeinfo_complete_6": True,
+            "official_exhibition_complete_6": True,
             "official_odds_complete_120": True,
             "result_based_features_used": False,
             "source_sha256": "a"*64,
@@ -82,6 +83,14 @@ class FourModeForwardTests(unittest.TestCase):
         row=self.row();row["official_odds_complete_120"]=False
         self.assertIn("incomplete_or_postrace_feature",
                       score([row],{},self.policy)["excluded_before_result_read"])
+        for exhibition in (False, None):
+            row=self.row()
+            if exhibition is None:
+                row.pop("official_exhibition_complete_6")
+            else:
+                row["official_exhibition_complete_6"]=exhibition
+            self.assertIn("incomplete_or_postrace_feature",
+                          score([row],{},self.policy)["excluded_before_result_read"])
 
     def test_mixed_invalid_future_roster_refused_without_backfill(self):
         valid = self.row()
