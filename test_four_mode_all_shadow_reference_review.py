@@ -31,6 +31,7 @@ class AllModeReferenceReviewTests(unittest.TestCase):
         p.write_text(json.dumps({
             "race_code":CODE,"status":"confirmed",
             "finish_order":finish,"confirmed_at_jst":"2026-11-07T08:45:00+09:00",
+            "collected_at_jst":"2026-11-07T08:46:00+09:00",
             "source_sha256":"f"*64,
             "source_url":"https://boatracecsv.github.io/data/results/realtime/2026/11/07.csv",
         }),encoding="utf-8")
@@ -71,6 +72,37 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             report=compare([cap],root)
             self.assertEqual(report["confirmed_result_matches"],{})
             self.assertEqual(report["invalid_result_counts"],{"invalid_result_content_or_time":1})
+
+    def test_wrong_source_or_invalid_collection_clock_does_not_score(self):
+        # A well-formed winning combination does not authenticate the saved source.
+        for field, replacement in (
+            ("source_url","https://example.invalid/other.csv"),
+            ("collected_at_jst","2026-11-07T08:00:00+09:00"),
+        ):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as d:
+                root=Path(d);cap=self.fresh(root)
+                path=self.write_result(root,[1,2,3])
+                stored=json.loads(path.read_text(encoding="utf-8"))
+                stored[field]=replacement
+                path.write_text(json.dumps(stored),encoding="utf-8")
+                report=compare([cap],root)
+                self.assertEqual(report["confirmed_result_matches"],{})
+                self.assertEqual(report["invalid_result_counts"],
+                                 {"invalid_result_content_or_time":1})
+                self.assertEqual(
+                    report["topn_by_phase"]["pilot"]["hit"]["top10"]["denominator"],0)
+
+    def test_missing_collection_timestamp_does_not_score(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);cap=self.fresh(root)
+            path=self.write_result(root,[1,2,3])
+            stored=json.loads(path.read_text(encoding="utf-8"))
+            del stored["collected_at_jst"]
+            path.write_text(json.dumps(stored),encoding="utf-8")
+            report=compare([cap],root)
+            self.assertEqual(report["confirmed_result_matches"],{})
+            self.assertEqual(report["invalid_result_counts"],
+                             {"invalid_result_content_or_time":1})
 
     def test_tampered_frozen_candidate_rejected_before_result(self):
         with tempfile.TemporaryDirectory() as d:
