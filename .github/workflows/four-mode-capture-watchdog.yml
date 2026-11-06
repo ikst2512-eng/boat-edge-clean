@@ -19,6 +19,11 @@ on:
       - 'Entry research T-minus-12 baseline archival'
       - 'Research independent late preview evidence'
       - 'Entry course missed-cron activation watchdog'
+      # Observed independent main/schedule completion 07:32 JST on Nov 5.
+      # Only this parent may wake V2 recovery; no new cron or writer.
+      - 'Hole cumulative evidence rollup (research only)'
+      # Nov 6 07:16 JST successful independently scheduled parent.
+      - 'Hole future shadow batch evidence (research only)'
     types: [completed]
   # Main updates provide an opportunistic fallback if GitHub drops cron events.
   # Check five minutes after each planned 15-minute capture. The 14-minute
@@ -66,9 +71,9 @@ jobs:
         id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
       - name: Check recent capture runs before fallback dispatch
-        # An independent schedule completion is only a CLEAN recovery wakeup;
-        # do not use this extra trigger to publish unrelated Four-mode runs.
-        if: ${{ github.event_name != 'workflow_run' }}
+        # A verified independent main/schedule completion can also recover a
+        # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
+        if: ${{ github.event_name != 'workflow_run' || ((github.event.workflow_run.name == 'Hole cumulative evidence rollup (research only)' || github.event.workflow_run.name == 'Hole future shadow batch evidence (research only)') && github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
@@ -79,6 +84,14 @@ jobs:
           from scripts.four_mode_watchdog_policy import should_dispatch
           from datetime import datetime, timezone, timedelta
           repo=os.environ["GH_REPOSITORY"]
+          if os.environ["EVENT_NAME"] == "workflow_run":
+              # Verify webhook provenance before any privileged API access.
+              from pathlib import Path
+              from scripts.clean_prospective_watchdog import trusted_schedule_completion
+              parent=json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+              if (parent.get("workflow_run", {}).get("name") not in ("Hole cumulative evidence rollup (research only)", "Hole future shadow batch evidence (research only)")
+                      or not trusted_schedule_completion(parent, repo)):
+                  raise SystemExit("untrusted_four_mode_schedule_wakeup")
           name="four-mode-prospective-capture.yml"
           root=f"https://api.github.com/repos/{repo}/actions/workflows/{name}"
           headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],

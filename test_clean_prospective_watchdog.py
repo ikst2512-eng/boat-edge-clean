@@ -163,6 +163,8 @@ class CleanProspectiveWatchdogTests(unittest.TestCase):
             "Entry research T-minus-12 baseline archival",
             "Research independent late preview evidence",
             "Entry course missed-cron activation watchdog",
+            "Hole cumulative evidence rollup (research only)",
+            "Hole future shadow batch evidence (research only)",
         )
         for source in allowed:
             with self.subTest(source=source):
