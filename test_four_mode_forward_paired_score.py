@@ -96,6 +96,23 @@ class FourModeForwardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "incomplete_candidate_roster_no_replacement"):
             score([rejected, valid], {valid["race_code"]: self.result()}, self.policy)
 
+    def test_original_remote_observation_must_precede_candidate(self):
+        # A candidate that predates the original GitHub observation is not
+        # the reproducible, result-blind post-publication shadow we registered.
+        for field, value in (
+            ("baseline_github_observed_jst", "2026-11-07T08:10:00.500000+09:00"),
+            ("candidate_generated_jst", "2026-11-07T08:10:01+09:00"),
+            ("candidate_generated_jst", "2026-11-07T08:10:02.500000+09:00"),
+            ("candidate_github_observed_jst", "2026-11-07T08:10:05.500000+09:00"),
+        ):
+            with self.subTest(field=field, value=value):
+                row = self.row()
+                row[field] = value
+                verdict = score([row], {}, self.policy)
+                self.assertEqual(verdict["eligible_roster_count"], 0)
+                self.assertIn("late_or_same_second_T12",
+                              verdict["excluded_before_result_read"])
+
     def test_candidate_rank_losses_cannot_be_hidden(self):
         row=self.row()
         original=row["candidate"]["hit"]
