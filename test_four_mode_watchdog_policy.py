@@ -73,6 +73,27 @@ class WatchdogPolicyTests(unittest.TestCase):
                                          self.now, "schedule",
                                          recent_minutes=14, cooldown_minutes=14))
 
+    def test_other_independent_0716_parent_is_trusted_and_guarded(self):
+        from pathlib import Path
+        from scripts.clean_prospective_watchdog import trusted_schedule_completion
+        repository = "ikst2512-eng/boat-edge-clean"
+        name = "Hole future shadow batch evidence (research only)"
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/four-mode-capture-watchdog.yml").read_text()
+        self.assertIn("- '" + name + "'", workflow)
+        self.assertIn("github.event.workflow_run.name == '" + name + "'", workflow)
+        self.assertIn('parent.get("workflow_run", {}).get("name") not in', workflow)
+        parent = {"workflow_run": {
+            "name": name, "event": "schedule", "head_branch": "main",
+            "status": "completed", "conclusion": "success",
+            "head_repository": {"full_name": repository}}}
+        self.assertTrue(trusted_schedule_completion(parent, repository))
+        parent["workflow_run"]["event"] = "workflow_dispatch"
+        self.assertFalse(trusted_schedule_completion(parent, repository))
+        parent["workflow_run"]["event"] = "schedule"
+        parent["workflow_run"]["head_repository"]["full_name"] = "other/repo"
+        self.assertFalse(trusted_schedule_completion(parent, repository))
+
     def test_independent_hole_rollup_completion_can_rescue_missing_v2(self):
         from datetime import timedelta
         from pathlib import Path
