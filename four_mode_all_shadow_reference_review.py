@@ -12,6 +12,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from collect_clean_results import confirmed_record_is_usable
 from four_mode_all_mode_same_job_shadow import (
     SCHEMA, SIZES, VERSION, PROTECTED, candidate_modes, at_jst,
 )
@@ -157,6 +158,10 @@ def compare(captures, root):
             missing.append(code)
             continue
         try:
+            # Apply the same saved-result trust gate as the existing collector.
+            # A plausible finish and an arbitrary https URL are not enough.
+            if not confirmed_record_is_usable(path,code):
+                raise ValueError("result_failed_collector_trust_gate")
             result=json.loads(path.read_bytes())
             finish=result["finish_order"]
             source_sha=result.get("source_sha256")
