@@ -30,6 +30,7 @@ TRUSTED_SCHEDULES = frozenset({
     "Entry course missed-cron activation watchdog",
     # Independent 07:32 JST completion observed Nov 5 while captures missed.
     "Hole cumulative evidence rollup (research only)",
+    "Hole future shadow batch evidence (research only)",
 })
 
 
