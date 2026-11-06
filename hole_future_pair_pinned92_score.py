@@ -89,21 +89,25 @@ def score(frozen_file, root, reviewer, *, expected_digest=SOURCE_JSON_SHA256,
             deadline = datetime.fromisoformat(record["deadline_jst"])
             choices = record["candidates"]
             baseline = choices["baseline"]
-            assert cutoff.utcoffset() == timedelta(hours=9)
-            assert start.utcoffset() == finish.utcoffset() == timedelta(hours=9)
-            assert cutoff == deadline - timedelta(minutes=12)
-            assert artifact_created < cutoff and start <= finish < cutoff
-            assert set(choices) == set(POLICIES)
-            assert isinstance(baseline, list) and len(baseline) == 10
-            assert len(set(baseline)) == 10
-            assert _digest(choices) == record["candidates_sha256"]
+            if (cutoff.utcoffset() != timedelta(hours=9)
+                    or start.utcoffset() != timedelta(hours=9)
+                    or finish.utcoffset() != timedelta(hours=9)
+                    or cutoff != deadline - timedelta(minutes=12)
+                    or not (artifact_created < cutoff and start <= finish < cutoff)):
+                raise ValueError("unverified_pre_cutoff_clock")
+            if (not isinstance(choices, dict) or set(choices) != set(POLICIES)
+                    or not isinstance(baseline, list) or len(baseline) != 10
+                    or len(set(baseline)) != 10
+                    or _digest(choices) != record["candidates_sha256"]):
+                raise ValueError("invalid_candidate_digest_or_budget")
             old_pairs = {_pair(t) for t in baseline}
             for mode in POLICIES:
                 picked = choices[mode]
-                assert isinstance(picked, list) and len(picked) == 10
-                assert len(set(picked)) == 10 and all(_pair(t) for t in picked)
-                assert picked[:5] == baseline[:5]
-                assert old_pairs.issubset({_pair(t) for t in picked})
+                if (not isinstance(picked, list) or len(picked) != 10
+                        or len(set(picked)) != 10 or not all(_pair(t) for t in picked)
+                        or picked[:5] != baseline[:5]
+                        or not old_pairs.issubset({_pair(t) for t in picked})):
+                    raise ValueError("top5_pair_or_budget_violation")
         except (KeyError, TypeError, ValueError, AssertionError, AttributeError) as exc:
             raise ValueError("invalid_frozen_candidate_or_timing:" + code) from exc
     hits = {mode: {f"top{k}": 0 for k in TOPS} for mode in POLICIES}
