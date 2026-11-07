@@ -1,0 +1,82 @@
+{
+  "schema": "BOAT_EDGE_HOLE_RANK3_FORWARD_STUDY_PREDECLARATION_V1",
+  "study_id": "hole-hit-rank3-paired-top10-20261105-v1",
+  "predeclaration_race_date_jst": "2026-11-05",
+  "first_race_date_jst": "2026-11-05",
+  "last_race_date_jst": "2026-12-31",
+  "first_n_eligible_races": 300,
+  "sample_order": "deadline_jst_ascending_then_race_code_ascending",
+  "include_only_if": {
+    "source_forecast": "immutable_v2_four_mode_first_add_original",
+    "source_and_model_inputs": "original_receipts_valid_and_six_boats",
+    "frozen_candidate": "same_collection_job_before_T_minus_12_from_source_original",
+    "github_server_observation": "exact_original_blob_observed_before_T_minus_12_with_trusted_server_date",
+    "confirmed_outcome": "independently_persisted_valid_result_after_race",
+    "complete_inventory": "all_in_scope_collection_runs_and_evidence_checked_no_silent_omissions"
+  },
+  "selector": {
+    "source_file": "hole_upper_rank_pair_protection.py",
+    "git_blob_sha1": "a2613df6cd58e3c8477df7e03d88d82298ef7fee",
+    "function": "propose",
+    "algorithm_id": "hole_upper_rank_pair_protection.propose:hit_rank3:v1",
+    "baseline_mode": "hole",
+    "donor_mode": "hit",
+    "maximum_tickets": 10,
+    "insert_rank": 3,
+    "protected_ranks": [
+      1,
+      2
+    ],
+    "preserve_existing_first_second_pairs": true,
+    "selection_after_outcome_forbidden": true,
+    "scoring_uses_saved_original_tickets_only": true
+  },
+  "endpoint": {
+    "primary": "top10_exact_trifecta_coverage",
+    "secondary_descriptive": [
+      "top1",
+      "top3",
+      "top5"
+    ],
+    "denominator": "same_eligible_race_codes_for_baseline_and_candidate",
+    "report_per_race": true,
+    "report_gained_lost": true
+  },
+  "evaluation": {
+    "design": "fixed_sample_paired_before_after_no_early_claim",
+    "test": "two_sided_exact_McNemar_binomial_on_discordant_top10",
+    "alpha": 0.05,
+    "min_n_for_efficacy_claim": 300,
+    "must_have_positive_net_gained_minus_lost": true,
+    "secondary_topn_exploratory_only": true,
+    "no_optional_stopping": true,
+    "no_multiple_scenario_search": true
+  },
+  "research_only": true,
+  "formal": false,
+  "remote_first_seen_verified": false,
+  "production_forecast_changed": false,
+  "model_improvement_proven": false,
+  "governance": {
+    "no_production_change_without_manual_review": true,
+    "gemini_suggestions_not_eligible_for_this_precommitted_cohort": true,
+    "refuse_if_less_than_full_n": true,
+    "refuse_if_evidence_or_run_inventory_incomplete": true,
+    "official_accuracy_requires_separate_independent_certification": true,
+    "github_server_observation_does_not_prove_first_receipt": true,
+    "trial_registration_does_not_certify_any_actual_forecast": true
+  },
+  "enrollment": {
+    "decision_inputs": "verified_pre_result_archive_and_saved_shadow_and_remote_observation_only",
+    "first_n_pre_result_eligible_races": 300,
+    "first_n_order": "deadline_jst_ascending_then_race_code_ascending",
+    "no_results_payouts_or_postrace_indicators_allowed": true,
+    "pending_result_retains_original_enrolled_slot": true,
+    "no_replacing_enrolled_races_with_later_winning_races": true,
+    "no_early_optional_peek_for_efficacy": true,
+    "pre_result_roster_complete_only_if_run_inventory_exhaustive": true,
+    "insufficient_300_before_study_end_remains_inconclusive": true
+  },
+  "protocol_refinement_note": "Pre-result 300-member enrollment clarified on 2026-11-05 JST before first configured four-mode capture slot; amendment Git commit is separate from initial protocol commit, and neither commit clock alone is independent publication proof.",
+  "remote_protocol_observation_before_jst": "2026-11-05T07:00:00+09:00"
+}
