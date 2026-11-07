@@ -8,7 +8,10 @@ from pathlib import Path
 
 from clean_four_modes import rank_modes
 from research_model import probabilities
-from four_mode_all_mode_same_job_shadow import candidate_modes, capture, audit_historical_input_day, SIZES, PROTECTED
+from four_mode_all_mode_same_job_shadow import (
+    candidate_modes, top1_pair_candidate, capture, audit_historical_input_day,
+    SIZES, PROTECTED, TOP1_PAIR_RULE,
+)
 
 JST = timezone(timedelta(hours=9))
 SHA = "a" * 40
@@ -78,6 +81,28 @@ class FrozenAllModeTests(unittest.TestCase):
             self.assertEqual(base[mode][:PROTECTED[mode]],chosen[mode][:PROTECTED[mode]])
         self.assertEqual((base,chosen),candidate_modes(original))
 
+    def test_top1_only_pair_rule_changes_rank_not_any_topn_membership(self):
+        raw=make_original()
+        old,_=candidate_modes(raw)
+        new=top1_pair_candidate(raw,old)
+        self.assertEqual(old["hit"][0],"1-2-4")
+        self.assertEqual(new["hit"][0],"1-2-3")
+        self.assertEqual(new,top1_pair_candidate(raw,old))
+        for mode in SIZES:
+            self.assertEqual(set(new[mode][:2]),set(old[mode][:2]))
+            self.assertEqual(new[mode][2:],old[mode][2:])
+            for n in (3,5,10):
+                self.assertEqual(set(new[mode][:n]),set(old[mode][:n]))
+
+    def test_top1_pair_keeps_old_first_when_third_boat_is_stronger(self):
+        raw=make_original()
+        raw["input_national_win_rates"]=[6.0,5.2,3.0,7.0,4.2,3.7]
+        raw["modes"]=rank_modes(probabilities(raw["input_national_win_rates"]))
+        old,_=candidate_modes(raw)
+        new=top1_pair_candidate(raw,old)
+        self.assertEqual(old["hit"][0],"1-2-4")
+        self.assertEqual(new["hit"][0],old["hit"][0])
+
     def test_pre_result_frozen_github_original_not_shadow_receipt(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
@@ -93,6 +118,9 @@ class FrozenAllModeTests(unittest.TestCase):
             self.assertFalse(row["official_beforeinfo_six_verified"])
             self.assertFalse(row["official_odds_120_verified"])
             self.assertEqual(set(row["candidate"]),set(SIZES))
+            self.assertEqual(row["top1_pair_rule"],TOP1_PAIR_RULE)
+            self.assertEqual(set(row["top1_pair_candidate"]),set(SIZES))
+            self.assertEqual(row["top1_selector_sha256"],report["candidate_method_sha256"])
 
     def test_after_cutoff_never_freezes(self):
         with tempfile.TemporaryDirectory() as d:
@@ -167,6 +195,8 @@ class FrozenAllModeTests(unittest.TestCase):
             self.assertFalse(report["formal"])
             self.assertEqual(report["excluded"],{})
             self.assertEqual(report["changes"]["hole"]["changed_top1"],0)
+            self.assertEqual(report["top1_pair_changes"]["hit"]["changed_top1"],1)
+            self.assertEqual(report["top1_pair_changes"]["hit"]["preserved_top3_5_10"],1)
 
     def test_corrupt_pub_addition_roster_is_hard_error(self):
         with tempfile.TemporaryDirectory() as d:
