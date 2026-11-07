@@ -9,6 +9,8 @@ export const SCHEMA = 'CLOUDFLARE_CAPTURE_WAKEUP_DECISION_V1';
 const MINUTE = 60_000;
 const JST = 9 * 60 * MINUTE;
 const API = `https://api.github.com/repos/${REPO}/actions/workflows/`;
+// Keep JSON payloads small: Cloudflare Workers Free cron has a 10 ms CPU cap.
+const HISTORY_PAGE_SIZE = 30;
 
 function jstParts(instant) {
   const x = new Date(instant.getTime() + JST);
@@ -54,7 +56,7 @@ function validateCronTick(scheduledTime, now) {
 }
 
 function validatedEvents(rows, expectedEvent, slot, now) {
-  if (!Array.isArray(rows) || rows.length > 100) throw new Error('github_history_missing_or_malformed');
+  if (!Array.isArray(rows) || rows.length > HISTORY_PAGE_SIZE) throw new Error('github_history_missing_or_malformed');
   const parsed = [];
   for (const row of rows) {
     if (!row || typeof row !== 'object' || Array.isArray(row) || row.event !== expectedEvent ||
@@ -64,11 +66,11 @@ function validatedEvents(rows, expectedEvent, slot, now) {
       throw new Error('github_history_identity_invalid');
     }
     const created = Date.parse(row.created_at);
-    if (!Number.isFinite(created) || created > now + 2 * MINUTE) throw new Error('github_history_chronology_invalid');
+    if (!Number.isFinite(created) || created > now) throw new Error('github_history_chronology_invalid');
     if (row.head_branch === 'main') parsed.push({created, row});
   }
   // A full first page may hide an active/successful previous job: fail closed.
-  if (rows.length === 100 && (!parsed.length || Math.min(...parsed.map(x => x.created)) >= slot - 120 * MINUTE)) {
+  if (rows.length === HISTORY_PAGE_SIZE && (!parsed.length || Math.min(...parsed.map(x => x.created)) >= slot - 120 * MINUTE)) {
     throw new Error('github_history_pagination_incomplete');
   }
   return parsed;
@@ -95,7 +97,7 @@ function headers(token) {
 }
 
 async function history(fetcher, root, event, token) {
-  const url = `${root}/runs?event=${event}&per_page=100`;
+  const url = `${root}/runs?event=${event}&per_page=${HISTORY_PAGE_SIZE}`;
   const response = await fetcher(url, {method: 'GET', headers: headers(token)});
   if (!response || response.status !== 200) throw new Error('github_history_http_error');
   const payload = await response.json();
@@ -103,7 +105,7 @@ async function history(fetcher, root, event, token) {
   return payload.workflow_runs;
 }
 
-export async function execute({scheduledTime, now, token, fetcher}) {
+export async function execute({scheduledTime, now, token, fetcher, clock = () => now}) {
   validateCronTick(scheduledTime, now);
   if (typeof fetcher !== 'function') throw new Error('fetcher_required');
   const when = new Date(now);
@@ -132,6 +134,12 @@ export async function execute({scheduledTime, now, token, fetcher}) {
     if (verdict.action === 'eligible_for_dispatch') deferred.push([kind, root]);
   }
   for (const [kind, root] of deferred) {
+    // Network I/O can outlive the tiny 2–3 minute recovery window. Re-check
+    // the ACTUAL wall clock immediately before every dispatch (especially 22:28).
+    const current = clock();
+    if (!Number.isFinite(current) || eligibleSlot(kind, new Date(current)) !== eligible[kind]) {
+      throw new Error('recovery_window_expired_before_dispatch');
+    }
     const response = await fetcher(`${root}/dispatches`, {method: 'POST', headers: {...headers(token), 'Content-Type': 'application/json'},
       body: JSON.stringify({ref: 'main'})});
     if (!response || response.status !== 204) throw new Error('github_external_dispatch_not_accepted');
@@ -147,7 +155,7 @@ const SAFE_ERRORS = new Set([
   'GITHUB_DISPATCH_TOKEN_required', 'github_history_http_error',
   'github_history_missing_or_malformed', 'github_history_identity_invalid',
   'github_history_chronology_invalid', 'github_history_pagination_incomplete',
-  'github_external_dispatch_not_accepted',
+  'github_external_dispatch_not_accepted', 'recovery_window_expired_before_dispatch',
 ]);
 
 export default {
@@ -155,7 +163,7 @@ export default {
     // No HTTP fetch handler: this Worker is only reachable by its scheduled trigger.
     try {
       const report = await execute({scheduledTime: controller.scheduledTime, now: Date.now(),
-        token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch});
+        token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch, clock: Date.now});
       console.log('CLOUDFLARE_CAPTURE_WAKEUP=' + JSON.stringify(report));
     } catch (error) {
       console.error('CLOUDFLARE_CAPTURE_WAKEUP_ERROR=' + JSON.stringify({schema: SCHEMA,
