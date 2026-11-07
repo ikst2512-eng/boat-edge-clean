@@ -1,0 +1,25 @@
+name: Conditional first-place diversity research
+on:
+  pull_request:
+    paths:
+      - four_mode_conditional_diversity.py
+      - test_four_mode_conditional_diversity.py
+      - .github/workflows/conditional-diversity-research.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v test_four_mode_conditional_diversity
+      - run: python four_mode_conditional_diversity.py | tee conditional_diversity.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conditional-diversity-${{ github.run_id }}
+          path: conditional_diversity.log
+          retention-days: 30
