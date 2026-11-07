@@ -74,7 +74,7 @@ class NavigationContractTest(unittest.TestCase):
             thread = Thread(target=httpd.serve_forever, daemon=True)
             thread.start()
             try:
-                for race_code, status in (("202611061006", 200), ("invalid", 422)):
+                # The empty-but-valid archive must be visible as HTTP 404 to Pages.\n                for race_code, status in (("202611061006", 200), ("209901010101", 404), ("invalid", 422)):
                     for request_origin in (origin, "https://not-the-clean-site.example"):
                         conn = HTTPConnection("127.0.0.1", httpd.server_port, timeout=10)
                         try:
@@ -90,6 +90,16 @@ class NavigationContractTest(unittest.TestCase):
                                 self.assertNotEqual(response.getheader("Access-Control-Allow-Origin"), request_origin)
                         finally:
                             conn.close()
+                # No CORS permission must leak onto unrelated routes.
+                conn = HTTPConnection("127.0.0.1", httpd.server_port, timeout=10)
+                try:
+                    conn.request("GET", "/healthz", headers={"Origin": origin})
+                    response = conn.getresponse()
+                    response.read()
+                    self.assertEqual(response.status, 200)
+                    self.assertIsNone(response.getheader("Access-Control-Allow-Origin"))
+                finally:
+                    conn.close()
             finally:
                 httpd.shutdown()
                 thread.join(timeout=10)
