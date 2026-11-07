@@ -77,11 +77,14 @@ def run(source_dir: Path, raw_dir: Path, frozen_evidence: Path,
         print(json.dumps({
             "day": day, "status": record["status"], "focus_races": len(targets[day]),
             "official_rows_compared": record.get("comparison", {}).get("official_races", 0)
-                if record["status"] == "reconciled" else 0,
+                if record["status"] in {"reconciled", "focus_reconciled_secondary_universe_gap"} else 0,
             "field_discrepancies": record.get("comparison", {}).get("field_discrepancy_count")
-                if record["status"] == "reconciled" else None,
+                if record["status"] in {"reconciled", "focus_reconciled_secondary_universe_gap"} else None,
         }, ensure_ascii=False), flush=True)
     reconciled = [r for r in results if r["status"] == "reconciled"]
+    partial = [r for r in results if r["status"] == "focus_reconciled_secondary_universe_gap"]
+    focus_confirmed = reconciled + partial
+    unexplained = [r for r in results if r not in focus_confirmed]
     report = {
         "schema": "OFFICIAL_K_34_EXCEPTIONS_28DAY_RECONCILIATION_V1",
         "classification": "official_primary_postrace_only_not_T12",
@@ -90,8 +93,14 @@ def run(source_dir: Path, raw_dir: Path, frozen_evidence: Path,
         "official_K_days_reconciled": len(reconciled),
         "official_K_races_fully_matched": sum(r["comparison"]["official_races"] for r in reconciled),
         "first_course_exceptions_with_K_status_and_page_category_aligned":
-            sum(len(r["focus"]) for r in reconciled),
-        "days_unreconciled": len(targets) - len(reconciled),
+            sum(len(r["focus"]) for r in focus_confirmed),
+        "days_with_exception_status_reconciled": len(focus_confirmed),
+        "days_with_secondary_race_universe_gaps": len(partial),
+        "primary_only_race_codes_preserved": sorted(
+            x for r in partial for x in r["comparison"]["official_only_race_codes_preserved"]),
+        "official_K_races_common_fields_matched": sum(
+            r["comparison"]["official_races"] for r in focus_confirmed),
+        "days_unreconciled": len(unexplained),
         "official_source_92_days_fully_reconciled": False,
         "official_course_statistic_denominator_verified": False,
         "T12_eligible": False,
@@ -118,7 +127,8 @@ def main():
         "official_K_days_reconciled", "official_K_days_attempted",
         "official_K_races_fully_matched",
         "first_course_exceptions_with_K_status_and_page_category_aligned",
-        "days_unreconciled")}, ensure_ascii=False))
+        "days_unreconciled", "days_with_secondary_race_universe_gaps",
+        "official_K_races_common_fields_matched")}, ensure_ascii=False))
     if report["days_unreconciled"]:
         raise SystemExit(1)
 
