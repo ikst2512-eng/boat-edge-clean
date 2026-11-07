@@ -47,6 +47,9 @@ on:
       - 'test_render_four_mode_dispatch.py'
       - 'scripts/render_capture_wakeup.py'
       - 'test_render_capture_wakeup.py'
+      - 'cloudflare/independent_capture_wakeup.mjs'
+      - 'cloudflare/wrangler.toml'
+      - 'tests/cloudflare_capture_wakeup.test.mjs'
 permissions:
   actions: read
   contents: read
@@ -70,6 +73,14 @@ jobs:
       - name: Test dispatch policy
         id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
+      - name: Setup Node for Cloudflare offline tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Cloudflare external wakeup safety tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: node --test tests/cloudflare_capture_wakeup.test.mjs
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
