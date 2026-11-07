@@ -5,3 +5,6 @@ workers_dev = false
 
 [triggers]
 crons = ["*/5 22-23,0-13 * * *"]
+
+[secrets]
+required = ["GITHUB_DISPATCH_TOKEN"]
