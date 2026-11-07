@@ -1,19 +1,19 @@
 {
-  "checked_at_jst": "2026-11-05T23:57:11.837383+09:00",
+  "checked_at_jst": "2026-11-07T14:50:23.822479+09:00",
   "days": [
     {
-      "day": "20261104",
+      "day": "20261106",
       "http_status": null,
       "newly_saved": 0,
-      "source_races": 143,
+      "source_races": 144,
       "source_url": null,
       "status": "available"
     },
     {
-      "day": "20261105",
+      "day": "20261107",
       "http_status": null,
-      "newly_saved": 18,
-      "source_races": 144,
+      "newly_saved": 48,
+      "source_races": 73,
       "source_url": null,
       "status": "available"
     }
@@ -34,8 +34,24 @@
     "202610311408",
     "202611021912",
     "202611031912",
-    "202611041912"
+    "202611041912",
+    "202611060802",
+    "202611060803",
+    "202611060804",
+    "202611060805",
+    "202611060806",
+    "202611060807",
+    "202611060808",
+    "202611060809",
+    "202611060810",
+    "202611060811",
+    "202611060812",
+    "202611070209",
+    "202611070302",
+    "202611070309",
+    "202611071110",
+    "202611071409"
   ],
-  "overdue_result_count": 12,
+  "overdue_result_count": 28,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }
