@@ -65,6 +65,53 @@ test('two eligible workflows dispatch only missing slots',async()=>{
   assert.equal(out.formal,false);assert.equal(out.new_forecast_saved_proven,false);
 });
 
+test('each accepted 204 emits a safe auditable receipt without token or GitHub run claim',async()=>{
+  const m=mock(); const receipts=[]; const when=tick(7,10);
+  const out=await execute({scheduledTime:when,now:when,token:'PRIVATE_TEST_TOKEN',
+    fetcher:m.fetcher, onAccepted:x=>receipts.push(x)});
+  assert.equal(receipts.length,2);
+  assert.deepEqual(receipts.map(x=>x.workflow),['clean','four_mode']);
+  for(const entry of receipts){
+    assert.equal(entry.event,'workflow_dispatch_accepted');
+    assert.equal(entry.github_run_id_proven,false);
+    assert.equal(entry.new_forecast_saved_proven,false);
+    assert.equal(entry.formal,false);
+    assert.ok(entry.slot_jst.endsWith('+09:00'));
+    assert.ok(entry.accepted_at_jst.endsWith('+09:00'));
+    assert.ok(!JSON.stringify(entry).includes('PRIVATE_TEST_TOKEN'));
+  }
+  assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');
+});
+
+test('first 204 remains auditable when second dispatch fails',async()=>{
+  const m=mock(); const receipts=[]; let posts=0;
+  const guarded=async(url,options)=>{
+    if(options.method==='POST' && ++posts===2)return {status:403};
+    return m.fetcher(url,options);
+  };
+  const when=tick(7,10);
+  await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+    fetcher:guarded,onAccepted:x=>receipts.push(x)}),/github_external_dispatch_not_accepted/);
+  assert.equal(posts,2);
+  assert.deepEqual(receipts.map(x=>x.workflow),['clean']);
+  assert.equal(receipts[0].github_run_id_proven,false);
+});
+
+test('GET failure emits no accepted-dispatch receipts',async()=>{
+  const m=mock({failAt:3}); const receipts=[]; const when=tick(7,10);
+  await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+    fetcher:m.fetcher,onAccepted:x=>receipts.push(x)}),/network_failure/);
+  assert.deepEqual(receipts,[]);
+  noPosts(m);
+});
+
+test('invalid receipt sink fails before any network or POST',async()=>{
+  const m=mock(); const when=tick(7,10);
+  await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+    fetcher:m.fetcher,onAccepted:123}),/invalid_receipt_sink/);
+  assert.equal(m.calls.length,0);
+});
+
 test('no network outside capture windows',async()=>{
   const m=mock();const out=await run(tick(22,55),m,undefined);assert.equal(out.action,'outside_recovery_windows_no_network');assert.equal(m.calls.length,0);
 });
