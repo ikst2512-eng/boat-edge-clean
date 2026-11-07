@@ -31,6 +31,14 @@ TARGETS = {
 }
 
 
+# Demonstrated original-K races absent from the frozen BoatraceCSV secondary source.
+# Keep them as omissions, never delete their official records or alter study N.
+OFFICIAL_ONLY_RACES = {
+    "20261012": {"202610121912"},  # Shimonoseki 12R
+    "20261018": {"202610181912"},  # Shimonoseki 12R
+    "20261023": {"202610232012"},  # Wakamatsu 12R
+}
+
 def status_compatible(page_symbol: str, k_code: str) -> bool:
     """Broad category only: page is accident type; K is liability/status code.
 
@@ -79,8 +87,26 @@ def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict, targe
     if sha != receipt["sha256"]:
         raise ValueError("official_archive_sha_mismatch:" + day)
     decoded = unpack_lha(raw, day=day)
-    official = parse_k(decoded.decode("cp932"), day=day, expected_races=len(rows))
-    compare_report = compare(official, secondary, expected_secondary_sha=expected, day=day)
+    anticipated_official_only = OFFICIAL_ONLY_RACES.get(day, set())
+    official = parse_k(
+        decoded.decode("cp932"), day=day,
+        expected_races=len(rows) + len(anticipated_official_only),
+    )
+    unexpected = set(official) - set(by_code)
+    missing_from_primary = set(by_code) - set(official)
+    if unexpected != anticipated_official_only or missing_from_primary:
+        raise ValueError(
+            "unexplained_source_universe_mismatch:" + day +
+            ":official_only=" + repr(sorted(unexpected)) +
+            ":secondary_only=" + repr(sorted(missing_from_primary))
+        )
+    matched_official = {code: race for code, race in official.items() if code in by_code}
+    compare_report = compare(
+        matched_official, secondary, expected_secondary_sha=expected, day=day,
+    )
+    compare_report["official_archive_races_total"] = len(official)
+    compare_report["official_only_race_codes_preserved"] = sorted(unexpected)
+    compare_report["full_official_vs_secondary_race_universe_equal"] = not unexpected
     checks = []
     for code, expected_status in focus[day]:
         if code not in official or code not in by_code:
@@ -104,8 +130,14 @@ def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict, targe
         })
     complete = (compare_report["field_discrepancy_count"] == 0
                 and all(x["broad_status_compatible"] for x in checks))
+    status = (
+        "focus_reconciled_secondary_universe_gap"
+        if complete and anticipated_official_only else
+        "reconciled" if complete else
+        "unreconciled_differences"
+    )
     return {
-        "day": day, "status": "reconciled" if complete else "unreconciled_differences",
+        "day": day, "status": status,
         "official_K_receipt": receipt, "secondary_git_blob_sha": expected,
         "official_K_decoded_sha256": hashlib.sha256(decoded).hexdigest(),
         "comparison": compare_report, "focus": checks,
