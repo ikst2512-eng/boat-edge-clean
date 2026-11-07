@@ -141,6 +141,12 @@ def score(frozen_file, root, reviewer, *, expected_digest=SOURCE_JSON_SHA256,
         verdict = reviewer(record, root)
         status = verdict.get("status") if isinstance(verdict, dict) else None
         if status == "result_not_yet_confirmed":
+            # The reviewer groups absent and invalid confirmed results together.
+            # A present but unusable file must fail closed, not silently vanish
+            # from the scored denominator as an ordinary pending race.
+            result_path = root / "confirmed_results" / (code + ".json")
+            if result_path.exists() or result_path.is_symlink():
+                raise ValueError("saved_result_exists_but_untrusted:" + code)
             dispositions["pending_independent_result"] += 1
             continue
         if status != "reference_scored_without_independent_receipt" or verdict.get("comparable") != 1:
