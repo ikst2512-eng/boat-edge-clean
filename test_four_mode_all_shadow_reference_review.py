@@ -51,6 +51,32 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             self.assertFalse(report["model_improvement_proven"])
             self.assertFalse(report["model_promotion_allowed"])
 
+    def test_top1_pair_reports_gained_lost_and_preserves_top3_5_10(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);cap=self.fresh(root)
+            old=cap["records"][0]["baseline"]["hit"][0]
+            pair=cap["records"][0]["top1_pair_candidate"]["hit"][0]
+            self.assertNotEqual(old,pair)
+            self.write_result(root,[int(x) for x in old.split("-")])
+            report=compare([cap],root)
+            p=report["top1_pair_by_phase"]["pilot"]["hit"]
+            self.assertEqual((p["original"],p["candidate"],p["gained"],p["lost"],p["denominator"]),
+                             (1,0,0,1,1))
+            self.assertTrue(report["top1_pair_top3_5_10_memberships_preserved"])
+            self.assertFalse(report["formal"])
+            self.write_result(root,[int(x) for x in pair.split("-")])
+            report=compare([cap],root)
+            p=report["top1_pair_by_phase"]["pilot"]["hit"]
+            self.assertEqual((p["original"],p["candidate"],p["gained"],p["lost"],p["denominator"]),
+                             (0,1,1,0,1))
+
+    def test_top1_pair_tamper_rejected_before_reading_results(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);cap=self.fresh(root)
+            cap["records"][0]["top1_pair_candidate"]["hit"][0]="6-5-4"
+            with self.assertRaisesRegex(ValueError,"saved_candidate_not_reproducible"):
+                compare([cap],root)
+
     def test_missing_result_remains_pending_without_hit_rate(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
@@ -61,6 +87,7 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             self.assertEqual(row["denominator"],0)
             self.assertIsNone(row["original_pct"])
             self.assertIsNone(row["candidate_pct"])
+            self.assertEqual(report["top1_pair_by_phase"]["pilot"]["hit"]["denominator"],0)
 
     def test_result_timestamp_before_deadline_does_not_score(self):
         with tempfile.TemporaryDirectory() as d:
