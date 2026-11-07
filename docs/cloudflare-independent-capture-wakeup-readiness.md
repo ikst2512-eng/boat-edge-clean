@@ -1,5 +1,17 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-08: actual local Workerd startup gate (no account, no deployment)
+
+A new **PR-only, local** Wrangler runtime test found two genuine deployment blockers previously missed by the 31 passing Node tests and `deploy --dry-run`:
+
+1. Local Wrangler 4.102.0 bundles a Workerd server whose newest supported compatibility date is `2026-06-24`. Original config `2026-11-01` could bundle but could **not start**. Pinned `cloudflare/wrangler.toml` to the actually supported `2026-06-24`.
+2. Once the date was fixed, Workerd rejected data exports like `export const REPO` on the Worker service entrypoint. Moved named logic/constant exports into `cloudflare/independent_capture_policy.mjs`. The production entrypoint `cloudflare/independent_capture_wakeup.mjs` now exports **only a default object with `scheduled()`**. The Node suite asserts this restriction and now has **32 cases**.
+
+Current code exact-head [GitHub Actions #42391568966](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42391568966) **completed/success**. Verified actual raw job output: existing Python policy PASS, **32 Node tests PASS / 0 fail**, Wrangler 4.102.0 `deploy --dry-run` PASS (`10.09 KiB`, gzip `3.38 KiB`), **real local Workerd startup PASS** (`WORKERD_SCHEDULED_ONLY_BOOT_NO_FETCH_HANDLER_PASS`). The local-only GET deliberately reaches a Worker with **no HTTP fetch handler**, which is correct for a Cron-only Worker; it does not contact GitHub.
+
+Earlier CI tests that attempted local Cron invocation through `/cdn-cgi/local/scheduled` or Local Explorer did not reach `scheduled()` in this Wrangler runner; they only hit the no-fetch-handler error. The final CI **does not claim a live Cron dispatch**. Actual Cloudflare Cron trigger delivery, GitHub live run ID, Free-tier CPU <=10ms, source receipts and Git first-add/T−12 remain **unverified**. Preserve Draft PR, no merge or deployment without owner review and secret setup. Failed intermediate CI attempts are kept as negative evidence, not rewritten as passes.
+
+
 **Scope:** optional external GitHub Actions wakeup for BOAT EDGE CLEAN. No forecasting, storage, historical mutation, model, odds, UI or existing Render service changes. This is **code-only readiness**, not operational proof.
 
 ## Why this path
