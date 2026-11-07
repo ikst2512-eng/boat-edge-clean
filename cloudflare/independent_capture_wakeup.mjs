@@ -150,7 +150,7 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
     // No token, request headers or forecast data is written to this log.
     onAccepted({schema: SCHEMA, event: 'workflow_dispatch_accepted',
       workflow: kind, slot_jst: result.workflows[kind].slot_jst,
-      accepted_at_jst: new Date(current + JST).toISOString().replace('Z', '+09:00'),
+      request_started_at_jst: new Date(current + JST).toISOString().replace('Z', '+09:00'),
       github_run_id_proven: false, new_forecast_saved_proven: false, formal: false});
   }
   result.action = 'checked_not_publication_proof';
