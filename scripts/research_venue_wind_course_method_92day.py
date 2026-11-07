@@ -217,15 +217,25 @@ def main():
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--min-n", type=int, default=100)
     ap.add_argument("--c1-exception-output", type=Path, help="PR-only postrace 1C exception ledger")
+    ap.add_argument("--frozen-day-csv-output", type=Path, help="Optional SHA-verified 2026-08-01 comparison input")
     args = ap.parse_args()
     if args.min_n < 1:
         raise SystemExit("minimum n must be positive")
     baseline = json.loads(MANIFEST.read_text(encoding="utf-8"))
     expected = expected_by_day(baseline)
+    frozen_day = {}
     def fetch(url):
         with urlopen(url, timeout=30) as response:
-            return response.read()
+            data = response.read()
+        if args.frozen_day_csv_output and url == BASE + "2026/08/01.csv":
+            frozen_day["source"] = data
+        return data
     rows, receipts = load_rows(fetch, expected)
+    if args.frozen_day_csv_output:
+        if git_blob_sha(frozen_day.get("source", b"")) != expected["2026-08-01"]["sha"]:
+            raise ValueError("frozen_20260801_day_sha_missing_or_mismatch")
+        args.frozen_day_csv_output.parent.mkdir(parents=True, exist_ok=True)
+        args.frozen_day_csv_output.write_bytes(frozen_day["source"])
     output = aggregate(rows, args.min_n)
     reconcile(output, baseline)
     if args.c1_exception_output is not None:
