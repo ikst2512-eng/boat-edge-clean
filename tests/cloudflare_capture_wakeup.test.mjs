@@ -29,6 +29,7 @@ test('CLEAN 63 and four-mode 56 actual daily slots',()=>{
 
 test('single 5min UTC cron covers every slot once',()=>{
   const wrangler=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
+  assert.match(wrangler,/required = \["GITHUB_DISPATCH_TOKEN"\]/);
   assert.match(wrangler,/crons = \["\*\/5 22-23,0-13 \* \* \*"\]/);
   for(const kind of Object.keys(WORKFLOWS))for(const slot of plannedSlots(kind,jst(12,0))){
     const ticks=[];
@@ -128,8 +129,33 @@ test('malformed GitHub history fails closed',async()=>{
 });
 
 test('full first page cannot hide recent main run',async()=>{
-  const rows=Array.from({length:100},(_,i)=>fakeRun('schedule',jst(7,8),{id:i+1}));
+  const rows=Array.from({length:30},(_,i)=>fakeRun('schedule',jst(7,8),{id:i+1}));
   const m=mock({schedule:rows});await assert.rejects(()=>run(tick(7,10),m),/pagination_incomplete/);noPosts(m);
+});
+
+test('future-dated GitHub run cannot silently bypass duplicate guard',async()=>{
+  const m=mock({schedule:[fakeRun('schedule',jst(7,11))]});
+  await assert.rejects(()=>run(tick(7,10),m),/github_history_chronology_invalid/);noPosts(m);
+});
+
+test('history payload uses 30 items per page for Free CPU budget',async()=>{
+  const m=mock();await run(tick(7,10),m);
+  assert.equal(m.calls.filter(x=>x.method==='GET').length,4);
+  assert.ok(m.calls.filter(x=>x.method==='GET').every(x=>x.url.includes('per_page=30')));
+});
+
+test('a late GET must not dispatch after the narrow original slot',async()=>{
+  const now=tick(22,30);const m=mock();
+  await assert.rejects(()=>execute({scheduledTime:now,now,token:'TEST',fetcher:m.fetcher,
+    clock:()=>tick(22,33)}),/recovery_window_expired_before_dispatch/);
+  noPosts(m);
+});
+
+test('a late second POST must stop further dispatch',async()=>{
+  const now=tick(7,10);const m=mock();let first=true;
+  await assert.rejects(()=>execute({scheduledTime:now,now,token:'TEST',fetcher:m.fetcher,
+    clock:()=>{if(first){first=false;return now;}return tick(7,13);}}),/recovery_window_expired_before_dispatch/);
+  assert.equal(m.calls.filter(x=>x.method==='POST').length,1);
 });
 
 test('second workflow GET failure prevents partial POST',async()=>{
