@@ -220,6 +220,7 @@ def main():
     ap.add_argument("--frozen-day-csv-output", type=Path, help="Optional SHA-verified 2026-08-01 comparison input")
     ap.add_argument("--frozen-target-csv-dir", type=Path, help="Optional frozen 3-day secondary files for K exception checks")
     ap.add_argument("--frozen-exception-csv-dir", type=Path, help="SHA-verified raw CSV for all 34 exception races across 28 days")
+    ap.add_argument("--frozen-all-csv-dir", type=Path, help="PR-only all 92 SHA-verified secondary daily CSVs for K primary audit")
     args = ap.parse_args()
     if args.min_n < 1:
         raise SystemExit("minimum n must be positive")
@@ -235,7 +236,7 @@ def main():
             for day in ("2026/08/02", "2026/08/21", "2026/08/26"):
                 if url == BASE + day + ".csv":
                     frozen_day[day.replace("/", "")] = data
-        if args.frozen_exception_csv_dir:
+        if args.frozen_exception_csv_dir or args.frozen_all_csv_dir:
             frozen_day[url[len(BASE):].replace("/", "").replace(".csv", "")] = data
         return data
     rows, receipts = load_rows(fetch, expected)
@@ -251,6 +252,22 @@ def main():
             if value is None or git_blob_sha(value) != expected[day]["sha"]:
                 raise ValueError("frozen_target_day_sha_missing_or_mismatch:" + day)
             (args.frozen_target_csv_dir / ("secondary_" + day.replace("-", "") + ".csv")).write_bytes(value)
+    if args.frozen_all_csv_dir:
+        for date, item in expected.items():
+            key = date.replace("-", "")
+            raw = frozen_day.get(key)
+            if raw is None or git_blob_sha(raw) != item["sha"]:
+                raise ValueError("all_day_source_hash_mismatch:" + date)
+        args.frozen_all_csv_dir.mkdir(parents=True, exist_ok=True)
+        for date in sorted(expected):
+            key = date.replace("-", "")
+            out = args.frozen_all_csv_dir / ("secondary_" + key + ".csv")
+            if out.is_symlink():
+                raise ValueError("refuse_symlink_export:" + str(out))
+            if out.exists() and out.read_bytes() != frozen_day[key]:
+                raise ValueError("refuse_modified_export:" + date)
+            if not out.exists():
+                out.write_bytes(frozen_day[key])
     output = aggregate(rows, args.min_n)
     reconcile(output, baseline)
     if args.frozen_exception_csv_dir and args.c1_exception_output is None:
