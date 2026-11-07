@@ -21,6 +21,7 @@ from four_mode_all_mode_same_job_shadow import (
 CODE = re.compile(r"20[0-9]{10}\Z")
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
 TOPS = (1, 3, 5, 10)
+TOP1_PROTOCOL = Path(__file__).resolve().parent / "research/four_mode_top1_pair_forward_protocol_20261108.json"
 
 
 def fail(reason):
@@ -35,7 +36,21 @@ def validate_capture_before_any_results(captures, root):
         return {}, Counter(), 0
     root = Path(root)
     method_path = Path(__file__).resolve().parent/"four_mode_all_mode_same_job_shadow.py"
-    actual_method_sha = hashlib.sha256(method_path.read_bytes()).hexdigest()
+    method_bytes = method_path.read_bytes()
+    actual_method_sha = hashlib.sha256(method_bytes).hexdigest()
+    # Independent source-blob pin, registered before any new Top1 holdout.
+    # Prevent changing the candidate method while retaining self-consistent
+    # replay SHA values in freshly generated artifacts.
+    top1_protocol = json.loads(TOP1_PROTOCOL.read_bytes())
+    git_blob_sha = hashlib.sha1(
+        b"blob " + str(len(method_bytes)).encode("ascii") + b"\0" + method_bytes
+    ).hexdigest()
+    if (top1_protocol.get("schema") != "FOUR_MODE_TOP1_PAIR_FORWARD_PREREGISTRATION_V1"
+            or top1_protocol.get("policy_id") != TOP1_PAIR_RULE
+            or top1_protocol.get("pinned_selector_git_blob_sha1") != git_blob_sha
+            or top1_protocol.get("promotion_allowed") is not False
+            or top1_protocol.get("formal_count") != 0):
+        fail("top1_selector_not_independently_preregistered")
     candidates = {}
     excluded = Counter()
     observed_total = 0
