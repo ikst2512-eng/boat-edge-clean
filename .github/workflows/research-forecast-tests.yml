@@ -134,6 +134,17 @@ jobs:
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
         run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json
+      - name: Probe official K archive for one frozen date (research-only byte receipt)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: python scripts/research_official_k_receipt.py --start 2026-08-01 --end 2026-08-01 --output-dir research_evidence/official_k_probe
+      - name: Preserve official K raw probe only if actually downloaded
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-raw-probe-not-reconciled
+          path: research_evidence/official_k_probe/*
+          if-no-files-found: ignore
       - name: Preserve 92-day postrace study artifact (not prediction evidence)
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
