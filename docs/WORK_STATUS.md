@@ -1,3 +1,12 @@
+## 2026-11-07 JST｜独立Cloudflare Freeバックアップ（研究用 Draft PR #1697、未デプロイ）
+- 利用者指定：Render有料CronはHTTP 402で繰り返し作成不可のため、Cloudflare Workers Free案に切替。ただし既存Renderエントリポイント `scripts/render_capture_wakeup.py` とRender Free Web本番は一切変更・削除しない。
+- 専用ブランチ `feat/cloudflare-free-independent-capture-wakeup-20261107` をmain `48859136a24222e77bae111ddcc7b73738a1de63` から作成し、Draft PR [#1697](https://github.com/ikst2512-eng/boat-edge-clean/pull/1697) まで作成。**mainへ未統合・自動統合禁止**。
+- 追加 `cloudflare/independent_capture_wakeup.mjs` と `cloudflare/wrangler.toml`。UTC `*/5 22-23,0-13 * * *` の1 Cron、CLEAN63枠＋4モード56枠=119枠に各1救済tick。GitHub実行履歴のschedule/manual分離、成功・実行中・手動起動抑制、API不全・不正履歴・100行ページング不明のfail-closed、両収集のGET照合終了後にだけworkflow_dispatchのHTTP204を要求。終盤CLEAN22:28→22:30救済。元のGitHub cron、watchdog、予想原本、T−12/90秒ゲート、モデルは不変。
+- ローカルNode 22: `node --check cloudflare/independent_capture_wakeup.mjs`成功、`node --test tests/cloudflare_capture_wakeup.test.mjs` **20/20 PASS**。ローカルテストファイルのGit blob SHAはPR上のアップロード版と一致。既存watchdogワークフローにPR限定Node安全テストを追加（既存4 Cronは不変）。
+- 未証明：GitHub PR exact-head CI、Cloudflare本番の10ms CPU制限適合、アカウント/Workerデプロイ、secret `GITHUB_DISPATCH_TOKEN`、実Cron発火、GitHub workflow_dispatch run ID、実Git first-addと原本のT−12証明。**正式認定0**。dispatch受理を原本保存・精度証明に転換しない。
+- Cloudflareシークレットは利用者のダッシュボードに直接配置し、Git/PR/ログ/チャットに貼らない。同時にRender版とCloudflare版の2外部Cronを稼働させず、二重dispatch競合を防止。運用・ロールバック手順は `docs/cloudflare-independent-capture-wakeup-readiness.md`。
+- 次：Draft PR exact-head CIを照合して修正必要時のみ同PRで対応、手動レビュー。本番運用はアカウント接続と秘密情報登録後に限り、実Cronと新規Git初回保存の独立監査で完了判定。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
