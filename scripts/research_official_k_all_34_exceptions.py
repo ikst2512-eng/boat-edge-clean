@@ -12,7 +12,10 @@ import json
 import re
 from pathlib import Path
 
-from scripts.research_official_k_focus_3day import reconcile_day
+if __package__:
+    from .research_official_k_focus_3day import reconcile_day
+else:
+    from research_official_k_focus_3day import reconcile_day
 
 PAGE_SYMBOLS = {"Ｆ", "F", "転", "エ", "沈", "落", "妨"}
 
