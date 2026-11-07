@@ -21,6 +21,10 @@ ARTIFACT_CREATED_UTC = datetime(2026, 11, 6, 3, 25, 25, tzinfo=timezone.utc)
 EXPECTED_COUNT = 92
 METHOD_SHA256 = "ea30508cd899b10336754cfeec69c69c73f18e09fba421016d6cddc69b9cabcb"
 POLICIES = ("baseline", "same_pair_two_thirds", "two_pairs_one_third")
+# BOAT RACE official Nov 6 calendar: Tokoname (venue 08) was cancelled/postponed.
+# Only the seven venue-08 races contained in the immutable 92-record batch.
+OFFICIAL_CANCELLED_CODES = frozenset(f"2026110608{i:02d}" for i in range(6, 13))
+OFFICIAL_CANCELLED_SOURCE = "https://www.boatrace.jp/owpc/pc/race/index?hd=20261106"
 TOPS = (1, 3, 5, 10)
 JST = timezone(timedelta(hours=9))
 CODE = re.compile(r"20261106\d{4}\Z")
@@ -127,6 +131,13 @@ def score(frozen_file, root, reviewer, *, expected_digest=SOURCE_JSON_SHA256,
                 or git_blob != record.get("source_git_blob_sha1")):
             dispositions["source_fingerprint_mismatch"] += 1
             continue
+        # Officially cancelled races have no winning trifecta. Never label them
+        # pending, count them as misses, or look up a replacement-day result.
+        if code in OFFICIAL_CANCELLED_CODES:
+            if (root / "confirmed_results" / (code + ".json")).exists():
+                raise ValueError("cancelled_race_has_result_file:" + code)
+            dispositions["officially_cancelled_no_result"] += 1
+            continue
         verdict = reviewer(record, root)
         status = verdict.get("status") if isinstance(verdict, dict) else None
         if status == "result_not_yet_confirmed":
@@ -169,11 +180,13 @@ def score(frozen_file, root, reviewer, *, expected_digest=SOURCE_JSON_SHA256,
             "artifact_created_at_utc": artifact_created.isoformat(),
             "frozen": expected_count,
             "scored_nonformal": len(rows), "dispositions": dict(sorted(dispositions.items())),
+            "officially_cancelled_codes": sorted(OFFICIAL_CANCELLED_CODES & seen),
+            "official_cancellation_source": OFFICIAL_CANCELLED_SOURCE,
             "hits": hits, "gained": gained, "lost": lost, "rows": rows,
             "formal": False, "prospective_validation": False,
             "independent_first_receipt_verified": False,
             "production_forecast_changed": False,
-            "warning": "Pre-result pinned exact 92-candidate artifact; local clocks and GitHub artifact creation do NOT certify independent first external receipt or official T-12 completeness. Missing results are pending, never misses."}
+            "warning": "Pre-result pinned exact 92-candidate artifact; local clocks and GitHub artifact creation do NOT certify independent first external receipt or official T-12 completeness. Officially cancelled races are excluded from the scored denominator; other missing results are pending, never misses."}
 
 
 def main():
