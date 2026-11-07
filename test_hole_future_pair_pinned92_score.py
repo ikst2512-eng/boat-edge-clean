@@ -124,4 +124,24 @@ class PinnedFutureAuditTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'invalid_review_flag'):
             self._score(reviewer)
 
+    def test_officially_cancelled_race_is_neither_pending_nor_miss(self):
+        self.record['race_code'] = '202611060806'
+        (self.root/'four_mode_forecasts'/'202611060806.json').write_bytes(self.blob)
+        self._write(document(self.record))
+        r = self._score(lambda *_: self.fail('cancelled race opened result reviewer'))
+        self.assertEqual(r['scored_nonformal'], 0)
+        self.assertEqual(r['dispositions'], {'officially_cancelled_no_result': 1})
+        self.assertEqual(r['officially_cancelled_codes'], ['202611060806'])
+        self.assertFalse(r['formal'])
+
+    def test_officially_cancelled_race_with_result_file_is_rejected(self):
+        self.record['race_code'] = '202611060806'
+        (self.root/'four_mode_forecasts'/'202611060806.json').write_bytes(self.blob)
+        result_dir = self.root/'confirmed_results'
+        result_dir.mkdir()
+        (result_dir/'202611060806.json').write_text('{"status":"confirmed"}')
+        self._write(document(self.record))
+        with self.assertRaisesRegex(ValueError, 'cancelled_race_has_result_file'):
+            self._score(lambda *_: self.fail('cancelled race opened result reviewer'))
+
 if __name__=='__main__': unittest.main()
