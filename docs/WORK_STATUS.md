@@ -1,3 +1,11 @@
+## 2026-11-08 JST｜Cloudflare Free独立バックアップ Draft #1697：実Workerd起動監査（本番未導入）
+- main統合禁止・既存Render Free Web/Render用Python変更禁止を維持。同じDraft PR #1697で初めてローカルWorkerdの実起動テストを追加し、従来のNode/ビルドdry-runでは見つからなかった**2つの本番起動ブロッカー**を検出した。
+- ① `wrangler@4.102.0 dev --local`のWorkerdは設定compatibility_date `2026-11-01`を未対応と返した（実サーバ上限`2026-06-24`）。`cloudflare/wrangler.toml`を実対応日付`2026-06-24`へ固定。②次回試験でWorkerdがWorker入口の名前付き定数export `REPO`を拒否（`Incorrect type for map entry`）。ロジックを`cloudflare/independent_capture_policy.mjs`へ分割し、Worker入口`independent_capture_wakeup.mjs`は`export default { scheduled() }`だけに変更。新規policy名付きexportはWorker入口から公開しない。
+- CLI Local Explorer経由でCronイベントを模擬送信する試行は、当該runnerでは`scheduled()`ではなくHTTP handler不足へ到達したため**Cron実行証明として不採用**。CIを手直しし、無credential・local限定でWorkerdが起動し、公開`fetch()`を持たないことをテストする**起動smoke**へ限定した。失敗runは負例として保持。
+- 最新コードhead `e27fc2da0d101aa58a95defff5753add3477eba9` の[GitHub Actions #42391568966](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42391568966)、job 128460072567が**completed/success**。既存Python成功、Node **32/32 PASS/0 fail**、Wrangler 4.102.0 `deploy --dry-run` PASS（10.09 KiB/gzip 3.38 KiB）、`WORKERD_SCHEDULED_ONLY_BOOT_NO_FETCH_HANDLER_PASS`を原ログから確認。
+- Worker本番配備、Cloudflare Secret/PAT、CPU10ms、無人Cron実発火、GitHub workflow_dispatch実run、初回Git原本保存、公式T−12は**全て未実証・正式認定0件**。dispatch受理の模擬と実保存を混同しない。
+- 次の必須ゲートはCloudflare Freeアカウントでの専用Secret投入、オーナーレビュー、実CronとCPU・GitHub実runの観測。mainとRenderを変更せずDraft継続。
+
 ## 2026-11-08 JST｜Cloudflare無料バックアップ Draft #1697：scheduled入口実検証
 - Cloudflare公式Scheduled Handler仕様（`controller.cron`は設定したcron式と完全一致する文字列）を確認。元のWorkerは予定時刻のみ照合していたため、`controller.cron === "*/5 22-23,0-13 * * *"`を厳密に確認し、それ以外はAPIアクセス前に`unexpected_cron_trigger`で失敗させる処理を同じDraft PRに追加。
 - `tests/cloudflare_capture_wakeup.test.mjs`で3件のdirect `scheduled()`入口テストを追加：不正・欠落cron式では通信0件/秘密漏えい0件、正規cron式のモックAPI4GET→2POSTと個別記録、Secret欠損時の通信0件/安全ログ。従来28件と合わせ**31件**。
