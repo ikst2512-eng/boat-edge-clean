@@ -13,6 +13,7 @@ on:
       - test_four_mode_all_shadow_durable_ledger.py
       - test_four_mode_forward_paired_score.py
       - research/four_mode_all_modes_forward_protocol_20261106.json
+      - research/four_mode_top1_pair_forward_protocol_20261108.json
       - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
