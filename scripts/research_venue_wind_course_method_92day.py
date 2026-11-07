@@ -216,6 +216,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--min-n", type=int, default=100)
+    ap.add_argument("--c1-exception-output", type=Path, help="PR-only postrace 1C exception ledger")
     args = ap.parse_args()
     if args.min_n < 1:
         raise SystemExit("minimum n must be positive")
@@ -227,6 +228,15 @@ def main():
     rows, receipts = load_rows(fetch, expected)
     output = aggregate(rows, args.min_n)
     reconcile(output, baseline)
+    if args.c1_exception_output is not None:
+        from scripts.research_official_c1_exception_ledger import from_verified_rows
+        frozen = ROOT / "docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json"
+        evidence = json.loads(frozen.read_text(encoding="utf-8"))
+        candidates = from_verified_rows(rows, receipts, evidence)
+        args.c1_exception_output.parent.mkdir(parents=True, exist_ok=True)
+        args.c1_exception_output.write_text(
+            json.dumps(candidates, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
     output["source_receipts"] = receipts
     output["method_note"] = "External Git blob equality verifies a historical file snapshot, not official racing results or first remote receipt."
     args.output.parent.mkdir(parents=True, exist_ok=True)
