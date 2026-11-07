@@ -5,6 +5,32 @@ const {chromium}=require('playwright');
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
+  // Transient Render 429/5xx/transport failures must be visible in CI logs.
+  // Retry only a bounded number of times; never accept error or altered data.
+  async function getArchiveWithRetry(code){
+   const url='https://boat-edge-clean.onrender.com/api/four-mode-archive?code='+code;
+   const headers={Origin:'https://ikst2512-eng.github.io'};
+   const retryable=new Set([429,500,502,503,504]);
+   for(let attempt=1;attempt<=3;attempt++){
+    let response;
+    try{
+     response=await page.request.get(url,{timeout:45000,headers});
+    }catch(error){
+     console.log('ARCHIVE_API_TRANSPORT_RETRY '+JSON.stringify({code,attempt,
+      terminal:attempt===3,error:String(error).slice(0,160)}));
+     if(attempt===3)throw error;
+    }
+    if(response){
+     if(!retryable.has(response.status()))return response;
+     console.log('ARCHIVE_API_TRANSIENT_HTTP_RETRY '+JSON.stringify({
+      code,attempt,status:response.status(),terminal:attempt===3
+     }));
+     if(attempt===3)return response;
+    }
+    await new Promise(resolve=>setTimeout(resolve,1300*attempt));
+   }
+   throw Error('ARCHIVE_API_UNREACHABLE_'+code);
+  }
   const site='https://ikst2512-eng.github.io/boat-edge-clean/';
   const response=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
   if(!response?.ok())throw Error('PUBLIC_SITE_UNAVAILABLE '+response?.status());
@@ -259,7 +285,7 @@ const {chromium}=require('playwright');
      result.race_code!==code||result.status!=='confirmed'||finish!=='4-1-5'||
      JSON.stringify(counts)!==JSON.stringify([5,10,16,22]))
     throw Error('NOV6_SOURCE_INCONSISTENT '+JSON.stringify({counts,finish}));
-   const api=await page.request.get('https://boat-edge-clean.onrender.com/api/four-mode-archive?code='+code,{timeout:45000,headers:{Origin:'https://ikst2512-eng.github.io'}});
+   const api=await getArchiveWithRetry(code);
    if(!api.ok())throw Error('NOV6_ARCHIVE_API_HTTP_'+api.status());
    const payload=await api.json();
    if(payload.status!=='historical_research_only'||payload.race_code!==code||
@@ -400,7 +426,7 @@ const {chromium}=require('playwright');
     throw Error('NOV7_SOURCE_OR_RANKS_CHANGED '+JSON.stringify({counts,ranks,finish}));
    const apiUrl='https://boat-edge-clean.onrender.com/api/four-mode-archive?code='+code;
    const pagesOrigin='https://ikst2512-eng.github.io';
-   const api=await page.request.get(apiUrl,{timeout:45000,headers:{Origin:pagesOrigin}});
+   const api=await getArchiveWithRetry(code);
    if(!api.ok())throw Error('NOV7_ARCHIVE_API_HTTP_'+api.status());
    const payload=await api.json();
    if(payload.race_code!==code||payload.status!=='historical_research_only'||
