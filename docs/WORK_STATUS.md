@@ -1,3 +1,10 @@
+## 2026-11-08 01時台 JST｜Cloudflare無料バックアップ Draft #1697：実Wrangler dry-run合格
+- PR #1697はDraft・本番未統合を維持。最新main `53b822dc0d398454e1b428abe6651c8b0a1884d0` には別担当の11月7日確定結果・払戻・検証保存の追加6コミットがあり、PRの変更対象7ファイルとの重複0件をcompareで確認。既存Render Free webサービス1件・Render Cron0件で変更なし。
+- 無料枠の実行準備確認を一段進め、**既存** `.github/workflows/four-mode-capture-watchdog.yml`の`pull_request`イベント限定で`npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle`を追加。新workflow・新cron・本番配備・GitHub外部dispatchは実行しない。
+- GitHub Actions [#42389742715](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42389742715)、job `128454618800` は`completed/success`。既存Python policy成功、Cloudflare Node 28/28 PASS、Wrangler dry-runコンパイル成功。実ログ`wrangler 4.102.0`、`Total Upload: 9.95 KiB / gzip: 3.33 KiB`、`--dry-run: exiting now.`。**アップロード・Cloudflareへのデプロイは0件**。ローカルPCのWranglerやCloudflareの認証情報を要求せずGitHub PR環境で実検証。
+- Cloudflare Workers Freeの10ms CPU制限、50 subrequests/実行、Cron5個/アカウントは公式資料で再確認。コードの通信最大6件/実行は通信上限内だがCPU10msとCron実発火・first-add/T−12は未証明。Cloudflare接続・専用PAT Secret設定は未実施、実行／正式復旧認定0件のまま。
+- 既存Render Python、GitHub原スケジュール、モデル、予想原本・採点・旧サイトを不変更。次は最新docs-only PR head CIで同様の成功を確認後にDraftで固定。mainへの自動統合禁止を維持。
+
 ## 2026-11-07 19時台 JST｜Cloudflare Draft #1697部分成功監査の改善
 - 現行Workerは2つのworkflow_dispatchを順にPOSTするため、1件目がHTTP204受理→2件目がHTTP403等で失敗すると、元の最終レポートは例外で出ず、受理済み1件の証拠がCloudflareログに残らない問題を確認（静的監査による予防的修正。実障害発生は未証明）。
 - **同じDraft PR #1697のみに修正**：HTTP204受理直後、次のPOSTより先に`CLOUDFLARE_DISPATCH_RECEIPT`を個別出力。記録はworkflow・復旧対象slot・POST開始時刻・`github_run_id_proven=false`・`new_forecast_saved_proven=false`・`formal=false`の最小限で、認証トークン・買い目・予想原本・個人情報は出力しない。POST開始時刻を受理時刻と偽って表示しない。
