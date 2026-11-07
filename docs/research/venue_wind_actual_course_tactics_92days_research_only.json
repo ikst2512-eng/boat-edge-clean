@@ -1,0 +1,384 @@
+{
+  "schema": "VENUE_WIND_ACTUAL_COURSE_TACTICS_V1",
+  "period": "2026-08-01/2026-10-31",
+  "status": "incomplete_0_of_92",
+  "research_only": true,
+  "source": "BoatraceCSV/boatracecsv.github.io results/realtime",
+  "predeadline_eligible": false,
+  "model_training_authorized": false,
+  "main_or_render_changed": false,
+  "expected_rows": 14109,
+  "expected_eligible": 13970,
+  "expected_source_hashes": {
+    "2026-08/01.csv": {
+      "sha": "d78e11ebc5af666487f50e72258267a79f959486",
+      "n": 156
+    },
+    "2026-08/02.csv": {
+      "sha": "04f5ea654e24711d031a922e10eefc5dd33c9655",
+      "n": 144
+    },
+    "2026-08/03.csv": {
+      "sha": "cfed02b29745501ef9aefeaef04aeef262a679b5",
+      "n": 144
+    },
+    "2026-08/04.csv": {
+      "sha": "244faaf97c34c0a4c2ce13473d941a53fb10fcea",
+      "n": 132
+    },
+    "2026-08/05.csv": {
+      "sha": "a9970a5354f9b38d2dd02ab01c74cf73d492c944",
+      "n": 132
+    },
+    "2026-08/06.csv": {
+      "sha": "267f4339120576f5e85f3dc03cd4cff380b40d9e",
+      "n": 120
+    },
+    "2026-08/07.csv": {
+      "sha": "769eefbe2ee7a4c6d68d78716a202d74c1fcc924",
+      "n": 143
+    },
+    "2026-08/08.csv": {
+      "sha": "999d45535ec5251ea14ef9b3d40f052cc2014cd7",
+      "n": 168
+    },
+    "2026-08/09.csv": {
+      "sha": "96868b7d0884f645309c41a241b197f7dae1c389",
+      "n": 168
+    },
+    "2026-08/10.csv": {
+      "sha": "4f5d7fbed99745260b9b009ce4f31d115405bd83",
+      "n": 156
+    },
+    "2026-08/11.csv": {
+      "sha": "cd95886f48c0f99466de9516fba18cb0f2745f09",
+      "n": 168
+    },
+    "2026-08/12.csv": {
+      "sha": "07ec43df168ae254007fbb904d34232bad847879",
+      "n": 180
+    },
+    "2026-08/13.csv": {
+      "sha": "6a62466e3603c0668b99cfc8ae65f9f32f6fc2f7",
+      "n": 180
+    },
+    "2026-08/14.csv": {
+      "sha": "2a5a0f5d2ab9971ae85047da5598216ac2c9bd48",
+      "n": 192
+    },
+    "2026-08/15.csv": {
+      "sha": "ef9e6103a901b48c7bb700a94822a8f402240271",
+      "n": 216
+    },
+    "2026-08/16.csv": {
+      "sha": "8360471bf6bf2f23bebd0d681538e5a71e91b88f",
+      "n": 192
+    },
+    "2026-08/17.csv": {
+      "sha": "079f32d00c451a66c5431a6d196663b7b3a865fb",
+      "n": 168
+    },
+    "2026-08/18.csv": {
+      "sha": "5e3adf5fbab77d8abfc48fd614446c84c449e9f2",
+      "n": 144
+    },
+    "2026-08/19.csv": {
+      "sha": "8bb5429b6e24ae8a6ce2a4b9d15f593d9738946e",
+      "n": 144
+    },
+    "2026-08/20.csv": {
+      "sha": "37447dcd900cdb89dfb412ccb2631e748fe13fce",
+      "n": 168
+    },
+    "2026-08/21.csv": {
+      "sha": "8698d3811b4c3824757f4ba13d18f5006f4a334d",
+      "n": 144
+    },
+    "2026-08/22.csv": {
+      "sha": "f4c935ffd23dca17e53c52e7082f54cf8bcdf982",
+      "n": 156
+    },
+    "2026-08/23.csv": {
+      "sha": "658b3f51cac4b157f546d6545dcf3c436df33208",
+      "n": 168
+    },
+    "2026-08/24.csv": {
+      "sha": "63aa92530e04ea5e12ba35529d54827f180d5ae9",
+      "n": 144
+    },
+    "2026-08/25.csv": {
+      "sha": "37e8ed180161928d0ced691bec3ff1eaff3eddd7",
+      "n": 156
+    },
+    "2026-08/26.csv": {
+      "sha": "0c2cfb5823b8699edb137a87f96c1c1e2ba384e0",
+      "n": 168
+    },
+    "2026-08/27.csv": {
+      "sha": "12bf1b49717d2ff7f48c98187639c6a296336ba9",
+      "n": 156
+    },
+    "2026-08/28.csv": {
+      "sha": "8e7adb99bf77b7f9bb93ea53277681877154c8d2",
+      "n": 144
+    },
+    "2026-08/29.csv": {
+      "sha": "5d2a3e47f897f80d87fc175338db95774c05834d",
+      "n": 35
+    },
+    "2026-08/30.csv": {
+      "sha": "3054b1bc71c377618fcb33841841a38975a0138b",
+      "n": 168
+    },
+    "2026-08/31.csv": {
+      "sha": "233c91aace79ae71b11c7a5595c7913a33bb7500",
+      "n": 144
+    },
+    "2026-09/01.csv": {
+      "sha": "fa3840f009e3cb417a2ef902d7fc9bd57a9a6fd7",
+      "n": 144
+    },
+    "2026-09/02.csv": {
+      "sha": "8a98e1c1a8e35cc25b24a071d4db8fac0edcca1f",
+      "n": 156
+    },
+    "2026-09/03.csv": {
+      "sha": "01def446b6d58fc734850166a734f2b8005ad969",
+      "n": 168
+    },
+    "2026-09/04.csv": {
+      "sha": "43b3f3c3b8c84f81213a541c5aa9017d5e909a34",
+      "n": 156
+    },
+    "2026-09/05.csv": {
+      "sha": "e741915cebca1c74a5bacb70d51d2b7659286e11",
+      "n": 168
+    },
+    "2026-09/06.csv": {
+      "sha": "f266325df96970e87efbdd62fa055501513d82af",
+      "n": 144
+    },
+    "2026-09/07.csv": {
+      "sha": "957162d00c1feb0ef23616b2d16a5f68a8619f2f",
+      "n": 144
+    },
+    "2026-09/08.csv": {
+      "sha": "bb3f57442e8f77c308954610d483f0f8ad99b3ea",
+      "n": 132
+    },
+    "2026-09/09.csv": {
+      "sha": "ac86c09d9f4ccd1559f997a71bae507f23bc3ef9",
+      "n": 132
+    },
+    "2026-09/10.csv": {
+      "sha": "6160cb3fbe3e033fbd2166aba2bb1fe6fca28410",
+      "n": 132
+    },
+    "2026-09/11.csv": {
+      "sha": "8bf9e4e7da4ed85f39ba938abb5ef06241ff35f5",
+      "n": 144
+    },
+    "2026-09/12.csv": {
+      "sha": "e6404462b9478d081961f6b8fd7a3374657f580e",
+      "n": 156
+    },
+    "2026-09/13.csv": {
+      "sha": "be6ff16baaef1cdd6e8ed565db54a3a50d69b32d",
+      "n": 180
+    },
+    "2026-09/14.csv": {
+      "sha": "cb0542e272566ddbe858ce06ebc4ed48ce8a8ba8",
+      "n": 167
+    },
+    "2026-09/15.csv": {
+      "sha": "eca10667cc1e5422817b4ce1ec987c3f529666ce",
+      "n": 156
+    },
+    "2026-09/16.csv": {
+      "sha": "e6d3a836ac12d807a5d7abdae42ca31bad3478d9",
+      "n": 156
+    },
+    "2026-09/17.csv": {
+      "sha": "40aab729d8d93c77154751c4647c8d7d08408a9a",
+      "n": 180
+    },
+    "2026-09/18.csv": {
+      "sha": "62fb93f2810e063988b220db1a3d45ee1a87c9ce",
+      "n": 180
+    },
+    "2026-09/19.csv": {
+      "sha": "776a3e29035756960c83e6d2dd451bd5d0f30622",
+      "n": 156
+    },
+    "2026-09/20.csv": {
+      "sha": "f97271e35ab0d22c853caad21821e1a343ffc604",
+      "n": 168
+    },
+    "2026-09/21.csv": {
+      "sha": "2ed9b938bdd88e29af146598741a26594be58035",
+      "n": 121
+    },
+    "2026-09/22.csv": {
+      "sha": "1f4b7d5919b46cfe94f89327ebf610db692312bd",
+      "n": 156
+    },
+    "2026-09/23.csv": {
+      "sha": "70b35f27ed0423d9ff747245a9bcd23c5f83a115",
+      "n": 156
+    },
+    "2026-09/24.csv": {
+      "sha": "58d523568d1bcc94cf4c71ea9397626acb6b2f0e",
+      "n": 156
+    },
+    "2026-09/25.csv": {
+      "sha": "437b6cabd521cdf999645155dd08fe79cf049f93",
+      "n": 144
+    },
+    "2026-09/26.csv": {
+      "sha": "89602f0f2e45feed3af1306e40da35a9be915531",
+      "n": 156
+    },
+    "2026-09/27.csv": {
+      "sha": "00c866a9cdf5ac3d22473bc2921133897d938413",
+      "n": 156
+    },
+    "2026-09/28.csv": {
+      "sha": "ec16a9bc8c80980b6d61338c0004bd3a8909c7e8",
+      "n": 144
+    },
+    "2026-09/29.csv": {
+      "sha": "eb4783b28ee6c76af9fbc57a68127106d318c89b",
+      "n": 144
+    },
+    "2026-09/30.csv": {
+      "sha": "9b60f5a6e7ccf9d02e0dc9ff6e3d08bdc039b623",
+      "n": 144
+    },
+    "2026-10/01.csv": {
+      "sha": "369794d043ce8dce12da784cfa57ed506e3e124a",
+      "n": 168
+    },
+    "2026-10/02.csv": {
+      "sha": "3f2b3a77c8aad5423b8207e29f2919664ef9c3ca",
+      "n": 168
+    },
+    "2026-10/03.csv": {
+      "sha": "00726576d360dfd61e6326d4a03c3ca1fb20b92a",
+      "n": 156
+    },
+    "2026-10/04.csv": {
+      "sha": "17b031f8d95d99cb0bd10571ed233538a151038c",
+      "n": 156
+    },
+    "2026-10/05.csv": {
+      "sha": "51f53f443249421adc9c942289c1743a05ea2f98",
+      "n": 143
+    },
+    "2026-10/06.csv": {
+      "sha": "f5a9011f9950173adb4e332da5a09e500e9a153b",
+      "n": 155
+    },
+    "2026-10/07.csv": {
+      "sha": "09966558473842abfc8c83d6d0ebc4604d397359",
+      "n": 143
+    },
+    "2026-10/08.csv": {
+      "sha": "c0e5b2fa397df4d6854bcc582a88452cf9ed55b0",
+      "n": 143
+    },
+    "2026-10/09.csv": {
+      "sha": "b4d7311b19b4da5f4bf3eeec380445f4380c9af3",
+      "n": 143
+    },
+    "2026-10/10.csv": {
+      "sha": "4060160aa470f7d9c18d4f3598371b448b4f708d",
+      "n": 156
+    },
+    "2026-10/11.csv": {
+      "sha": "213e9c3b7d6ab4772b8a3ec59eb132d0c7f79914",
+      "n": 155
+    },
+    "2026-10/12.csv": {
+      "sha": "809240cfe4c6963f155a18c1c6a327e812b2cdb6",
+      "n": 167
+    },
+    "2026-10/13.csv": {
+      "sha": "0dbaefacae8b29bed1b77a27a9de1c29885daac0",
+      "n": 131
+    },
+    "2026-10/14.csv": {
+      "sha": "54fe39234c6557e99e25672115af8396344ba5da",
+      "n": 155
+    },
+    "2026-10/15.csv": {
+      "sha": "6efd116e60c27f896b3a66eb1c265e8f7b017865",
+      "n": 156
+    },
+    "2026-10/16.csv": {
+      "sha": "6c1a459cb31d6d700f3b032d400f618fa9ed4337",
+      "n": 156
+    },
+    "2026-10/17.csv": {
+      "sha": "8a51f1487cbc2aaf04ac37c2fd38de20584dde9a",
+      "n": 167
+    },
+    "2026-10/18.csv": {
+      "sha": "abc1728b22b45403e871971cce2ffed3a51df6f8",
+      "n": 155
+    },
+    "2026-10/19.csv": {
+      "sha": "a78099c587fd46385dfd9fc2b6a3dedf0cbda7e8",
+      "n": 131
+    },
+    "2026-10/20.csv": {
+      "sha": "b7cac3715e57127970b57467ba10f3bcde19a150",
+      "n": 143
+    },
+    "2026-10/21.csv": {
+      "sha": "faa1d2186114bcfe834dafebe66a1441f8d45ceb",
+      "n": 143
+    },
+    "2026-10/22.csv": {
+      "sha": "fea01e13efc426601bda0028710e78dabd4dbd41",
+      "n": 167
+    },
+    "2026-10/23.csv": {
+      "sha": "322a14276b654de3cc42f84800d98beba2fbfdd7",
+      "n": 167
+    },
+    "2026-10/24.csv": {
+      "sha": "1bc947fef65151f4a1beaa9c1f4971bb0bc820f4",
+      "n": 167
+    },
+    "2026-10/25.csv": {
+      "sha": "da0f4374e2b24153923f80b3de26ec0a121fd027",
+      "n": 167
+    },
+    "2026-10/26.csv": {
+      "sha": "ed2bb98f92448e0637c0ae8d90e66777abd4c53d",
+      "n": 144
+    },
+    "2026-10/27.csv": {
+      "sha": "a09e85b99cdec8a32e76008793b0b71900643cd0",
+      "n": 168
+    },
+    "2026-10/28.csv": {
+      "sha": "eea31ddcd5912a90195cdfc44cb97274f6d49b74",
+      "n": 125
+    },
+    "2026-10/29.csv": {
+      "sha": "9b1c278327b918ebbab56eb27b13e0d21db79071",
+      "n": 120
+    },
+    "2026-10/30.csv": {
+      "sha": "34aafa35179e589d9c8e0e53358694adf90d55e8",
+      "n": 144
+    },
+    "2026-10/31.csv": {
+      "sha": "b2314e897be28189c4822c06a87484c59ee4dcfe",
+      "n": 156
+    }
+  },
+  "days": {},
+  "instructions": "Input is POST-RACE CSV. Actual ST, outcome, method, wind and wave MUST NOT become same-race predeadline features. One row is one race; winner boat mapped onto six actual course boat IDs."
+}
