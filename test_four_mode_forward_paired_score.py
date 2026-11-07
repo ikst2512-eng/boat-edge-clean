@@ -144,6 +144,9 @@ class FourModeForwardTests(unittest.TestCase):
         for field,replacement in (
             ("source_url","https://example.org/confirmed.csv"),
             ("collected_at_jst","2026-11-07T08:00:00+09:00"),
+            # Collector's bounded 3-minute skew tolerance must not
+            # establish research-grade confirmed-result chronology.
+            ("collected_at_jst","2026-11-07T08:49:00+09:00"),
         ):
             with self.subTest(field=field):
                 result=self.result()

@@ -173,7 +173,12 @@ def compare(captures, root):
                     or not isinstance(source_sha,str) or not SHA64.fullmatch(source_sha)
                     or not isinstance(result.get("source_url"),str)
                     or not result["source_url"].startswith("https://")
-                    or at_jst(result["confirmed_at_jst"]) <= row["deadline"]):
+                    or at_jst(result["confirmed_at_jst"]) <= row["deadline"]
+                    # Collector permits up to 3 minutes of source/collection
+                    # timestamp skew for coverage. Research scoring requires
+                    # the later persisted collection to follow source receipt.
+                    or at_jst(result["collected_at_jst"]) <
+                        at_jst(result["confirmed_at_jst"])):
                 raise ValueError("result_not_independently_usable")
         except (OSError,KeyError,TypeError,ValueError,UnicodeError):
             invalid["invalid_result_content_or_time"]+=1

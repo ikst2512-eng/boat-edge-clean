@@ -78,6 +78,9 @@ class AllModeReferenceReviewTests(unittest.TestCase):
         for field, replacement in (
             ("source_url","https://example.invalid/other.csv"),
             ("collected_at_jst","2026-11-07T08:00:00+09:00"),
+            # One-minute backwards collection is within the collector's
+            # coverage tolerance but is not valid research chronology.
+            ("collected_at_jst","2026-11-07T08:44:00+09:00"),
         ):
             with self.subTest(field=field), tempfile.TemporaryDirectory() as d:
                 root=Path(d);cap=self.fresh(root)

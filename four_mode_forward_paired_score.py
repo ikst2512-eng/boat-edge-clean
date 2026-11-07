@@ -143,7 +143,7 @@ def score(pre_result_rows, results, p):
                 not isinstance(outcome.get("source_sha256"),str) or
                 not SHA.fullmatch(outcome["source_sha256"]) or
                 confirmed <= row["deadline"] or
-                confirmed > collected + timedelta(minutes=3)):
+                collected < confirmed):
                 raise ValueError("untrusted_result_or_time")
             finish = outcome.get("finish_order")
             if (type(finish) is not list or len(finish) != 3 or
