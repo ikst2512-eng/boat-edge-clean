@@ -144,4 +144,26 @@ class PinnedFutureAuditTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cancelled_race_has_result_file'):
             self._score(lambda *_: self.fail('cancelled race opened result reviewer'))
 
+    def test_present_invalid_result_cannot_be_silently_pending(self):
+        results = self.root/'confirmed_results'
+        results.mkdir()
+        (results/'202611060101.json').write_text('{"status":"untrusted"}')
+        with self.assertRaisesRegex(ValueError, 'saved_result_exists_but_untrusted'):
+            self._score(lambda *_: {'status':'result_not_yet_confirmed','comparable':0})
+
+    def test_pr_ci_does_not_repeat_candidate_freeze(self):
+        # Code changes must not create another overlapping shadow artifact.
+        workflow = (Path(__file__).resolve().parent/
+                    '.github/workflows/hole-future-pair-precommit.yml').read_text()
+        self.assertIn(
+            "- name: Freeze future race candidates from immutable main forecasts (research only)\n"
+            "        if: github.event_name == 'workflow_dispatch'",
+            workflow)
+        self.assertIn(
+            "- uses: actions/upload-artifact@v4\n"
+            "        if: github.event_name == 'workflow_dispatch'\n"
+            "        with:\n"
+            "          name: hole-future-pair-precutoff-candidates",
+            workflow)
+
 if __name__=='__main__': unittest.main()
