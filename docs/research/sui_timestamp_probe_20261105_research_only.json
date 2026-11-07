@@ -1,0 +1,18 @@
+{
+  "schema": "SUI_TIME_OBSERVATION_RESEARCH_V1",
+  "day": "2026-11-05",
+  "research_only": true,
+  "official_t12_proof": false,
+  "source": "BoatraceCSV published sui CSV; timestamps unverified by independent Git first-add",
+  "source_url": "https://github.com/BoatraceCSV/boatracecsv.github.io/blob/main/data/previews/sui/2026/11/05.csv",
+  "source_blob_sha": "4059f8952879eb8063a1d01949cba6b7b5772172",
+  "rows": 144,
+  "parsed_timestamps": 144,
+  "observed_at_or_before_t_minus_12": 0,
+  "observed_after_t_minus_12_before_cutoff": 144,
+  "observed_at_or_after_cutoff": 0,
+  "invalid_timestamp_or_key": 0,
+  "min_minutes_before_deadline": 5.3,
+  "max_minutes_before_deadline": 9.666666666666666,
+  "warning": "CSV observation timestamps are not source receipt timestamps; neither proves official T-12 eligibility. Not a forecasting input."
+}
