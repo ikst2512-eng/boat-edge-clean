@@ -14,7 +14,8 @@ from pathlib import Path
 
 from collect_clean_results import confirmed_record_is_usable
 from four_mode_all_mode_same_job_shadow import (
-    SCHEMA, SIZES, VERSION, PROTECTED, candidate_modes, at_jst,
+    SCHEMA, SIZES, VERSION, PROTECTED, TOP1_PAIR_RULE, candidate_modes,
+    top1_pair_candidate, at_jst,
 )
 
 CODE = re.compile(r"20[0-9]{10}\Z")
@@ -114,13 +115,18 @@ def validate_capture_before_any_results(captures, root):
                     or deadline.strftime("%Y%m%d") != code[:8]):
                 fail("candidate_cutoff_or_chronology_unproven")
             expected_base,expected_candidate=candidate_modes(original)
+            expected_top1_pair=top1_pair_candidate(original,expected_base)
             if (item.get("baseline") != expected_base or
                     item.get("candidate") != expected_candidate or
+                    item.get("top1_pair_candidate") != expected_top1_pair or
+                    item.get("top1_pair_rule") != TOP1_PAIR_RULE or
+                    item.get("top1_selector_sha256") != method or
                     item.get("mode_selector_sha256") !=
                       {mode:method for mode in SIZES}):
                 fail("saved_candidate_not_reproducible")
             candidates[code] = {"deadline":deadline, "baseline":expected_base,
-                                "candidate":expected_candidate}
+                                "candidate":expected_candidate,
+                                "top1_pair_candidate":expected_top1_pair}
     # Excluded races stay in the accounted input population. Do not silently
     # choose the next race to inflate a fixed 600-case reference score.
     return candidates, excluded, observed_total
@@ -151,6 +157,9 @@ def compare(captures, root):
     counts={phase:{mode:{f"top{n}":{"original":0,"candidate":0,"gained":0,"lost":0,
                                      "denominator":0}
                   for n in TOPS} for mode in SIZES} for phase in ("pilot","confirmation")}
+    top1_pair_counts={phase:{mode:{"original":0,"candidate":0,"gained":0,
+                                     "lost":0,"denominator":0}
+                             for mode in SIZES} for phase in ("pilot","confirmation")}
     missing=[]
     invalid=Counter()
     valid=Counter()
@@ -194,6 +203,16 @@ def compare(captures, root):
         for mode in SIZES:
             old=row["baseline"][mode]
             new=row["candidate"][mode]
+            pair=row["top1_pair_candidate"][mode]
+            if any(set(old[:n]) != set(pair[:n]) for n in (2,3,5,10)):
+                fail("top1_pair_changed_ticket_membership")
+            t=top1_pair_counts[phase][mode]
+            old_top1=winning==old[0]
+            pair_top1=winning==pair[0]
+            t["original"]+=int(old_top1)
+            t["candidate"]+=int(pair_top1)
+            t["gained"]+=int(pair_top1 and not old_top1)
+            t["lost"]+=int(old_top1 and not pair_top1)
             breakdown[phase][mode][miss_classification(old,winning)]+=1
             for n in TOPS:
                 stats=counts[phase][mode][f"top{n}"]
@@ -203,6 +222,15 @@ def compare(captures, root):
                 stats["candidate"]+=int(b)
                 stats["gained"]+=int(b and not a)
                 stats["lost"]+=int(a and not b)
+    for phase in top1_pair_counts:
+        for mode, stat in top1_pair_counts[phase].items():
+            stat["denominator"]=valid[phase]
+            stat["original_pct"]=(round(100*stat["original"]/valid[phase],2)
+                                  if valid[phase] else None)
+            stat["candidate_pct"]=(round(100*stat["candidate"]/valid[phase],2)
+                                   if valid[phase] else None)
+            if stat["candidate"]-stat["original"] != stat["gained"]-stat["lost"]:
+                fail("top1_pair_arithmetic_mismatch")
     for phase in counts:
         for mode in SIZES:
             for n in TOPS:
@@ -223,7 +251,10 @@ def compare(captures, root):
         "excluded_originally_captured":dict(excluded),
         "confirmed_result_matches":dict(valid),"missing_result_codes":missing,
         "invalid_result_counts":dict(invalid),
-        "topn_by_phase":counts,"original_full_ticket_miss_by_phase":breakdown,
+        "topn_by_phase":counts,"top1_pair_by_phase":top1_pair_counts,
+        "top1_pair_policy":TOP1_PAIR_RULE,
+        "top1_pair_top3_5_10_memberships_preserved":True,
+        "original_full_ticket_miss_by_phase":breakdown,
         "warning":"A verified local same-job freeze is reference evidence only. Never claim independent FIRST remote receipt for candidate, official T12 complete data, or generalizable improvement. No selection based on results.",
     }
 
