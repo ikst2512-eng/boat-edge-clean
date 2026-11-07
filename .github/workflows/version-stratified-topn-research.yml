@@ -35,6 +35,14 @@ jobs:
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
       - name: Replay real Nov 5 original forecasts without reading results
         run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
+      # Historical input-only check. This mode never opens confirmed results,
+      # so it cannot turn a settled Nov 6/7 race into prospective evidence.
+      - name: Replay saved Nov 6 and Nov 7 V2 inputs without any result reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261106 | tee four_mode_shadow_input_replay_20261106.log
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261107 | tee four_mode_shadow_input_replay_20261107.log
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
@@ -48,5 +56,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: historical-version-topn-${{ github.run_id }}
-          path: version_stratified_topn_report.log
+          path: |
+            version_stratified_topn_report.log
+            four_mode_shadow_input_replay_20261106.log
+            four_mode_shadow_input_replay_20261107.log
           retention-days: 30
