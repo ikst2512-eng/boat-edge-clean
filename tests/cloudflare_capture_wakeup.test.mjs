@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import cloudflareWorker, {plannedSlots, eligibleSlot, execute, WORKFLOWS} from '../cloudflare/independent_capture_wakeup.mjs';
+import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
+import * as workerEntrypointExports from '../cloudflare/independent_capture_wakeup.mjs';
+import {plannedSlots, eligibleSlot, execute, WORKFLOWS} from '../cloudflare/independent_capture_policy.mjs';
 const JST=9*60*60*1000;
 const jst=(h,m,d=5)=>new Date(Date.UTC(2026,10,d,h,m)-JST);
 const tick=(h,m,d=5)=>jst(h,m,d).getTime();
@@ -275,4 +277,9 @@ test('scheduled adapter missing Secret fails before network with redacted error'
 
 test('POST must return 204; no false success',async()=>{
   const m=mock({postStatus:200});await assert.rejects(()=>run(tick(7,10),m),/dispatch_not_accepted/);
+});
+
+test('Worker entrypoint exports only the default scheduled handler (real workerd constraint)',()=>{
+  assert.deepEqual(Object.keys(workerEntrypointExports),['default']);
+  assert.equal(typeof workerEntrypointExports.default.scheduled,'function');
 });
