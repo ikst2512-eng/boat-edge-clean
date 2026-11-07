@@ -126,6 +126,65 @@ def run(root: Path, manifest: Path) -> dict:
         "exceptions": sorted(candidates, key=lambda x: x["race_code"]),
     }
 
+def from_verified_rows(rows: list[dict], receipts: list[dict], evidence: dict) -> dict:
+    """Generate candidates only from the existing 92-day SHA-verified fetcher."""
+    sources = evidence.get("sources", [])
+    expected_days = [(START + dt.timedelta(days=i)).isoformat() for i in range(92)]
+    if evidence.get("period") != "2026-08-01/2026-10-31" or [s["day"] for s in sources] != expected_days:
+        raise ValueError("unexpected_frozen_source_period")
+    if len(receipts) != 92 or len(rows) != sum(s["rows"] for s in sources):
+        raise ValueError("verified_receipt_or_raw_count_mismatch")
+    for receipt, source in zip(receipts, sources):
+        if (receipt.get("date") != source["day"]
+                or receipt.get("git_blob_sha") != source["sha"]
+                or receipt.get("rows") != source["rows"]
+                or receipt.get("temporal_class") != "postrace_only"):
+            raise ValueError("receipt_mismatch:" + source["day"])
+    counts, daily, accepted_daily = Counter(), Counter(), Counter()
+    seen, candidates = set(), []
+    for row in rows:
+        key = (row.get("レースコード") or "").strip()
+        day = key[:4] + "-" + key[4:6] + "-" + key[6:8]
+        if key in seen or day not in expected_days:
+            raise ValueError("duplicate_or_unexpected_race_code:" + key)
+        seen.add(key)
+        daily[day] += 1
+        venue = key[8:10]
+        if venue in FOCUS:
+            counts[venue + ":raw"] += 1
+        try:
+            parsed = parse_result(row)
+        except ValueError:
+            continue
+        accepted_daily[day] += 1
+        if venue not in FOCUS:
+            continue
+        counts[venue + ":eligible"] += 1
+        counts[venue + ":wins"] += int(parsed["winner_course"] == 1)
+        x = exception(row, parsed)
+        if x:
+            counts[venue + (":f" if x["first_course_f_mark"] else ":nonf_unranked")] += 1
+            candidates.append(x)
+    for source in sources:
+        if daily[source["day"]] != source["rows"] or accepted_daily[source["day"]] != source["accepted"]:
+            raise ValueError("daily_rows_or_acceptance_mismatch:" + source["day"])
+    for venue, expected in EXPECTED.items():
+        for key, n in expected.items():
+            if counts[venue + ":" + key] != n:
+                raise ValueError("focus_count_mismatch:" + venue + ":" + key)
+    if len(candidates) != 34:
+        raise ValueError("unexpected_candidate_count:" + str(len(candidates)))
+    return {
+        "schema": "FIRST_COURSE_EXCEPTION_CANDIDATES_V1",
+        "classification": "secondary_postrace_research_only_not_official_K",
+        "period": evidence["period"], "source_days_sha_verified": 92,
+        "official_K_rows_reconciled": 0, "T12_eligible": False,
+        "official_c1_denominator_established": False,
+        "by_venue": {v: {k: counts[v + ":" + k] for k in EXPECTED[v]} for v in FOCUS},
+        "exceptions": sorted(candidates, key=lambda x: x["race_code"]),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", type=Path, required=True)
