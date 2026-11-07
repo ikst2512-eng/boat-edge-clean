@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from scripts.research_official_k_focus_3day import (
-    TARGETS, expected_blob_sha, reconcile_day, status_compatible,
+    TARGETS, OFFICIAL_ONLY_RACES, expected_blob_sha, reconcile_day, status_compatible,
 )
 from scripts.research_official_k_one_day_compare import parse_k, unpack_lha
 
@@ -64,6 +64,14 @@ class FocusThreeDayTests(unittest.TestCase):
         self.assertFalse(status_compatible("転", "S2"))
         self.assertFalse(status_compatible("妨", "S0"))
         self.assertFalse(status_compatible("F", "S1"))
+
+    def test_only_three_documented_official_only_races_allowed(self):
+        self.assertEqual(OFFICIAL_ONLY_RACES, {
+            "20261012": {"202610121912"},
+            "20261018": {"202610181912"},
+            "20261023": {"202610232012"},
+        })
+        self.assertTrue(all(code.endswith("12") for codes in OFFICIAL_ONLY_RACES.values() for code in codes))
 
     def test_dynamic_k_filename_and_count_guard(self):
         # Invalid binary fails before attempting to treat source as an official row.
