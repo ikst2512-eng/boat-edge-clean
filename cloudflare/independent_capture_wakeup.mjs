@@ -105,9 +105,10 @@ async function history(fetcher, root, event, token) {
   return payload.workflow_runs;
 }
 
-export async function execute({scheduledTime, now, token, fetcher, clock = () => now}) {
+export async function execute({scheduledTime, now, token, fetcher, clock = () => now, onAccepted = () => {}}) {
   validateCronTick(scheduledTime, now);
   if (typeof fetcher !== 'function') throw new Error('fetcher_required');
+  if (typeof onAccepted !== 'function') throw new Error('invalid_receipt_sink');
   const when = new Date(now);
   const eligible = Object.fromEntries(Object.keys(WORKFLOWS).map(k => [k, eligibleSlot(k, when)]));
   const result = {schema: SCHEMA, checked_at_jst: new Date(now + JST).toISOString().replace('Z', '+09:00'),
@@ -144,6 +145,13 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
       body: JSON.stringify({ref: 'main'})});
     if (!response || response.status !== 204) throw new Error('github_external_dispatch_not_accepted');
     result.workflows[kind].action = 'dispatch_accepted_not_forecast_proof';
+    // GitHub returns only HTTP 204, not the run ID. Record each accepted POST
+    // independently so a later failure cannot erase a partial-success receipt.
+    // No token, request headers or forecast data is written to this log.
+    onAccepted({schema: SCHEMA, event: 'workflow_dispatch_accepted',
+      workflow: kind, slot_jst: result.workflows[kind].slot_jst,
+      accepted_at_jst: new Date(current + JST).toISOString().replace('Z', '+09:00'),
+      github_run_id_proven: false, new_forecast_saved_proven: false, formal: false});
   }
   result.action = 'checked_not_publication_proof';
   return result;
@@ -151,7 +159,7 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
 
 const SAFE_ERRORS = new Set([
   'invalid_trigger_clock', 'late_or_future_cron_trigger', 'cron_outside_allowlist',
-  'invalid_clock', 'unknown_workflow', 'fetcher_required',
+  'invalid_clock', 'unknown_workflow', 'fetcher_required', 'invalid_receipt_sink',
   'GITHUB_DISPATCH_TOKEN_required', 'github_history_http_error',
   'github_history_missing_or_malformed', 'github_history_identity_invalid',
   'github_history_chronology_invalid', 'github_history_pagination_incomplete',
@@ -163,7 +171,8 @@ export default {
     // No HTTP fetch handler: this Worker is only reachable by its scheduled trigger.
     try {
       const report = await execute({scheduledTime: controller.scheduledTime, now: Date.now(),
-        token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch, clock: Date.now});
+        token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch, clock: Date.now,
+        onAccepted: receipt => console.log('CLOUDFLARE_DISPATCH_RECEIPT=' + JSON.stringify(receipt))});
       console.log('CLOUDFLARE_CAPTURE_WAKEUP=' + JSON.stringify(report));
     } catch (error) {
       console.error('CLOUDFLARE_CAPTURE_WAKEUP_ERROR=' + JSON.stringify({schema: SCHEMA,
