@@ -74,7 +74,8 @@ class NavigationContractTest(unittest.TestCase):
             thread = Thread(target=httpd.serve_forever, daemon=True)
             thread.start()
             try:
-                # The empty-but-valid archive must be visible as HTTP 404 to Pages.\n                for race_code, status in (("202611061006", 200), ("209901010101", 404), ("invalid", 422)):
+                # The empty-but-valid archive must be visible as HTTP 404 to Pages.
+                for race_code, status in (("202611061006", 200), ("209901010101", 404), ("invalid", 422)):
                     for request_origin in (origin, "https://not-the-clean-site.example"):
                         conn = HTTPConnection("127.0.0.1", httpd.server_port, timeout=10)
                         try:
