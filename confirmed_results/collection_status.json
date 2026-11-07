@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-07T07:21:33.000777+09:00",
+  "checked_at_jst": "2026-11-07T10:47:22.389287+09:00",
   "days": [
     {
       "day": "20261106",
@@ -11,11 +11,11 @@
     },
     {
       "day": "20261107",
-      "http_status": 404,
-      "newly_saved": 0,
-      "source_races": 0,
-      "source_url": "https://boatracecsv.github.io/data/results/realtime/2026/11/07.csv",
-      "status": "waiting_for_published_source"
+      "http_status": null,
+      "newly_saved": 9,
+      "source_races": 9,
+      "source_url": null,
+      "status": "available"
     }
   ],
   "historical_retries": {
@@ -45,8 +45,13 @@
     "202611060809",
     "202611060810",
     "202611060811",
-    "202611060812"
+    "202611060812",
+    "202611070201",
+    "202611070501",
+    "202611070801",
+    "202611071005",
+    "202611071101"
   ],
-  "overdue_result_count": 23,
+  "overdue_result_count": 28,
   "schema": "CLEAN_RESULT_COLLECTION_STATUS_V1"
 }
