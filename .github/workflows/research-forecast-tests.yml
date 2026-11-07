@@ -33,6 +33,8 @@ on:
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'scripts/research_official_c1_exception_ledger.py'
       - 'scripts/research_official_k_one_day_compare.py'
+      - 'scripts/research_official_k_focus_3day.py'
+      - 'tests/test_research_official_k_focus_3day.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
       - 'venue_environment_observational.py'
       - 'test_venue_environment_observational.py'
@@ -75,6 +77,8 @@ on:
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'scripts/research_official_c1_exception_ledger.py'
       - 'scripts/research_official_k_one_day_compare.py'
+      - 'scripts/research_official_k_focus_3day.py'
+      - 'tests/test_research_official_k_focus_3day.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
       - 'venue_environment_observational.py'
       - 'test_venue_environment_observational.py'
@@ -131,11 +135,13 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_official_c1_rate_gap_f_audit.py' -v
       - name: Verify C1 F and unranked exception ledger rejects unverified K statuses
         run: python -m unittest discover -s tests -p 'test_research_official_c1_exception_ledger.py' -v
+      - name: Verify official K focus 3-day research safety gates
+        run: python -m unittest discover -s tests -p 'test_research_official_k_focus_3day.py' -v
       - name: Verify 92-day course-by-method research parsing and safety gates
         run: python -m unittest discover -s tests -p 'test_research_venue_wind_course_method_92day.py' -v
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
-        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv
+        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv --frozen-target-csv-dir research_evidence/secondary_focus
       - name: Probe official K archive for one frozen date (research-only byte receipt)
         if: github.event_name == 'pull_request'
         continue-on-error: true
@@ -152,6 +158,24 @@ jobs:
           else
             echo 'Official K archive unavailable: no official reconciliation performed'
           fi
+      - name: Compare three official K dates against SHA-frozen secondary source (research-only)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_focus_3day.py \
+            --source-dir research_evidence/secondary_focus \
+            --frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
+            --raw-dir research_evidence/official_k_focus_raw \
+            --out research_evidence/official_k_focus_3day_report.json
+      - name: Preserve three-day K evidence even when some dates fail
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-focus-3day-research-unverified-until-review
+          path: |
+            research_evidence/official_k_focus_3day_report.json
+            research_evidence/official_k_focus_raw/*.lzh
+          if-no-files-found: error
       - name: Preserve official K one-day comparison only when generated
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
