@@ -70,6 +70,27 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             self.assertEqual((p["original"],p["candidate"],p["gained"],p["lost"],p["denominator"]),
                              (0,1,1,0,1))
 
+    def test_top1_independent_protocol_blob_pin_prevents_selector_drift(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);cap=self.fresh(root)
+            from unittest.mock import patch
+            # A candidate can remain internally self-consistent while its
+            # method hash changes. The independent pre-registered Git blob
+            # pin must reject such a revision before reading any result.
+            from four_mode_all_shadow_reference_review import TOP1_PROTOCOL
+            protocol=json.loads(TOP1_PROTOCOL.read_text())
+            self.assertEqual(protocol["registered_jst_date"],"2026-11-08")
+            self.assertEqual(protocol["formal_count"],0)
+            self.assertFalse(protocol["promotion_allowed"])
+            with tempfile.TemporaryDirectory() as o:
+                forged=Path(o)/"top1_protocol.json"
+                protocol["pinned_selector_git_blob_sha1"]="0"*40
+                forged.write_text(json.dumps(protocol))
+                with patch("four_mode_all_shadow_reference_review.TOP1_PROTOCOL",forged):
+                    with self.assertRaisesRegex(ValueError,
+                                                "top1_selector_not_independently_preregistered"):
+                        compare([cap],root)
+
     def test_top1_pair_tamper_rejected_before_reading_results(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);cap=self.fresh(root)
