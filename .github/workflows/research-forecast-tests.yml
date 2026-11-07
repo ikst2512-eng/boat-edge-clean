@@ -32,6 +32,7 @@ on:
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'scripts/research_official_c1_exception_ledger.py'
+      - 'scripts/research_official_k_one_day_compare.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
       - 'venue_environment_observational.py'
       - 'test_venue_environment_observational.py'
@@ -73,6 +74,7 @@ on:
       - 'scripts/research_venue_wind_outcomes.py'
       - 'scripts/research_official_c1_rate_gap_f_audit.py'
       - 'scripts/research_official_c1_exception_ledger.py'
+      - 'scripts/research_official_k_one_day_compare.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
       - 'venue_environment_observational.py'
       - 'test_venue_environment_observational.py'
@@ -133,11 +135,30 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_venue_wind_course_method_92day.py' -v
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
-        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json
+        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv
       - name: Probe official K archive for one frozen date (research-only byte receipt)
         if: github.event_name == 'pull_request'
         continue-on-error: true
         run: python scripts/research_official_k_receipt.py --start 2026-08-01 --end 2026-08-01 --output-dir research_evidence/official_k_probe
+      - name: Compare official K 2026-08-01 against SHA-verified daily CSV (research-only)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          if [ -s research_evidence/official_k_probe/k260801.lzh ]; then
+            python scripts/research_official_k_one_day_compare.py \
+              --k-archive research_evidence/official_k_probe/k260801.lzh \
+              --secondary-csv research_evidence/secondary_20260801_SHA_verified.csv \
+              --out research_evidence/official_k_20260801_vs_secondary.json
+          else
+            echo 'Official K archive unavailable: no official reconciliation performed'
+          fi
+      - name: Preserve official K one-day comparison only when generated
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-20260801-comparison-research-only
+          path: research_evidence/official_k_20260801_vs_secondary.json
+          if-no-files-found: ignore
       - name: Preserve official K raw probe only if actually downloaded
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
