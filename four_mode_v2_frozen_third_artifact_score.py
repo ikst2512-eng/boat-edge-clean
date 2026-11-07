@@ -16,6 +16,7 @@ from four_mode_frozen_diagnostic import compare_race
 from four_mode_v2_third_rate_shadow import PROTOCOL
 
 SCHEMA = "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1"
+TOPS = (1, 3, 5, 10)
 FUTURE_START = "20261104"
 RACE = re.compile(r"20[0-9]{10}\Z")
 SHA = re.compile(r"[a-f0-9]{40}\Z")
@@ -77,7 +78,7 @@ def score_evidence(evidence, root):
                           or not SHA.fullmatch(str(evidence.get("publication_commit_sha")))):
         raise ValueError("invalid_publication_reference")
     scores = {f"top{n}": {"baseline": 0, "candidate": 0,
-                           "gained": 0, "lost": 0} for n in (3, 5, 10)}
+                           "gained": 0, "lost": 0} for n in TOPS}
     out = {"status": "frozen_artifact_result_comparison_research_only",
            "formal": False, "independent_first_publication_verified": False,
            "untouched_holdout_verified": False, "production_promotion_allowed": False,
@@ -180,7 +181,7 @@ def score_evidence(evidence, root):
         out["race_codes_paired"].append(code)
         per_race = {"race_code": code, "topn": {}}
         out["paired_race_scores"].append(per_race)
-        for n in (3, 5, 10):
+        for n in TOPS:
             row = scores[f"top{n}"]
             base_hit = winning in item["baseline_top10"][:n]
             candidate_hit = winning in item["candidate_top10"][:n]

@@ -59,12 +59,32 @@ class FrozenArtifactScoreTests(unittest.TestCase):
                                  "winning_ticket": ticket}):
             report = score_evidence(self.evidence, self.root)
         self.assertEqual(report["paired"], 1)
+        self.assertEqual(report["topn"]["top1"]["candidate"], 1)
         self.assertEqual(report["topn"]["top3"]["candidate"], 1)
         self.assertEqual(report["race_codes_paired"], [CODE])
         self.assertEqual(report["paired_race_scores"][0]["race_code"], CODE)
         self.assertEqual(report["paired_race_scores"][0]["topn"]["top3"]["candidate"], 1)
         self.assertFalse(report["formal"])
         self.assertFalse(report["production_promotion_allowed"])
+
+    def test_top1_new_metric_does_not_change_paired_denominator_or_top3_5_10(self):
+        # Actual finish at candidate rank two: Top1 miss, Top3/5/10 hit.
+        ranks = self.evidence["records"][0]["candidate_top10"]
+        self.assertEqual(len(set(ranks)), 10)
+        ticket = ranks[1]
+        with patch("four_mode_v2_frozen_third_artifact_score.compare_race",
+                   return_value={"status": "historical_comparison_only",
+                                 "winning_ticket": ticket}):
+            scored = score_evidence(self.evidence, self.root)
+        self.assertEqual(scored["frozen"], 1)
+        self.assertEqual(scored["paired"], 1)
+        self.assertEqual(scored["invalid"], 0)
+        self.assertEqual(scored["pending_results"], 0)
+        self.assertEqual(scored["topn"]["top1"]["candidate"], 0)
+        for n in (3, 5, 10):
+            self.assertEqual(scored["topn"][f"top{n}"]["candidate"], 1)
+        self.assertEqual(scored["paired_race_scores"][0]["topn"]["top1"]["candidate"], 0)
+        self.assertFalse(scored["formal"])
 
     def test_one_result_comparison_exception_keeps_valid_sibling_pair(self):
         second = "202611040102"

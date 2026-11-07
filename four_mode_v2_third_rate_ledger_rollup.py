@@ -15,7 +15,7 @@ from third_rate_evidence_ledger import BRANCH, prepare
 
 REF = "refs/remotes/origin/" + BRANCH
 PATH = re.compile(r"third_rate/(20[0-9]{6})/run-([1-9][0-9]{0,16})-attempt-([1-9][0-9]{0,16})\.json\Z")
-TOPS = (3, 5, 10)
+TOPS = (1, 3, 5, 10)
 
 
 def _git(root, *args):
