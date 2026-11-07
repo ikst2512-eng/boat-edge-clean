@@ -1,6 +1,6 @@
 name = "boat-edge-clean-independent-wakeup"
 main = "independent_capture_wakeup.mjs"
-compatibility_date = "2026-11-01"
+compatibility_date = "2026-06-24"
 workers_dev = false
 
 [triggers]
