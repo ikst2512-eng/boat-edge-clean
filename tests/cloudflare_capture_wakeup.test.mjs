@@ -77,7 +77,7 @@ test('each accepted 204 emits a safe auditable receipt without token or GitHub r
     assert.equal(entry.new_forecast_saved_proven,false);
     assert.equal(entry.formal,false);
     assert.ok(entry.slot_jst.endsWith('+09:00'));
-    assert.ok(entry.accepted_at_jst.endsWith('+09:00'));
+    assert.ok(entry.request_started_at_jst.endsWith('+09:00'));
     assert.ok(!JSON.stringify(entry).includes('PRIVATE_TEST_TOKEN'));
   }
   assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');
