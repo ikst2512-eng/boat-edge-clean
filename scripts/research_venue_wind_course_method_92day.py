@@ -218,6 +218,7 @@ def main():
     ap.add_argument("--min-n", type=int, default=100)
     ap.add_argument("--c1-exception-output", type=Path, help="PR-only postrace 1C exception ledger")
     ap.add_argument("--frozen-day-csv-output", type=Path, help="Optional SHA-verified 2026-08-01 comparison input")
+    ap.add_argument("--frozen-target-csv-dir", type=Path, help="Optional frozen 3-day secondary files for K exception checks")
     args = ap.parse_args()
     if args.min_n < 1:
         raise SystemExit("minimum n must be positive")
@@ -229,6 +230,10 @@ def main():
             data = response.read()
         if args.frozen_day_csv_output and url == BASE + "2026/08/01.csv":
             frozen_day["source"] = data
+        if args.frozen_target_csv_dir:
+            for day in ("2026/08/02", "2026/08/21", "2026/08/26"):
+                if url == BASE + day + ".csv":
+                    frozen_day[day.replace("/", "")] = data
         return data
     rows, receipts = load_rows(fetch, expected)
     if args.frozen_day_csv_output:
@@ -236,6 +241,13 @@ def main():
             raise ValueError("frozen_20260801_day_sha_missing_or_mismatch")
         args.frozen_day_csv_output.parent.mkdir(parents=True, exist_ok=True)
         args.frozen_day_csv_output.write_bytes(frozen_day["source"])
+    if args.frozen_target_csv_dir:
+        args.frozen_target_csv_dir.mkdir(parents=True, exist_ok=True)
+        for day in ("2026-08-02", "2026-08-21", "2026-08-26"):
+            value = frozen_day.get(day.replace("-", ""))
+            if value is None or git_blob_sha(value) != expected[day]["sha"]:
+                raise ValueError("frozen_target_day_sha_missing_or_mismatch:" + day)
+            (args.frozen_target_csv_dir / ("secondary_" + day.replace("-", "") + ".csv")).write_bytes(value)
     output = aggregate(rows, args.min_n)
     reconcile(output, baseline)
     if args.c1_exception_output is not None:
