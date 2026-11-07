@@ -35,6 +35,8 @@ on:
       - 'scripts/research_official_k_one_day_compare.py'
       - 'scripts/research_official_k_focus_3day.py'
       - 'scripts/research_official_k_all_34_exceptions.py'
+      - 'scripts/research_official_k_full_92day.py'
+      - 'tests/test_research_official_k_full_92day.py'
       - 'tests/test_research_official_k_all_34_exceptions.py'
       - 'tests/test_research_official_k_focus_3day.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
@@ -81,6 +83,8 @@ on:
       - 'scripts/research_official_k_one_day_compare.py'
       - 'scripts/research_official_k_focus_3day.py'
       - 'scripts/research_official_k_all_34_exceptions.py'
+      - 'scripts/research_official_k_full_92day.py'
+      - 'tests/test_research_official_k_full_92day.py'
       - 'tests/test_research_official_k_all_34_exceptions.py'
       - 'tests/test_research_official_k_focus_3day.py'
       - 'tests/test_research_official_c1_exception_ledger.py'
@@ -145,9 +149,11 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_venue_wind_course_method_92day.py' -v
       - name: Validate 34-case/28-day primary K exception cohort safety
         run: python -m unittest discover -s tests -p 'test_research_official_k_all_34_exceptions.py' -v
+      - name: Validate full official K 92-day primary audit fail-closed behavior
+        run: python -m unittest discover -s tests -p 'test_research_official_k_full_92day.py' -v
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
-        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv --frozen-exception-csv-dir research_evidence/secondary_all_exceptions
+        run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv --frozen-exception-csv-dir research_evidence/secondary_all_exceptions --frozen-all-csv-dir research_evidence/secondary_all_92
       - name: Probe official K archive for one frozen date (research-only byte receipt)
         if: github.event_name == 'pull_request'
         continue-on-error: true
@@ -175,6 +181,24 @@ jobs:
             --page-evidence docs/research/official_c1_34_exception_page_crosscheck_20261107.md \
             --raw-dir research_evidence/official_k_all_exception_raw \
             --out research_evidence/official_k_34exception_28day_report.json
+      - name: Audit frozen 92 days official K vs unchanged secondary CSV (research only)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_full_92day.py \
+            --secondary-dir research_evidence/secondary_all_92 \
+            --frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
+            --raw-dir research_evidence/official_k_full_92_raw \
+            --out research_evidence/official_k_full_92day_reconciliation.json
+      - name: Preserve full 92-day primary audit and received K bytes (not T-12)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-92day-source-audit-research-only
+          path: |
+            research_evidence/official_k_full_92day_reconciliation.json
+            research_evidence/official_k_full_92_raw/*.lzh
+          if-no-files-found: ignore
       - name: Preserve official K 34-case ledger and all received daily originals
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
