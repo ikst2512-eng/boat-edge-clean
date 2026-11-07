@@ -23,7 +23,7 @@ RANKS = {f"{i:02d}" for i in range(1, 7)}
 def git_blob_sha(raw: bytes) -> str:
     return hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
 
-def unpack_lha(raw: bytes) -> bytes:
+def unpack_lha(raw: bytes, day: str = DAY) -> bytes:
     """Linux libarchive LHA decoder, all in memory; reject unexpected entries."""
     try:
         lib = ctypes.CDLL("libarchive.so.13")
@@ -50,7 +50,7 @@ def unpack_lha(raw: bytes) -> bytes:
         header = p()
         if next_item(obj, ctypes.byref(header)) != 0:
             raise ValueError("lha_empty")
-        if pathname(header) != b"K260801.TXT":
+        if pathname(header) != ("K" + day[2:] + ".TXT").encode("ascii"):
             raise ValueError("lha_filename_mismatch")
         expected = entry_size(header)
         if not 0 < expected <= 2000000:
@@ -72,7 +72,7 @@ def unpack_lha(raw: bytes) -> bytes:
     finally:
         free(obj)
 
-def parse_k(text: str) -> dict:
+def parse_k(text: str, day: str = DAY, expected_races: int = 156) -> dict:
     venue, current, active = None, None, False
     races = {}
     lines = text.splitlines()
@@ -85,7 +85,7 @@ def parse_k(text: str) -> dict:
         if h:
             if venue is None:
                 raise ValueError("race_outside_venue")
-            code = DAY + venue + f"{int(h.group(1)):02d}"
+            code = day + venue + f"{int(h.group(1)):02d}"
             if code in races:
                 raise ValueError("duplicate_k_race:" + code)
             heading = lines[i + 1].split("ﾚｰｽﾀｲﾑ")
@@ -113,8 +113,8 @@ def parse_k(text: str) -> dict:
             "course": int(cs.group(1)) if cs else None,
             "st": cs.group(2) if cs else None,
         })
-    if len(races) != 156:
-        raise ValueError("official_race_count_mismatch:" + str(len(races)))
+    if not 1 <= expected_races <= 288 or len(races) != expected_races:
+        raise ValueError("official_race_count_mismatch:" + str(len(races)) + ":" + str(expected_races))
     for code, item in races.items():
         entries = item["entries"]
         if len(entries) != 6 or {e["boat"] for e in entries} != set(range(1, 7)):
@@ -123,9 +123,9 @@ def parse_k(text: str) -> dict:
             raise ValueError("official_winner_missing_or_duplicate:" + code)
     return races
 
-def compare(official: dict, secondary_raw: bytes) -> dict:
+def compare(official: dict, secondary_raw: bytes, expected_secondary_sha: str = SECONDARY_BLOB_SHA, day: str = DAY) -> dict:
     sha = git_blob_sha(secondary_raw)
-    if sha != SECONDARY_BLOB_SHA:
+    if sha != expected_secondary_sha:
         raise ValueError("secondary_git_blob_mismatch:" + sha)
     rows = list(csv.DictReader(secondary_raw.decode("utf-8-sig").splitlines()))
     by_code = {r.get("レースコード", ""): r for r in rows}
@@ -170,7 +170,7 @@ def compare(official: dict, secondary_raw: bytes) -> dict:
     return {
         "schema": "OFFICIAL_K_ONE_DAY_INDEPENDENT_RECONCILIATION_V1",
         "classification": "official_primary_vs_secondary_postrace_research_not_T12",
-        "day": "2026-08-01", "official_races": len(official),
+        "day": day[:4] + "-" + day[4:6] + "-" + day[6:], "official_races": len(official),
         "secondary_rows": len(rows), "secondary_git_blob_sha": sha,
         "official_venue_race_counts": dict(sorted(by_venue.items())),
         "field_match_counts": dict(sorted(matches.items())),
