@@ -17,7 +17,7 @@ OFFICIAL_SHA256 = "8e95b7ddce0fe7849179c1a6cf69e4ad938fada13da527410d29f610709ff
 SECONDARY_BLOB_SHA = "d78e11ebc5af666487f50e72258267a79f959486"
 RACE = re.compile(r"^\s{2,}(\d{1,2})R\s{3,}.*H\d{4}m.*?風\s+(.+?)\s+(\d+)m\s+波\s+(\d+)cm")
 ENTRY = re.compile(r"^\s{2,}(\d{2}|S[0-2]|K[0-2]|L[0-2]|F|転|エ|妨|沈|落)\s+([1-6])\s+(\d{4})\s+(.+)$")
-COURSE = re.compile(r"\s+\d{1,3}\s+\d{1,3}\s+\d+\.\d+\s+([1-6])\s+([+-]?\d+\.\d+|F\.\d+|L\.\d+)")
+COURSE = re.compile(r"\s+\d{1,3}\s+\d{1,3}\s+\d+\.\d+\s+([1-6])\s+([+-]?\d+\.\d+|[FL]\d*\.\d+)")
 RANKS = {f"{i:02d}" for i in range(1, 7)}
 
 def git_blob_sha(raw: bytes) -> str:
@@ -108,6 +108,8 @@ def parse_k(text: str, day: str = DAY, expected_races: int = 156) -> dict:
             continue
         status, boat, athlete, tail = entry.groups()
         cs = COURSE.search(tail)
+        if status == "F" and not cs:
+            raise ValueError("official_F_course_unparsed:" + current["code"])
         current["entries"].append({
             "status": status, "boat": int(boat), "athlete_registration": athlete,
             "course": int(cs.group(1)) if cs else None,
@@ -155,9 +157,14 @@ def compare(official: dict, secondary_raw: bytes, expected_secondary_sha: str = 
             for e in courses:
                 course = e["course"]
                 checks[f"course{course}"] = row[f"{course}コース_艇番"] == str(e["boat"])
-                if e["st"] and e["st"].startswith("0."):
+                is_f = bool(e["st"] and e["st"].startswith("F"))
+                checks[f"fmark{course}"] = ((row[f"{course}コース_F"].strip() == "F") == is_f)
+                if e["st"] and (e["st"].startswith("0.") or is_f):
                     try:
-                        checks[f"st{course}"] = abs(float(row[f"{course}コース_スタートタイミング"]) - float(e["st"])) < .005
+                        official_st = -float(e["st"][1:]) if is_f else float(e["st"])
+                        checks[f"st{course}"] = abs(
+                            float(row[f"{course}コース_スタートタイミング"]) - official_st
+                        ) < .005
                     except (TypeError, ValueError):
                         checks[f"st{course}"] = False
         else:
