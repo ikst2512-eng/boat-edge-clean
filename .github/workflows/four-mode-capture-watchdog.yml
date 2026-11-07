@@ -81,6 +81,9 @@ jobs:
       - name: Run Cloudflare external wakeup safety tests (PR only)
         if: ${{ github.event_name == 'pull_request' }}
         run: node --test tests/cloudflare_capture_wakeup.test.mjs
+      - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
