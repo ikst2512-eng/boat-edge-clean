@@ -1,3 +1,21 @@
+## 2026-11-08 01:25 JST — executable, independently replayed Nov 7 official-pair cron audit (Draft only)
+
+**Concrete audit improvement, not a collector repair.** Added the following **three audit-only files** on the existing Draft PR #1694 without changing a source fetch, production workflow, model, or main:
+- `scripts/audit_official_pair_schedule_continuity.py`: read-only GitHub `event=schedule` inventory with strict pagination, exact `.github/workflows/research-live-preview-evidence.yml` path scope, unique run IDs, explicit UTC date and elapsed nominal slots, and fail-closed invalid data handling. `workflow_dispatch`/PR events are rejected from the schedule-only API response rather than credited. No successful run is treated as verified source evidence.
+- `tests/test_audit_official_pair_schedule_continuity.py`: 11 deterministic tests covering Nov 7's 2/156 case, no runs, incomplete day, invalid timestamps, manual/PR event contamination, duplicate IDs, complete second page, changing/truncated pagination and green no-op noncertification.
+- `.github/workflows/audit-official-pair-schedule-continuity.yml`: **PR checks + optional manual dispatch only; no `schedule` trigger**. Read-only `contents:read` and `actions:read`; on PR replays Nov 7's already-completed UTC day and uploads a separate metadata artifact. This is not a replacement/recovery cron.
+
+**Verified exact-head GitHub CI:** [run #42391136414](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42391136414), on PR head `3c95f2ea51d866d7d5ac0508db5b3824a08ccedd`, succeeded: **11/11 unit tests passed**, the real GitHub schedule replay completed, and artifact `official-pair-schedule-audit-42391136414` **ID 13581845349** uploaded. The ZIP downloaded and independently rehashed to SHA256 `41500ed319b44fdfbd854e20235c3b2d9067fb49555dd82596c7884e9d2b8d11`, exactly matching GitHub digest; ZIP CRC test returned no errors. One archived JSON report was parsed and reconciled against the job logs and prior run IDs.
+
+**Actual replayed result** (`as_of_utc=2026-11-07T16:24:34.827341+00:00`; Nov 8 01:24:34 JST):
+- Complete Nov 7 UTC repository-wide scheduled-run inventory **55**, of which **2** matching official two-original collector starts. Nominal `*/5 0-12 * * *` slots **156**, **2/156 = 1.28% observed-to-planned invocation ratio**, **154 nominal count deficit**. Per-slot GitHub dispatcher causes and exact slot-to-run mapping remain unverified.
+- Matching run IDs are **#42342115412 (14:17:49 JST, failed)** and **#42369814345 (20:49:44 JST, succeeded with no eligible candidates)**.
+- Output explicitly fixes `schedule_slot_identity_verified=false`, `missing_trigger_root_cause_verified=false`, `raw_official_source_receipts_verified=false`, `full_t12_source_certified=false`, and `forecast_usable=false`.
+
+The independent replay proves repeatability of the **invocation deficit**, not an official HTTP outage or fully sourced T−12 forecast. **Formal three-original T−12 certificates remain 0; formally scoreable denominator undefined**. The existing source owner ① must address source continuity, the third official racelist original and safe odds error-stage classification without overlapping audit work. Keep PR Draft, unmerged.
+
+---
+
 ## 2026-11-08 01:12 JST — Official T−12 unattended continuity and missing third-source dependency (independent audit, nonformal)
 
 **Freeze point and scope.** Audited read-only GitHub `main=53b822dc0d398454e1b428abe6651c8b0a1884d0` and the actual `event=schedule&created=2026-11-07` Actions inventory (**55 schedule runs across workflows; returned total_count=55**, no pagination gap). This UTC date is the correct reference date for the official source-pair workflow's `*/5 0-12 * * *` cron, scheduled during **09:00–21:55 JST, Nov 7**. This audit does **not** modify the collection chain or backfill a past receipt.
