@@ -25,19 +25,23 @@ jobs:
           python-version: '3.12'
       - name: Verify strict scope and incomplete-page failure gates
         run: python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
-      - name: Audit real scheduled metadata only on explicit manual request
-        if: github.event_name == 'workflow_dispatch'
+      - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           REQUESTED_UTC_DAY: ${{ inputs.utc_day }}
         run: |
-          day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
+          # PR checks replay the completed Nov 7 UTC audit cohort;
+          # dispatch may inspect any selected UTC day, including a partial day.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            day=20261107
+          else
+            day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
+          fi
           python -m scripts.audit_official_pair_schedule_continuity \
             --repo "$REPOSITORY" --day-utc "$day" \
             --output reports/official_pair_schedule_continuity.json
-      - name: Preserve manual metadata report separately from prediction originals
-        if: github.event_name == 'workflow_dispatch'
+      - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
         with:
           name: official-pair-schedule-audit-${{ github.run_id }}
