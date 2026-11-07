@@ -43,6 +43,41 @@ jobs:
           set -euo pipefail
           python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261106 | tee four_mode_shadow_input_replay_20261106.log
           python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261107 | tee four_mode_shadow_input_replay_20261107.log
+      - name: Reject incomplete real V2 replays and protected-rank drift
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for day, count in (("20261106", 130), ("20261107", 122)):
+              lines = Path(f"four_mode_shadow_input_replay_{day}.log").read_text(
+                  encoding="utf-8"
+              ).splitlines()
+              prefix = "FOUR_MODE_SHADOW_HISTORICAL_INPUT="
+              if len(lines) != 1 or not lines[0].startswith(prefix):
+                  raise SystemExit(f"unverifiable_input_replay:{day}")
+              report = json.loads(lines[0][len(prefix):])
+              if (report.get("day") != day
+                      or report.get("original_v2_races") != count
+                      or report.get("excluded") != {}
+                      or report.get("formal") is not False
+                      or report.get("result_files_read") is not False
+                      or report.get("status") != "historical_input_replay_only"):
+                  raise SystemExit(f"incomplete_or_result_leaking_replay:{day}")
+              modes = report.get("changes")
+              if type(modes) is not dict or set(modes) != {
+                  "narrow", "hit", "balance", "hole"
+              }:
+                  raise SystemExit(f"missing_mode_replay:{day}")
+              for mode, changes in modes.items():
+                  if (changes.get("changed_all_tickets") != count
+                          or changes.get("changed_top1") != 0):
+                      raise SystemExit(f"method_or_top1_drift:{day}:{mode}")
+              if (modes["hit"].get("changed_top3") != 0
+                      or modes["balance"].get("changed_top3") != 0
+                      or modes["hole"].get("changed_top5") != 0):
+                  raise SystemExit(f"protected_rank_drift:{day}")
+              print(f"RESULT_BLIND_V2_REPLAY_VERIFIED:{day}:{count}/{count}")
+          PY
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
