@@ -153,6 +153,52 @@ class AllModeReferenceReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"forged_formal_or_candidate_receipt"):
                 compare([cap],root)
 
+    def test_mixed_frozen_and_ineligible_race_cannot_be_backfilled(self):
+        # Both rows were in the original publication; only one froze. Even
+        # with a real result for that one, later rows must not replace the
+        # ineligible cohort slot to make the reference performance look good.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            original = self.fresh(root)
+            omitted = {
+                "race_code": "202611070102",
+                "status": "ineligible",
+                "reason": "original_remote_observation_not_verified",
+                "formal": False,
+            }
+            original["records"].append(omitted)
+            original["published_count"] = 2
+            original["ineligible_count"] = 1
+            self.write_result(root, [1, 2, 3])
+            for order in (original["records"], list(reversed(original["records"]))):
+                with self.subTest(order=[item["race_code"] for item in order]):
+                    mixed = copy.deepcopy(original)
+                    mixed["records"] = order
+                    with self.assertRaisesRegex(
+                        ValueError, "incomplete_candidate_roster_no_replacement"
+                    ):
+                        compare([mixed], root)
+
+    def test_all_ineligible_records_do_not_fabricate_score(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            report = self.fresh(root)
+            report["records"] = [{
+                "race_code": CODE,
+                "status": "ineligible",
+                "reason": "not_frozen_strictly_before_T_minus_12",
+                "formal": False,
+            }]
+            report["frozen_count"] = 0
+            report["ineligible_count"] = 1
+            output = compare([report], root)
+            self.assertEqual(output["selected_first_600_frozen"], 0)
+            self.assertEqual(output["confirmed_result_matches"], {})
+            self.assertEqual(
+                output["excluded_originally_captured"],
+                {"not_frozen_strictly_before_T_minus_12": 1},
+            )
+
     def test_no_captures_never_fabricates_paired_outcomes(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)

@@ -140,6 +140,11 @@ def compare(captures, root):
     # All forecast/candidate replay and cutoff validation occurs before the
     # first confirmed result file is opened.
     candidates, excluded, published = validate_capture_before_any_results(captures,root)
+    # An excluded published race is a fixed-cohort slot, not permission to
+    # substitute the next frozen race. The deadline order of excluded rows
+    # may be unavailable, so fail closed rather than bias the first 600.
+    if excluded and any(row is not None for row in candidates.values()):
+        fail("incomplete_candidate_roster_no_replacement")
     eligible = [dict(code=code,**row) for code,row in candidates.items() if row]
     eligible.sort(key=lambda r:(r["deadline"],r["code"]))
     selected=eligible[:600]
