@@ -13,8 +13,8 @@ import json
 import sys
 from pathlib import Path
 
-from research_official_k_receipt import get_archive
-from research_official_k_one_day_compare import (
+from scripts.research_official_k_receipt import get_archive
+from scripts.research_official_k_one_day_compare import (
     compare, git_blob_sha, parse_k, unpack_lha,
 )
 
