@@ -1,3 +1,9 @@
+## 2026-11-08 JST｜Cloudflare無料バックアップ Draft #1697：scheduled入口実検証
+- Cloudflare公式Scheduled Handler仕様（`controller.cron`は設定したcron式と完全一致する文字列）を確認。元のWorkerは予定時刻のみ照合していたため、`controller.cron === "*/5 22-23,0-13 * * *"`を厳密に確認し、それ以外はAPIアクセス前に`unexpected_cron_trigger`で失敗させる処理を同じDraft PRに追加。
+- `tests/cloudflare_capture_wakeup.test.mjs`で3件のdirect `scheduled()`入口テストを追加：不正・欠落cron式では通信0件/秘密漏えい0件、正規cron式のモックAPI4GET→2POSTと個別記録、Secret欠損時の通信0件/安全ログ。従来28件と合わせ**31件**。
+- PR exact-head CI [#42390394745](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42390394745)、job 128456552012：既存Pythonポリシー成功、Node**31/31 PASS・失敗0**、Wrangler 4.102.0 dry-run成功。ビルド生成10.13 KiB（gzip 3.40 KiB）、`--dry-run: exiting now.`を実ログで確認。Cloudflare本番へのWorkerアップロード・Cron登録・token配置・GitHub実dispatchはゼロ。
+- Cloudflareアカウント連携なし、CPU10ms実測なし、Cronの無人起動/実Run ID/原本Git初回保存/T−12適合は未証明。既存Render方式/予想原本/4モード/サイトを不変更、main統合禁止。実運用前にCloudflare Freeアカウント、専用GitHub PATをSecretへ直接配置し、管理者レビューと実環境計測を要する。Cron文字列はWrangler設定と一致し、設定変更時に安全側停止する。
+
 ## 2026-11-08 01時台 JST｜Cloudflare無料バックアップ Draft #1697：実Wrangler dry-run合格
 - PR #1697はDraft・本番未統合を維持。最新main `53b822dc0d398454e1b428abe6651c8b0a1884d0` には別担当の11月7日確定結果・払戻・検証保存の追加6コミットがあり、PRの変更対象7ファイルとの重複0件をcompareで確認。既存Render Free webサービス1件・Render Cron0件で変更なし。
 - 無料枠の実行準備確認を一段進め、**既存** `.github/workflows/four-mode-capture-watchdog.yml`の`pull_request`イベント限定で`npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle`を追加。新workflow・新cron・本番配備・GitHub外部dispatchは実行しない。
