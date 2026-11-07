@@ -85,45 +85,38 @@ jobs:
       - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
         run: npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
-      - name: Workerd scheduled handler rejects foreign Cron (PR only, no secret)
+      - name: Boot real Workerd in local scheduled-only mode (PR no secret)
         if: ${{ github.event_name == 'pull_request' }}
         timeout-minutes: 1
         run: |
           set -euo pipefail
-          # Local-only Workerd. Never inject a GitHub PAT or a Cloudflare API key.
-          npx --yes wrangler@4.102.0 dev --local --test-scheduled --config cloudflare/wrangler.toml --ip 127.0.0.1 --port 8787 --log-level error > /tmp/boat-edge-cloudflare-workerd.log 2>&1 &
+          # This is a runtime STARTUP smoke, NOT a Cron execution proof.
+          # Never inject a GitHub token or deploy to Cloudflare.
+          npx --yes wrangler@4.102.0 dev --local --config cloudflare/wrangler.toml --ip 127.0.0.1 --port 8787 --log-level error > /tmp/boat-edge-cloudflare-workerd.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           ready=0
-          for attempt in $(seq 1 25); do
-            if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:8787/; then
+          for attempt in $(seq 1 20); do
+            # No HTTP handler is intentional; this local GET must produce an
+            # explicit no-fetch-handler error, not a successful application route.
+            curl --silent --max-time 2 --output /dev/null http://127.0.0.1:8787/ || true
+            if grep -q 'Handler does not export a fetch() function' /tmp/boat-edge-cloudflare-workerd.log; then
               ready=1
               break
+            fi
+            if grep -Eq 'runtime failed to start|Incorrect type for map entry|Worker requires compatibility date' /tmp/boat-edge-cloudflare-workerd.log; then
+              echo "WORKERD_STARTUP_FAILED"
+              tail -30 /tmp/boat-edge-cloudflare-workerd.log
+              exit 1
             fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            echo "Cloudflare local runtime failed to start"
-            tail -40 /tmp/boat-edge-cloudflare-workerd.log
+            echo "WORKERD_STARTUP_NOT_VERIFIED"
+            tail -30 /tmp/boat-edge-cloudflare-workerd.log
             exit 1
           fi
-          # Current official Local Explorer API dispatches scheduled(), not fetch().
-          curl --silent --show-error --max-time 10 --request POST \
-            --header 'Content-Type: application/json' \
-            --data '{"cron":"* * * * *"}' \
-            'http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup' \
-            > /tmp/boat-edge-cloudflare-foreign-cron-response.json || true
-          for attempt in $(seq 1 8); do
-            if grep -q unexpected_cron_trigger /tmp/boat-edge-cloudflare-workerd.log; then
-              echo "WORKERD_FOREIGN_CRON_REJECTED_NO_SECRET_PASS"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Expected exact-Cron guard rejection was absent"
-          tail -40 /tmp/boat-edge-cloudflare-workerd.log
-          cat /tmp/boat-edge-cloudflare-foreign-cron-response.json
-          exit 1
+          echo "WORKERD_SCHEDULED_ONLY_BOOT_NO_FETCH_HANDLER_PASS"
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
