@@ -1,3 +1,10 @@
+## 2026-11-07 JST｜Cloudflare Draft #1697の期限越え起動防止・Free枠修正（main未統合）
+- 後続のコード監査で2点を検出：GitHub履歴が未来時刻でも`now+2分`までは許容され、未開始runが重複抑止から外れ得た。外部GET処理が遅延した場合、起動時点のみのslot検査では22:33 JSTの最終期限を越えたworkflow_dispatch送信を防げなかった。いずれも実事故は未確認で、**コード上の安全性欠陥**。
+- Draft PR #1697の**同一ブランチのみ**修正：未来のGitHub履歴はAPI時系列異常として停止。POST直前に現在時刻で元slot適格性を再確認し、期限切れを拒否。GitHub履歴のper_page=100→30でCPU負荷低減、30件目までの2時間内のページング曖昧性は引き続きfail closed。Cloudflare Workers FreeのCron CPU制約10msを実機で測定するまで稼働認定はしない。
+- `cloudflare/wrangler.toml`に`[secrets] required = ["GITHUB_DISPATCH_TOKEN"]`を追加してトークン未設定の誤デプロイ防止。`cloudflare/.gitignore`でローカルsecretとWrangler内部状態を保護。Render Python・Render Free本番・GitHub元収集cron/モデル/予想原本/旧サイトを変更しない。
+- ローカルNode22で`node --check cloudflare/independent_capture_wakeup.mjs`成功、更新テスト**24/24 PASS**。GitHubへ更新したWorker/Test/Wrangler/.gitignoreのblob SHAとローカル原本のSHA一致を確認。最新PR exact-head CIとmain非統合は別途照合する。
+- 未実施：Cloudflareアカウント接続、実Worker配備、private PAT登録、実Cron起動、Cloudflare CPU10ms実測、GitHub run IDと予想初回Git追加/T−12照合。正式認定0、PRはDraftのまま。秘密値は絶対にチャット・Git・ログへ出さない。
+
 ## 2026-11-07 JST｜独立Cloudflare Freeバックアップ（研究用 Draft PR #1697、未デプロイ）
 - 利用者指定：Render有料CronはHTTP 402で繰り返し作成不可のため、Cloudflare Workers Free案に切替。ただし既存Renderエントリポイント `scripts/render_capture_wakeup.py` とRender Free Web本番は一切変更・削除しない。
 - 専用ブランチ `feat/cloudflare-free-independent-capture-wakeup-20261107` をmain `48859136a24222e77bae111ddcc7b73738a1de63` から作成し、Draft PR [#1697](https://github.com/ikst2512-eng/boat-edge-clean/pull/1697) まで作成。**mainへ未統合・自動統合禁止**。
