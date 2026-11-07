@@ -47,6 +47,10 @@ on:
       - 'test_render_four_mode_dispatch.py'
       - 'scripts/render_capture_wakeup.py'
       - 'test_render_capture_wakeup.py'
+      - 'cloudflare/independent_capture_wakeup.mjs'
+      - 'cloudflare/independent_capture_policy.mjs'
+      - 'cloudflare/wrangler.toml'
+      - 'tests/cloudflare_capture_wakeup.test.mjs'
 permissions:
   actions: read
   contents: read
@@ -70,6 +74,49 @@ jobs:
       - name: Test dispatch policy
         id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
+      - name: Setup Node for Cloudflare offline tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Cloudflare external wakeup safety tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: node --test tests/cloudflare_capture_wakeup.test.mjs
+      - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
+      - name: Boot real Workerd in local scheduled-only mode (PR no secret)
+        if: ${{ github.event_name == 'pull_request' }}
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          # This is a runtime STARTUP smoke, NOT a Cron execution proof.
+          # Never inject a GitHub token or deploy to Cloudflare.
+          npx --yes wrangler@4.102.0 dev --local --config cloudflare/wrangler.toml --ip 127.0.0.1 --port 8787 --log-level error > /tmp/boat-edge-cloudflare-workerd.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 20); do
+            # No HTTP handler is intentional; this local GET must produce an
+            # explicit no-fetch-handler error, not a successful application route.
+            curl --silent --max-time 2 --output /dev/null http://127.0.0.1:8787/ || true
+            if grep -q 'Handler does not export a fetch() function' /tmp/boat-edge-cloudflare-workerd.log; then
+              ready=1
+              break
+            fi
+            if grep -Eq 'runtime failed to start|Incorrect type for map entry|Worker requires compatibility date' /tmp/boat-edge-cloudflare-workerd.log; then
+              echo "WORKERD_STARTUP_FAILED"
+              tail -30 /tmp/boat-edge-cloudflare-workerd.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "WORKERD_STARTUP_NOT_VERIFIED"
+            tail -30 /tmp/boat-edge-cloudflare-workerd.log
+            exit 1
+          fi
+          echo "WORKERD_SCHEDULED_ONLY_BOOT_NO_FETCH_HANDLER_PASS"
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.

@@ -1,0 +1,10 @@
+name = "boat-edge-clean-independent-wakeup"
+main = "independent_capture_wakeup.mjs"
+compatibility_date = "2026-06-24"
+workers_dev = false
+
+[triggers]
+crons = ["*/5 22-23,0-13 * * *"]
+
+[secrets]
+required = ["GITHUB_DISPATCH_TOKEN"]
