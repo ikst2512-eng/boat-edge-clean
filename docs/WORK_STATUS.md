@@ -1,3 +1,10 @@
+## 2026-11-07 19時台 JST｜Cloudflare Draft #1697部分成功監査の改善
+- 現行Workerは2つのworkflow_dispatchを順にPOSTするため、1件目がHTTP204受理→2件目がHTTP403等で失敗すると、元の最終レポートは例外で出ず、受理済み1件の証拠がCloudflareログに残らない問題を確認（静的監査による予防的修正。実障害発生は未証明）。
+- **同じDraft PR #1697のみに修正**：HTTP204受理直後、次のPOSTより先に`CLOUDFLARE_DISPATCH_RECEIPT`を個別出力。記録はworkflow・復旧対象slot・POST開始時刻・`github_run_id_proven=false`・`new_forecast_saved_proven=false`・`formal=false`の最小限で、認証トークン・買い目・予想原本・個人情報は出力しない。POST開始時刻を受理時刻と偽って表示しない。
+- 追加4件の回帰で、2件204の記録、初回204後の2件目403による部分成功、GET失敗時ログ0件、不正ロガー拒否を固定。GitHub Actions PR exact-head実行[ #42364767503](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42364767503)で既存Pythonポリシーテスト成功＋追加Nodeテスト**28/28件PASS、失敗0件**。
+- 依然としてDraft未統合、本番Cloudflare Worker/secret/Cron/CPU10ms実測なし、GitHub実run ID・Git初回保存時刻・T−12公式原本は未実証。Cloudflare無料制限は公式ドキュメント照合済み。既存Renderコード・Free web、GitHub本番main/予想原本の変更なし。main自動統合禁止を維持。
+- 次：最新PR headと上記CIを一致照合、Cloudflare Freeアカウントと専用PAT Secretの運用者セットアップ後、実Cronログと実CPUを観測。204を保存・正式認定と混同しない。
+
 ## 2026-11-07 JST｜Cloudflare Draft #1697の期限越え起動防止・Free枠修正（main未統合）
 - 後続のコード監査で2点を検出：GitHub履歴が未来時刻でも`now+2分`までは許容され、未開始runが重複抑止から外れ得た。外部GET処理が遅延した場合、起動時点のみのslot検査では22:33 JSTの最終期限を越えたworkflow_dispatch送信を防げなかった。いずれも実事故は未確認で、**コード上の安全性欠陥**。
 - Draft PR #1697の**同一ブランチのみ**修正：未来のGitHub履歴はAPI時系列異常として停止。POST直前に現在時刻で元slot適格性を再確認し、期限切れを拒否。GitHub履歴のper_page=100→30でCPU負荷低減、30件目までの2時間内のページング曖昧性は引き続きfail closed。Cloudflare Workers FreeのCron CPU制約10msを実機で測定するまで稼働認定はしない。
