@@ -21,6 +21,7 @@ VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
 JST = timezone(timedelta(hours=9))
 SIZES = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 PROTECTED = {"narrow": 1, "hit": 3, "balance": 3, "hole": 5}
+TOP1_PAIR_RULE = "pre_result_national_win_rates_lexicographic_head_second_third_v1"
 POOLS = {"narrow": (0, 30), "hit": (0, 45),
          "balance": (0, 65), "hole": (10, 85)}
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
@@ -102,6 +103,33 @@ def candidate_modes(raw):
             raise ValueError("candidate_ticket_invariant")
         shadow[mode] = selected
     return baseline, shadow
+
+
+def top1_pair_candidate(raw, baseline):
+    """Separate Top1-only hypothesis: reorder the existing first two tickets.
+
+    National win rates are available in the frozen forecast BEFORE the result.
+    Compare the predicted boat strengths lexicographically by finishing place.
+    This is NOT a calibrated probability estimate. All Top2/3/5/10 ticket
+    MEMBERSHIPS remain exactly identical to the baseline, regardless of swaps.
+    Call only after candidate_modes(raw) has validated the full original.
+    """
+    rates = raw["input_national_win_rates"]
+    reordered = {}
+    for mode in SIZES:
+        old = baseline[mode]
+        if len(old) != SIZES[mode] or len(set(old)) != len(old):
+            raise ValueError("invalid_top1_baseline")
+        chosen = list(old)
+        def strength(combo):
+            return tuple(rates[int(boat) - 1] for boat in combo.split("-"))
+        if strength(chosen[1]) > strength(chosen[0]):
+            chosen[0], chosen[1] = chosen[1], chosen[0]
+        if (set(chosen[:2]) != set(old[:2]) or chosen[2:] != old[2:]
+                or any(set(chosen[:n]) != set(old[:n]) for n in (3, 5, 10))):
+            raise ValueError("top1_pair_preservation_failed")
+        reordered[mode] = chosen
+    return reordered
 
 
 def _empty(status):
@@ -213,6 +241,7 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
                     result["records"].append(item)
                     continue
                 baseline, candidate = candidate_modes(archive)
+                top1_pair = top1_pair_candidate(archive, baseline)
                 # Prevent a concurrent clock crossing T-12 while selecting.
                 finish = (clock() if clock is not None else datetime.now(JST))
                 if (finish.utcoffset() != timedelta(hours=9) or not now < finish < cutoff):
@@ -224,6 +253,9 @@ def capture(root, publication_path, observation_path, now=None, git=None, clock=
                         "original_observed_at_utc": original_observed_utc.isoformat(),
                         "frozen_at_jst": finish.isoformat(),
                         "baseline": baseline, "candidate": candidate,
+                        "top1_pair_candidate": top1_pair,
+                        "top1_pair_rule": TOP1_PAIR_RULE,
+                        "top1_selector_sha256": result["candidate_method_sha256"],
                         "mode_selector_sha256": {m: result["candidate_method_sha256"]
                                                  for m in SIZES},
                         "remote_first_receipt_of_candidate": False,
@@ -255,7 +287,10 @@ def audit_historical_input_day(root, day):
     files=sorted((root/"four_mode_forecasts").glob(day+"*.json"))
     out={"schema":"FOUR_MODE_SHADOW_RESULT_BLIND_INPUT_REPLAY_V1",
          "day":day,"formal":False,"result_files_read":False,
-         "original_v2_races":0,"excluded":{},"changes":{m:{
+         "original_v2_races":0,"excluded":{},
+         "top1_pair_changes":{m:{"changed_top1":0,"preserved_top3_5_10":0}
+                               for m in SIZES},
+         "changes":{m:{
              "changed_all_tickets":0, "changed_top1":0,"changed_top3":0,
              "changed_top5":0,"changed_top10":0} for m in SIZES}}
     excluded={}
@@ -269,12 +304,17 @@ def audit_historical_input_day(root, day):
             if saved.get("model_version")!=VERSION or saved.get("race_code")!=path.stem:
                 raise ValueError("version_or_race_mismatch")
             base,candidate=candidate_modes(saved)
+            top1_pair=top1_pair_candidate(saved,base)
         except (OSError,UnicodeError,TypeError,KeyError,ValueError,OverflowError,AssertionError) as exc:
             label=str(exc)[:60] or type(exc).__name__
             excluded[label]=excluded.get(label,0)+1
             continue
         out["original_v2_races"]+=1
         for m in SIZES:
+            pair_stat=out["top1_pair_changes"][m]
+            pair_stat["changed_top1"]+=int(base[m][0]!=top1_pair[m][0])
+            pair_stat["preserved_top3_5_10"]+=int(all(
+                set(base[m][:n])==set(top1_pair[m][:n]) for n in (3,5,10)))
             row=out["changes"][m]
             row["changed_all_tickets"]+=int(base[m]!=candidate[m])
             for k in (1,3,5,10):
