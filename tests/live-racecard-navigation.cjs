@@ -194,15 +194,37 @@ const {chromium}=require('playwright');
      // Cross-check that the actual user-facing forecast preview can consume the same race.
      await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
        {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
+     // Official feeds may express the same ST as F.01 or -0.01, and .11 or
+     // 0.11. Compare lane, exhibition time, tilt, course and SIGNED ST values;
+     // never turn a negative (flying) ST into a positive on display.
+     const signedStart=value=>{
+      const text=String(value??'').trim();
+      if(/^F\.?\d{1,2}$/i.test(text))return -Number('0.'+text.slice(1).replace('.',''));
+      return /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)?Number(text):NaN;
+     };
      const expectedRows=Array.from({length:6},(_,i)=>{
       const lane=i+1,ex=preview.racers.find(v=>Number(v.lane)===lane),st=preview.start_exhibition.find(v=>Number(v.lane)===lane);
       if(!ex||!st)throw Error('LIVE_EXHIBITION_MISSING_LANE '+lane);
-      return {lane,text:'展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st};
+      return {lane,time:Number(ex.exhibition_time),tilt:Number(ex.tilt),
+       course:Number(st.course),st:signedStart(st.st),raw_st:st.st};
      });
      await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
-     if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
-      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     const shown=displayed.map(text=>{
+      const match=text.match(/^(\d+)号艇展示\s+([+-]?\d+(?:\.\d+)?)｜チルト\s+([+-]?\d+(?:\.\d+)?)｜進入\s+(\d+)コース｜展示ST\s+(\S+)$/);
+      return match?{lane:Number(match[1]),time:Number(match[2]),tilt:Number(match[3]),
+       course:Number(match[4]),st:signedStart(match[5]),raw_st:match[5]}:null;
+     });
+     const sameNumber=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<0.000001;
+     if(displayed.length!==6||expectedRows.some((row,i)=>{
+      const current=shown[i];
+      return !current||row.lane!==current.lane||row.course!==current.course||
+       !sameNumber(row.time,current.time)||!sameNumber(row.tilt,current.tilt)||!sameNumber(row.st,current.st);
+     }))
+      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,shown,displayed}));
+     console.log('LIVE_EXHIBITION_SIGNED_ST_EQUIVALENCE_PASS '+JSON.stringify({
+      race:expected,original:expectedRows.map(row=>row.raw_st),shown:shown.map(row=>row.raw_st)
+     }));
      if(Date.now()>=deadline){
       console.log('LIVE_EXHIBITION_DISPLAY_AFTER_CUTOFF_NOT_A_PASS '+expected);
       continue;

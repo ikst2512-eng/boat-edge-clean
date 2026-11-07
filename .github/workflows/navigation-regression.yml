@@ -57,7 +57,7 @@ jobs:
 
   browser-pr-smoke:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,9 +85,27 @@ jobs:
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
               if(await page.locator('#races button').count()!==12)throw Error('12 races missing');
+              // Record actual archive requests, not just the code's guard text.
+              const resultCodesRequested=new Set();
+              page.on('request',request=>{
+                const match=request.url().match(/\/confirmed_results\/(\d{12})\.json(?:[?#]|$)/);
+                if(match)resultCodesRequested.add(match[1]);
+              });
               const tabs=page.locator('.race-detail-shortcuts button');
               if(await tabs.count()!==4)throw Error('Four race shortcuts missing');
               await page.locator('#venues button').first().click();
+              // The selected race may be queried, but the hidden 1-12R pane
+              // must not fan out to other races in either browser engine.
+              await page.waitForTimeout(250);
+              if(resultCodesRequested.size>1)throw Error('Hidden results list fetched multiple races: '+[...resultCodesRequested].join(','));
+              console.log('CLEAN_HIDDEN_RESULT_FETCH_'+engine.toUpperCase()+'_PASS codes='+resultCodesRequested.size);
+              // The hidden list must remain available via explicit on-demand activation.
+              await page.evaluate(()=>{setForecastPane('races');loadResultList();});
+              await page.waitForFunction(()=>document.querySelectorAll('#resultList .clean-race-card').length===12);
+              await page.waitForTimeout(250);
+              if(resultCodesRequested.size!==12)throw Error('Explicit result list failed to request 12 races: '+resultCodesRequested.size);
+              console.log('CLEAN_ON_DEMAND_RESULT_FETCH_'+engine.toUpperCase()+'_PASS codes='+resultCodesRequested.size);
+              await page.evaluate(()=>setForecastPane('prediction'));
               for(const view of ['forecast','card','exhibit','result']){
                 await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
                 if(await page.evaluate(()=>activeView)!==view)throw Error('Shortcut failed: '+view);
@@ -147,6 +165,27 @@ jobs:
               await home.goto('file://'+process.cwd()+'/index.html?date=2099-01-01',{waitUntil:'domcontentloaded'});
               await home.waitForFunction(()=>document.querySelector('#venueState').textContent.includes('開催情報：1場'));
               if(await home.locator('#deadlineList .deadline-item').count()!==3)throw Error('Successful schedule lost next-three races');
+              // Live screenshots exposed pale text on a pale blue panel.
+              // Enforce WCAG AA 4.5:1 contrast for its compact heading and status.
+              const deadlineContrast=await home.evaluate(()=>{
+                const panel=document.getElementById('deadlineSection');
+                const bg=getComputedStyle(panel).backgroundColor;
+                const colors=[
+                  getComputedStyle(panel.querySelector('h2')).color,
+                  getComputedStyle(document.getElementById('deadlineStatus')).color
+                ];
+                const rgb=s=>(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number);
+                const luminance=s=>rgb(s).map(x=>x/255).map(x=>
+                  x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4
+                ).reduce((acc,x,i)=>acc+x*[0.2126,0.7152,0.0722][i],0);
+                return colors.map(c=>{
+                  const a=luminance(bg),b=luminance(c);
+                  return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+                });
+              });
+              if(deadlineContrast.some(ratio=>!Number.isFinite(ratio)||ratio<4.5))
+                throw Error('Deadline heading/status contrast below 4.5:1 '+JSON.stringify(deadlineContrast));
+              console.log('CLEAN_DEADLINE_CONTRAST_'+engine.toUpperCase()+'_PASS '+JSON.stringify(deadlineContrast));
               const order=await home.evaluate(()=>document.querySelector('#deadlineSection').compareDocumentPosition(document.querySelector('#venueChooser')) & Node.DOCUMENT_POSITION_FOLLOWING);
               if(!order)throw Error('Next-three must precede venue chooser');
               console.log('CLEAN_HOME_SCHEDULE_'+engine.toUpperCase()+'_PASS');
