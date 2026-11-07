@@ -32,6 +32,7 @@ jobs:
           print(data['status'])
           PY
       - name: Freeze future race candidates from immutable main forecasts (research only)
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
@@ -110,7 +111,7 @@ jobs:
                            ensure_ascii=False, sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: hole-future-pair-precutoff-candidates
           path: research_candidate_freeze.json
