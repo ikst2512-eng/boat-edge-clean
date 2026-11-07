@@ -1,0 +1,98 @@
+name: Hole November 5 original shadow replay (research only)
+on:
+  pull_request:
+    paths:
+      - hole_nov05_original_shadow_replay.py
+      - test_hole_nov05_original_shadow_replay.py
+      - .github/workflows/hole-nov05-original-shadow-replay.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fail-closed source provenance
+        run: python -m unittest -v test_hole_nov05_original_shadow_replay.py
+      - name: Download ORIGINAL November 5 frozen source only (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p original-nov05
+          gh run download 41953950959 -R ikst2512-eng/boat-edge-clean -n four-mode-capture-41953950959 -D original-nov05
+          test -s original-nov05/four-mode-evidence/hole-shadow.json
+          test -s original-nov05/four-mode-evidence/github-server-observation.json
+      - name: Load November 5 confirmed results from pinned latest-main data snapshot
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 1a6612f9039a3ed87eef6bebb00c73f7419ee32a
+          test "$(git rev-parse FETCH_HEAD)" = "1a6612f9039a3ed87eef6bebb00c73f7419ee32a"
+          # CI workspace only: restore RESULT files from pinned main; never change
+          # the original pre-T12 forecasts or the 106 frozen shadow candidates.
+          git restore --source=FETCH_HEAD --staged --worktree -- confirmed_results/
+          python - <<'PY'
+          from pathlib import Path
+          root=Path("confirmed_results")
+          actual={p.stem for p in root.glob("20261105????.json")}
+          expected={p.stem for p in Path("four_mode_forecasts").glob("20261105????.json")}
+          assert len(expected)==106 and expected<=actual, (len(expected),len(expected-actual))
+          print("PINNED_RESULT_MAIN_SHA","1a6612f9039a3ed87eef6bebb00c73f7419ee32a")
+          print("NOV05_FORECASTS",len(expected),"NOV05_PAIRED_RESULTS",len(expected & actual))
+          PY
+      - name: Replay original frozen locked tickets against pinned complete results
+        run: python hole_nov05_original_shadow_replay.py --capture-dir original-nov05 > hole_nov05_original_replay.json
+      - name: Report exact denominators and guardrails
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("hole_nov05_original_replay.json"))
+          assert x["original_frozen_count"]==106
+          assert x["github_observed_before_t12_not_first_receipt"]==106
+          assert x["comparable_confirmed"]==x["replay_verified_candidate_count"]==106
+          assert x["frozen_without_scored_result"]==0
+          assert x["captured_cohort_all_results_matched"] is True
+          assert x["status"]=="captured_cohort_all_results_matched_nonformal"
+          assert x["source_forecast_github_observed_before_t12"]==106
+          assert x["shadow_local_freeze_before_t12_count"]==106
+          assert x["source_observed_before_shadow_freeze_count"]==106
+          assert x["source_remote_observation_is_shadow_receipt"] is False
+          assert x["shadow_first_remote_receipt_independently_verified"] is False
+          assert x["policy_equivalence_frozen_without_results"] == {
+              "donor_order_equals_max_ticket_score":106,
+              "donor_order_equals_third_national_rate":51,
+              "donor_order_equals_baseline":47,
+              "third_national_rate_equals_baseline":47,
+          }
+          assert not x["replay_excluded_by_reason"]
+          assert x["formal"] is False and x["prospective_validation"] is False
+          assert x["independent_first_receipt_verified"] is False
+          assert x["capture_window_complete_proven"] is False
+          assert len(x["per_race_flags"])==x["comparable_confirmed"]
+          print(json.dumps({
+              "capture_run":x["original_capture_run"],
+              "total_original_snapshots":x["original_frozen_count"],
+              "before_t12_github_observations":x["github_observed_before_t12_not_first_receipt"],
+              "source_observed_before_shadow_freeze":x["source_observed_before_shadow_freeze_count"],
+              "source_to_shadow_clock_gap_seconds":x["source_observation_to_shadow_freeze_seconds_range"],
+              "independent_shadow_first_receipt":x["shadow_first_remote_receipt_independently_verified"],
+              "verified_candidates":x["replay_verified_candidate_count"],
+              "confirmed_now":x["comparable_confirmed"],
+              "pending_or_unscored":x["frozen_without_scored_result"],
+              "excluded":x["replay_excluded_by_reason"],
+              "hits":x["hits"],"gained_lost":x["gain_loss"],
+              "head":x["head_metrics"],"misses":x["baseline_top10_miss_classes"],
+              "policy_equivalence":x["policy_equivalence_frozen_without_results"]
+          },ensure_ascii=False,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hole-nov05-original-frozen-replay
+          path: hole_nov05_original_replay.json
+          if-no-files-found: warn
