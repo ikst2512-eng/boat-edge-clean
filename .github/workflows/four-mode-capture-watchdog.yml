@@ -48,6 +48,7 @@ on:
       - 'scripts/render_capture_wakeup.py'
       - 'test_render_capture_wakeup.py'
       - 'cloudflare/independent_capture_wakeup.mjs'
+      - 'cloudflare/independent_capture_policy.mjs'
       - 'cloudflare/wrangler.toml'
       - 'tests/cloudflare_capture_wakeup.test.mjs'
 permissions:
