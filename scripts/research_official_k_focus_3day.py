@@ -30,6 +30,20 @@ TARGETS = {
     "20260826": [("202608260307", "F"), ("202608261704", "転")],
 }
 
+
+def status_compatible(page_symbol: str, k_code: str) -> bool:
+    """Broad category only: page is accident type; K is liability/status code.
+
+    This must not be used to infer that K itself confirms 'capsize' etc.
+    """
+    if page_symbol == "F":
+        return k_code == "F"
+    if page_symbol in {"転", "落", "沈", "エ"}:
+        return k_code in {"S0", "S1"}
+    if page_symbol == "妨":
+        return k_code == "S2"
+    return False
+
 def expected_blob_sha(day: str, frozen: dict) -> str:
     if frozen.get("period") != "2026-08-01/2026-10-31":
         raise ValueError("frozen_period_wrong")
@@ -78,11 +92,17 @@ def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict) -> di
         checks.append({
             "race_code": code, "first_course_boat": first,
             "official_K_status": actual_status,
-            "expected_official_page_status": expected_status,
-            "official_page_status_equal": actual_status == expected_status,
+            "official_page_accident_symbol": expected_status,
+            "broad_status_compatible": status_compatible(expected_status, actual_status),
+            "K_encodes_exact_page_accident_type": False,
+            "K_liability_class": (
+                "non_racer_fault" if actual_status == "S0" else
+                "racer_fault" if actual_status in {"S1", "S2"} else
+                "start_fault_or_other"
+            ),
         })
     complete = (compare_report["field_discrepancy_count"] == 0
-                and all(x["official_page_status_equal"] for x in checks))
+                and all(x["broad_status_compatible"] for x in checks))
     return {
         "day": day, "status": "reconciled" if complete else "unreconciled_differences",
         "official_K_receipt": receipt, "secondary_git_blob_sha": expected,
