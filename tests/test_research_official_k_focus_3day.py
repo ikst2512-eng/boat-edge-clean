@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from scripts.research_official_k_focus_3day import (
-    TARGETS, expected_blob_sha, reconcile_day,
+    TARGETS, expected_blob_sha, reconcile_day, status_compatible,
 )
 from scripts.research_official_k_one_day_compare import parse_k, unpack_lha
 
@@ -53,6 +53,17 @@ class FocusThreeDayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "day_outside_locked_test_cohort"):
                 reconcile_day("20260801", Path(tmp), Path(tmp), frozen())
+
+    def test_page_accident_and_K_liability_not_exact_symbol(self):
+        self.assertTrue(status_compatible("F", "F"))
+        self.assertTrue(status_compatible("転", "S0"))
+        self.assertTrue(status_compatible("転", "S1"))
+        self.assertTrue(status_compatible("エ", "S0"))
+        self.assertTrue(status_compatible("妨", "S2"))
+        self.assertFalse(status_compatible("転", "F"))
+        self.assertFalse(status_compatible("転", "S2"))
+        self.assertFalse(status_compatible("妨", "S0"))
+        self.assertFalse(status_compatible("F", "S1"))
 
     def test_dynamic_k_filename_and_count_guard(self):
         # Invalid binary fails before attempting to treat source as an official row.
