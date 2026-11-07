@@ -54,5 +54,22 @@ class TestC1Exceptions(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "git_blob_sha_mismatch"):
                 scan_day(path, source)
 
+
+class VerifiedReceiptGateTests(unittest.TestCase):
+    def test_wrong_frozen_period_rejected(self):
+        from scripts.research_official_c1_exception_ledger import from_verified_rows
+        with self.assertRaisesRegex(ValueError, "unexpected_frozen_source_period"):
+            from_verified_rows([], [], {"period": "wrong", "sources": []})
+
+    def test_missing_receipts_rejected(self):
+        import datetime as dt
+        from scripts.research_official_c1_exception_ledger import from_verified_rows
+        days = [dt.date(2026, 8, 1) + dt.timedelta(days=i) for i in range(92)]
+        evidence = {"period": "2026-08-01/2026-10-31",
+                    "sources": [{"day": str(day), "rows": 0, "accepted": 0, "sha": "0" * 40}
+                                for day in days]}
+        with self.assertRaisesRegex(ValueError, "verified_receipt_or_raw_count_mismatch"):
+            from_verified_rows([], [], evidence)
+
 if __name__ == "__main__":
     unittest.main()
