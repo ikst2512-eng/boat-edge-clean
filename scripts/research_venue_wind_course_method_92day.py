@@ -219,6 +219,7 @@ def main():
     ap.add_argument("--c1-exception-output", type=Path, help="PR-only postrace 1C exception ledger")
     ap.add_argument("--frozen-day-csv-output", type=Path, help="Optional SHA-verified 2026-08-01 comparison input")
     ap.add_argument("--frozen-target-csv-dir", type=Path, help="Optional frozen 3-day secondary files for K exception checks")
+    ap.add_argument("--frozen-exception-csv-dir", type=Path, help="SHA-verified raw CSV for all 34 exception races across 28 days")
     args = ap.parse_args()
     if args.min_n < 1:
         raise SystemExit("minimum n must be positive")
@@ -234,6 +235,8 @@ def main():
             for day in ("2026/08/02", "2026/08/21", "2026/08/26"):
                 if url == BASE + day + ".csv":
                     frozen_day[day.replace("/", "")] = data
+        if args.frozen_exception_csv_dir:
+            frozen_day[url[len(BASE):].replace("/", "").replace(".csv", "")] = data
         return data
     rows, receipts = load_rows(fetch, expected)
     if args.frozen_day_csv_output:
@@ -250,6 +253,8 @@ def main():
             (args.frozen_target_csv_dir / ("secondary_" + day.replace("-", "") + ".csv")).write_bytes(value)
     output = aggregate(rows, args.min_n)
     reconcile(output, baseline)
+    if args.frozen_exception_csv_dir and args.c1_exception_output is None:
+        raise ValueError("exception_csv_export_requires_frozen_candidate_ledger")
     if args.c1_exception_output is not None:
         from scripts.research_official_c1_exception_ledger import from_verified_rows
         frozen = ROOT / "docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json"
@@ -259,6 +264,18 @@ def main():
         args.c1_exception_output.write_text(
             json.dumps(candidates, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
+        if args.frozen_exception_csv_dir:
+            days = sorted({x["race_code"][:8] for x in candidates["exceptions"]})
+            if len(days) != 28:
+                raise ValueError("expected_28_distinct_exception_days")
+            for day in days:
+                date = f"{day[:4]}-{day[4:6]}-{day[6:]}"
+                value = frozen_day.get(day)
+                if value is None or git_blob_sha(value) != expected[date]["sha"]:
+                    raise ValueError("exception_day_git_sha_invalid:" + day)
+            args.frozen_exception_csv_dir.mkdir(parents=True, exist_ok=True)
+            for day in days:
+                (args.frozen_exception_csv_dir / ("secondary_" + day + ".csv")).write_bytes(frozen_day[day])
     output["source_receipts"] = receipts
     output["method_note"] = "External Git blob equality verifies a historical file snapshot, not official racing results or first remote receipt."
     args.output.parent.mkdir(parents=True, exist_ok=True)
