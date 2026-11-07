@@ -4,12 +4,16 @@ on:
     paths:
       - audit_clean_first_add_daily.py
       - test_audit_clean_first_add_daily.py
+      - audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_day.py
       - .github/workflows/clean-first-add-evidence.yml
   push:
     branches: [main]
     paths:
       - audit_clean_first_add_daily.py
       - test_audit_clean_first_add_daily.py
+      - audit_clean_post_fix_cohort.py
+      - test_audit_clean_post_fix_day.py
       - .github/workflows/clean-first-add-evidence.yml
   workflow_dispatch:
 permissions:
@@ -26,6 +30,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v test_audit_clean_first_add_daily
+      - run: python -m unittest -v test_audit_clean_first_add_daily test_audit_clean_post_fix_day
       - name: Check full 2026-10-29 cohort first Git add and unchanged bytes
         run: python audit_clean_first_add_daily.py 20261029

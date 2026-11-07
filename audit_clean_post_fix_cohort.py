@@ -16,13 +16,24 @@ from audit_clean_first_add import ROOT, PATTERN, audit_records, inspect
 POST_FIX_START = "20261105"
 
 
-def post_fix_paths(root=ROOT):
+def post_fix_paths(root=ROOT, day=None):
+    # An old rejected cohort must not mask later days' independent progress.
+    if day is not None:
+        if not isinstance(day, str) or re.fullmatch(r"20[0-9]{6}", day) is None:
+            raise ValueError("invalid audit day")
+        try:
+            datetime.strptime(day, "%Y%m%d")
+        except ValueError as exc:
+            raise ValueError("invalid audit day") from exc
+        if day < POST_FIX_START:
+            raise ValueError("audit day precedes post-fix scope")
     directory = Path(root) / "prospective_predictions"
     return sorted(
         "prospective_predictions/" + entry.name
         for entry in directory.glob("*.json")
         if PATTERN.fullmatch("prospective_predictions/" + entry.name)
         and entry.name[:8] >= POST_FIX_START
+        and (day is None or entry.name[:8] == day)
     )
 
 
@@ -96,12 +107,13 @@ def inspect_post_fix_record(path, root=ROOT):
             "raw_remote_receipt_verified": False, **model}
 
 
-def inspect_post_fix(root=ROOT, auditor=None):
-    paths = post_fix_paths(root)
+def inspect_post_fix(root=ROOT, auditor=None, day=None):
+    paths = post_fix_paths(root, day=day)
     if not paths:
         return {
             "schema": "CLEAN_POST_FIX_LOCAL_EVIDENCE_V1",
             "post_fix_start": POST_FIX_START,
+            **({"day_jst": day} if day is not None else {}),
             "status": "pending_no_new_capture",
             "candidate_count": 0,
             "local_audit_passed": 0,
@@ -115,6 +127,7 @@ def inspect_post_fix(root=ROOT, auditor=None):
         **report,
         "schema": "CLEAN_POST_FIX_LOCAL_EVIDENCE_V1",
         "post_fix_start": POST_FIX_START,
+        **({"day_jst": day} if day is not None else {}),
         "candidate_count": len(paths),
         "status": (
             "local_first_add_passed"
@@ -151,7 +164,11 @@ def diagnostic_summary(report):
 
 
 if __name__ == "__main__":
-    output = with_execution_receipt(inspect_post_fix())
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--day", help="Independent YYYYMMDD local cohort (not formal T-12)")
+    args = parser.parse_args()
+    output = with_execution_receipt(inspect_post_fix(day=args.day))
     print(json.dumps(output, ensure_ascii=False))
     print("POST_FIX_DIAGNOSTIC " + diagnostic_summary(output), file=sys.stderr)
     if output["status"] != "local_first_add_passed":
