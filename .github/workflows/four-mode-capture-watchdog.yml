@@ -107,10 +107,11 @@ jobs:
             tail -40 /tmp/boat-edge-cloudflare-workerd.log
             exit 1
           fi
-          curl --silent --show-error --max-time 10 --get \
-            --data-urlencode 'cron=* * * * *' \
-            --data-urlencode 'format=json' \
-            http://127.0.0.1:8787/cdn-cgi/local/scheduled \
+          # Current official Local Explorer API dispatches scheduled(), not fetch().
+          curl --silent --show-error --max-time 10 --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"cron":"* * * * *"}' \
+            'http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup' \
             > /tmp/boat-edge-cloudflare-foreign-cron-response.json || true
           for attempt in $(seq 1 8); do
             if grep -q unexpected_cron_trigger /tmp/boat-edge-cloudflare-workerd.log; then
