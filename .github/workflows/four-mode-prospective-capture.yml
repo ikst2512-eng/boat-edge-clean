@@ -25,6 +25,11 @@ on:
       - hole_shadow_prospective_gate.py
       - test_hole_shadow_prospective_gate.py
       - third_rate_same_job_capture.py
+      - four_mode_all_mode_same_job_shadow.py
+      - test_four_mode_all_mode_same_job_shadow.py
+      - four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_all_shadow_durable_ledger.py
+      - four_mode_all_shadow_reference_review.py
       - four_mode_github_server_observation.py
       - test_four_mode_remote_evidence_end_to_end.py
       - test_verify_four_mode_capture_evidence.py
@@ -62,7 +67,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify four-mode capture and receipts
-        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
+        run: python -m unittest -v test_clean_four_mode_capture_e2e test_clean_four_modes test_four_mode_receipts test_four_mode_raw_receipt test_audit_four_mode_raw_receipts test_link_four_mode_raw_forecast test_audit_new_v2_staged test_hole_shadow_same_job_capture test_hole_shadow_prospective_gate test_third_rate_same_job_capture test_third_rate_evidence_ledger test_four_mode_all_mode_same_job_shadow test_four_mode_all_shadow_durable_ledger test_four_mode_github_server_observation test_four_mode_github_server_observation_ledger test_four_mode_remote_evidence_end_to_end test_verify_four_mode_capture_evidence test_four_mode_workflow_shell_syntax tests.test_four_mode_source_link_scope
   capture:
     # workflow_dispatch can target a feature branch. Never let it enter the
     # privileged forecast-publication path or attempt git push HEAD:main.
@@ -248,6 +253,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python four_mode_github_server_observation.py
+      # Optional 4-mode research only. No additional cron or candidate publication.
+      # Failure is recorded in stage status; the original collector is unaffected.
+      - name: Freeze all four-mode research candidates from published original
+        id: all_mode_shadow
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        run: python four_mode_all_mode_same_job_shadow.py
+      - name: Preserve four-mode candidates on existing write-once Git evidence branch
+        id: all_mode_shadow_ledger
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python four_mode_all_shadow_durable_ledger.py
       - name: Freeze third-place research shadow from published original before T-12
         id: third_rate_shadow
         if: ${{ always() && github.event_name != 'pull_request' }}
@@ -286,6 +305,8 @@ jobs:
           GITHUB_SERVER_OBSERVATION_OUTCOME: ${{ steps.github_server_observation.outcome }}
           GITHUB_OBSERVATION_LEDGER_OUTCOME: ${{ steps.github_observation_ledger.outcome }}
           HOLE_SHADOW_OUTCOME: ${{ steps.hole_shadow.outcome }}
+          ALL_MODE_SHADOW_OUTCOME: ${{ steps.all_mode_shadow.outcome }}
+          ALL_MODE_SHADOW_LEDGER_OUTCOME: ${{ steps.all_mode_shadow_ledger.outcome }}
         run: |
           python - <<'PY'
           import json, os
@@ -301,7 +322,9 @@ jobs:
                     # Research failures remain visible and never overwrite
                     # the independent V2 publication verdict.
                     "third_rate_shadow": os.environ["THIRD_RATE_SHADOW_OUTCOME"],
-                    "hole_shadow": os.environ["HOLE_SHADOW_OUTCOME"]}
+                    "hole_shadow": os.environ["HOLE_SHADOW_OUTCOME"],
+                    "all_mode_shadow": os.environ["ALL_MODE_SHADOW_OUTCOME"],
+                    "all_mode_shadow_ledger": os.environ["ALL_MODE_SHADOW_LEDGER_OUTCOME"]}
           publication = evidence/"publication.json"
           states["publication"] = "not_confirmed"
           if publication.exists():
@@ -379,6 +402,8 @@ jobs:
             four-mode-evidence/stages.json
             four-mode-evidence/source-links.json
             four-mode-evidence/hole-shadow.json
+            four-mode-evidence/all-mode-shadow.json
+            four-mode-evidence/all-mode-shadow-ledger.json
             four-mode-evidence/third-rate-shadow.json
             four-mode-evidence/third-rate-ledger.json
             four-mode-evidence/github-server-observation.json

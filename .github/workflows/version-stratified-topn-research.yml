@@ -4,6 +4,17 @@ on:
     paths:
       - four_mode_version_topn_audit.py
       - test_four_mode_version_topn_audit.py
+      - four_mode_forward_paired_score.py
+      - four_mode_all_mode_same_job_shadow.py
+      - test_four_mode_all_mode_same_job_shadow.py
+      - four_mode_all_shadow_reference_review.py
+      - test_four_mode_all_shadow_reference_review.py
+      - four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_all_shadow_durable_ledger.py
+      - test_four_mode_forward_paired_score.py
+      - research/four_mode_all_modes_forward_protocol_20261106.json
+      - research/four_mode_top1_pair_forward_protocol_20261108.json
+      - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
 permissions:
@@ -19,10 +30,70 @@ jobs:
           python-version: '3.12'
       - name: Validate audit logic
         run: python -m unittest -v test_four_mode_version_topn_audit
+      - name: Check frozen future-only four-mode study policy and leakage refusal
+        run: python -m unittest -v test_four_mode_forward_paired_score
+      - name: Test pre-result frozen all-mode candidate invariants
+        run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Replay real Nov 5 original forecasts without reading results
+        run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
+      # Historical input-only check. This mode never opens confirmed results,
+      # so it cannot turn a settled Nov 6/7 race into prospective evidence.
+      - name: Replay saved Nov 6 and Nov 7 V2 inputs without any result reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261106 | tee four_mode_shadow_input_replay_20261106.log
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261107 | tee four_mode_shadow_input_replay_20261107.log
+      - name: Reject incomplete real V2 replays and protected-rank drift
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for day, count in (("20261106", 130), ("20261107", 122)):
+              lines = Path(f"four_mode_shadow_input_replay_{day}.log").read_text(
+                  encoding="utf-8"
+              ).splitlines()
+              prefix = "FOUR_MODE_SHADOW_HISTORICAL_INPUT="
+              if len(lines) != 1 or not lines[0].startswith(prefix):
+                  raise SystemExit(f"unverifiable_input_replay:{day}")
+              report = json.loads(lines[0][len(prefix):])
+              if (report.get("day") != day
+                      or report.get("original_v2_races") != count
+                      or report.get("excluded") != {}
+                      or report.get("formal") is not False
+                      or report.get("result_files_read") is not False
+                      or report.get("status") != "historical_input_replay_only"):
+                  raise SystemExit(f"incomplete_or_result_leaking_replay:{day}")
+              modes = report.get("changes")
+              if type(modes) is not dict or set(modes) != {
+                  "narrow", "hit", "balance", "hole"
+              }:
+                  raise SystemExit(f"missing_mode_replay:{day}")
+              for mode, changes in modes.items():
+                  if (changes.get("changed_all_tickets") != count
+                          or changes.get("changed_top1") != 0):
+                      raise SystemExit(f"method_or_top1_drift:{day}:{mode}")
+              if (modes["hit"].get("changed_top3") != 0
+                      or modes["balance"].get("changed_top3") != 0
+                      or modes["hole"].get("changed_top5") != 0):
+                  raise SystemExit(f"protected_rank_drift:{day}")
+              print(f"RESULT_BLIND_V2_REPLAY_VERIFIED:{day}:{count}/{count}")
+          PY
+      - name: Test append-only GitHub candidate receipt and strict remote observation clock
+        run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
+      - name: Check original and candidate replay before any result lookup
+        run: python -m unittest -v test_four_mode_all_shadow_reference_review
+      - name: Report reference review readiness (no invented frozen artifact)
+        run: python four_mode_all_shadow_reference_review.py
+      - name: Report forward gate status (no candidate or result invented)
+        run: python four_mode_forward_paired_score.py
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
         with:
           name: historical-version-topn-${{ github.run_id }}
-          path: version_stratified_topn_report.log
+          path: |
+            version_stratified_topn_report.log
+            four_mode_shadow_input_replay_20261106.log
+            four_mode_shadow_input_replay_20261107.log
           retention-days: 30
