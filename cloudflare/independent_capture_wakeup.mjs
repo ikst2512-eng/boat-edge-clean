@@ -11,6 +11,7 @@ const JST = 9 * 60 * MINUTE;
 const API = `https://api.github.com/repos/${REPO}/actions/workflows/`;
 // Keep JSON payloads small: Cloudflare Workers Free cron has a 10 ms CPU cap.
 const HISTORY_PAGE_SIZE = 30;
+const ALLOWED_CRON = '*/5 22-23,0-13 * * *';
 
 function jstParts(instant) {
   const x = new Date(instant.getTime() + JST);
@@ -159,6 +160,7 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
 
 const SAFE_ERRORS = new Set([
   'invalid_trigger_clock', 'late_or_future_cron_trigger', 'cron_outside_allowlist',
+  'unexpected_cron_trigger',
   'invalid_clock', 'unknown_workflow', 'fetcher_required', 'invalid_receipt_sink',
   'GITHUB_DISPATCH_TOKEN_required', 'github_history_http_error',
   'github_history_missing_or_malformed', 'github_history_identity_invalid',
@@ -168,8 +170,12 @@ const SAFE_ERRORS = new Set([
 
 export default {
   async scheduled(controller, env) {
-    // No HTTP fetch handler: this Worker is only reachable by its scheduled trigger.
+    // No HTTP fetch handler. Additionally pin the exact declared cron identity:
+    // Cloudflare supplies controller.cron verbatim, including spaces.
     try {
+      if (!controller || controller.cron !== ALLOWED_CRON) {
+        throw new Error('unexpected_cron_trigger');
+      }
       const report = await execute({scheduledTime: controller.scheduledTime, now: Date.now(),
         token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch, clock: Date.now,
         onAccepted: receipt => console.log('CLOUDFLARE_DISPATCH_RECEIPT=' + JSON.stringify(receipt))});
