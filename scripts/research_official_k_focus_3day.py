@@ -55,9 +55,10 @@ def expected_blob_sha(day: str, frozen: dict) -> str:
         raise ValueError("frozen_day_not_unique:" + day)
     return match[0]["sha"]
 
-def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict) -> dict:
+def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict, targets: dict | None = None) -> dict:
     import datetime as dt
-    if day not in TARGETS:
+    focus = TARGETS if targets is None else targets
+    if day not in focus:
         raise ValueError("day_outside_locked_test_cohort")
     p = source_dir / f"secondary_{day}.csv"
     if p.is_symlink() or not p.is_file():
@@ -81,7 +82,7 @@ def reconcile_day(day: str, source_dir: Path, raw_dir: Path, frozen: dict) -> di
     official = parse_k(decoded.decode("cp932"), day=day, expected_races=len(rows))
     compare_report = compare(official, secondary, expected_secondary_sha=expected, day=day)
     checks = []
-    for code, expected_status in TARGETS[day]:
+    for code, expected_status in focus[day]:
         if code not in official or code not in by_code:
             raise ValueError("focus_race_missing:" + code)
         first = (by_code[code].get("1コース_艇番") or "").strip()
