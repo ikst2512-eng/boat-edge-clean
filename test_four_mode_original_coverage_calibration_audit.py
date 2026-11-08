@@ -142,7 +142,7 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
         self.assertFalse(report["formal"])
 
     def test_forged_incomplete_official_roster_rejected(self):
-        with self.assertRaisesRegex(ValueError, "calibration_roster_does_not_reconcile"):
+        with self.assertRaisesRegex(ValueError, "non_scoreable_duplicate"):
             self.run_minimal(self._raws(), non_scored=1, unresolved=0)
 
 
