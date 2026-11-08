@@ -1,3 +1,9 @@
+## 2026-11-08 12時台 JST｜Cloudflare Free 独立Cronの実Workerdローカル検証成功（Draft #1697）
+- 先に失敗したLocal Explorer経由のCronテストの実原因は、`wrangler@4.102.0`がLocal Explorer Cron実行に未対応だったため。Cloudflare公式仕様ではWrangler**4.139.0以上**が必須。PR専用CIのバージョンを`4.158.0`へ更新し、`scheduled()`をLocal Explorer APIから実際に呼び出した。既存Render Python/Web、main、予想原本に変更なし。
+- 新版Workerd上で2種類の実イベントを検証。①不正cron `* * * * *`は`unexpected_cron_trigger`でGitHub通信前に拒否。②設定どおりのcronだが過去の`scheduled_time=1700000000000`は`late_or_future_cron_trigger`でSecret確認／GitHub通信前に拒否。両者ともローカルAPI HTTP200でありGitHubの204ではなく、実復旧・原本保存の証明に採用しない。
+- CI [#42441409092](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42441409092)は**completed/success**。既存Python成功、Node**32/32 PASS**、Wrangler 4.158.0 dry-run成功（10.09KiB/gzip3.38KiB）、実Workerd起動とLocal Explorer scheduledイベント2件のfail-closed確認に成功。実Cloudflare Worker配備・Cron登録・Secret/PAT・CPU10ms・GitHub run ID・初回Git原本保存/T−12の証明は**すべて未実施**。
+- Draft PR #1697を維持、**main自動統合禁止**。本番導入にはCloudflare Freeアカウントへの接続、専用GitHub Actions権限のPATをCloudflare Secretとして設定、実CPU・実Cron・GitHub実dispatch・T−12原本初回保存の独立監査が必要。既存Render有料CronのHTTP402回避目的であり、2社の外部Cronを同時稼働させない。
+
 ## 2026-11-08 JST｜Cloudflare Free独立バックアップ Draft #1697：実Workerd起動監査（本番未導入）
 - main統合禁止・既存Render Free Web/Render用Python変更禁止を維持。同じDraft PR #1697で初めてローカルWorkerdの実起動テストを追加し、従来のNode/ビルドdry-runでは見つからなかった**2つの本番起動ブロッカー**を検出した。
 - ① `wrangler@4.102.0 dev --local`のWorkerdは設定compatibility_date `2026-11-01`を未対応と返した（実サーバ上限`2026-06-24`）。`cloudflare/wrangler.toml`を実対応日付`2026-06-24`へ固定。②次回試験でWorkerdがWorker入口の名前付き定数export `REPO`を拒否（`Incorrect type for map entry`）。ロジックを`cloudflare/independent_capture_policy.mjs`へ分割し、Worker入口`independent_capture_wakeup.mjs`は`export default { scheduled() }`だけに変更。新規policy名付きexportはWorker入口から公開しない。
