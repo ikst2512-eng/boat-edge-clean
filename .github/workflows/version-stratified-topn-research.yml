@@ -16,6 +16,8 @@ on:
       - research/four_mode_top1_pair_forward_protocol_20261108.json
       - four_mode_top1_forward_reference.py
       - test_four_mode_top1_forward_reference.py
+      - four_mode_top1_capture_run_inventory.py
+      - test_four_mode_top1_capture_run_inventory.py
       - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
@@ -87,6 +89,8 @@ jobs:
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
       - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
         run: python -m unittest -v test_four_mode_top1_forward_reference
+      - name: Validate fail-closed read-only GitHub capture-run inventory
+        run: python -m unittest -v test_four_mode_top1_capture_run_inventory
       - name: Report independent Top1 reference status without scoring historical dates
         run: python four_mode_top1_forward_reference.py
       - name: Report reference review readiness (no invented frozen artifact)
