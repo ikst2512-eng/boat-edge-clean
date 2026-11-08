@@ -642,12 +642,12 @@ function syntheticRawWorkersDay() {
     const observed=Date.parse(sample.observed_at_utc);
     const base={service:OBSERVER_NAME,requestId:id};
     return [{
-      '$metadata':{...base,type:'cf-worker-event',message:'*/5 22-23,0-13 * * *'},
+      '$metadata':{...base,id:id+'-invocation',type:'cf-worker-event',message:'*/5 22-23,0-13 * * *'},
       '$workers':{scriptName:OBSERVER_NAME,eventType:'scheduled',outcome:'ok',
         cpuTimeMs:sample.cpu_time_ms,scriptVersion:{id:d.deployment_id}},
       timestamp:observed+2,source:{message:'cron'},
     },{
-      '$metadata':{...base,type:'cf-worker-log',message:'CLOUDFLARE_CAPTURE_OBSERVER_ONLY='+JSON.stringify(sample.custom_report)},
+      '$metadata':{...base,id:id+'-console',type:'cf-worker-log',message:'CLOUDFLARE_CAPTURE_OBSERVER_ONLY='+JSON.stringify(sample.custom_report)},
       '$workers':{scriptName:OBSERVER_NAME,eventType:'scheduled',scriptVersion:{id:d.deployment_id}},
       timestamp:observed,source:{message:'CLOUDFLARE_CAPTURE_OBSERVER_ONLY='+JSON.stringify(sample.custom_report)},
     }];
@@ -736,4 +736,30 @@ test('raw Workers Logs audit CLI executes locally without authentication or netw
     assert.match(result.input_sha256,/^[a-f0-9]{64}$/);
     assert.equal(result.formal_t_minus_12_proven,false);
   }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test('closed observer schema rejects extra false-positive dispatch claims',()=>{
+  for(const poison of [
+    x=>x.samples[0].custom_report.github_dispatch_accepted=true,
+    x=>x.samples[0].custom_report.eligible_slots_jst.unexpected='fake',
+    x=>x.samples[0].custom_report.extra_evidence={github_run_id:12345},
+  ]){
+    const x=syntheticObserverDay();poison(x);
+    const result=auditObserverTelemetry(x);
+    assert.equal(result.observer_day_pass,false);
+    assert.ok(result.issues.some(q=>q.includes('observer_report_missing_or_mismatched')));
+  }
+});
+
+test('Cloudflare raw auditor rejects repeated or missing event cursor even when request pairs look valid',()=>{
+  for(const mutate of [
+    x=>x.records[2].$metadata.id=x.records[0].$metadata.id,
+    x=>delete x.records[2].$metadata.id,
+  ]){
+    const x=syntheticRawWorkersDay();mutate(x);
+    const result=auditRawWorkersLogs(x);
+    assert.equal(result.observer_day_pass,false);
+    assert.ok(result.raw_issues.some(q=>q.includes('event_cursor')));
+  }
 });
