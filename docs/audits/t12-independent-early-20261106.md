@@ -1,3 +1,17 @@
+## 2026-11-08 ~12:37 JST — Independent ZIP replay of schedule-continuity CI output (audit-only)
+
+Confirmed [exact-head PR CI #42443247074](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42443247074), job `128616735722`, **12/12 regression tests passed**. Downloaded original GitHub artifact `official-pair-schedule-audit-42443247074` (artifact ID **13601654632**) as ZIP and independently checked:
+
+- ZIP byte length **1047**, SHA256 **`d739f8a45c7e3be852a73d8ad09eb6bd5a7c5355f12091f21d981a19b5b3bad6`**, **exact match** to GitHub's advertised digest; central directory lists exactly one `official_pair_schedule_continuity.json`; ZIP CRC check clean.
+- Archived JSON reports `utc_day=20261107`, `total_repository_schedule_runs=93`, `expected_slots_full_day=156`, `observed_official_pair_schedule_runs=3`, `observed_within_declared_cron_hours=2`, `observed_outside_declared_cron_hours=1`, `in_hours_invocation_count_deficit=154`, `in_hours_to_elapsed_slot_pct=1.28`, `observed_to_elapsed_slot_pct=1.92`.
+- Three exact schedule-event records: **#42342115412** 2026-11-07 **14:17:49 JST**, failure, in configured hours; **#42369814345** 2026-11-07 **20:49:44 JST**, success but actual source count zero, in configured hours; **#42394773010** 2026-11-08 **02:07:59 JST**, success with source count zero, **outside configured hours**. `schedule_slot_identity_verified=false`, `missing_trigger_root_cause_verified=false`, `raw_official_source_receipts_verified=false`, `full_t12_source_certified=false`.
+- This independent ZIP replay **validates the archived audit report**, not any official beforeinfo, racelist, or odds original. Source and generation first-remote receipt remain separate gates.
+- UTC Nov 8 `event=schedule` inventory as last inspected returned 14 scheduled runs through **12:16:39 JST** (all other workflows) and **0 official-pair starts**. The day is still in progress; do not extrapolate future slot failures.
+
+**Safety/acceptance:** This research audit changes only the existing Draft PR documentation and audit-only script/tests, never main or operational capture. Formal three-original official T−12 certificates remain **0**; formal accuracy denominator **undefined**.
+
+---
+
 ## 2026-11-08 ~12:05 JST — Nov 8 real first-add cohort versus official T−12 schedule absence (independent audit; not formal)
 
 **Read-only source snapshot**: GitHub latest `main=7c0c4dd6c628c3d134ddeac74776c59d8595c00c`; run history queried with `event=schedule&created=2026-11-08`, actual last listed Nov 8 schedule run started **11:22:11 JST**, plus a prior Nov 7 UTC schedule inventory refreshed to **93** runs. PR remains Draft, no change to main/collector/forecast evidence in this audit.
