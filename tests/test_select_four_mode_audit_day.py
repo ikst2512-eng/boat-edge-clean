@@ -51,7 +51,7 @@ class SelectFourModeAuditDayTests(unittest.TestCase):
                 # Time-independent property: the selected value is one JST YYYYMMDD.
                 main()
             value = path.read_text(encoding="utf-8")
-            self.assertRegex(value, r"\\AFOUR_MODE_AUDIT_DAY_JST=20\\d{6}\\n\\Z")
+            self.assertRegex(value, r"\AFOUR_MODE_AUDIT_DAY_JST=20\d{6}\n\Z")
 
     def test_missing_github_env_fails_instead_of_silent_empty_day(self):
         with patch.dict("os.environ", {"GITHUB_ENV": ""}):
