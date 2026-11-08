@@ -36,6 +36,7 @@ def _estimated_coverage(original, mode):
 def _new_stats():
     return {"races": 0, "estimated_hits_sum": 0.0, "estimated_square_sum": 0.0,
             "estimated_min": None, "estimated_max": None, "estimated_distinct": set(),
+            "estimated_outcomes": [],
             "actual_full_ticket_hits": 0, "squared_error_sum": 0.0,
             "saved_results": 0, "public_only_results": 0}
 
@@ -52,10 +53,45 @@ def _accumulate(stats, probability, full_hit, result_kind):
     stats["estimated_max"] = (probability if stats["estimated_max"] is None
                                else max(stats["estimated_max"], probability))
     stats["estimated_distinct"].add(round(probability * 100, 4))
+    stats["estimated_outcomes"].append((probability, int(full_hit)))
     stats["actual_full_ticket_hits"] += int(full_hit)
     stats["squared_error_sum"] += (probability - int(full_hit)) ** 2
     stats["saved_results"] += int(result_kind == "persisted")
     stats["public_only_results"] += int(result_kind == "public_unarchived")
+
+
+def _descriptive_auc(rows):
+    """Tie-aware ranking AUC for historical full-ticket hit vs miss, never a future guarantee."""
+    if not isinstance(rows, list) or any(
+        not isinstance(pair, tuple) or len(pair) != 2 or
+        type(pair[1]) is not int or pair[1] not in (0, 1) or
+        type(pair[0]) not in (int, float) or not math.isfinite(pair[0]) or
+        not 0 <= pair[0] <= 1 for pair in rows
+    ):
+        raise ValueError("invalid_auc_histogram")
+    positives = sum(y for _, y in rows)
+    negatives = len(rows) - positives
+    if not positives or not negatives:
+        return None
+    ordered = sorted(rows)
+    negative_below = 0
+    wins = 0.0
+    i = 0
+    while i < len(ordered):
+        j = i
+        score = ordered[i][0]
+        count_positive = 0
+        while j < len(ordered) and ordered[j][0] == score:
+            count_positive += ordered[j][1]
+            j += 1
+        count_negative = j - i - count_positive
+        wins += count_positive * negative_below + 0.5 * count_positive * count_negative
+        negative_below += count_negative
+        i = j
+    auc = wins / (positives * negatives)
+    if not 0 <= auc <= 1:
+        raise ValueError("auc_out_of_bounds")
+    return round(auc, 5)
 
 
 def _summarize(stats):
@@ -63,7 +99,8 @@ def _summarize(stats):
     mean = stats["estimated_hits_sum"] / n if n else None
     variance = max(0.0, stats["estimated_square_sum"] / n - mean ** 2) if n else None
     if n and (stats["estimated_min"] is None or stats["estimated_max"] is None
-              or len(stats["estimated_distinct"]) == 0):
+              or len(stats["estimated_distinct"]) == 0 or
+              len(stats["estimated_outcomes"]) != n):
         raise ValueError("estimated_spread_missing")
     return {
         "races": n,
@@ -72,6 +109,7 @@ def _summarize(stats):
         "estimated_full_list_max_pct": round(100 * stats["estimated_max"], 2) if n else None,
         "estimated_full_list_population_stddev_pp": round(100 * math.sqrt(variance), 4) if n else None,
         "distinct_original_estimated_pct_values": len(stats["estimated_distinct"]),
+        "descriptive_original_estimate_hit_discrimination_auc": _descriptive_auc(stats["estimated_outcomes"]),
         "observed_full_list_hit_rate_pct": round(100 * stats["actual_full_ticket_hits"] / n, 2) if n else None,
         "observed_minus_estimated_percentage_points": round(
             100 * (stats["actual_full_ticket_hits"] - stats["estimated_hits_sum"]) / n, 2) if n else None,
@@ -170,6 +208,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
         "source_raw_bytes_replayed_from_earlier_research_CI_step": True,
         "research_cohort_may_be_selection_biased": True,
         "prediction_spread_is_not_proof_of_discrimination": True,
+        "auc_is_historical_same_cohort_not_future_holdout": True,
         "predictive_calibration_proven": False,
         "prospective_candidate_pairs": 0,
         "formal": False,
