@@ -51,3 +51,15 @@ jobs:
             render-reachability.log
             test-results/
           if-no-files-found: warn
+      # A later data-driven redeploy may make browser tests green after a genuine cold-wake outage.
+      # Preserve all logs first, then fail this job if the initial live /healthz probe failed.
+      - name: Gate HTTP transport independently of late browser recovery
+        if: always()
+        shell: bash
+        run: |
+          if ! grep -Eq '^RENDER_DIAG_RELEASE_GATES health_http=pass([[:space:]]|$)' render-reachability.log; then
+            echo '::error::Render /healthz was not HTTP 200 during the initial transport diagnostic; late browser success or data-only redeploy cannot erase this outage.'
+            grep -E '^RENDER_DIAG_(PROBE name=health-|RELEASE_GATES )' render-reachability.log || true
+            exit 1
+          fi
+          echo 'PASS_INITIAL_RENDER_HTTP_TRANSPORT_ONLY: live CORS, predeadline exhibition and idle-wake stability require separate proof.'
