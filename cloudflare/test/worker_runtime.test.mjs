@@ -97,6 +97,45 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     expect(report.on_time_cron_proven).toBe(false);
   });
 
+  it('legacy 204 response has no run ID and never becomes a confirmed receipt or retry', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls,fetcher} = mockGitHub();
+    const logs = [];
+    vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
+    vi.spyOn(console, 'error').mockImplementation(message => logs.push(String(message)));
+    vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+      if (options.method === 'POST') {
+        calls.push({method: 'POST', url:String(url), body: options.body});
+        return new Response(null, {status: 204});
+      }
+      return fetcher(url, options);
+    }));
+    await expect(invoke()).rejects.toThrow('github_dispatch_accepted_without_run_details');
+    expect(calls.filter(x => x.method === 'POST')).toHaveLength(1);
+    expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
+    expect(logs.join(' ')).not.toContain(TEST_TOKEN);
+  });
+
+  it('200 with wrong GitHub run URL is rejected even in actual Workerd', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls,fetcher} = mockGitHub();
+    const logs = [];
+    vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
+    vi.spyOn(console, 'error').mockImplementation(message => logs.push(String(message)));
+    vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+      if (options.method === 'POST') {
+        calls.push({method: 'POST', url:String(url), body: options.body});
+        return Response.json({workflow_run_id:100100,run_url:'https://api.github.com/repos/other/repo/actions/runs/100100',
+          html_url:'https://github.com/other/repo/actions/runs/100100'}, {status:200});
+      }
+      return fetcher(url, options);
+    }));
+    await expect(invoke()).rejects.toThrow('github_dispatch_run_details_missing_or_invalid');
+    expect(calls.filter(x => x.method === 'POST')).toHaveLength(1);
+    expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
+    expect(logs.join(' ')).not.toContain(TEST_TOKEN);
+  });
+
   it('both original schedule runs already succeeded: four GETs and zero POSTs', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
     const {calls} = mockGitHub({scheduledSuccess: true});
