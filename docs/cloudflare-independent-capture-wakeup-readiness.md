@@ -1,5 +1,22 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-08: Workerd **positive-path** GitHub mock integration PASS (no real GitHub calls)
+
+The new isolated read-only PR job `cloudflare-workerd-integration` uses Cloudflare's official `@cloudflare/vitest-plugin` to run **four actual Workerd runtime tests** against the production `scheduled()` entrypoint. All outbound `fetch` calls are intercepted by a strict in-process fake GitHub API; the suite passes a clearly fake literal token and **never** uses GitHub repository secrets, Cloudflare authentication, real GitHub networking, or actual `workflow_dispatch`.
+
+[Exact-code PR CI #42443452124](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42443452124): both jobs **completed/success**. Existing watchdog: Python tests PASS, Node **32/32 PASS**, Wrangler 4.158.0 `deploy --dry-run` PASS, local Workerd Local Explorer scheduled invalid/expired trigger tests PASS. Independent unprivileged Workerd integration job: Vitest **4/4 PASS**, test file `cloudflare/test/worker_runtime.test.mjs`, four tests completed in a local Workerd process.
+
+Test outcomes:
+1. Valid 07:10 JST recovery tick: **4 GitHub history GETs, then 2 HTTP 204 simulated workflow_dispatches** for CLEAN and four-mode; individual nonsecret audit receipts retained, every formal/first-add flag remains false.
+2. Two already-successful source schedules: four history GETs and **zero POSTs**.
+3. Third history GET returns HTTP 503: **zero POSTs** and no 204 receipt; fail closed across both workflows.
+4. Foreign Cron expression: rejects **before any network access**.
+
+The isolated PR integration job explicitly has `permissions: contents: read`, `actions/checkout@v4` with `persist-credentials:false`, and does not receive the production watchdog job's `Actions:write` token. The first dependency-resolution attempt failed in npm 10 on `edgesOut` (known npm peer-graph bug); the follow-up pins Vitest 4.1.10 and Node 24, and the exact-head CI is green. Dependencies are for tests only, not the deployed Worker; package versions are pinned but transitive npm resolution currently has no committed lockfile, so reproducibility can be improved before merging.
+
+**Scope boundary:** Although the positive scheduled-to-GitHub flow is now independently proven in a real local Workerd process with a mocked API, *real* Cloudflare Cron scheduling, Free-tier CPU usage <= 10ms, actual GitHub 204/run ID, and forecast Git first-add/T−12 source integrity are still **unverified**. Deployment, owner Cloudflare credentials, and the real fine-grained GitHub PAT Secret have not been provided or used. Draft PR only, no automatic main merge, no production Render or GitHub capture changes.
+
+
 ## 2026-11-08: real Workerd scheduled() admission verification — no deployment
 
 The final remaining **local Cron invocation test gap was caused by Wrangler 4.102.0 being too old**, not by the Worker's scheduled handler: Cloudflare [Local Explorer documentation](https://developers.cloudflare.com/workers/local-development/local-explorer/) requires **Wrangler >=4.139.0** for scripted local scheduled events. The PR CI now pins the verified available **Wrangler 4.158.0** for `deploy --dry-run` and the local Workerd / Local Explorer smoke. The actual Worker `compatibility_date` remains `2026-06-24` pending live verification, and the Worker entrypoint remains default-only. No account credentials or real GitHub PAT are provided to CI.
