@@ -86,8 +86,19 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
         previous = created
         rows.append({
             "run_id": entry["id"], "day_jst": created.astimezone(JST).strftime("%Y%m%d"),
+            "created_at_jst": created.astimezone(JST),
             "status": entry.get("status"), "conclusion": entry.get("conclusion")})
     matching = [row for row in rows if row["day_jst"] == day]
+    # A run created before the day's first 07:07 JST trigger cannot be
+    # attributed to one of today's scheduled capture slots. GitHub can deliver
+    # the previous evening's Cron after midnight; retain the raw count but
+    # never use these early runs to satisfy the day's execution presence gate.
+    first_nominal_jst = datetime.combine(
+        datetime.strptime(day, "%Y%m%d").date(), time(7, 7), tzinfo=JST)
+    pre_first_nominal_run_ids = sorted(
+        row["run_id"] for row in matching
+        if row["created_at_jst"] < first_nominal_jst)
+    after_first_nominal_count = len(matching) - len(pre_first_nominal_run_ids)
     # When a full page is all from this day, older scheduled runs may have
     # been truncated. A previous-day boundary (or short unpaginated listing)
     # is needed to certify full same-day metadata coverage.
@@ -107,6 +118,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "all_nominal_daily_slots_due_at_audit": due_slots == NOMINAL_DAILY_CAPTURE_SLOTS,
             "full_calendar_day_schedule_delivery_verified": False,
             "same_day_scheduled_run_count": len(matching),
+            "same_day_pre_first_nominal_run_ids": pre_first_nominal_run_ids,
+            "same_day_at_or_after_first_nominal_run_count": after_first_nominal_count,
+            "observed_after_first_runs_below_nominal_due_by": max(
+                0, due_slots - after_first_nominal_count),
             "nominal_schedule_slots_per_jst_day": NOMINAL_DAILY_CAPTURE_SLOTS,
             "nominal_schedule_slots_due_as_of_audit": due_slots,
             "observed_runs_below_nominal_due_by": max(0, due_slots - len(matching)),
@@ -117,7 +132,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "note": ("full_day_metadata_coverage refers to the bounded GitHub API "
                      "history page through audit_as_of_jst, NOT completion of the "
                      "calendar day. Created-at counts may include delayed prior "
-                     "cron triggers; no per-slot delivery or publication proof.")}
+                     "cron triggers; any pre-07:07 JST observations are "
+                     "excluded from the execution-presence gate while retained "
+                     "in the raw same-day count. No per-slot delivery or "
+                     "publication proof.")}
 
 
 def main():
@@ -143,8 +161,10 @@ def main():
         if not result["full_day_metadata_coverage"]:
             print("::error::Full JST day scheduled run metadata not covered by API page")
             raise SystemExit(2)
-        if result["same_day_scheduled_run_count"] == 0:
-            print("::error::No scheduled V2 capture execution recorded for target JST day")
+        if (result["nominal_schedule_slots_due_as_of_audit"] > 0
+                and result["same_day_at_or_after_first_nominal_run_count"] == 0):
+            print("::error::No scheduled V2 capture after first nominal JST slot; "
+                  "pre-opening delayed runs cannot certify today's execution")
             raise SystemExit(2)
         if result["failed_run_ids"]:
             print("::error::Scheduled V2 captures failed earlier today, outside bounded artifact audit")
