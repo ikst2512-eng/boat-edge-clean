@@ -67,5 +67,10 @@
   "formal_count": 0,
   "model_improvement_proven": false,
   "promotion_allowed": false,
-  "authorization_required_for_live_collection": true
+  "authorization_required_for_live_collection": true,
+  "pinned_dependency_git_blob_sha1": {
+    "research_model.py": "19137116f8ec79d467f73c57c537a9a95f50110d",
+    "four_mode_all_mode_same_job_shadow.py": "f7d2d76d22b5d741921baad8d1db59c66bc66144",
+    "clean_four_modes.py": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d"
+  }
 }
