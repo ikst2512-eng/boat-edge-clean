@@ -61,3 +61,23 @@ This checks every present original saved V2 against the recomputed baseline and 
 | Hole Top1 changed vs baseline | — | 107/116 |
 
 Although 6/116 hit/narrow/balance Top1 **first-boat numbers** changed, the candidate preserves the marginal first-boat probability exactly; this is reallocation among 2nd/3rd combinations, NOT evidence of improved first-place forecasts. **No historical outcome scoring or forward holdout was performed.** Archived original and live predictions are unchanged.
+
+## Forward-only preregistration and result-LAST scorer (2026-11-08 JST)
+
+[Separate locked protocol](../../research/four_mode_position_sensitive_forward_protocol_20261108.json) pins the exact Git blobs of the candidate selector, existing 1st-boat historical model and mode selector. Unlike existing #1693 Top1-pair candidate, this is a DIFFERENT candidate and NEVER overwrites #1693's original cohort or selector. Candidate coefficients remain 0.50 and 0.25.
+
+The new [forward research module](../../four_mode_position_sensitive_forward.py) supports:
+- Strictly pre-T−12 **local-only** freezing from the original exact V2 bytes (and recomputes all original rankings to detect tampering).
+- Start **2026-11-09 JST**; no Nov-05–08 data admitted into prospective evaluation. A locally generated archive DOES NOT establish its independent first remote receipt, so it is **not formally eligible** until independently evidenced in a separate workflow after human integration.
+- Explicit paired Top1/3/5/10 checks for all four modes, with earliest 300 pilot and next 300 confirmation by deadline/race key. Missing or invalid outcomes keep their reserved slot; do not replace or count them as misses.
+- Outcome read occurs only AFTER the full supplied candidate roster/selector/original bytes pass pre-result validation; any invalid candidate fails the whole supplied comparison. Independently authenticated GitHub first remote receipt, complete capture inventory, 6-boat official predeadline evidence and 120 odds remain separate mandatory requirements.
+- Current CLI without a verified original produces `preregistered_candidate_not_running` with `formal=false`. Nothing is published/scheduled or deployed from this PR; local archive output is never described as a trusted remote receipt.
+
+Exact-head [GitHub Actions #42460952169](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42460952169) **SUCCESS** on head `77e123a86fa31d2b83fc124451f85f5438742891`. All **18** unit/negative tests passed, preregistration selector Git blobs were checked, and all 116 Nov-08 V2 input-only replays reproduced with zero exclusions. Forward captures **0**, formal evidence **0**, measured future improvement **unproven**.
+
+### Handoff to other BOAT EDGE CLEAN workstreams
+
+- **#1693 accuracy coordinator:** New candidate has **separate** locked policy and must not pollute the Top1-pair 300+300 study. Arrange a *genuinely predeadline* independent first remote receipt pathway for this candidate and separate prospective pairing only after manual approval.
+- **#1692 venue/wind:** This candidate still uses only six national rates. Collect official 24-venue actual course, wind, motor, exhibition, wall data independently; apply only on future predeadline authentic evidence, never retrofit a favorable parameter.
+- **#1679 UI/Render:** No current UI/Render/healthz modification; production HTTP incident remains separate.
+- **#1698 this Draft:** Contains the immutable candidate, tests, and reference comparator; **do not merge or deploy automatically**.
