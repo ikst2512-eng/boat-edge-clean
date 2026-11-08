@@ -6,6 +6,7 @@ on:
       - index.html
       - server.py
       - tests/live-archived-forecast.cjs
+      - tests/render-http-reachability.sh
       - .github/workflows/live-archived-forecast.yml
   workflow_dispatch:
   schedule:
@@ -21,6 +22,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Capture Render connection timing (non-gating diagnostic)
+        shell: bash
+        run: |
+          set -o pipefail
+          bash tests/render-http-reachability.sh 2>&1 | tee render-reachability.log
       - name: Install browser runner
         timeout-minutes: 12
         run: |
@@ -28,3 +34,10 @@ jobs:
           npx playwright install --with-deps --only-shell chromium
       - name: Verify actual stored prediction displayed on public site
         run: node tests/live-archived-forecast.cjs
+      - name: Preserve transport diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-archive-reachability-${{ github.run_id }}
+          path: render-reachability.log
+          if-no-files-found: warn

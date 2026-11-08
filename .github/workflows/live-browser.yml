@@ -9,6 +9,7 @@ on:
       - tests/live-racecard-navigation.cjs
       - tests/live-verified-payout.cjs
       - tests/live-archived-forecast.cjs
+      - tests/render-http-reachability.sh
       - .github/workflows/live-browser.yml
   schedule:
     - cron: '25 1 * * *'
@@ -23,6 +24,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Capture Render connection timing (non-gating diagnostic)
+        shell: bash
+        run: |
+          set -o pipefail
+          bash tests/render-http-reachability.sh 2>&1 | tee render-reachability.log
       - name: Install browser runner
         timeout-minutes: 12
         run: |
@@ -42,5 +48,6 @@ jobs:
           name: clean-browser-pages-${{ github.run_id }}
           path: |
             browser-smoke.log
+            render-reachability.log
             test-results/
           if-no-files-found: warn
