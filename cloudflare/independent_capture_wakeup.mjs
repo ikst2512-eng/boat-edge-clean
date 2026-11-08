@@ -10,7 +10,8 @@ const SAFE_ERRORS = new Set([
   'GITHUB_DISPATCH_TOKEN_required', 'github_history_http_error',
   'github_history_missing_or_malformed', 'github_history_identity_invalid',
   'github_history_chronology_invalid', 'github_history_pagination_incomplete',
-  'github_external_dispatch_not_accepted', 'recovery_window_expired_before_dispatch',
+  'github_external_dispatch_not_accepted', 'github_dispatch_accepted_without_run_details',
+  'github_dispatch_run_details_missing_or_invalid', 'recovery_window_expired_before_dispatch',
 ]);
 
 export default {
