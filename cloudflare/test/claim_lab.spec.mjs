@@ -77,9 +77,13 @@ describe('real local Workerd SQLite Durable Object at-most-one lab (never dispat
     const valid=slot(8,7,4);
     for(const [kind,s] of [['typo',valid],['clean',valid+60_000],
       ['four_mode',valid],['clean',NaN],['clean',0]]){
-      await expect(g.reserve(kind,s)).rejects.toThrow('research_invalid_slot');
+      const rejected=await g.reserve(kind,s);
+      expect(rejected.acquired).toBe(false);
+      expect(rejected.status).toBe('rejected_invalid_slot');
     }
-    await expect(g.reportRunId('clean',valid,-1)).rejects.toThrow('research_invalid_run_id');
+    const invalidRun=await g.reportRunId('clean',valid,-1);
+    expect(invalidRun.recorded).toBe(false);
+    expect(invalidRun.error).toBe('research_invalid_run_id');
     expect((await g.inspect('clean',valid)).claimed).toBe(false);
   });
 
