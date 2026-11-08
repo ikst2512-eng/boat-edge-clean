@@ -7,6 +7,8 @@ on:
       - 'test_four_mode_position_sensitive_shadow.py'
       - 'four_mode_position_sensitive_forward.py'
       - 'position_sensitive_topk_exposure_audit.py'
+      - 'position_sensitive_paired_guard.py'
+      - 'test_position_sensitive_paired_guard.py'
       - 'test_position_sensitive_topk_exposure_audit.py'
       - 'test_four_mode_position_sensitive_forward.py'
       - 'research/four_mode_position_sensitive_forward_protocol_20261108.json'
@@ -65,9 +67,23 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
+      - name: Explicit zero-future-data paired guard is NOT certification
+        run: |
+          python position_sensitive_paired_guard.py | tee position_paired_guard_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('position_paired_guard_unstarted.json').read_text())
+          if (report.get('confirmed_forward_reference_samples') != 0
+                  or report.get('promotion_allowed') is not False
+                  or report.get('model_improvement_proven') is not False
+                  or report.get('formal') is not False):
+              raise SystemExit('paired_guard_must_be_noncertifying')
+          print('POSITION_SENSITIVE_PAIRED_GUARD_UNSTARTED_SAFE')
+          PY
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
           python four_mode_position_sensitive_shadow.py --day 20261108 | tee position_shadow_input_only.json
@@ -146,4 +162,5 @@ jobs:
           path: |
             position_shadow_input_only.json
             position_shadow_topk_exposure.json
+            position_paired_guard_unstarted.json
           retention-days: 30
