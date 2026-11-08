@@ -628,13 +628,23 @@ jobs:
                       or stats["public_only_result_count"]!=c["public_only_postrace_results"]
                       or stats["observed_hit_count"]!=saved+newly
                       or stats["observed_hit_count"]<original["modes"][mode]["original_top_hits"]["top10"]
-                      or not 0<=stats["mean_squared_error_brier_descriptive"]<=1):
+                      or not 0<=stats["mean_squared_error_brier_descriptive"]<=1
+                      or stats["estimated_full_list_min_pct"] is None
+                      or stats["estimated_full_list_max_pct"] is None
+                      or not (0<=stats["estimated_full_list_min_pct"]<=stats["estimated_full_list_hit_rate_pct"]<=stats["estimated_full_list_max_pct"]<=100)
+                      or stats["estimated_full_list_population_stddev_pp"] is None
+                      or stats["estimated_full_list_population_stddev_pp"]<0
+                      or not (1<=stats["distinct_original_estimated_pct_values"]<=stats["races"])):
                   raise SystemExit("calibration_full_list_vs_top10_reconciliation:"+mode)
               print("ORIGINAL_CALIBRATION_REFERENCE:"+mode+
                     ":estimated_full_pct="+str(stats["estimated_full_list_hit_rate_pct"])+
                     ":actual_full_pct="+str(stats["observed_full_list_hit_rate_pct"])+
                     ":gap_pp="+str(stats["observed_minus_estimated_percentage_points"])+
-                    ":actual_full_hits="+str(stats["observed_hit_count"]))
+                    ":actual_full_hits="+str(stats["observed_hit_count"])+
+                    ":estimated_min="+str(stats["estimated_full_list_min_pct"])+
+                    ":estimated_max="+str(stats["estimated_full_list_max_pct"])+
+                    ":estimated_sd_pp="+str(stats["estimated_full_list_population_stddev_pp"])+
+                    ":distinct_estimates="+str(stats["distinct_original_estimated_pct_values"]))
           print("ORIGINAL_CALIBRATION_FORMAL_COUNT:0")
           PY
       - name: Audit real frozen historical archives by version and day
