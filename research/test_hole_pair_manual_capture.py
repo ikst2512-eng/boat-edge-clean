@@ -36,7 +36,9 @@ class ManualCaptureTests(unittest.TestCase):
 
     def freezer(self, code, root):
         self.calls.append(code)
-        return frozen(code)
+        record = frozen(code)
+        record.pop("source_git_blob_sha1")  # freezer() leaves blob for capture driver
+        return record
 
     def run_capture(self, paths=None, freezer=None, **changes):
         return m.capture(
@@ -68,7 +70,7 @@ class ManualCaptureTests(unittest.TestCase):
         def freezer(code, root):
             if code.endswith("02"):
                 return {"race_code": code, "status": "after_t_minus_12", "formal": False}
-            return frozen(code)
+            return self.freezer(code, root)
         out = self.run_capture([PATH1, PATH2], freezer)
         self.assertEqual(out["frozen_count"], 1)
         self.assertEqual(out["excluded_by_reason"], {"after_t_minus_12": 1})
@@ -139,7 +141,7 @@ class ManualCaptureTests(unittest.TestCase):
 
     def test_invalid_frozen_method_or_blob_does_not_make_candidate_artifact(self):
         def bad(code, root):
-            r = frozen(code)
+            r = self.freezer(code, root)
             r["method_source_sha256"] = "0" * 64
             return r
         with self.assertRaisesRegex(ValueError, "untrusted_candidate_claim_or_method"):
