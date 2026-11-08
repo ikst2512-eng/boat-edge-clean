@@ -48,7 +48,28 @@ def inspect(pair, frozen):
         raise ValueError("cross-day original/forecast timestamp")
     last_source = max(before, odds)
     hash_verified = pair.get("originals_hash_verified") is True
-    two_sources_complete = pair.get("both_complete_before_t12") is True
+    # Independent audit_pair emits these individually replayed original-source
+    # checks. Never infer the underlying 6/6 exhibition or 120 odds solely
+    # from an aggregate boolean, even in a research-only diagnostic.
+    expected_components = (
+        "six_unique_boats",
+        "exhibition_time_six",
+        "tilt_six",
+        "start_exhibition_six",
+        "beforeinfo_received_by_t12",
+        "official_odds_120",
+        "odds_received_by_t12",
+    )
+    component_checks = pair.get("component_checks")
+    components_verified = (isinstance(component_checks, dict) and
+                           all(component_checks.get(name) is True
+                               for name in expected_components))
+    exhibition_complete = pair.get("exhibition_complete") is True
+    odds_120_complete = pair.get("odds_120_complete") is True
+    two_sources_complete = (
+        pair.get("both_complete_before_t12") is True
+        and components_verified and exhibition_complete and odds_120_complete
+    )
     sources_before_t12 = before <= cutoff and odds <= cutoff
     # Same-timestamp evidence cannot establish source-before-generation order.
     # The 2026-11-05 first-commit audit likewise rejects same-second ambiguity.
@@ -60,6 +81,12 @@ def inspect(pair, frozen):
         missing.append("two_originals_not_hash_verified")
     if not two_sources_complete:
         missing.append("two_originals_incomplete")
+    if not components_verified:
+        missing.append("official_pair_component_checks_missing_or_false")
+    if not exhibition_complete:
+        missing.append("official_exhibition_six_incomplete_or_unverified")
+    if not odds_120_complete:
+        missing.append("official_120_odds_incomplete_or_unverified")
     if not sources_before_t12:
         missing.append("official_original_received_after_t12")
     if not generated_after_sources:
@@ -87,6 +114,9 @@ def inspect(pair, frozen):
         "last_source_minus_generation_seconds":
             round((last_source - generated).total_seconds(), 3),
         "source_pair_sha_verified": hash_verified,
+        "official_component_checks_verified": bool(components_verified),
+        "official_exhibition_six_complete": exhibition_complete,
+        "official_odds_120_complete": odds_120_complete,
         "two_source_complete_before_t12": two_sources_complete,
         "source_receipts_before_t12": sources_before_t12,
         "forecast_generated_after_official_pair": generated_after_sources,
