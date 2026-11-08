@@ -144,10 +144,15 @@ def summarize(snapshots, day):
     ids = [r.get("id") for r in all_runs]
     if any(type(x) is not int or x <= 0 for x in ids) or len(set(ids)) != len(ids):
         raise ValueError("duplicate_or_invalid_github_run_id")
-    selected = [r for r in all_runs if r.get("name") == NAME]
+    # Match by either immutable workflow path OR current display name.
+    # A renamed capture workflow must be surfaced as an identity conflict,
+    # never silently dropped from the reported run population.
+    selected = [r for r in all_runs
+                if r.get("name") == NAME or r.get("path") == WORKFLOW]
     report = []
     for r in sorted(selected, key=lambda x:(x["created_at"], x["id"])):
-        if (r.get("path") != WORKFLOW or r.get("head_branch") != "main"
+        if (r.get("name") != NAME or r.get("path") != WORKFLOW
+                or r.get("head_branch") != "main"
                 or r.get("event") not in EVENTS):
             raise ValueError("wrong_capture_workflow_identity")
         attempt = r.get("run_attempt")
