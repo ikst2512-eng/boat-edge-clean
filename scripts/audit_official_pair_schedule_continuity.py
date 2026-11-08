@@ -106,10 +106,15 @@ def inventory(repo, day, token, *, fetch=None, as_of=None):
         selected.append({"run_id": rid, "created_at_utc": created.isoformat(),
                          "created_at_jst": created.astimezone(JST).isoformat(),
                          "status": run.get("status"),
-                         "conclusion": run.get("conclusion")})
+                         "conclusion": run.get("conclusion"),
+                         # This labels actual creation hour only; it does not
+                         # establish which scheduled minute GitHub attempted.
+                         "created_within_declared_cron_hours": created.hour < 13})
     selected.sort(key=lambda r: r["created_at_utc"])
     expected = 13 * 12
     observed = len(selected)
+    inside_cron_hours = sum(r["created_within_declared_cron_hours"] for r in selected)
+    outside_cron_hours = observed - inside_cron_hours
     return {
         "schema": "OFFICIAL_PAIR_SCHEDULE_CONTINUITY_AUDIT_V1",
         "utc_day": day,
@@ -121,6 +126,15 @@ def inventory(repo, day, token, *, fetch=None, as_of=None):
         "future_nominal_slots": expected - elapsed,
         "total_repository_schedule_runs": known_total,
         "observed_official_pair_schedule_runs": observed,
+        # An off-hours schedule-labelled event may be delayed, but it cannot
+        # prove an invocation within this workflow's declared UTC 0-12 hours.
+        "observed_within_declared_cron_hours": inside_cron_hours,
+        "observed_outside_declared_cron_hours": outside_cron_hours,
+        "in_hours_to_elapsed_slot_pct": (
+            round(100 * inside_cron_hours / elapsed, 2) if elapsed else None
+        ),
+        "in_hours_invocation_count_deficit": max(0, elapsed - inside_cron_hours),
+        # Preserve the legacy all-event metrics for audit compatibility.
         "observed_to_elapsed_slot_pct": round(100 * observed / elapsed, 2) if elapsed else None,
         "nominal_invocation_count_deficit": max(0, elapsed - observed),
         "run_success": sum(r["conclusion"] == "success" for r in selected),
@@ -134,7 +148,10 @@ def inventory(repo, day, token, *, fetch=None, as_of=None):
         "forecast_usable": False,
         "note": ("Counts compare GitHub observed schedule events with nominal cron slots. "
                  "Delayed/dropped trigger attribution and the actual source contents "
-                 "cannot be inferred from run metadata. Green no-op is not T-12 proof."),
+                 "cannot be inferred from run metadata. Green no-op is not T-12 proof. "
+                 "All-event counts include off-hours schedule-labelled runs; the "
+                 "in-hours count is a distinct observed-creation-hour measure and "
+                 "is not proof of an exact five-minute scheduled slot."),
         "runs": selected,
     }
 
