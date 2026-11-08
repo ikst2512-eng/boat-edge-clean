@@ -393,6 +393,31 @@ jobs:
           print("CURRENT_CSV_PERSISTENCE_GAPS:"+str(pending))
           print("NO_FORMAL_RESULT_ADMISSION")
           PY
+      - name: Test public source gap status and historical snapshot drift (no results written)
+        run: python -m unittest -v test_four_mode_nov05_08_raw_source_observation
+      - name: Observe latest public source CSV independently (research-only, no writes)
+        run: |
+          python four_mode_nov05_08_raw_source_observation.py --output four_mode_nov05_08_postrace_source_observation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          if (r.get("formal") is not False or r.get("formally_eligible_races")!=0
+                  or r.get("prospective_candidate_pairs")!=0
+                  or r.get("model_promotion_allowed") is not False
+                  or r.get("comparison_only_not_storage_repair") is not True):
+              raise SystemExit("research_source_observation_formal_guard_changed")
+          print("PUBLIC_SOURCE_OBSERVATION_STATUS="+r["status"])
+          for day, row in r["by_day"].items():
+              print("PUBLIC_SOURCE_DAY="+day+
+                    ":pending="+str(row["pending_saved_forecast_results"])+
+                    ":classes="+str(row["pending_classes"])+
+                    ":sha="+row["current_snapshot_sha256"])
+          for day, err in r["source_errors"].items():
+              print("PUBLIC_SOURCE_UNVERIFIED="+day+":"+str(err))
+          if r["source_conflict_count"]>0:
+              raise SystemExit("persisted_finish_conflicts_latest_source_manual_review")
+          PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
@@ -401,6 +426,7 @@ jobs:
           path: |
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
+            four_mode_nov05_08_postrace_source_observation.json
             four_mode_current_raw_csv_status.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
