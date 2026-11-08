@@ -1,0 +1,34 @@
+name: Position-sensitive 4-mode research shadow checks
+
+on:
+  pull_request:
+    paths:
+      - 'four_mode_position_sensitive_shadow.py'
+      - 'test_four_mode_position_sensitive_shadow.py'
+      - 'docs/research/four_mode_position_sensitive_shadow_20261108.md'
+      - '.github/workflows/position-sensitive-four-mode-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  research-only-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit and negative regression tests
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow
+      - name: Read-only replay of original Nov-08 frozen archive inputs
+        run: |
+          python four_mode_position_sensitive_shadow.py --day 20261108 | tee position_shadow_input_only.json
+      - name: Upload diagnostic (not accuracy or certification)
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-input-only-${{ github.run_id }}
+          path: position_shadow_input_only.json
+          retention-days: 30
