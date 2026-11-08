@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 JST = timedelta(hours=9)
-SHA = re.compile(r"[a-f0-9]{64}\\Z")
+SHA = re.compile(r"[a-f0-9]{64}\Z")
 COMPONENTS = (
     "racecard_original_hash_verified",
     "racecard_six_registrations",
