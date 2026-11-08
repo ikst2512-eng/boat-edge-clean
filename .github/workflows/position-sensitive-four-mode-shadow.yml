@@ -11,6 +11,8 @@ on:
       - 'position_sensitive_paired_inference.py'
       - 'position_sensitive_feature_inventory.py'
       - 'position_sensitive_receipt_intake.py'
+      - 'position_sensitive_append_only_research.py'
+      - 'test_position_sensitive_append_only_research.py'
       - 'position_sensitive_t12_window_audit.py'
       - 'test_position_sensitive_t12_window_audit.py'
       - 'test_position_sensitive_receipt_intake.py'
@@ -75,7 +77,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -120,6 +122,21 @@ jobs:
                   or p.get('promotion_allowed') is not False):
               raise SystemExit('false_future_candidate_remote_receipt')
           print('POSITION_SENSITIVE_REMOTE_CANDIDATE_INTAKE_FAIL_CLOSED')
+          PY
+      - name: Candidate append-only remote adapter must remain disabled
+        run: |
+          python position_sensitive_append_only_research.py | tee position_append_only_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('position_append_only_unstarted.json').read_text())
+          if (data.get("status") != "adapter_uninstalled_no_live_publisher" or
+                  data.get("actual_candidate_publications") != 0 or
+                  data.get("formal") is not False or
+                  data.get("promotion_allowed") is not False or
+                  data.get("production_changed") is not False):
+              raise SystemExit("research_append_only_adapter_must_not_be_live")
+          print("POSITION_SENSITIVE_APPEND_ONLY_ADAPTER_NOT_INSTALLED")
           PY
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
@@ -240,5 +257,6 @@ jobs:
             position_paired_inference_unstarted.json
             position_shadow_feature_inventory.json
             position_receipt_intake_unstarted.json
+            position_append_only_unstarted.json
             position_shadow_t12_windows.json
           retention-days: 30
