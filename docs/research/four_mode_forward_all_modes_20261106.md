@@ -95,3 +95,49 @@
 - 11月8日116件の**予想原本だけ**のテストでは、既存本命Top1の頭 `1:109,2:5,3:2` に対して候補 `1:95,2:12,3:5,4:4`、1着艇変更 **14/116件**、本命Top10集合変更 **1/116件**、他3モード変更0件。これは入力感度に関する構造診断であり、**的中獲得・喪失やROIを測定した結果ではない**。11月5〜8日の結果を当方式の前向き比較に流用しない。
 - 他Draft **#1698** は2・3着への条件付き順位傾斜を扱い、1着艇の総確率配分は保持する研究。今回はそのファイルには触れず、両候補を混ぜて事後最適化もしない。場・風・コース・展示ST・壁性能・オッズの未取得値は仮定で補わず、#1692とは別研究。
 - 新テストはデータ改ざん拒否、結果フィールド拒否、10点予算・重複なし、他モード保護、非必要時に頭を無理に変更しない、11月9日以降を発見期間に流用しないことを検証。現時点では**研究コードのPR CIだけ**。mainおよび同一ジョブの本番保存経路には未統合、候補の将来初回受領ゼロ、正式母数ゼロ、改善認定ゼロ、手動審査必須。
+
+
+## 2026-11-08: Nov5–8 V2 daily original-versus-result reference audit, 441 settled
+
+**Reproduced on actual persisted JSON, not hypothetical replays.** Draft-only [research CI #42465929089](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42465929089) passed at code head 153ed7b5351f1fee4be740de440318486e6da4ad (2026-11-08 18:09 JST). New read-only script four_mode_nov05_08_daily_reference_audit.py and its 8 unit tests compare saved four_mode_forecasts 12-digit race-code JSON to separately persisted confirmed_results JSON. The latter is a collector-validated third-party postrace CSV record, not an official pre-result receipt. Checks include V2 version, all four ticket budgets, saved deadline and generation timestamps, collector result/source metadata, and result acquisition after deadline. Missing results are pending, never losses. No generated candidate, odds, weather, Gemini response, or rank modification was involved.
+
+| JST day | Saved V2 forecasts | Comparable persisted results (denominator) | Pending results | Invalid/excluded |
+|---|---:|---:|---:|---:|
+| 2026-11-05 | 106 | 106 | 0 | 0 |
+| 2026-11-06 | 130 | 119 | 11 | 0 |
+| 2026-11-07 | 122 | 121 | 1 | 0 |
+| 2026-11-08 | 116 | 95 | 21 | 0 |
+| **total** | **474** | **441** | **33** | **0** |
+
+Each cell is **Top1 / Top3 / Top5 / Top10 exact trifecta hit counts**, with the matching day's comparable-result denominator from above. All four modes score the same race IDs per day.
+
+| JST day | narrow (5) | hit (10) | balance (16) | hole (22) |
+|---|---|---|---|---|
+| 2026-11-05 | 4 / 21 / 33 / 33 | 4 / 21 / 33 / 53 | 4 / 23 / 32 / 52 | 2 / 6 / 9 / 16 |
+| 2026-11-06 | 7 / 23 / 32 / 32 | 7 / 23 / 32 / 49 | 7 / 23 / 30 / 50 | 4 / 9 / 16 / 27 |
+| 2026-11-07 | 3 / 15 / 26 / 26 | 3 / 15 / 26 / 44 | 3 / 14 / 20 / 43 | 3 / 11 / 16 / 25 |
+| 2026-11-08 | 4 / 12 / 19 / 19 | 4 / 12 / 19 / 42 | 4 / 12 / 19 / 42 | 4 / 7 / 12 / 20 |
+| **reference-only 441** | **18 / 71 / 110 / 110** | **18 / 71 / 110 / 188** | **18 / 72 / 101 / 187** | **13 / 33 / 53 / 88** |
+
+Top10 on the 441 matched records is narrow **110/441 (24.94%)**, hit **188/441 (42.63%)**, balance **187/441 (42.40%)**, hole **88/441 (19.95%)**. Top1 is respectively **18/441, 18/441, 18/441, 13/441**. Four retrospective days pooled together do NOT constitute a prospective independent holdout or formally valid accuracy.
+
+### Failure partition by position (saved FULL ticket set, not just Top10)
+
+Categories are mutually exclusive: fully covered / winning first boat absent / correct first boat but winning first-second PAIR absent / correct first-second pair but third boat absent. These are coverage diagnostics, not physical race-causation findings.
+
+| Mode | Full-list covered | Winner first boat absent | Winning first-second pair absent | Winning third absent | Sum |
+|---|---:|---:|---:|---:|---:|
+| narrow | 110 | 169 | 106 | 56 | 441 |
+| hit | 188 | 132 | 79 | 42 | 441 |
+| balance | 243 | 55 | 86 | 57 | 441 |
+| hole | 137 | 23 | 166 | 115 | 441 |
+
+**Prioritized implications, without retroactive tuning:**
+- First-boat coverage is the largest narrow/hit failure category. Previous result-blind Nov8 input audit found a fixed 1,000-case prior with identical within-head 1-2-4 versus 1-2-3 relative weight (60.5/59.5) regardless of downstream boat rates. This is a structural research hypothesis, NOT a proved success. Standalone Top1/head-prior protocols remain unchanged.
+- Balance covers **243/441** with all 16 saved tickets but just **187/441** within Top10: **56 correct trifectas at ranks 11–16**. This is a candidate-ranking opportunity for the EXISTING all-mode Top10 diversity experiment. Promoting lower ranks may also lose existing winners; positive net effect remains unproved.
+- Hole covers **137/441** with 22 tickets but only **88/441** in Top10: 49 full-list wins were ranks 11–22. The 166 first-second-pair and 115 third-boat failures contextualize overall quality but do NOT authorize duplicating hole-specific research in Draft #1685/#1688.
+- Original V2 probability scoring has saved six national rates plus a fixed prior; wind, venue, exhibition ST, motors, 2-course wall and real entry are not inside individual saved V2 forecast JSONs. Do not attribute the failure partition to those conditions without predeadline feature provenance. Existing 24-venue work #1692 and second/third conditional study #1698 are untouched.
+
+**Evidence limits:** Nov6 pending 11 codes 202611060802–202611060812; Nov7 pending 202611070302; Nov8 pending 21 codes across 202611080106–112, 202611081206–212, 202611081906–912. Never score pending as misses or backfill with other races. This run checked saved independently collected RESULT RECORDS but did NOT freshly redownload/re-hash the actual third-party result CSV source bytes; stored SHA metadata is not an independent raw-byte verification. Neither original/candidate independent first remote receipt, official T-12 six-boat beforeinfo and odds 120, nor complete schedule-run inventory was established. Therefore formal=false, **formal count=0**, prospective candidate pairs=0, improvement proven=false, no model promotion. The Nov5–8 data remain discovery/reference only, excluded from the separate Nov9+ Top1 prospective study. Original preregistered Top10 300-pilot plus 300-confirmation, four-mode Holm gate and all existing selector pins are unchanged. CI is a dry-run audit, not production capture.
+
+**Next gate:** With manual approval of a separate future collection path only, freeze new original/candidate SAME-race, SAME-budget pairs before outcomes; prove independent first receipt and official per-race T-12 provenance; preserve both gained and lost TopN winners and unfilled cohort slots; then test 300 pilot plus 300 confirmation with the registered Holm correction. Until independently proven, main, public tickets and weights remain unchanged. No auto-merge.
