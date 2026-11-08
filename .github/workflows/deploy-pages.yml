@@ -503,11 +503,12 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
-      - name: Observe published JST-day candidate tickets (diagnostic)
+      - name: Observe published JST-day candidate history (diagnostic)
         timeout-minutes: 3
-        # External archives can be missing or delayed; record UNVERIFIED rather
-        # than turning absence of evidence into a false-positive publish failure.
+        # Preserve diagnostics, but never certify formal prediction accuracy.
         continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           node - <<'JS'
           const {chromium}=require('playwright');
@@ -518,30 +519,29 @@ jobs:
             try{
               const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
               const errors=[];page.on('pageerror',e=>errors.push(e.message));
-              const response=await page.goto('https://boat-edge-clean.onrender.com/selection',{waitUntil:'domcontentloaded',timeout:30000});
+              const target=new URL('candidates.html?date=2026-11-08',process.env.PAGE_URL).href;
+              const response=await page.goto(target,{waitUntil:'domcontentloaded',timeout:30000});
               if(!response||response.status()!==200)throw Error('candidate_page_http_'+response?.status());
               await page.waitForFunction(()=>{
-                const text=document.querySelector('#candidateStatus')?.textContent||'';
-                return !!text&&!text.includes('確認中');
-              },null,{timeout:90000});
+                const value=document.querySelector('#candidateStatus')?.textContent||'';
+                return value.startsWith('保存候補 ')||value.includes('読み込めません')||value.includes('公開されていません');
+              },null,{timeout:30000});
               const evidence=await page.evaluate(()=>{
                 const status=document.querySelector('#candidateStatus')?.textContent?.trim()||'';
-                const cards=[...document.querySelectorAll('#candidateCards > article.card')];
-                return {date:document.querySelector('#todayCandidateDate')?.textContent?.trim(),
-                  status,count:cards.length,
-                  items:cards.map(c=>({title:c.querySelector('strong')?.textContent?.trim(),
-                    provenance:c.querySelector('p.notes')?.textContent?.trim(),
-                    ticketText:c.querySelectorAll('p.notes')[1]?.textContent?.trim()?.slice(0,150)}))};
+                const cards=[...document.querySelectorAll('#candidateCards > details.candidate-history-card')];
+                return {status,count:cards.length,unique:new Set(cards.map(c=>c.dataset.raceCode)).size,
+                  first:cards[0]?.querySelector('summary')?.textContent?.trim()};
               });
-              if(evidence.count>6)throw Error('candidate_limit_exceeded_'+evidence.count);
-              if(evidence.count&&!evidence.status.includes(evidence.count+'レース表示'))
-                throw Error('candidate_status_count_disagrees_'+JSON.stringify(evidence));
-              if(evidence.items.some(c=>!c.title||!c.ticketText?.includes('保存済み3連単')||
-                  !c.provenance?.includes('研究予想')||!c.provenance?.includes('検証')))
-                throw Error('candidate_warning_or_tickets_missing_'+JSON.stringify(evidence));
+              if(evidence.count<=6||evidence.unique!==evidence.count)
+                throw Error('candidate_archive_not_complete_'+JSON.stringify(evidence));
+              if(!evidence.status.includes('保存候補 '+evidence.count+'件'))
+                throw Error('candidate_history_count_mismatch_'+JSON.stringify(evidence));
+              await page.locator('#candidateCards > details.candidate-history-card').first().locator('summary').click();
+              if(!(await page.locator('#candidateCards > details.candidate-history-card').first().locator('.candidate-tickets').first().innerText()).includes('-'))
+                throw Error('candidate_saved_tickets_missing');
               if(errors.length)throw Error('candidate_page_js_errors_'+errors.join(';').slice(0,300));
               console.log('CLEAN_CANDIDATE_PUBLIC_DISPLAY',JSON.stringify(evidence));
-              summary('Real JST-day candidate page: **'+(evidence.count?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
+              summary('Published stored candidate archive: **'+(evidence.count>6?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
                 '** '+JSON.stringify(evidence).slice(0,1100));
             }catch(e){
               console.error('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED',e.message);
@@ -596,9 +596,9 @@ jobs:
               }
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1');
               // Pages has project-prefix URLs; navigation.js must preserve the review
-              // screen locally while directing candidate listings to CLEAN Render.
-              const candidateHref=await page.locator('.site-head a.header-candidate-tab[href*="/selection"]').getAttribute('href');
-              if(candidateHref!=='https://boat-edge-clean.onrender.com/selection')throw Error('PAGES_CANDIDATE_ROUTE_BROKEN '+candidateHref);
+              // screen locally and candidate history to independent GitHub Pages.
+              const candidateHref=await page.locator('.site-head a.header-candidate-tab[href*="candidates.html"]').getAttribute('href');
+              if(candidateHref!=='/boat-edge-clean/candidates.html')throw Error('PAGES_CANDIDATE_ROUTE_BROKEN '+candidateHref);
               const reviewHref=await page.locator('.site-global-nav a').getAttribute('href');
               const reviewUrl=new URL(reviewHref,process.env.PAGE_URL);
               if(reviewUrl.origin!==new URL(process.env.PAGE_URL).origin||reviewUrl.searchParams.get('screen')!=='review')
