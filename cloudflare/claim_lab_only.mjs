@@ -16,6 +16,7 @@ export class CaptureClaimResearch extends DurableObject {
         kind TEXT NOT NULL,
         slot_ms INTEGER NOT NULL,
         reported_run_id INTEGER,
+        claim_token TEXT NOT NULL,
         PRIMARY KEY(kind,slot_ms)
       )`);
     });
@@ -35,23 +36,33 @@ export class CaptureClaimResearch extends DurableObject {
     // A single SQLite INSERT with UNIQUE constraint makes winner election
     // atomic even if several Worker invocations invoke this DO concurrently.
     // No await or external I/O between existence test and insertion.
+    // An unguessable one-time claimant token is stored with the atomic claim.
+    // It is returned ONLY to the winning caller. Never log or expose the
+    // token through inspect(); a different caller cannot attach a forged ID.
+    const token=crypto.randomUUID();
     const inserted=this.ctx.storage.sql.exec(
-      'INSERT INTO research_claims(kind,slot_ms) VALUES(?,?) ON CONFLICT DO NOTHING RETURNING slot_ms',
-      kind,slotMs).toArray();
-    return {kind,slot_ms:slotMs,acquired:inserted.length===1,
-      status:inserted.length===1?'claimed_uncertain':'already_claimed',
+      'INSERT INTO research_claims(kind,slot_ms,claim_token) VALUES(?,?,?) ON CONFLICT DO NOTHING RETURNING slot_ms',
+      kind,slotMs,token).toArray();
+    const acquired=inserted.length===1;
+    return {kind,slot_ms:slotMs,acquired,
+      status:acquired?'claimed_uncertain':'already_claimed',
+      ...(acquired?{claim_token:token}:{}),
       forecast_saved_proven:false, formal:false};
   }
 
-  async reportRunId(kind,slotMs,runId){
+  async reportRunId(kind,slotMs,claimToken,runId){
     if(!this.validSlot(kind,slotMs)) return {recorded:false,
       error:'research_invalid_slot',github_run_verified:false,forecast_saved_proven:false,formal:false};
+    if(typeof claimToken!=='string' ||
+       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(claimToken))
+      return {recorded:false,error:'research_invalid_claim_token',
+        github_run_verified:false,forecast_saved_proven:false,formal:false};
     if(!Number.isSafeInteger(runId)||runId<=0) return {recorded:false,
       error:'research_invalid_run_id',github_run_verified:false,forecast_saved_proven:false,formal:false};
     // Can record a run ID at most once. Does NOT prove GitHub run completion.
     const saved=this.ctx.storage.sql.exec(
-      'UPDATE research_claims SET reported_run_id=? WHERE kind=? AND slot_ms=? AND reported_run_id IS NULL RETURNING reported_run_id',
-      runId,kind,slotMs).toArray();
+      'UPDATE research_claims SET reported_run_id=? WHERE kind=? AND slot_ms=? AND claim_token=? AND reported_run_id IS NULL RETURNING reported_run_id',
+      runId,kind,slotMs,claimToken).toArray();
     return {recorded:saved.length===1,
       reported_run_id:saved.length?runId:null,github_run_verified:false,
       forecast_saved_proven:false,formal:false};
