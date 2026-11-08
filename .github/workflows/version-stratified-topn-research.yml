@@ -649,6 +649,50 @@ jobs:
                     ":estimated_sd_pp="+str(stats["estimated_full_list_population_stddev_pp"])+
                     ":distinct_estimates="+str(stats["distinct_original_estimated_pct_values"])+
                     ":historical_auc="+str(stats["descriptive_original_estimate_hit_discrimination_auc"]))
+          leave=c.get("leave_one_day_out_original_auc")
+          if (c.get("leave_one_day_out_is_descriptive_robustness_not_prospective") is not True
+                  or not isinstance(leave,dict) or set(leave)!=set(expected)):
+              raise SystemExit("missing_or_invalid_day_exclusion_robustness")
+          expected_days=set(c["by_day"])
+          if expected_days!={"20261105","20261106","20261107","20261108"}:
+              raise SystemExit("unexpected_historical_day_roster")
+          for mode, detail in leave.items():
+              rows=detail.get("excluding_each_day")
+              if (detail.get("not_prospective_or_cross_validated_model_training") is not True
+                      or not isinstance(rows,dict) or set(rows)!=expected_days):
+                  raise SystemExit("missing_leave_one_day_out_cases:"+mode)
+              valid=[]
+              for removed, case in rows.items():
+                  include=expected_days-{removed}
+                  n=sum(c["by_day"][day][mode]["races"] for day in include)
+                  positive=sum(c["by_day"][day][mode]["observed_hit_count"] for day in include)
+                  auc=case["descriptive_original_estimate_hit_discrimination_auc"]
+                  if (set(case["included_days"])!=include
+                          or case["excluded_day"]!=removed
+                          or case["included_races"]!=n
+                          or case["observed_full_list_hits"]!=positive
+                          or case["observed_full_list_misses"]!=n-positive
+                          or auc is not None and not 0<=auc<=1):
+                      raise SystemExit("day_exclusion_denominator_or_auc:"+mode+":"+removed)
+                  if auc is not None:
+                      valid.append(auc)
+              if detail["evaluable_day_exclusions"]!=len(valid):
+                  raise SystemExit("day_exclusion_eligible_count:"+mode)
+              if valid:
+                  if (detail["minimum_three_day_auc"]!=min(valid)
+                          or detail["maximum_three_day_auc"]!=max(valid)
+                          or detail["range_across_omitted_days"]!=round(max(valid)-min(valid),5)):
+                      raise SystemExit("day_exclusion_auc_range:"+mode)
+              else:
+                  if any(detail[k] is not None for k in
+                         ("minimum_three_day_auc","maximum_three_day_auc","range_across_omitted_days")):
+                      raise SystemExit("day_exclusion_auc_unknown_must_remain_null:"+mode)
+              print("ORIGINAL_AUC_LEAVE_ONE_DAY_OUT:"+mode+":pooled="+str(
+                    c["mode"][mode]["descriptive_original_estimate_hit_discrimination_auc"])+
+                    ":min="+str(detail["minimum_three_day_auc"])+
+                    ":max="+str(detail["maximum_three_day_auc"])+
+                    ":by_removed_day="+str({d:v["descriptive_original_estimate_hit_discrimination_auc"]
+                                              for d,v in rows.items()}))
           print("ORIGINAL_CALIBRATION_FORMAL_COUNT:0")
           PY
       - name: Audit real frozen historical archives by version and day
