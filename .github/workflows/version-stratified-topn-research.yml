@@ -344,55 +344,6 @@ jobs:
                   raise SystemExit("nov05_reference_hit_drift:"+mode+":"+str(got))
           print("NOV05_106_REFERENCE_SCORES_REPRODUCED")
           PY
-      - name: Independently re-read current public result CSV for Nov5-8 (read-only research)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python four_mode_result_raw_csv_audit.py --fetch --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json | tee four_mode_current_raw_csv_status.json
-      - name: Refuse result-row disagreement and fabricated formal status
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          v=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
-          if (v.get("schema")!="FOUR_MODE_ORIGINAL_CURRENT_PUBLIC_RESULT_CSV_RESEARCH_AUDIT_V1"
-                  or v.get("formal") is not False or v.get("formal_count") != 0
-                  or v.get("prospective_candidate_pairs") != 0
-                  or v.get("model_improvement_proven") is not False
-                  or v.get("model_promotion_allowed") is not False
-                  or v.get("candidate_not_scored") is not True
-                  or v.get("current_raw_hash_not_historical_first_result_sha") is not True
-                  or set(v.get("by_day",{}))!={"20261105","20261106","20261107","20261108"}):
-              raise SystemExit("untrusted_public_result_source_audit")
-          official=v.get("official_non_scored_reference")
-          if (type(official) is not dict
-                  or official.get("non_scored_total")!=12
-                  or official.get("non_scored_counts_by_type")!={"cancelled_race_day":11,
-                                                                 "trifecta_not_established":1}
-                  or official.get("official_pages_live_rechecked_by_script") is not False
-                  or official.get("formal") is not False
-                  or official.get("model_promotion_allowed") is not False):
-              raise SystemExit("official_non_scoreable_reference_unverifiable")
-          if (official["remaining_unresolved_result_races"]+
-                  official["non_scored_total"]!=v["frozen_original_result_reference"]["pending_results"]
-                  or official["maximum_potential_trifecta_slots_in_saved_forecasts"]+
-                     official["non_scored_total"]!=v["frozen_original_result_reference"]["forecast_files"]):
-              raise SystemExit("official_non_scoreable_denominator_mismatch")
-          print("MANUALLY_REVIEWED_OFFICIAL_NON_SCOREABLE:"+str(official["non_scored_total"]))
-          totals=v["totals"]
-          ref=v["frozen_original_result_reference"]
-          agree=totals.get("saved_result_rows_matched_current_csv",0)
-          mismatch=totals.get("saved_result_rows_disagree_or_not_present",0)
-          pending=sum(n for k,n in totals.items() if k not in (
-              "saved_result_rows_matched_current_csv",
-              "saved_result_rows_disagree_or_not_present"))
-          if (mismatch or agree!=ref["evaluated"] or pending!=ref["pending_results"]
-                  or ref["excluded"]!=0):
-              raise SystemExit("public_csv_row_or_roster_discrepancy")
-          print("CURRENT_CSV_VS_STORED_ROWS_MATCHED:"+str(agree))
-          print("CURRENT_CSV_PERSISTENCE_GAPS:"+str(pending))
-          print("NO_FORMAL_RESULT_ADMISSION")
-          PY
       - name: Test public source gap status and historical snapshot drift (no results written)
         run: python -m unittest -v test_four_mode_nov05_08_raw_source_observation
       - name: Observe latest public source CSV independently (research-only, no writes)
@@ -449,6 +400,109 @@ jobs:
               print("PUBLIC_SOURCE_UNVERIFIED="+day+":"+str(err))
           if r["source_conflict_count"]>0:
               raise SystemExit("persisted_finish_conflicts_latest_source_manual_review")
+          PY
+      - name: Cross-audit the same retained public CSV source snapshot (never refetch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_result_raw_csv_audit.py --source-dir four_mode_nov05_08_public_source_raw --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json | tee four_mode_current_raw_csv_status.json
+      - name: Refuse result-row disagreement and fabricated formal status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
+          if (v.get("schema")!="FOUR_MODE_ORIGINAL_CURRENT_PUBLIC_RESULT_CSV_RESEARCH_AUDIT_V1"
+                  or v.get("formal") is not False or v.get("formal_count") != 0
+                  or v.get("prospective_candidate_pairs") != 0
+                  or v.get("model_improvement_proven") is not False
+                  or v.get("model_promotion_allowed") is not False
+                  or v.get("candidate_not_scored") is not True
+                  or v.get("current_raw_hash_not_historical_first_result_sha") is not True
+                  or set(v.get("by_day",{}))!={"20261105","20261106","20261107","20261108"}):
+              raise SystemExit("untrusted_public_result_source_audit")
+          official=v.get("official_non_scored_reference")
+          if (type(official) is not dict
+                  or official.get("non_scored_total")!=12
+                  or official.get("non_scored_counts_by_type")!={"cancelled_race_day":11,
+                                                                 "trifecta_not_established":1}
+                  or official.get("official_pages_live_rechecked_by_script") is not False
+                  or official.get("formal") is not False
+                  or official.get("model_promotion_allowed") is not False):
+              raise SystemExit("official_non_scoreable_reference_unverifiable")
+          if (official["remaining_unresolved_result_races"]+
+                  official["non_scored_total"]!=v["frozen_original_result_reference"]["pending_results"]
+                  or official["maximum_potential_trifecta_slots_in_saved_forecasts"]+
+                     official["non_scored_total"]!=v["frozen_original_result_reference"]["forecast_files"]):
+              raise SystemExit("official_non_scoreable_denominator_mismatch")
+          print("MANUALLY_REVIEWED_OFFICIAL_NON_SCOREABLE:"+str(official["non_scored_total"]))
+          totals=v["totals"]
+          ref=v["frozen_original_result_reference"]
+          agree=totals.get("saved_result_rows_matched_current_csv",0)
+          mismatch=totals.get("saved_result_rows_disagree_or_not_present",0)
+          pending=sum(n for k,n in totals.items() if k not in (
+              "saved_result_rows_matched_current_csv",
+              "saved_result_rows_disagree_or_not_present"))
+          if (mismatch or agree!=ref["evaluated"] or pending!=ref["pending_results"]
+                  or ref["excluded"]!=0):
+              raise SystemExit("public_csv_row_or_roster_discrepancy")
+          print("CURRENT_CSV_VS_STORED_ROWS_MATCHED:"+str(agree))
+          print("CURRENT_CSV_PERSISTENCE_GAPS:"+str(pending))
+          print("NO_FORMAL_RESULT_ADMISSION")
+          PY
+      - name: Cross-check two independent read-only source auditors and officially non-scoreable denominator
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          raw=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          ref=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
+          if (raw.get("status")!="ALL_SOURCE_SNAPSHOTS_OBSERVED"
+                  or raw.get("public_raw_csv_retained_for_exact_replay") is not True
+                  or set(raw.get("by_day",{})) != set(ref.get("by_day",{}))
+                  or set(raw["by_day"]) != {"20261105","20261106","20261107","20261108"}
+                  or raw.get("reference_results_already_saved") != ref["frozen_original_result_reference"]["evaluated"]
+                  or raw.get("unresolved_saved_result_files") != ref["frozen_original_result_reference"]["pending_results"]
+                  or raw.get("archived_v2_forecasts") != ref["frozen_original_result_reference"]["forecast_files"]):
+              raise SystemExit("same_raw_source_observation_roster_not_reconciled")
+          formal=ref["official_non_scored_reference"]
+          if (formal.get("formal") is not False or formal.get("official_pages_live_rechecked_by_script") is not False
+                  or formal["non_scored_total"] != 12
+                  or formal["maximum_potential_trifecta_slots_in_saved_forecasts"] !=
+                     raw["archived_v2_forecasts"]-formal["non_scored_total"]
+                  or formal["remaining_unresolved_result_races"] !=
+                     raw["unresolved_saved_result_files"]-formal["non_scored_total"]):
+              raise SystemExit("non_scoreable_reference_denominator_changed")
+          mapping={
+              "not_in_published_csv":"not_in_published_csv",
+              "invalid_or_unfinished_finish":"invalid_or_unfinished_finish_not_scoreable",
+              "valid_published_row_not_yet_archived":"valid_source_three_finish_unpersisted",
+          }
+          for day, v in raw["by_day"].items():
+              q=ref["by_day"][day]
+              if (v["current_snapshot_sha256"] != q["current_raw_sha256"]
+                      or v["current_snapshot_bytes"] != q["current_raw_bytes"]
+                      or v["pending_saved_forecast_results"] !=
+                         sum(q["pending_classification_counts"].values())):
+                  raise SystemExit("independent_csv_digests_or_pending_counts_disagree:"+day)
+              for old,new in mapping.items():
+                  if v["pending_classes"][old] != q["pending_classification_counts"].get(new,0):
+                      raise SystemExit("independent_csv_classification_disagree:"+day+":"+old)
+              if any(v["pending_classes"][kind] for kind in v["pending_classes"] if kind not in mapping):
+                  raise SystemExit("extra_invalid_csv_classification_requires_manual_review:"+day)
+          if (sum(v["pending_classes"]["valid_published_row_not_yet_archived"]
+                  for v in raw["by_day"].values()) !=
+                  raw["unarchived_published_shadow_only"]["races"]):
+              raise SystemExit("unarchived_shadow_denominator_drift")
+          if (raw["reference_results_already_saved"] + raw["unarchived_published_shadow_only"]["races"]
+                  + formal["non_scored_total"] > raw["archived_v2_forecasts"]):
+              raise SystemExit("cross_audited_roster_overflow")
+          print("SAME_RAW_SOURCE_TWO_AUDITORS_RECONCILED")
+          print("MAXIMUM_TRIFECTA_SCOREABLE_RESEARCH_COHORT="+str(formal["maximum_potential_trifecta_slots_in_saved_forecasts"]))
+          print("STORED_RESULTS="+str(raw["reference_results_already_saved"])+
+                ":PUBLIC_UNARCHIVED="+str(raw["unarchived_published_shadow_only"]["races"])+
+                ":OFFICIAL_MANUAL_NON_SCOREABLE="+str(formal["non_scored_total"]))
+          print("FORMAL_COUNT_UNCHANGED:0")
           PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
