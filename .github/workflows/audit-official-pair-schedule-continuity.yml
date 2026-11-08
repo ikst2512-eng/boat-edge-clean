@@ -4,6 +4,8 @@ on:
     paths:
       - scripts/audit_official_pair_schedule_continuity.py
       - tests/test_audit_official_pair_schedule_continuity.py
+      - scripts/audit_t12_frozen_chronology.py
+      - tests/test_audit_t12_frozen_chronology.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -24,7 +26,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify strict scope and incomplete-page failure gates
-        run: python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_frozen_chronology.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
