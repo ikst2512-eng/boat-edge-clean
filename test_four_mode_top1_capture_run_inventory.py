@@ -79,6 +79,12 @@ class RunInventoryTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     summarize(rows, DAY)
 
+    def test_renamed_capture_workflow_is_not_silently_dropped(self):
+        rows=valid()
+        rows[0]["workflow_runs"][0]["name"]="Four-mode renamed unexpectedly"
+        with self.assertRaisesRegex(ValueError, "wrong_capture_workflow_identity"):
+            summarize(rows, DAY)
+
     def test_duplicate_run_in_separate_event_is_rejected(self):
         rows = valid()
         rows[1]["workflow_runs"][0]["id"] = 11
