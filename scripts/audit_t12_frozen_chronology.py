@@ -50,7 +50,9 @@ def inspect(pair, frozen):
     hash_verified = pair.get("originals_hash_verified") is True
     two_sources_complete = pair.get("both_complete_before_t12") is True
     sources_before_t12 = before <= cutoff and odds <= cutoff
-    generated_after_sources = generated >= last_source
+    # Same-timestamp evidence cannot establish source-before-generation order.
+    # The 2026-11-05 first-commit audit likewise rejects same-second ambiguity.
+    generated_after_sources = generated > last_source
     generated_before_t12 = generated <= cutoff
 
     missing = []
