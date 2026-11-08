@@ -142,16 +142,24 @@ class SameDayT12BlockedResearchAudit(unittest.TestCase):
         with self.assertRaises(ValueError):
             join(schedule(as_of_utc="2026-11-07T21:00:00+00:00"), archive())
 
-    def test_zero_elapsed_slots_has_no_percentage_division(self):
+    def test_first_utc_slot_is_one_not_zero_even_if_none_observed(self):
         report = join(schedule(
             as_of_utc="2026-11-08T00:00:00+00:00",
-            elapsed_nominal_slots_at_snapshot=0,
+            elapsed_nominal_slots_at_snapshot=1,
             observed_official_pair_schedule_runs=0,
             observed_within_declared_cron_hours=0,
             runs=[]
         ), archive())
-        self.assertIsNone(report["invocation_count_coverage_pct"])
-        self.assertEqual(report["invocation_count_deficit_in_cron_hours"], 0)
+        self.assertEqual(report["invocation_count_deficit_in_cron_hours"], 1)
+        self.assertEqual(report["invocation_count_coverage_pct"], 0.0)
+        with self.assertRaises(ValueError):
+            join(schedule(
+                as_of_utc="2026-11-08T00:00:00+00:00",
+                elapsed_nominal_slots_at_snapshot=0,
+                observed_official_pair_schedule_runs=0,
+                observed_within_declared_cron_hours=0,
+                runs=[]
+            ), archive())
 
     def test_same_day_branch_version_stays_read_only(self):
         report = join(schedule(), archive())
