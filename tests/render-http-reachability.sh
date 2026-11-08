@@ -2,6 +2,11 @@
 # Read-only same-runner diagnostics. Never count as browser E2E success.
 set -uo pipefail
 host='boat-edge-clean.onrender.com'
+# Report evidence separately from the workflow's broader browser/test success.
+health_http='unverified'
+archive_cors='unverified'
+robots_before='unverified'
+robots_after='unverified'
 proxy='no'
 if env | grep -Eq '^(HTTPS_PROXY|https_proxy)='; then proxy='yes'; fi
 echo "RENDER_DIAG_BEGIN UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ) proxy_configured=$proxy"
@@ -23,6 +28,16 @@ probe() {
  rc=$?
  cors=$(grep -i '^access-control-allow-origin:' "$hdr" | tail -n 1 | tr -d '\r' | cut -d' ' -f2-)
  rm -f "$hdr"
+ if [[ "$label" == health-get ]]; then
+  if [[ "$rc" -eq 0 && "$result" == *'http=200 '* ]]; then health_http='pass'; else health_http='fail'; fi
+ fi
+ if [[ "$label" == archive-get ]]; then
+  if [[ "$rc" -eq 0 && "$result" == *'http=200 '* && "$cors" == 'https://ikst2512-eng.github.io' ]]; then
+   archive_cors='pass'
+  else
+   archive_cors='not_verified'
+  fi
+ fi
  echo "RENDER_DIAG_PROBE name=$label curl_exit=$rc $(printf '%s' "$result" | tr '\n' ' ') cors=$cors"
 }
 # Render Free serves /robots.txt automatically during idle; the live app returns 404.
@@ -43,6 +58,10 @@ probe_robots() {
  elif grep -Fqx 'not found' "$body"; then
   klass='origin-404-body'
  fi
+ case "$phase" in
+  before) robots_before="$klass" ;;
+  after_wake_attempt) robots_after="$klass" ;;
+ esac
  echo "RENDER_DIAG_ROBOTS phase=$phase curl_exit=$rc class=$klass bytes=$(wc -c < "$body" | tr -d ' ') $(printf '%s' "$result" | tr '\n' ' ')"
  rm -f "$body"
 }
@@ -75,4 +94,16 @@ done < <(printf '%s\n' "$dns_output" | awk '{print $1}' | sort -u | head -n 2)
 # Observe idle status AFTER all /healthz and racecard wake requests.
 # If this remains edge-generated, the origin is still not serving traffic.
 probe_robots after_wake_attempt
+echo "RENDER_DIAG_RELEASE_GATES health_http=$health_http live_archive_cors=$archive_cors robots_before=$robots_before robots_after=$robots_after live_exhibition=unassessed no_deploy_cold_start=unassessed"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+ {
+  echo '### Render HTTP diagnostics — not a production release approval'
+  echo "- /healthz transport: $health_http"
+  echo "- Live Pages→Render archive CORS: $archive_cors"
+  echo "- /robots.txt before/after: $robots_before / $robots_after"
+  echo '- Live exhibition six-boat verification: not assessed by this probe'
+  echo '- No-deploy 15-minute idle→wake recovery: not assessed by this probe'
+  echo '- A green browser workflow can include PR-only simulated CORS and archival test cases.'
+ } >> "$GITHUB_STEP_SUMMARY"
+fi
 echo 'RENDER_DIAG_END never_substitutes_for_live_browser_e2e=true'
