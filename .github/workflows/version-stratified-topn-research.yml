@@ -14,6 +14,8 @@ on:
       - test_four_mode_forward_paired_score.py
       - research/four_mode_all_modes_forward_protocol_20261106.json
       - research/four_mode_top1_pair_forward_protocol_20261108.json
+      - four_mode_top1_forward_reference.py
+      - test_four_mode_top1_forward_reference.py
       - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
   workflow_dispatch:
@@ -83,6 +85,10 @@ jobs:
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
+      - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
+        run: python -m unittest -v test_four_mode_top1_forward_reference
+      - name: Report independent Top1 reference status without scoring historical dates
+        run: python four_mode_top1_forward_reference.py
       - name: Report reference review readiness (no invented frozen artifact)
         run: python four_mode_all_shadow_reference_review.py
       - name: Report forward gate status (no candidate or result invented)
