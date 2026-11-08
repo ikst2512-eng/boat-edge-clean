@@ -81,6 +81,21 @@ class OriginalSourceObservationTest(unittest.TestCase):
         self.assertEqual(report["prospective_candidate_pairs"], 0)
         self.assertFalse((self.root / "confirmed_results" / (PENDING + ".json")).exists())
 
+    def test_exact_public_bytes_saved_for_replay_in_separate_folder_only(self):
+        data = source((PENDING, "2026-11-08T17:45:25+09:00", 4, 1, 6))
+        folder = self.root / "ci-evidence" / "published"
+        report = observe(self.root, (DAY,), fetcher=lambda day: (data, CLOCK), raw_dir=folder)
+        self.assertEqual(report["public_raw_csv_retained_day_codes"], [DAY])
+        self.assertTrue(report["public_raw_csv_retained_for_exact_replay"])
+        self.assertTrue(report["public_raw_csv_evidence_is_ci_artifact_only"])
+        self.assertEqual((folder / (DAY + ".csv")).read_bytes(), data)
+        self.assertEqual((self.root / "confirmed_results" / (SAVED + ".json")).read_bytes(), self.old_result)
+        self.assertFalse((self.root / "confirmed_results" / (PENDING + ".json")).exists())
+        # Retry must fail closed instead of silently overwriting observed raw bytes.
+        retry = observe(self.root, (DAY,), fetcher=lambda day: (data, CLOCK), raw_dir=folder)
+        self.assertEqual(retry["status"], "SOURCE_OBSERVATION_INCOMPLETE")
+        self.assertIn("FileExistsError", retry["source_errors"][DAY]["type"])
+
     def test_absent_row_is_not_in_published_csv(self):
         row = self.observe_one(source((SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5)))["by_day"][DAY]
         self.assertEqual(row["pending_classes"]["not_in_published_csv"], 1)
