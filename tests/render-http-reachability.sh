@@ -28,7 +28,7 @@ probe() {
 # Render Free serves /robots.txt automatically during idle; the live app returns 404.
 # Diagnostic-only: read-only, no readiness override, never counts as E2E success.
 probe_robots() {
- local body result rc klass
+ local body result rc klass phase="${1:-before}"
  body=$(mktemp) || return 0
  result=$(curl --silent --show-error --connect-timeout 4 --max-time 10 --retry 0 \
   --output "$body" \
@@ -43,7 +43,7 @@ probe_robots() {
  elif grep -Fqx 'not found' "$body"; then
   klass='origin-404-body'
  fi
- echo "RENDER_DIAG_ROBOTS curl_exit=$rc class=$klass bytes=$(wc -c < "$body" | tr -d ' ') $(printf '%s' "$result" | tr '\n' ' ')"
+ echo "RENDER_DIAG_ROBOTS phase=$phase curl_exit=$rc class=$klass bytes=$(wc -c < "$body" | tr -d ' ') $(printf '%s' "$result" | tr '\n' ' ')"
  rm -f "$body"
 }
 # Pin each known IPv4 Render edge independently while preserving HTTPS Host/SNI.
@@ -59,7 +59,7 @@ probe_edge_health() {
 }
 
 probe pages-control 'https://ikst2512-eng.github.io/boat-edge-clean/' GET no
-probe_robots
+probe_robots before
 probe health-head 'https://boat-edge-clean.onrender.com/healthz' HEAD no
 probe health-get 'https://boat-edge-clean.onrender.com/healthz' GET no
 # Non-gating cold-start discriminator: one long wait, not a replacement for strict 16s checks.
@@ -72,4 +72,7 @@ while IFS= read -r edge_ip; do
  [[ "$edge_ip" =~ ^[0-9.]+$ ]] || continue
  probe_edge_health "$edge_ip"
 done < <(printf '%s\n' "$dns_output" | awk '{print $1}' | sort -u | head -n 2)
+# Observe idle status AFTER all /healthz and racecard wake requests.
+# If this remains edge-generated, the origin is still not serving traffic.
+probe_robots after_wake_attempt
 echo 'RENDER_DIAG_END never_substitutes_for_live_browser_e2e=true'
