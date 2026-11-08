@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
 import * as workerEntrypointExports from '../cloudflare/independent_capture_wakeup.mjs';
-import {plannedSlots, eligibleSlot, execute, WORKFLOWS} from '../cloudflare/independent_capture_policy.mjs';
+import {plannedSlots, eligibleSlot, execute, observe, WORKFLOWS} from '../cloudflare/independent_capture_policy.mjs';
 const JST=9*60*60*1000;
 const jst=(h,m,d=5)=>new Date(Date.UTC(2026,10,d,h,m)-JST);
 const tick=(h,m,d=5)=>jst(h,m,d).getTime();
@@ -246,7 +246,7 @@ test('real scheduled adapter runs both mocked recoveries and emits scrubbed rece
   console.error=message=>errors.push(String(message));
   try{
     await cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',type:'scheduled',scheduledTime:when},
-      {GITHUB_DISPATCH_TOKEN:'PRIVATE_TEST_TOKEN'}, {});
+      {GITHUB_DISPATCH_TOKEN:'PRIVATE_TEST_TOKEN',CLOUDFLARE_DISPATCH_ENABLED:'true'}, {});
   }finally{
     globalThis.fetch=oldFetch;Date.now=oldNow;console.log=oldLog;console.error=oldError;
   }
@@ -267,12 +267,65 @@ test('scheduled adapter missing Secret fails before network with redacted error'
   globalThis.fetch=m.fetcher;Date.now=()=>tick(7,10);console.error=message=>errors.push(String(message));
   try{
     await assert.rejects(()=>cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',scheduledTime:tick(7,10)},
-      {},{}),/GITHUB_DISPATCH_TOKEN_required/);
+      {CLOUDFLARE_DISPATCH_ENABLED:'true'},{}),/GITHUB_DISPATCH_TOKEN_required/);
   }finally{globalThis.fetch=oldFetch;Date.now=oldNow;console.error=oldError;}
   assert.equal(m.calls.length,0);
   assert.equal(errors.length,1);
   assert.ok(errors[0].includes('GITHUB_DISPATCH_TOKEN_required'));
   assert.ok(!errors[0].includes('Bearer'));
+});
+
+test('observer-only pure report computes recovery slots without credentials or GitHub calls',()=>{
+  const out=observe({scheduledTime:tick(7,10),now:tick(7,10)});
+  assert.equal(out.action,'no_network_no_dispatch');
+  assert.equal(out.mode,'observe_only');
+  assert.equal(out.github_history_checked,false);
+  assert.equal(out.github_run_id_proven,false);
+  assert.equal(out.formal,false);
+  assert.ok(out.eligible_slots_jst.clean);
+  assert.ok(out.eligible_slots_jst.four_mode);
+  assert.equal(typeof out.eligible_slots_jst.clean,'string');
+});
+
+test('observer-only rejects expired Cron time before reporting',()=>{
+  assert.throws(()=>observe({scheduledTime:tick(7,10)-120000,now:tick(7,10)}),/late_or_future_cron_trigger/);
+});
+
+test('Wrangler config makes non-dispatch observer the default',()=>{
+  const config=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
+  assert.match(config,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
+  assert.match(config,/required = \["GITHUB_DISPATCH_TOKEN"\]/);
+});
+
+test('scheduled adapter defaults to observer with zero GitHub requests and no secret',async()=>{
+  const when=tick(7,10), logs=[],calls=[];
+  const oldFetch=globalThis.fetch,oldNow=Date.now,oldLog=console.log;
+  globalThis.fetch=async()=>{calls.push('unexpected_request');throw Error('network_must_not_run');};
+  Date.now=()=>when;console.log=message=>logs.push(String(message));
+  try{
+    await cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',scheduledTime:when},{},{});
+  }finally{globalThis.fetch=oldFetch;Date.now=oldNow;console.log=oldLog;}
+  assert.deepEqual(calls,[]);
+  assert.equal(logs.length,1);
+  assert.ok(logs[0].startsWith('CLOUDFLARE_CAPTURE_OBSERVER_ONLY='));
+  const report=JSON.parse(logs[0].split('=')[1]);
+  assert.equal(report.action,'no_network_no_dispatch');
+  assert.equal(report.github_history_checked,false);
+  assert.equal(report.new_forecast_saved_proven,false);
+});
+
+test('only literal true enables dispatch; all other settings remain no-network observer',async()=>{
+  for(const value of ['TRUE','1',true,'false',false,null]){
+    const when=tick(7,10),calls=[];
+    const oldFetch=globalThis.fetch,oldNow=Date.now,oldLog=console.log;
+    globalThis.fetch=async()=>{calls.push(value);throw Error('network_must_not_run');};
+    Date.now=()=>when;console.log=()=>{};
+    try{
+      await cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',scheduledTime:when},
+        {CLOUDFLARE_DISPATCH_ENABLED:value,GITHUB_DISPATCH_TOKEN:'PRIVATE_TEST_TOKEN'},{});
+    }finally{globalThis.fetch=oldFetch;Date.now=oldNow;console.log=oldLog;}
+    assert.equal(calls.length,0);
+  }
 });
 
 test('POST must return 204; no false success',async()=>{
