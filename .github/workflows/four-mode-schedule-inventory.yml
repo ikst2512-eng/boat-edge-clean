@@ -8,6 +8,8 @@ on:
       - 'scripts/audit_four_mode_daily_main_archives.py'
       - 'scripts/audit_four_mode_daily_schedule_runs.py'
       - 'tests/test_audit_four_mode_daily_schedule_runs.py'
+      - 'scripts/select_four_mode_audit_day.py'
+      - 'tests/test_select_four_mode_audit_day.py'
       - 'scripts/audit_four_mode_daily_capture_liveness.py'
       - 'scripts/inventory_four_mode_watchdog_dispatch.py'
       - 'scripts/report_four_mode_watchdog_artifact_decisions.py'
@@ -55,7 +57,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest -v tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs tests.test_v2_archive_refresh_after_failure
+      - name: Select same completed JST day for each read-only audit
+        run: python -m scripts.select_four_mode_audit_day
+      - run: python -m unittest -v tests.test_select_four_mode_audit_day tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs tests.test_v2_archive_refresh_after_failure
       - name: Check real scheduled run history
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -66,7 +70,7 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m scripts.audit_four_mode_daily_schedule_runs --repo "${{ github.repository }}" --output reports/four_mode_daily_schedule_metadata.json
+        run: python -m scripts.audit_four_mode_daily_schedule_runs --repo "${{ github.repository }}" --output reports/four_mode_daily_schedule_metadata.json --day-jst "$FOUR_MODE_AUDIT_DAY_JST"
       # Day-wide metadata failures must NOT suppress independent per-run
       # artifact checks. Preserve both diagnoses in the uploaded report.
       - name: Inspect recent capture artifacts without inferring remote push proof
@@ -94,7 +98,7 @@ jobs:
         run: python -m scripts.report_four_mode_watchdog_artifact_decisions --repo "${{ github.repository }}" --history reports/four_mode_watchdog_dispatch.json --output reports/four_mode_watchdog_artifact_decisions.json
       - name: Audit today's actual capture execution separately from Git archives
         if: always()
-        run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json
+        run: python -m scripts.audit_four_mode_daily_capture_liveness --inventory reports/four_mode_watchdog_dispatch.json --output reports/four_mode_daily_capture_liveness.json --day-jst "$FOUR_MODE_AUDIT_DAY_JST"
       # Capture may push after checkout while this audit downloads artifacts.
       # Read the freshest remote main only for the daily scheduled evidence audit.
       # A fetch failure is an audit failure, not proof that no capture published.
@@ -105,7 +109,7 @@ jobs:
           git checkout --detach FETCH_HEAD
       - name: Confirm today's first-add archive presence in checked-out Git main
         if: always()
-        run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
+        run: python -m scripts.audit_four_mode_daily_main_archives --output reports/four_mode_daily_main_archives.json --day-jst "$FOUR_MODE_AUDIT_DAY_JST" --capture-evidence reports/four_mode_schedule_publications.json reports/four_mode_dispatch_publications.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
