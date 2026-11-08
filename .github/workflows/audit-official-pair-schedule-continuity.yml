@@ -6,6 +6,8 @@ on:
       - tests/test_audit_official_pair_schedule_continuity.py
       - scripts/audit_t12_frozen_chronology.py
       - tests/test_audit_t12_frozen_chronology.py
+      - scripts/audit_t12_three_original_frozen.py
+      - tests/test_audit_t12_three_original_frozen.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -29,6 +31,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_frozen_chronology.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_three_original_frozen.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
