@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'four_mode_position_sensitive_shadow.py'
-      - 'research/four_mode_position_sensitive_forward_protocol_20261108.json'
       - 'test_four_mode_position_sensitive_shadow.py'
       - 'four_mode_position_sensitive_forward.py'
       - 'test_four_mode_position_sensitive_forward.py'
