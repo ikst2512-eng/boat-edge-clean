@@ -74,7 +74,7 @@ class D1ReceiptChainAuditTests(unittest.TestCase):
         c = candidate()
         for t, message in (
             ("2026-11-09T01:51:00.000Z", "receipt_precedes_candidate"),
-            ("2026-11-09T01:52:00.000Z", "receipt_precedes_candidate"),
+            ("2026-11-09T01:51:01.000Z", "receipt_precedes_candidate"),
             ("2026-11-09T01:59:58.000Z", "late_or_ambiguous"),
             ("2026-11-09T02:00:00.000Z", "late_or_ambiguous"),
         ):
