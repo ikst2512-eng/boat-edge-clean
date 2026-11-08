@@ -22,7 +22,7 @@ from position_sensitive_receipt_intake import git_blob_sha
 SCHEMA = "POSITION_SENSITIVE_REMOTE_HTTP_OBSERVATION_V1"
 REPO = "ikst2512-eng/boat-edge-clean"
 BRANCH = "position-sensitive-forward-evidence-ledger"
-SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
+SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 ROOT_URL = "https://api.github.com/repos/" + REPO
 MAX_BODY = 120_000
 
@@ -185,7 +185,7 @@ def main():
             or args.original.stat().st_size > 30000):
         raise ValueError("invalid_original_file")
     record = observe_candidate(args.code, args.original.read_bytes(), github_get)
-    raw = json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+    raw = json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     if args.output:
         if args.output.is_symlink():
             raise ValueError("output_symlink_forbidden")
