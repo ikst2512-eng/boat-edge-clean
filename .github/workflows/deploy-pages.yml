@@ -4,8 +4,12 @@ on:
     branches: [main]
     paths:
       - index.html
-      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.
+      - selection.html
+      - candidates.html
+      - candidate_history.js
+      - candidate_history.py
       - navigation.js
+      - 'prospective_predictions/**'
       - 'confirmed_results/**'
       - 'schedule_snapshots/**'
       - .github/workflows/deploy-pages.yml
@@ -63,7 +67,27 @@ jobs:
       - name: Stage only public files
         run: |
           mkdir -p public
-          cp index.html navigation.js public/
+          cp index.html navigation.js candidates.html candidate_history.js public/
+          mkdir -p public/candidate_history
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          from candidate_history import daily_candidate_history
+          days = sorted({p.name[:8] for p in Path('prospective_predictions').glob('*.json')
+                         if re.fullmatch(r'20[0-9]{10}\\.json', p.name)})
+          if not days:
+              raise SystemExit('No archived candidate days present')
+          total = 0
+          for day in days:
+              status, record = daily_candidate_history(day)
+              if status != 200 or record['candidate_count'] < 1:
+                  raise SystemExit(f'Invalid candidate manifest for {day}')
+              target = Path('public/candidate_history') / (day + '.json')
+              target.write_text(json.dumps(record, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
+              total += record['candidate_count']
+          print(f'CLEAN_CANDIDATE_PAGES_MANIFEST days={len(days)} candidates={total}')
+          PY
           cp -R confirmed_results public/confirmed_results
           cp -R schedule_snapshots public/schedule_snapshots
           test -s public/schedule_snapshots/20261030.json
@@ -73,6 +97,9 @@ jobs:
           test -s public/confirmed_results/202611031911.json
           test -s public/index.html
           test -s public/navigation.js
+          test -s public/candidates.html
+          test -s public/candidate_history.js
+          test -s public/candidate_history/20261108.json
       # Pages is already configured to deploy from GitHub Actions.
       # Do not query the Pages settings API on every publish: its installation
       # rate-limit previously blocked artifact upload before deployment began.
