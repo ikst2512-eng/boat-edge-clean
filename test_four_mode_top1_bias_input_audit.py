@@ -87,6 +87,35 @@ class Top1BiasInputAuditTests(unittest.TestCase):
             self.assertEqual(len(r["invalid_archives"]),1)
             self.assertEqual(r["same_top1_narrow_hit_balance_pct"],100.0)
 
+    def test_syntactically_valid_ticket_reordering_is_detected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            file=write_forecast(root,"202611080101",RATES_A)
+            raw=json.loads(file.read_text())
+            a=raw["modes"]["hit"]["tickets"]
+            a[0],a[1]=a[1],a[0]
+            file.write_text(json.dumps(raw),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,
+                                        "stored_ticket_not_reproduced_from_inputs"):
+                verified_pre_result_snapshot(raw,"202611080101")
+            report=audit(root,"20261108")
+            self.assertEqual(report["file_count"],1)
+            self.assertEqual(report["valid_v2_saved"],0)
+            self.assertEqual(len(report["invalid_archives"]),1)
+            self.assertFalse(report["formal"])
+
+    def test_plausible_but_forged_probability_is_detected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            file=write_forecast(root,"202611080101",RATES_A)
+            raw=json.loads(file.read_text())
+            raw["modes"]["balance"]["tickets"][0]["p"] += 0.01
+            file.write_text(json.dumps(raw),encoding="utf-8")
+            report=audit(root,"20261108")
+            self.assertEqual(report["valid_v2_saved"],0)
+            self.assertEqual(report["invalid_archives"][0]["reason"],
+                             "stored_ticket_not_reproduced_from_inputs")
+
     def test_result_presence_is_not_read_or_scored(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
