@@ -11,6 +11,8 @@ on:
       - 'position_sensitive_paired_inference.py'
       - 'position_sensitive_feature_inventory.py'
       - 'position_sensitive_receipt_intake.py'
+      - 'position_sensitive_t12_window_audit.py'
+      - 'test_position_sensitive_t12_window_audit.py'
       - 'test_position_sensitive_receipt_intake.py'
       - 'test_position_sensitive_feature_inventory.py'
       - 'test_position_sensitive_paired_inference.py'
@@ -73,7 +75,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -210,6 +212,23 @@ jobs:
               raise SystemExit('feature_inventory_or_official_claim_invalid')
           print(f"POSITION_SENSITIVE_FEATURE_COVERAGE_READONLY:{b['compared']}/{b['archived_files']}")
           PY
+      - name: Original generation to T12 theoretical window only
+        run: |
+          python position_sensitive_t12_window_audit.py --day 20261108 | tee position_shadow_t12_windows.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("position_shadow_input_only.json").read_text())
+          b=json.loads(Path("position_shadow_t12_windows.json").read_text())
+          if (b.get("compared") != a["compared"] or
+                  b.get("excluded") != 0 or
+                  b.get("actual_candidate_publications") != 0 or
+                  b.get("independent_remote_candidate_receipts_verified") is not False or
+                  b.get("formal") is not False or
+                  b.get("promotion_allowed") is not False):
+              raise SystemExit("false_theoretical_T12_to_remote_attestation")
+          print("POSITION_SENSITIVE_T12_WINDOW_THEORY_ONLY:" + str(b["compared"]))
+          PY
       - name: Upload diagnostic (not accuracy or certification)
         uses: actions/upload-artifact@v4
         with:
@@ -221,4 +240,5 @@ jobs:
             position_paired_inference_unstarted.json
             position_shadow_feature_inventory.json
             position_receipt_intake_unstarted.json
+            position_shadow_t12_windows.json
           retention-days: 30
