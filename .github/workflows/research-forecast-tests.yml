@@ -39,6 +39,8 @@ on:
       - 'scripts/research_official_k_c1_24venue_reproduction.py'
       - 'scripts/research_official_k_missingness_profile.py'
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
+      - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
       - 'tests/test_research_official_k_missingness_profile.py'
       - 'tests/test_research_official_k_c1_24venue_reproduction.py'
@@ -94,6 +96,8 @@ on:
       - 'scripts/research_official_k_c1_24venue_reproduction.py'
       - 'scripts/research_official_k_missingness_profile.py'
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
+      - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
       - 'tests/test_research_official_k_missingness_profile.py'
       - 'tests/test_research_official_k_c1_24venue_reproduction.py'
@@ -171,8 +175,27 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_official_k_missingness_profile.py' -v
       - name: Validate wind-band missingness sensitivity without prediction leakage
         run: python -m unittest discover -s tests -p 'test_research_official_k_wind_missingness_sensitivity.py' -v
+      - name: Reject unverified T-12 wind from saved four-mode metadata (offline)
+        run: python -m unittest discover -s tests -p 'test_research_four_mode_pre_t12_wind_inventory.py' -v
       - name: Verify official F0.xx actual course and ST are not silently omitted
         run: python -m unittest discover -s tests -p 'test_research_official_k_f_start_parse.py' -v
+      - name: Read pinned main forecast originals without modifying predictions
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 6409443d6487b5c175eec4ed2a7f4bf136f69da4
+          test "$(git rev-parse FETCH_HEAD)" = "6409443d6487b5c175eec4ed2a7f4bf136f69da4"
+          python scripts/research_four_mode_pre_t12_wind_inventory.py \
+            --source-commit 6409443d6487b5c175eec4ed2a7f4bf136f69da4 \
+            --start 2026-11-06 --end 2026-11-08 \
+            --out research_evidence/frozen_four_mode_pre_t12_wind_inventory.json
+      - name: Preserve immutable forecast metadata / wind T-12 gap audit
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-mode-frozen-main-wind-t12-metadata-gap-research-only
+          path: research_evidence/frozen_four_mode_pre_t12_wind_inventory.json
+          if-no-files-found: error
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
         run: python scripts/research_venue_wind_course_method_92day.py --output research_evidence/venue_wind_course_method_202608_202610.json --c1-exception-output research_evidence/official_c1_exception_candidates_92day.json --frozen-day-csv-output research_evidence/secondary_20260801_SHA_verified.csv --frozen-exception-csv-dir research_evidence/secondary_all_exceptions --frozen-all-csv-dir research_evidence/secondary_all_92
