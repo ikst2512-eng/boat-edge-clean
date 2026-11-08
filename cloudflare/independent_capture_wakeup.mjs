@@ -1,7 +1,7 @@
 // Cloudflare Workers module entrypoint: export default only.
 // Keep named policy exports in a separate module: workerd rejects data exports
 // on a Worker service entrypoint (observed in offline CI runtime smoke).
-import {ALLOWED_CRON, SCHEMA, execute} from './independent_capture_policy.mjs';
+import {ALLOWED_CRON, SCHEMA, execute, observe} from './independent_capture_policy.mjs';
 
 const SAFE_ERRORS = new Set([
   'invalid_trigger_clock', 'late_or_future_cron_trigger', 'cron_outside_allowlist',
@@ -21,7 +21,15 @@ export default {
       if (!controller || controller.cron !== ALLOWED_CRON) {
         throw new Error('unexpected_cron_trigger');
       }
-      const report = await execute({scheduledTime: controller.scheduledTime, now: Date.now(),
+      const now = Date.now();
+      // Opt-in write gate: new deployments are explicitly observer-only.
+      // Only the exact string 'true' grants permission to reach GitHub.
+      if (env?.CLOUDFLARE_DISPATCH_ENABLED !== 'true') {
+        const snapshot = observe({scheduledTime: controller.scheduledTime, now});
+        console.log('CLOUDFLARE_CAPTURE_OBSERVER_ONLY=' + JSON.stringify(snapshot));
+        return;
+      }
+      const report = await execute({scheduledTime: controller.scheduledTime, now,
         token: env?.GITHUB_DISPATCH_TOKEN, fetcher: fetch, clock: Date.now,
         onAccepted: receipt => console.log('CLOUDFLARE_DISPATCH_RECEIPT=' + JSON.stringify(receipt))});
       console.log('CLOUDFLARE_CAPTURE_WAKEUP=' + JSON.stringify(report));
