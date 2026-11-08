@@ -15,6 +15,17 @@ def pair(**overrides):
         "before_received_jst": BEFORE,
         "odds_received_jst": ODDS,
         "originals_hash_verified": True,
+        "exhibition_complete": True,
+        "odds_120_complete": True,
+        "component_checks": {
+            "six_unique_boats": True,
+            "exhibition_time_six": True,
+            "tilt_six": True,
+            "start_exhibition_six": True,
+            "beforeinfo_received_by_t12": True,
+            "official_odds_120": True,
+            "odds_received_by_t12": True,
+        },
         "both_complete_before_t12": True,
         **overrides,
     }
@@ -71,6 +82,55 @@ class FrozenChronologyAuditTests(unittest.TestCase):
         report = inspect(pair(both_complete_before_t12=False), clean())
         self.assertIn("two_originals_incomplete", report["missing_requirements"])
         self.assertFalse(report["t12_eligible"])
+
+    def test_aggregate_pair_flag_cannot_mask_missing_6_boat_components(self):
+        values = pair()
+        components = {**values["component_checks"],
+                      "start_exhibition_six": False}
+        report = inspect(pair(component_checks=components), clean())
+        self.assertFalse(report["official_component_checks_verified"])
+        self.assertFalse(report["two_source_complete_before_t12"])
+        self.assertIn("official_pair_component_checks_missing_or_false",
+                      report["missing_requirements"])
+        self.assertFalse(report["formal"])
+
+    def test_aggregate_flag_cannot_mask_exhibition_or_odds_failure(self):
+        for problem, blocked in (
+            ({"exhibition_complete": False},
+             "official_exhibition_six_incomplete_or_unverified"),
+            ({"odds_120_complete": False},
+             "official_120_odds_incomplete_or_unverified"),
+        ):
+            with self.subTest(problem=problem):
+                report = inspect(pair(**problem), clean())
+                self.assertFalse(report["two_source_complete_before_t12"])
+                self.assertIn(blocked, report["missing_requirements"])
+                self.assertFalse(report["accuracy_scoring_allowed"])
+
+    def test_missing_or_truthy_component_flags_are_not_evidence(self):
+        with self.subTest("missing dictionary"):
+            report = inspect(pair(component_checks=None), clean())
+            self.assertFalse(report["two_source_complete_before_t12"])
+        with self.subTest("missing key"):
+            report = inspect(pair(component_checks={"six_unique_boats": True}), clean())
+            self.assertFalse(report["two_source_complete_before_t12"])
+        with self.subTest("truthy number"):
+            flags = {**pair()["component_checks"], "official_odds_120": 1}
+            report = inspect(pair(component_checks=flags), clean())
+            self.assertFalse(report["two_source_complete_before_t12"])
+        for value in (1, "true", None):
+            with self.subTest(aggregate=value):
+                report = inspect(pair(both_complete_before_t12=value), clean())
+                self.assertFalse(report["two_source_complete_before_t12"])
+                self.assertFalse(report["t12_eligible"])
+
+    def test_official_component_diagnostics_are_recorded_on_positive_pair(self):
+        report = inspect(pair(), clean())
+        self.assertTrue(report["official_component_checks_verified"])
+        self.assertTrue(report["official_exhibition_six_complete"])
+        self.assertTrue(report["official_odds_120_complete"])
+        self.assertTrue(report["two_source_complete_before_t12"])
+        self.assertFalse(report["formal"])
 
     def test_unhashed_or_late_originals_never_pass(self):
         report = inspect(pair(originals_hash_verified=False,
