@@ -78,6 +78,42 @@ test('retry preserves first timestamp even when retry is late',async()=>{
   const a=await post(db);assert.equal(a.status,200);assert.equal(a.data.already_recorded,true);
   assert.equal(a.data.first_received_at_utc,'2026-11-09T01:55:00.000Z');
 });
+test('corrupted persisted first-receipt clocks never pass on identical retry',async()=>{
+  const invalid=[
+    '2026-11-09T01:50:59.999Z', // before the frozen candidate finish
+    '2026-11-09T01:51:00.000Z', // same time as finish
+    '2026-11-09T01:59:58.000Z', // exactly two seconds before cutoff
+    '2026-11-09T01:59:59.000Z',
+    '2026-11-09T02:00:00.000Z',
+    '2026-11-09T02:05:00.000Z',
+    '2026-11-09T01:55:00Z',     // D1 schema emits fixed milliseconds
+    '2026-11-09T01:55:00+09:00',
+    'not-a-clock',
+  ];
+  for(const clock of invalid){
+    const db=new DBMock();
+    assert.equal((await post(db)).status,200);
+    db.rows.get('202611090101').first_received_at_utc=clock;
+    const a=await post(db);
+    assert.equal(a.status,409,clock);
+    assert.equal(a.data.status,'stored_first_acceptance_clock_untrusted',clock);
+    assert.equal(db.rows.size,1,clock);
+    assert.equal(db.rows.get('202611090101').first_received_at_utc,clock);
+  }
+});
+test('valid persisted D1 timestamp still never promotes formal proof',async()=>{
+  const db=new DBMock();
+  assert.equal((await post(db)).status,200);
+  db.rows.get('202611090101').first_received_at_utc='2026-11-09T01:59:57.000Z';
+  db.clock='2026-11-09T02:10:00.000Z'; // retry well after cutoff
+  const a=await post(db);
+  assert.equal(a.status,200);
+  assert.equal(a.data.already_recorded,true);
+  assert.equal(a.data.independent_first_receipt_verified,false);
+  assert.equal(a.data.official_t12_complete_verified,false);
+  assert.equal(a.data.formal,false);
+  assert.equal(a.data.production_promotion_allowed,false);
+});
 test('same race changed bytes are rejected without overwriting',async()=>{
   const db=new DBMock();await post(db);const r=candidate();r.local_finish_jst='2026-11-09T10:52:00+09:00';
   const a=await post(db,r);assert.equal(a.status,409);assert.equal(a.data.status,'conflicting_first_acceptance');
