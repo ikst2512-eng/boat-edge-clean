@@ -13,7 +13,8 @@ DAY = "20261108"
 
 def make_archive(*, openapi=False, corrupt_raw=False, bad_status=False,
                  change_title=False, missing_saved=False, orphan_receipt=False,
-                 wrong_content_address=False, extra_member_size=None):
+                 wrong_content_address=False, extra_member_size=None,
+                 extra_member_count=1):
     source = {}
     if openapi:
         obj = {"programs": {"stadiums": {"1": {"races": {}}}}}
@@ -74,7 +75,8 @@ def make_archive(*, openapi=False, corrupt_raw=False, bad_status=False,
             if not orphan_receipt:
                 z.writestr(prefix + ".bin", raw + (b"corrupt" if corrupt_raw else b""))
         if extra_member_size:
-            z.writestr("ordinary-diagnostic.dat", b"X" * extra_member_size)
+            for i in range(extra_member_count):
+                z.writestr(f"ordinary-diagnostic-{i}.dat", b"X" * extra_member_size)
     raw_zip = b.getvalue()
     return raw_zip, hashlib.sha256(raw_zip).hexdigest()
 
@@ -137,6 +139,16 @@ class CaptureArtifactReplayTests(unittest.TestCase):
     def test_decompression_budget_blocks_oversize_members(self):
         raw, sha = make_archive(extra_member_size=2_000_001)
         with self.assertRaisesRegex(ValueError, "oversize_artifact_member"):
+            audit_zip(raw, sha)
+
+    def test_total_uncompressed_budget_rejected(self):
+        raw, sha = make_archive(extra_member_size=1_700_000, extra_member_count=5)
+        with self.assertRaisesRegex(ValueError, "oversize_or_excessive_artifact_entries"):
+            audit_zip(raw, sha)
+
+    def test_archive_entry_count_budget_rejected(self):
+        raw, sha = make_archive(extra_member_size=1, extra_member_count=130)
+        with self.assertRaisesRegex(ValueError, "oversize_or_excessive_artifact_entries"):
             audit_zip(raw, sha)
 
     def test_artifact_oversize_rejected(self):
