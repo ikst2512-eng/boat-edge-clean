@@ -1,5 +1,18 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-08: observer Worker contains **no GitHub dispatch code** (build verified)
+
+**Strengthened Phase 0:** The optional pilot `cloudflare/wrangler.observer.toml` now points to a **separate default-only** Worker entrypoint `cloudflare/independent_capture_observer.mjs`, which imports **only** the GitHub-free `cloudflare/independent_capture_slots.mjs` module. Both the observer and production recovery import this *same* pure slot/clock module (63 CLEAN and 56 four-mode daily slots); there is no duplicated schedule logic to drift. The GitHub-facing recovery API, history validation, token handling and `workflow_dispatch` stay exclusively in `cloudflare/independent_capture_policy.mjs` and the production entrypoint. The observer has no HTTP handler, no `fetch()` calls, no PAT binding and no recovery-code import. Even injecting both a string `CLOUDFLARE_DISPATCH_ENABLED="true"` and a **fake** token into the observer's scheduled handler cannot make it contact GitHub.
+
+**Verified compiled output, not just source comments:** GitHub CI builds the observer with `wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.observer.toml` and scans the **actual emitted JavaScript bundle**. It fails if it contains `api.github.com`, `GITHUB_DISPATCH_TOKEN`, `/dispatches` or `Authorization`. This rules out accidental inclusion of recovery/network code in the observer's built artifact, independently of the environment gate.
+
+**Exact-code PR CI:** [#42460963433](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42460963433) completed **success**; the existing Python policy succeeds, Node **42/42 PASS / 0 fail**, real local Workerd Vitest **7/7 PASS**, production bundle dry-run **11.16 KiB / gzip 3.57 KiB**, observer-only bundle **4.45 KiB / gzip 1.65 KiB**, compiled-bundle scanner `OBSERVER_BUNDLE_NO_GITHUB_NETWORK_CODE_PASS`, and existing local Cron fail-closed checks PASS. The work remains in **Draft PR #1697**, no Cloudflare account integration, no Worker deployment, no GitHub live dispatch, no CPU10ms measurement or first Git-add/T−12 recovery certification.
+
+An earlier attempted bundle test correctly **failed** when the observer imported the GitHub-facing policy, revealing that the bundled output still contained an API URL even though all runtime dispatch tests were passing. The pure scheduling module refactor fixed this; the failed CI attempts remain in the PR history as negative evidence, and the compiled-code gate now prevents that regression.
+
+**Pilot operator action (manual, not executed):** After owner account setup and review, deploy **only** `wrangler.observer.toml`. No GitHub PAT is required for this phase. Its CPU/Cron and logs must be measured in the Cloudflare account before any separately reviewed recovery deployment. The observer config is a separate Worker name and is never a production dispatch switch.
+
+
 ## 2026-11-08 15時台 JST: two-phase **opt-in** activation — default is zero-network observation
 
 This Draft PR now ships **two distinct Wrangler configurations** for safe rollout. **Neither has been deployed; no account, PAT, GitHub dispatch, or billing was used.**
