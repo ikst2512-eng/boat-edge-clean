@@ -131,6 +131,10 @@ def inspect(record, observation=None):
             ).hexdigest()):
         raise ValueError("remote_sha256_or_git_blob_conflict")
     observed = _date_time(observation["server_observed_at_utc"], timedelta(0))
+    # Readback cannot truthfully precede creation of the exact frozen bytes.
+    finish = _date_time(record["local_finish_jst"], timedelta(hours=9))
+    if observed <= finish + timedelta(seconds=1):
+        raise ValueError("reported_observation_precedes_candidate_finish")
     if observed + timedelta(seconds=1) < cutoff:
         receipt["status"] = "pre_t12_readback_consistent_not_first_receipt"
         receipt["remote_bytes_and_reported_clock_consistent"] = True
