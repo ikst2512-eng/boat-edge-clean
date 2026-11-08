@@ -45,6 +45,17 @@ class MockGitHub:
 
     def __call__(self, method, url, payload):
         self.calls.append((method, url))
+        if method == "GET" and url == (
+                API + "/git/ref/heads/" + PROPOSED_LEDGER_BRANCH):
+            return response({
+                "ref": "refs/heads/" + PROPOSED_LEDGER_BRANCH,
+                "object": {"type": "commit", "sha": "d" * 40},
+            }, "2026-11-09T10:05:25+09:00")
+        if method == "GET" and url == API + "/git/commits/" + COMMIT_SHA:
+            return response({
+                "sha": COMMIT_SHA,
+                "parents": [{"sha": "d" * 40}],
+            }, "2026-11-09T10:05:45+09:00")
         if method == "GET" and url == API + "/git/ref/heads/main":
             return response({"ref": "refs/heads/main",
                              "object": {"type": "commit", "sha": MAIN_SHA}},
@@ -113,6 +124,9 @@ class ManualPublisherSafetyTests(unittest.TestCase):
         self.assertEqual(out["status"], "manual_create_and_remote_observation_preT12_nonformal")
         self.assertEqual(out["schema"], SCHEMA)
         self.assertEqual(out["created_commit_sha"], COMMIT_SHA)
+        self.assertEqual(out["research_head_before_create_sha"], "d" * 40)
+        self.assertTrue(out["created_commit_parent_matches_preflight"])
+        self.assertFalse(out["created_commit_parent_externally_attested"])
         self.assertEqual(out["research_branch"], PROPOSED_LEDGER_BRANCH)
         self.assertEqual(out["candidate_sha256"], hashlib.sha256(api.created_bytes).hexdigest())
         self.assertEqual(set(api.put_payload),
