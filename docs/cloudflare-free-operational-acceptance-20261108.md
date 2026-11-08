@@ -38,3 +38,19 @@ Disable the Cloudflare production Cron (set `crons = []` and deploy the approved
 GitHub official permissions: [workflow runs require Actions read](https://docs.github.com/en/rest/actions/workflow-runs) and [workflow dispatch requires Actions write](https://docs.github.com/en/rest/actions/workflows). Cloudflare official [Cron propagation and UTC behavior](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
 
 **Non-negotiable:** code success != deployment; real Cron != recovery; HTTP 204 != GitHub run ID; run ID != first-add; first-add != independent formal T−12 certification.
+
+## 2026-11-08 19:22 JST Workerd concurrency negative evidence — release blocker
+
+**Current exact Worker/test head** `42797b414c11d748635cf53ccfea3fa4eda4a526` passed [GitHub Actions #42471103439](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42471103439): Python existing policy **96/96**, Node safety **46/46**, real Workerd Vitest **9/9**, two Wrangler `deploy --dry-run` bundles PASS, observer compiled bundle network-isolation gate PASS. The two PR jobs use GitHub `Contents: read`; the operational write-capable watchdog was **skipped** on `pull_request`. **No real GitHub POST or Cloudflare deployment took place.**
+
+The new Workerd tests isolate two facts:
+
+1. **30/30 recent history entries**, deliberately returned in a simulated GitHub schedule page, reject with `github_history_pagination_incomplete` after **two GETs and zero POSTs**. This demonstrates a fail-closed response to a saturated first page; it is not a live GitHub reliability sample or proof of the 10 ms Cloudflare Free CPU limit.
+2. **Two concurrent scheduled invocations** with deliberately synchronized empty history checks each issued two mocked `workflow_dispatch` POSTs: **8 GETs + 4 POSTs, two POSTs per target workflow**. This deliberately successful *negative-evidence test* proves the present **GET→POST duplicate-check is not atomic** and **exactly-once rescue is NOT certified**. Neither the current worker nor the new tests implement a cross-provider lock. Do not enable simultaneous Cloudflare and Render external recovery, and do not mark the design production-ready merely because its green CI includes this negative test.
+
+The intermediate Workerd run [#42471026766](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42471026766) had **8/9 Workerd cases passing**; its single failure was a test expectation of one history GET instead of the two reads made before `decide()` validates a full page. This was corrected **in the test only**; no Worker logic changed. Preserve both run receipts to avoid reporting the initial red run as a successful check.
+
+### Gate required before enabling live recovery
+
+Require either a reliable atomic idempotency mechanism shared with the original/other potential wakeup paths or a verified publication-level exactly-once design with clear accepted risk and on-time first-add evidence. A same-isolate in-memory flag, 5-minute Cron spacing, green unit tests, or ordinary GitHub workflow concurrency **alone** are insufficient proof of atomic cross-provider suppression. Keep the recovery flag literal `"false"`; preserve main/Render/source capture workflows unchanged pending a separately reviewed minimal solution.
+
