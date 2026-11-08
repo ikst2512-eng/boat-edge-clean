@@ -37,11 +37,15 @@ const has = (obj, key) => obj && Object.prototype.hasOwnProperty.call(obj, key);
 
 function expectedReportMatches(actual, expected) {
   if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false;
+  // A no-network observer has a CLOSED schema. Extra fields must not smuggle
+  // an unreviewed dispatch/forecast-success claim into a green audit result.
+  if (Object.keys(actual).length !== Object.keys(expected).length) return false;
   for (const [key, value] of Object.entries(expected)) {
     if (!has(actual, key)) return false;
     if (key === 'eligible_slots_jst') {
       const x = actual[key];
-      if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
+      if (!x || typeof x !== 'object' || Array.isArray(x) ||
+          Object.keys(x).length !== Object.keys(value).length) return false;
       for (const [kind, slot] of Object.entries(value)) if (!has(x, kind) || x[kind] !== slot) return false;
     } else if (actual[key] !== value) return false;
   }
