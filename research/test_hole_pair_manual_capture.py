@@ -66,7 +66,7 @@ class ManualCaptureTests(unittest.TestCase):
         self.assertEqual(out["frozen_count"], 1)
         self.assertEqual(out["eligible_forecasts_examined"], 1)
         self.assertEqual(out["source_forecast_codes"], ["202611090101"])
-        self.assertEqual(out["records"][0]["source_git_blob_sha1"], "b" * 40)
+        self.assertEqual(out["records"][0]["source_git_blob_sha1"], self.blob(PATH1))
         self.assertTrue(out["source_snapshot_coverage"]["source_snapshot_race_coverage_complete"])
         self.assertFalse(out["source_snapshot_coverage"]["entire_day_or_official_schedule_complete_verified"])
         self.assertFalse(out["formal"])
