@@ -1,8 +1,8 @@
 name: CLEAN Render readiness heartbeat (draft mitigation)
 
-# Only active when this workflow exists on the default branch.
-# GitHub schedule delivery is best-effort: this reduces idle gaps but is NOT
-# a guarantee against Render Free spin-down or failed wake-up.
+# Draft / unmerged. GitHub schedule only works from the default branch.
+# A 10-minute heartbeat may reduce 15-minute Render Free idle spin-down,
+# but delayed/missed GitHub jobs, quotas and platform failures remain possible.
 on:
   schedule:
     - cron: '3,13,23,33,43,53 * * * *'
@@ -23,26 +23,35 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Check real public Render HTTP 200 and exact body
+      - name: Verify external health and classify Render idle signal
         shell: bash
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          trap 'rm -f "$body"' EXIT
-          # A request may keep a live Free instance from becoming idle.
-          # Delayed or dropped GitHub cron runs can still allow spin-down.
-          # No credentials, mutations, restarts, deploys, retries or fake passes.
-          if ! result="$(curl --silent --show-error \
-            --connect-timeout 5 --max-time 30 --retry 0 \
-            --output "$body" \
-            --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}' \
-            'https://boat-edge-clean.onrender.com/healthz' 2>&1)"; then
+          robots="$(mktemp)"
+          trap 'rm -f "$body" "$robots"' EXIT
+          base='https://boat-edge-clean.onrender.com'
+          # /robots.txt is served by the edge while asleep and does NOT wake Free instances.
+          # Diagnostic only: its status never substitutes for GET /healthz success.
+          robot_http="$(curl --silent --show-error --connect-timeout 5 --max-time 8             --retry 0 --output "$robots" --write-out '%{http_code}'             "$base/robots.txt")" || robot_http='000'
+          if [[ "$robot_http" == '200' ]] &&
+             grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*$' "$robots"; then
+            echo 'RENDER_IDLE_SIGNAL possible-free-idle-response'
+          elif [[ "$robot_http" == '404' ]] && cmp -s "$robots" <(printf 'not found'); then
+            echo 'RENDER_IDLE_SIGNAL origin-404'
+          else
+            echo "RENDER_IDLE_SIGNAL unclassified_http=$robot_http"
+          fi
+          # A request can prevent idle while the instance is active; fail closed on
+          # HTTP non-200, timeout, or incorrect body. Never hide missed wakeups.
+          if ! result="$(curl --silent --show-error             --connect-timeout 5 --max-time 30 --retry 0             --output "$body"             --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}'             "$base/healthz" 2>&1)"; then
             echo "::error::RENDER_HTTP_UNAVAILABLE $(printf '%s' "$result" | head -c 300)"
             exit 1
           fi
           echo "RENDER_READINESS_PROBE $result"
-          if [[ "$result" != http=200* ]] || [[ "$(cat "$body")" != "ok" ]]; then
-            echo "::error::RENDER_HEALTH_NOT_200_OK"
+          if [[ ! "$result" =~ ^http=200[[:space:]] ]] ||
+             ! cmp -s "$body" <(printf 'ok'); then
+            echo "::error::RENDER_HEALTH_NOT_EXACT_200_OK bytes=$(wc -c < "$body" | tr -d ' ')"
             exit 1
           fi
-          echo "RENDER_PUBLIC_HEALTH_PASS"
+          echo 'RENDER_PUBLIC_HEALTH_PASS'
