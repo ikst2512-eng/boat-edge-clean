@@ -397,9 +397,9 @@ jobs:
         run: python -m unittest -v test_four_mode_nov05_08_raw_source_observation
       - name: Observe latest public source CSV independently (research-only, no writes)
         run: |
-          python four_mode_nov05_08_raw_source_observation.py --output four_mode_nov05_08_postrace_source_observation.json
+          python four_mode_nov05_08_raw_source_observation.py --output four_mode_nov05_08_postrace_source_observation.json --source-raw-dir four_mode_nov05_08_public_source_raw
           python - <<'PY'
-          import json
+          import json, hashlib
           from pathlib import Path
           r=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
           if (r.get("formal") is not False or r.get("formally_eligible_races")!=0
@@ -427,6 +427,18 @@ jobs:
                       raise SystemExit("public_shadow_reconciliation:"+mode+":"+k)
           print("PUBLIC_SOURCE_SHADOW_ORIGINAL_ONLY:"+str(preview["races"])+
                 ":top10="+str({m:v["top10"] for m,v in preview["original_saved_top_hits"].items()}))
+          if (r.get("public_raw_csv_evidence_is_ci_artifact_only") is not True
+                  or len(r.get("public_raw_csv_retained_day_codes",[]))!=r["source_observation_days"]
+                  or r.get("public_raw_csv_retained_for_exact_replay")!=(r["source_observation_days"]==len(r["days"]))):
+              raise SystemExit("raw_csv_artifact_retention_not_reconcilable")
+          root=Path("four_mode_nov05_08_public_source_raw")
+          for day,row in r["by_day"].items():
+              raw_path=root/(day+".csv")
+              if (not raw_path.is_file()
+                      or raw_path.stat().st_size!=row["current_snapshot_bytes"]
+                      or hashlib.sha256(raw_path.read_bytes()).hexdigest()!=row["current_snapshot_sha256"]):
+                  raise SystemExit("raw_csv_bytes_do_not_replay:"+day)
+          print("PUBLIC_SOURCE_RAW_REPLAY_BYTES="+str(r["source_observation_days"]))
           print("PUBLIC_SOURCE_OBSERVATION_STATUS="+r["status"])
           for day, row in r["by_day"].items():
               print("PUBLIC_SOURCE_DAY="+day+
@@ -447,6 +459,7 @@ jobs:
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
             four_mode_nov05_08_postrace_source_observation.json
+            four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
