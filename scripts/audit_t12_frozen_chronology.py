@@ -66,11 +66,12 @@ def inspect(pair, frozen):
                                for name in expected_components))
     exhibition_complete = pair.get("exhibition_complete") is True
     odds_120_complete = pair.get("odds_120_complete") is True
+    sources_before_t12 = before <= cutoff and odds <= cutoff
     two_sources_complete = (
         pair.get("both_complete_before_t12") is True
+        and hash_verified and sources_before_t12
         and components_verified and exhibition_complete and odds_120_complete
     )
-    sources_before_t12 = before <= cutoff and odds <= cutoff
     # Same-timestamp evidence cannot establish source-before-generation order.
     # The 2026-11-05 first-commit audit likewise rejects same-second ambiguity.
     generated_after_sources = generated > last_source
