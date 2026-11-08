@@ -66,7 +66,16 @@ jobs:
           from pathlib import Path
           p = json.loads(Path("research/four_mode_hit_head_prior_forward_protocol_20261108.json").read_bytes())
           src = Path("four_mode_top1_head_prior_shadow.py").read_bytes()
-          sha = hashlib.sha1(b"blob " + str(len(src)).encode("ascii") + b"\\0" + src).hexdigest()
+          sha = hashlib.sha1(b"blob " + str(len(src)).encode("ascii") + b"\0" + src).hexdigest()
+          dependency_pins = p.get("pinned_dependency_git_blob_sha1")
+          if not isinstance(dependency_pins, dict) or set(dependency_pins) != {
+                  "research_model.py", "four_mode_all_mode_same_job_shadow.py", "clean_four_modes.py"}:
+              raise SystemExit("head_prior_dependency_pin_missing")
+          for name, expected in dependency_pins.items():
+              data = Path(name).read_bytes()
+              actual = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+              if actual != expected:
+                  raise SystemExit("head_prior_dependency_drift:" + name)
           if (p.get("schema") != "FOUR_MODE_HIT_WINNER_HEAD_PRIOR_FORWARD_PREREGISTRATION_V1"
                   or p.get("selector_file") != "four_mode_top1_head_prior_shadow.py"
                   or p.get("pinned_selector_git_blob_sha1") != sha
