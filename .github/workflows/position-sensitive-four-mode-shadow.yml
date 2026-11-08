@@ -32,7 +32,7 @@ jobs:
           policy = json.loads(Path("research/four_mode_position_sensitive_forward_protocol_20261108.json").read_bytes())
           def git_blob_sha(path):
               raw = Path(path).read_bytes()
-              header = b"blob " + str(len(raw)).encode("ascii") + b"\\0"
+              header = b"blob " + str(len(raw)).encode("ascii") + b"\0"
               return hashlib.sha1(header + raw).hexdigest()
 
           checks = {
