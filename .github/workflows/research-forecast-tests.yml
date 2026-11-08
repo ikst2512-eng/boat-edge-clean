@@ -41,6 +41,8 @@ on:
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
       - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
       - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'scripts/research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_t12_same_race_receipt_join.py'
       - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
       - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
@@ -100,6 +102,8 @@ on:
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
       - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
       - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'scripts/research_t12_same_race_receipt_join.py'
+      - 'tests/test_research_t12_same_race_receipt_join.py'
       - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
       - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
@@ -183,6 +187,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_four_mode_pre_t12_wind_inventory.py' -v
       - name: Verify original beforeinfo wind receipt safety and time gates (offline)
         run: python -m unittest discover -s tests -p 'test_research_official_beforeinfo_wind_receipt_gate.py' -v
+      - name: Reject joining late T-12 wind and odds with earlier four-mode forecast (offline)
+        run: python -m unittest discover -s tests -p 'test_research_t12_same_race_receipt_join.py' -v
       - name: Verify official F0.xx actual course and ST are not silently omitted
         run: python -m unittest discover -s tests -p 'test_research_official_k_f_start_parse.py' -v
       - name: Read pinned main forecast originals without modifying predictions
@@ -216,6 +222,24 @@ jobs:
         with:
           name: official-beforeinfo-weather-raw-receipt-20261104-research-only
           path: research_evidence/official_beforeinfo_wind_receipt_202611040111.json
+          if-no-files-found: error
+      - name: Audit Nov 4 same-race provisional forecast vs two later pre-T12 HTTP receipts
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 6409443d6487b5c175eec4ed2a7f4bf136f69da4
+          python scripts/research_t12_same_race_receipt_join.py \
+            --source-main-sha 6409443d6487b5c175eec4ed2a7f4bf136f69da4 \
+            --beforeinfo-json docs/observations/official_preview_20261104/beforeinfo.json \
+            --beforeinfo-manifest docs/observations/official_preview_20261104/manifest.json \
+            --odds-api-replay docs/observations/live_odds_replay_20261104.json \
+            --out research_evidence/official_beforeinfo_odds_forecast_same_race_202611040111.json
+      - name: Preserve Nov 4 same-race timing join (not full T12 certified)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: same-race-nov4-wind-public-odds-forecast-timeline-not-certified
+          path: research_evidence/official_beforeinfo_odds_forecast_same_race_202611040111.json
           if-no-files-found: error
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
