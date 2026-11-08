@@ -1,5 +1,19 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-08: real Workerd scheduled() admission verification — no deployment
+
+The final remaining **local Cron invocation test gap was caused by Wrangler 4.102.0 being too old**, not by the Worker's scheduled handler: Cloudflare [Local Explorer documentation](https://developers.cloudflare.com/workers/local-development/local-explorer/) requires **Wrangler >=4.139.0** for scripted local scheduled events. The PR CI now pins the verified available **Wrangler 4.158.0** for `deploy --dry-run` and the local Workerd / Local Explorer smoke. The actual Worker `compatibility_date` remains `2026-06-24` pending live verification, and the Worker entrypoint remains default-only. No account credentials or real GitHub PAT are provided to CI.
+
+**Exact-head GitHub Actions [#42441409092](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42441409092)** completed **success** on code head `84c30b29835a06807b2feaf47036f8c67cc0029f`. Existing Python policy SUCCESS, **32/32 Node unit tests PASS**, Wrangler 4.158.0 `deploy --dry-run` SUCCESS (10.09 KiB / 3.38 KiB gzip). Real local Workerd, Local Explorer API readiness and **both actual invocations of exported `scheduled()`** through `POST /cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup` passed:
+
+- Foreign ad-hoc cron `* * * * *`: Local Explorer HTTP 200; the Worker emitted the guarded `unexpected_cron_trigger` error, **before any GitHub fetch or token check**. `LOCAL_WORKERD_FOREIGN_CRON_FAIL_CLOSED_PASS`.
+- Correct configured cron `*/5 22-23,0-13 * * *` with deliberately expired `scheduled_time=1700000000000`: Local Explorer HTTP 200; the Worker emitted `late_or_future_cron_trigger`, **before token checking or GitHub network**. `LOCAL_WORKERD_ALLOWED_CRON_EXPIRED_CLOCK_FAIL_CLOSED_PASS`.
+
+HTTP 200 here is the response from the **local Explorer test API**, not an accepted GitHub `workflow_dispatch`. These tests prove real local Worker admission and fail-closed behavior; they **do not** prove a live Cloudflare Cron event, authentic GitHub API access, 204 acceptance, a saved forecast, or Free-tier CPU <=10ms. The `GITHUB_DISPATCH_TOKEN` Secret remains unconfigured, and there is no Cloudflare Worker deployment.
+
+Previous unsuccessful 4.102.0 Local Explorer attempts and local runtime boot errors remain in PR CI history as independent negative evidence, with their causes now documented. Continue to keep the PR **Draft**, no automatic main merge, no Render modifications and no cross-provider duplicate-Cron activation.
+
+
 ## 2026-11-08: actual local Workerd startup gate (no account, no deployment)
 
 A new **PR-only, local** Wrangler runtime test found two genuine deployment blockers previously missed by the 31 passing Node tests and `deploy --dry-run`:
