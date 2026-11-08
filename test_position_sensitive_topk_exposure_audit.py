@@ -31,6 +31,11 @@ class TopKExposureTests(unittest.TestCase):
             self.assertEqual(row["top1_changed"], old[mode][0] != new[mode][0])
             for n in TOPS:
                 metric = row["topn"][str(n)]
+                if n > BUDGETS[mode]:
+                    self.assertFalse(metric["applicable"])
+                    self.assertEqual(metric["mode_ticket_budget"], BUDGETS[mode])
+                    continue
+                self.assertTrue(metric["applicable"])
                 self.assertEqual(metric["retained"],
                                  len(set(old[mode][:n]) & set(new[mode][:n])))
                 self.assertEqual(metric["retained"] +
@@ -80,6 +85,8 @@ class TopKExposureTests(unittest.TestCase):
             self.assertEqual(report["excluded"], 0)
             self.assertFalse(report["formal"])
             self.assertEqual(report["forward_holdout_scored"], 0)
+            self.assertFalse(report["by_mode"]["narrow"]["topn"]["10"]["applicable"])
+            self.assertTrue(report["by_mode"]["hit"]["topn"]["10"]["applicable"])
             self.assertEqual(report["by_mode"]["hit"]["top1_changed"],
                              int(old["hit"][0] != ranked()[1]["hit"][0]))
             self.assertEqual(path.read_text(), pristine)
