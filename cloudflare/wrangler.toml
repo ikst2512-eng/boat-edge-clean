@@ -3,6 +3,10 @@ main = "independent_capture_wakeup.mjs"
 compatibility_date = "2026-06-24"
 workers_dev = false
 
+[vars]
+# Two-step rollout: only literal 'true' permits GitHub Actions dispatch.
+CLOUDFLARE_DISPATCH_ENABLED = "false"
+
 [triggers]
 crons = ["*/5 22-23,0-13 * * *"]
 
