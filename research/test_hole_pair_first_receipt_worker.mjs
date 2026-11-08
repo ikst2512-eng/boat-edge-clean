@@ -167,6 +167,37 @@ test('false hashes, changed selectors, protected Top5 and formal assertions fail
   r=candidate();r.formal=true;assert.equal((await post(db,r)).status,422);
   assert.equal(db.rows.size,0);
 });
+test('unknown or outcome-bearing candidate fields are rejected before D1 write',async()=>{
+  const keys=[
+    ['winning_ticket','1-2-3'],
+    ['confirmed_result',{trifecta:'1-2-3'}],
+    ['result_checked_at','2026-11-09T12:00:00+09:00'],
+    ['unreviewed_metadata','post-result'],
+  ];
+  for(const [key,value] of keys){
+    const db=new DBMock(),r=candidate();
+    r[key]=value;
+    const a=await post(db,r);
+    assert.equal(a.status,422,key);
+    assert.equal(db.rows.size,0,key);
+    assert.equal(db.attempts,0,key);
+  }
+});
+test('candidate freeze source warning cannot smuggle post-result content',async()=>{
+  const db=new DBMock(),r=candidate();
+  r.warning='Winner was 1-2-3';
+  assert.equal((await post(db,r)).status,422);
+  assert.equal(db.attempts,0);
+});
+test('the exact result-blind freeze warning stays compatible',async()=>{
+  const db=new DBMock(),r=candidate();
+  r.warning='Candidate frozen by a local clock only. No independently verified first receipt; cannot report formal accuracy.';
+  const a=await post(db,r);
+  assert.equal(a.status,200);
+  assert.equal(db.rows.size,1);
+  assert.equal(a.data.formal,false);
+  assert.equal(a.data.independent_first_receipt_verified,false);
+});
 test('invalid dates, cutoffs and past cohort rejected',async()=>{
   const db=new DBMock();let r=candidate();r.deadline_jst='2026-11-10T11:12:00+09:00';
   assert.equal((await post(db,r)).status,422);
