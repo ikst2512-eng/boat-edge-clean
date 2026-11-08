@@ -4,9 +4,9 @@
 ## 成果（前回より進展、未認定は未認定のまま）
 公式Kの8方位×24場・実1C適格13,112件における、二次方位A/Bの相対風向ラベル不一致8,837件（67.40%）は**前回の研究結果**。本回はそのA/BのうちAを裏付けるかを、**運営者/BOAT RACE公式の説明と水面図**で独立に探索した。
 
-- **一次運営者等の説明文がAの頭方位と具体的に一致する場：6/24**（戸田、江戸川、平和島、蒲郡、尼崎、唐津）。ただし多くは過去の公式解説記事であり、2026年の図の位置・版と受領SHAまで認証していない。
-- **部分的一次証拠が見つかった場：2/24**（徳山は南東風を「左斜め後方からの追い風」と説明。Aが南東をちょうどtailとするのとは**方向帯だけ一致し、斜め分類は一致しない**。福岡は公式ガイドPDFの図に方位記号と1/2マークが見えるが、2021年版・原画面SHAは未保存）。
-- **今回独立に一次方向を確認できなかった場：16/24**。未確認を否定判定とはしない。公式サイトに水面図自体が掲載されていても、「図の北・進行軸と原レースの風向矢印を独立照合済み」とは呼ばない。
+- **一次運営者等の説明文がAの頭方位と具体的に一致する場：8/24**（戸田、江戸川、平和島、浜名湖、蒲郡、尼崎、芦屋、唐津）。ただし多くは過去の公式解説記事であり、2026年の図の位置・版と受領SHAまで認証していない。
+- **部分的一次証拠が見つかった場：3/24**（津は南東風をホーム追い風と説明するが進行方位の確定は不可。徳山は南東風を「左斜め後方からの追い風」と説明。Aが南東をちょうどtailとするのとは**方向帯だけ一致し、斜め分類は一致しない**。福岡は公式ガイドPDFの図に方位記号と1/2マークが見えるが、2021年版・原画面SHAは未保存）。
+- **今回独立に一次方向を確認できなかった場：13/24**。未確認を否定判定とはしない。公式サイトに水面図自体が掲載されていても、「図の北・進行軸と原レースの風向矢印を独立照合済み」とは呼ばない。
 - **最終認定：0/24場。** 各場の公式水面図・北矢印・第1マーク位置の同一版・原画面SHA・風矢印の「吹いてくる向き/吹いていく向き」・同一レース複数風向の突合がそろっていない。二次方位を本番には流用しない。
 
 ## 具体的な一次資料（事実の種類を明示）
@@ -19,7 +19,12 @@
 | 尼崎13 | 六甲山からの西風＝向かい | 明示的整合 | [BOAT RACE公式・2015年解説](https://www.boatrace.jp/owpc/pc/extra/race/13_20150317/monthly/guide.html) | 古い解説 |
 | 徳山18 | 南東風＝左斜め後方からの追い風 | **大まかな追い方向のみ** | [徳山公式・水面データ](https://www.boatrace-tokuyama.jp/modules/datafile/index_suimen.php) | Aでは南東は正面の真逆、tailと算定。斜めという公式記述と厳密なラベルは未整合 |
 | 福岡22 | 公式ガイドに北方位・2マーク・1マークの水面図がある | **図の予備的目視のみ** | [福岡公式・2021年舟券ガイドPDF](https://www.boatrace-fukuoka.com/uploads/pdf/keikotaisaku.pdf) | PDF3ページ目を目視。図の版・真方位・SHA未確定 |
+| 浜名湖06 | 南風＝ホーム向かい、北西風＝追い | 明示的整合 | [BOAT RACE公式・2018年解説](https://www.boatrace.jp/owpc/pc/extra/race/06_20180316/monthly/course_motor_guide.html) | 2018年記事、原画像SHAなし |
+| 津09 | 南東風＝ホーム追い風、水面はほぼ東西 | **方向帯の部分整合のみ** | [BOAT RACE公式・2016年解説](https://www.boatrace.jp/owsp/sp/extra/race/09_20160802/monthly/point.html) | 2016年記事。正確な軸角度は未確定 |
+| 芦屋21 | 2026年11/8 5R東風＝向い風4m、11R東風＝向い風5m | **運営者のレース別文字表示と整合** | [芦屋公式・モーター台帳](https://www.boatrace-ashiya.com/modules/datafile/?motor_no=46&page=index_motor_histdtl&select=6) | 現行公式K原本・風矢印・原画面SHAは未取得 |
 | 唐津23 | 北からの海風＝追い風 | 明示的整合（過去の図） | [唐津公式・2020年攻略BOOK](https://www.boatrace-karatsu.jp/uploads/info/karatsu_capture_book.pdf)、[2025年12月以降のピット変更について](https://www.boatrace-karatsu.jp/modules/datafile/?page=index_suimen) | 古い公式図を2026年の幾何・進入仕様へ直接再利用不可 |
+
+**追加の原本×運営者突合**：芦屋の2026-08-30〜09-02の7レースについて、SHA照合済み公式Kと運営者の検索インデックスに残ったレース別風向・風速・波高を7/7件突合。ただし運営者の過去HTMLは後から同URLで再現できず、独立した永続原本の7件認定ではない。2026-11-08芦屋5Rは運営者「東・向い風4m」と第三者サイト「西4m」の**未解決な表示差**がある。[追加証跡](official_relative_wind_ashiya_operator_K_crosscheck_20261108.md)。
 
 **ソースの格付け**：これらは**主催者/BOAT RACEサイトによる一次説明・公式図**。ただし「2026年8〜10月の各レース公式原本K」「公式水面方位の原画面SHA」「締切前のbeforeinfo原本」はそれぞれ異なる証拠である。解説の方向や過去の着率を2026年にそのまま移すことはできない。
 
@@ -32,10 +37,10 @@ Aは二次資料で提示された進行方向を「仮向かい風方位」に�
 | 03 江戸川 | 0° | 20° | first_party_text_explicit | 未認定 |
 | 04 平和島 | 0° | 90° | first_party_text_explicit | 未認定 |
 | 05 多摩川 | 270° | 0° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
-| 06 浜名湖 | 180° | 270° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
+| 06 浜名湖 | 180° | 270° | first_party_text_explicit | 未認定 |
 | 07 蒲郡 | 225° | 270° | first_party_text_explicit | 未認定 |
 | 08 常滑 | 270° | 90° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
-| 09 津 | 270° | 270° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
+| 09 津 | 270° | 270° | first_party_text_sector_only | 未認定 |
 | 10 三国 | 135° | 90° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
 | 11 びわこ | 180° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
 | 12 住之江 | 180° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
@@ -47,7 +52,7 @@ Aは二次資料で提示された進行方向を「仮向かい風方位」に�
 | 18 徳山 | 315° | 180° | first_party_text_sector_only | 未認定 |
 | 19 下関 | 225° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
 | 20 若松 | 270° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
-| 21 芦屋 | 90° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
+| 21 芦屋 | 90° | 180° | first_party_operator_per_race_text_explicit | 未認定 |
 | 22 福岡 | 90° | 180° | first_party_diagram_visual_preliminary | 未認定 |
 | 23 唐津 | 180° | 180° | first_party_text_explicit_historical | 未認定 |
 | 24 大村 | 90° | 180° | no_first_party_orientation_evidence_checked_in_this_round | 未認定 |
