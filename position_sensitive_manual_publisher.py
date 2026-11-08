@@ -148,6 +148,8 @@ def manual_publish_one(code, api_call, local_now):
     # An authenticated GitHub 404 response is evidence of temporary absence,
     # never success. Must be timely, then PUT create-only before T12.
     missing_date = _clock_header(response[1]).astimezone(JST)
+    if missing_date < frozen_clock or missing_date < observed:
+        raise ValueError("candidate_absence_server_clock_regressed")
     if missing_date >= cutoff - timedelta(seconds=MIN_MARGIN_SECONDS):
         raise ValueError("candidate_absence_checked_too_late")
     if local_now() >= cutoff - timedelta(seconds=MIN_MARGIN_SECONDS):
@@ -169,13 +171,15 @@ def manual_publish_one(code, api_call, local_now):
     if (type(commit) is not dict or type(commit.get("sha")) is not str
             or SHA40.fullmatch(commit["sha"]) is None):
         raise ValueError("github_create_commit_id_missing")
+    if write_date.astimezone(JST) <= missing_date:
+        raise ValueError("github_create_response_clock_not_after_absence")
     if write_date.astimezone(JST) >= cutoff:
         raise ValueError("github_remote_create_response_after_T12")
     # After writing, read back the EXACT commit rather than a mutable branch.
     remote_endpoint = API + "/contents/" + path + "?ref=" + commit["sha"]
     observed_date, remote = _contents(
         api_call("GET", remote_endpoint, None), path)
-    if (remote != candidate or observed_date < write_date
+    if (remote != candidate or observed_date <= write_date
             or observed_date.astimezone(JST) >= cutoff):
         raise ValueError("github_remote_candidate_not_early_or_byte_mismatch")
     return {
