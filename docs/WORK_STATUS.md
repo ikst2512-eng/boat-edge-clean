@@ -1,3 +1,10 @@
+## 2026-11-08 18:00 JST｜収集保存実測・日次監査の翌日誤警報（Draft #1699）
+- 実際の Actions `schedule` / `workflow_dispatch` を JST日付で抽出。11/06：CLEAN schedule5/dispatch5・4モード schedule4/dispatch2、11/07：5/3・4/2、11/08 18:00まで：5/4・3/1。11/03〜05も4モード schedule は5/4/4回で、定刻56回/日に達しておらず、正常な定期起動期間とは言えない。実行成功を保存成功に読み替えない。
+- 収集run原ログとGit first-add変更を照合。11/06 CLEAN生成132→初回Git追加132、4モードステージ130→初回Git追加130。11/07 CLEAN107→107、4モード122→122。11/08 CLEAN生成118・締切ガード除外1→初回Git追加117、4モード116→116。main原本は不変更。4モード11/08救済 #42460268986 は Actions success でも新規候補0・push0。リサーチ `formal=false`、独立の遠隔first-seen/T−12/正式精度は未認定。
+- 11/08 03:03 JSTの遅延inventory #42399320145が同日07:07の最初の定期収集より前に20261108を監査し、schedule件数0・liveness0の2誤警報を出した。同日15:05のinventory #42453325263はschedule3回・成功。収集障害の根拠と混同しない。
+- Draft PR #1699 は既存 `four-mode-schedule-inventory.yml` にJST日付selectorを接続し、08:00未満は直前日、以降は当日を3つの読み取り専用監査に共通指定。日付境界テスト追加。収集workflow、保存原本、T−12、UI、Cloudflare、Render、AIモデルの変更なし。**未統合・CI/本番の改善未認定**。
+- 最優先で残る実問題はGitHub scheduleの大幅な発火不足。Cloudflare Free独立起動案は既存Draft #1697担当と重複するため変更しない。#1699のexact-head CI/人手審査と、#1697の外部実行・重複抑制・初回保存証拠を別々に確認する。main自動統合禁止。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
