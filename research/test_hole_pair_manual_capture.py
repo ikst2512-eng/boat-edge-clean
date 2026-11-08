@@ -38,7 +38,7 @@ class ManualCaptureTests(unittest.TestCase):
     def blob(self, path):
         raw = self.fixture_raw(path)
         return hashlib.sha1(
-            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+            b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
         ).hexdigest()
 
     def freezer(self, code, root):
