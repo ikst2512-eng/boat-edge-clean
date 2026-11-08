@@ -49,6 +49,7 @@ on:
       - 'test_render_capture_wakeup.py'
       - 'cloudflare/independent_capture_wakeup.mjs'
       - 'cloudflare/independent_capture_policy.mjs'
+      - 'cloudflare/independent_capture_observer.mjs'
       - 'cloudflare/wrangler.toml'
       - 'cloudflare/wrangler.observer.toml'
       - 'cloudflare/package.json'
@@ -115,6 +116,31 @@ jobs:
       - name: Validate secret-free observer Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
         run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.observer.toml --outdir /tmp/boat-edge-observer-bundle
+      - name: Reject GitHub dispatch code in observer Worker bundle
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,readdirSync,statSync} from 'node:fs';
+          import {join} from 'node:path';
+          const root='/tmp/boat-edge-observer-bundle';
+          const js=[];
+          function visit(path) {
+            for(const name of readdirSync(path)) {
+              const file=join(path,name);
+              if(statSync(file).isDirectory()) visit(file);
+              else if(/\.m?js$/.test(name)) js.push(file);
+            }
+          }
+          visit(root);
+          if(js.length===0)throw Error('observer_bundle_not_found');
+          for(const file of js) {
+            const text=readFileSync(file,'utf8');
+            for(const forbidden of ['api.github.com','GITHUB_DISPATCH_TOKEN','/dispatches','Authorization']) {
+              if(text.includes(forbidden))throw Error('observer_bundle_contains_forbidden_network_code:'+forbidden);
+            }
+          }
+          console.log('OBSERVER_BUNDLE_NO_GITHUB_NETWORK_CODE_PASS files='+js.length);
+          NODE
       - name: Exercise local Workerd scheduled() via supported Local Explorer (PR no secret)
         if: ${{ github.event_name == 'pull_request' }}
         timeout-minutes: 2
