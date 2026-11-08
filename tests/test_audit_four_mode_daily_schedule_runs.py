@@ -335,23 +335,35 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(report["forecast_publication_verified"])
 
     def test_default_observation_time_is_taken_after_fetch(self):
-        # HTTP may return a run created during the request. The observation
-        # clock must be taken after the response, not before network IO.
-        prior_time = datetime.now(timezone.utc) - timedelta(seconds=1)
-        rows = [
-            self.make_run(11, prior_time.isoformat()),
-        ]
-        seen = []
+        # A response generated during an API call is only valid if the audit
+        # observation time is captured *after* the response arrives.
+        jst = timezone(timedelta(hours=9))
+        before_fetch = datetime(2026, 11, 8, 9, 0, tzinfo=jst)
+        during_fetch = datetime(2026, 11, 8, 9, 15, tzinfo=jst)
+        after_fetch = datetime(2026, 11, 8, 9, 30, tzinfo=jst)
+        state = {"fetched": False}
+
+        class FetchBoundaryClock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                selected = after_fetch if state["fetched"] else before_fetch
+                return selected.astimezone(tz) if tz else selected.replace(tzinfo=None)
+
         def fetch(_):
-            seen.append(True)
-            return {"total_count": 1, "workflow_runs": rows}
-        day = prior_time.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d")
-        report = audit_day("owner/repo", day, "token", fetch)
-        self.assertEqual(seen, [True])
+            state["fetched"] = True
+            return {"total_count": 1, "workflow_runs": [
+                self.make_run(11, during_fetch.isoformat()),
+            ]}
+
+        with patch("scripts.audit_four_mode_daily_schedule_runs.datetime",
+                   FetchBoundaryClock):
+            report = audit_day("owner/repo", "20261108", "token", fetch)
+        self.assertTrue(state["fetched"])
+        self.assertEqual(
+            datetime.fromisoformat(report["audit_as_of_jst"]), after_fetch)
         self.assertEqual(report["same_day_scheduled_run_count"], 1)
-        self.assertGreaterEqual(
-            datetime.fromisoformat(report["audit_as_of_jst"]),
-            prior_time.astimezone(timezone(timedelta(hours=9))))
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 1)
+        self.assertFalse(report["forecast_publication_verified"])
 
 
 if __name__ == "__main__":
