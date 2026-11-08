@@ -1,4 +1,11 @@
 import unittest
+import contextlib
+import io
+import json
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from scripts.audit_four_mode_daily_schedule_runs import (
     audit_day, nominal_schedule_slots_due, NOMINAL_DAILY_CAPTURE_SLOTS,
@@ -165,6 +172,9 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertEqual(result["same_day_scheduled_run_count"], 1)
         self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], 9)
         self.assertEqual(result["observed_runs_below_nominal_due_by"], 8)
+        self.assertEqual(result["same_day_pre_first_nominal_run_ids"], [30])
+        self.assertEqual(result["same_day_at_or_after_first_nominal_run_count"], 0)
+        self.assertEqual(result["observed_after_first_runs_below_nominal_due_by"], 9)
         self.assertFalse(result["per_slot_schedule_delivery_verified"])
         self.assertFalse(result["forecast_publication_verified"])
 
@@ -210,6 +220,80 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertIn("cron: '7,22,37,52 22 * * *'", text)
         self.assertIn("cron: '7,22,37,52 23 * * *'", text)
         self.assertIn("cron: '7,22,37,52 0-11 * * *'", text)
+
+
+    def test_overnight_schedule_cannot_silence_main_daily_zero_execution_gate(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(30, "2026-11-08T03:03:00+09:00"),
+            self.make_run(29, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 8, 9, 20, tzinfo=jst))
+        self.assertTrue(report["full_day_metadata_coverage"])
+        self.assertEqual(report["same_day_scheduled_run_count"], 1)
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 0)
+        self.assertEqual(report["failed_run_ids"], [])
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "daily.json"
+            with (patch("scripts.audit_four_mode_daily_schedule_runs.audit_day",
+                        return_value=report),
+                  patch.dict(os.environ, {
+                      "GITHUB_TOKEN": "synthetic-token",
+                      "GITHUB_EVENT_NAME": "schedule",
+                      "GITHUB_REF": "refs/heads/main",
+                  }),
+                  patch("sys.argv", ["audit", "--repo", "owner/repo",
+                                     "--output", str(output),
+                                     "--day-jst", "20261108"])):
+                from scripts.audit_four_mode_daily_schedule_runs import main
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as raised:
+                        main()
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn("pre-opening delayed runs cannot certify",
+                              stdout.getvalue())
+            disk = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(disk["same_day_scheduled_run_count"], 1)
+            self.assertEqual(disk["same_day_at_or_after_first_nominal_run_count"], 0)
+
+    def test_mixed_pre_opening_and_daytime_runs_do_not_rewrite_raw_counts(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(32, "2026-11-08T08:10:00+09:00"),
+            self.make_run(31, "2026-11-08T07:07:00+09:00"),
+            self.make_run(30, "2026-11-08T03:03:00+09:00"),
+            self.make_run(29, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 8, 9, 20, tzinfo=jst))
+        self.assertEqual(report["same_day_scheduled_run_count"], 3)
+        self.assertEqual(report["same_day_pre_first_nominal_run_ids"], [30])
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 2)
+        self.assertEqual(report["observed_runs_below_nominal_due_by"], 6)
+        self.assertEqual(report["observed_after_first_runs_below_nominal_due_by"], 7)
+        self.assertFalse(report["full_calendar_day_schedule_delivery_verified"])
+        self.assertFalse(report["forecast_publication_verified"])
+
+    def test_pre_first_slot_boundary_does_not_count_as_daytime_capture(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(13, "2026-11-08T07:07:00+09:00"),
+            self.make_run(12, "2026-11-08T07:06:59+09:00"),
+            self.make_run(11, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": 3, "workflow_runs": rows},
+            as_of=datetime(2026, 11, 8, 9, 20, tzinfo=jst))
+        self.assertEqual(report["same_day_pre_first_nominal_run_ids"], [12])
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 1)
+        self.assertFalse(report["per_slot_schedule_delivery_verified"])
 
 
 if __name__ == "__main__":
