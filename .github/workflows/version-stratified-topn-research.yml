@@ -359,7 +359,8 @@ jobs:
                   or r.get("comparison_only_not_storage_repair") is not True):
               raise SystemExit("research_source_observation_formal_guard_changed")
           preview=r["unarchived_published_shadow_only"]
-          if (preview.get("separate_from_441_persisted_reference") is not True
+          if (preview.get("separate_from_persisted_reference") is not True
+                  or preview.get("persisted_reference_denominator")!=r["reference_results_already_saved"]
                   or preview.get("eligible_for_formal_admission") is not False
                   or preview.get("not_a_prospective_candidate_comparison") is not True
                   or preview["races"]!=preview["denominator"]
