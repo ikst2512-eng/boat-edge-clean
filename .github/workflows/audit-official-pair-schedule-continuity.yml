@@ -16,6 +16,8 @@ on:
       - tests/test_audit_t12_scheduled_pair_zip.py
       - scripts/audit_t12_archived_pair_forecast_replay.py
       - tests/test_audit_t12_archived_pair_forecast_replay.py
+      - scripts/audit_t12_extracted_artifact_replay.py
+      - tests/test_audit_t12_extracted_artifact_replay.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -44,6 +46,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_blocker_join.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_pair_zip.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_archived_pair_forecast_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_extracted_artifact_replay.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -81,15 +84,47 @@ jobs:
             --schedule reports/official_pair_schedule_continuity.json \
             --archive reports/official_three_archive_presence.json \
             --output reports/official_t12_same_day_blockers.json
+      - name: Download archived official-source files from Actions run 41976534374
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-41976534374
+          run-id: 41976534374
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-41976534374
+      - name: Download archived official-source files from Actions run 42170457446
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42170457446
+          run-id: 42170457446
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42170457446
+      - name: Download archived official-source files from Actions run 42342115412
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42342115412
+          run-id: 42342115412
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42342115412
+      - name: Download archived official-source files from Actions run 42450048245
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42450048245
+          run-id: 42450048245
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42450048245
       - name: Independently replay Nov5-8 real official ZIPs vs pinned GitHub forecasts
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          # Requires authenticated 200 Actions ZIP bytes and exact pinned
-          # main-commit forecast blobs. No source/forecast data is written.
+          # The historical Actions ZIP REST endpoint returned HTTP 401 in PR
+          # CI. Do NOT treat 401 as success; use the authenticated official
+          # download-artifact action, independently replay each source
+          # original/manifest and confirm artifact digest from GitHub metadata.
+          # The extraction ZIP is NOT the same ZIP bytes (scope is explicit).
           python -m scripts.audit_t12_archived_pair_forecast_replay \
             --repo "$REPOSITORY" \
+            --extracted-root historical-artifacts \
             --output reports/historical_real_source_forecast_replay.json
       - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
