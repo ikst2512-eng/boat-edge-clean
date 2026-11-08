@@ -15,7 +15,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from collect_clean_results import BASE, build_records, source_gap_reasons
-from four_mode_nov05_08_daily_reference_audit import ROOT, DAYS, audit
+from four_mode_nov05_08_daily_reference_audit import ROOT, DAYS, MODES, TOPS, BUDGETS, VERSION, audit
+from four_mode_archive_api import archived_four_modes
 
 JST = timezone(timedelta(hours=9))
 MAX_BYTES = 2_000_000
@@ -42,6 +43,20 @@ def fetch_public_raw(day, *, opener=urlopen):
     return raw, fetched_at
 
 
+def _saved_original_shadow_rank(root, code, winning):
+    """Rank only immutable original tickets, not a newly generated candidate."""
+    status, forecast = archived_four_modes(code, root)
+    if status != 200 or forecast.get("model_version") != VERSION:
+        raise ValueError("shadow_forecast_not_verified_v2")
+    values = {}
+    for mode in MODES:
+        tickets = [x["combo"] for x in forecast["modes"][mode]["tickets"]]
+        if len(tickets) != BUDGETS[mode] or len(set(tickets)) != len(tickets):
+            raise ValueError("shadow_forecast_ticket_budget_or_duplicates")
+        values[mode] = tickets.index(winning) + 1 if winning in tickets else None
+    return values
+
+
 def compare_one(day, root, pending, raw, fetched_at):
     if fetched_at.utcoffset() != timedelta(hours=9):
         raise ValueError("fetch_receipt_not_jst")
@@ -51,6 +66,9 @@ def compare_one(day, root, pending, raw, fetched_at):
     digest = hashlib.sha256(raw).hexdigest()
     observed = dict.fromkeys(CLASSES, 0)
     pending_examples = {key: [] for key in CLASSES}
+    shadow_hits = {mode: {f"top{n}": 0 for n in TOPS} for mode in MODES}
+    public_shadow_codes = []
+    shadow_full_covered = {mode: 0 for mode in MODES}
     for code in pending:
         reason = gaps[code]
         if reason == "row_present_requires_review":
@@ -64,13 +82,24 @@ def compare_one(day, root, pending, raw, fetched_at):
                 if deadline.tzinfo is None or source_stamp <= deadline:
                     reason = "source_timestamp_not_post_deadline"
                 else:
+                    if (root / "confirmed_results" / (code + ".json")).exists():
+                        raise ValueError("shadow_candidate_already_saved")
                     reason = "valid_published_row_not_yet_archived"
+                    winning = "-".join(map(str, record["finish_order"]))
+                    ranks = _saved_original_shadow_rank(root, code, winning)
+                    public_shadow_codes.append(code)
+                    for mode, rank in ranks.items():
+                        shadow_full_covered[mode] += int(rank is not None)
+                        for n in TOPS:
+                            shadow_hits[mode][f"top{n}"] += int(rank is not None and rank <= n)
         if reason not in observed:
             reason = "unclassified_pending_source"
         observed[reason] += 1
         pending_examples[reason].append(code)
     if sum(observed.values()) != len(pending):
         raise AssertionError("pending_partition_mismatch")
+    if len(public_shadow_codes) != observed["valid_published_row_not_yet_archived"]:
+        raise AssertionError("public_shadow_race_membership_mismatch")
     # Rechecking latest publish *order* != replaying the stored historical CSV.
     saved_paths = sorted((root / "confirmed_results").glob(day + "*.json"))
     archived = Counter()
@@ -99,6 +128,14 @@ def compare_one(day, root, pending, raw, fetched_at):
         "pending_saved_forecast_results": len(pending),
         "pending_classes": observed,
         "pending_codes_by_class": {k: v for k, v in pending_examples.items() if v},
+        "unarchived_published_shadow_only": {
+            "race_count": len(public_shadow_codes),
+            "race_codes": public_shadow_codes,
+            "original_saved_top_hits": shadow_hits,
+            "original_saved_full_list_covered": shadow_full_covered,
+            "score_source": "new_public_csv_snapshot_not_clean_persisted_result",
+            "counts_added_to_formal_or_saved_reference": False,
+        },
         "existing_result_files_examined": len(saved_paths),
         "archived_to_current_comparison": dict(archived),
         "finish_conflict_race_codes": conflicts,
@@ -122,6 +159,12 @@ def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw):
             # Do not assert a 404, timeout, invalid CSV or future stamp is a success.
             errors[day] = {"type": type(exc).__name__, "reason": str(exc)[:200]}
     observed = len(by_day)
+    shadow_total = sum(row["unarchived_published_shadow_only"]["race_count"] for row in by_day.values())
+    shadow_top_hits = {mode: {f"top{n}": sum(row["unarchived_published_shadow_only"]["original_saved_top_hits"][mode][f"top{n}"]
+                                       for row in by_day.values()) for n in TOPS} for mode in MODES}
+    shadow_codes = [code for row in by_day.values() for code in row["unarchived_published_shadow_only"]["race_codes"]]
+    if len(set(shadow_codes)) != shadow_total:
+        raise AssertionError("duplicate_public_shadow_race_code")
     status = ("ALL_SOURCE_SNAPSHOTS_OBSERVED" if observed == len(days) and not errors
               else "SOURCE_OBSERVATION_INCOMPLETE")
     conflicts = sum(len(x["finish_conflict_race_codes"]) for x in by_day.values())
@@ -136,6 +179,14 @@ def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw):
         "reference_results_already_saved": reference["totals"]["evaluated"],
         "unresolved_saved_result_files": reference["totals"]["pending_results"],
         "source_conflict_count": conflicts,
+        "unarchived_published_shadow_only": {
+            "races": shadow_total, "race_codes": shadow_codes,
+            "original_saved_top_hits": shadow_top_hits,
+            "denominator": shadow_total,
+            "separate_from_441_persisted_reference": True,
+            "eligible_for_formal_admission": False,
+            "not_a_prospective_candidate_comparison": True,
+        },
         "source_finish_order_conflicts_need_manual_review": conflicts > 0,
         "comparison_only_not_storage_repair": True,
         "raw_csv_new_snapshot_hash_is_not_historical_archive_hash": True,
