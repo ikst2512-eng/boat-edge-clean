@@ -138,6 +138,16 @@ class ExactRosterCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "untrusted_frozen_record_metadata"):
             c.reconcile(DAY, MAIN, [CODES[0]], [r], {})
 
+    def test_altered_selector_blob_and_result_warning_never_pass(self):
+        altered = frozen(CODES[0])
+        altered["locked_selector_git_blobs"]["hole_third_choice_research.py"] = "0" * 40
+        with self.assertRaisesRegex(ValueError, "untrusted_frozen_record_metadata"):
+            c.reconcile(DAY, MAIN, [CODES[0]], [altered], {})
+        altered = frozen(CODES[0])
+        altered["warning"] = "Known winning trifecta: 1-2-3"
+        with self.assertRaisesRegex(ValueError, "untrusted_frozen_record_metadata"):
+            c.reconcile(DAY, MAIN, [CODES[0]], [altered], {})
+
     def test_exact_source_freeze_warning_remains_compatible(self):
         r = frozen(CODES[0])
         r["warning"] = (
