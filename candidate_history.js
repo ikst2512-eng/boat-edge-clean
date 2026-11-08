@@ -8,6 +8,7 @@ const section=document.getElementById('todayCandidateRaces');
 if(!status||!root||!dayLabel||!section)return;
 const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
 const pad=n=>String(n).padStart(2,'0');
+const onPages=location.hostname.endsWith('.github.io');
 const today=()=>{
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
  return p.year+'-'+p.month+'-'+p.day;
@@ -29,7 +30,7 @@ function text(tag,value,klass){
  const el=document.createElement(tag);el.textContent=value;if(klass)el.className=klass;return el;
 }
 function localRaceLink(race,screen){
- const url=new URL('/forecast',location.origin);
+ const url=onPages?new URL('./',location.href):new URL('/forecast',location.origin);
  url.searchParams.set('date',selectedDay);
  url.searchParams.set('venue',String(race.venue));
  url.searchParams.set('race',String(race.race));
@@ -37,13 +38,27 @@ function localRaceLink(race,screen){
  return url.pathname+url.search;
 }
 async function loadFourModes(code,target){
- const url='/api/four-mode-archive?code='+encodeURIComponent(code);
+ const url=onPages?'https://raw.githubusercontent.com/ikst2512-eng/boat-edge-clean/main/four_mode_forecasts/'+code+'.json':
+  '/api/four-mode-archive?code='+encodeURIComponent(code);
  try{
   const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});
   if(response.status===404){target.textContent='4モードの保存予想はありません。';return;}
   if(!response.ok)throw Error('HTTP '+response.status);
   const d=await response.json();
-  if(d.status!=='historical_research_only'||d.race_code!==code||d.production_forecast!==false||d.verified_first_git_add!==false||!d.modes)throw Error('保存予想の検証待ち');
+  if(onPages){
+   // Git-stored source record, not Render's reduced research API wrapper.
+   if(d.schema!=='CLEAN_FOUR_MODES_PREDEADLINE_V1'||d.race_code!==code||
+      typeof d.generated_at_jst!=='string'||typeof d.deadline_jst!=='string'||
+      !d.generated_at_jst.endsWith('+09:00')||!d.deadline_jst.endsWith('+09:00')||
+      !(Date.parse(d.generated_at_jst)<Date.parse(d.deadline_jst))||!d.modes)throw Error('保存予想の検証待ち');
+   for(const id of ['hit','balance','narrow','hole']){
+    if(!Array.isArray(d.modes[id]?.tickets))throw Error('4モード原本不一致');
+    d.modes[id].label={hit:'本命',balance:'バランス',narrow:'絞り',hole:'穴'}[id];
+   }
+  }else if(d.status!=='historical_research_only'||d.race_code!==code||
+      d.production_forecast!==false||d.verified_first_git_add!==false||!d.modes){
+   throw Error('保存予想の検証待ち');
+  }
   target.replaceChildren(text('p','4モードの保存済み研究予想（初回Git登録未検証・正式認定ではありません）','notes'));
   for(const id of ['hit','balance','narrow','hole']){
    const m=d.modes[id],list=m?.tickets;
@@ -90,7 +105,9 @@ async function loadDay(){
  root.replaceChildren();status.textContent=selectedDay+'の候補原本を確認中…';
  const day=selectedDay.replaceAll('-','');
  try{
-  const response=await fetch('/api/candidate-history?date='+day,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+  const endpoint=onPages?'candidate_history/'+day+'.json':'/api/candidate-history?date='+day;
+  const response=await fetch(endpoint,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+  if(onPages&&response.status===404){status.textContent='この日付の候補履歴はまだ公開されていません。候補0件とは断定しません。';return;}
   if(!response.ok)throw Error('HTTP '+response.status);
   const d=await response.json();
   if(token!==requestId)return;
