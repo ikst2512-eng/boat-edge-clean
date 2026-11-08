@@ -72,7 +72,7 @@ def unpack_lha(raw: bytes, day: str = DAY) -> bytes:
     finally:
         free(obj)
 
-def parse_k(text: str, day: str = DAY, expected_races: int = 156) -> dict:
+def parse_k(text: str, day: str = DAY, expected_races: int = 156, allow_unsettled: bool = False) -> dict:
     venue, current, active = None, None, False
     races = {}
     lines = text.splitlines()
@@ -94,11 +94,14 @@ def parse_k(text: str, day: str = DAY, expected_races: int = 156) -> dict:
             current = {
                 "code": code, "venue": venue, "method": "".join(heading[1].split()),
                 "wind_m": int(h.group(3)), "wave_cm": int(h.group(4)),
-                "wind_direction_text": "".join(h.group(2).split()), "entries": [],
+                "wind_direction_text": "".join(h.group(2).split()), "entries": [], "unsettled": False,
             }
             races[code] = current
             active = True
             continue
+        if "レース不成立" in line and current is not None:
+            current["unsettled"] = True
+            active = False
         if re.match(r"^\s+単勝\s+", line):
             active = False
         if not active or current is None:
@@ -121,8 +124,10 @@ def parse_k(text: str, day: str = DAY, expected_races: int = 156) -> dict:
         entries = item["entries"]
         if len(entries) != 6 or {e["boat"] for e in entries} != set(range(1, 7)):
             raise ValueError("official_six_boat_validation_failed:" + code)
-        if sum(e["status"] == "01" for e in entries) != 1:
-            raise ValueError("official_winner_missing_or_duplicate:" + code)
+        winners = sum(e["status"] == "01" for e in entries)
+        if winners != 1:
+            if not (allow_unsettled and winners == 0 and item["unsettled"] and item["method"] == ""):
+                raise ValueError("official_winner_missing_or_duplicate:" + code)
     return races
 
 def compare(official: dict, secondary_raw: bytes, expected_secondary_sha: str = SECONDARY_BLOB_SHA, day: str = DAY) -> dict:
