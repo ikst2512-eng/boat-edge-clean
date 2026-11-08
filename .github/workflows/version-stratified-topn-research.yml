@@ -592,6 +592,51 @@ jobs:
                 ":OFFICIAL_MANUAL_NON_SCOREABLE="+str(formal["non_scored_total"]))
           print("FORMAL_COUNT_UNCHANGED:0")
           PY
+      - name: Test displayed estimate versus observed full-ticket coverage gates
+        run: python -m unittest -v test_four_mode_original_coverage_calibration_audit
+      - name: Audit historical original full-list coverage estimate without model changes
+        run: |
+          python four_mode_original_coverage_calibration_audit.py --source-dir four_mode_nov05_08_public_source_raw --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json --output four_mode_original_coverage_calibration.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path("four_mode_original_coverage_calibration.json").read_text())
+          original=json.loads(Path("four_mode_scoreable_original_reference.json").read_text())
+          archived=json.loads(Path("four_mode_nov05_08_reference.json").read_text())
+          latest=json.loads(Path("four_mode_nov05_08_postrace_source_observation.json").read_text())
+          expected={"narrow":5, "hit":10, "balance":16, "hole":22}
+          if (c.get("schema")!="FOUR_MODE_V2_NOV05_08_ORIGINAL_ESTIMATED_FULL_COVERAGE_CALIBRATION_V1"
+                  or c.get("formal") is not False
+                  or c.get("predictive_calibration_proven") is not False
+                  or c.get("model_promotion_allowed") is not False
+                  or c.get("prospective_candidate_pairs")!=0
+                  or c.get("compares_full_mode_ticket_lists_not_top10_for_16_or_22_budget") is not True
+                  or c.get("ticket_budgets")!=expected
+                  or c.get("postrace_scoreable")!=original["scoreable_outcomes"]
+                  or c.get("archived_original_forecasts")!=original["all_saved_v2_forecast_roster"]
+                  or c.get("non_scoreable_excluded")!=original["excluded_no_trifecta_canceled_reference_count"]
+                  or c.get("persisted_results")!=original["confirmed_results_git_persisted"]
+                  or c.get("public_only_postrace_results")!=original["public_third_party_results_not_git_persisted"]
+                  or set(c.get("mode",{}))!=set(expected)):
+              raise SystemExit("historical_full_ticket_calibration_evidence_not_consistent")
+          for mode,stats in c["mode"].items():
+              saved=archived["reference_overall"]["mode"][mode]["full_list_covered"]
+              newly=sum(row["unarchived_published_shadow_only"]["original_saved_full_list_covered"][mode]
+                        for row in latest["by_day"].values())
+              if (stats["races"]!=c["postrace_scoreable"]
+                      or stats["persisted_result_count"]!=c["persisted_results"]
+                      or stats["public_only_result_count"]!=c["public_only_postrace_results"]
+                      or stats["observed_hit_count"]!=saved+newly
+                      or stats["observed_hit_count"]<original["modes"][mode]["original_top_hits"]["top10"]
+                      or not 0<=stats["mean_squared_error_brier_descriptive"]<=1):
+                  raise SystemExit("calibration_full_list_vs_top10_reconciliation:"+mode)
+              print("ORIGINAL_CALIBRATION_REFERENCE:"+mode+
+                    ":estimated_full_pct="+str(stats["estimated_full_list_hit_rate_pct"])+
+                    ":actual_full_pct="+str(stats["observed_full_list_hit_rate_pct"])+
+                    ":gap_pp="+str(stats["observed_minus_estimated_percentage_points"])+
+                    ":actual_full_hits="+str(stats["observed_hit_count"]))
+          print("ORIGINAL_CALIBRATION_FORMAL_COUNT:0")
+          PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
@@ -604,6 +649,7 @@ jobs:
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
             four_mode_scoreable_original_reference.json
+            four_mode_original_coverage_calibration.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
