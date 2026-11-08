@@ -113,6 +113,7 @@ def replay(raw_zip, run_id, expected_zip_sha256, *, auditor=None):
         saved_before = saved_odds = complete = 0
         rows = []
         seen = set()
+        declared_original_members = set()
         for item in observations:
             race = item.get("race_code") if isinstance(item, dict) else None
             if (not isinstance(race, str) or not RACE.fullmatch(race)
@@ -124,6 +125,12 @@ def replay(raw_zip, run_id, expected_zip_sha256, *, auditor=None):
             prefix = "official_joint_evidence/observations/"
             a = prefix + f"before_run{run_id}/{day}/{race}/"
             b = prefix + f"odds_run{run_id}/{day}/{race}/"
+            declared_original_members.update({
+                a + "beforeinfo.json", a + "manifest.json",
+                b + "original.html", b + "manifest.json",
+                prefix + f"before_run{run_id}/{day}/{race}.publish.lock",
+                prefix + f"odds_run{run_id}/{day}/{race}.publish.lock",
+            })
             before = _source(archive, members, a, "beforeinfo.json", race)
             odds = _source(archive, members, b, "original.html", race, odds=True)
             if odds and not before:
@@ -191,6 +198,16 @@ def replay(raw_zip, run_id, expected_zip_sha256, *, auditor=None):
             elif item.get("status") in ("pair_complete", "pair_not_ready"):
                 raise ValueError("claimed pair status without both original source files")
             rows.append(row)
+        # A reported no-op may not silently hide unlisted source originals.
+        # This archive format permits only members for its declared races,
+        # including the existing sidecar publish-lock files.
+        found_original_members = {
+            name for name in members
+            if name.startswith("official_joint_evidence/observations/")
+            and not name.endswith("/")
+        }
+        if found_original_members - declared_original_members:
+            raise ValueError("undeclared or orphan scheduled official original")
         expected = (("beforeinfo_originals_saved", saved_before),
                     ("official_odds_originals_saved", saved_odds),
                     ("complete_pairs_before_t12", complete))
