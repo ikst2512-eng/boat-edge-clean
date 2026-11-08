@@ -126,6 +126,77 @@ def evaluate(root, raw_by_day, *, observed_at=None, days=DAYS):
     }
 
 
+
+def annotate_official_non_scored(report, manifest):
+    """Secondary manual source reference only; CI does NOT visit official pages."""
+    schema = "FOUR_MODE_NOV05_08_OFFICIAL_NON_SCOREABLE_REFERENCE_V1"
+    expected_sources = {
+        "cancelled_race_day": (
+            "20261106", "not_in_published_csv",
+            "https://www.motorboatracing-association.jp/abort/2026/11/"
+        ),
+        "trifecta_not_established": (
+            "20261107", "invalid_or_unfinished_finish_not_scoreable",
+            "https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261107&jcd=03&rno=2"
+        ),
+    }
+    if (type(manifest) is not dict or manifest.get("schema") != schema
+            or manifest.get("reference_only") is not True
+            or manifest.get("authored_date_jst") != "2026-11-08"
+            or manifest.get("official_live_recheck_by_ci") is not False
+            or manifest.get("formal") is not False
+            or manifest.get("model_improvement_proven") is not False
+            or manifest.get("model_promotion_allowed") is not False):
+        raise ValueError("untrusted_official_reference_manifest")
+    cases = manifest.get("cases")
+    if type(cases) is not list or len(cases) != len(expected_sources):
+        raise ValueError("incomplete_official_non_scored_cases")
+    seen = set()
+    counts = {}
+    for case in cases:
+        if not isinstance(case, dict):
+            raise ValueError("untrusted_official_case")
+        kind = case.get("kind")
+        if kind not in expected_sources or kind in counts:
+            raise ValueError("duplicate_or_unknown_official_case")
+        day, expected_reason, url = expected_sources[kind]
+        codes = case.get("race_codes")
+        if (case.get("day") != day
+                or case.get("expected_public_csv_reason") != expected_reason
+                or case.get("official_source_url") != url
+                or type(codes) is not list or not codes
+                or any(type(code) is not str or len(code) != 12
+                       or not code.startswith(day) for code in codes)
+                or len(set(codes)) != len(codes)):
+            raise ValueError("official_case_identity_or_source_invalid")
+        expected_codes = ({"202611070302"} if kind == "trifecta_not_established"
+                          else {f"2026110608{race:02d}" for race in range(2,13)})
+        if set(codes) != expected_codes or seen.intersection(codes):
+            raise ValueError("official_non_scored_roster_drift")
+        observed = report.get("by_day", {}).get(day, {}).get(
+            "pending_codes_by_class", {}).get(expected_reason, [])
+        if not set(codes).issubset(set(observed)):
+            raise ValueError("official_reference_disagrees_with_current_raw_source")
+        seen.update(codes)
+        counts[kind] = len(codes)
+    total_pending = report["frozen_original_result_reference"]["pending_results"]
+    if len(seen) > total_pending:
+        raise ValueError("official_non_scored_exceeds_pending")
+    return {
+        "reviewed_non_scored_races": sorted(seen),
+        "non_scored_counts_by_type": counts,
+        "non_scored_total": len(seen),
+        "remaining_unresolved_result_races": total_pending - len(seen),
+        "maximum_potential_trifecta_slots_in_saved_forecasts":
+            report["frozen_original_result_reference"]["forecast_files"] - len(seen),
+        "official_pages_live_rechecked_by_script": False,
+        "review_scope": "postrace_non_scoreable_classification_only_not_pre_result_features",
+        "formal": False,
+        "model_improvement_proven": False,
+        "model_promotion_allowed": False,
+    }
+
+
 def fetch_csv(days):
     out = {}
     for day in days:
@@ -148,6 +219,8 @@ def main():
                         help="Read current public source CSV, without writing any files")
     parser.add_argument("--source-dir", type=Path,
                         help="Offline CSV directory containing YYYYMMDD.csv for each day")
+    parser.add_argument("--official-reference", type=Path,
+                        help="Manual official non-scoreable source manifest; not live official verification")
     args = parser.parse_args()
     if args.fetch == (args.source_dir is not None):
         parser.error("exactly one of --fetch or --source-dir required")
@@ -156,7 +229,11 @@ def main():
     else:
         raws = {day: (args.source_dir / (day + ".csv")).read_bytes()
                 for day in DAYS}
-    print(json.dumps(evaluate(args.root, raws), ensure_ascii=False, sort_keys=True))
+    report = evaluate(args.root, raws)
+    if args.official_reference:
+        manifest = json.loads(args.official_reference.read_bytes())
+        report["official_non_scored_reference"] = annotate_official_non_scored(report, manifest)
+    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
 
 
 if __name__ == "__main__":
