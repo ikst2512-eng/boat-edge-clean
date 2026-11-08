@@ -533,6 +533,58 @@ jobs:
           if (raw["reference_results_already_saved"] + raw["unarchived_published_shadow_only"]["races"]
                   + formal["non_scored_total"] > raw["archived_v2_forecasts"]):
               raise SystemExit("cross_audited_roster_overflow")
+          # Once the manually referenced canceled/no-trifecta roster is proven
+          # equal to all remaining source gaps, those 12 can NEVER be assumed
+          # to become wins. Correct scoreable denominator is 462, not 474.
+          union=raw["historical_original_union_reference_only"]
+          effective=union["valid_saved_forecasts_with_persisted_or_public_result"]
+          if (union["status"]!="COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE"
+                  or union["unknown_or_unobserved_result_count"]!=formal["non_scored_total"]
+                  or effective!=formal["maximum_potential_trifecta_slots_in_saved_forecasts"]
+                  or effective+formal["non_scored_total"]!=raw["archived_v2_forecasts"]
+                  or union["persisted_result_count"]!=raw["reference_results_already_saved"]
+                  or union["newly_observed_public_unarchived_result_count"]!=
+                     raw["unarchived_published_shadow_only"]["races"]):
+              raise SystemExit("non_scoreable_denominator_not_exhaustively_reconciled")
+          mode_summary={}
+          for mode, entry in union["modes"].items():
+              count={}
+              pct={}
+              for n in (1,3,5,10):
+                  key="top"+str(n)
+                  h=entry["top_hits_by_evidence_class"][key]
+                  if h["saved_only"]+h["public_unarchived_only"]!=h["combined_observed"]:
+                      raise SystemExit("scoreable_reference_hit_subtotal:"+mode+":"+key)
+                  count[key]=h["combined_observed"]
+                  pct[key]=round(100*count[key]/effective,2) if effective else None
+                  if entry["top_pct_of_currently_observed_outcomes_reference_only"][key]!=pct[key]:
+                      raise SystemExit("scoreable_reference_percentage:"+mode+":"+key)
+              mode_summary[mode]={"original_top_hits":count,
+                                  "original_top_pct":pct}
+          report={
+              "schema":"FOUR_MODE_SCOREABLE_20261105_08_ORIGINAL_REFERENCE_V1",
+              "status":"complete_postrace_trifecta_outcomes_on_current_public_CSV_reference_only",
+              "all_saved_v2_forecast_roster":raw["archived_v2_forecasts"],
+              "scoreable_outcomes":effective,
+              "confirmed_results_git_persisted":raw["reference_results_already_saved"],
+              "public_third_party_results_not_git_persisted":raw["unarchived_published_shadow_only"]["races"],
+              "excluded_no_trifecta_canceled_reference_count":formal["non_scored_total"],
+              "official_case_reference_manual_not_live_CI":True,
+              "source_snapshot_from_exact_raw_ci_artifact":True,
+              "modes":mode_summary,
+              "cohort":"historical_original_model_ONLY_not_preregistered_candidate",
+              "official_T_minus_12_evidence_verified":False,
+              "independent_first_Git_receipt_proven":False,
+              "prospective_candidate_pairs":0,
+              "formal":False,
+              "formally_eligible_races":0,
+              "model_promotion_allowed":False,
+          }
+          Path("four_mode_scoreable_original_reference.json").write_text(
+              json.dumps(report,ensure_ascii=False,sort_keys=True,indent=2)+"\n")
+          print("HISTORICAL_ORIGINAL_ONLY_TRIFECTA_SCOREABLE:"+str(effective)+
+                ":excluded_non_scoreable="+str(formal["non_scored_total"])+
+                ":top10="+str({m:v["original_top_hits"]["top10"] for m,v in mode_summary.items()}))
           print("SAME_RAW_SOURCE_TWO_AUDITORS_RECONCILED")
           print("MAXIMUM_TRIFECTA_SCOREABLE_RESEARCH_COHORT="+str(formal["maximum_potential_trifecta_slots_in_saved_forecasts"]))
           print("STORED_RESULTS="+str(raw["reference_results_already_saved"])+
@@ -551,6 +603,7 @@ jobs:
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
+            four_mode_scoreable_original_reference.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
