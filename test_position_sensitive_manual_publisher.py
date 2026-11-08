@@ -149,6 +149,18 @@ class ManualPublisherSafetyTests(unittest.TestCase):
                 manual_publish_one(CODE, api, valid_clock())
             self.assertFalse(any(v[0] == "PUT" for v in api.calls))
 
+    def test_identical_candidate_retry_is_not_rewritten_or_certified(self):
+        from four_mode_position_sensitive_forward import freeze_candidate
+        api = MockGitHub()
+        snap = freeze_candidate(api.original, "2026-11-09T10:05:10+09:00")
+        api.occupied = (json.dumps(snap, ensure_ascii=False, sort_keys=True,
+                                   indent=2) + "\\n").encode()
+        with self.assertRaisesRegex(
+                ValueError, "candidate_already_exists_no_new_receipt"):
+            manual_publish_one(CODE, api, valid_clock())
+        self.assertFalse(any(v[0] == "PUT" for v in api.calls))
+        self.assertIsNone(api.created_bytes)
+
     def test_missing_race_403_or_500_cannot_be_treated_as_404(self):
         for status in (403, 500, 429):
             api = MockGitHub()
