@@ -6,6 +6,8 @@ on:
       - 'four_mode_position_sensitive_shadow.py'
       - 'test_four_mode_position_sensitive_shadow.py'
       - 'four_mode_position_sensitive_forward.py'
+      - 'position_sensitive_topk_exposure_audit.py'
+      - 'test_position_sensitive_topk_exposure_audit.py'
       - 'test_four_mode_position_sensitive_forward.py'
       - 'research/four_mode_position_sensitive_forward_protocol_20261108.json'
       - 'docs/research/four_mode_position_sensitive_shadow_20261108.md'
@@ -63,7 +65,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Read-only replay of original Nov-08 frozen archive inputs
@@ -97,9 +99,44 @@ jobs:
               raise SystemExit("missing_mode_exposure")
           print(f"POSITION_SENSITIVE_RESULT_BLIND_REPLAY_VERIFIED:{n}/{n}")
           PY
+      - name: Read-only same-race Top1 3 5 10 turnover exposure
+        run: python position_sensitive_topk_exposure_audit.py --day 20261108 | tee position_shadow_topk_exposure.json
+      - name: Assert outcome-blind TopK pairs and original replay agree
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path("position_shadow_input_only.json").read_text(encoding="utf-8"))
+          b = json.loads(Path("position_shadow_topk_exposure.json").read_text(encoding="utf-8"))
+          n = a["compared"]
+          if (b.get("status") != "historical_result_blind_topk_exposure"
+                  or b.get("archived_files") != a["archived_files"]
+                  or b.get("compared") != n or b.get("excluded") != 0
+                  or b.get("formal") is not False
+                  or b.get("research_only") is not True
+                  or b.get("forward_holdout_scored") != 0
+                  or b.get("first_remote_receipt_verified") is not False
+                  or b.get("model_improvement_proven") is not False
+                  or b.get("production_forecast_changed") is not False):
+              raise SystemExit("outcome_blind_topk_contract_failed")
+          for mode in ("narrow", "hit", "balance", "hole"):
+              row = b["by_mode"][mode]
+              if row["top1_changed"] != a["by_mode"][mode]["top1_changed"]:
+                  raise SystemExit(f"baseline_top1_exposure_mismatch:{mode}")
+              if row["topn"]["5"]["membership_changed_races"] != a["by_mode"][mode]["top5_membership_changed"]:
+                  raise SystemExit(f"baseline_top5_exposure_mismatch:{mode}")
+              for k in (1, 3, 5, 10):
+                  q = row["topn"][str(k)]
+                  hist = q["retained_tickets_histogram"]
+                  if sum(hist.values()) != n or not 0 <= q["total_displaced_ticket_slots"] <= k*n:
+                      raise SystemExit(f"topk_overlap_partition_invalid:{mode}:{k}")
+          print(f"POSITION_SENSITIVE_SAME_RACE_TOPK_EXPOSURE_VALIDATED:{n}/{n};NO_ACCURACY_CLAIM")
+          PY
       - name: Upload diagnostic (not accuracy or certification)
         uses: actions/upload-artifact@v4
         with:
           name: position-sensitive-input-only-${{ github.run_id }}
-          path: position_shadow_input_only.json
+          path: |
+            position_shadow_input_only.json
+            position_shadow_topk_exposure.json
           retention-days: 30
