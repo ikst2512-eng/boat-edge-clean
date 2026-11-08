@@ -1,0 +1,609 @@
+{
+  "schema": "OFFICIAL_K_POSTRACE_SECONDARY_WIND_AXIS_STRESS_TEST_V1",
+  "date_jst": "2026-11-08",
+  "period": "2026-08-01/2026-10-31",
+  "source": {
+    "primary_official_K": "GitHub Actions run 42453296631, artifact 13607470249",
+    "zip_sha256": "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e",
+    "daily_K_and_decoded_SHA_confirmed_days": 92,
+    "comparison": "https://github.com/ikst2512-eng/boat-edge-clean/blob/4ae49a7b3b00adedd0ea49d24810e3eda32285f3/docs/research/venue_wind_direction_axis_conflicts_20261106.md",
+    "axis_A_secondary": "https://boatrace-db.jp/about/data/",
+    "axis_B_secondary": "https://github.com/BoatraceCSV/fun-site/blob/main/packages/shared/src/utils/weather-pt.ts",
+    "primary_official_course_diagram_verified_per_venue": 0,
+    "primary_official_same_race_weather_arrow_verified_per_venue": 0
+  },
+  "safety": {
+    "official_K_is_postrace": true,
+    "relative_wind_labels_are_unverified_hypothetical": true,
+    "T12_eligible": false,
+    "fit_models": false,
+    "formally_approved_thresholds": 0,
+    "production_changed": false,
+    "main_modified": false,
+    "automatic_merge": false
+  },
+  "population": {
+    "official_raw_races": 14249,
+    "eligible_C1_reproduction_hypothesis_n": 14090,
+    "eligible_C1_wins": 7811,
+    "wind_zero_m_eligible_excluded": 978,
+    "wind_zero_m_wins": 560,
+    "wind_positive_valid_eight_direction_n": 13112,
+    "wind_positive_valid_eight_direction_wins": 7251
+  },
+  "rule": "Raw K wind 'from' direction in 8-cardinal angles. For A use secondary start-to-first-mark heading as headwind angle. For B STADIUM_FACING_DEG treated only for stress test as tailwind angle and hypothetical heading=(angle+180)%360. Circular difference angle 0=head,45=oblique_head,90=cross,135=oblique_tail,180=tail; B's 200deg is handled as continuous bearing with cutoffs 22.5/67.5/112.5/157.5. Zero wind '無風' is not forced into direction classes.",
+  "venues": [
+    {
+      "jcd": "01",
+      "name": "桐生",
+      "axis_A_heading_deg": 135,
+      "axis_B_stand_tail_deg": 90,
+      "axis_B_hypothetical_heading_deg": 270,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 503,
+      "labels_disagree_n": 503
+    },
+    {
+      "jcd": "02",
+      "name": "戸田",
+      "axis_A_heading_deg": 90,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 437,
+      "labels_disagree_n": 339
+    },
+    {
+      "jcd": "03",
+      "name": "江戸川",
+      "axis_A_heading_deg": 0,
+      "axis_B_stand_tail_deg": 200,
+      "axis_B_hypothetical_heading_deg": 20,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 533,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "04",
+      "name": "平和島",
+      "axis_A_heading_deg": 0,
+      "axis_B_stand_tail_deg": 270,
+      "axis_B_hypothetical_heading_deg": 90,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 560,
+      "labels_disagree_n": 505
+    },
+    {
+      "jcd": "05",
+      "name": "多摩川",
+      "axis_A_heading_deg": 270,
+      "axis_B_stand_tail_deg": 180,
+      "axis_B_hypothetical_heading_deg": 0,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 512,
+      "labels_disagree_n": 445
+    },
+    {
+      "jcd": "06",
+      "name": "浜名湖",
+      "axis_A_heading_deg": 180,
+      "axis_B_stand_tail_deg": 90,
+      "axis_B_hypothetical_heading_deg": 270,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 590,
+      "labels_disagree_n": 551
+    },
+    {
+      "jcd": "07",
+      "name": "蒲郡",
+      "axis_A_heading_deg": 225,
+      "axis_B_stand_tail_deg": 90,
+      "axis_B_hypothetical_heading_deg": 270,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 483,
+      "labels_disagree_n": 483
+    },
+    {
+      "jcd": "08",
+      "name": "常滑",
+      "axis_A_heading_deg": 270,
+      "axis_B_stand_tail_deg": 270,
+      "axis_B_hypothetical_heading_deg": 90,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 569,
+      "labels_disagree_n": 460
+    },
+    {
+      "jcd": "09",
+      "name": "津",
+      "axis_A_heading_deg": 270,
+      "axis_B_stand_tail_deg": 90,
+      "axis_B_hypothetical_heading_deg": 270,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 615,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "10",
+      "name": "三国",
+      "axis_A_heading_deg": 135,
+      "axis_B_stand_tail_deg": 270,
+      "axis_B_hypothetical_heading_deg": 90,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 594,
+      "labels_disagree_n": 594
+    },
+    {
+      "jcd": "11",
+      "name": "びわこ",
+      "axis_A_heading_deg": 180,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 506,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "12",
+      "name": "住之江",
+      "axis_A_heading_deg": 180,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 400,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "13",
+      "name": "尼崎",
+      "axis_A_heading_deg": 270,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 661,
+      "labels_disagree_n": 358
+    },
+    {
+      "jcd": "14",
+      "name": "鳴門",
+      "axis_A_heading_deg": 135,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 590,
+      "labels_disagree_n": 590
+    },
+    {
+      "jcd": "15",
+      "name": "丸亀",
+      "axis_A_heading_deg": 315,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 472,
+      "labels_disagree_n": 472
+    },
+    {
+      "jcd": "16",
+      "name": "児島",
+      "axis_A_heading_deg": 180,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 645,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "17",
+      "name": "宮島",
+      "axis_A_heading_deg": 225,
+      "axis_B_stand_tail_deg": 90,
+      "axis_B_hypothetical_heading_deg": 270,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 448,
+      "labels_disagree_n": 448
+    },
+    {
+      "jcd": "18",
+      "name": "徳山",
+      "axis_A_heading_deg": 315,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 666,
+      "labels_disagree_n": 666
+    },
+    {
+      "jcd": "19",
+      "name": "下関",
+      "axis_A_heading_deg": 225,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 585,
+      "labels_disagree_n": 585
+    },
+    {
+      "jcd": "20",
+      "name": "若松",
+      "axis_A_heading_deg": 270,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 609,
+      "labels_disagree_n": 470
+    },
+    {
+      "jcd": "21",
+      "name": "芦屋",
+      "axis_A_heading_deg": 90,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 437,
+      "labels_disagree_n": 364
+    },
+    {
+      "jcd": "22",
+      "name": "福岡",
+      "axis_A_heading_deg": 90,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 607,
+      "labels_disagree_n": 566
+    },
+    {
+      "jcd": "23",
+      "name": "唐津",
+      "axis_A_heading_deg": 180,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 510,
+      "labels_disagree_n": 0
+    },
+    {
+      "jcd": "24",
+      "name": "大村",
+      "axis_A_heading_deg": 90,
+      "axis_B_stand_tail_deg": 0,
+      "axis_B_hypothetical_heading_deg": 180,
+      "source_A": "secondary_boatrace_db",
+      "source_B": "secondary_fun_site_stand_facing",
+      "field_orientation_certified_from_official_diagram": false,
+      "valid_races_with_wind_1m_plus": 580,
+      "labels_disagree_n": 438
+    }
+  ],
+  "axis_disagreement": {
+    "venues_with_heading_disagreement": 19,
+    "venues_with_observed_label_disagreement": 18,
+    "observed_races_in_disagreement": 8837,
+    "observed_races_total": 13112,
+    "observed_label_disagreement_pct": 67.39627821842586
+  },
+  "conditional_win_counts": {
+    "A": {
+      "all": {
+        "cross": {
+          "n": 2288,
+          "wins": 1326,
+          "pct": 57.95454545454545
+        },
+        "head": {
+          "n": 2198,
+          "wins": 1148,
+          "pct": 52.22929936305732
+        },
+        "oblique_head": {
+          "n": 2700,
+          "wins": 1502,
+          "pct": 55.629629629629626
+        },
+        "oblique_tail": {
+          "n": 3225,
+          "wins": 1876,
+          "pct": 58.17054263565891
+        },
+        "tail": {
+          "n": 2701,
+          "wins": 1399,
+          "pct": 51.79563124768604
+        }
+      },
+      "by_speed": {
+        "1-2": {
+          "cross": {
+            "n": 1480,
+            "wins": 848,
+            "pct": 57.2972972972973
+          },
+          "head": {
+            "n": 937,
+            "wins": 522,
+            "pct": 55.70971184631804
+          },
+          "oblique_head": {
+            "n": 1260,
+            "wins": 722,
+            "pct": 57.301587301587304
+          },
+          "oblique_tail": {
+            "n": 1662,
+            "wins": 984,
+            "pct": 59.2057761732852
+          },
+          "tail": {
+            "n": 1122,
+            "wins": 605,
+            "pct": 53.92156862745098
+          }
+        },
+        "3-4": {
+          "cross": {
+            "n": 738,
+            "wins": 442,
+            "pct": 59.89159891598916
+          },
+          "head": {
+            "n": 929,
+            "wins": 479,
+            "pct": 51.56081808396125
+          },
+          "oblique_head": {
+            "n": 1021,
+            "wins": 545,
+            "pct": 53.37904015670911
+          },
+          "oblique_tail": {
+            "n": 1146,
+            "wins": 683,
+            "pct": 59.59860383944154
+          },
+          "tail": {
+            "n": 1031,
+            "wins": 533,
+            "pct": 51.69738118331717
+          }
+        },
+        "5+": {
+          "cross": {
+            "n": 70,
+            "wins": 36,
+            "pct": 51.42857142857143
+          },
+          "head": {
+            "n": 332,
+            "wins": 147,
+            "pct": 44.27710843373494
+          },
+          "oblique_head": {
+            "n": 419,
+            "wins": 235,
+            "pct": 56.085918854415276
+          },
+          "oblique_tail": {
+            "n": 417,
+            "wins": 209,
+            "pct": 50.11990407673861
+          },
+          "tail": {
+            "n": 548,
+            "wins": 261,
+            "pct": 47.627737226277375
+          }
+        }
+      }
+    },
+    "B": {
+      "all": {
+        "cross": {
+          "n": 2909,
+          "wins": 1554,
+          "pct": 53.42041938810588
+        },
+        "head": {
+          "n": 1144,
+          "wins": 618,
+          "pct": 54.02097902097902
+        },
+        "oblique_head": {
+          "n": 3093,
+          "wins": 1732,
+          "pct": 55.997413514387326
+        },
+        "oblique_tail": {
+          "n": 3345,
+          "wins": 1883,
+          "pct": 56.29297458893871
+        },
+        "tail": {
+          "n": 2621,
+          "wins": 1464,
+          "pct": 55.856543304082415
+        }
+      },
+      "by_speed": {
+        "1-2": {
+          "cross": {
+            "n": 1317,
+            "wins": 724,
+            "pct": 54.97342444950645
+          },
+          "head": {
+            "n": 679,
+            "wins": 389,
+            "pct": 57.29013254786451
+          },
+          "oblique_head": {
+            "n": 1577,
+            "wins": 944,
+            "pct": 59.860494610019025
+          },
+          "oblique_tail": {
+            "n": 1590,
+            "wins": 893,
+            "pct": 56.16352201257862
+          },
+          "tail": {
+            "n": 1298,
+            "wins": 731,
+            "pct": 56.31741140215716
+          }
+        },
+        "3-4": {
+          "cross": {
+            "n": 1170,
+            "wins": 624,
+            "pct": 53.333333333333336
+          },
+          "head": {
+            "n": 365,
+            "wins": 187,
+            "pct": 51.23287671232877
+          },
+          "oblique_head": {
+            "n": 1138,
+            "wins": 609,
+            "pct": 53.51493848857645
+          },
+          "oblique_tail": {
+            "n": 1204,
+            "wins": 697,
+            "pct": 57.89036544850498
+          },
+          "tail": {
+            "n": 988,
+            "wins": 565,
+            "pct": 57.18623481781376
+          }
+        },
+        "5+": {
+          "cross": {
+            "n": 422,
+            "wins": 206,
+            "pct": 48.81516587677725
+          },
+          "head": {
+            "n": 100,
+            "wins": 42,
+            "pct": 42
+          },
+          "oblique_head": {
+            "n": 378,
+            "wins": 179,
+            "pct": 47.354497354497354
+          },
+          "oblique_tail": {
+            "n": 551,
+            "wins": 293,
+            "pct": 53.17604355716878
+          },
+          "tail": {
+            "n": 335,
+            "wins": 168,
+            "pct": 50.149253731343286
+          }
+        }
+      }
+    }
+  },
+  "matched_head_tail_venue_month_speed": {
+    "method": "harmonic_overlap_weight_venue_month_speed_band; compare tail-minus-head C1 win event percentage points; research-only",
+    "A": {
+      "min1": {
+        "strata": 133,
+        "head_n": 1815,
+        "tail_n": 2045,
+        "diff_pt": 0.9471890157244146
+      },
+      "min5": {
+        "strata": 68,
+        "head_n": 1253,
+        "tail_n": 1265,
+        "diff_pt": -1.1507878879171314
+      },
+      "min10": {
+        "strata": 36,
+        "head_n": 836,
+        "tail_n": 844,
+        "diff_pt": -1.9549678283192697
+      }
+    },
+    "B": {
+      "min1": {
+        "strata": 112,
+        "head_n": 1055,
+        "tail_n": 1961,
+        "diff_pt": 0.5793333338102001
+      },
+      "min5": {
+        "strata": 50,
+        "head_n": 712,
+        "tail_n": 1125,
+        "diff_pt": -0.6447207801154168
+      },
+      "min10": {
+        "strata": 18,
+        "head_n": 333,
+        "tail_n": 474,
+        "diff_pt": -4.262605482303991
+      }
+    }
+  },
+  "limits": [
+    "The two axis descriptions have different coordinate semantics. This is a stress test of a naive conversion, not proof one source is wrong.",
+    "Source observations are primary *postrace*, but the field heading reference is secondary and not independent-primary-verified.",
+    "No causal inference or Top1/3/5/10 improvement follows from these C1 rates.",
+    "Same direction text alone cannot verify field-relative head/tail; original official water diagrams and original same-race arrow receipts are required.",
+    "Disagreement is label instability, not a percentage of incorrect predictions.",
+    "Each 24-venue flow remains blocked until diagrams are independently checked with directional north arrows and same-race official display arrows."
+  ]
+}
