@@ -19,6 +19,9 @@ on:
       - test_four_mode_top1_head_exposure_audit.py
       - test_four_mode_top1_forward_reference.py
       - four_mode_top1_bias_input_audit.py
+      - four_mode_top1_head_prior_shadow.py
+      - test_four_mode_top1_head_prior_shadow.py
+      - research/four_mode_hit_head_prior_forward_protocol_20261108.json
       - test_four_mode_top1_bias_input_audit.py
       - four_mode_top1_capture_run_inventory.py
       - test_four_mode_top1_capture_run_inventory.py
@@ -55,12 +58,52 @@ jobs:
               raise SystemExit("preregistered_top1_selector_or_cohort_drift")
           print("TOP1_SELECTOR_PREREGISTERED_BLOB_VERIFIED:" + git_blob)
           PY
+      - name: Validate independent HIT-head prior selector source pin
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          p = json.loads(Path("research/four_mode_hit_head_prior_forward_protocol_20261108.json").read_bytes())
+          src = Path("four_mode_top1_head_prior_shadow.py").read_bytes()
+          sha = hashlib.sha1(b"blob " + str(len(src)).encode("ascii") + b"\\0" + src).hexdigest()
+          if (p.get("schema") != "FOUR_MODE_HIT_WINNER_HEAD_PRIOR_FORWARD_PREREGISTRATION_V1"
+                  or p.get("selector_file") != "four_mode_top1_head_prior_shadow.py"
+                  or p.get("pinned_selector_git_blob_sha1") != sha
+                  or p.get("registered_jst_date") != "2026-11-08"
+                  or p.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or p.get("primary_metric") != "paired_HIT_Top1_exact_trifecta_original_versus_head_prior_shadow"
+                  or p.get("pilot_races") != 300 or p.get("confirmation_races") != 300
+                  or p.get("formal_count") != 0 or p.get("promotion_allowed") is not False):
+              raise SystemExit("head_prior_source_or_registration_drift")
+          print("HIT_HEAD_PRIOR_SELECTOR_BLOB_VERIFIED:" + sha)
+          PY
       - name: Validate audit logic
         run: python -m unittest -v test_four_mode_version_topn_audit
       - name: Check frozen future-only four-mode study policy and leakage refusal
         run: python -m unittest -v test_four_mode_forward_paired_score
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Test standalone HIT-head prior proposal without any outcomes
+        run: python -m unittest -v test_four_mode_top1_head_prior_shadow
+      - name: Replay Nov8 original HIT-head proposal input only
+        run: python four_mode_top1_head_prior_shadow.py --day 20261108 | tee hit_head_prior_nov8_input_only.json
+      - name: Refuse incomplete or result-leaking HIT-head proposal input
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x = json.loads(Path("hit_head_prior_nov8_input_only.json").read_text())
+          if (x.get("status") != "historical_input_replay_no_outcome_access"
+                  or x.get("original_forecasts") < 116
+                  or x.get("results_read") is not False
+                  or x.get("non_hit_modes_unchanged") is not True
+                  or x.get("formal") is not False
+                  or x.get("model_improvement_proven") is not False
+                  or x.get("model_promotion_allowed") is not False):
+              raise SystemExit("incomplete_or_unsafe_head_prior_input_replay")
+          print("HIT_HEAD_PRIOR_INPUT_ONLY_VERIFIED:" + str(x["original_forecasts"]))
+          PY
       - name: Unit-test Top1 first-boat versus third-boat change accounting
         run: python -m unittest -v test_four_mode_top1_head_exposure_audit
       - name: Replay real Nov 5 original forecasts without reading results
@@ -206,6 +249,7 @@ jobs:
           name: historical-version-topn-${{ github.run_id }}
           path: |
             version_stratified_topn_report.log
+            hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
             four_mode_shadow_input_replay_20261108.log
