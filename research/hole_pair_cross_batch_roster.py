@@ -69,6 +69,12 @@ def inspect_observation(observation):
     events = []
     for record in records:
         code, cutoff = _validate_frozen(record)
+        # An artifact observation cannot chronologically precede the exact
+        # local candidate bytes that it purports to contain. This is only an
+        # internal inconsistency check, NOT trusted server time attestation.
+        finish = datetime.fromisoformat(record["local_finish_jst"]).astimezone(UTC)
+        if observed <= finish:
+            raise ValueError("artifact_observation_precedes_candidate_calculation")
         events.append({
             "race_code": code, "kind": "frozen",
             "payload_sha256": hashlib.sha256(canonical_bytes(record)).hexdigest(),
@@ -104,11 +110,11 @@ def audit(observations):
         # Two sources observed at the same reported instant cannot establish
         # a first disposition from arbitrary run/artifact ID sort order.
         earliest_at = observations_for_race[0][0]
-        earliest_kinds = {
-            row[-1]["kind"] for row in observations_for_race
+        earliest_dispositions = {
+            (row[-1]["kind"], row[-1].get("reason")) for row in observations_for_race
             if row[0] == earliest_at
         }
-        ambiguous_first_disposition = len(earliest_kinds) > 1
+        ambiguous_first_disposition = len(earliest_dispositions) > 1
         frozen = [x[-1] for x in observations_for_race if x[-1]["kind"] == "frozen"]
         excluded = [x[-1] for x in observations_for_race if x[-1]["kind"] == "excluded"]
         distinct_bytes = {x["payload_sha256"] for x in frozen}
