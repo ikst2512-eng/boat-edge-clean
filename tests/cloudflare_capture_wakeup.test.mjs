@@ -328,6 +328,21 @@ test('only literal true enables dispatch; all other settings remain no-network o
   }
 });
 
+test('zero-credential observer pilot stays disabled and has no required PAT secret',()=>{
+  const observer=readFileSync(new URL('../cloudflare/wrangler.observer.toml',import.meta.url),'utf8');
+  const production=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
+  assert.match(observer,/name = "boat-edge-clean-independent-observer"/);
+  assert.match(production,/name = "boat-edge-clean-independent-wakeup"/);
+  assert.match(observer,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
+  assert.match(production,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
+  assert.doesNotMatch(observer,/\[secrets\]/);
+  assert.doesNotMatch(observer,/GITHUB_DISPATCH_TOKEN/);
+  assert.match(production,/required = \["GITHUB_DISPATCH_TOKEN"\]/);
+  const cronExpr='crons = ["*/5 22-23,0-13 * * *"]';
+  assert.ok(observer.includes(cronExpr));
+  assert.ok(production.includes(cronExpr));
+});
+
 test('POST must return 204; no false success',async()=>{
   const m=mock({postStatus:200});await assert.rejects(()=>run(tick(7,10),m),/dispatch_not_accepted/);
 });
