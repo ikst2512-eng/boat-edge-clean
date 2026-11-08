@@ -16,7 +16,7 @@ function scheduled(cron = CRON) {
   return createScheduledController({cron, scheduledTime: new Date(TEST_NOW)});
 }
 
-function mockGitHub({scheduledSuccess = false, failGetNumber = 0} = {}) {
+function mockGitHub({scheduledSuccess = false, olderQueued = false, failGetNumber = 0} = {}) {
   const calls = [];
   let getCount = 0;
   const fetcher = vi.fn(async (rawUrl, options = {}) => {
@@ -43,6 +43,9 @@ function mockGitHub({scheduledSuccess = false, failGetNumber = 0} = {}) {
       const eventRows = scheduledSuccess && event === 'schedule'
         ? [{id: 7001, event: 'schedule', head_branch: 'main', status: 'completed',
             conclusion: 'success', created_at: '2026-11-07T22:08:00Z'}]
+        : olderQueued && event === 'schedule'
+        ? [{id:7002,event:'schedule',head_branch:'main',status:'queued',
+            conclusion:null,created_at:'2026-11-07T19:00:00Z'}]
         : [];
       return Response.json({workflow_runs: eventRows});
     }
@@ -142,6 +145,14 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     await invoke();
     expect(calls.map(x => x.method)).toEqual(['GET','GET','GET','GET']);
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(0);
+  });
+
+  it('older-than-120m native queued main schedule suppresses both Cloudflare rescues in actual Workerd', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls} = mockGitHub({olderQueued:true});
+    await invoke();
+    expect(calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
+    expect(calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
 
   it('third GET fails: no partial recovery dispatch and no receipt', async () => {
