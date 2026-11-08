@@ -1,3 +1,9 @@
+## 2026-11-08 17時台 JST｜Cloudflare Free Draft #1697：監視Workerから復旧通信コードを完全分離
+- Draft PR #1697のCloudflare監視専用Workerを、復旧実行コードと共用する入口から**独立入口**`cloudflare/independent_capture_observer.mjs`へ変更。純粋な時刻/枠計算`cloudflare/independent_capture_slots.mjs`を新設し、監視Workerと既存復旧ポリシーの双方が同じ63 CLEAN・56 four_mode枠定義を参照する。GitHub API URL、Bearer認証、HTTP GET/POST、`workflow_dispatch`は復旧専用ポリシー側にのみ残す。
+- 初回監視専用入口は動作上GitHub通信0だったが、旧共通モジュールの影響でバンドル内に`api.github.com`文字列が残ることを**新しいバンドル検査CIが検出し失敗**した。純粋スロットmoduleへ分離して解消し、以降はWrangler実バンドルに`api.github.com`/`GITHUB_DISPATCH_TOKEN`/`/dispatches`/`Authorization`があればCI失敗に固定。コメントを誤判定したテストも修正済み。
+- GitHub [Actions #42460963433](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42460963433) **completed/success**。既存Pythonポリシー成功、Node**42/42 PASS**、実Workerd Vitest**7/7 PASS**、復旧版dry-run**11.16 KiB/gzip 3.57 KiB**、監視専用dry-run**4.45 KiB/gzip 1.65 KiB**。コンパイル結果`OBSERVER_BUNDLE_NO_GITHUB_NETWORK_CODE_PASS`、Local Explorer異常Cron/期限外Cron拒否テストも成功。実Cloudflare Workerは**未配備**。
+- GitHub main/Render本番・既存Render Python・予想原本/4モード/公式収集cronに変更なし。今後も**Draft PR・main自動統合禁止**。CPU10ms、Cloudflareの実Cron、実GitHub run ID、Git初回原本保存/T−12適合は未実測。復旧正式認定0件。実運用前に管理者がCloudflare Freeへ**秘密情報なし監視Workerだけ**を手動配備し、Cron/CPUログを独立検証する。
+
 ## 2026-11-08 15時台 JST｜Cloudflare Free Draft #1697：初期監視モード・PAT不要パイロット追加
 - Cloudflare Workersの安全な段階導入として、**初期値を復旧実行OFF**に固定。実Worker入口の`CLOUDFLARE_DISPATCH_ENABLED === "true"`に厳密一致した場合のみ既存のAPI履歴照合・GitHub dispatchを許可。未設定、false、大小文字違い、数値true等は純粋`observe()`でslotと時刻だけ記録し**GitHub通信0/POST0/Secret不要**。期限外・不正Cronはこれまでどおり安全側に拒否。監視ログは`CLOUDFLARE_CAPTURE_OBSERVER_ONLY`、GitHub確認／原本保存の証拠フラグはfalse。
 - `cloudflare/wrangler.toml`は本番候補用の`[vars] CLOUDFLARE_DISPATCH_ENABLED="false"`を出荷し、復旧本番用`[secrets] required=["GITHUB_DISPATCH_TOKEN"]`を維持。さらに**新しい別名Worker**`cloudflare/wrangler.observer.toml`を追加し、Secretを一切設定しない無料パイロットとしてコード/CPU/Cronだけを後日実測可能にした。両configともGitHub dispatchは初期OFF。デプロイは**未実施**。
