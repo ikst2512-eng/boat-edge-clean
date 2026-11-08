@@ -42,3 +42,15 @@ The simulator explicitly outputs `actual_github_run_evidence:false`, `verified_c
 - Production changes and merge remain **blocked** while any item is unknown; do not convert a model simulation, Workerd mock, HTTP 200, accepted DO claim or passing CI into formal recovery certification.
 
 **This research deliberately does not change `main`, native GitHub workflow YAML, Render, or any live Cloudflare account.**
+
+## 2026-11-08 — stale active-run protection added in dormant recovery policy
+
+A conservative gap was found in the **inactive** Cloudflare recovery policy. Previously, `olderActive` only blocked active native GitHub runs whose `created_at` fell within the last **120 minutes**. The official pending queue can be delayed longer than the fixed lookback; a queued/in-progress native main run **older than 2 hours** could appear in the fetched page but incorrectly be ignored, and the subsequent Cloudflare `workflow_dispatch` might displace CLEAN's pending original (`queue:single`).
+
+The Draft policy now blocks a rescue if **any main-branch run in the actually fetched schedule/manual history page** predates the target slot and is still not `completed`, **regardless of its age**. It does not treat a completed older run as a permanent blocker. Independent Node regressions cover `schedule` and `workflow_dispatch` status `queued`, `pending`, `in_progress`, `waiting` older than 120 minutes, and confirm zero POST; Workerd tests cover an old queued native schedule end-to-end with intercepted GitHub requests.
+
+**Limits:** this is **visible-active-run fencing, not global deduplication**. In particular (1) GitHub `schedule` can be delayed and therefore not yet represented in API history; (2) the single `per_page=30` may omit an older active run beyond the first page; (3) an external Render/GitHub fallback can dispatch after the history check; and (4) simultaneous Cloudflare invocation GET→POST remains non-atomic. The fix intentionally trades off some recovery coverage for safety, but it cannot justify production enablement. Actual multi-page GitHub history and cross-provider end-to-end first-add behavior need separate evidence.
+
+**Current Render workspace read-only inspection (2026-11-08 JST):** the visible service listing contained one `boat-edge-clean` web service, no separate Render Cron Job service. This does **not** exclude fallback orchestration by GitHub Actions calling Render, or services outside the inspected workspace. No Render change was performed.
+
+Keep `CLOUDFLARE_DISPATCH_ENABLED="false"`, Observer-only first-stage deployment as a future owner action, Draft PR #1697 unmerged. Do not alter main/native GitHub schedules/Render or claim official T−12 evidence from mocked tests.
