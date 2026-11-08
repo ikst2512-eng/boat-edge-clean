@@ -50,6 +50,7 @@ on:
       - 'cloudflare/independent_capture_wakeup.mjs'
       - 'cloudflare/independent_capture_policy.mjs'
       - 'cloudflare/wrangler.toml'
+      - 'cloudflare/wrangler.observer.toml'
       - 'cloudflare/package.json'
       - 'cloudflare/vitest.config.mjs'
       - 'cloudflare/test/worker_runtime.test.mjs'
@@ -111,6 +112,9 @@ jobs:
       - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
         run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
+      - name: Validate secret-free observer Worker bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.observer.toml --outdir /tmp/boat-edge-observer-bundle
       - name: Exercise local Workerd scheduled() via supported Local Explorer (PR no secret)
         if: ${{ github.event_name == 'pull_request' }}
         timeout-minutes: 2
