@@ -1,0 +1,79 @@
+{
+  "schema": "HOLE_PAIR_FUTURE_HOLDOUT_PROTOCOL_V1",
+  "purpose": "Prospective, immutable candidate-level evaluation of the three original hole-pair policies; not production deployment.",
+  "protocol_effective_day_jst": "20261109",
+  "historical_exclusion": {
+    "days_through": "20261108",
+    "reason": "All Nov 5-8 outcomes or candidate availability may already have been inspected; cannot retrospectively reuse any as independent confirmation."
+  },
+  "method": {
+    "selector_method": "HOLE_PAIR_NOV06_LOCKED_RESEARCH_V1",
+    "selector_method_sha256": "ea30508cd899b10336754cfeec69c69c73f18e09fba421016d6cddc69b9cabcb",
+    "arms": [
+      "baseline",
+      "same_pair_two_thirds",
+      "two_pairs_one_third"
+    ],
+    "count_per_arm": 10,
+    "protected_top5": true,
+    "preserve_original_first_second_pair_coverage": true,
+    "priorities": "No selection by realized outcomes, betting odds, post-result weights, or prior cohort winners."
+  },
+  "event_universe": {
+    "source": "All future original four_mode_forecasts race IDs in an immutable main snapshot, captured before the eligibility cutoff, for each explicitly dispatched research collection batch.",
+    "chronology_sort": [
+      "t_minus_12_jst ascending",
+      "race_code ascending"
+    ],
+    "race_identity": "12-digit YYYYMMDD + 2-digit venue + 2-digit race number; only one first accepted frozen record per identity",
+    "candidate_creation": "Original source immutable Git blob and SHA256, deterministic three-arm candidate digest, original acquisition timestamp, selector SHA, local start and finish, and cutoff.",
+    "separate_remote_receipt_required": true,
+    "remote_receipt_definition": "Independent append-only receiver proves it first accepted the exact candidate digest with server-controlled timestamp strictly earlier than T-12; post-hoc GitHub readback or Actions artifact upload time alone is insufficient.",
+    "official_inputs_required": "Six complete official beforeinfo/exhibition boat records and complete 120-way odds, with acquisition and original save time strictly before T-12.",
+    "invalid": "Absent, contradictory or late source or candidate receipt, unknown weather/status, missing official inputs, duplicate/conflicting candidate digest, mutated method or candidates -> unverified/rejected; never count as hit or miss.",
+    "result_rules": "Open independent results only after all eligibility, chronology, source and candidate checks. Official cancellation is an excluded event with cited official evidence, never hit/miss. Unpublished result remains pending; conflicting or invalid result blocks score."
+  },
+  "sequential_cohorts": {
+    "pilot": {
+      "first_eligible_records": 300,
+      "role": "feasibility and diagnostic only; no confirmatory significance or model promotion"
+    },
+    "confirmation": {
+      "next_eligible_records": 300,
+      "role": "only untouched predeclared confirmatory dataset"
+    },
+    "inclusion_integrity": "Freeze order and all ineligible reason codes before outcomes; log completeness against every original forecast/scheduled race; no cherry-picking, duplicate counting, replacing failed cases, switching policy, post-hoc subgroup or early stopping."
+  },
+  "metrics": {
+    "primary": "Paired Top10 exact trifecta hit/miss difference against baseline in the same race, same 10-ticket budget.",
+    "comparisons": [
+      "same_pair_two_thirds versus baseline",
+      "two_pairs_one_third versus baseline"
+    ],
+    "significance": "Two-sided exact McNemar p for each comparison; Holm correction over both; familywise alpha=0.05; confirmation cohort only.",
+    "secondary": [
+      "Top1/Top3/Top5 preservation",
+      "original winning-pair coverage",
+      "gained/lost third-boat causes",
+      "race-day and venue stratification",
+      "coverage and missingness by pre-cutoff status",
+      "1-2-3/1-2-4 exposure"
+    ],
+    "prohibitions": "Never use exploratory Nov 6/7 significance or past winning combinations to rank, tune, stop, promote or retroactively amend candidate arms."
+  },
+  "production_gates": {
+    "formal_accuracy_recognition_requires": [
+      "independent candidate first remote receipt",
+      "full official T-12 input completeness",
+      "results independently confirmed",
+      "frozen confirmation cohort reached and pass predeclared test",
+      "manual review"
+    ],
+    "formal": false,
+    "prospective_improvement_proven": false,
+    "production_promotion_allowed": false,
+    "automatic_merge_allowed": false,
+    "no_new_cron_or_main_or_render_or_prediction_changes": true
+  },
+  "notes": "Protocol predeclared on Draft PR #1685 for days 20261109 onward only. Its presence alone supplies no actual first-receipt service or proof. PR #1693 owns separate all-four-mode future work; do not merge its cohorts with this hole-pair study."
+}
