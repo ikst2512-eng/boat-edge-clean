@@ -167,7 +167,9 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
-    expect(calls).toHaveLength(1);
+    // execute() reads BOTH schedule and manual history before validating the full page.
+    // The fail-closed verdict must still produce zero POSTs.
+    expect(calls).toHaveLength(2);
     expect(calls.every(c => c.method === 'GET')).toBe(true);
   });
 
