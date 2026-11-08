@@ -407,6 +407,26 @@ jobs:
                   or r.get("model_promotion_allowed") is not False
                   or r.get("comparison_only_not_storage_repair") is not True):
               raise SystemExit("research_source_observation_formal_guard_changed")
+          preview=r["unarchived_published_shadow_only"]
+          if (preview.get("separate_from_441_persisted_reference") is not True
+                  or preview.get("eligible_for_formal_admission") is not False
+                  or preview.get("not_a_prospective_candidate_comparison") is not True
+                  or preview["races"]!=preview["denominator"]
+                  or preview["races"]!=len(preview["race_codes"])
+                  or preview["races"]!=len(set(preview["race_codes"]))
+                  or preview["races"]>r["unresolved_saved_result_files"]):
+              raise SystemExit("public_shadow_not_isolated_from_persisted_reference")
+          for mode,hits in preview["original_saved_top_hits"].items():
+              if set(hits)!={"top1","top3","top5","top10"}:
+                  raise SystemExit("public_shadow_topn_schema:"+mode)
+              if not (0<=hits["top1"]<=hits["top3"]<=hits["top5"]<=hits["top10"]<=preview["races"]):
+                  raise SystemExit("public_shadow_topn_nonmonotone:"+mode)
+              for k,h in hits.items():
+                  if h!=sum(z["unarchived_published_shadow_only"]["original_saved_top_hits"][mode][k]
+                            for z in r["by_day"].values()):
+                      raise SystemExit("public_shadow_reconciliation:"+mode+":"+k)
+          print("PUBLIC_SOURCE_SHADOW_ORIGINAL_ONLY:"+str(preview["races"])+
+                ":top10="+str({m:v["top10"] for m,v in preview["original_saved_top_hits"].items()}))
           print("PUBLIC_SOURCE_OBSERVATION_STATUS="+r["status"])
           for day, row in r["by_day"].items():
               print("PUBLIC_SOURCE_DAY="+day+
