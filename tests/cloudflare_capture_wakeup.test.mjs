@@ -594,3 +594,40 @@ test('observer telemetry rejects malformed day and out-of-cron samples',()=>{
   assert.ok(out.issues.some(x=>x.includes('unexpected_scheduled_tick')));
   assert.equal(out.missing_ticks,1);
 });
+
+
+import {spawnSync} from 'node:child_process';
+import {mkdtempSync, writeFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+test('observer telemetry CLI returns exit 0 and nonformal JSON on full synthetic day',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-observer-audit-'));
+  try{
+    const path=join(dir,'normalized.json');
+    writeFileSync(path,JSON.stringify(syntheticObserverDay()),'utf8');
+    const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_observer_telemetry.mjs',import.meta.url));
+    const child=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(child.status,0,child.stderr);
+    const output=JSON.parse(child.stdout);
+    assert.equal(output.expected_ticks,192);
+    assert.equal(output.observer_day_pass,true);
+    assert.equal(output.actual_github_dispatch_proven,false);
+    assert.equal(output.formal_t_minus_12_proven,false);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('observer telemetry CLI returns nonzero and no fake success for incomplete data',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-observer-audit-'));
+  try{
+    const path=join(dir,'normalized.json');
+    const data=syntheticObserverDay();data.samples.pop();
+    writeFileSync(path,JSON.stringify(data),'utf8');
+    const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_observer_telemetry.mjs',import.meta.url));
+    const child=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(child.status,1,child.stderr);
+    assert.equal(JSON.parse(child.stdout).observer_day_pass,false);
+    assert.equal(JSON.parse(child.stdout).missing_ticks,1);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+});
