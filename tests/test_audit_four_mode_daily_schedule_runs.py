@@ -1,6 +1,8 @@
 import unittest
 from datetime import datetime, timedelta, timezone
-from scripts.audit_four_mode_daily_schedule_runs import audit_day
+from scripts.audit_four_mode_daily_schedule_runs import (
+    audit_day, nominal_schedule_slots_due, NOMINAL_DAILY_CAPTURE_SLOTS,
+)
 
 
 class DailyScheduleRunMetadataTest(unittest.TestCase):
@@ -105,6 +107,55 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
                            lambda _: {"total_count": 0, "workflow_runs": []})
         self.assertEqual(result["same_day_scheduled_run_count"], 0)
         self.assertEqual(result["failed_run_ids"], [])
+
+    def test_nominal_schedule_due_is_time_scoped_and_never_delivery_proof(self):
+        jst = timezone(timedelta(hours=9))
+        cases = [
+            (datetime(2026, 11, 8, 3, 3, tzinfo=jst), "20261108", 0),
+            (datetime(2026, 11, 8, 7, 11, tzinfo=jst), "20261108", 0),
+            (datetime(2026, 11, 8, 7, 12, tzinfo=jst), "20261108", 1),
+            (datetime(2026, 11, 8, 8, 0, tzinfo=jst), "20261108", 4),
+            (datetime(2026, 11, 8, 9, 20, tzinfo=jst), "20261108", 9),
+            (datetime(2026, 11, 8, 20, 56, tzinfo=jst), "20261108", 55),
+            (datetime(2026, 11, 8, 20, 57, tzinfo=jst), "20261108", 56),
+            (datetime(2026, 11, 9, 3, 3, tzinfo=jst), "20261108", 56),
+            (datetime(2026, 11, 8, 3, 3, tzinfo=jst), "20261107", 56),
+        ]
+        self.assertEqual(NOMINAL_DAILY_CAPTURE_SLOTS, 56)
+        for now, day, expected in cases:
+            with self.subTest(now=now.isoformat(), day=day):
+                self.assertEqual(nominal_schedule_slots_due(day, now), expected)
+        with self.assertRaises(ValueError):
+            nominal_schedule_slots_due("20261108", datetime(2026, 11, 8))
+
+    def test_successful_run_is_not_full_slot_coverage(self):
+        jst = timezone(timedelta(hours=9))
+        now = datetime(2026, 11, 8, 19, 15, tzinfo=jst)
+        rows = [
+            self.make_run(10, "2026-11-08T15:52:00+09:00"),
+            self.make_run(9, "2026-11-08T10:22:00+09:00"),
+            self.make_run(8, "2026-11-08T07:07:00+09:00"),
+            self.make_run(7, "2026-11-07T20:52:00+09:00"),
+        ]
+        result = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=now,
+        )
+        self.assertEqual(result["same_day_scheduled_run_count"], 3)
+        self.assertEqual(result["failed_run_ids"], [])
+        self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], 49)
+        self.assertEqual(result["observed_runs_below_nominal_due_by"], 46)
+        self.assertFalse(result["per_slot_schedule_delivery_verified"])
+        self.assertFalse(result["forecast_publication_verified"])
+
+    def test_nominal_slot_count_matches_current_capture_cron(self):
+        from pathlib import Path
+        text = Path(".github/workflows/four-mode-prospective-capture.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("cron: '7,22,37,52 22 * * *'", text)
+        self.assertIn("cron: '7,22,37,52 23 * * *'", text)
+        self.assertIn("cron: '7,22,37,52 0-11 * * *'", text)
 
 
 if __name__ == "__main__":
