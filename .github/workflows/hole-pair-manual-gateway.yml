@@ -1,0 +1,85 @@
+# PROPOSAL ONLY. This workflow lives in a separate Draft PR, not on main.
+# NEVER merge/enable without explicit manual security+research review.
+# No schedule/PR/push trigger; no secrets; no Cloudflare; no production change.
+name: Hole pair manual research gateway (NONFORMAL, review before enabling)
+on:
+  workflow_dispatch:
+    inputs:
+      capture_day_jst:
+        description: 'Current JST day YYYYMMDD (>=20261109); no backfill'
+        required: true
+        type: string
+      acknowledgement:
+        description: 'Type CAPTURE_UNVERIFIED_RESEARCH; only local artifact, never formal'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: hole-pair-manual-research-${{ inputs.capture_day_jst }}
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact reviewed research implementation (never branch tip)
+        uses: actions/checkout@v4
+        with:
+          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+          fetch-depth: 1
+      - name: Python for offline/research candidate freeze
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Current-day research freeze, never fetch settled results
+        shell: bash
+        env:
+          HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}
+          HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}
+          HOLE_RESEARCH_LOCKED_COMMIT: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$HOLE_RESEARCH_LOCKED_COMMIT"
+          # Temporary runtime token is read-only. Main is fetched, not edited.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research_candidate_freeze.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          assert obj['schema']=='HOLE_PAIR_FUTURE_ACTIONS_BATCH_V1'
+          assert obj['status']=='local_predeadline_freeze_not_formal'
+          assert obj['capture_day_jst']==__import__('os').environ['HOLE_RESEARCH_CAPTURE_DAY']
+          assert obj['source_snapshot_coverage']['source_snapshot_race_coverage_complete'] is True
+          assert obj['source_snapshot_coverage']['entire_day_or_official_schedule_complete_verified'] is False
+          assert obj['frozen_count']+sum(obj['excluded_by_reason'].values())==obj['eligible_forecasts_examined']
+          for key in ('formal','prospective_validation','independent_first_receipt_verified','production_forecast_changed'):
+              assert obj[key] is False
+          print('NONFORMAL_FROZEN_COUNT',obj['frozen_count'])
+          print('EXCLUSIONS',obj['excluded_by_reason'])
+          PY
+      - name: Save exact nonformal research candidate manifest (not first receipt)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-manual-unverified-${{ inputs.capture_day_jst }}
+          path: research_candidate_freeze.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail a zero-candidate run rather than announcing capture success
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('research_candidate_freeze.json').read_text())
+          if x['frozen_count'] == 0:
+              raise SystemExit('no_predeadline_candidates_frozen_nonformal; artifact saved for audit')
+          print('local_artifact_saved_only_NOT_independent_receipt_NOT_official_T12')
+          PY
