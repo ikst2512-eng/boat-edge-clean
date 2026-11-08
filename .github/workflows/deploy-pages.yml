@@ -75,7 +75,7 @@ jobs:
           from pathlib import Path
           from candidate_history import daily_candidate_history
           days = sorted({p.name[:8] for p in Path('prospective_predictions').glob('*.json')
-                         if re.fullmatch(r'20[0-9]{10}\\.json', p.name)})
+                         if re.fullmatch(r'20[0-9]{10}[.]json', p.name)})
           if not days:
               raise SystemExit('No archived candidate days present')
           total = 0
