@@ -66,6 +66,7 @@ def assess_reference_score(score):
             if type(rows[mode]) is not dict or set(rows[mode]) != set(map(str, TOPS)):
                 raise ValueError("invalid_topn_scores")
             out[phase][mode] = {}
+            previous_hits = None
             for top in TOPS:
                 k = str(top)
                 raw = rows[mode][k]
@@ -83,6 +84,11 @@ def assess_reference_score(score):
                         g > denominator - b or l > b or
                         b + g > denominator or c + l > denominator):
                     raise ValueError("paired_counts_inconsistent")
+                if top <= budget:
+                    if (previous_hits is not None and
+                            (b < previous_hits[0] or c < previous_hits[1])):
+                        raise ValueError("nonmonotone_topn_hit_counts")
+                    previous_hits = (b, c)
                 if top > budget:
                     # The unmodified reference scorer slices [:10] from an
                     # actual five-ticket narrow list. Its counts duplicate
