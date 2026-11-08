@@ -32,7 +32,7 @@ def _git(*args):
 
 
 def capture(day, source_sha, paths, read_source, read_blob, freezer,
-            root, *, current_time, start_time=None):
+            root, *, current_time, start_time=None, finish_time=None):
     """Collect exactly one immutable source-main snapshot, without outcomes."""
     if (type(day) is not str or not re.fullmatch(r"20\d{6}", day)
             or day < "20261109" or current_time.tzinfo is None
@@ -87,7 +87,10 @@ def capture(day, source_sha, paths, read_source, read_blob, freezer,
             exclusions[status].append(code)
         else:
             raise ValueError("unknown_freezer_exclusion_reason")
-    finished = datetime.now(JST)
+    finished = finish_time or datetime.now(JST)
+    if (finished.tzinfo is None or finished.utcoffset() != JST.utcoffset(None)
+            or finished < started or finished.strftime("%Y%m%d") != day):
+        raise ValueError("capture_crossed_day_or_clock_reversed")
     # The existing reconciliation enforces every original ID exactly once,
     # frozen method/selector provenance and protected Top5 coverage.
     coverage = reconcile(day, source_sha, codes, records, dict(exclusions))
