@@ -442,6 +442,12 @@ class Handler(BaseHTTPRequestHandler):
                 status, data = 422 if str(exc) == "invalid day" else 503, {"ok": False, "error": "TOPN_UNAVAILABLE"}
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             kind = "application/json; charset=utf-8"
+        elif path == "/api/candidate-history":
+            from candidate_history import daily_candidate_history
+            params = parse_qs(parsed.query)
+            status, data = daily_candidate_history(params.get("date", [""])[0])
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            kind = "application/json; charset=utf-8"
         elif path == "/api/selection-research":
             try:
                 from selection_dual import report
@@ -521,7 +527,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds"):
+        if path in ("/api/clean-schedule", "/api/predictions", "/api/clean-result", "/api/clean-racecard", "/api/prospective-topn", "/api/odds", "/api/candidate-history"):
             # Read-only CLEAN data is consumed by the GitHub Pages origin.
             self.send_header("Access-Control-Allow-Origin", "https://ikst2512-eng.github.io")
         self.end_headers()
