@@ -25,7 +25,8 @@ probe() {
  rm -f "$hdr"
  echo "RENDER_DIAG_PROBE name=$label curl_exit=$rc $(printf '%s' "$result" | tr '\n' ' ') cors=$cors"
 }
-# Non-gating check: Render Free serves /robots.txt itself while the instance is idle.
+# Render Free serves /robots.txt automatically during idle; the live app returns 404.
+# Diagnostic-only: read-only, no readiness override, never counts as E2E success.
 probe_robots() {
  local body result rc klass
  body=$(mktemp) || return 0
@@ -37,21 +38,7 @@ probe_robots() {
  klass='unclassified'
  if [[ "$rc" != 0 ]]; then
   klass='no-http-response'
- elif grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*
-probe health-head 'https://boat-edge-clean.onrender.com/healthz' HEAD no
-probe health-get 'https://boat-edge-clean.onrender.com/healthz' GET no
-# Non-gating cold-start discriminator: one long wait, not a replacement for strict 16s checks.
-# If only this succeeds, report slow recovery rather than marking browser E2E green.
-probe health-longwait 'https://boat-edge-clean.onrender.com/healthz' GET no 120
-probe archive-get 'https://boat-edge-clean.onrender.com/api/four-mode-archive?code=202611061006' GET yes
-probe racecard-get 'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261108&jcd=10&rno=6' GET yes
-# Pin both distinct IPv4 edges, if DNS provides them.
-while IFS= read -r edge_ip; do
- [[ "$edge_ip" =~ ^[0-9.]+$ ]] || continue
- probe_edge_health "$edge_ip"
-done < <(printf '%s\n' "$dns_output" | awk '{print $1}' | sort -u | head -n 2)
-echo 'RENDER_DIAG_END never_substitutes_for_live_browser_e2e=true'
- "$body"; then
+ elif grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*$' "$body"; then
   klass='possible-free-idle-response'
  elif grep -Fqx 'not found' "$body"; then
   klass='origin-404-body'
@@ -59,7 +46,7 @@ echo 'RENDER_DIAG_END never_substitutes_for_live_browser_e2e=true'
  echo "RENDER_DIAG_ROBOTS curl_exit=$rc class=$klass bytes=$(wc -c < "$body" | tr -d ' ') $(printf '%s' "$result" | tr '\n' ' ')"
  rm -f "$body"
 }
-# Non-gating per-edge HTTPS check: preserve Host/SNI while pinning each resolved IP.
+# Pin each known IPv4 Render edge independently while preserving HTTPS Host/SNI.
 probe_edge_health() {
  local ip="$1" result rc
  result=$(curl --silent --show-error --connect-timeout 4 --max-time 10 --retry 0 \
@@ -80,4 +67,9 @@ probe health-get 'https://boat-edge-clean.onrender.com/healthz' GET no
 probe health-longwait 'https://boat-edge-clean.onrender.com/healthz' GET no 120
 probe archive-get 'https://boat-edge-clean.onrender.com/api/four-mode-archive?code=202611061006' GET yes
 probe racecard-get 'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20261108&jcd=10&rno=6' GET yes
+# Non-gating IPv4 edge probes. Do not alter production instance or service settings.
+while IFS= read -r edge_ip; do
+ [[ "$edge_ip" =~ ^[0-9.]+$ ]] || continue
+ probe_edge_health "$edge_ip"
+done < <(printf '%s\n' "$dns_output" | awk '{print $1}' | sort -u | head -n 2)
 echo 'RENDER_DIAG_END never_substitutes_for_live_browser_e2e=true'
