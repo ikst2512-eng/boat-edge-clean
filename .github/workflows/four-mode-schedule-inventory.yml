@@ -8,6 +8,8 @@ on:
       - 'scripts/audit_four_mode_daily_main_archives.py'
       - 'scripts/audit_four_mode_daily_schedule_runs.py'
       - 'tests/test_audit_four_mode_daily_schedule_runs.py'
+      - 'scripts/audit_four_mode_source_artifact.py'
+      - 'tests/test_audit_four_mode_source_artifact.py'
       - 'scripts/select_four_mode_audit_day.py'
       - 'tests/test_select_four_mode_audit_day.py'
       - 'scripts/audit_four_mode_daily_capture_liveness.py'
@@ -59,7 +61,7 @@ jobs:
           python-version: '3.12'
       - name: Select same completed JST day for each read-only audit
         run: python -m scripts.select_four_mode_audit_day
-      - run: python -m unittest -v tests.test_select_four_mode_audit_day tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs tests.test_v2_archive_refresh_after_failure
+      - run: python -m unittest -v tests.test_select_four_mode_audit_day tests.test_inventory_four_mode_capture_runs tests.test_report_four_mode_schedule_publications tests.test_report_four_mode_dispatch_publications tests.test_inventory_four_mode_watchdog_dispatch tests.test_report_four_mode_watchdog_artifact_decisions tests.test_audit_four_mode_daily_main_archives tests.test_audit_four_mode_daily_capture_liveness tests.test_audit_four_mode_daily_schedule_runs tests.test_audit_four_mode_source_artifact tests.test_v2_archive_refresh_after_failure
       - name: Check real scheduled run history
         env:
           GITHUB_TOKEN: ${{ github.token }}
