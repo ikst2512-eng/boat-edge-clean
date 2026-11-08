@@ -283,3 +283,23 @@ test('Worker entrypoint exports only the default scheduled handler (real workerd
   assert.deepEqual(Object.keys(workerEntrypointExports),['default']);
   assert.equal(typeof workerEntrypointExports.default.scheduled,'function');
 });
+
+test('PR policy tests use read-only permissions and never execute under the operational write token',()=>{
+  const yaml=readFileSync(new URL('../.github/workflows/four-mode-capture-watchdog.yml',import.meta.url),'utf8');
+  const integration=yaml.split('\n  cloudflare-workerd-integration:\n')[1]?.split('\n  pr-policy-tests:\n')[0];
+  const pr=yaml.split('\n  pr-policy-tests:\n')[1]?.split('\n  watchdog:\n')[0];
+  const operational=yaml.split('\n  watchdog:\n')[1];
+  assert.ok(integration && pr && operational,'all three jobs must remain present');
+  for(const block of [integration,pr]){
+    assert.ok(block.includes('permissions:\n      contents: read'),'PR jobs require read-only permissions');
+    assert.ok(!block.includes('actions: write'),'PR jobs must never request Actions write');
+    assert.ok(block.includes('persist-credentials: false'),'do not persist checkout auth');
+  }
+  assert.ok(pr.includes("github.event_name == 'pull_request'"));
+  assert.ok(pr.includes('Test dispatch policy'));
+  assert.ok(pr.includes('Run Cloudflare external wakeup safety tests'));
+  assert.ok(operational.includes("github.event_name != 'pull_request'"),'privileged job cannot run on PR');
+  assert.ok(operational.includes('actions: write'),'preserve operational dispatch permission');
+  assert.ok(!operational.includes('Run Cloudflare external wakeup safety tests'),'no PR code under privileged job');
+  assert.equal((yaml.match(/- cron:/g)||[]).length,4,'preserve four original fallback cron expressions');
+});
