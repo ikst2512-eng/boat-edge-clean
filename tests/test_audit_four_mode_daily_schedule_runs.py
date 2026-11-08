@@ -296,5 +296,63 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(report["per_slot_schedule_delivery_verified"])
 
 
+    def test_future_schedule_run_rejected_before_it_can_count_as_liveness(self):
+        jst = timezone(timedelta(hours=9))
+        as_of = datetime(2026, 11, 8, 9, 20, tzinfo=jst)
+        for future_stamp in (
+            "2026-11-08T09:20:01+09:00",
+            "2026-11-08T00:21:00Z",
+            "2026-11-09T07:07:00+09:00",
+        ):
+            with self.subTest(future_stamp=future_stamp):
+                rows = [
+                    self.make_run(32, future_stamp),
+                    self.make_run(31, "2026-11-08T08:22:00+09:00"),
+                    self.make_run(30, "2026-11-07T20:52:00+09:00"),
+                ]
+                with self.assertRaisesRegex(
+                    ValueError, "future_schedule_run_timestamp"
+                ):
+                    audit_day(
+                        "owner/repo", "20261108", "token",
+                        lambda _: {"total_count": len(rows), "workflow_runs": rows},
+                        as_of=as_of,
+                    )
+
+    def test_schedule_at_exact_observation_time_is_not_future(self):
+        jst = timezone(timedelta(hours=9))
+        at = datetime(2026, 11, 8, 9, 20, tzinfo=jst)
+        rows = [
+            self.make_run(11, "2026-11-08T09:20:00+09:00"),
+            self.make_run(10, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=at)
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 1)
+        self.assertFalse(report["per_slot_schedule_delivery_verified"])
+        self.assertFalse(report["forecast_publication_verified"])
+
+    def test_default_observation_time_is_taken_after_fetch(self):
+        # HTTP may return a run created during the request. The observation
+        # clock must be taken after the response, not before network IO.
+        prior_time = datetime.now(timezone.utc) - timedelta(seconds=1)
+        rows = [
+            self.make_run(11, prior_time.isoformat()),
+        ]
+        seen = []
+        def fetch(_):
+            seen.append(True)
+            return {"total_count": 1, "workflow_runs": rows}
+        day = prior_time.astimezone(timezone(timedelta(hours=9))).strftime("%Y%m%d")
+        report = audit_day("owner/repo", day, "token", fetch)
+        self.assertEqual(seen, [True])
+        self.assertEqual(report["same_day_scheduled_run_count"], 1)
+        self.assertGreaterEqual(
+            datetime.fromisoformat(report["audit_as_of_jst"]),
+            prior_time.astimezone(timezone(timedelta(hours=9))))
+
+
 if __name__ == "__main__":
     unittest.main()
