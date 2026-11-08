@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createExecutionContext, createScheduledController, waitOnExecutionContext} from 'cloudflare:test';
 import worker from '../independent_capture_wakeup.mjs';
+import observerWorker from '../independent_capture_observer.mjs';
 
 // The real Worker runs in Workerd. This suite NEVER performs an external
 // network request, never loads real secrets and never deploys to Cloudflare.
@@ -128,6 +129,25 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     const {calls} = mockGitHub();
     await invoke(CRON, {CLOUDFLARE_DISPATCH_ENABLED: true, GITHUB_DISPATCH_TOKEN: TEST_TOKEN});
     expect(calls).toHaveLength(0);
+  });
+
+  it('isolated observer entrypoint never dispatches even with live-mode flag and injected fake token', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls} = mockGitHub();
+    const logs = [];
+    vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
+    const ctx=createExecutionContext();
+    await observerWorker.scheduled(scheduled(CRON),
+      {CLOUDFLARE_DISPATCH_ENABLED:'true', GITHUB_DISPATCH_TOKEN:TEST_TOKEN},ctx);
+    await waitOnExecutionContext(ctx);
+    expect(calls).toHaveLength(0);
+    const outputs=logs.filter(x=>x.startsWith('CLOUDFLARE_CAPTURE_OBSERVER_ONLY='));
+    expect(outputs).toHaveLength(1);
+    const report=JSON.parse(outputs[0].split('=')[1]);
+    expect(report.github_history_checked).toBe(false);
+    expect(report.formal).toBe(false);
+    expect(report.new_forecast_saved_proven).toBe(false);
+    expect(logs.join(' ')).not.toContain(TEST_TOKEN);
   });
 
   it('foreign cron never attempts a GitHub API request', async () => {
