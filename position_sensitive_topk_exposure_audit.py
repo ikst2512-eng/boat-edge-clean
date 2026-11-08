@@ -51,6 +51,13 @@ def compare_rankings(baseline, candidate):
             "topn": {},
         }
         for n in TOPS:
+            if n > count:
+                row["topn"][str(n)] = {
+                    "applicable": False,
+                    "reason": "ticket_budget_below_requested_topn",
+                    "mode_ticket_budget": count,
+                }
+                continue
             o, c = old[:n], new[:n]
             oldset, newset = set(o), set(c)
             retained = len(oldset & newset)
@@ -91,7 +98,10 @@ def audit_topk_day(day, root=ROOT):
             "top1_second_changed": 0, "top1_third_changed": 0,
             "top1_first_second_pair_changed": 0,
             "topn": {
-                str(n): {
+                str(n): ({"applicable": False,
+                          "reason": "ticket_budget_below_requested_topn",
+                          "mode_ticket_budget": BUDGETS[mode]} if n > BUDGETS[mode] else {
+                    "applicable": True,
                     "ordered_changed_races": 0,
                     "membership_changed_races": 0,
                     "total_displaced_ticket_slots": 0,
@@ -99,7 +109,7 @@ def audit_topk_day(day, root=ROOT):
                     "candidate_top1_not_in_old_topn_races": 0,
                     "some_old_first_second_pair_dropped_races": 0,
                     "retained_tickets_histogram": {str(k): 0 for k in range(n + 1)},
-                } for n in TOPS
+                }) for n in TOPS
             },
         }
     for path in paths:
@@ -142,6 +152,8 @@ def audit_topk_day(day, root=ROOT):
                         "top1_first_second_pair_changed"):
                 agg[key] += int(row[key])
             for n in TOPS:
+                if n > BUDGETS[mode]:
+                    continue
                 metric = row["topn"][str(n)]
                 stat = agg["topn"][str(n)]
                 for stat_key, metric_key in (
@@ -157,6 +169,8 @@ def audit_topk_day(day, root=ROOT):
                 stat["retained_tickets_histogram"][str(metric["retained"])] += 1
     for mode in MODES:
         for n in TOPS:
+            if n > BUDGETS[mode]:
+                continue
             stat = out["by_mode"][mode]["topn"][str(n)]
             stat["mean_displaced_ticket_slots_per_race"] = (
                 round(stat["total_displaced_ticket_slots"] / out["compared"], 3)
