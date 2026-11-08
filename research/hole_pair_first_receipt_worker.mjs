@@ -15,6 +15,24 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const HEX40 = /^[0-9a-f]{40}$/;
 const JST = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?\+09:00$/;
 const MAX_BYTES = 40000;
+// The original result-blind freeze() emits a closed set of candidate fields.
+// Reject arbitrary outcome/post-result annotations even when hashes match.
+// "warning" is an optional fixed, non-evidence explanatory string.
+const REQUIRED_FROZEN_FIELDS = Object.freeze([
+  "schema","method","status","race_code","model_version",
+  "deadline_jst","t_minus_12_jst","local_start_jst","local_finish_jst",
+  "source_sha256","source_git_blob_sha1","locked_selector_git_blobs",
+  "method_source_sha256","candidates","candidates_sha256",
+  "formal","prospective_validation","independent_first_receipt_verified",
+  "production_forecast_changed"
+]);
+const FROZEN_WARNING = "Candidate frozen by a local clock only. No independently verified first receipt; cannot report formal accuracy.";
+function closedFreezeSchema(r){
+  const keys=Object.keys(r), allowed=new Set([...REQUIRED_FROZEN_FIELDS,"warning"]);
+  return REQUIRED_FROZEN_FIELDS.every(key=>Object.hasOwn(r,key)) &&
+    keys.every(key=>allowed.has(key)) &&
+    (!Object.hasOwn(r,"warning") || r.warning===FROZEN_WARNING);
+}
 
 // The SQLite engine supplies the timestamp and performs the cutoff check
 // atomically with INSERT. Never make that decision from Date.now() in JS.
@@ -62,7 +80,8 @@ function ticket(t) { return typeof t === 'string' && /^[1-6]-[1-6]-[1-6]$/.test(
 function pair(t) { return t.slice(0, 3); }
 
 export async function validateRecord(r) {
-  if (!object(r) || !validRace(r.race_code) || r.schema !== 'HOLE_PAIR_FUTURE_FREEZE_V1' ||
+  if (!object(r) || !closedFreezeSchema(r)) reject('candidate_result_blind_schema_violation');
+  if (!validRace(r.race_code) || r.schema !== 'HOLE_PAIR_FUTURE_FREEZE_V1' ||
       r.status !== 'locally_frozen_unverified' || r.method !== 'HOLE_PAIR_NOV06_LOCKED_RESEARCH_V1' ||
       r.method_source_sha256 !== METHOD_SHA ||
       r.model_version !== 'CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED') reject('untrusted_candidate_identity_or_method');
