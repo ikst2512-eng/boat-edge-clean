@@ -14,13 +14,14 @@ import json
 import os
 import re
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from hole_pair_remote_receipt_evidence import (
     _validate_frozen, canonical_bytes, inspect,
 )
+from hole_future_locked_eval import verify_locked_selection
 
 RACE = re.compile(r"20[0-9]{10}\Z")
 REPO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
@@ -64,6 +65,15 @@ def prepare(record, root):
             raise ValueError("frozen_selector_replay_mismatch")
     except (TypeError, KeyError, AttributeError, json.JSONDecodeError) as exc:
         raise ValueError("original_forecast_untrusted") from exc
+    # Compare the code actually running with the originally frozen method and
+    # every precommitted selector blob, not just the record's self-reported hash.
+    method_path = Path(__file__).resolve().parent / "hole_future_pair_precommit.py"
+    if (method_path.is_symlink() or not method_path.is_file()
+            or hashlib.sha256(method_path.read_bytes()).hexdigest()
+            != record["method_source_sha256"]
+            or record.get("locked_selector_git_blobs")
+            != verify_locked_selection()):
+        raise ValueError("locked_selector_or_method_source_mismatch")
     path = "hole_pair_candidates/" + code[:8] + "/" + code + ".json"
     return path, canonical_bytes(record)
 
@@ -83,15 +93,26 @@ def _observation(record, when, remotely_received):
     })
 
 
-def publish_one(record, root, remote_read, remote_create, remote_observe):
+def publish_one(record, root, remote_read, remote_create, remote_observe, *, now=None):
     """Create-only / byte-identical replay; observations are NEVER formal.
 
     All remote functions are injected. remote_create must use a create-only
     API that omits an existing content SHA; never update an existing file.
     """
     path, raw = prepare(record, root)
+    cutoff = datetime.fromisoformat(record["t_minus_12_jst"])
+    clock = datetime.now(timezone.utc) if now is None else now
+    if not isinstance(clock, datetime) or clock.utcoffset() is None:
+        raise ValueError("untrusted_write_clock")
     old = remote_read(path)
     if old is None:
+        # Local clock is a necessary negative gate, NOT evidence of independent
+        # server first acceptance. A strictly earlier margin avoids same-second
+        # ambiguity; in live use recheck immediately before the create call.
+        if clock + timedelta(seconds=1) >= cutoff or (
+                now is None and datetime.now(timezone.utc) +
+                timedelta(seconds=1) >= cutoff):
+            raise ValueError("new_candidate_remote_write_too_late")
         remote_create(path, raw, "hole-pair-research-candidate")
         status = "new_write_once_candidate"
     elif old == raw:
