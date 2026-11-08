@@ -56,6 +56,15 @@ class ThreeOriginalFrozenTests(unittest.TestCase):
         self.assertIn("final_race_entry_not_independently_verified",
                       result["missing_requirements"])
 
+    def test_matching_declared_hashes_does_not_prove_model_used_raw_originals(self):
+        report = inspect(three(), frozen(), SHA)
+        self.assertTrue(report["frozen_forecast_original_hashes_match"])
+        self.assertTrue(report["frozen_forecast_hash_linkage_is_self_declared_only"])
+        self.assertFalse(report["model_original_bytes_independently_replayed_as_inputs"])
+        self.assertIn("independent_model_input_consumption_unverified",
+                      report["missing_requirements"])
+        self.assertFalse(report["formal"])
+
     def test_original_receipt_equals_generation_not_proof(self):
         result = inspect(three(), frozen(generated_at=ODDS), SHA)
         self.assertFalse(result["forecast_generated_after_all_three_originals"])
