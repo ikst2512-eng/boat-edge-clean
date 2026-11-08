@@ -12,7 +12,8 @@ DAY = "2026-11-08"
 
 def run(run_id, event="schedule", name=NAME, attempt=1):
     return {
-        "id": run_id, "event": event, "name": name, "path": WORKFLOW,
+        "id": run_id, "event": event, "name": name,
+        "path": WORKFLOW if name == NAME else ".github/workflows/unrelated.yml",
         "head_branch": "main",
         "created_at": "2026-11-08T01:17:02Z",
         "run_attempt": attempt, "status": "completed", "conclusion": "success",
