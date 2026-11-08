@@ -69,7 +69,7 @@ def reconcile_one(source: dict, secondary_dir: Path, raw_dir: Path) -> dict:
     unpacked = unpack_lha(raw, day=day)
     text = unpacked.decode("cp932")
     headers = sum(bool(RACE.match(line)) for line in text.splitlines())
-    official = parse_k(text, day=day, expected_races=headers)
+    official = parse_k(text, day=day, expected_races=headers, allow_unsettled=True)
     primary_only = sorted(set(official) - set(by_code))
     secondary_only = sorted(set(by_code) - set(official))
     if secondary_only:
