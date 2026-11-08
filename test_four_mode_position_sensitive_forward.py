@@ -18,7 +18,7 @@ RATES = [5.01, 5.89, 6.28, 2.64, 6.09, 6.15]
 
 def archive(code="202611090101", deadline="2026-11-09T12:40:00+09:00",
             rates=None):
-    v = rates or RATES
+    v = list(rates if rates is not None else RATES)
     return {
         "schema": "CLEAN_FOUR_MODES_PREDEADLINE_V1",
         "race_code": code, "validated": False,
