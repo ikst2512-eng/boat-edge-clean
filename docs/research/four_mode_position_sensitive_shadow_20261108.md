@@ -142,3 +142,34 @@ Independent read-only `position_sensitive_feature_inventory.py` authenticated **
 These are **top-level archive schema presence** counts; source data might exist elsewhere in independently maintained collection services, but this Draft has not authenticated or used it. Even a structured nonempty value would not prove official source, clock or identity. The frozen shadow continues to consume **only six national win rates**, and the unchanged research model preserves first-boat probability mass. The requested actual entry, exhibition, ST, motor, wall, wind and venue-specific effects require **a later separately registered hypothesis** with independently verifiable complete pre-result feature receipts; do not retrofit into the existing frozen candidate or step into #1692/#1693/official T−12 collector ownership.
 
 **Decision now:** structural repetition exposed and ticket turnover measured; true paired future precision, statistical non-inferiority, official feature eligibility and ROI **unproven**. No main/Render/live/UI/archive/collector change; Draft/manual approval only.
+
+## 2026-11-08 20:36 JST — future candidate receipt readiness, no publication
+
+**Exact-head CI** [#42476481806](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42476481806) **SUCCESS**: **52/52** research-only unit/negative tests, 116/116 saved original V2 input replays, no exclusions, and unchanged registered selector/model SHA checks. This is **not** a live forward cohort. All outputs explicitly block formal/proven/adoption.
+
+### Distinguish candidate's remote existence from its FIRST remote receipt
+
+Existing main `four_mode_github_server_observation.py` reads GitHub Contents API and authenticates a server `Date` against the *original* main forecast, but that observation explicitly disclaims first-receipt proof and does not publish or remotely observe the **position-sensitive candidate**. Never borrow original Git first-add or observer status as candidate provenance.
+
+New isolated `position_sensitive_receipt_intake.py` **does not make any HTTP calls**, collect a candidate, schedule a job, commit, publish or read confirmed results. It offers a future evidence consistency *preflight* for caller-supplied exact original and frozen candidate bytes:
+- Replay the exact frozen selector and prove all original/candidate same-race tickets, protocol SHA, source SHA-256, deadlines and **local** pre-T−12 chronology still agree.
+- Require separately supplied **HTTP 200** GitHub Contents payloads, matching canonical exact bytes, Git blob SHA-1, repository and research-only candidate path, uncached response and parseable UTC GitHub `Date` within strict original/candidate windows. Fail closed for 403, 404, timeout-status, cached or mismatched/late bytes, forged path and post-cutoff/same-second date.
+- Even two seemingly valid supplied HTTP observations always produce **`observations_are_externally_authenticated=false`**, **`first_remote_candidate_receipt_verified=false`**, **`formal=false`**, **`promotion_allowed=false`**. Supplied JSON and response dates are not an independently authenticated remote first-receipt; a Contents GET can at most attest existence at an independently verified observation time. No actual candidate remote observation was supplied or generated.
+- `position_sensitive_research/<race>.json` is a **proposed hypothetical research-only candidate storage path** for testing, not an actual ledger branch or a claim that an archive exists. An independent future publisher would require distinct advance review and must be kept off main/live capture.
+
+### Nov-08 original timing feasibility (retrospective, input-only)
+
+New `position_sensitive_t12_window_audit.py` recomputes the original exact V2 forecast boards from six stored national rates and checks their *recorded* received/generation/deadline chronology before measuring: `deadline - 12 minutes - original.generated_at_jst`. **116/116** original Nov-08 records passed; **0** excluded, **0** locally generated at/after T−12. All **116/116** had more than **90 seconds of theoretical time** between recorded original generation and T−12. Window distribution:
+- minimum **827.6 seconds** (13m47.6s);
+- p25 **6,887.7 seconds**;
+- median **13,907.6 seconds** (3h51m47.6s);
+- p75 **20,747.4 seconds**;
+- maximum **36,947.5 seconds**.
+
+Those figures are **not** production capture durations, evidence of Git first-add, or verified independent remote publication. They only show that if a separately approved research candidate publication had occurred promptly after original generation on that historical day, its time window might have permitted a pre-T−12 observation. **Nov 8 is a development-only sample and is forbidden as the Nov 9 onward pilot/confirmation cohort.**
+
+### Remaining independent evidence to unlock real comparison
+
+A candidate-specific **append-only, independently observed remote receipt** must actually be generated **before T−12**, and cross-checked against the exact original first-add, all scheduled and rescue runs, the immutable candidate blob, official beforeinfo/exhibition six and 120 odds, and after-finish independent results. Even then this Draft's test harness cannot itself confer formal approval. The 300+300 candidate cohort remains **0**, Top1/3/5/10 future gains and losses **unmeasured**, and statistical non-inferiority **unproven**. The active capture/official T−12 workers own collection, while #1698 is limited to receipt intake and second/third-place candidate evaluation.
+
+**Safety boundary:** No main merge, auto-merge, Render/UI change, workflow-dispatch of production collectors, live schedule change, original overwrite or cross-PR model substitution.
