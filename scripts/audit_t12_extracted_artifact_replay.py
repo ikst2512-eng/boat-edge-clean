@@ -60,7 +60,11 @@ def replay_extracted(root, *, run_id, artifact_id, digest, metadata,
     files = []
     total = 0
     for entry in root.rglob("*"):
-        if entry.is_symlink() or not entry.is_file():
+        if entry.is_symlink():
+            raise ValueError("unsafe extracted artifact symlink")
+        if entry.is_dir():
+            continue
+        if not entry.is_file():
             raise ValueError("unsafe extracted artifact member")
         relative = entry.relative_to(root).as_posix()
         if relative.startswith("/") or ".." in Path(relative).parts:
