@@ -60,6 +60,27 @@ class OriginalSourceObservationTest(unittest.TestCase):
         self.assertEqual(report["prospective_candidate_pairs"], 0)
         self.assertFalse(report["formal"])
 
+    def test_unarchived_published_result_scores_original_only_and_never_replaces_saved_denominator(self):
+        # This is deliberately NOT a new selector or a formal paired outcome.
+        snapshot = source(
+            (SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5),
+            (PENDING, "2026-11-08T17:45:25+09:00", 1, 2, 4),
+        )
+        report = self.observe_one(snapshot)
+        preview = report["unarchived_published_shadow_only"]
+        self.assertEqual(preview["races"], 1)
+        self.assertEqual(preview["race_codes"], [PENDING])
+        self.assertEqual(preview["denominator"], 1)
+        for mode in ("narrow", "hit", "balance"):
+            self.assertEqual(preview["original_saved_top_hits"][mode]["top1"], 1)
+        self.assertEqual(preview["original_saved_top_hits"]["hole"]["top1"], 0)
+        self.assertEqual(report["reference_results_already_saved"], 1)
+        self.assertEqual(report["unresolved_saved_result_files"], 1)
+        self.assertFalse(preview["eligible_for_formal_admission"])
+        self.assertFalse(report["formal"])
+        self.assertEqual(report["prospective_candidate_pairs"], 0)
+        self.assertFalse((self.root / "confirmed_results" / (PENDING + ".json")).exists())
+
     def test_absent_row_is_not_in_published_csv(self):
         row = self.observe_one(source((SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5)))["by_day"][DAY]
         self.assertEqual(row["pending_classes"]["not_in_published_csv"], 1)
