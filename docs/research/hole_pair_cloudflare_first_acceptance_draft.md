@@ -12,6 +12,13 @@
 - RECEIPT_TOKEN はWorker secretとして設定する設計。キー、トークン、データベースID、外部エンドポイントは一切PRへコミットしない。GET/一覧/変更/削除エンドポイントは用意しない。
 - 受信時刻を返すだけで formal=false、independent_first_receipt_verified=false、official_t12_complete_verified=false、production_promotion_allowed=false を変えない。**D1を所有する主体と完全に独立した時刻の監査・署名付き外部証跡、正式な出走表/展示6艇/120通りオッズのT−12以前の証明、締切時刻の独立検証は未実装**。
 
+## 2026-11-08追加：既存受領行の時刻を再送時にも検査
+
+- 受領Workerの初期試作は、初回INSERT時にはD1サーバー時計でT−12前判定する一方、**同一レース同一候補の再送時**にはSELECTで既存のSHA・原文・締切を照合するだけで、保存済み`first_received_at_utc`自体の整合性を再検査していなかった。
+- この欠落を研究用Draft内だけで修正し、最初の保存時刻が候補計算完了以前、T−12直前／以降、不正文字列、日時形式不一致ならHTTP 409 `stored_first_acceptance_clock_untrusted`を返す。既存の行を上書きしない。**DB内部の申告時刻を検証するだけであり、管理者から独立した署名や公式締切の証明にはならない。**
+- テストは、保存済み時刻を故意に破損させた後の同一原文再送、締切後の一致再送でも合格ではなく内部整合のみを意味することを確認する。固定済み候補、選択ロジック、本番データの変更はない。
+- [Actions #42477042688](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42477042688) で既存研究テストと追加検証が成功。候補固定・候補ZIPアップロードの各ステップはPRイベントでスキップ。**実Cloudflare/D1への配備・初回受領実証は未実施。**
+
 ## ファイルとテスト
 
 - research/hole_pair_first_receipt_worker.mjs：受信側Workerの原型。デプロイされない。
