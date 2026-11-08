@@ -176,6 +176,31 @@ test('an earlier active main run blocks, earlier success does not',async()=>{
   assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
 });
 
+test('ancient native queued or running main capture blocks Cloudflare even after 120 minutes',async()=>{
+  const now=tick(7,10);
+  const old=jst(4,0); // 190 min before today's 07:10 JST rescue tick.
+  for(const event of ['schedule','workflow_dispatch']){
+    for(const status of ['queued','pending','in_progress','waiting']){
+      const row=fakeRun(event,old,{status,conclusion:null});
+      const m=mock({[event==='schedule'?'schedule':'manual']:[row]});
+      const result=await run(now,m);
+      assert.equal(result.workflows.clean.action,'no_dispatch');
+      assert.equal(result.workflows.four_mode.action,'no_dispatch');
+      assert.equal(result.workflows.clean.reason,'previous_dispatch_or_active_job');
+      noPosts(m);
+    }
+  }
+});
+
+test('ancient completed native capture does not indefinitely suppress later valid recovery',async()=>{
+  const now=tick(7,10);
+  const m=mock({schedule:[fakeRun('schedule',jst(4,0),{status:'completed',conclusion:'success'})]});
+  const result=await run(now,m);
+  assert.equal(result.workflows.clean.action,'dispatch_run_id_returned_not_forecast_proof');
+  assert.equal(result.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
+  assert.equal(m.calls.filter(c=>c.method==='POST').length,2);
+});
+
 test('nonmain cannot masquerade as successful main run',async()=>{
   const m=mock({schedule:[fakeRun('schedule',jst(7,8),{head_branch:'feature/other'})]});const out=await run(tick(7,10),m);
   assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
