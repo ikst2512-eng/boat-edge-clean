@@ -89,6 +89,9 @@ jobs:
       - name: Test positive scheduled() inside Workerd with blocked network
         working-directory: cloudflare
         run: npm run test:workerd
+      - name: Test isolated SQLite claim lab in Workerd (PR only; no Cron or PAT)
+        working-directory: cloudflare
+        run: npm run test:claim-lab
   pr-policy-tests:
     # PR source files are untrusted: do not run them with Actions:write.
     if: ${{ github.event_name == 'pull_request' }}
