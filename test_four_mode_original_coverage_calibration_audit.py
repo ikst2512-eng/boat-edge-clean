@@ -26,10 +26,10 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         for directory in ("four_mode_forecasts", "confirmed_results"):
             (self.root / directory).mkdir()
-            shutil.copyfile(ROOT / "four_mode_forecasts" / (CODE + ".json"),
-                            self.root / "four_mode_forecasts" / (CODE + ".json"))
-            shutil.copyfile(ROOT / "confirmed_results" / (CODE + ".json"),
-                            self.root / "confirmed_results" / (CODE + ".json"))
+        shutil.copyfile(ROOT / "four_mode_forecasts" / (CODE + ".json"),
+                        self.root / "four_mode_forecasts" / (CODE + ".json"))
+        shutil.copyfile(ROOT / "confirmed_results" / (CODE + ".json"),
+                        self.root / "confirmed_results" / (CODE + ".json"))
         self.forecast = json.loads(
             (self.root / "four_mode_forecasts" / (CODE + ".json")).read_bytes())
         self.saved = json.loads(
