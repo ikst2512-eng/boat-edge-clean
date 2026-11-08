@@ -13,6 +13,8 @@ describe('real local Workerd SQLite Durable Object at-most-one lab (never dispat
     const claims=await Promise.all(Array.from({length:32},()=>g.reserve('clean',s)));
     expect(claims.filter(x=>x.acquired)).toHaveLength(1);
     expect(claims.filter(x=>!x.acquired)).toHaveLength(31);
+    expect(claims.filter(x=>x.acquired)[0].claim_token).toMatch(/^[0-9a-f-]{36}$/);
+    expect(claims.filter(x=>!x.acquired).every(x=>!('claim_token' in x))).toBe(true);
     expect((await g.inspect('clean',s)).claimed).toBe(true);
     expect(claims.every(x=>x.formal===false && x.forecast_saved_proven===false)).toBe(true);
   });
@@ -25,6 +27,7 @@ describe('real local Workerd SQLite Durable Object at-most-one lab (never dispat
     expect((await freshStub.reserve('four_mode',s)).acquired).toBe(false);
     const state=await freshStub.inspect('four_mode',s);
     expect(state).toMatchObject({claimed:true,reported_run_id:null,formal:false});
+    expect(JSON.stringify(state)).not.toContain('claim_token');
   });
 
   it('a missing run ID is never mistaken for an unclaimed slot and never auto-retried',async()=>{
@@ -54,20 +57,22 @@ describe('real local Workerd SQLite Durable Object at-most-one lab (never dispat
   it('reported GitHub run ID can be attached at most once but is never formal proof',async()=>{
     const g=gate('claim-lab-run-id');
     const s=slot(8,7,34);
-    expect((await g.reserve('clean',s)).acquired).toBe(true);
-    const saved=await g.reportRunId('clean',s,345678901);
+    const winner=await g.reserve('clean',s);
+    expect(winner.acquired).toBe(true);
+    const saved=await g.reportRunId('clean',s,winner.claim_token,345678901);
     expect(saved).toMatchObject({recorded:true,reported_run_id:345678901,github_run_verified:false,formal:false});
-    expect((await g.reportRunId('clean',s,987654321)).recorded).toBe(false);
+    expect((await g.reportRunId('clean',s,winner.claim_token,987654321)).recorded).toBe(false);
     const state=await g.inspect('clean',s);
     expect(state).toMatchObject({claimed:true,reported_run_id:345678901,
       github_run_verified:false,forecast_saved_proven:false,formal:false});
     expect((await g.reserve('clean',s)).acquired).toBe(false);
+    expect(JSON.stringify(state)).not.toContain(winner.claim_token);
   });
 
   it('cannot record a run ID for an unclaimed slot',async()=>{
     const g=gate('claim-lab-no-claim');
     const s=slot(8,7,49);
-    const res=await g.reportRunId('clean',s,12345);
+    const res=await g.reportRunId('clean',s,crypto.randomUUID(),12345);
     expect(res.recorded).toBe(false);
     expect((await g.inspect('clean',s)).claimed).toBe(false);
   });
@@ -81,10 +86,44 @@ describe('real local Workerd SQLite Durable Object at-most-one lab (never dispat
       expect(rejected.acquired).toBe(false);
       expect(rejected.status).toBe('rejected_invalid_slot');
     }
-    const invalidRun=await g.reportRunId('clean',valid,-1);
+    const invalidRun=await g.reportRunId('clean',valid,crypto.randomUUID(),-1);
     expect(invalidRun.recorded).toBe(false);
     expect(invalidRun.error).toBe('research_invalid_run_id');
     expect((await g.inspect('clean',valid)).claimed).toBe(false);
+  });
+
+  it('a losing claimant cannot attach a forged run ID or steal the winning token',async()=>{
+    const g=gate('claim-lab-owner-token');
+    const s=slot(8,8,4);
+    const winner=await g.reserve('clean',s);
+    const loser=await g.reserve('clean',s);
+    expect(winner.acquired).toBe(true);
+    expect(loser.acquired).toBe(false);
+    expect(loser.claim_token).toBeUndefined();
+    expect((await g.reportRunId('clean',s,crypto.randomUUID(),991122)).recorded).toBe(false);
+    expect((await g.reportRunId('clean',s,'not-a-uuid',991122)).error).toBe('research_invalid_claim_token');
+    expect((await g.reportRunId('clean',s,undefined,991122)).error).toBe('research_invalid_claim_token');
+    expect((await g.inspect('clean',s)).reported_run_id).toBeNull();
+    expect((await g.reportRunId('clean',s,winner.claim_token,991122)).recorded).toBe(true);
+    const inspect=await g.inspect('clean',s);
+    expect(inspect.reported_run_id).toBe(991122);
+    expect(JSON.stringify(inspect)).not.toContain(winner.claim_token);
+    expect((await g.reportRunId('clean',s,winner.claim_token,991123)).recorded).toBe(false);
+  });
+
+  it('a reservation token is scoped to exactly one workflow-slot and one object',async()=>{
+    const a=gate('claim-lab-token-scope-a');
+    const b=gate('claim-lab-token-scope-b');
+    const one=slot(8,9,4),two=slot(8,9,19);
+    const winner=await a.reserve('clean',one);
+    const other=await a.reserve('clean',two);
+    const anotherObj=await b.reserve('clean',one);
+    expect(winner.acquired && other.acquired && anotherObj.acquired).toBe(true);
+    expect((await a.reportRunId('clean',two,winner.claim_token,111)).recorded).toBe(false);
+    expect((await b.reportRunId('clean',one,winner.claim_token,111)).recorded).toBe(false);
+    expect((await a.reportRunId('four_mode',one,winner.claim_token,111)).recorded).toBe(false);
+    expect((await a.reportRunId('clean',two,other.claim_token,222)).recorded).toBe(true);
+    expect((await b.reportRunId('clean',one,anotherObj.claim_token,333)).recorded).toBe(true);
   });
 
   it('research Worker has no scheduled handler and public HTTP always returns 403',async()=>{
