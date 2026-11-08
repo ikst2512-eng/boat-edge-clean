@@ -214,3 +214,20 @@ Research code/CI can observe the current public outcome. It still cannot prove f
 - Further CI arithmetic now derives `four_mode_scoreable_original_reference.json` from the two independent raw CSV auditors and the explicitly non-scoreable manual first-party reference. It **requires exactly** 474 = 441 saved + 21 public unarchived + 12 non-scoreable (dynamic counts; no hardcoded 21), asserts per-mode hits/counts/rates, and fails on mismatched/extra source records. This is source evidence, not candidate-vs-baseline proof.
 - The earlier hypothetical upper/lower bands over all 474 were **sensitivity-only before the exclusion was established**: cancelled and non-trifecta races must NEVER be counted as potential successes or misses. For research postrace trifecta outcomes use denominator 462 and separately disclose 441 persisted; do not report a 474-based 'hit rate' or uncertainty band as a real performance estimate.
 - Status: Draft #1693 only, no main merge, collectors/Render/UI/official T-12 or hole/candidate selector edits. Official beforeinfo six/120 odds at T-12, first independent remote registration of future candidates, full schedule runs and 300+300 future paired confirmation still **0 formally eligible**.
+
+## 2026-11-08: estimated full-list coverage calibration for 462 historical originals
+
+Independent research-only audit of the **frozen original model's already-displayed** `modes[].estimated_coverage_pct`, compared against *full original mode ticket list* hits for exactly 462 postrace trifecta-scoreable originals, with 12 official manually reviewed non-scoreable exceptions. Not Top10 when balance has 16 tickets or hole has 22 tickets. The saved-original sources stay unchanged; no probability resealing or candidate recomputation.
+
+| V2 mode | Original ticket count | Mean estimated full coverage | Observed full hits | Observed full coverage | Observed - estimate |
+|---|---:|---:|---:|---:|---:|
+| narrow | 5 | 24.87% | 117/462 | 25.32% | +0.46 pp |
+| hit | 10 | 39.66% | 197/462 | 42.64% | +2.98 pp |
+| balance | 16 | 51.91% | 255/462 | 55.19% | +3.28 pp |
+| hole | 22 | 30.82% | 144/462 | 31.17% | +0.35 pp |
+
+Day-level signal is materially noisier: on 11/05 HIT actual 50.00 vs estimated 40.01 (+9.99 pp), HOLE actual 20.75 vs estimated 30.50 (−9.75 pp). On 11/08 HOLE actual 37.93 vs 30.74 (+7.19 pp). The aggregate apparent calibration is **not** proof that per-race ranking, per-event coverage or another period is calibrated; retrospective selection and four-day dependence may distort the aggregate. Do not tune the model to these values, label them formal calibration, or modify live probabilities.
+
+Evidence gate: `four_mode_original_coverage_calibration_audit.py` and 11 negative/positive regression tests reject absent/boolean/NaN/over-limit model estimates, mutated ticket budgets, duplicate tickets, postrace timestamp mismatch, result divergence, invalid manual official exclusion and incomplete source rosters. Uses **the exact four retained raw public CSV byte artifacts** and existing two independent source auditors; requires the official 12-case manual exclusion reference and full reconciliation `474 = 441 persisted + 21 public-only valid + 12 non-scoreable`. No independent official beforeinfo/120 odds T−12 or first remotely received candidate; formal candidate count=0, no autopromotion.
+
+Verified code-only exact head before documentation: [historical research CI #42479686112](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42479686112), completed/success; check final documentation-only head after this note. The first CI attempt [#42479582861](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42479582861) failed only because test fixtures copied files before creating both temporary directories; fixed and retested to success. Neither failure nor fix involved a model, collector, main, or Render change.
