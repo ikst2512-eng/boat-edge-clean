@@ -13,7 +13,7 @@ import collections
 import datetime as dt
 import hashlib
 import json
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 if __package__:
@@ -65,7 +65,7 @@ def observation(code: str, race: dict, omitted: bool) -> dict:
 
 
 def _rate(wins: int, n: int):
-    return float((Decimal(100 * wins) / Decimal(n)).quantize(Decimal("0.01"))) if n else None
+    return float((Decimal(100 * wins) / Decimal(n)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) if n else None
 
 
 def cohort_summary(rows: list[dict], key: str) -> dict:
@@ -77,7 +77,7 @@ def cohort_summary(rows: list[dict], key: str) -> dict:
     wa = sum(r["winner_1c"] for r in full)
     wb = sum(r["winner_1c"] for r in kept)
     full_rate, kept_rate = _rate(wa, a), _rate(wb, b)
-    delta = (round(100 * wa / a - 100 * wb / b, 2) if a and b else None)
+    delta = (float((Decimal(100 * wa) / Decimal(a) - Decimal(100 * wb) / Decimal(b)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) if a and b else None)
     return {
         "group": key,
         "official_races": n_all,
