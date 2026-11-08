@@ -32,8 +32,8 @@ def join(schedule, archive):
         raise ValueError("invalid independent schedule clock") from exc
     if seen.utcoffset() != timedelta(0):
         raise ValueError("schedule observation must be UTC")
-    if seen.date().strftime("%Y%m%d") != day:
-        raise ValueError("cross-day schedule snapshot")
+    if seen.date().strftime("%Y%m%d") < day:
+        raise ValueError("future schedule cohort cannot be observed")
     if (schedule.get("workflow_path")
             != ".github/workflows/research-live-preview-evidence.yml"
             or schedule.get("expected_cron_assumption") != "*/5 0-12 * * *"):
@@ -47,6 +47,7 @@ def join(schedule, archive):
     if (any(type(v) is not int or v < 0 for v in
             (elapsed, observed, in_hours, outside, nominal))
             or nominal != 156 or not 0 <= elapsed <= nominal
+            or (seen.date().strftime("%Y%m%d") > day and elapsed != nominal)
             or observed != in_hours + outside
             or not isinstance(runs, list) or len(runs) != observed
             or schedule.get("schedule_slot_identity_verified") is not False
