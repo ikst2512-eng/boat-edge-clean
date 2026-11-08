@@ -154,7 +154,7 @@ class ManualPublisherSafetyTests(unittest.TestCase):
         api = MockGitHub()
         snap = freeze_candidate(api.original, "2026-11-09T10:05:10+09:00")
         api.occupied = (json.dumps(snap, ensure_ascii=False, sort_keys=True,
-                                   indent=2) + "\\n").encode()
+                                   indent=2) + "\n").encode()
         with self.assertRaisesRegex(
                 ValueError, "candidate_already_exists_no_new_receipt"):
             manual_publish_one(CODE, api, valid_clock())
