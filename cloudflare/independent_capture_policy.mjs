@@ -34,7 +34,14 @@ export function decide(schedule, manual, slot, now) {
   const m = validatedEvents(manual, 'workflow_dispatch', slot, now);
   const direct = s.filter(x => x.created >= slot && x.created <= now);
   const recentManual = m.filter(x => x.created >= slot - 2 * MINUTE && x.created <= now);
-  const olderActive = [...s, ...m].some(x => x.created >= now - 120 * MINUTE && x.created < slot && x.row.status !== 'completed');
+  // Strict fail-closed native-queue protection: an old queued/running main
+  // job can remain pending beyond two hours (e.g. a delayed Actions queue).
+  // The former 120-minute cut-off made that pending original invisible to
+  // the duplicate fence and a Cloudflare POST could displace CLEAN's
+  // queue:single pending schedule. Never infer completed from age alone.
+  // This only protects VISIBLE history; an as-yet-uncreated delayed
+  // schedule remains a cross-provider NO-GO risk.
+  const olderActive = [...s, ...m].some(x => x.created < slot && x.row.status !== 'completed');
   const base = {slot_jst: new Date(slot + JST).toISOString().replace('Z', '+09:00'),
     direct_runs_after_slot: direct.length, manual_runs_near_slot: recentManual.length};
   if (recentManual.length || olderActive) return {...base, action: 'no_dispatch', reason: 'previous_dispatch_or_active_job'};
