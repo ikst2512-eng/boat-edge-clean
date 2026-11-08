@@ -10,6 +10,8 @@ on:
       - 'position_sensitive_paired_guard.py'
       - 'position_sensitive_paired_inference.py'
       - 'position_sensitive_feature_inventory.py'
+      - 'position_sensitive_receipt_intake.py'
+      - 'test_position_sensitive_receipt_intake.py'
       - 'test_position_sensitive_feature_inventory.py'
       - 'test_position_sensitive_paired_inference.py'
       - 'test_position_sensitive_paired_guard.py'
@@ -71,7 +73,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -101,6 +103,21 @@ jobs:
                   or report.get('model_improvement_proven') is not False):
               raise SystemExit('paired_inference_must_be_noncertifying')
           print('POSITION_SENSITIVE_EXACT_PAIRED_INFERENCE_NOT_CERTIFIED')
+          PY
+      - name: Intake preflight cannot certify nonexistent next-day remote candidate
+        run: |
+          python position_sensitive_receipt_intake.py | tee position_receipt_intake_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('position_receipt_intake_unstarted.json').read_text())
+          if (p.get('status') != 'no_actual_future_candidate_or_remote_observation_supplied'
+                  or p.get('verified_future_candidate_receipts') != 0
+                  or p.get('formal') is not False
+                  or p.get('production_changed') is not False
+                  or p.get('promotion_allowed') is not False):
+              raise SystemExit('false_future_candidate_remote_receipt')
+          print('POSITION_SENSITIVE_REMOTE_CANDIDATE_INTAKE_FAIL_CLOSED')
           PY
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
@@ -203,4 +220,5 @@ jobs:
             position_paired_guard_unstarted.json
             position_paired_inference_unstarted.json
             position_shadow_feature_inventory.json
+            position_receipt_intake_unstarted.json
           retention-days: 30
