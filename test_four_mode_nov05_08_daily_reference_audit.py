@@ -102,5 +102,50 @@ class DailyReferenceAuditTest(unittest.TestCase):
             audit(self.root, ("2026-11-08",))
 
 
+    def test_missing_result_has_uncertainty_bounds_not_zero_hit_rate(self):
+        (self.root / "confirmed_results" / (CODE + ".json")).unlink()
+        report = self.run_audit()
+        row = report["reference_overall"]["mode"]["hit"]
+        bounds = row["top_pending_bounds"]["top10"]
+        self.assertEqual((report["reference_overall"]["confirmed_denominator"],
+                          report["reference_overall"]["pending_outcome_count"],
+                          bounds["saved_valid_with_or_without_result"]), (0, 1, 1))
+        self.assertEqual(bounds["lower_percent_all_pending_miss"], 0.0)
+        self.assertEqual(bounds["upper_percent_all_pending_hit"], 100.0)
+        self.assertIsNone(row["top_pct_confirmed_only"]["top10"])
+        self.assertFalse(report["formal"])
+
+    def test_original_same_race_top10_pair_partition(self):
+        report = self.run_audit()
+        pairs = report["reference_overall"]["same_race_original_top10_pairs"]
+        self.assertEqual(pairs["narrow_vs_hit"]["both"], 1)
+        self.assertEqual(pairs["hit_vs_balance"]["both"], 1)
+        self.assertEqual(pairs["balance_vs_hole"]["left_only"], 1)
+        self.assertEqual(sum(pairs["balance_vs_hole"].values()), 1)
+
+    def test_full_ticket_coverage_separated_from_top10(self):
+        report = self.run_audit()
+        mode = report["reference_overall"]["mode"]
+        self.assertEqual(mode["balance"]["full_list_covered"], 1)
+        self.assertEqual(mode["balance"]["full_list_correct_beyond_top10"], 0)
+        self.assertEqual(mode["hole"]["full_list_correct_beyond_top10"], 0)
+        for value in mode.values():
+            self.assertGreaterEqual(value["full_list_covered"],
+                                    value["top_hits"]["top10"])
+
+    def test_invalid_result_not_recast_as_pending_bounds(self):
+        p = self.root / "confirmed_results" / (CODE + ".json")
+        row = json.loads(p.read_text())
+        row["source_sha256"] = "not_a_sha"
+        p.write_text(json.dumps(row))
+        report = self.run_audit()
+        self.assertEqual(report["totals"]["excluded"], 1)
+        self.assertEqual(report["reference_overall"]["known_plus_pending_denominator"], 0)
+        self.assertEqual(report["reference_overall"]["pending_outcome_count"], 0)
+        bounds = report["reference_overall"]["mode"]["hit"]["top_pending_bounds"]["top10"]
+        self.assertIsNone(bounds["lower_percent_all_pending_miss"])
+        self.assertIsNone(bounds["upper_percent_all_pending_hit"])
+
+
 if __name__ == "__main__":
     unittest.main()
