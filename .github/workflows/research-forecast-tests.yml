@@ -37,6 +37,8 @@ on:
       - 'scripts/research_official_k_all_34_exceptions.py'
       - 'scripts/research_official_k_full_92day.py'
       - 'scripts/research_official_k_c1_24venue_reproduction.py'
+      - 'scripts/research_official_k_missingness_profile.py'
+      - 'tests/test_research_official_k_missingness_profile.py'
       - 'tests/test_research_official_k_c1_24venue_reproduction.py'
       - 'tests/test_research_official_k_full_92day.py'
       - 'tests/test_research_official_k_f_start_parse.py'
@@ -88,6 +90,8 @@ on:
       - 'scripts/research_official_k_all_34_exceptions.py'
       - 'scripts/research_official_k_full_92day.py'
       - 'scripts/research_official_k_c1_24venue_reproduction.py'
+      - 'scripts/research_official_k_missingness_profile.py'
+      - 'tests/test_research_official_k_missingness_profile.py'
       - 'tests/test_research_official_k_c1_24venue_reproduction.py'
       - 'tests/test_research_official_k_full_92day.py'
       - 'tests/test_research_official_k_f_start_parse.py'
@@ -159,6 +163,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_official_k_full_92day.py' -v
       - name: Validate primary 24-venue C1 reproduction safety (offline)
         run: python -m unittest discover -s tests -p 'test_research_official_k_c1_24venue_reproduction.py' -v
+      - name: Verify SHA-gated primary-only 140-race missingness checks
+        run: python -m unittest discover -s tests -p 'test_research_official_k_missingness_profile.py' -v
       - name: Verify official F0.xx actual course and ST are not silently omitted
         run: python -m unittest discover -s tests -p 'test_research_official_k_f_start_parse.py' -v
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
@@ -200,6 +206,21 @@ jobs:
             --frozen-evidence docs/research/venue_course_method_evidence_20261106/reconciled_92day_summary.json \
             --raw-dir research_evidence/official_k_full_92_raw \
             --out research_evidence/official_k_full_92day_reconciliation.json
+      - name: Profile 140 official-only races by venue and postrace wind
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          python scripts/research_official_k_missingness_profile.py \
+            --official-comparison research_evidence/official_k_full_92day_reconciliation.json \
+            --official-k-dir research_evidence/official_k_full_92_raw \
+            --out research_evidence/official_k_missing_140_profile.json
+      - name: Preserve 140 primary-only race bias audit (research only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-k-missing-140-postrace-bias-research-only
+          path: research_evidence/official_k_missing_140_profile.json
+          if-no-files-found: ignore
       - name: Reproduce 24 frozen venue C1 displays from all official K sources
         if: github.event_name == 'pull_request'
         continue-on-error: true
