@@ -196,4 +196,34 @@ class PairPrecommitTest(unittest.TestCase):
                     b=s.review(record,root)
                 self.assertEqual(b["status"],"candidate_replay_mismatch")
 
+
+    def test_future_holdout_protocol_starts_after_inspected_days(self):
+        protocol = Path(__file__).resolve().parent / "research" / "hole_pair_future_holdout_protocol_20261109.json"
+        p = json.loads(protocol.read_text(encoding="utf-8"))
+        self.assertEqual(p["schema"], "HOLE_PAIR_FUTURE_HOLDOUT_PROTOCOL_V1")
+        self.assertEqual(p["protocol_effective_day_jst"], "20261109")
+        self.assertGreater(p["protocol_effective_day_jst"], p["historical_exclusion"]["days_through"])
+        self.assertEqual(p["method"]["selector_method"], s.METHOD)
+        self.assertEqual(p["method"]["arms"], list(s.POLICIES))
+        self.assertEqual(p["method"]["count_per_arm"], 10)
+        self.assertTrue(p["method"]["protected_top5"])
+        self.assertTrue(p["method"]["preserve_original_first_second_pair_coverage"])
+        self.assertEqual(p["sequential_cohorts"]["pilot"]["first_eligible_records"], 300)
+        self.assertEqual(p["sequential_cohorts"]["confirmation"]["next_eligible_records"], 300)
+        self.assertTrue(p["event_universe"]["separate_remote_receipt_required"])
+
+    def test_future_holdout_protocol_cannot_claim_formal_on_local_artifact_only(self):
+        p = json.loads((Path(__file__).resolve().parent / "research" /
+                        "hole_pair_future_holdout_protocol_20261109.json").read_text(encoding="utf-8"))
+        g = p["production_gates"]
+        self.assertFalse(g["formal"])
+        self.assertFalse(g["prospective_improvement_proven"])
+        self.assertFalse(g["production_promotion_allowed"])
+        self.assertFalse(g["automatic_merge_allowed"])
+        self.assertTrue(g["no_new_cron_or_main_or_render_or_prediction_changes"])
+        self.assertIn("server-controlled timestamp", p["event_universe"]["remote_receipt_definition"])
+        self.assertIn("120-way odds", p["event_universe"]["official_inputs_required"])
+        self.assertIn("Holm", p["metrics"]["significance"])
+        self.assertIn("confirmation cohort only", p["metrics"]["significance"])
+
 if __name__=="__main__":unittest.main()
