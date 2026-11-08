@@ -20,7 +20,7 @@ DISCOVERY_DAYS = {
     "20261107": 122,
     "20261108": 116,
 }
-RACE_CODE = re.compile(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\\Z")
+RACE_CODE = re.compile(r"20[0-9]{6}(?:0[1-9]|1[0-9]|2[0-4])(?:0[1-9]|1[0-2])\Z")
 
 
 def position_delta(original, candidate):
@@ -42,9 +42,7 @@ def audit(root, day):
         raise ValueError("no_safe_forecast_archive")
     files = sorted(folder.glob(day + "*.json"))
     expected_min = DISCOVERY_DAYS[day]
-    if len(files) < expected_min and not (expected_min == 116 and len(files) == 1):
-        # A single local fixture is permitted by audit(..., expected_count=1),
-        # rather than weakening the actual CI baseline.
+    if len(files) < expected_min:
         raise ValueError("incomplete_discovery_forecast_inventory")
     return audit_files(files, day, expected_minimum=expected_min)
 
@@ -80,7 +78,7 @@ def audit_files(files, day, expected_minimum=1):
             raise ValueError("unsafe_duplicate_or_invalid_original")
         seen.add(code)
         raw = json.loads(path.read_bytes())
-        if raw.get("race_code") != code:
+        if type(raw) is not dict or raw.get("race_code") != code:
             raise ValueError("original_race_code_mismatch")
         baseline, _ = candidate_modes(raw)  # validates original WITHOUT results
         candidate = top1_pair_candidate(raw, baseline)
