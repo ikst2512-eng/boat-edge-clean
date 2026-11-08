@@ -108,6 +108,21 @@ async function authorized(request, env) {
 function reply(status, body){return new Response(JSON.stringify(body), {
   status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
 });}
+// Defense in depth: SELECT on an existing row is not itself proof of a
+// compliant first insert. Reject contradictory stored timestamps on retries.
+// This cannot establish provider/admin independence or an official cutoff.
+function storedFirstClockValid(row, normalized) {
+  const clock = row?.first_received_at_utc;
+  if (typeof clock !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(clock))
+    return false;
+  const first = Date.parse(clock);
+  const finish = Date.parse(normalized.finish_utc);
+  const cutoff = Date.parse(normalized.cutoff_utc);
+  return Number.isFinite(first) && new Date(first).toISOString() === clock &&
+    Number.isFinite(finish) && Number.isFinite(cutoff) &&
+    first > finish && first + 2000 < cutoff;
+}
 function receiptRow(row, repeated){return {
   schema:'HOLE_PAIR_D1_FIRST_ACCEPTANCE_V1',race_code:row.race_code,
   candidate_sha256:row.candidate_sha256,declared_cutoff_utc:row.cutoff_utc,
@@ -155,6 +170,8 @@ export async function handle(request, env){
     if(row.candidate_sha256!==digest||row.canonical_record!==normalized.record_text||
        row.cutoff_utc!==normalized.cutoff_utc)
       return reply(409,{status:'conflicting_first_acceptance'});
+    if(!storedFirstClockValid(row,normalized))
+      return reply(409,{status:'stored_first_acceptance_clock_untrusted'});
     return reply(200,receiptRow(row,!inserted));
   }catch{return reply(503,{status:'database_unavailable_no_proof'});}
 }
