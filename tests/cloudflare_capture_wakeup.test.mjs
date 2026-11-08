@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
+import observerWorker from '../cloudflare/independent_capture_observer.mjs';
+import * as observerExports from '../cloudflare/independent_capture_observer.mjs';
 import * as workerEntrypointExports from '../cloudflare/independent_capture_wakeup.mjs';
 import {plannedSlots, eligibleSlot, execute, observe, WORKFLOWS} from '../cloudflare/independent_capture_policy.mjs';
 const JST=9*60*60*1000;
@@ -332,6 +334,8 @@ test('zero-credential observer pilot stays disabled and has no required PAT secr
   const observer=readFileSync(new URL('../cloudflare/wrangler.observer.toml',import.meta.url),'utf8');
   const production=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
   assert.match(observer,/name = "boat-edge-clean-independent-observer"/);
+  assert.match(observer,/main = "independent_capture_observer.mjs"/);
+  assert.doesNotMatch(observer,/main = "independent_capture_wakeup.mjs"/);
   assert.match(production,/name = "boat-edge-clean-independent-wakeup"/);
   assert.match(observer,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
   assert.match(production,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
@@ -345,6 +349,51 @@ test('zero-credential observer pilot stays disabled and has no required PAT secr
 
 test('POST must return 204; no false success',async()=>{
   const m=mock({postStatus:200});await assert.rejects(()=>run(tick(7,10),m),/dispatch_not_accepted/);
+});
+
+test('dedicated observer exports only default and has no dispatch-capable handler',()=>{
+  assert.deepEqual(Object.keys(observerExports),['default']);
+  assert.deepEqual(Object.keys(observerWorker),['scheduled']);
+  const src=readFileSync(new URL('../cloudflare/independent_capture_observer.mjs',import.meta.url),'utf8');
+  assert.doesNotMatch(src,/\bexecute\s*\(/);
+  assert.doesNotMatch(src,/\bfetch\s*\(/);
+  assert.doesNotMatch(src,/GITHUB_DISPATCH_TOKEN/);
+  assert.doesNotMatch(src,/workflow_dispatch/);
+});
+
+test('dedicated observer cannot dispatch even if production flag is true and token is injected',async()=>{
+  const oldNow=Date.now,oldFetch=globalThis.fetch,oldLog=console.log;
+  const when=tick(7,10),requests=[],logs=[];
+  Date.now=()=>when;
+  globalThis.fetch=async (...args)=>{requests.push(args);throw Error('OBSERVER_MUST_NOT_FETCH');};
+  console.log=x=>logs.push(String(x));
+  try{
+    await observerWorker.scheduled({cron:'*/5 22-23,0-13 * * *',scheduledTime:when},{
+      CLOUDFLARE_DISPATCH_ENABLED:'true',
+      GITHUB_DISPATCH_TOKEN:'FAKE_MISCONFIGURED_TOKEN',
+    },{});
+  }finally{Date.now=oldNow;globalThis.fetch=oldFetch;console.log=oldLog;}
+  assert.deepEqual(requests,[]);
+  assert.equal(logs.length,1);
+  assert.ok(logs[0].startsWith('CLOUDFLARE_CAPTURE_OBSERVER_ONLY='));
+  const d=JSON.parse(logs[0].split('=')[1]);
+  assert.equal(d.github_history_checked,false);
+  assert.equal(d.new_forecast_saved_proven,false);
+  assert.ok(!logs.join(' ').includes('FAKE_MISCONFIGURED_TOKEN'));
+});
+
+test('dedicated observer rejects foreign cron before any GitHub API request',async()=>{
+  const prev=globalThis.fetch,prevError=console.error;
+  let requests=0; const errors=[];
+  globalThis.fetch=async()=>{requests++;throw Error('OBSERVER_MUST_NOT_FETCH');};
+  console.error=x=>errors.push(String(x));
+  try{
+    await assert.rejects(()=>observerWorker.scheduled({cron:'* * * * *',scheduledTime:tick(7,10)},{},{}),
+      /unexpected_cron_trigger/);
+  }finally{globalThis.fetch=prev;console.error=prevError;}
+  assert.equal(requests,0);
+  assert.equal(errors.length,1);
+  assert.ok(errors[0].includes('CLOUDFLARE_CAPTURE_OBSERVER_ERROR='));
 });
 
 test('Worker entrypoint exports only the default scheduled handler (real workerd constraint)',()=>{
