@@ -497,7 +497,7 @@
     "All exposures, wave heights, result start timing, actual courses, and finish methods come from POST-RACE official K, not a predeadline observation.",
     "Wind direction is the source's eight Japanese cardinal names. The heading of the racing course, headwind and tailwind conversion are unverified.",
     "Wave matching is selection on a co-observed or possibly mediator variable; it is not a causal adjustment for wind.",
-    "Comparing only overlapping venue-month-direction-wave strata excludes 2,862 of 6,605 otherwise eligible 2m/3m races: it cannot support population-level causal conclusions.",
+    "Comparing only overlapping venue-month-direction-wave strata excludes 3,862 of 6,605 otherwise eligible 2m/3m races: it cannot support population-level causal conclusions.",
     "Course completeness is 14,107/14,249; exclude ambiguous actual-course tactical events rather than filling by boat number.",
     "Result ST is distinct from exhibition ST and cannot be used as a T-12 predictor.",
     "The 159 excluded statuses are a reproduction hypothesis; official denominator documentation was not certified.",
