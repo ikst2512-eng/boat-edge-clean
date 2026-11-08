@@ -36,6 +36,16 @@ FROZEN_REQUIRED_FIELDS = frozenset({
     "production_forecast_changed",
 })
 FROZEN_OPTIONAL_FIELDS = frozenset({"warning"})
+FROZEN_WARNING = (
+    "Candidate frozen by a local clock only. No independently "
+    "verified first receipt; cannot report formal accuracy."
+)
+LOCKED_SELECTOR_BLOBS = {
+    "hole_third_choice_research.py": "579edc1ae846489d447307fbf03b35fc7d4c09b9",
+    "hole_pair_diversification_research.py": "56f06c10f6d07e03b2e37624ecf57dc6de7d8748",
+    "hole_top5_safe_bundle_research.py": "a43f53d898ac73829e7f2b24f81624d69d26d74a",
+    "hole_pair_third_bundle_research.py": "88c4ed506588a24bb593d104b5d0f59c7502d73a",
+}
 
 
 def reject_outcome_contaminated_schema(record):
@@ -44,8 +54,8 @@ def reject_outcome_contaminated_schema(record):
             and not set(record) - (FROZEN_REQUIRED_FIELDS | FROZEN_OPTIONAL_FIELDS)):
         raise ValueError("unexpected_frozen_record_fields")
     if (record["model_version"] != "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
-            or type(record["locked_selector_git_blobs"]) is not dict
-            or type(record.get("warning", "")) is not str):
+            or record["locked_selector_git_blobs"] != LOCKED_SELECTOR_BLOBS
+            or ("warning" in record and record["warning"] != FROZEN_WARNING)):
         raise ValueError("untrusted_frozen_record_metadata")
     return True
 
