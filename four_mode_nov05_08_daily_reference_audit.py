@@ -25,6 +25,7 @@ BUDGETS = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
 CODE = re.compile(r"20[0-9]{10}\Z")
 CAUSES = ("covered", "winner_head_absent", "winner_second_pair_absent", "winner_third_absent")
+PAIRS = (("narrow", "hit"), ("hit", "balance"), ("balance", "hole"))
 
 
 def _result(path, code, deadline):
@@ -51,6 +52,68 @@ def _new_mode():
             "first_boat_missing": 0}
 
 
+def _pending_bounds(hits, evaluated, pending):
+    """Worst-case deterministic missing-result range, NOT a confidence interval."""
+    if (any(type(x) is not int or x < 0 for x in (hits, evaluated, pending))
+            or hits > evaluated):
+        raise ValueError("invalid_bounds_input")
+    total = evaluated + pending
+    return {"saved_valid_with_or_without_result": total,
+            "confirmed_only_hits": hits,
+            "lower_percent_all_pending_miss": round(100 * hits / total, 2) if total else None,
+            "upper_percent_all_pending_hit": round(100 * (hits + pending) / total, 2) if total else None,
+            "interpretation": "missing_outcomes_extreme_bounds_not_confidence_interval"}
+
+
+def _paired_empty():
+    return {a + "_vs_" + b: {"both": 0, "left_only": 0, "right_only": 0,
+                              "neither": 0} for a, b in PAIRS}
+
+
+def _paired_add(target, key, left, right):
+    branch = ("both" if left and right else "left_only" if left else
+              "right_only" if right else "neither")
+    target[key][branch] += 1
+
+
+def _pooled_reference(reports):
+    evaluated = sum(r["evaluated"] for r in reports.values())
+    pending = sum(r["pending_result_count"] for r in reports.values())
+    by_mode = {}
+    for mode in MODES:
+        hits = {f"top{n}": sum(g["mode"][mode]["top_hits"][f"top{n}"]
+                              for g in reports.values()) for n in TOPS}
+        covered = sum(g["mode"][mode]["miss_partition"]["covered"]
+                      for g in reports.values())
+        if covered < hits["top10"]:
+            raise AssertionError("top10_exceeds_full_list")
+        by_mode[mode] = {
+            "top_hits": hits,
+            "top_pct_confirmed_only": {k: round(100 * v / evaluated, 2)
+                                       if evaluated else None for k, v in hits.items()},
+            "top_pending_bounds": {k: _pending_bounds(v, evaluated, pending)
+                                   for k, v in hits.items()},
+            "full_list_covered": covered,
+            "full_list_covered_pending_bounds": _pending_bounds(covered, evaluated, pending),
+            "full_list_correct_beyond_top10": covered - hits["top10"],
+            "miss_partition": {cause: sum(g["mode"][mode]["miss_partition"][cause]
+                                          for g in reports.values()) for cause in CAUSES}
+        }
+    paired = _paired_empty()
+    for g in reports.values():
+        for key, counts in g["paired_top10"].items():
+            for field, value in counts.items():
+                paired[key][field] += value
+    for key, counts in paired.items():
+        if sum(counts.values()) != evaluated:
+            raise AssertionError("paired_top10_partition_mismatch:" + key)
+    return {"confirmed_denominator": evaluated, "pending_outcome_count": pending,
+            "known_plus_pending_denominator": evaluated + pending,
+            "missing_result_intervals_are_not_confidence_intervals": True,
+            "mode": by_mode, "same_race_original_top10_pairs": paired,
+            "warning": "These extremes are descriptive bounds over as-yet unresolved outcomes, not confidence intervals or comparative causal improvement."}
+
+
 def audit(root=ROOT, days=DAYS):
     root = Path(root)
     days = tuple(days)
@@ -66,6 +129,7 @@ def audit(root=ROOT, days=DAYS):
                  "pending_result_count": 0, "pending_result_codes": [],
                  "excluded_count": 0, "excluded_reasons": {},
                  "excluded_samples": {}, "mode": {m: _new_mode() for m in MODES},
+                 "paired_top10": _paired_empty(),
                  "first_place_result_counts": {str(n): 0 for n in range(1, 7)}}
         reasons = Counter()
         samples = {}
@@ -116,6 +180,13 @@ def audit(root=ROOT, days=DAYS):
                         row["top_hits"][f"top{n}"] += int(rank is not None and rank <= n)
                     row["miss_partition"][miss] += 1
                     row["first_boat_missing"] += int(miss == "winner_head_absent")
+                for a, b in PAIRS:
+                    key = a + "_vs_" + b
+                    left_rank = data[a][0]
+                    right_rank = data[b][0]
+                    _paired_add(group["paired_top10"], key,
+                                left_rank is not None and left_rank <= 10,
+                                right_rank is not None and right_rank <= 10)
             except (KeyError, OSError, ValueError, TypeError, OverflowError,
                     json.JSONDecodeError, UnicodeError) as exc:
                 reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
@@ -138,15 +209,26 @@ def audit(root=ROOT, days=DAYS):
                 raise AssertionError("non_monotone_topn")
             if sum(row["miss_partition"].values()) != group["evaluated"]:
                 raise AssertionError("partition_does_not_sum_to_denominator")
+            row["top_pending_bounds"] = {f"top{n}": _pending_bounds(
+                hits[f"top{n}"], group["evaluated"], group["pending_result_count"])
+                for n in TOPS}
+            if row["miss_partition"]["covered"] < hits["top10"]:
+                raise AssertionError("top10_exceeds_full_list")
         if (group["evaluated"] + group["pending_result_count"] + group["excluded_count"]
                 != group["forecast_files"]):
             raise AssertionError("forecast_roster_not_fully_accounted")
+        for key, counts in group["paired_top10"].items():
+            if sum(counts.values()) != group["evaluated"]:
+                raise AssertionError("same_race_pair_denominator_mismatch:" + key)
+        if sum(group["first_place_result_counts"].values()) != group["evaluated"]:
+            raise AssertionError("winning_head_distribution_mismatch")
         reports[day] = group
     return {
         "schema": "FOUR_MODE_NOV05_08_REFERENCE_DAILY_AUDIT_V1",
         "status": "saved_original_vs_independently_persisted_result_reference_only",
         "days": list(days),
         "by_day": reports,
+        "reference_overall": _pooled_reference(reports),
         "totals": {
             "forecast_files": sum(r["forecast_files"] for r in reports.values()),
             "evaluated": sum(r["evaluated"] for r in reports.values()),
