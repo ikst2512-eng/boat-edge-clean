@@ -4,6 +4,8 @@ on:
     paths:
       - four_mode_version_topn_audit.py
       - four_mode_nov05_08_daily_reference_audit.py
+      - four_mode_result_raw_csv_audit.py
+      - test_four_mode_result_raw_csv_audit.py
       - test_four_mode_nov05_08_daily_reference_audit.py
       - test_four_mode_version_topn_audit.py
       - four_mode_forward_paired_score.py
@@ -253,6 +255,8 @@ jobs:
         run: python four_mode_all_shadow_reference_review.py
       - name: Report forward gate status (no candidate or result invented)
         run: python four_mode_forward_paired_score.py
+      - name: Test read-only public-result source-gap classification (offline fixtures)
+        run: python -m unittest -v test_four_mode_result_raw_csv_audit
       - name: Verify daily saved-original/result audit exclusions (no candidate scoring)
         run: python -m unittest -v test_four_mode_nov05_08_daily_reference_audit
       - name: Audit Nov5-8 original V2 Top1/3/5/10 and three distinct miss positions
