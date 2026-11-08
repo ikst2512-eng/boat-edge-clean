@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from four_mode_nov05_08_daily_reference_audit import ROOT
+from collect_clean_results import build_records
 from four_mode_nov05_08_raw_source_observation import compare_one, observe
 
 DAY = "20261108"
@@ -80,6 +81,43 @@ class OriginalSourceObservationTest(unittest.TestCase):
         self.assertFalse(report["formal"])
         self.assertEqual(report["prospective_candidate_pairs"], 0)
         self.assertFalse((self.root / "confirmed_results" / (PENDING + ".json")).exists())
+
+    def test_recovered_main_result_moves_from_public_only_to_persisted_exactly_once(self):
+        # Simulate the real Nov8 recovery: the collector alone writes a new
+        # immutable result. Independent research totals must remain constant.
+        snapshot = source(
+            (SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5),
+            (PENDING, "2026-11-08T17:45:25+09:00", 1, 2, 4),
+        )
+        before = self.observe_one(snapshot)
+        first = before["historical_original_union_reference_only"]
+        self.assertEqual((first["persisted_result_count"],
+                          first["newly_observed_public_unarchived_result_count"],
+                          first["valid_saved_forecasts_with_persisted_or_public_result"]), (1, 1, 2))
+        self.assertEqual(before["unarchived_published_shadow_only"]["persisted_reference_denominator"], 1)
+        self.assertTrue(before["unarchived_published_shadow_only"]["separate_from_persisted_reference"])
+        record = build_records(DAY, snapshot, CLOCK)[PENDING]
+        path = self.root / "confirmed_results" / (PENDING + ".json")
+        with path.open("x", encoding="utf-8") as out:
+            json.dump(record, out, ensure_ascii=False)
+        after = self.observe_one(snapshot)
+        second = after["historical_original_union_reference_only"]
+        self.assertEqual((second["persisted_result_count"],
+                          second["newly_observed_public_unarchived_result_count"],
+                          second["valid_saved_forecasts_with_persisted_or_public_result"]), (2, 0, 2))
+        self.assertEqual(after["unarchived_published_shadow_only"]["races"], 0)
+        self.assertEqual(after["unarchived_published_shadow_only"]["persisted_reference_denominator"], 2)
+        self.assertTrue(after["unarchived_published_shadow_only"]["separate_from_persisted_reference"])
+        for mode in ("narrow", "hit", "balance", "hole"):
+            for key in ("top1", "top3", "top5", "top10"):
+                x = first["modes"][mode]["top_hits_by_evidence_class"][key]
+                y = second["modes"][mode]["top_hits_by_evidence_class"][key]
+                self.assertEqual(x["combined_observed"], y["combined_observed"])
+                self.assertEqual(x["saved_only"] + x["public_unarchived_only"], y["saved_only"])
+                self.assertEqual(y["public_unarchived_only"], 0)
+        self.assertEqual(after["source_conflict_count"], 0)
+        self.assertFalse(after["formal"])
+        self.assertEqual(after["prospective_candidate_pairs"], 0)
 
     def test_exact_public_bytes_saved_for_replay_in_separate_folder_only(self):
         data = source((PENDING, "2026-11-08T17:45:25+09:00", 4, 1, 6))
