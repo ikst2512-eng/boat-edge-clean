@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 
+from position_sensitive_append_only_research import _no_duplicate_keys
 from four_mode_position_sensitive_forward import (
     CODE, DATE_START, DATE_END, PROTOCOL_BLOB_SHA1, _verify_snapshot, protocol,
 )
@@ -103,7 +104,7 @@ def audit_ledger(root, branch_ref, base=BASE, git=None, original_read=None):
                 raise ValueError("first_add_blob_mutated_or_invalid")
             if match is not None:
                 try:
-                    record = json.loads(exact)
+                    record = json.loads(exact, object_pairs_hook=_no_duplicate_keys)
                 except (ValueError, TypeError) as exc:
                     raise ValueError("candidate_json_invalid") from exc
                 if (type(record) is not dict
