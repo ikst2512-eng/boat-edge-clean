@@ -28,6 +28,15 @@ on:
       - test_hole_future_pair_pinned92_score.py
       - .github/workflows/hole-future-pair-precommit.yml
   workflow_dispatch:
+    inputs:
+      capture_day_jst:
+        description: 'Current JST YYYYMMDD only; 20261109+; no retrospective backfill'
+        required: true
+        type: string
+      acknowledgement:
+        description: 'Type CAPTURE_UNVERIFIED_RESEARCH; never formal or production'
+        required: true
+        type: string
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -84,97 +93,15 @@ jobs:
       - name: Freeze future race candidates from immutable main forecasts (research only)
         if: github.event_name == 'workflow_dispatch'
         shell: bash
+        env:
+          HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}
+          HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}
         run: |
           set -euo pipefail
-          # Read main, but never push or modify it. No results are fetched.
+          # Manual gateway on the default branch requires separate review.
+          # Read immutable main forecasts only. Never read race results or push.
           git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
-          python - <<'PY'
-          import collections
-          import json
-          import subprocess
-          from datetime import datetime, timedelta
-          from pathlib import Path
-          from hole_future_pair_precommit import JST, freeze
-          from research.hole_pair_universe_coverage import reconcile
-
-          started = datetime.now(JST)
-          day = started.strftime("%Y%m%d")
-          source_head = subprocess.check_output(
-              ["git", "rev-parse", "origin/main"], text=True).strip()
-          names = subprocess.check_output(
-              ["git", "ls-tree", "-r", "--name-only", "origin/main",
-               "--", "four_mode_forecasts/"], text=True).splitlines()
-          paths = [name for name in names
-                   if name.startswith("four_mode_forecasts/" + day)
-                   and name.endswith(".json")
-                   and len(Path(name).stem) == 12
-                   and Path(name).stem.isdigit()]
-          if len(paths) > 500:
-              raise ValueError("unreasonably_large_new_day_inventory")
-          records = []
-          excluded = collections.Counter()
-          excluded_codes = collections.defaultdict(list)
-          for name in sorted(paths):
-              code = Path(name).stem
-              source = subprocess.check_output(
-                  ["git", "show", "origin/main:" + name])
-              target = Path(name)
-              target.parent.mkdir(parents=True, exist_ok=True)
-              if target.exists() and target.read_bytes() != source:
-                  raise ValueError("research_branch_has_conflicting_forecast:" + code)
-              if not target.exists():
-                  target.write_bytes(source)
-              # Selectors precommitted in #1685. freeze() NEVER opens a result file.
-              frozen = freeze(code, ".")
-              if frozen.get("status") == "locally_frozen_unverified":
-                  frozen["source_git_blob_sha1"] = subprocess.check_output(
-                      ["git", "rev-parse", "origin/main:" + name],
-                      text=True).strip()
-                  records.append(frozen)
-              else:
-                  reason = str(frozen.get("status", "invalid"))
-                  excluded[reason] += 1
-                  excluded_codes[reason].append(code)
-
-          # The original Git snapshot, not outcome-dependent row filters,
-          # determines every race ID to account for in this batch.
-          source_codes = [Path(name).stem for name in paths]
-          coverage = reconcile(day, source_head, source_codes,
-                               records, dict(excluded_codes))
-          assert coverage["source_snapshot_race_coverage_complete"] is True
-          assert coverage["entire_day_or_official_schedule_complete_verified"] is False
-          assert coverage["excluded_by_reason"] == dict(sorted(excluded.items()))
-          finished = datetime.now(JST)
-          assert all(datetime.fromisoformat(row["local_finish_jst"]) <
-                     datetime.fromisoformat(row["t_minus_12_jst"])
-                     for row in records)
-          output = {
-              "schema": "HOLE_PAIR_FUTURE_ACTIONS_BATCH_V1",
-              "status": "local_predeadline_freeze_not_formal",
-              "source_main_commit": source_head,
-              "capture_day_jst": day,
-              "batch_started_at_jst": started.isoformat(),
-              "batch_finished_at_jst": finished.isoformat(),
-              "eligible_forecasts_examined": len(paths),
-              "frozen_count": len(records),
-              "excluded_by_reason": dict(sorted(excluded.items())),
-              "source_forecast_codes": source_codes,
-              "excluded_race_codes_by_reason": coverage["excluded_race_codes_by_reason"],
-              "source_snapshot_coverage": coverage,
-              "records": records,
-              "formal": False,
-              "prospective_validation": False,
-              "independent_first_receipt_verified": False,
-              "production_forecast_changed": False,
-              "warning": "Compare only after future results; local times and artifact creation alone do not certify independent first remote receipt or formal T-minus-12."
-          }
-          assert output["frozen_count"] + sum(excluded.values()) == len(paths)
-          Path("research_candidate_freeze.json").write_text(
-              json.dumps(output, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-              encoding="utf-8")
-          print(json.dumps({k: v for k, v in output.items() if k != "records"},
-                           ensure_ascii=False, sort_keys=True))
-          PY
+          python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
         with:
