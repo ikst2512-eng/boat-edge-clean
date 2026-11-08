@@ -121,6 +121,53 @@ def _summarize(stats):
     }
 
 
+def _leave_one_day_out_auc(day_stats):
+    """Stress-test historical original estimates with each calendar day omitted.
+
+    Not cross-validated training, a confidence interval, or prospective skill.
+    """
+    if type(day_stats) is not dict or set(day_stats) != set(DAYS):
+        raise ValueError("invalid_leave_one_day_out_day_roster")
+    for day in DAYS:
+        if type(day_stats[day]) is not dict or set(day_stats[day]) != set(MODES):
+            raise ValueError("invalid_leave_one_day_out_modes")
+        for mode in MODES:
+            stats = day_stats[day][mode]
+            if (type(stats) is not dict or type(stats.get("estimated_outcomes")) is not list
+                    or len(stats["estimated_outcomes"]) != stats.get("races")):
+                raise ValueError("incomplete_leave_one_day_out_rows")
+    by_mode = {}
+    for mode in MODES:
+        rows = {}
+        aucs = []
+        for excluded in DAYS:
+            included = [day for day in DAYS if day != excluded]
+            outcomes = [item for day in included
+                        for item in day_stats[day][mode]["estimated_outcomes"]]
+            positive = sum(hit for _, hit in outcomes)
+            auc = _descriptive_auc(outcomes)
+            rows[excluded] = {
+                "excluded_day": excluded,
+                "included_days": included,
+                "included_races": len(outcomes),
+                "observed_full_list_hits": positive,
+                "observed_full_list_misses": len(outcomes) - positive,
+                "descriptive_original_estimate_hit_discrimination_auc": auc,
+            }
+            if auc is not None:
+                aucs.append(auc)
+        by_mode[mode] = {
+            "excluding_each_day": rows,
+            "evaluable_day_exclusions": len(aucs),
+            "minimum_three_day_auc": min(aucs) if aucs else None,
+            "maximum_three_day_auc": max(aucs) if aucs else None,
+            "range_across_omitted_days": (round(max(aucs) - min(aucs), 5)
+                                           if aucs else None),
+            "not_prospective_or_cross_validated_model_training": True,
+        }
+    return by_mode
+
+
 def audit(root, raw_by_day, official_reference, observed_at=None):
     """Fail closed unless every historical original has a verified outcome or approved non-scoreable exclusion."""
     root = Path(root)
@@ -135,6 +182,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
     if len(non_scoreable) != official["non_scored_total"]:
         raise ValueError("non_scoreable_duplicate")
     by_day = {}
+    daily_raw_stats = {}
     pooled = {m: _new_stats() for m in MODES}
     all_codes = set()
     kinds = Counter()
@@ -181,6 +229,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
                 _accumulate(daystats[mode], probability, full_hit, kind)
                 _accumulate(pooled[mode], probability, full_hit, kind)
         by_day[day] = {mode: _summarize(stats) for mode, stats in daystats.items()}
+        daily_raw_stats[day] = daystats
     forecast_roster = raw_status["frozen_original_result_reference"]["forecast_files"]
     expected_scoreable = forecast_roster - len(non_scoreable)
     if (len(all_codes) != forecast_roster
@@ -201,6 +250,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
         "ticket_budgets": dict(BUDGETS),
         "mode": {m: _summarize(pooled[m]) for m in MODES},
         "by_day": by_day,
+        "leave_one_day_out_original_auc": _leave_one_day_out_auc(daily_raw_stats),
         "compares_full_mode_ticket_lists_not_top10_for_16_or_22_budget": True,
         "original_estimated_coverage_is_uncalibrated_model_output": True,
         "postrace_csv_latest_snapshot_not_historical_first_receipt": True,
@@ -209,6 +259,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
         "research_cohort_may_be_selection_biased": True,
         "prediction_spread_is_not_proof_of_discrimination": True,
         "auc_is_historical_same_cohort_not_future_holdout": True,
+        "leave_one_day_out_is_descriptive_robustness_not_prospective": True,
         "predictive_calibration_proven": False,
         "prospective_candidate_pairs": 0,
         "formal": False,
