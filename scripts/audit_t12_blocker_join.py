@@ -6,7 +6,7 @@ authoritative first-remote-acceptance / formal accuracy certificate.
 """
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 JST = timedelta(hours=9)
@@ -32,8 +32,11 @@ def join(schedule, archive):
         raise ValueError("invalid independent schedule clock") from exc
     if seen.utcoffset() != timedelta(0):
         raise ValueError("schedule observation must be UTC")
-    if seen.date().strftime("%Y%m%d") < day:
+    midnight = datetime.strptime(day, "%Y%m%d").replace(tzinfo=timezone.utc)
+    if seen < midnight:
         raise ValueError("future schedule cohort cannot be observed")
+    real_elapsed = sum(midnight + timedelta(hours=hour, minutes=minute) <= seen
+                       for hour in range(13) for minute in range(0, 60, 5))
     if (schedule.get("workflow_path")
             != ".github/workflows/research-live-preview-evidence.yml"
             or schedule.get("expected_cron_assumption") != "*/5 0-12 * * *"):
@@ -46,8 +49,7 @@ def join(schedule, archive):
     runs = schedule.get("runs")
     if (any(type(v) is not int or v < 0 for v in
             (elapsed, observed, in_hours, outside, nominal))
-            or nominal != 156 or not 0 <= elapsed <= nominal
-            or (seen.date().strftime("%Y%m%d") > day and elapsed != nominal)
+            or nominal != 156 or elapsed != real_elapsed
             or observed != in_hours + outside
             or not isinstance(runs, list) or len(runs) != observed
             or schedule.get("schedule_slot_identity_verified") is not False
