@@ -50,6 +50,7 @@ on:
       - 'cloudflare/independent_capture_wakeup.mjs'
       - 'cloudflare/independent_capture_policy.mjs'
       - 'cloudflare/independent_capture_observer.mjs'
+      - 'cloudflare/independent_capture_slots.mjs'
       - 'cloudflare/wrangler.toml'
       - 'cloudflare/wrangler.observer.toml'
       - 'cloudflare/package.json'
