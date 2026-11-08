@@ -5,9 +5,9 @@
   "linked_prior_official_k_study": "docs/research/official_k_relative_wind_dual_axis_risk_receipt_20261108.json",
   "source_digest_prev_github_blob_sha": "3dcb7eb34afbba1d3e77889792dec98f133fac95",
   "classifications": {
-    "explicit_first_party_historical_or_editorial_A_consistency": 6,
-    "partial_first_party_sector_or_diagram": 2,
-    "no_first_party_heading_evidence_this_round": 16,
+    "explicit_first_party_historical_or_editorial_A_consistency": 8,
+    "partial_first_party_sector_or_diagram": 3,
+    "no_first_party_heading_evidence_this_round": 13,
     "final_corroborated_field_angle_and_same_race_arrow": 0,
     "approved_T_minus_12_features": 0
   },
@@ -150,16 +150,28 @@
       "venue_name": "浜名湖",
       "secondary_A_hypothesis_head_deg": 180,
       "secondary_B_stand_based_hypothesis_head_deg": 270,
-      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "source_status": "first_party_text_explicit",
       "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=06",
-      "first_party_evidence": null,
+      "first_party_evidence": {
+        "type": "first_party_text_explicit",
+        "source_url": "https://www.boatrace.jp/owpc/pc/extra/race/06_20180316/monthly/course_motor_guide.html",
+        "publication_date": "2018",
+        "text_basis": "南風=ホーム向かい風、北西風=ホーム追い風",
+        "cited_direction_wind_from": "S",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 180,
+        "alignment_with_A": "exact_consistent",
+        "scope": "Historic editorial only, no current diagram original SHA.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
       "first_party_image_original_SHA256": null,
       "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
       "official_same_race_wind_arrow_image_SHA256": null,
       "arrow_represents_wind_from_certified": false,
       "final_relative_head_tail_approved": false,
       "T_minus_12_wind_feature_approved": false,
-      "reviewer_conclusion": "unknown_not_negative_proof",
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
       "prior_dual_axis_event_disagreement": {
         "comparisons": 590,
         "disagreed": 551
@@ -221,16 +233,28 @@
       "venue_name": "津",
       "secondary_A_hypothesis_head_deg": 270,
       "secondary_B_stand_based_hypothesis_head_deg": 270,
-      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "source_status": "first_party_text_sector_only",
       "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=09",
-      "first_party_evidence": null,
+      "first_party_evidence": {
+        "type": "first_party_text_sector_only",
+        "source_url": "https://www.boatrace.jp/owsp/sp/extra/race/09_20160802/monthly/point.html",
+        "publication_date": "2016",
+        "text_basis": "南東からのホーム追い風、水面はほぼ東西",
+        "cited_direction_wind_from": "SE",
+        "cited_relative": "oblique_tail_sector",
+        "translation_to_heading_deg": null,
+        "alignment_with_A": "sector_consistent_not_axis_verified",
+        "scope": "Only tail sector, not exact race course heading.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
       "first_party_image_original_SHA256": null,
       "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
       "official_same_race_wind_arrow_image_SHA256": null,
       "arrow_represents_wind_from_certified": false,
       "final_relative_head_tail_approved": false,
       "T_minus_12_wind_feature_approved": false,
-      "reviewer_conclusion": "unknown_not_negative_proof",
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
       "prior_dual_axis_event_disagreement": {
         "comparisons": 615,
         "disagreed": 0
@@ -483,16 +507,28 @@
       "venue_name": "芦屋",
       "secondary_A_hypothesis_head_deg": 90,
       "secondary_B_stand_based_hypothesis_head_deg": 180,
-      "source_status": "no_first_party_orientation_evidence_checked_in_this_round",
+      "source_status": "first_party_operator_per_race_text_explicit",
       "primary_website_stadium_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=21",
-      "first_party_evidence": null,
+      "first_party_evidence": {
+        "type": "first_party_operator_per_race_text_explicit",
+        "source_url": "https://www.boatrace-ashiya.com/modules/datafile/?motor_no=46&page=index_motor_histdtl&select=6",
+        "publication_date": "2026-11-08",
+        "text_basis": "11月8日5R・東(向い風)4m、11R・東(向い風)5m",
+        "cited_direction_wind_from": "E",
+        "cited_relative": "head",
+        "translation_to_heading_deg": 90,
+        "alignment_with_A": "exact_consistent",
+        "scope": "Official operator race-specific text, no original HTML or diagram/arrow SHA.",
+        "source_owner": "official_boatrace_or_operator",
+        "original_http_sha256": null
+      },
       "first_party_image_original_SHA256": null,
       "original_diagram_compass_and_race_heading_two_reviewer_verification": false,
       "official_same_race_wind_arrow_image_SHA256": null,
       "arrow_represents_wind_from_certified": false,
       "final_relative_head_tail_approved": false,
       "T_minus_12_wind_feature_approved": false,
-      "reviewer_conclusion": "unknown_not_negative_proof",
+      "reviewer_conclusion": "textual_support_only_does_not_satisfy_final_water_diagram_and_same_race_arrow_gate",
       "prior_dual_axis_event_disagreement": {
         "comparisons": 437,
         "disagreed": 364
@@ -589,5 +625,6 @@
     "Historical text published 2015/2020/2021 and 2025 pit modification cannot certify geometry for Aug-Oct 2026.",
     "Never equate direction relative axis A and stadium facing axis B; direct A/B discrepancy ≠ one being wrong.",
     "Official operator commentary is first-party explanatory prose, not a 2026 official race-by-race measurement or model validation."
-  ]
+  ],
+  "additional_source_audit": "docs/research/official_relative_wind_ashiya_operator_K_crosscheck_20261108.json"
 }
