@@ -86,15 +86,17 @@ jobs:
       - name: Test positive scheduled() inside Workerd with blocked network
         working-directory: cloudflare
         run: npm run test:workerd
-  watchdog:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') }}
+  pr-policy-tests:
+    # PR source files are untrusted: do not run them with Actions:write.
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 8
     permissions:
-      actions: write
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Test dispatch policy
         id: policy_tests
         run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
@@ -193,6 +195,18 @@ jobs:
             exit 1
           fi
           echo "LOCAL_WORKERD_ALLOWED_CRON_EXPIRED_CLOCK_FAIL_CLOSED_PASS"
+  watchdog:
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test dispatch policy
+        id: policy_tests
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
