@@ -83,7 +83,7 @@ class GitLedgerHistoryTests(unittest.TestCase):
         (self.root / path).write_text("TAMPERED", encoding="utf-8")
         git(self.root, "add", "--", path)
         git(self.root, "commit", "-qm", "modify candidate")
-        with self.assertRaisesRegex(ValueError, "ledger_update_delete_rename_forbidden"):
+        with self.assertRaisesRegex(ValueError, "first_add_blob_mutated_or_invalid"):
             self.audit()
 
     def test_readme_overwrite_is_forbidden(self):
@@ -91,14 +91,14 @@ class GitLedgerHistoryTests(unittest.TestCase):
         path.write_text("changed policy\n")
         git(self.root, "add", "--", "position_sensitive_research/README.md")
         git(self.root, "commit", "-qm", "rewrite")
-        with self.assertRaisesRegex(ValueError, "ledger_update_delete_rename_forbidden"):
+        with self.assertRaisesRegex(ValueError, "first_add_blob_mutated_or_invalid"):
             self.audit()
 
     def test_deleted_candidate_is_forbidden(self):
         _, _, path = self.candidate()
         git(self.root, "rm", "--", path)
         git(self.root, "commit", "-qm", "delete candidate")
-        with self.assertRaisesRegex(ValueError, "ledger_update_delete_rename_forbidden"):
+        with self.assertRaisesRegex(ValueError, "first_add_blob_mutated_or_invalid"):
             self.audit()
 
     def test_unapproved_paths_cannot_appear_on_ledger(self):
