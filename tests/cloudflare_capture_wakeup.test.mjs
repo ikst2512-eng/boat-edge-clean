@@ -218,6 +218,71 @@ test('non-200 history fails before POST',async()=>{
   await assert.rejects(()=>run(tick(7,10),m),/github_history_http_error/);noPosts(m);
 });
 
+test('explicit GitHub 401/403/404/429/500/503 history failures never become recoveries',async()=>{
+  for(const status of [401,403,404,429,500,503]){
+    for(const failAt of [1,4]){
+      const m=mock();let gets=0;
+      m.fetcher=async (url,options)=>{
+        m.calls.push({url,method:options.method});
+        assert.equal(options.method,'GET','a failed history query must block every POST');
+        gets++;
+        return gets===failAt?{status}:{status:200,json:async()=>({workflow_runs:[]})};
+      };
+      await assert.rejects(()=>run(tick(7,10),m),/github_history_http_error/);
+      noPosts(m);
+      assert.equal(m.calls.length,failAt);
+    }
+  }
+});
+
+test('network timeouts on any GitHub history GET never produce a 204 receipt',async()=>{
+  for(const failAt of [1,2,3,4]){
+    const m=mock(),receipts=[];let gets=0;
+    m.fetcher=async (url,options)=>{
+      m.calls.push({url,method:options.method});
+      assert.equal(options.method,'GET','never POST after timeout');
+      if(++gets===failAt)throw new Error('simulated_transport_timeout');
+      return {status:200,json:async()=>({workflow_runs:[]})};
+    };
+    const when=tick(7,10);
+    await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+      fetcher:m.fetcher,onAccepted:x=>receipts.push(x)}),/simulated_transport_timeout/);
+    noPosts(m);
+    assert.deepEqual(receipts,[]);
+  }
+});
+
+test('a visible prior same-slot dispatch blocks a second sequential recovery',async()=>{
+  const first=mock(),now=tick(7,10);
+  const firstResult=await run(now,first);
+  assert.equal(first.calls.filter(x=>x.method==='POST').length,2);
+  assert.equal(firstResult.formal,false);
+  const second=mock({manual:[fakeRun('workflow_dispatch',jst(7,10),{id:9090,status:'queued',conclusion:null})]});
+  const secondResult=await run(now,second);
+  noPosts(second);
+  assert.equal(secondResult.workflows.clean.reason,'previous_dispatch_or_active_job');
+  assert.equal(secondResult.workflows.four_mode.reason,'previous_dispatch_or_active_job');
+  // This is sequential visibility only; GET->POST is not an atomic cross-provider lock.
+});
+
+test('configured Free cron rate is bounded: 192 wakeups daily and six subrequests max per eligible tick',async()=>{
+  const prod=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
+  const pilot=readFileSync(new URL('../cloudflare/wrangler.observer.toml',import.meta.url),'utf8');
+  for(const config of [prod,pilot]){
+    const matches=[...config.matchAll(/^crons = \[(.*)\]$/gm)];
+    assert.equal(matches.length,1);
+    assert.equal(matches[0][1],'"*/5 22-23,0-13 * * *"');
+  }
+  const hours=2+14; // UTC 22-23 and 00-13 inclusive.
+  assert.equal(hours*12,192);
+  const m=mock();
+  await run(tick(7,10),m);
+  assert.equal(m.calls.length,6);
+  assert.equal(m.calls.filter(x=>x.method==='GET').length,4);
+  assert.ok(m.calls.length<=50);
+  // 192 is per configured Worker. This is configuration proof, NOT real CPU evidence.
+});
+
 test('scheduled adapter refuses foreign or missing Cron identities before any network',async()=>{
   const previousFetch=globalThis.fetch;
   const previousError=console.error;
