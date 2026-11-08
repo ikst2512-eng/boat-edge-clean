@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'four_mode_position_sensitive_shadow.py'
+      - 'research/four_mode_position_sensitive_forward_protocol_20261108.json'
       - 'test_four_mode_position_sensitive_shadow.py'
       - 'docs/research/four_mode_position_sensitive_shadow_20261108.md'
       - '.github/workflows/position-sensitive-four-mode-shadow.yml'
@@ -21,11 +22,77 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify registered selector and baseline source blobs
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          policy = json.loads(Path("research/four_mode_position_sensitive_forward_protocol_20261108.json").read_bytes())
+          def git_blob_sha(path):
+              raw = Path(path).read_bytes()
+              header = b"blob " + str(len(raw)).encode("ascii") + b"\\0"
+              return hashlib.sha1(header + raw).hexdigest()
+
+          checks = {
+              "candidate_selector_git_blob_sha1": "four_mode_position_sensitive_shadow.py",
+              "original_model_git_blob_sha1": "research_model.py",
+              "mode_selector_git_blob_sha1": "clean_four_modes.py",
+          }
+          for key, path in checks.items():
+              registered = policy.get(key)
+              observed = git_blob_sha(path)
+              if registered != observed:
+                  raise SystemExit(f"selector_blob_drift:{path}:registered={registered}:actual={observed}")
+          if (policy.get("schema") != "FOUR_MODE_POSITION_SENSITIVE_FORWARD_PREREGISTRATION_V1"
+                  or policy.get("registered_jst_date") != "2026-11-08"
+                  or policy.get("candidate_model") != "RESEARCH_POSITION_SENSITIVE_V1_UNCALIBRATED"
+                  or policy.get("factor_second_beta") != 0.5
+                  or policy.get("factor_third_beta") != 0.25
+                  or policy.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or policy.get("eligible_deadline_end_jst") != "2026-12-31T23:59:59+09:00"
+                  or policy.get("pilot_races") != 300
+                  or policy.get("confirmation_races") != 300
+                  or policy.get("formal") is not False
+                  or policy.get("model_improvement_proven") is not False
+                  or policy.get("promotion_allowed") is not False):
+              raise SystemExit("position_sensitive_protocol_drift")
+          print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
+          PY
       - name: Unit and negative regression tests
         run: python -m unittest -v test_four_mode_position_sensitive_shadow
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
           python four_mode_position_sensitive_shadow.py --day 20261108 | tee position_shadow_input_only.json
+      - name: Assert 116 saved Nov8 V2 inputs reproduced without results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("position_shadow_input_only.json").read_text(encoding="utf-8"))
+          n = report.get("archived_files")
+          if (report.get("day_jst") != "20261108"
+                  or type(n) is not int or n < 116
+                  or report.get("compared") != n
+                  or report.get("excluded") != 0
+                  or report.get("status") != "historical_input_only_shadow_diagnostic"
+                  or report.get("formal") is not False
+                  or report.get("research_only") is not True
+                  or report.get("production_forecast") is not False
+                  or report.get("forward_holdout_scored") != 0
+                  or report.get("first_remote_receipt_verified") is not False
+                  or report.get("model_improvement_proven") is not False):
+              raise SystemExit("position_shadow_replay_or_result_leakage")
+          for mode, row in report.get("by_mode", {}).items():
+              if row.get("top1_changed", -1) < 0 or row.get("first_boat_changed", -1) < 0:
+                  raise SystemExit(f"invalid_position_exposure:{mode}")
+              if row["first_boat_changed"] > row["top1_changed"]:
+                  raise SystemExit(f"impossible_head_change:{mode}")
+          if set(report.get("by_mode", {})) != {"narrow", "hit", "balance", "hole"}:
+              raise SystemExit("missing_mode_exposure")
+          print(f"POSITION_SENSITIVE_RESULT_BLIND_REPLAY_VERIFIED:{n}/{n}")
+          PY
       - name: Upload diagnostic (not accuracy or certification)
         uses: actions/upload-artifact@v4
         with:
