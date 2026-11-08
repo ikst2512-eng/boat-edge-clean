@@ -44,12 +44,6 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             or not isinstance(day, str) or len(day) != 8 or not day.isdigit()):
         raise ValueError("invalid_audit_arguments")
     datetime.strptime(day, "%Y%m%d")
-    as_of = as_of or datetime.now(timezone.utc)
-    due_slots = nominal_schedule_slots_due(day, as_of)
-    audit_as_of_jst = as_of.astimezone(JST)
-    # API-page completeness is about observed metadata at the audit instant,
-    # not proof that a still-running calendar day has finished.
-    calendar_day_elapsed = audit_as_of_jst.strftime("%Y%m%d") > day
     url = (f"https://api.github.com/repos/{repo}/actions/workflows/"
            f"{quote(WORKFLOW)}/runs?event=schedule&per_page={PAGE_LIMIT}")
     if fetch is None:
@@ -61,6 +55,15 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             with urlopen(request, timeout=20) as response:
                 return json.load(response)
     result = fetch(url)
+    # Default to a post-fetch observation time: a genuine GitHub run can start
+    # while the HTTP request is in flight. Do not mark that run future-dated
+    # merely because the query began before it appeared in the response.
+    as_of = as_of if as_of is not None else datetime.now(timezone.utc)
+    due_slots = nominal_schedule_slots_due(day, as_of)
+    audit_as_of_jst = as_of.astimezone(JST)
+    # API-page completeness is about observed metadata at the audit instant,
+    # not proof that a still-running calendar day has finished.
+    calendar_day_elapsed = audit_as_of_jst.strftime("%Y%m%d") > day
     if (not isinstance(result, dict)
             or not isinstance(result.get("workflow_runs"), list)
             or type(result.get("total_count")) is not int
@@ -83,6 +86,11 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             raise ValueError("invalid_schedule_run_timestamp") from exc
         if created.utcoffset() is None or (previous is not None and created > previous):
             raise ValueError("unsorted_or_naive_schedule_run_timestamp")
+        # A schedule run from the future is not an observed run. Refuse the
+        # entire inconsistent API page rather than counting it toward liveness
+        # or silently clipping its timestamp.
+        if created > as_of:
+            raise ValueError("future_schedule_run_timestamp")
         previous = created
         rows.append({
             "run_id": entry["id"], "day_jst": created.astimezone(JST).strftime("%Y%m%d"),
@@ -134,8 +142,8 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
                      "calendar day. Created-at counts may include delayed prior "
                      "cron triggers; any pre-07:07 JST observations are "
                      "excluded from the execution-presence gate while retained "
-                     "in the raw same-day count. No per-slot delivery or "
-                     "publication proof.")}
+                     "in the raw same-day count. Future-dated API entries "
+                     "fail closed; no per-slot delivery or publication proof.")}
 
 
 def main():
