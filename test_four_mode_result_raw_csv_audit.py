@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from four_mode_nov05_08_daily_reference_audit import ROOT
-from four_mode_result_raw_csv_audit import evaluate
+from four_mode_result_raw_csv_audit import evaluate, annotate_official_non_scored
 
 DAY = "20261108"
 KNOWN = DAY + "0101"
@@ -89,6 +89,58 @@ class RawResultSourceResearchAudit(unittest.TestCase):
             ValueError, "saved_forecast_or_result_excluded_manual_review"
         ):
             self.run_with(SAVED + ADDED)
+
+
+    def _official_fixture(self):
+        manifest = json.loads((
+            ROOT / "research/four_mode_nov05_08_official_non_scoreable_reference.json"
+        ).read_text(encoding="utf-8"))
+        official = {
+            "20261106": {"pending_codes_by_class": {
+                "not_in_published_csv": [f"2026110608{n:02d}" for n in range(2, 13)]
+            }},
+            "20261107": {"pending_codes_by_class": {
+                "invalid_or_unfinished_finish_not_scoreable": ["202611070302"]
+            }}
+        }
+        report = {
+            "by_day": official,
+            "frozen_original_result_reference": {
+                "forecast_files": 474, "pending_results": 33
+            }
+        }
+        return report, manifest
+
+    def test_manually_reviewed_official_cancellation_and_refund_are_not_misses(self):
+        report, manifest = self._official_fixture()
+        x = annotate_official_non_scored(report, manifest)
+        self.assertEqual(x["non_scored_total"], 12)
+        self.assertEqual(x["remaining_unresolved_result_races"], 21)
+        self.assertEqual(x["maximum_potential_trifecta_slots_in_saved_forecasts"], 462)
+        self.assertEqual(x["non_scored_counts_by_type"], {
+            "cancelled_race_day": 11, "trifecta_not_established": 1
+        })
+        self.assertFalse(x["official_pages_live_rechecked_by_script"])
+        self.assertFalse(x["formal"])
+
+    def test_official_reference_must_match_current_csv_reason(self):
+        report, manifest = self._official_fixture()
+        report["by_day"]["20261107"]["pending_codes_by_class"] = {
+            "valid_source_three_finish_unpersisted": ["202611070302"]}
+        with self.assertRaisesRegex(ValueError, "disagrees_with_current_raw_source"):
+            annotate_official_non_scored(report, manifest)
+
+    def test_official_reference_roster_cannot_be_expanded(self):
+        report, manifest = self._official_fixture()
+        manifest["cases"][0]["race_codes"].append("202611060801")
+        with self.assertRaisesRegex(ValueError, "official_non_scored_roster_drift"):
+            annotate_official_non_scored(report, manifest)
+
+    def test_official_reference_source_cannot_be_forged(self):
+        report, manifest = self._official_fixture()
+        manifest["cases"][1]["official_source_url"] = "https://example.test/result"
+        with self.assertRaisesRegex(ValueError, "official_case_identity_or_source_invalid"):
+            annotate_official_non_scored(report, manifest)
 
 
 if __name__ == "__main__":
