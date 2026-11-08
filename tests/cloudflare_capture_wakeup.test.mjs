@@ -733,6 +733,7 @@ test('raw Workers Logs audit CLI executes locally without authentication or netw
     const result=JSON.parse(child.stdout);
     assert.equal(result.observer_day_pass,true);
     assert.equal(result.raw_issue_count,0);
+    assert.match(result.input_sha256,/^[a-f0-9]{64}$/);
     assert.equal(result.formal_t_minus_12_proven,false);
   }finally{rmSync(dir,{recursive:true,force:true});}
 });
