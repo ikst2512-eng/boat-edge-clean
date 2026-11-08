@@ -354,7 +354,9 @@ test('POST must return 204; no false success',async()=>{
 test('dedicated observer exports only default and has no dispatch-capable handler',()=>{
   assert.deepEqual(Object.keys(observerExports),['default']);
   assert.deepEqual(Object.keys(observerWorker),['scheduled']);
-  const src=readFileSync(new URL('../cloudflare/independent_capture_observer.mjs',import.meta.url),'utf8');
+  const source=readFileSync(new URL('../cloudflare/independent_capture_observer.mjs',import.meta.url),'utf8');
+  // Comments describe forbidden capabilities; inspect executable source only.
+  const src=source.replace(/^\s*\/\/.*$/gm,'');
   assert.doesNotMatch(src,/\bexecute\s*\(/);
   assert.doesNotMatch(src,/\bfetch\s*\(/);
   assert.doesNotMatch(src,/GITHUB_DISPATCH_TOKEN/);
