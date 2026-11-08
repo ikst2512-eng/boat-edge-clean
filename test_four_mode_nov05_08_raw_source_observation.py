@@ -96,6 +96,59 @@ class OriginalSourceObservationTest(unittest.TestCase):
         self.assertEqual(retry["status"], "SOURCE_OBSERVATION_INCOMPLETE")
         self.assertIn("FileExistsError", retry["source_errors"][DAY]["type"])
 
+    def test_saved_plus_public_original_union_keeps_reference_separate(self):
+        data = source(
+            (SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5),
+            (PENDING, "2026-11-08T17:45:25+09:00", 1, 2, 4),
+        )
+        report = self.observe_one(data)
+        union = report["historical_original_union_reference_only"]
+        self.assertEqual(union["status"], "COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE")
+        self.assertEqual((union["persisted_result_count"],
+                          union["newly_observed_public_unarchived_result_count"],
+                          union["valid_saved_forecasts_with_persisted_or_public_result"],
+                          union["unknown_or_unobserved_result_count"],
+                          union["eligible_archive_roster_without_exclusions"]), (1, 1, 2, 0, 2))
+        top = union["modes"]["narrow"]["top_hits_by_evidence_class"]["top10"]
+        self.assertEqual(top, {"saved_only": 1, "public_unarchived_only": 1, "combined_observed": 2})
+        self.assertEqual(union["modes"]["narrow"][
+            "top_pct_of_currently_observed_outcomes_reference_only"]["top10"], 100.0)
+        self.assertEqual(report["reference_results_already_saved"], 1)
+        self.assertEqual(report["unresolved_saved_result_files"], 1)
+        self.assertTrue(union["do_not_replace_persisted_denominator"])
+        self.assertTrue(union["not_official_and_not_prospective"])
+        self.assertFalse(report["formal"])
+
+    def test_unknown_source_row_is_not_scored_as_a_loss(self):
+        report = self.observe_one(source(
+            (SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5)))
+        union = report["historical_original_union_reference_only"]
+        self.assertEqual((union["valid_saved_forecasts_with_persisted_or_public_result"],
+                          union["unknown_or_unobserved_result_count"]), (1, 1))
+        lohi = union["modes"]["narrow"][
+            "top_bounds_on_saved_archive_roster_not_confidence_intervals"]["top10"]
+        self.assertEqual(lohi["lower_if_all_unknown_miss_pct"], 50.0)
+        self.assertEqual(lohi["upper_if_all_unknown_hit_pct"], 100.0)
+        self.assertFalse(report["model_promotion_allowed"])
+
+    def test_finish_order_conflict_invalidates_union_status(self):
+        report = self.observe_one(source(
+            (SAVED, "2026-11-08T15:40:22+09:00", 1, 3, 5),
+            (PENDING, "2026-11-08T17:45:25+09:00", 1, 2, 4)))
+        union = report["historical_original_union_reference_only"]
+        self.assertEqual(union["status"], "UNVERIFIED_INCOMPLETE_OR_CONFLICTING_SOURCE")
+        self.assertEqual(report["source_conflict_count"], 1)
+        self.assertTrue(union["incomplete_or_conflicting_source_cannot_be_promoted"])
+
+    def test_timeout_invalidates_union_status_not_saved_data(self):
+        report = observe(self.root, (DAY,), fetcher=lambda day: (_ for _ in ()).throw(
+            TimeoutError("no source")))
+        union = report["historical_original_union_reference_only"]
+        self.assertEqual(union["status"], "UNVERIFIED_INCOMPLETE_OR_CONFLICTING_SOURCE")
+        self.assertEqual(union["persisted_result_count"], 1)
+        self.assertEqual(union["unknown_or_unobserved_result_count"], 1)
+        self.assertFalse(report["formal"])
+
     def test_absent_row_is_not_in_published_csv(self):
         row = self.observe_one(source((SAVED, "2026-11-08T15:40:22+09:00", 1, 2, 5)))["by_day"][DAY]
         self.assertEqual(row["pending_classes"]["not_in_published_csv"], 1)
