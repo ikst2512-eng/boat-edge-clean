@@ -11,6 +11,8 @@ on:
       - 'position_sensitive_paired_inference.py'
       - 'position_sensitive_feature_inventory.py'
       - 'position_sensitive_receipt_intake.py'
+      - 'position_sensitive_remote_observer.py'
+      - 'test_position_sensitive_remote_observer.py'
       - 'position_sensitive_append_only_research.py'
       - 'position_sensitive_ledger_history_audit.py'
       - 'test_position_sensitive_ledger_history_audit.py'
@@ -82,7 +84,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -159,6 +161,21 @@ jobs:
                   or d.get("production_changed") is not False):
               raise SystemExit("research_ledger_history_invalid_or_falsely_certified")
           print(f"POSITION_SENSITIVE_REMOTE_LEDGER_HISTORY_AUDITED:files={d['candidate_files']}")
+          PY
+      - name: No future candidate HTTP witness when not invoked
+        run: |
+          python position_sensitive_remote_observer.py | tee position_remote_observer_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('position_remote_observer_unstarted.json').read_text())
+          if (p.get('status') != 'not_invoked_no_candidate_observation' or
+                  p.get('independent_candidate_first_remote_receipt_verified') is not False or
+                  p.get('formal') is not False or
+                  p.get('promotion_allowed') is not False or
+                  p.get('production_changed') is not False):
+              raise SystemExit('remote_witness_falsely_attested')
+          print('POSITION_SENSITIVE_REMOTE_HTTP_OBSERVER_NOT_INVOKED')
           PY
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
@@ -279,6 +296,7 @@ jobs:
             position_paired_inference_unstarted.json
             position_shadow_feature_inventory.json
             position_receipt_intake_unstarted.json
+            position_remote_observer_unstarted.json
             position_append_only_unstarted.json
             position_ledger_history_audit.json
             position_shadow_t12_windows.json
