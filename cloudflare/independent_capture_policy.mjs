@@ -106,6 +106,25 @@ async function history(fetcher, root, event, token) {
   return payload.workflow_runs;
 }
 
+// Default no-network observation path for first-time Cloudflare deployment.
+// Validates the same trigger clock and computes local recovery windows without
+// reading GitHub, requiring a PAT, or creating a workflow_dispatch.
+export function observe({scheduledTime, now}) {
+  validateCronTick(scheduledTime, now);
+  const when = new Date(now);
+  const eligible = Object.fromEntries(Object.keys(WORKFLOWS).map(kind => {
+    const slot = eligibleSlot(kind, when);
+    return [kind, slot === null ? null : new Date(slot + JST).toISOString().replace('Z', '+09:00')];
+  }));
+  return {
+    schema: SCHEMA, mode: 'observe_only', action: 'no_network_no_dispatch',
+    checked_at_jst: new Date(now + JST).toISOString().replace('Z', '+09:00'),
+    scheduled_at_jst: new Date(scheduledTime + JST).toISOString().replace('Z', '+09:00'),
+    eligible_slots_jst: eligible, github_history_checked: false,
+    github_run_id_proven: false, new_forecast_saved_proven: false, formal: false,
+  };
+}
+
 export async function execute({scheduledTime, now, token, fetcher, clock = () => now, onAccepted = () => {}}) {
   validateCronTick(scheduledTime, now);
   if (typeof fetcher !== 'function') throw new Error('fetcher_required');
