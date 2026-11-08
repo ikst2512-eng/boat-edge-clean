@@ -54,3 +54,18 @@ This command accepts either the older normalized audit schema or this stricter r
 - No actual Cloudflare account/deployment/export: **no live proof**, irrespective of green synthetic tests
 
 The previously demonstrated **concurrent GET→POST dispatch race remains a separate production blocker**. The zero-PAT observer cannot dispatch and is the only permissible first-stage Worker once an account owner explicitly approves manual deployment. Do not modify `main`, existing Render service/fallback or GitHub Actions schedules. Leave Draft PR #1697 unmerged and production dispatch disabled.
+
+
+## 2026-11-08 20:45 JST strict schema audit — new offline gates
+
+Official Cloudflare [Telemetry query docs](https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/) document:
+
+- `$metadata.id` is a **unique event ID and pagination cursor**. It must not be confused with `$metadata.requestId`, which is intentionally shared between invocation and console records.
+- Queries use a cursor `offset` and maximum `limit=2000`; collecting only a page does not certify a complete UTC day.
+- `statistics.sampleInterval=1` means no sampled events; values above 1 are estimates. Confirm the real API response and full query accounting rather than manually asserting `sample_interval: 1`.
+
+The raw audit now rejects **missing/repeated event IDs**, including otherwise valid-looking request pairs, so accidentally replayed or overlapping pages cannot pass as an independent 192/192 observation. The normalized observer audit also enforces an **exact closed JSON schema**: unreviewed fields such as `github_dispatch_accepted` or additional `eligible_slots_jst` workflow names fail, even if the standard `github_history_checked=false` field remains present. This closes a prior misleading-success gap.
+
+**Evidence limitation:** a manually constructed JSON object with `complete_export=true` and `sample_interval=1` is still an operator assertion, not validated Cloudflare response metadata. The raw verifier checks internal consistency and reports `original_cloudflare_log_authenticity_independently_proven=false` unconditionally. The account owner's original telemetry query response, query window, page cursors, statistics, Cloudflare deployment ID, and export timestamps must be retained for independent verification. No real Cloudflare account is connected to this audit, and no live CPU/Cron/dispatch proof has been collected.
+
+PR #1697 CI at `693d8955a60c591beee80b4fba5b2937d34dce25` ([run #42477032602](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42477032602)) passed Python **96/96**, Node **67/67**, local Workerd **9/9**; Wrangler dry-runs PASS. This does not reduce the separately reproduced non-atomic GET→POST duplicate-dispatch risk. Recovery and production deployment remain **NO-GO**, Draft/unmerged.
