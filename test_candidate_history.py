@@ -141,6 +141,15 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertIn("/api/four-mode-archive?code=", controller)
         self.assertIn('"/api/candidate-history"', server)
         self.assertIn('"/candidate_history.js"', server)
+        pages = (ROOT / "candidates.html").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "deploy-pages.yml").read_text(encoding="utf-8")
+        nav = (ROOT / "navigation.js").read_text(encoding="utf-8")
+        self.assertIn('id="candidateCards"', pages)
+        self.assertIn('src="candidate_history.js"', pages)
+        self.assertIn("candidate_history/'+day+'.json", controller)
+        self.assertIn("public/candidate_history", workflow)
+        self.assertIn("'prospective_predictions/**'", workflow)
+        self.assertIn("selection.href='/boat-edge-clean/candidates.html'", nav)
 
 
 if __name__ == "__main__":
