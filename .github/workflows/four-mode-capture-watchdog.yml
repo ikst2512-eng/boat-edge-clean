@@ -140,6 +140,35 @@ jobs:
             exit 1
           fi
           echo "LOCAL_WORKERD_FOREIGN_CRON_FAIL_CLOSED_PASS"
+          # Exercise the configured (allowed) Cron too, but force an ancient
+          # scheduled_time. It must enter scheduled() and fail the freshness
+          # gate before checking credentials or contacting GitHub.
+          valid_status=$(curl --silent --show-error --max-time 15 \
+            --output /tmp/boat-edge-allowed-cron-response.json --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"cron":"*/5 22-23,0-13 * * *","scheduled_time":1700000000000}' \
+            'http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup')
+          echo "LOCAL_ALLOWED_CRON_EXPIRED_TIME_HTTP_STATUS=$valid_status"
+          observed=0
+          for attempt in $(seq 1 12); do
+            if grep -q 'late_or_future_cron_trigger' /tmp/boat-edge-cloudflare-workerd.log; then
+              observed=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$observed" -ne 1 ]; then
+            echo "ALLOWED_CRON_EXPIRED_CLOCK_NOT_REJECTED"
+            tail -45 /tmp/boat-edge-cloudflare-workerd.log
+            head -c 800 /tmp/boat-edge-allowed-cron-response.json
+            exit 1
+          fi
+          if grep -q 'GITHUB_DISPATCH_TOKEN_required' /tmp/boat-edge-cloudflare-workerd.log; then
+            echo "GITHUB_SECRET_CHECK_REACHED_FOR_EXPIRED_TRIGGER"
+            exit 1
+          fi
+          echo "LOCAL_WORKERD_ALLOWED_CRON_EXPIRED_CLOCK_FAIL_CLOSED_PASS"
       - name: Check recent capture runs before fallback dispatch
         # A verified independent main/schedule completion can also recover a
         # missing V2 capture. Never trust PR/manual/non-main/foreign parents.
