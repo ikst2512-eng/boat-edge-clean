@@ -101,12 +101,20 @@ def audit(observations):
     for code in sorted(per_race):
         observations_for_race = per_race[code]
         first = observations_for_race[0][-1]
+        # Two sources observed at the same reported instant cannot establish
+        # a first disposition from arbitrary run/artifact ID sort order.
+        earliest_at = observations_for_race[0][0]
+        earliest_kinds = {
+            row[-1]["kind"] for row in observations_for_race
+            if row[0] == earliest_at
+        }
+        ambiguous_first_disposition = len(earliest_kinds) > 1
         frozen = [x[-1] for x in observations_for_race if x[-1]["kind"] == "frozen"]
         excluded = [x[-1] for x in observations_for_race if x[-1]["kind"] == "excluded"]
         distinct_bytes = {x["payload_sha256"] for x in frozen}
         first_exclusion_upgrade = first["kind"] == "excluded" and bool(frozen)
         conflicting_freeze = len(distinct_bytes) > 1
-        if conflicting_freeze or first_exclusion_upgrade:
+        if conflicting_freeze or first_exclusion_upgrade or ambiguous_first_disposition:
             state = "quarantined_cross_batch_conflict"
             summary["quarantined_cross_batch_conflict"] += 1
         elif first["kind"] == "frozen":
@@ -132,6 +140,7 @@ def audit(observations):
             "first_observed_classification": first["kind"],
             "first_excluded_then_later_frozen": first_exclusion_upgrade,
             "conflicting_frozen_record": conflicting_freeze,
+            "ambiguous_equal_time_first_disposition": ambiguous_first_disposition,
         })
     return {
         "schema": SCHEMA,
