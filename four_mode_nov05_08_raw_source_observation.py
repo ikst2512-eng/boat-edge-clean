@@ -177,9 +177,56 @@ def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw, raw_dir=None):
     shadow_codes = [code for row in by_day.values() for code in row["unarchived_published_shadow_only"]["race_codes"]]
     if len(set(shadow_codes)) != shadow_total:
         raise AssertionError("duplicate_public_shadow_race_code")
+    if shadow_total > reference["totals"]["pending_results"]:
+        raise AssertionError("public_shadow_exceeds_missing_saved_result_roster")
+    # Current public-source-only completed results may supplement the descriptive
+    # original-model historical view, but MUST NEVER change saved-only scores.
+    # Any not-yet-published result remains an unknown outcome, not a loss.
+    saved_valid = reference["totals"]["evaluated"]
+    pending = reference["totals"]["pending_results"]
+    historical_original_observed = saved_valid + shadow_total
+    unknown_results = pending - shadow_total
+    possible_total = historical_original_observed + unknown_results
+    if possible_total != saved_valid + pending:
+        raise AssertionError("historical_union_denominator_drift")
+    historical_original = {}
+    for mode in MODES:
+        hits = {}
+        fractions = {}
+        bounds = {}
+        for n in TOPS:
+            key = f"top{n}"
+            saved = reference["reference_overall"]["mode"][mode]["top_hits"][key]
+            public = shadow_top_hits[mode][key]
+            combined = saved + public
+            if not (0 <= combined <= historical_original_observed):
+                raise AssertionError("historical_union_hits_outside_observed:" + mode + ":" + key)
+            hits[key] = {"saved_only": saved, "public_unarchived_only": public,
+                         "combined_observed": combined}
+            fractions[key] = (round(100 * combined / historical_original_observed, 2)
+                              if historical_original_observed else None)
+            bounds[key] = {
+                "lower_if_all_unknown_miss_pct": (round(100 * combined / possible_total, 2)
+                                                   if possible_total else None),
+                "upper_if_all_unknown_hit_pct": (round(100 * (combined + unknown_results) / possible_total, 2)
+                                                  if possible_total else None),
+            }
+        if not (hits["top1"]["combined_observed"] <= hits["top3"]["combined_observed"]
+                <= hits["top5"]["combined_observed"] <= hits["top10"]["combined_observed"]):
+            raise AssertionError("historical_union_topn_nonmonotone:" + mode)
+        historical_original[mode] = {
+            "top_hits_by_evidence_class": hits,
+            "top_pct_of_currently_observed_outcomes_reference_only": fractions,
+            "top_bounds_on_saved_archive_roster_not_confidence_intervals": bounds,
+        }
     status = ("ALL_SOURCE_SNAPSHOTS_OBSERVED" if observed == len(days) and not errors
               else "SOURCE_OBSERVATION_INCOMPLETE")
     conflicts = sum(len(x["finish_conflict_race_codes"]) for x in by_day.values())
+    source_observation_complete = observed == len(days) and not errors
+    union_source_conflict_free = conflicts == 0
+    union_state = ("COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE" if
+                   source_observation_complete and union_source_conflict_free else
+                   "UNVERIFIED_INCOMPLETE_OR_CONFLICTING_SOURCE")
     return {
         "schema": "FOUR_MODE_NOV05_08_POSTRACE_RAW_SOURCE_OBSERVATION_V1",
         "status": status,
@@ -194,6 +241,18 @@ def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw, raw_dir=None):
         "reference_results_already_saved": reference["totals"]["evaluated"],
         "unresolved_saved_result_files": reference["totals"]["pending_results"],
         "source_conflict_count": conflicts,
+        "historical_original_union_reference_only": {
+            "status": union_state,
+            "valid_saved_forecasts_with_persisted_or_public_result": historical_original_observed,
+            "persisted_result_count": saved_valid,
+            "newly_observed_public_unarchived_result_count": shadow_total,
+            "unknown_or_unobserved_result_count": unknown_results,
+            "eligible_archive_roster_without_exclusions": possible_total,
+            "modes": historical_original,
+            "not_official_and_not_prospective": True,
+            "do_not_replace_persisted_denominator": True,
+            "incomplete_or_conflicting_source_cannot_be_promoted": True,
+        },
         "unarchived_published_shadow_only": {
             "races": shadow_total, "race_codes": shadow_codes,
             "original_saved_top_hits": shadow_top_hits,
