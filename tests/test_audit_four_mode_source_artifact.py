@@ -12,7 +12,8 @@ DAY = "20261108"
 
 
 def make_archive(*, openapi=False, corrupt_raw=False, bad_status=False,
-                 change_title=False, missing_saved=False):
+                 change_title=False, missing_saved=False, orphan_receipt=False,
+                 wrong_content_address=False, extra_member_size=None):
     source = {}
     if openapi:
         obj = {"programs": {"stadiums": {"1": {"races": {}}}}}
@@ -61,14 +62,19 @@ def make_archive(*, openapi=False, corrupt_raw=False, bad_status=False,
         z.writestr("four-mode-evidence/capture.log", json.dumps(log))
         z.writestr("four_mode_forecasts/capture_status.json", json.dumps(status))
         for url, raw in source.items():
-            stem = hashlib.sha256(url.encode()).hexdigest()
+            stem = hashlib.sha256(url.encode() + b"\0" + raw).hexdigest()
+            if wrong_content_address:
+                stem = ("a" if stem[0] != "a" else "b") + stem[1:]
             prefix = f"four-mode-evidence/raw-sources/{stem}"
             meta = {"schema": "FOUR_MODE_LOCAL_RAW_HTTP_RECEIPT_V1",
                     "url": url, "byte_count": len(raw),
                     "sha256": hashlib.sha256(raw).hexdigest(),
                     "received_at_jst": "2026-11-08T07:00:00+09:00"}
             z.writestr(prefix + ".json", json.dumps(meta))
-            z.writestr(prefix + ".bin", raw + (b"corrupt" if corrupt_raw else b""))
+            if not orphan_receipt:
+                z.writestr(prefix + ".bin", raw + (b"corrupt" if corrupt_raw else b""))
+        if extra_member_size:
+            z.writestr("ordinary-diagnostic.dat", b"X" * extra_member_size)
     raw_zip = b.getvalue()
     return raw_zip, hashlib.sha256(raw_zip).hexdigest()
 
@@ -116,6 +122,21 @@ class CaptureArtifactReplayTests(unittest.TestCase):
     def test_openapi_parser_rejection_disagreement_rejected(self):
         raw, sha = make_archive(openapi=True, bad_status=True)
         with self.assertRaisesRegex(ValueError, "openapi_rejected_count_mismatch"):
+            audit_zip(raw, sha)
+
+    def test_raw_receipt_content_address_mismatch_rejected(self):
+        raw, sha = make_archive(wrong_content_address=True)
+        with self.assertRaisesRegex(ValueError, "raw_receipt_content_address_mismatch"):
+            audit_zip(raw, sha)
+
+    def test_unpaired_raw_receipt_rejected(self):
+        raw, sha = make_archive(orphan_receipt=True)
+        with self.assertRaisesRegex(ValueError, "unpaired_or_unexpected_raw_receipts"):
+            audit_zip(raw, sha)
+
+    def test_decompression_budget_blocks_oversize_members(self):
+        raw, sha = make_archive(extra_member_size=2_000_001)
+        with self.assertRaisesRegex(ValueError, "oversize_artifact_member"):
             audit_zip(raw, sha)
 
     def test_artifact_oversize_rejected(self):
