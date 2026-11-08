@@ -1,3 +1,10 @@
+## 2026-11-08 15時台 JST｜Cloudflare Free Draft #1697：初期監視モード・PAT不要パイロット追加
+- Cloudflare Workersの安全な段階導入として、**初期値を復旧実行OFF**に固定。実Worker入口の`CLOUDFLARE_DISPATCH_ENABLED === "true"`に厳密一致した場合のみ既存のAPI履歴照合・GitHub dispatchを許可。未設定、false、大小文字違い、数値true等は純粋`observe()`でslotと時刻だけ記録し**GitHub通信0/POST0/Secret不要**。期限外・不正Cronはこれまでどおり安全側に拒否。監視ログは`CLOUDFLARE_CAPTURE_OBSERVER_ONLY`、GitHub確認／原本保存の証拠フラグはfalse。
+- `cloudflare/wrangler.toml`は本番候補用の`[vars] CLOUDFLARE_DISPATCH_ENABLED="false"`を出荷し、復旧本番用`[secrets] required=["GITHUB_DISPATCH_TOKEN"]`を維持。さらに**新しい別名Worker**`cloudflare/wrangler.observer.toml`を追加し、Secretを一切設定しない無料パイロットとしてコード/CPU/Cronだけを後日実測可能にした。両configともGitHub dispatchは初期OFF。デプロイは**未実施**。
+- 実Workerd模擬GitHub正常経路は`true`を明示的にセットしたテストだけで検証。PR read-only CI [#42456421210](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42456421210) **completed/success**：既存Python policy PASS、Node**39/39 PASS**、Workerd Vitest**6/6 PASS**、Wrangler 4.158.0本番候補・PAT不要observer両方`deploy --dry-run` PASS、Local Explorer不正Cron・期限切れCron拒否PASS。本番`watchdog`（Actions:write）はPRでskipped。
+- 実GitHub接続・実Cloudflareアカウント/Secret/Worker/Cron配備・10ms CPU実測・原本Git first-add/T−12適合・正式復旧実績は**すべて0/未実証**。既存Render Free Web・Render Pythonとmainを不変更、**Draft未統合・main自動統合禁止**を維持。段階導入手順は`docs/cloudflare-independent-capture-wakeup-readiness.md`に更新。
+- 管理者の次の実作業はCloudflare無料アカウントで`wrangler.observer.toml`を選択して秘密情報なしで監視のみ手動配備し、Cron/CPUを実測。その後、同意と個別レビューがある場合のみ別Workerに最小権限PAT Secretを配置し、設定を文字列`"true"`にした新バージョンを明示的にデプロイする。
+
 ## 2026-11-08 12時台 JST｜Cloudflare Draft #1697 正規Cron→模擬GitHub復旧のWorkerd統合テスト合格
 - 従来は不正cron・期限切れcronの拒否をWorkerdで実証済み。今回さらにCloudflare公式`@cloudflare/vitest-plugin`で**正規Cronイベント→GitHub模擬API履歴GET→復旧POSTの正常経路**を本物のローカルWorkerd内で検証した。実GitHub/Cloudflareに一切通信せず、本物の秘密トークンも利用しない。
 - 新規`cloudflare/test/worker_runtime.test.mjs`の**4/4 PASS**：①07:10 JSTの有効枠ではGitHub模擬4GET完了後に模擬2POST（HTTP204）、正式認定フラグfalse ②両元cron成功済みでは4GET・POST0 ③3回目のGETが503なら両方POST0、受理ログ0 ④誤cronでは通信0。既存Node**32/32 PASS**・Python policy成功・Wrangler dry-run成功・Local Explorer実cron拒否テスト成功も維持。
