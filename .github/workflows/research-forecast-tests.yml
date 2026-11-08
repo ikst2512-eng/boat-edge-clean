@@ -40,6 +40,8 @@ on:
       - 'scripts/research_official_k_missingness_profile.py'
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
       - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
       - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
       - 'tests/test_research_official_k_missingness_profile.py'
@@ -97,6 +99,8 @@ on:
       - 'scripts/research_official_k_missingness_profile.py'
       - 'scripts/research_official_k_wind_missingness_sensitivity.py'
       - 'scripts/research_four_mode_pre_t12_wind_inventory.py'
+      - 'scripts/research_official_beforeinfo_wind_receipt_gate.py'
+      - 'tests/test_research_official_beforeinfo_wind_receipt_gate.py'
       - 'tests/test_research_four_mode_pre_t12_wind_inventory.py'
       - 'tests/test_research_official_k_wind_missingness_sensitivity.py'
       - 'tests/test_research_official_k_missingness_profile.py'
@@ -177,6 +181,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_research_official_k_wind_missingness_sensitivity.py' -v
       - name: Reject unverified T-12 wind from saved four-mode metadata (offline)
         run: python -m unittest discover -s tests -p 'test_research_four_mode_pre_t12_wind_inventory.py' -v
+      - name: Verify original beforeinfo wind receipt safety and time gates (offline)
+        run: python -m unittest discover -s tests -p 'test_research_official_beforeinfo_wind_receipt_gate.py' -v
       - name: Verify official F0.xx actual course and ST are not silently omitted
         run: python -m unittest discover -s tests -p 'test_research_official_k_f_start_parse.py' -v
       - name: Read pinned main forecast originals without modifying predictions
@@ -195,6 +201,21 @@ jobs:
         with:
           name: four-mode-frozen-main-wind-t12-metadata-gap-research-only
           path: research_evidence/frozen_four_mode_pre_t12_wind_inventory.json
+          if-no-files-found: error
+      - name: Verify stored official Nov 4 weather source bytes and 12-minute cutoff (research only)
+        if: github.event_name == 'pull_request'
+        run: |
+          python scripts/research_official_beforeinfo_wind_receipt_gate.py \
+            --beforeinfo docs/observations/official_preview_20261104/beforeinfo.json \
+            --manifest docs/observations/official_preview_20261104/manifest.json \
+            --race-code 202611040111 \
+            --out research_evidence/official_beforeinfo_wind_receipt_202611040111.json
+      - name: Preserve official-beforeinfo Nov 4 weather witness (not T-12 forecast)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-beforeinfo-weather-raw-receipt-20261104-research-only
+          path: research_evidence/official_beforeinfo_wind_receipt_202611040111.json
           if-no-files-found: error
       - name: Reconcile 92 historical postrace CSV sources (PR research only)
         if: github.event_name == 'pull_request'
