@@ -1,4 +1,5 @@
 """Synthetic research-only gateway driver tests: no API, no results, no push."""
+import hashlib
 import tempfile
 import unittest
 from datetime import datetime
@@ -25,19 +26,28 @@ class ManualCaptureTests(unittest.TestCase):
         self.reads = []
         self.calls = []
 
+    def fixture_raw(self, path):
+        return ('{"race_code":"' + Path(path).stem + '"}').encode()
+
     def read(self, path):
         self.reads.append(path)
         self.assertTrue(path.startswith("four_mode_forecasts/"))
         self.assertNotIn("confirmed_results", path)
-        return ('{"race_code":"' + Path(path).stem + '"}').encode()
+        return self.fixture_raw(path)
 
     def blob(self, path):
-        return "b" * 40
+        raw = self.fixture_raw(path)
+        return hashlib.sha1(
+            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+        ).hexdigest()
 
     def freezer(self, code, root):
         self.calls.append(code)
         record = frozen(code)
         record.pop("source_git_blob_sha1")  # freezer() leaves blob for capture driver
+        record["source_sha256"] = hashlib.sha256(
+            (Path(root) / "four_mode_forecasts" / (code + ".json")).read_bytes()
+        ).hexdigest()
         return record
 
     def run_capture(self, paths=None, freezer=None, **changes):
@@ -104,6 +114,28 @@ class ManualCaptureTests(unittest.TestCase):
         p.write_bytes(b"different source")
         with self.assertRaisesRegex(ValueError, "research_checkout_has_conflicting_forecast"):
             self.run_capture()
+
+    def test_wrong_git_blob_is_rejected_before_freezer_or_write(self):
+        with self.assertRaisesRegex(
+                ValueError, "immutable_main_source_blob_content_mismatch"):
+            self.run_capture(read_blob=lambda _: "b" * 40)
+        self.assertEqual(self.calls, [])
+
+    def test_mismatched_frozen_source_hash_fails_closed(self):
+        def lying_freezer(code, root):
+            record = self.freezer(code, root)
+            record["source_sha256"] = "0" * 64
+            return record
+        with self.assertRaisesRegex(
+                ValueError, "frozen_candidate_original_source_sha256_mismatch"):
+            self.run_capture(freezer=lying_freezer)
+
+    def test_verified_source_blob_and_candidate_hash_same_exact_bytes(self):
+        out = self.run_capture()
+        record = out["records"][0]
+        raw = self.fixture_raw(PATH1)
+        self.assertEqual(record["source_git_blob_sha1"], self.blob(PATH1))
+        self.assertEqual(record["source_sha256"], hashlib.sha256(raw).hexdigest())
 
     def test_manual_gateway_requires_typed_ack_and_dispatch(self):
         with patch.object(m, "datetime") as clock:
