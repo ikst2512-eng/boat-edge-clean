@@ -1,3 +1,35 @@
+## 2026-11-08 15:01 JST — First independently replayed *on-time two-original* official T−12 race (Edogawa 9R); NOT a formal forecast certification
+
+**Immutable evidence snapshot:** GitHub `main=6409443d6487b5c175eec4ed2a7f4bf136f69da4`. The actual, scheduled [research source pair run #42450048245](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42450048245) started **14:15:21 JST**, completed successfully, and uploaded GitHub artifact **ID 13604969020**, `independent-late-preview-42450048245` at **14:16:09 JST** (GitHub artifact `created_at` metadata). Downloaded ZIP as independent reviewer and replayed byte content, not just success logs or metadata.
+
+**ZIP integrity:** **28,283 bytes**, SHA256 **`2bda1f350f18d7516ae685fd6a10094915fa00ae6cd8f3f3151b4bef651d2a5c`**, exactly GitHub's advertised ZIP digest. ZIP CRC verification clean. Contains immutable official `beforeinfo.json` and `original.html` for **two distinct 11/8 9R races**, plus four per-source manifests and a batch report. Replay checked original bytes directly: original-byte length, SHA256 equality with each per-source manifest, official `maindata` date/venue/race identity, six unique boat IDs, nonempty numeric exhibition and tilt, six valid course/boat ST rows and HTML `oddsPoint` count plus finite, positive odds for each captured race. **No original official racelist HTTP body** was present, so this is a full **two-source** audit only.
+
+| Source and outcome | Edogawa 9R `202611080309` | Naruto 9R `202611081409` |
+|---|---|---|
+| Deadline copied from race-matched official beforeinfo original | 14:30 JST | 14:34 JST |
+| T−12 cutoff | **14:18:00 JST** | **14:22:00 JST** |
+| Official beforeinfo original captured | **14:15:38.139739 JST** | **14:15:56.709439 JST** |
+| Original exhibition times, tilt, ST/boat/course | **6/6, 6/6, 6/6** | **0/6, 6/6, 0/6** |
+| Official 3T odds original captured | **14:15:48.378360 JST** | **14:16:07.127274 JST** |
+| Official 3T odds HTML numeric points | **120/120** | **120/120** |
+| Beforeinfo / odds SHA256 verified | **pass / pass** | **pass / pass** |
+| Latest two-original receipt vs T−12 | **131.622 seconds early** | **352.873 seconds early** |
+| Independent `both_complete_before_t12` from saved batch | **true** | **false** |
+| Formal 3-original source-and-forecast certification | **false** | **false** |
+
+Original raw SHA256 (Edogawa): beforeinfo `b52b2e8e400ee00676c247007576abd21be4ed64307e0b2cbafa159c51662db5`; odds `9ce8d53029bd9022743599de1e7f670439d20efad35f52546d8a99f6347a7aab`.
+Original raw SHA256 (Naruto): beforeinfo `53b269e5641c6a4433fcb7ae1ba4efd2d769d01702f560432164f1d3a1ded8a9`; odds `a2bfb93817d65b473ffcfeb3408469cc325034ba79c474ef108f4dd75369fcc2`.
+
+**Source-before-forecast temporal failure, verified against frozen main JSONs.** Same-race Edogawa 9R `prospective_predictions/202611080309.json` says CLEAN model **generated 10:12:31.149675 JST**, beforeinfo/odds originals first observed **14:15**, about four hours later. Its `four_mode_forecasts/202611080309.json` generated at **10:17:12.313648 JST** and says `beforeinfo=optional_not_in_snapshot`. Naruto 9R CLEAN/V2 similarly generated **10:12:31 / 10:17:12**; recorded official beforeinfo/odds arrived **14:15–14:16**. Thus **neither frozen forecast may be retrospectively reclassified as derived from the newly observed official raw sources**, regardless of successful T−12 capture of those sources. **Do not change historical frozen forecasts, generation timestamps, source receipts or precision claims.**
+
+**Run status vs source status:** [#42450048245](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42450048245) legitimately demonstrates one **research-only two-original T−12 complete same-race pair** for Edogawa9 and one independently rejected incomplete same-race pair for Naruto9; it does not show a complete official **racelist + beforeinfo + odds** triple. Its separate late-preview CSV report remains `paired_t12_source_and_receipt=0` because that is a different source family/cohort; do not overwrite this or call it contradictory. An individual green job or its `complete_pairs_observed` summary does not certify final entry, a first independent Git remote forecast receipt, or a future model improvement.
+
+**Revisited schedule coverage (bounded):** `event=schedule&created=2026-11-08` gave **21** all-workflow schedule runs, latest created **14:57:21 JST**, of which **one** was this official pair collector. Declared collector slots from 09:00 through 14:55 JST total **72**, hence **1/72 = 1.39% observed scheduled invocation ratio within this bounded window**. This compares event counts only; no attribution of missing GitHub triggers and no claim of 71 failed official HTTP calls. This is substantially insufficient for daywide automation even though one valid source pair was captured. Other workflows' independent manual odds probe at [14:53 #42452500163](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42452500163) reported **three valid 120/120 3T-odds samples from four requests**, but without same-race official 6/6 beforeinfo and third official racelist; not formal. Earlier [12:45 manual odds #42444003542](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42444003542) reported **three distinct races × two TimeoutError attempts**, not HTTP 503 and no valid odds; do not mix manual transport errors with scheduled collector starts.
+
+**Next owner ① acceptance work:** Keep existing valid collection path; make scheduled invocation continuity independently auditable and reliable. In the **approved existing collector path**, capture the **official original racelist on the same race** with received-at/SHA, ensure **all three originals** and independently observed first remote receipt happen before T−12, and require **actual forecast generation after those verified sources** (not the earlier 10:12 snapshot) before scoring eligibility. Research diagnostics may be validated separately; **formal 3-original and forecast T−12 certified count stays 0; formal accuracy denominator remains undefined**. No main merge, no new conflicting cron, no backfill and no prediction rewrite.
+
+---
+
 ## 2026-11-08 ~12:37 JST — Independent ZIP replay of schedule-continuity CI output (audit-only)
 
 Confirmed [exact-head PR CI #42443247074](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42443247074), job `128616735722`, **12/12 regression tests passed**. Downloaded original GitHub artifact `official-pair-schedule-audit-42443247074` (artifact ID **13601654632**) as ZIP and independently checked:
