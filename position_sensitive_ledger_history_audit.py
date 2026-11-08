@@ -96,8 +96,11 @@ def audit_ledger(root, branch_ref, base=BASE, git=None, original_read=None):
                         or not DATE_START[:10].replace("-", "") <= code[:8] <=
                         DATE_END[:10].replace("-", "")):
                     raise ValueError("candidate_race_outside_registered_period")
-            exact = run("show", commit+":"+path)
-            current = run("show", tip+":"+path)
+            try:
+                exact = run("show", commit+":"+path)
+                current = run("show", tip+":"+path)
+            except (subprocess.CalledProcessError, OSError) as exc:
+                raise ValueError("first_add_blob_mutated_or_invalid") from exc
             if (exact != current or
                     (path == README and not 0 < len(exact) < 20000) or
                     (path != README and not 0 < len(exact) <= 30000)):
