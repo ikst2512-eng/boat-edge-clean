@@ -79,3 +79,10 @@
 - Current preregistered **Top1 pair** selector swapped `hit` first-ranked ticket in **56/116** Nov 8 historical original-input replays, but **changed the first-boat head in 0/116** for `hit` and `narrow`; it only changed the **third boat in all 56 swaps**. Original Top2 had a different first boat in only **4/116** `hit` races. In `balance`, first-boat changes were 11/116; `hole`, 25/116. This candidate therefore **cannot correct the main observed missing-winner-head mechanism** for `hit`/`narrow`.
 - Added `four_mode_top1_bias_input_audit.py` (read-only, no results) plus **6 tests** proving the fixed prior ratio and screening inconsistent input records. Kept the separately authored `four_mode_top1_head_exposure_audit.py` and run-inventory code; the new audit is complementary, not a second scorer.
 - This is an **input/algorithm audit only**. Result scoring for Nov 5–8 remains ineligible for prospective Top1 improvement. The distinct registered Nov 9+ 300/300 Top1 protocol, original Top10 protocol, Draft-only governance and `formal=false` remain unchanged. **Do not patch the pinned preregistered candidate with retrospective changes**; any structurally new winner-head selector requires a separate, fully predeclared future study.
+
+## 2026-11-08 続報：Top1固定化診断の原本完全再演検査
+
+- 既存の `four_mode_top1_bias_input_audit.py` に、形式・点数だけでなく、保存された**全モードの買い目順位と各確率値**が `rank_modes(probabilities(input_national_win_rates))` の結果に完全一致することを追加検証。異なる順位への並び替えや、一見正しい確率値の改ざんは `stored_ticket_not_reproduced_from_inputs` として隔離し、集計分母へ入れない。
+- 研究CIでは2026-11-08の116個のV2保存予想すべてについて **116/116件が元モデルから再現可能・不正0件** と検証した。`confirmed_results`、オッズ、払戻は読み込んでいない。予想の生成・計算・買い目やmainは書き換えない。
+- 研究CIは入力原本の下限116件、全件整合、入力6勝率ベクトルの重複なし、結果未読、形式的認定falseを同時に要求。監査単体テスト8件（うち新規2件）、既存captureテスト183件が成功。ライブ収集ジョブはPRイベントのためskipであり、モデル性能や公式T−12・FIRST receiptは未証明。
+- この完全再演は **現行V2モデル計算と保存原本の整合** の証明であって、モデルの予測妥当性・実進入・風・ST・モーターの考慮を保証するものではない。新しい1着艇候補の検証では、別の事前登録規則と将来の独立初回受領・完全母集団が必要。古い候補SHAやTop10/Top1の既存検証規則を結果に合わせて変更しない。
