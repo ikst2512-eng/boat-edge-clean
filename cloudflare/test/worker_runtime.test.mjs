@@ -47,8 +47,14 @@ function mockGitHub({scheduledSuccess = false, failGetNumber = 0} = {}) {
       return Response.json({workflow_runs: eventRows});
     }
     if (method === 'POST' && u.pathname.endsWith('/dispatches') &&
-        JSON.parse(options.body).ref === 'main') {
-      return new Response(null, {status: 204});
+        JSON.parse(options.body).ref === 'main' &&
+        JSON.parse(options.body).return_run_details === true) {
+      const id = u.pathname.includes('/clean-prospective.yml/') ? 500001 : 500002;
+      return Response.json({
+        workflow_run_id:id,
+        run_url:'https://api.github.com/repos/ikst2512-eng/boat-edge-clean/actions/runs/'+id,
+        html_url:'https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/'+id,
+      }, {status:200});
     }
     throw new Error('BLOCKED_UNEXPECTED_GITHUB_ACTION');
   });
@@ -77,11 +83,13 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     await invoke();
     expect(calls.map(c => c.method)).toEqual(['GET','GET','GET','GET','POST','POST']);
     for (const c of calls.filter(x => x.method === 'POST')) {
-      expect(JSON.parse(c.body)).toEqual({ref: 'main'});
+      expect(JSON.parse(c.body)).toEqual({ref: 'main',return_run_details:true});
     }
     const receipts = logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='));
     expect(receipts).toHaveLength(2);
     expect(receipts.map(x => JSON.parse(x.split('=')[1]).workflow)).toEqual(['clean','four_mode']);
+    expect(receipts.map(x => JSON.parse(x.split('=')[1]).github_run_id_reported)).toEqual([500001,500002]);
+    expect(receipts.every(x => JSON.parse(x.split('=')[1]).github_run_id_proven === false)).toBe(true);
     expect(logs.join(' ')).not.toContain(TEST_TOKEN);
     const report = JSON.parse(logs.find(x => x.startsWith('CLOUDFLARE_CAPTURE_WAKEUP=' )).split('=')[1]);
     expect(report.new_forecast_saved_proven).toBe(false);
@@ -192,7 +200,12 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
         return Response.json({workflow_runs: []});
       }
       if (options.method === 'POST' && url.pathname.endsWith('/dispatches')) {
-        return new Response(null, {status: 204});
+        const id = url.pathname.includes('/clean-prospective.yml/') ? 600001 : 600002;
+        return Response.json({
+          workflow_run_id:id,
+          run_url:'https://api.github.com/repos/ikst2512-eng/boat-edge-clean/actions/runs/'+id,
+          html_url:'https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/'+id,
+        }, {status:200});
       }
       throw Error('BLOCKED_UNEXPECTED_ACTION');
     }));
