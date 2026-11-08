@@ -18,6 +18,8 @@ on:
       - four_mode_top1_head_exposure_audit.py
       - test_four_mode_top1_head_exposure_audit.py
       - test_four_mode_top1_forward_reference.py
+      - four_mode_top1_bias_input_audit.py
+      - test_four_mode_top1_bias_input_audit.py
       - four_mode_top1_capture_run_inventory.py
       - test_four_mode_top1_capture_run_inventory.py
       - docs/research/four_mode_forward_all_modes_20261106.md
@@ -167,6 +169,10 @@ jobs:
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
+      - name: Test fixed prior Top1 concentration and absence of result reads
+        run: python -m unittest -v test_four_mode_top1_bias_input_audit
+      - name: Audit available archived Nov8 V2 input concentration, without results
+        run: python four_mode_top1_bias_input_audit.py --day 20261108
       - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
         run: python -m unittest -v test_four_mode_top1_forward_reference
       - name: Validate fail-closed read-only GitHub capture-run inventory
