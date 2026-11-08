@@ -46,6 +46,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
     datetime.strptime(day, "%Y%m%d")
     as_of = as_of or datetime.now(timezone.utc)
     due_slots = nominal_schedule_slots_due(day, as_of)
+    audit_as_of_jst = as_of.astimezone(JST)
+    # API-page completeness is about observed metadata at the audit instant,
+    # not proof that a still-running calendar day has finished.
+    calendar_day_elapsed = audit_as_of_jst.strftime("%Y%m%d") > day
     url = (f"https://api.github.com/repos/{repo}/actions/workflows/"
            f"{quote(WORKFLOW)}/runs?event=schedule&per_page={PAGE_LIMIT}")
     if fetch is None:
@@ -98,6 +102,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
     return {"schema": "FOUR_MODE_DAILY_SCHEDULE_RUN_METADATA_V1",
             "day_jst": day, "total_history_runs_available": result["total_count"],
             "history_rows_inspected": len(rows), "full_day_metadata_coverage": complete,
+            "audit_as_of_jst": audit_as_of_jst.isoformat(),
+            "jst_calendar_day_elapsed_at_audit": calendar_day_elapsed,
+            "all_nominal_daily_slots_due_at_audit": due_slots == NOMINAL_DAILY_CAPTURE_SLOTS,
+            "full_calendar_day_schedule_delivery_verified": False,
             "same_day_scheduled_run_count": len(matching),
             "nominal_schedule_slots_per_jst_day": NOMINAL_DAILY_CAPTURE_SLOTS,
             "nominal_schedule_slots_due_as_of_audit": due_slots,
@@ -106,9 +114,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "failed_run_ids": failed, "pending_or_unknown_run_ids": pending,
             "forecast_publication_verified": False,
             "per_run_artifact_coverage_verified": False,
-            "note": ("Created-at day counts can differ from actual cron slots due to "
-                     "delayed GitHub scheduling; no per-slot delivery or forecast "
-                     "publication certification.")}
+            "note": ("full_day_metadata_coverage refers to the bounded GitHub API "
+                     "history page through audit_as_of_jst, NOT completion of the "
+                     "calendar day. Created-at counts may include delayed prior "
+                     "cron triggers; no per-slot delivery or publication proof.")}
 
 
 def main():
