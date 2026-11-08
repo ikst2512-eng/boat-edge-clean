@@ -8,6 +8,8 @@ on:
       - 'four_mode_position_sensitive_forward.py'
       - 'position_sensitive_topk_exposure_audit.py'
       - 'position_sensitive_paired_guard.py'
+      - 'position_sensitive_paired_inference.py'
+      - 'test_position_sensitive_paired_inference.py'
       - 'test_position_sensitive_paired_guard.py'
       - 'test_position_sensitive_topk_exposure_audit.py'
       - 'test_four_mode_position_sensitive_forward.py'
@@ -67,7 +69,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -83,6 +85,20 @@ jobs:
                   or report.get('formal') is not False):
               raise SystemExit('paired_guard_must_be_noncertifying')
           print('POSITION_SENSITIVE_PAIRED_GUARD_UNSTARTED_SAFE')
+          PY
+      - name: Exact paired hypothesis diagnostic cannot certify empty forward cohort
+        run: |
+          python position_sensitive_paired_inference.py | tee position_paired_inference_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('position_paired_inference_unstarted.json').read_text())
+          if (report.get('reference_confirmed_confirmation_races') != 0
+                  or report.get('formal') is not False
+                  or report.get('promotion_allowed') is not False
+                  or report.get('model_improvement_proven') is not False):
+              raise SystemExit('paired_inference_must_be_noncertifying')
+          print('POSITION_SENSITIVE_EXACT_PAIRED_INFERENCE_NOT_CERTIFIED')
           PY
       - name: Read-only replay of original Nov-08 frozen archive inputs
         run: |
@@ -163,4 +179,5 @@ jobs:
             position_shadow_input_only.json
             position_shadow_topk_exposure.json
             position_paired_guard_unstarted.json
+            position_paired_inference_unstarted.json
           retention-days: 30
