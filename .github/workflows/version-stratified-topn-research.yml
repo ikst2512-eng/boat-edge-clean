@@ -343,6 +343,40 @@ jobs:
                   raise SystemExit("nov05_reference_hit_drift:"+mode+":"+str(got))
           print("NOV05_106_REFERENCE_SCORES_REPRODUCED")
           PY
+      - name: Independently re-read current public result CSV for Nov5-8 (read-only research)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python four_mode_result_raw_csv_audit.py --fetch | tee four_mode_current_raw_csv_status.json
+      - name: Refuse result-row disagreement and fabricated formal status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_current_raw_csv_status.json").read_text())
+          if (v.get("schema")!="FOUR_MODE_ORIGINAL_CURRENT_PUBLIC_RESULT_CSV_RESEARCH_AUDIT_V1"
+                  or v.get("formal") is not False or v.get("formal_count") != 0
+                  or v.get("prospective_candidate_pairs") != 0
+                  or v.get("model_improvement_proven") is not False
+                  or v.get("model_promotion_allowed") is not False
+                  or v.get("candidate_not_scored") is not True
+                  or v.get("current_raw_hash_not_historical_first_result_sha") is not True
+                  or set(v.get("by_day",{}))!={"20261105","20261106","20261107","20261108"}):
+              raise SystemExit("untrusted_public_result_source_audit")
+          totals=v["totals"]
+          ref=v["frozen_original_result_reference"]
+          agree=totals.get("saved_result_rows_matched_current_csv",0)
+          mismatch=totals.get("saved_result_rows_disagree_or_not_present",0)
+          pending=sum(n for k,n in totals.items() if k not in (
+              "saved_result_rows_matched_current_csv",
+              "saved_result_rows_disagree_or_not_present"))
+          if (mismatch or agree!=ref["evaluated"] or pending!=ref["pending_results"]
+                  or ref["excluded"]!=0):
+              raise SystemExit("public_csv_row_or_roster_discrepancy")
+          print("CURRENT_CSV_VS_STORED_ROWS_MATCHED:"+str(agree))
+          print("CURRENT_CSV_PERSISTENCE_GAPS:"+str(pending))
+          print("NO_FORMAL_RESULT_ADMISSION")
+          PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
@@ -351,6 +385,7 @@ jobs:
           path: |
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
+            four_mode_current_raw_csv_status.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
