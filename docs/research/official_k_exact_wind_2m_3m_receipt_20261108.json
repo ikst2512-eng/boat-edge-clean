@@ -1,0 +1,548 @@
+{
+  "schema": "OFFICIAL_POSTRACE_K_INTEGER_WIND_2M_VS_3M_INDEPENDENT_RECEIPT_V1",
+  "status": "research_only_postrace_primary_not_t12",
+  "period": "2026-08-01/2026-10-31",
+  "source": {
+    "github_actions_run_id": 42453296631,
+    "artifact_id": 13607470249,
+    "artifact_name": "official-k-92day-source-audit-research-only",
+    "zip_sha256": "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e",
+    "daily_official_archive_sha256_from": "official_k_full_92day_reconciliation.json",
+    "day_archive_sha_and_decoded_sha_checked": 92
+  },
+  "integrity": {
+    "official_k_days": 92,
+    "official_k_races": 14249,
+    "eligible_actual_c1_races": 14090,
+    "actual_c1_wins": 7811,
+    "c1_candidate_excluded_statuses": [
+      "F",
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "excluded_count": 159,
+    "no_winner_unsettled_races": 2,
+    "official_1c_rate_formula_authoritatively_confirmed": false,
+    "primary_secondary_not_merged": true
+  },
+  "wind_exact": [
+    {
+      "wind_m": 0,
+      "c1_wins": 560,
+      "c1_eligible_n": 978,
+      "c1_win_rate_pct": 57.259713701431494
+    },
+    {
+      "wind_m": 1,
+      "c1_wins": 1616,
+      "c1_eligible_n": 2845,
+      "c1_win_rate_pct": 56.80140597539543
+    },
+    {
+      "wind_m": 2,
+      "c1_wins": 2065,
+      "c1_eligible_n": 3616,
+      "c1_win_rate_pct": 57.107300884955755
+    },
+    {
+      "wind_m": 3,
+      "c1_wins": 1656,
+      "c1_eligible_n": 2989,
+      "c1_win_rate_pct": 55.403144864503176
+    },
+    {
+      "wind_m": 4,
+      "c1_wins": 1026,
+      "c1_eligible_n": 1876,
+      "c1_win_rate_pct": 54.6908315565032
+    },
+    {
+      "wind_m": 5,
+      "c1_wins": 523,
+      "c1_eligible_n": 1014,
+      "c1_win_rate_pct": 51.57790927021696
+    },
+    {
+      "wind_m": 6,
+      "c1_wins": 204,
+      "c1_eligible_n": 413,
+      "c1_win_rate_pct": 49.39467312348668
+    },
+    {
+      "wind_m": 7,
+      "c1_wins": 99,
+      "c1_eligible_n": 213,
+      "c1_win_rate_pct": 46.478873239436616
+    },
+    {
+      "wind_m": 8,
+      "c1_wins": 40,
+      "c1_eligible_n": 93,
+      "c1_win_rate_pct": 43.01075268817204
+    },
+    {
+      "wind_m": 9,
+      "c1_wins": 16,
+      "c1_eligible_n": 39,
+      "c1_win_rate_pct": 41.02564102564103
+    },
+    {
+      "wind_m": 10,
+      "c1_wins": 6,
+      "c1_eligible_n": 14,
+      "c1_win_rate_pct": 42.857142857142854
+    }
+  ],
+  "venues_2m_3m": [
+    {
+      "code": "01",
+      "venue": "桐生",
+      "wind_2m": {
+        "wins": 110,
+        "n": 207
+      },
+      "wind_3m": {
+        "wins": 51,
+        "n": 102
+      },
+      "diff_3m_minus_2m_pt": -3.1400966183574908
+    },
+    {
+      "code": "02",
+      "venue": "戸田",
+      "wind_2m": {
+        "wins": 67,
+        "n": 146
+      },
+      "wind_3m": {
+        "wins": 22,
+        "n": 74
+      },
+      "diff_3m_minus_2m_pt": -16.16068122917438
+    },
+    {
+      "code": "03",
+      "venue": "江戸川",
+      "wind_2m": {
+        "wins": 47,
+        "n": 103
+      },
+      "wind_3m": {
+        "wins": 46,
+        "n": 94
+      },
+      "diff_3m_minus_2m_pt": 3.305102251600905
+    },
+    {
+      "code": "04",
+      "venue": "平和島",
+      "wind_2m": {
+        "wins": 62,
+        "n": 154
+      },
+      "wind_3m": {
+        "wins": 54,
+        "n": 111
+      },
+      "diff_3m_minus_2m_pt": 8.388908388908389
+    },
+    {
+      "code": "05",
+      "venue": "多摩川",
+      "wind_2m": {
+        "wins": 105,
+        "n": 183
+      },
+      "wind_3m": {
+        "wins": 40,
+        "n": 81
+      },
+      "diff_3m_minus_2m_pt": -7.994333130945153
+    },
+    {
+      "code": "06",
+      "venue": "浜名湖",
+      "wind_2m": {
+        "wins": 64,
+        "n": 120
+      },
+      "wind_3m": {
+        "wins": 97,
+        "n": 170
+      },
+      "diff_3m_minus_2m_pt": 3.7254901960784292
+    },
+    {
+      "code": "07",
+      "venue": "蒲郡",
+      "wind_2m": {
+        "wins": 98,
+        "n": 162
+      },
+      "wind_3m": {
+        "wins": 71,
+        "n": 126
+      },
+      "diff_3m_minus_2m_pt": -4.1446208112874805
+    },
+    {
+      "code": "08",
+      "venue": "常滑",
+      "wind_2m": {
+        "wins": 152,
+        "n": 243
+      },
+      "wind_3m": {
+        "wins": 100,
+        "n": 159
+      },
+      "diff_3m_minus_2m_pt": 0.3416414317881755
+    },
+    {
+      "code": "09",
+      "venue": "津",
+      "wind_2m": {
+        "wins": 68,
+        "n": 117
+      },
+      "wind_3m": {
+        "wins": 82,
+        "n": 151
+      },
+      "diff_3m_minus_2m_pt": -3.8150223580687204
+    },
+    {
+      "code": "10",
+      "venue": "三国",
+      "wind_2m": {
+        "wins": 72,
+        "n": 126
+      },
+      "wind_3m": {
+        "wins": 59,
+        "n": 96
+      },
+      "diff_3m_minus_2m_pt": 4.315476190476197
+    },
+    {
+      "code": "11",
+      "venue": "びわこ",
+      "wind_2m": {
+        "wins": 84,
+        "n": 133
+      },
+      "wind_3m": {
+        "wins": 70,
+        "n": 120
+      },
+      "diff_3m_minus_2m_pt": -4.824561403508765
+    },
+    {
+      "code": "12",
+      "venue": "住之江",
+      "wind_2m": {
+        "wins": 95,
+        "n": 162
+      },
+      "wind_3m": {
+        "wins": 43,
+        "n": 75
+      },
+      "diff_3m_minus_2m_pt": -1.3086419753086442
+    },
+    {
+      "code": "13",
+      "venue": "尼崎",
+      "wind_2m": {
+        "wins": 78,
+        "n": 138
+      },
+      "wind_3m": {
+        "wins": 98,
+        "n": 166
+      },
+      "diff_3m_minus_2m_pt": 2.514405447878476
+    },
+    {
+      "code": "14",
+      "venue": "鳴門",
+      "wind_2m": {
+        "wins": 107,
+        "n": 212
+      },
+      "wind_3m": {
+        "wins": 79,
+        "n": 151
+      },
+      "diff_3m_minus_2m_pt": 1.8461826814944349
+    },
+    {
+      "code": "15",
+      "venue": "丸亀",
+      "wind_2m": {
+        "wins": 85,
+        "n": 152
+      },
+      "wind_3m": {
+        "wins": 38,
+        "n": 80
+      },
+      "diff_3m_minus_2m_pt": -8.421052631578952
+    },
+    {
+      "code": "16",
+      "venue": "児島",
+      "wind_2m": {
+        "wins": 119,
+        "n": 206
+      },
+      "wind_3m": {
+        "wins": 75,
+        "n": 165
+      },
+      "diff_3m_minus_2m_pt": -12.31244483671668
+    },
+    {
+      "code": "17",
+      "venue": "宮島",
+      "wind_2m": {
+        "wins": 57,
+        "n": 88
+      },
+      "wind_3m": {
+        "wins": 43,
+        "n": 80
+      },
+      "diff_3m_minus_2m_pt": -11.022727272727273
+    },
+    {
+      "code": "18",
+      "venue": "徳山",
+      "wind_2m": {
+        "wins": 85,
+        "n": 147
+      },
+      "wind_3m": {
+        "wins": 113,
+        "n": 200
+      },
+      "diff_3m_minus_2m_pt": -1.3231292517006832
+    },
+    {
+      "code": "19",
+      "venue": "下関",
+      "wind_2m": {
+        "wins": 126,
+        "n": 196
+      },
+      "wind_3m": {
+        "wins": 91,
+        "n": 142
+      },
+      "diff_3m_minus_2m_pt": -0.2012072434607659
+    },
+    {
+      "code": "20",
+      "venue": "若松",
+      "wind_2m": {
+        "wins": 83,
+        "n": 136
+      },
+      "wind_3m": {
+        "wins": 74,
+        "n": 137
+      },
+      "diff_3m_minus_2m_pt": -7.0148132245599015
+    },
+    {
+      "code": "21",
+      "venue": "芦屋",
+      "wind_2m": {
+        "wins": 65,
+        "n": 99
+      },
+      "wind_3m": {
+        "wins": 44,
+        "n": 82
+      },
+      "diff_3m_minus_2m_pt": -11.9980290711998
+    },
+    {
+      "code": "22",
+      "venue": "福岡",
+      "wind_2m": {
+        "wins": 83,
+        "n": 142
+      },
+      "wind_3m": {
+        "wins": 163,
+        "n": 258
+      },
+      "diff_3m_minus_2m_pt": 4.727590348291299
+    },
+    {
+      "code": "23",
+      "venue": "唐津",
+      "wind_2m": {
+        "wins": 60,
+        "n": 90
+      },
+      "wind_3m": {
+        "wins": 63,
+        "n": 104
+      },
+      "diff_3m_minus_2m_pt": -6.08974358974359
+    },
+    {
+      "code": "24",
+      "venue": "大村",
+      "wind_2m": {
+        "wins": 93,
+        "n": 154
+      },
+      "wind_3m": {
+        "wins": 40,
+        "n": 65
+      },
+      "diff_3m_minus_2m_pt": 1.1488511488511488
+    }
+  ],
+  "monthly_2m_3m": [
+    {
+      "month": "2026-08",
+      "wind_2m": {
+        "wins": 727,
+        "n": 1274
+      },
+      "wind_3m": {
+        "wins": 668,
+        "n": 1206
+      },
+      "raw_diff_pt": -1.6746461309361083,
+      "venue_month_weighted_diff_pt": -2.5593250142202857
+    },
+    {
+      "month": "2026-09",
+      "wind_2m": {
+        "wins": 649,
+        "n": 1152
+      },
+      "wind_3m": {
+        "wins": 439,
+        "n": 795
+      },
+      "raw_diff_pt": -1.1166797693920372,
+      "venue_month_weighted_diff_pt": -2.2397096117752535
+    },
+    {
+      "month": "2026-10",
+      "wind_2m": {
+        "wins": 689,
+        "n": 1190
+      },
+      "wind_3m": {
+        "wins": 549,
+        "n": 988
+      },
+      "raw_diff_pt": -2.3323580444323477,
+      "venue_month_weighted_diff_pt": -2.778932083308962
+    }
+  ],
+  "national": {
+    "two": {
+      "wins": 2065,
+      "n": 3616,
+      "pct": 57.107300884955755
+    },
+    "three": {
+      "wins": 1656,
+      "n": 2989,
+      "pct": 55.403144864503176
+    },
+    "raw_diff_3_minus_2_pt": -1.704156020452574
+  },
+  "venue_month_overlap_weight": {
+    "n_strata": 72,
+    "difference_3_minus_2_pt": -2.5396855903718105,
+    "formula": "100*sum_s[(n2_s*n3_s/(n2_s+n3_s))*(p3_s-p2_s)]/sum_s[n2_s*n3_s/(n2_s+n3_s)]",
+    "min_n_each_10": {
+      "strata": 69,
+      "difference_pt": -2.383543970688565
+    },
+    "min_n_each_20": {
+      "strata": 62,
+      "difference_pt": -2.5535149570501967
+    },
+    "min_n_each_30": {
+      "strata": 45,
+      "difference_pt": -2.2706567225659366
+    }
+  },
+  "uncertainty": {
+    "method": "exploratory 6000-resample day-cluster bootstrap; 92 calendar days, fixed seed, percentile 95 intervals; posthoc not hypothesis-test certification",
+    "seed": 169220261108,
+    "n_resamples": 6000,
+    "raw_2_to_3_diff_95_pt": [
+      -3.9646204343140306,
+      0.4490316048227254
+    ],
+    "venue_month_adjusted_2_to_3_diff_95_pt": [
+      -4.854880439554346,
+      -0.18810994004882386
+    ],
+    "adjacent_day_bootstrap_95_pt": {
+      "1to2": {
+        "raw": [
+          -2.191601754603318,
+          2.814333839146988
+        ],
+        "venue_month_adjusted": [
+          -2.7437365737467996,
+          2.297765532733509
+        ]
+      },
+      "3to4": {
+        "raw": [
+          -3.570341078521144,
+          2.1185846407826605
+        ],
+        "venue_month_adjusted": [
+          -3.55196338705756,
+          2.226543085752492
+        ]
+      },
+      "4to5": {
+        "raw": [
+          -7.223816200888477,
+          1.1086674582085645
+        ],
+        "venue_month_adjusted": [
+          -8.292254748641216,
+          0.4149924316391503
+        ]
+      }
+    },
+    "notes": [
+      "Resampling calendar dates retains same-day within-date correlation; longer running race series and selection effects remain.",
+      "Four adjacent contrasts were inspected after results, with no adjusted family-wise inference.",
+      "CI excluding 0 for one exploratory stratified comparison does not establish 3m discontinuity, causality or predictive usefulness."
+    ]
+  },
+  "interpretation": {
+    "venue_2m_3m_lower": 15,
+    "higher": 9,
+    "prospective_prediction_improvement_proven": false,
+    "production_wind_threshold_approved": false,
+    "official_beforeinfo_same_race_pre_t12_verified": false,
+    "sharp_3m_discontinuity_proven": false
+  },
+  "research_scope": {
+    "main_modified": false,
+    "production_modified": false,
+    "ui_modified": false,
+    "scheduled_workflows_modified": false,
+    "other_pr_candidates_modified": false,
+    "automatic_merge": false
+  }
+}
