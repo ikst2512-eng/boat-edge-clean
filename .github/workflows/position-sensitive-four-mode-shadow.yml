@@ -127,6 +127,13 @@ jobs:
                   raise SystemExit(f"baseline_top5_exposure_mismatch:{mode}")
               for k in (1, 3, 5, 10):
                   q = row["topn"][str(k)]
+                  if mode == "narrow" and k == 10:
+                      if (q.get("applicable") is not False or
+                              q.get("mode_ticket_budget") != 5):
+                          raise SystemExit("narrow_top10_must_be_not_applicable")
+                      continue
+                  if q.get("applicable") is not True:
+                      raise SystemExit(f"unexpected_topn_not_applicable:{mode}:{k}")
                   hist = q["retained_tickets_histogram"]
                   if sum(hist.values()) != n or not 0 <= q["total_displaced_ticket_slots"] <= k*n:
                       raise SystemExit(f"topk_overlap_partition_invalid:{mode}:{k}")
