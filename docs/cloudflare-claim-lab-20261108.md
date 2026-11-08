@@ -37,3 +37,14 @@ The above proves **at-most-one claim winner inside one Cloudflare Durable Object
 - Keep existing production Render/GitHub schedules/main untouched; leave PR #1697 **Draft/unmerged**, no auto-merge or deployment.
 
 **Evidence semantics:** Green CI for the claim lab is limited to research evidence about local DO atomic reservations; it is **not** a green production backup certificate, a live Cloudflare CPU reading or an official recovery count.
+
+
+## Claimant ownership hardening (2026-11-08, research only)
+
+An additional security/integrity gap was found **inside the lab**: the original `reportRunId(kind, slotMs, runId)` permitted **any caller with access to that Durable Object binding** to set the reported GitHub run ID for someone else's existing claim. This did not create a public HTTP interface, but in a future multi-caller integration could corrupt the provenance ledger or falsely attribute a returned run ID.
+
+The **lab only** now issues `claim_token: crypto.randomUUID()` to the **one winning** `reserve()` caller and stores that UUID **in the same atomic SQLite INSERT** as the unique `(kind, slot_ms)` row. A losing caller receives no token. Updating a run ID requires `reportRunId(kind, slotMs, claimToken, runId)`, with a strict UUIDv4 format guard and atomic `WHERE claim_token=? AND reported_run_id IS NULL` condition. The token is not present in `inspect()`, and attempted cross-slot, cross-workflow, cross-object or unauthenticated updates are refused. No token is logged or committed in CI output. If the winning process loses its token or a response is ambiguous, the run ID remains unreported and the claim remains **irreversible**; it is not treated as safe to retry.
+
+New actual-local-Workerd tests verify that **32 concurrent reserve calls still have one winner**, losers never see claim tokens, a different caller cannot assign a run ID, and tokens cannot mutate another workflow-slot or differently named Durable Object. These tests strengthen attribution **only for Cloudflare callers using one shared object**. The single Durable Object **is not wired to the recovery Worker** and no native GitHub `schedule` or Render path consults it. The tests do **not** establish an end-to-end, cross-provider exactly-once protocol.
+
+**Operational caution:** The UUID is an internal bearer capability—not a GitHub PAT—and should never be included in public logs, audit JSON, web responses, PR comments or UI. The research schema now has an extra `claim_token TEXT NOT NULL` column. Because the lab has **never been deployed**, no live migration is needed. If an existing Cloudflare namespace or production schema is later introduced, do not change its SQLite schema without explicit versioned migration review. All live recovery NO-GO gates remain in force.
