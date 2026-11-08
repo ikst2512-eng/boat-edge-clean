@@ -97,6 +97,13 @@ class ReceiptEvidenceTests(unittest.TestCase):
             self.assertEqual(r["status"], "readback_late_or_same_second")
             self.assertFalse(r["remote_bytes_and_reported_clock_consistent"])
 
+    def test_remote_readback_before_local_creation_rejected(self):
+        c = candidate()
+        with self.assertRaisesRegex(ValueError, "reported_observation_precedes_candidate_finish"):
+            s.inspect(c, observed(c, "2026-11-09T01:50:59+00:00"))
+        with self.assertRaisesRegex(ValueError, "reported_observation_precedes_candidate_finish"):
+            s.inspect(c, observed(c, "2026-11-09T01:51:01+00:00"))
+
     def test_altered_original_candidate_or_wrong_cutoff_refused(self):
         c = candidate()
         c["candidates"]["baseline"][0] = "6-5-4"
