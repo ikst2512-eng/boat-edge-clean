@@ -1,3 +1,9 @@
+## 2026-11-08 20:38 JST｜原本ZIPの締切・勝率除外を再実行可能にする独立監査（Draft #1699追加）
+- 追加した`scripts/audit_four_mode_source_artifact.py`は**読み取り専用・ネットワークなし**でActionsのZIPを検査し、引数のGitHub artifact SHA256とZIP内の原本受信SHA256を検証。CSVの出走表・6艇カード（11/06・08）またはOpenAPIの原文（11/07）を再読し、各レースの締切からT−20安全ゲートと勝率0.0を再計算し、capture.logおよびcapture_status.jsonとの集合一致を必須とする。ソース/予想保存は変更しない。
+- **現物3 ZIPで再実行成功**：11/06は156R＝保存130+受信時刻からのT−20除外14+勝率0.0除外12（0.0は計13R、1Rは先に締切除外）、11/07は132R＝保存122+非公式OpenAPIでの0.0の10件フィルタ（タイトル/カード404、直接403は事実のまま）、11/08は132R＝保存116+T−20除外13+0.0除外3（0.0計7R、4Rは先に締切除外）。3日合計保存368、締切27、勝率条件25、原因不明0 **（検証対象は当該runの原本候補だけ）**。
+- 単体テスト`tests/test_audit_four_mode_source_artifact.py`の8件は合格（ZIPダイジェスト不一致、receipt改ざん、title/card不一致、保存漏れ、OpenAPIフィルタ矛盾、巨大ZIPを不合格にする）。既存read-only`four-mode-schedule-inventory.yml`のPR試験へ追加。これは無人収集の本番成功、公式データの真正性、Git遠隔first-seen、予想正式認定を主張しない。
+- 11/08 19:48 JSTのCLEAN救済 #42472938681は、eligible5/既存保存5/新規保存0（正常終了と新規Git追加は別）。20時台の再確認時点で11/08に観測した4モード本体schedule3件、CLEAN本体schedule5件から増加なし。Cloudflare外部起動のDraft #1697は未配備・別担当。mainは引き続き不変更、Draft #1699の手動審査とexact-head CI待ち。
+
 ## 2026-11-08｜11/06〜08公式原本ではない公開ソースのZIP再監査：勝率0.0と締切除外の完全内訳
 - **新規の一次証拠**：GitHub Actions 4モード初回取得のartifact ZIP #13467284567（11/06、SHA256 `33a0896d...`）、#13543204200（11/07、`d12d585e...`）、#13598726803（11/08、`e29c2d99...`）をダウンロードし、各ZIP digestをGitHub manifestと一致確認。ZIP内の元HTTPバイトとreceipt JSONのSHA256を検証してから6艇の全国勝率をレース別に点検。結果を監査原票 `docs/observations/four_mode_20261106_08_zero_rate_source_audit.json` に保存。情報源は公開CSV/非公式OpenAPIであり、公式性・独立の外部初見/T−12認定ではない。
 - 11/06:156R中CSV全国勝率0.0を含む13R（数値変換不能・0〜10逸脱は0）。当日の保存130、T−20 cutoff14、勝率0.0によるモデル除外12で件数一致。0.0のうち1Rは先に締切ゲートへ掛かっている。
