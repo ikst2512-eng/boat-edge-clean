@@ -32,6 +32,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Enforce preregistered Top1 selector byte pin before research replay
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          policy = json.loads(Path("research/four_mode_top1_pair_forward_protocol_20261108.json").read_bytes())
+          selector = Path("four_mode_all_mode_same_job_shadow.py").read_bytes()
+          git_blob = hashlib.sha1(b"blob " + str(len(selector)).encode("ascii") + b"\0" + selector).hexdigest()
+          if (policy.get("schema") != "FOUR_MODE_TOP1_PAIR_FORWARD_PREREGISTRATION_V1"
+                  or policy.get("selector_file") != "four_mode_all_mode_same_job_shadow.py"
+                  or policy.get("pinned_selector_git_blob_sha1") != git_blob
+                  or policy.get("eligible_deadline_start_jst") != "2026-11-09T00:00:00+09:00"
+                  or policy.get("eligible_deadline_end_jst") != "2026-12-31T23:59:59+09:00"
+                  or policy.get("promotion_allowed") is not False
+                  or policy.get("formal_count") != 0):
+              raise SystemExit("preregistered_top1_selector_or_cohort_drift")
+          print("TOP1_SELECTOR_PREREGISTERED_BLOB_VERIFIED:" + git_blob)
+          PY
       - name: Validate audit logic
         run: python -m unittest -v test_four_mode_version_topn_audit
       - name: Check frozen future-only four-mode study policy and leakage refusal
@@ -41,19 +60,22 @@ jobs:
       - name: Replay real Nov 5 original forecasts without reading results
         run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
       # Historical input-only check. This mode never opens confirmed results,
-      # so it cannot turn a settled Nov 6/7 race into prospective evidence.
-      - name: Replay saved Nov 6 and Nov 7 V2 inputs without any result reads
+      # so it cannot turn a settled Nov 6-8 race into prospective evidence.
+      - name: Replay saved Nov 6-8 V2 inputs without any result reads
         shell: bash
         run: |
           set -euo pipefail
           python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261106 | tee four_mode_shadow_input_replay_20261106.log
           python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261107 | tee four_mode_shadow_input_replay_20261107.log
+          python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261108 | tee four_mode_shadow_input_replay_20261108.log
       - name: Reject incomplete real V2 replays and protected-rank drift
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          for day, count in (("20261106", 130), ("20261107", 122)):
+          # Nov 8 had 116 initial forecasts; additional same-day first-adds
+          # must be included rather than causing an obsolete hardcoded count.
+          for day, minimum in (("20261106", 130), ("20261107", 122), ("20261108", 116)):
               lines = Path(f"four_mode_shadow_input_replay_{day}.log").read_text(
                   encoding="utf-8"
               ).splitlines()
@@ -61,8 +83,10 @@ jobs:
               if len(lines) != 1 or not lines[0].startswith(prefix):
                   raise SystemExit(f"unverifiable_input_replay:{day}")
               report = json.loads(lines[0][len(prefix):])
+              count = report.get("original_v2_races")
               if (report.get("day") != day
-                      or report.get("original_v2_races") != count
+                      or type(count) is not int or count < minimum
+                      or (day != "20261108" and count != minimum)
                       or report.get("excluded") != {}
                       or report.get("formal") is not False
                       or report.get("result_files_read") is not False
@@ -77,6 +101,13 @@ jobs:
                   if (changes.get("changed_all_tickets") != count
                           or changes.get("changed_top1") != 0):
                       raise SystemExit(f"method_or_top1_drift:{day}:{mode}")
+              top1 = report.get("top1_pair_changes")
+              if (type(top1) is not dict or set(top1) != set(modes)
+                      or any(type(x.get("changed_top1")) is not int
+                             or not 0 <= x["changed_top1"] <= count
+                             or x.get("preserved_top3_5_10") != count
+                             for x in top1.values())):
+                  raise SystemExit(f"top1_membership_or_exposure_drift:{day}")
               if (modes["hit"].get("changed_top3") != 0
                       or modes["balance"].get("changed_top3") != 0
                       or modes["hole"].get("changed_top5") != 0):
@@ -106,4 +137,5 @@ jobs:
             version_stratified_topn_report.log
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
+            four_mode_shadow_input_replay_20261108.log
           retention-days: 30
