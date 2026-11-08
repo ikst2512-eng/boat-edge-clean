@@ -114,3 +114,31 @@ The guard has a synthetic test case in which the candidate's **Top1 gains 10 hit
 **This is a safety test, not real performance data.** The user requirement to retain Top5/Top10 quality remains unresolved until a future result-independent predeadline receipt pipeline and prespecified confirmatory statistics are genuinely established. The guard always returns `formal=false`, `promotion_allowed=false`, `model_improvement_proven=false`.
 
 The new CI tests also check zero prospective samples, tampering of aggregate counters, forged verification flags, inconsistent TopK hit counts and the unmodified original 116/116 result-blind replay. Do NOT merge or deploy this Draft, alter #1693's overall-accuracy cohort, borrow the hole mode's dedicated experiment or retrofit outcomes to the original selector.
+
+## 2026-11-08 20:24 JST: independent exact-paired statistical screen + input coverage
+
+**Exact-head research CI** [#42475577778](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42475577778) **SUCCESS**, with **39/39 tests** and old saved Nov-08 V2 predictions reproduced **116/116**, 0 excluded. The registered frozen selector and its dependencies were verified unchanged.
+
+### Distinguish observed net difference from statistical evidence
+
+New independent `position_sensitive_paired_inference.py` consumes the existing reference-only paired aggregate and the already independent structural guard. Only if **all 600 original slots have outcomes** (pilot 300 and confirmation 300) will it run an **exploratory** one-sided exact McNemar/sign-tail test on paired gained/lost outcomes for confirmation Top1 across all four modes (Holm family correction), and separately Top5/Top10 across **seven applicable mode×TopK comparisons** (Holm correction; narrow Top10 is N/A, not a ten-ticket result). There is no outcome access, network access, collection or candidate revision in this diagnostic.
+
+This tests a **superiority** signal, *not statistical non-inferiority*. A positive/zero observed delta **does not** demonstrate that Top5/10 cannot be worse; lack of significance is **inconclusive**. Even extreme favorable synthetic 300+300 test counters leave `formal=false`, `promotion_allowed=false`, `model_improvement_proven=false`. The analysis code adds no confirmatory statistical specification to the frozen forward protocol, and **cannot** verify between-race independence, T−12 candidate first-remote publication, complete workflow inventory, official six/120, payout provenance or authenticated official results. Formal promotion remains blocked. The Top1/Top5/Top10 synthetic counterexamples and negative tests are unit fixtures, not observed racing performance.
+
+### What actually exists in original Nov-08 archived V2 inputs
+
+Independent read-only `position_sensitive_feature_inventory.py` authenticated **same archived original model board reproduction** before inventory. Its count reports top-level structured field **presence only** (not authenticity or official T−12 completeness).
+
+| Field recorded in the original 116 archived forecasts | Original records with field |
+| --- | ---: |
+| Six national win rates | 116/116 |
+| Public title/race-card source SHA-256 digests | 116/116 |
+| Structured official beforeinfo object | 0/116 |
+| Structured six-boat exhibition board | 0/116 |
+| Structured actual entry, motor and exhibition-ST six-vectors | 0/116 each |
+| Structured wind or wave height | 0/116 each |
+| Structured 120-odds board | 0/116 |
+
+These are **top-level archive schema presence** counts; source data might exist elsewhere in independently maintained collection services, but this Draft has not authenticated or used it. Even a structured nonempty value would not prove official source, clock or identity. The frozen shadow continues to consume **only six national win rates**, and the unchanged research model preserves first-boat probability mass. The requested actual entry, exhibition, ST, motor, wall, wind and venue-specific effects require **a later separately registered hypothesis** with independently verifiable complete pre-result feature receipts; do not retrofit into the existing frozen candidate or step into #1692/#1693/official T−12 collector ownership.
+
+**Decision now:** structural repetition exposed and ticket turnover measured; true paired future precision, statistical non-inferiority, official feature eligibility and ROI **unproven**. No main/Render/live/UI/archive/collector change; Draft/manual approval only.
