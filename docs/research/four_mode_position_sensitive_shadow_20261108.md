@@ -43,3 +43,21 @@ This checks every present original saved V2 against the recomputed baseline and 
 > Main is unchanged. Inspect the position-sensitive four-mode shadow Draft and its tests. Current V2 fixes second/third ordering to one historical prior; new candidate independently tilts second/third probabilities using six national rates and preserves each first-boat mass. Its 12-race input-only replay changes Top1 in 9/12 and Top5 membership in 11/12, NOT verified accuracy. Coordinate with #1693 (forward validation), #1692 (venue/wind evidence), #1679 (UI/Render). Never overwrite old predictions or auto-merge. Do not adopt until independent future paired evidence proves gain.
 
 **No automatic synchronization to separate ChatGPT threads exists**; the GitHub Draft is the canonical shared handoff.
+
+## Exact-head GitHub Actions verification (2026-11-08 15:52 JST)
+
+[Read-only CI #42456489975](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42456489975) **SUCCESS**, at Draft head `c20ce06e600cd11b8c93c42bfe4bc8129765f2f2`. Eight unit and negative tests passed. Input-only replay compared **116/116** original saved V2 files, **0 excluded**, verified exact recomputation of their original tickets and NEVER loaded confirmed results. No publication, model or runtime deployment.
+
+| Saved Nov-08 cohort metric | Existing V2 | Position-sensitive shadow |
+| --- | ---: | ---: |
+| Hit/narrow/balance most common Top1 (`1-2-4`) | 109/116 | 42/116 |
+| Hit/narrow/balance distinct Top1 combinations | 3 | 11 |
+| Hit/narrow distinct Top5 ordered lists | 13 | 95 |
+| Balance distinct Top5 ordered lists | 19 | 100 |
+| Hole distinct Top1 combinations | 15 | 40 |
+| Hit/narrow Top1 changed vs baseline | — | 76/116 |
+| Hit/narrow Top5 membership changed vs baseline | — | 103/116 |
+| Balance Top5 membership changed vs baseline | — | 106/116 |
+| Hole Top1 changed vs baseline | — | 107/116 |
+
+Although 6/116 hit/narrow/balance Top1 **first-boat numbers** changed, the candidate preserves the marginal first-boat probability exactly; this is reallocation among 2nd/3rd combinations, NOT evidence of improved first-place forecasts. **No historical outcome scoring or forward holdout was performed.** Archived original and live predictions are unchanged.
