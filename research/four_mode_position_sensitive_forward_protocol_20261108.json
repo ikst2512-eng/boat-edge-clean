@@ -1,0 +1,66 @@
+{
+  "schema": "FOUR_MODE_POSITION_SENSITIVE_FORWARD_PREREGISTRATION_V1",
+  "registered_jst_date": "2026-11-08",
+  "study_status": "draft_manual_review_no_candidate_publication",
+  "candidate_model": "RESEARCH_POSITION_SENSITIVE_V1_UNCALIBRATED",
+  "baseline_model": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED",
+  "candidate_selector_git_blob_sha1": "037dc5624ed11e7200e0ab4d940eae0dff8eb440",
+  "original_model_git_blob_sha1": "19137116f8ec79d467f73c57c537a9a95f50110d",
+  "mode_selector_git_blob_sha1": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d",
+  "hypothesis": "Race-specific strength of second and third boats changes triple ticket ordering while all first-boat mass is preserved",
+  "factor_second_beta": 0.5,
+  "factor_third_beta": 0.25,
+  "input_fields": [
+    "race_code",
+    "input_national_win_rates",
+    "generated_at_jst",
+    "deadline_jst",
+    "source_title_received_jst",
+    "source_cards_received_jst",
+    "modes"
+  ],
+  "excluded_discovery_dates": "2026-11-05 through 2026-11-08",
+  "eligible_deadline_start_jst": "2026-11-09T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "pilot_races": 300,
+  "confirmation_races": 300,
+  "allocation": "earliest_600_valid_first_remote_pre_result_captures_in_deadline_then_race_code_order_no_missing_result_replacement",
+  "primary_metric": "paired_top1_exact_trifecta_confirmatory_four_modes_with_Holm_correction",
+  "secondary_metrics": [
+    "top3",
+    "top5",
+    "top10",
+    "independent_ROI_if_verified_odds_and_payout",
+    "probability_calibration_if_proven"
+  ],
+  "compare_counts": {
+    "narrow": 5,
+    "hit": 10,
+    "balance": 16,
+    "hole": 22
+  },
+  "freeze_requirements": [
+    "candidate_bytes_before_result_and_before_T_minus_12",
+    "candidate_first_remote_receipt_before_T_minus_12_independently_attested",
+    "original_first_add_and_original_blob_sha256",
+    "complete_schedule_and_workflow_dispatch_run_inventory",
+    "all_predeadline_official_beforeinfo_six_and_odds_120_when_formal"
+  ],
+  "prohibited": [
+    "selector_change_after_registration_without_new_study_id",
+    "read_outcomes_during_candidate_generation",
+    "replace_invalid_or_missing_results",
+    "choose_research_hyperparameters_using_heldout_wins",
+    "claim_first_remote_receipt_from_local_timestamp",
+    "overwrite_original_forecasts",
+    "auto_merge_or_deploy"
+  ],
+  "formal": false,
+  "model_improvement_proven": false,
+  "promotion_allowed": false,
+  "external_coordination": [
+    "1693 existing distinct selector and 300+300 protocol unchanged",
+    "1692 official venue/wind inputs not yet scoreable",
+    "1679 UI/Render separate"
+  ]
+}
