@@ -1,0 +1,48 @@
+name: CLEAN Render readiness heartbeat (draft mitigation)
+
+# Only active when this workflow exists on the default branch.
+# GitHub schedule delivery is best-effort: this reduces idle gaps but is NOT
+# a guarantee against Render Free spin-down or failed wake-up.
+on:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/render-readiness-heartbeat.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-readiness-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  public-http-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Check real public Render HTTP 200 and exact body
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
+          # A request may keep a live Free instance from becoming idle.
+          # Delayed or dropped GitHub cron runs can still allow spin-down.
+          # No credentials, mutations, restarts, deploys, retries or fake passes.
+          if ! result="$(curl --silent --show-error \
+            --connect-timeout 5 --max-time 30 --retry 0 \
+            --output "$body" \
+            --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}' \
+            'https://boat-edge-clean.onrender.com/healthz' 2>&1)"; then
+            echo "::error::RENDER_HTTP_UNAVAILABLE $(printf '%s' "$result" | head -c 300)"
+            exit 1
+          fi
+          echo "RENDER_READINESS_PROBE $result"
+          if [[ "$result" != http=200* ]] || [[ "$(cat "$body")" != "ok" ]]; then
+            echo "::error::RENDER_HEALTH_NOT_200_OK"
+            exit 1
+          fi
+          echo "RENDER_PUBLIC_HEALTH_PASS"
