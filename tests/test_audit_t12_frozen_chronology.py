@@ -48,6 +48,14 @@ class FrozenChronologyAuditTests(unittest.TestCase):
                       report["missing_requirements"])
         self.assertFalse(report["forecast_usable"])
 
+    def test_exact_same_receipt_and_generation_time_is_not_proof_of_order(self):
+        equal = clean(generated_at=ODDS)
+        result = inspect(pair(), equal)
+        self.assertFalse(result["forecast_generated_after_official_pair"])
+        self.assertIn("official_original_received_after_frozen_forecast",
+                      result["missing_requirements"])
+        self.assertFalse(result["accuracy_scoring_allowed"])
+
     def test_later_prospective_forecast_still_lacks_third_original_and_linkage(self):
         later = clean(generated_at="2026-11-08T14:16:01+09:00")
         report = inspect(pair(), later)
