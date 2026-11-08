@@ -3,6 +3,7 @@
 // Usage: node scripts/audit_cloudflare_observer_telemetry.mjs PATH_TO_NORMALIZED_EXPORT.json
 import {readFileSync} from 'node:fs';
 import {auditObserverTelemetry} from '../cloudflare/audit_observer_telemetry.mjs';
+import {auditRawWorkersLogs, RAW_LOG_SCHEMA} from '../cloudflare/audit_observer_raw_logs.mjs';
 
 if (process.argv.length !== 3) {
   console.error('usage: node scripts/audit_cloudflare_observer_telemetry.mjs <normalized-export.json>');
@@ -10,7 +11,8 @@ if (process.argv.length !== 3) {
 } else {
   try {
     const data = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-    const result = auditObserverTelemetry(data);
+    const result = data?.schema === RAW_LOG_SCHEMA
+      ? auditRawWorkersLogs(data) : auditObserverTelemetry(data);
     // Output is intentionally small, deterministic, and contains no raw logs
     // or credentials; retain original Cloudflare evidence separately.
     console.log(JSON.stringify(result, null, 2));
