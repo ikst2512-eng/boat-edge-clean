@@ -376,6 +376,42 @@ jobs:
                   if h!=sum(z["unarchived_published_shadow_only"]["original_saved_top_hits"][mode][k]
                             for z in r["by_day"].values()):
                       raise SystemExit("public_shadow_reconciliation:"+mode+":"+k)
+          # Fail closed on unarchived-source / confirmed-only cohort denominator mixing.
+          union=r["historical_original_union_reference_only"]
+          known=union["valid_saved_forecasts_with_persisted_or_public_result"]
+          missing=union["unknown_or_unobserved_result_count"]
+          if (union["persisted_result_count"]!=r["reference_results_already_saved"]
+                  or union["newly_observed_public_unarchived_result_count"]!=preview["races"]
+                  or known!=r["reference_results_already_saved"]+preview["races"]
+                  or missing!=r["unresolved_saved_result_files"]-preview["races"]
+                  or missing<0 or union["eligible_archive_roster_without_exclusions"]!=known+missing
+                  or union.get("not_official_and_not_prospective") is not True
+                  or union.get("do_not_replace_persisted_denominator") is not True
+                  or union.get("incomplete_or_conflicting_source_cannot_be_promoted") is not True
+                  or (union["status"]=="COMPLETE_PUBLIC_SNAPSHOT_AND_CONFLICT_FREE")!=
+                      (r["source_observation_days"]==len(r["days"]) and not r["source_errors"]
+                       and r["source_conflict_count"]==0)):
+              raise SystemExit("postrace_original_union_denominator_or_status_drift")
+          for mode, vals in union["modes"].items():
+              for n in (1,3,5,10):
+                  key="top"+str(n)
+                  hit=vals["top_hits_by_evidence_class"][key]
+                  if (hit["saved_only"]+hit["public_unarchived_only"]!=hit["combined_observed"]
+                          or hit["public_unarchived_only"]!=preview["original_saved_top_hits"][mode][key]
+                          or not (0<=hit["combined_observed"]<=known)):
+                      raise SystemExit("postrace_original_union_hit_drift:"+mode+":"+key)
+                  expected=round(100*hit["combined_observed"]/known,2) if known else None
+                  if vals["top_pct_of_currently_observed_outcomes_reference_only"][key]!=expected:
+                      raise SystemExit("postrace_original_union_percentage_drift:"+mode+":"+key)
+                  bounds=vals["top_bounds_on_saved_archive_roster_not_confidence_intervals"][key]
+                  n_total=known+missing
+                  lo=round(100*hit["combined_observed"]/n_total,2) if n_total else None
+                  hi=round(100*(hit["combined_observed"]+missing)/n_total,2) if n_total else None
+                  if (bounds["lower_if_all_unknown_miss_pct"]!=lo or
+                          bounds["upper_if_all_unknown_hit_pct"]!=hi):
+                      raise SystemExit("postrace_original_union_bounds_drift:"+mode+":"+key)
+          print("PUBLIC_SOURCE_ORIGINAL_UNION_ONLY:observed="+str(known)+
+                ":unobserved="+str(missing)+":saved="+str(union["persisted_result_count"]))
           print("PUBLIC_SOURCE_SHADOW_ORIGINAL_ONLY:"+str(preview["races"])+
                 ":top10="+str({m:v["top10"] for m,v in preview["original_saved_top_hits"].items()}))
           if (r.get("public_raw_csv_evidence_is_ci_artifact_only") is not True
