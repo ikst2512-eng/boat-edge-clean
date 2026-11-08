@@ -47,13 +47,20 @@ export function auditRawWorkersLogs(input) {
   if(input.total_matched_events!==records.length) add('raw_total_count_mismatch');
   if(records.length>2000) add('raw_unexpected_volume');
 
-  const groups=new Map();
+  const groups=new Map(), seenCloudflareEventIds=new Set();
   for(const [i, row] of records.entries()){
     const prefix='record['+i+']';
     if(!isObj(row) || !isObj(row.$metadata) || !isObj(row.$workers)){
       add(prefix+':missing_cloudflare_metadata');continue;
     }
     const meta=row.$metadata,worker=row.$workers,reqId=meta.requestId;
+    // Cloudflare documents $metadata.id as the unique telemetry EVENT cursor;
+    // requestId is different: it is shared by the invocation and its console log.
+    // Repeated event IDs reveal overlapping pages/replayed raw rows and must
+    // fail even if every requestId has exactly two otherwise plausible records.
+    if(typeof meta.id!=='string' || !meta.id.trim()) add(prefix+':missing_event_cursor');
+    else if(seenCloudflareEventIds.has(meta.id)) add(prefix+':duplicate_event_cursor');
+    else seenCloudflareEventIds.add(meta.id);
     if(!validId(reqId)){add(prefix+':invalid_request_id');continue;}
     if(meta.service!==OBSERVER_NAME || worker.scriptName!==OBSERVER_NAME){
       add(prefix+':wrong_worker_identity');continue;
