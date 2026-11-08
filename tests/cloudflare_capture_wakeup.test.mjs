@@ -487,3 +487,110 @@ test('PR policy tests use read-only permissions and never execute under the oper
   assert.ok(!operational.includes('Run Cloudflare external wakeup safety tests'),'no PR code under privileged job');
   assert.equal((yaml.match(/- cron:/g)||[]).length,4,'preserve four original fallback cron expressions');
 });
+
+
+import {AUDIT_SCHEMA, OBSERVER_NAME, expectedObserverTicks, auditObserverTelemetry}
+  from '../cloudflare/audit_observer_telemetry.mjs';
+
+function syntheticObserverDay(utc_day = '2026-11-09') {
+  const ticks = expectedObserverTicks(utc_day);
+  return {
+    schema: AUDIT_SCHEMA, worker: OBSERVER_NAME,
+    source: 'cloudflare_workers_invocation_and_custom_logs',
+    complete_export: true, deployment_id: 'TEST-DEPLOY-ONLY',
+    utc_day,
+    samples: ticks.map((tick, index) => {
+      const observed = tick + 1000;
+      return {
+        request_id: 'synthetic-test-' + index,
+        cron: '*/5 22-23,0-13 * * *',
+        scheduled_at_utc: new Date(tick).toISOString(),
+        observed_at_utc: new Date(observed).toISOString(),
+        cpu_time_ms: 2.5, outcome: 'ok',
+        custom_report: observe({scheduledTime:tick,now:observed}),
+      };
+    }),
+  };
+}
+
+test('observer CPU audit requires all 192 configured UTC daily Cron ticks with real CPU metadata',()=>{
+  const out=auditObserverTelemetry(syntheticObserverDay());
+  assert.equal(out.expected_ticks,192);
+  assert.equal(out.unique_observed_ticks,192);
+  assert.equal(out.missing_ticks,0);
+  assert.equal(out.cpu_ms.max,2.5);
+  assert.equal(out.observer_day_pass,true);
+  assert.equal(out.original_cloudflare_log_authenticity_independently_proven,false);
+  assert.equal(out.actual_github_dispatch_proven,false);
+  assert.equal(out.formal_t_minus_12_proven,false);
+});
+
+test('observer telemetry rejects any missing UTC tick, never treating partial logs as a complete day',()=>{
+  const e=syntheticObserverDay();e.samples.pop();
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.missing_ticks,1);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('missing_scheduled_ticks')));
+});
+
+test('observer telemetry rejects duplicate scheduled invocations even with distinct request IDs',()=>{
+  const e=syntheticObserverDay();
+  e.samples.push({...e.samples[1],request_id:'synthetic-extra-request'});
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.samples_supplied,193);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('duplicate_scheduled_tick')));
+});
+
+test('observer telemetry rejects Cloudflare CPU time over the Free per-cron 10 ms ceiling',()=>{
+  const e=syntheticObserverDay();e.samples[0].cpu_time_ms=10.01;
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.cpu_ms.max,10.01);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('cpu_over_10ms')));
+});
+
+test('observer telemetry rejects missing CPU measurement and exceededCpu outcomes',()=>{
+  const e=syntheticObserverDay();delete e.samples[0].cpu_time_ms;e.samples[1].outcome='exceededCpu';
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('cpu_measurement_missing_or_invalid')));
+  assert.ok(out.issues.some(x=>x.includes('non_ok_invocation_outcome')));
+});
+
+test('observer telemetry rejects delayed Cron beyond the existing 90s admission window',()=>{
+  const e=syntheticObserverDay();
+  const tick=Date.parse(e.samples[0].scheduled_at_utc);
+  e.samples[0].observed_at_utc=new Date(tick+90_001).toISOString();
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('late_future_or_invalid_observation')));
+});
+
+test('observer telemetry rejects a forged or mismatched no-network custom observer report',()=>{
+  const e=syntheticObserverDay();
+  e.samples[0].custom_report.github_history_checked=true;
+  e.samples[1].custom_report.eligible_slots_jst.clean='fake';
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('observer_report_missing_or_mismatched')));
+});
+
+test('observer telemetry rejects wrong worker, missing provenance and incomplete export attestations',()=>{
+  const e=syntheticObserverDay();
+  e.worker='different-worker';e.source='manually-guessed';e.complete_export=false;e.deployment_id='';
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.observer_day_pass,false);
+  for(const reason of ['unexpected_worker','source_not_asserted','export_not_asserted_complete','deployment_identity_missing_or_invalid'])
+    assert.ok(out.issues.includes(reason));
+});
+
+test('observer telemetry rejects malformed day and out-of-cron samples',()=>{
+  assert.throws(()=>expectedObserverTicks('2026-11-31'),/invalid_utc_day/);
+  const e=syntheticObserverDay();
+  e.samples[0].scheduled_at_utc='2026-11-09T15:00:00.000Z';
+  const out=auditObserverTelemetry(e);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.issues.some(x=>x.includes('unexpected_scheduled_tick')));
+  assert.equal(out.missing_ticks,1);
+});
