@@ -1,3 +1,9 @@
+## 2026-11-08 21:00 JST｜GitHub定期起動の「ページ完全」と「1日完了」の誤認防止（Draft #1699）
+- 最新main `6b371040fd2fc4398bfa882e6557c333cc0800c8` 変更なし。11/08のGitHub Actions schedule実行はCLEAN6回（最後20:33 JST #42476249795）、4モード3回（最後14:52 JST #42452472315）。見逃しが確実と認定された個別Cron slot数ではなく、観測された実行数。CLEAN最終runは132Rを取得したが締切安全時間外のため新規保存0。研究予想の既存Git初回追加はCLEAN117、4モード116のまま。
+- Cloudflare独立起動の別担当Draft #1697（head `e74222cb21c285e4c633d54f902601dd53b0d69a`）は最新Python/Workerd 2 jobs success/復旧watchdog skip、ワーカー未配備。監視専用`wrangler.observer.toml`は別Worker・Secretsなし・GitHubネットワークコードなしで、最初の有効な実測経路。ただしCloudflare実Cron/CPU 10ms/新規Git first-addは依然未実証、PR CIは実運用の代替不可。他担当修正と重複しない。
+- Draft #1699の`audit_four_mode_daily_schedule_runs.py`には、これまで`full_day_metadata_coverage`が「GitHub API履歴ページの前日境界まで取得できた」だけを指すにもかかわらず「当日全枠完了」と誤読される危険があった。後方互換の既存キーを保持し、新しい`audit_as_of_jst`・`jst_calendar_day_elapsed_at_audit`・`all_nominal_daily_slots_due_at_audit`・`full_calendar_day_schedule_delivery_verified=false`を明示。GitHub created_atだけでは個別予定Cronの配信証明をしない。
+- 追加した朝09:20 JST、当日20:57 JST、翌日03:03 JSTの時刻回帰テストとnaive時計の拒否テストで、ページが揃っていても当日途中や翌日後ですら全56枠実行済みとは認定しない。**監査・表示だけの変更、cron・writer・予想/モデル・mainには反映しない。** PR最新head CIで最終確認し、人手審査までDraftを維持。
+
 ## 2026-11-08 20:46 JST｜保存原本監査の不正ZIP耐性強化（Draft #1699）
 - 11/08夜の追加観測：CLEAN schedule run #42476249795 は20:33 JSTごろに成功終了したが、その時点の出走表132行は全てT−12を過ぎ、`PROSPECTIVE_CAPTURE_ZERO`（matching132, eligible0）、新規保存0、前回までのGitアーカイブ117件を維持。遅い定期起動が成功しても朝レースの過去保存は回復しない。20時台時点の11/08定期起動はCLEAN6件・4モード3件。実行成功・原本保存・正式証明を区別。
 - 実物ZIP検査用`scripts/audit_four_mode_source_artifact.py`は、受信原本byte SHAだけでなく、書き込み実装と同じ`SHA256(source URL + NUL + raw bytes)`で算出したファイル名識別子も検証。余計な生原本bin、manifestだけの孤児ファイル、重複/非許可rawパスを全拒否。ZIPの圧縮後4MB、各エントリ2MB、展開後合計8MB、総エントリ128という有界読み込みを追加。これらはZIPのオフライン監査安全性だけを変更し、公式データやモデル値・予想保存へ影響しない。
