@@ -8,9 +8,9 @@ document.documentElement.dataset.cleanNavigationInit='1';
 if(location.hostname.endsWith('.github.io')&&location.pathname.startsWith('/boat-edge-clean/')){
  const review=nav.querySelector('a[href="/review"]');
  if(review){const target=new URL(location.href);target.searchParams.set('screen','review');review.href=target.pathname+target.search;}
- // The candidate list is a Render route, not a GitHub Pages file.
+ // GitHub Pages serves the candidate archive independently of sleeping Render.
  const selection=document.querySelector('.site-head .header-candidate-tab[href="/selection"]');
- if(selection)selection.href='https://boat-edge-clean.onrender.com/selection';
+ if(selection)selection.href='/boat-edge-clean/candidates.html';
 }
 document.querySelectorAll('.site-global-nav a, .site-head .header-candidate-tab').forEach(link=>link.addEventListener('click',()=>{
  const destination=new URL(link.href);
