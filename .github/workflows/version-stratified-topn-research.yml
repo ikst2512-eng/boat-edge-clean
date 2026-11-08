@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - four_mode_version_topn_audit.py
+      - four_mode_nov05_08_daily_reference_audit.py
+      - test_four_mode_nov05_08_daily_reference_audit.py
       - test_four_mode_version_topn_audit.py
       - four_mode_forward_paired_score.py
       - four_mode_all_mode_same_job_shadow.py
@@ -251,6 +253,52 @@ jobs:
         run: python four_mode_all_shadow_reference_review.py
       - name: Report forward gate status (no candidate or result invented)
         run: python four_mode_forward_paired_score.py
+      - name: Verify daily saved-original/result audit exclusions (no candidate scoring)
+        run: python -m unittest -v test_four_mode_nov05_08_daily_reference_audit
+      - name: Audit Nov5-8 original V2 Top1/3/5/10 and three distinct miss positions
+        run: python four_mode_nov05_08_daily_reference_audit.py --output four_mode_nov05_08_reference.json
+      - name: Verify complete Nov5 baseline and daily denominator integrity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_nov05_08_reference.json").read_text())
+          if (v.get("formal") is not False or v.get("formal_count") != 0
+                  or v.get("model_improvement_proven") is not False
+                  or v.get("model_promotion_allowed") is not False
+                  or v.get("result_source_bytes_reverified") is not False
+                  or v.get("prospective_candidate_pairs") != 0
+                  or set(v.get("by_day",{})) != {"20261105","20261106","20261107","20261108"}):
+              raise SystemExit("reference_gate_or_dates_invalid")
+          expected={"20261105":106,"20261106":130,"20261107":122,"20261108":116}
+          for day, minimum in expected.items():
+              row=v["by_day"][day]
+              n=row["forecast_files"]
+              if (n < minimum or (day!="20261108" and n!=minimum)
+                      or n!=row["evaluated"]+row["pending_result_count"]+row["excluded_count"]):
+                  raise SystemExit("daily_source_roster_or_denominator_mismatch:"+day)
+              for mode, group in row["mode"].items():
+                  if sum(group["miss_partition"].values())!=row["evaluated"]:
+                      raise SystemExit("miss_partition_mismatch:"+day+":"+mode)
+              print("NOV_REFERENCE_DAY:"+day+":forecast="+str(n)+
+                    ":evaluated="+str(row["evaluated"])+
+                    ":pending="+str(row["pending_result_count"])+
+                    ":excluded="+str(row["excluded_count"]))
+          base=v["by_day"]["20261105"]
+          expected_top={
+              "narrow":[4,21,33,33],
+              "hit":[4,21,33,53],
+              "balance":[4,23,32,52],
+              "hole":[2,6,9,16]}
+          if (base["evaluated"]!=106 or base["excluded_count"]!=0
+                  or base["pending_result_count"]!=0):
+              raise SystemExit("nov05_reference_denominator_drift")
+          for mode,hits in expected_top.items():
+              got=[base["mode"][mode]["top_hits"]["top"+str(n)] for n in (1,3,5,10)]
+              if got!=hits:
+                  raise SystemExit("nov05_reference_hit_drift:"+mode+":"+str(got))
+          print("NOV05_106_REFERENCE_SCORES_REPRODUCED")
+          PY
       - name: Audit real frozen historical archives by version and day
         run: python four_mode_version_topn_audit.py | tee version_stratified_topn_report.log
       - uses: actions/upload-artifact@v4
@@ -258,6 +306,7 @@ jobs:
           name: historical-version-topn-${{ github.run_id }}
           path: |
             version_stratified_topn_report.log
+            four_mode_nov05_08_reference.json
             hit_head_prior_nov8_input_only.json
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
