@@ -14,6 +14,13 @@ def frozen(code):
     r = candidate()
     r["race_code"] = code
     r["source_git_blob_sha1"] = "b" * 40
+    r["model_version"] = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
+    r["locked_selector_git_blobs"] = {
+        "hole_third_choice_research.py": "579edc1ae846489d447307fbf03b35fc7d4c09b9",
+        "hole_pair_diversification_research.py": "56f06c10f6d07e03b2e37624ecf57dc6de7d8748",
+        "hole_top5_safe_bundle_research.py": "a43f53d898ac73829e7f2b24f81624d69d26d74a",
+        "hole_pair_third_bundle_research.py": "88c4ed506588a24bb593d104b5d0f59c7502d73a",
+    }
     return r
 
 
