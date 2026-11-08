@@ -284,6 +284,46 @@ jobs:
                     ":evaluated="+str(row["evaluated"])+
                     ":pending="+str(row["pending_result_count"])+
                     ":excluded="+str(row["excluded_count"]))
+          overall=v["reference_overall"]
+          known=overall["confirmed_denominator"]
+          missing=overall["pending_outcome_count"]
+          if (known!=v["totals"]["evaluated"] or missing!=v["totals"]["pending_results"]
+                  or overall["known_plus_pending_denominator"]!=known+missing
+                  or overall.get("missing_result_intervals_are_not_confidence_intervals") is not True):
+              raise SystemExit("pooled_denominator_or_uncertainty_flag_invalid")
+          mode_data=overall["mode"]
+          if set(mode_data)!={"narrow","hit","balance","hole"}:
+              raise SystemExit("pooled_mode_roster_invalid")
+          for mode, row in mode_data.items():
+              if row["full_list_covered"]-row["top_hits"]["top10"]!=row["full_list_correct_beyond_top10"]:
+                  raise SystemExit("full_vs_top10_mismatch:"+mode)
+              if sum(row["miss_partition"].values())!=known:
+                  raise SystemExit("pooled_miss_partition:"+mode)
+              for key,hits in row["top_hits"].items():
+                  bounds=row["top_pending_bounds"][key]
+                  if (bounds["confirmed_only_hits"]!=hits
+                          or bounds["saved_valid_with_or_without_result"]!=known+missing
+                          or bounds["interpretation"]!="missing_outcomes_extreme_bounds_not_confidence_interval"):
+                      raise SystemExit("unresolved_outcome_bounds:"+mode+":"+key)
+                  if known+missing:
+                      low=round(100*hits/(known+missing),2)
+                      high=round(100*(hits+missing)/(known+missing),2)
+                      if (bounds["lower_percent_all_pending_miss"]!=low or
+                              bounds["upper_percent_all_pending_hit"]!=high):
+                          raise SystemExit("uncertainty_math:"+mode+":"+key)
+                  elif (bounds["lower_percent_all_pending_miss"] is not None
+                        or bounds["upper_percent_all_pending_hit"] is not None):
+                      raise SystemExit("no_denominator_not_unknown:"+mode+":"+key)
+          pairs=overall["same_race_original_top10_pairs"]
+          for a,b in (("narrow","hit"),("hit","balance"),("balance","hole")):
+              key=a+"_vs_"+b
+              p=pairs[key]
+              if (set(p)!={"both","left_only","right_only","neither"}
+                      or sum(p.values())!=known
+                      or p["both"]+p["left_only"]!=mode_data[a]["top_hits"]["top10"]
+                      or p["both"]+p["right_only"]!=mode_data[b]["top_hits"]["top10"]):
+                  raise SystemExit("same_race_pair_margins:"+key)
+          print("NOV_REFERENCE_UNRESOLVED_OUTCOME_BOUNDS_AND_PAIRED_MARGINS_VALIDATED")
           base=v["by_day"]["20261105"]
           expected_top={
               "narrow":[4,21,33,33],
