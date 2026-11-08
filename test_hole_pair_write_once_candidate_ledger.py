@@ -34,6 +34,7 @@ def fixture(root):
     p.write_bytes(raw)
     c["source_sha256"] = hashlib.sha256(raw).hexdigest()
     c["source_git_blob_sha1"] = ledger.git_blob_sha1(raw)
+    c["locked_selector_git_blobs"] = ledger.verify_locked_selection()
     return c, p
 
 
@@ -46,6 +47,7 @@ class WriteOncePairLedgerTests(unittest.TestCase):
         self.store = {}
         self.created = []
         self.observed_at = datetime(2026, 11, 9, 1, 55, 0, tzinfo=timezone.utc)
+        self.local_write_at = datetime(2026, 11, 9, 1, 53, 0, tzinfo=timezone.utc)
 
     def get(self, path):
         return self.store.get(path)
@@ -62,7 +64,8 @@ class WriteOncePairLedgerTests(unittest.TestCase):
     def publish(self, record=None):
         with patch("hole_future_pair_precommit.select", return_value=self.record["candidates"]):
             return ledger.publish_one(record or self.record, self.root,
-                                      self.get, self.create, self.observe)
+                                      self.get, self.create, self.observe,
+                                      now=self.local_write_at)
 
     def test_first_write_and_separate_observation_never_formal(self):
         r = self.publish()
@@ -131,7 +134,8 @@ class WriteOncePairLedgerTests(unittest.TestCase):
         with patch("hole_future_pair_precommit.select", return_value=self.record["candidates"]):
             with self.assertRaisesRegex(ValueError, "remote_candidate_bytes_conflict"):
                 ledger.publish_one(self.record, self.root, self.get, self.create,
-                                   lambda path: (self.observed_at, b"forged"))
+                                   lambda path: (self.observed_at, b"forged"),
+                                   now=self.local_write_at)
 
     def test_original_archive_digest_and_race_must_match(self):
         self.source.write_text("changed")
@@ -144,7 +148,8 @@ class WriteOncePairLedgerTests(unittest.TestCase):
                    return_value={k: ["1-2-3"] * 10 for k in self.record["candidates"]}):
             with self.assertRaisesRegex(ValueError, "frozen_selector_replay_mismatch"):
                 ledger.publish_one(self.record, self.root, self.get,
-                                   self.create, self.observe)
+                                   self.create, self.observe,
+                                   now=self.local_write_at)
         self.assertEqual(self.store, {})
 
     def test_github_target_validation_prevents_invalid_repository(self):
@@ -195,6 +200,57 @@ class WriteOncePairLedgerTests(unittest.TestCase):
                 ledger.main()
         self.assertEqual(self.store, {})
         self.assertEqual(self.created, [])
+
+
+    def test_late_first_remote_create_refused_without_touching_store(self):
+        self.local_write_at = datetime(
+            2026, 11, 9, 2, 0, 0, tzinfo=timezone.utc)
+        with self.assertRaisesRegex(
+                ValueError, "new_candidate_remote_write_too_late"):
+            self.publish()
+        self.assertEqual(self.store, {})
+        self.assertEqual(self.created, [])
+
+    def test_same_second_boundary_and_invalid_clock_refused(self):
+        for instant in (
+            datetime(2026, 11, 9, 1, 59, 59, tzinfo=timezone.utc),
+            datetime(2026, 11, 9, 2, 0, 0, tzinfo=timezone.utc),
+        ):
+            self.local_write_at = instant
+            with self.assertRaisesRegex(
+                    ValueError, "new_candidate_remote_write_too_late"):
+                self.publish()
+        self.local_write_at = datetime(2026, 11, 9, 1, 50, 0)
+        with self.assertRaisesRegex(ValueError, "untrusted_write_clock"):
+            self.publish()
+        self.assertEqual(self.store, {})
+
+    def test_late_idempotent_replay_cannot_rewrite_original(self):
+        initial = self.publish()
+        copies = dict(self.store)
+        self.local_write_at = datetime(
+            2026, 11, 9, 3, 0, 0, tzinfo=timezone.utc)
+        repeated = self.publish()
+        self.assertEqual(repeated["status"], "existing_identical_candidate")
+        self.assertEqual(initial["observation_status"],
+                         repeated["observation_status"])
+        self.assertEqual(self.store, copies)
+
+    def test_missing_locked_selector_evidence_rejected_before_remote_io(self):
+        self.record.pop("locked_selector_git_blobs")
+        with self.assertRaisesRegex(
+                ValueError, "locked_selector_or_method_source_mismatch"):
+            self.publish()
+        self.assertEqual(self.store, {})
+
+    def test_wrong_locked_selector_blob_rejected_before_remote_io(self):
+        self.record["locked_selector_git_blobs"] = {
+            k: "0" * 40 for k in self.record["locked_selector_git_blobs"]
+        }
+        with self.assertRaisesRegex(
+                ValueError, "locked_selector_or_method_source_mismatch"):
+            self.publish()
+        self.assertEqual(self.store, {})
 
 
 if __name__ == "__main__":
