@@ -80,6 +80,35 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(report["mean_squared_error_brier_descriptive"], .065)
         self.assertEqual(report["persisted_result_count"], 1)
         self.assertEqual(report["public_only_result_count"], 1)
+        self.assertEqual(report["estimated_full_list_min_pct"], 30.0)
+        self.assertEqual(report["estimated_full_list_max_pct"], 80.0)
+        self.assertEqual(report["estimated_full_list_population_stddev_pp"], 25.0)
+        self.assertEqual(report["distinct_original_estimated_pct_values"], 2)
+
+    def test_empty_spread_uses_unknown_not_zero(self):
+        row = _summarize(_new_stats())
+        self.assertIsNone(row["estimated_full_list_min_pct"])
+        self.assertIsNone(row["estimated_full_list_max_pct"])
+        self.assertIsNone(row["estimated_full_list_population_stddev_pp"])
+        self.assertEqual(row["distinct_original_estimated_pct_values"], 0)
+
+    def test_identical_estimates_cannot_fake_race_discrimination(self):
+        stats = _new_stats()
+        _accumulate(stats, 0.4, True, "persisted")
+        _accumulate(stats, 0.4, False, "persisted")
+        _accumulate(stats, 0.4, False, "public_unarchived")
+        row = _summarize(stats)
+        self.assertEqual(row["estimated_full_list_min_pct"], 40.0)
+        self.assertEqual(row["estimated_full_list_max_pct"], 40.0)
+        self.assertEqual(row["estimated_full_list_population_stddev_pp"], 0.0)
+        self.assertEqual(row["distinct_original_estimated_pct_values"], 1)
+        self.assertEqual(row["observed_full_list_hit_rate_pct"], 33.33)
+
+    def test_bad_accumulated_probability_never_silently_admitted(self):
+        for value in (float("nan"), -0.001, 1.001, True):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "untrusted_estimated_probability"):
+                    _accumulate(_new_stats(), value, False, "persisted")
 
     def _raws(self, order=(1, 2, 5), source_stamp=None):
         ts = source_stamp or self.saved["confirmed_at_jst"]
