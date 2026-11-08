@@ -1,0 +1,98 @@
+"""Real SQLite tests for the SQL embedded in the proposed D1 Worker.
+
+No network / Cloudflare account / D1 deployment / GitHub write.
+"""
+import pathlib
+import re
+import sqlite3
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parent
+SRC = (ROOT / "hole_pair_first_receipt_worker.mjs").read_text("utf8")
+SCHEMA = (ROOT / "hole_pair_first_receipt_schema.sql").read_text("utf8")
+
+# The Worker stores the query as JS string-array elements joined by newline.
+BLOCK = re.search(r"export const INSERT_SQL = \[(.*?)\]\.join\(\"\\n\"\);", SRC, re.S)
+assert BLOCK, "Worker INSERT_SQL declaration not found"
+QUOTED = re.findall(r'^\s*("(?:[^"\\]|\\.)*"),?\s*$', BLOCK.group(1), re.M)
+assert len(QUOTED) == 6, "INSERT SQL changed; inspect SQL test parser"
+import json
+INSERT = "\n".join(json.loads(line) for line in QUOTED)
+
+
+class D1FirstAcceptanceSQLiteTests(unittest.TestCase):
+    def setUp(self):
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.row_factory = sqlite3.Row
+        self.conn.executescript(SCHEMA)
+        self.db_now = "2026-11-09T01:55:00Z"
+
+    def insert(self, code="202611090101", sha="a"*64,
+               cutoff="2026-11-09T02:00:00.000Z", body="{}",
+               finish="2026-11-09T01:51:00.000Z"):
+        sql = INSERT.replace("strftime('%s', 'now')",
+                             "strftime('%s', '" + self.db_now + "')")
+        return self.conn.execute(sql, (code, sha, body, cutoff, cutoff, finish)).fetchone()
+
+    def test_first_insert_and_idempotent_duplicate(self):
+        self.assertEqual(self.insert()["race_code"], "202611090101")
+        self.assertIsNone(self.insert())
+        self.assertEqual(self.conn.execute(
+            "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 1)
+
+    def test_same_second_early_margin_denies_new_insert(self):
+        for now in ("2026-11-09T01:59:58Z", "2026-11-09T01:59:59Z",
+                    "2026-11-09T02:00:00Z", "2026-11-09T02:05:00Z"):
+            self.db_now = now
+            with self.subTest(now=now):
+                self.assertIsNone(self.insert())
+        self.assertEqual(self.conn.execute(
+            "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 0)
+
+    def test_two_seconds_plus_margin_succeeds(self):
+        self.db_now = "2026-11-09T01:59:57Z"
+        self.assertIsNotNone(self.insert())
+
+    def test_database_rejects_receipt_before_calculation_finish(self):
+        self.db_now = "2026-11-09T01:50:00Z"
+        self.assertIsNone(self.insert())
+
+    def test_sqlite_generates_timestamp_not_caller(self):
+        row = self.insert(body='{"claimed_received_at":"1999-01-01"}')
+        self.assertNotIn("1999-01-01", row["first_received_at_utc"])
+        self.assertRegex(row["first_received_at_utc"], r"^\d{4}-\d{2}-\d{2}T")
+
+    def test_existing_row_cannot_be_updated(self):
+        self.insert()
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable_update"):
+            self.conn.execute(
+                "UPDATE hole_pair_first_receipts SET candidate_sha256 = ?",
+                ("b"*64,))
+        self.assertEqual(self.conn.execute(
+            "SELECT candidate_sha256 FROM hole_pair_first_receipts").fetchone()[0],
+            "a"*64)
+
+    def test_existing_row_cannot_be_deleted(self):
+        self.insert()
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable_delete"):
+            self.conn.execute("DELETE FROM hole_pair_first_receipts")
+        self.assertEqual(self.conn.execute(
+            "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 1)
+
+    def test_unsafe_parameters_cannot_break_schema(self):
+        invalid = "202611090101'); DROP TABLE hole_pair_first_receipts; --"
+        self.assertIsNone(self.insert(invalid))
+        self.assertEqual(self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE name='hole_pair_first_receipts'"
+        ).fetchone()[0], "hole_pair_first_receipts")
+
+    def test_sql_check_constraints_ignore_bad_data(self):
+        # INSERT OR IGNORE silently refuses CHECK failures; no row is created.
+        self.assertIsNone(self.insert(sha="x"))
+        self.assertIsNone(self.insert(body="X"*40000))
+        self.assertEqual(self.conn.execute(
+            "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
