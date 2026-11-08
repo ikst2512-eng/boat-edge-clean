@@ -8,6 +8,8 @@ on:
       - tests/test_audit_t12_frozen_chronology.py
       - scripts/audit_t12_three_original_frozen.py
       - tests/test_audit_t12_three_original_frozen.py
+      - scripts/audit_t12_external_archive_presence.py
+      - tests/test_audit_t12_external_archive_presence.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -32,6 +34,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_official_pair_schedule_continuity.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_frozen_chronology.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_three_original_frozen.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_external_archive_presence.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -48,10 +51,27 @@ jobs:
           python -m scripts.audit_official_pair_schedule_continuity \
             --repo "$REPOSITORY" --day-utc "$day" \
             --output reports/official_pair_schedule_continuity.json
+      - name: Inventory persisted three-original branch presence (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # PR regression checks independently re-query the known Nov 8 gap.
+          # Manual dispatch checks the active JST date, not an older race.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            day=20261108
+          else
+            day="$(TZ=Asia/Tokyo date +%Y%m%d)"
+          fi
+          python -m scripts.audit_t12_external_archive_presence \
+            --repo "$REPOSITORY" --day-jst "$day" \
+            --output reports/official_three_archive_presence.json
       - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
         with:
           name: official-pair-schedule-audit-${{ github.run_id }}
-          path: reports/official_pair_schedule_continuity.json
+          path: |
+            reports/official_pair_schedule_continuity.json
+            reports/official_three_archive_presence.json
           if-no-files-found: error
           retention-days: 30
