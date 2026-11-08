@@ -13,11 +13,11 @@ from pathlib import Path
 
 from clean_four_modes import ticket_order_audit
 
-CODE = re.compile(r"20[0-9]{10}\\Z")
+CODE = re.compile(r"20[0-9]{10}\Z")
 VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
 MODES = ("narrow", "hit", "balance", "hole")
 LENGTHS = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
-TICKET = re.compile(r"[1-6]-[1-6]-[1-6]\\Z")
+TICKET = re.compile(r"[1-6]-[1-6]-[1-6]\Z")
 
 
 def verified_pre_result_snapshot(raw, code):
