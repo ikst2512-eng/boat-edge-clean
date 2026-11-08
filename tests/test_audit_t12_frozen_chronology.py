@@ -137,6 +137,22 @@ class FrozenChronologyAuditTests(unittest.TestCase):
                               odds_received_jst="2026-11-08T14:19:01+09:00"), clean())
         self.assertIn("two_originals_not_hash_verified", report["missing_requirements"])
         self.assertIn("official_original_received_after_t12", report["missing_requirements"])
+        self.assertFalse(report["two_source_complete_before_t12"])
+        self.assertFalse(report["formal"])
+
+    def test_aggregate_true_with_late_source_does_not_report_complete(self):
+        report = inspect(pair(odds_received_jst="2026-11-08T14:19:01+09:00"),
+                         clean())
+        self.assertTrue(report["official_component_checks_verified"])
+        self.assertFalse(report["source_receipts_before_t12"])
+        self.assertFalse(report["two_source_complete_before_t12"])
+        self.assertFalse(report["accuracy_scoring_allowed"])
+
+    def test_hash_failure_cannot_report_complete_two_originals(self):
+        report = inspect(pair(originals_hash_verified=False), clean())
+        self.assertFalse(report["source_pair_sha_verified"])
+        self.assertFalse(report["two_source_complete_before_t12"])
+        self.assertFalse(report["t12_eligible"])
 
     def test_after_cutoff_forecast_never_passes(self):
         report = inspect(pair(), clean(generated_at="2026-11-08T14:19:01+09:00"))
