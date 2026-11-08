@@ -1,0 +1,18 @@
+# RESEARCH-ONLY SQLite Durable Object lab. NEVER deploy or bind to production
+# until Cloudflare Free quota and cross-provider idempotency review are complete.
+# Distinct name, no GitHub PAT, no Cron, no public HTTP endpoints (403 only).
+name = "boat-edge-clean-claims-local-research-only"
+main = "claim_lab_only.mjs"
+compatibility_date = "2026-06-24"
+workers_dev = false
+
+[triggers]
+crons = []
+
+[[durable_objects.bindings]]
+name = "CLAIMS_RESEARCH"
+class_name = "CaptureClaimResearch"
+
+[[migrations]]
+tag = "research_sqlite_v1"
+new_sqlite_classes = ["CaptureClaimResearch"]
