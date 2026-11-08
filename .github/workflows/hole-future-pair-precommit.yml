@@ -19,6 +19,8 @@ on:
       - research/test_hole_pair_universe_coverage.py
       - research/hole_pair_cross_batch_roster.py
       - research/test_hole_pair_cross_batch_roster.py
+      - research/hole_pair_manual_capture.py
+      - research/test_hole_pair_manual_capture.py
       - test_hole_pair_remote_receipt_evidence.py
       - research/hole_pair_future_holdout_protocol_20261109.json
       - test_hole_future_pair_precommit.py
@@ -48,6 +50,8 @@ jobs:
         run: python -m unittest -v research/test_hole_pair_universe_coverage.py
       - name: Audit overlapping research runs and repeated race IDs (synthetic, read-only)
         run: python -m unittest -v research/test_hole_pair_cross_batch_roster.py
+      - name: Test manual-only research capture driver (no real dispatch)
+        run: python -m unittest -v research/test_hole_pair_manual_capture.py
       - name: Audit default-branch manual-dispatch registration (read-only)
         shell: bash
         run: |
