@@ -5,7 +5,7 @@ from scripts.research_official_k_missingness_profile import profile_races
 
 
 def race(code="202608290101", wind=3, win_course=1):
-    entries = [{"boat": i, "course": i, "status": "01" if i == win_course else f"{i:02d}"}
+    entries = [{"boat": i, "course": i, "status": "01" if i == win_course else f"{(i + 1 if i < win_course else i):02d}"}
                for i in range(1, 7)]
     return {"race_code": code, "entries": entries, "wind_m": wind,
             "unsettled": False}
