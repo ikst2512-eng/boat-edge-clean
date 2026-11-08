@@ -1,5 +1,30 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-08 15時台 JST: two-phase **opt-in** activation — default is zero-network observation
+
+This Draft PR now ships **two distinct Wrangler configurations** for safe rollout. **Neither has been deployed; no account, PAT, GitHub dispatch, or billing was used.**
+
+| Intended phase | Config | GitHub PAT needed to deploy? | GitHub GET/POST? |
+| --- | --- | --- | --- |
+| Phase 0: zero-credential monitoring | `cloudflare/wrangler.observer.toml` | **No** | **No; hard off by default** |
+| Phase 1: production-capable Worker, still gated off | `cloudflare/wrangler.toml` | **Yes**, required Secret | **No; hard off by default** |
+| Phase 2: owner-approved recovery | `cloudflare/wrangler.toml` **manually edited** to set `CLOUDFLARE_DISPATCH_ENABLED = "true"` and redeployed | Yes, least-privilege Secret | **Yes**, only within existing per-slot history/freshness/duplicate guards |
+
+The Worker `scheduled()` handler checks the exact cron identity, then checks `CLOUDFLARE_DISPATCH_ENABLED === 'true'`. Every other value (unset, false, "TRUE", number, etc.) takes `observe()`, which checks the trigger clock and calculates the CLEAN/four-mode eligible slots **without reading GitHub, requiring a Secret, issuing a dispatch, or declaring a saved forecast**. The log key is `CLOUDFLARE_CAPTURE_OBSERVER_ONLY` and the result explicitly marks `github_history_checked=false`, `github_run_id_proven=false`, `new_forecast_saved_proven=false`, `formal=false`. A stale or foreign Cron still fails closed.
+
+`wrangler.observer.toml` has a **separate Worker name** (`boat-edge-clean-independent-observer`) and no `[secrets]` declaration. Once a Cloudflare account is available, the **owner**, not this Draft PR, may deploy it explicitly from the repository root:
+
+```sh
+npx wrangler@4.158.0 deploy --config cloudflare/wrangler.observer.toml
+```
+
+This command would really **deploy** a Worker and register a Cron Trigger; it has **NOT been run** here. It needs Cloudflare account authentication but no GitHub token. Read the resulting local Cloudflare Cron logs and Worker CPU measurements during a new JST day. Once ready for production, the owner must configure a dedicated repository-scoped GitHub PAT as the `GITHUB_DISPATCH_TOKEN` **Secret** in the separate production Worker, review the recovery guardrails, manually update the production flag to literal `"true"`, and explicitly deploy that configuration. Disable the observer Cron when the production Cron begins; this avoids unnecessary Cron duplication and stays within Free-tier limits. Never activate a paid Render Cron and Cloudflare recovery simultaneously without an atomic cross-provider lock.
+
+**Exact-head, deployment-free CI:** [#42456421210](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42456421210) completed **success**. Read-only PR policy test job: **39/39 Node tests PASS** (including zero-token observer entry, false/unset/invalid flag behavior, config separation, and true-only dispatch), production and observer Wrangler 4.158.0 `deploy --dry-run` both PASS. Isolated real Workerd integration job: **6/6 PASS**, including observer without PAT or network, real controlled fake-GitHub 4 GET + 2 POST positive simulation, active-run blocking, and API failure stop. Existing Python tests and scheduled-handler Local Explorer safety gates PASS. Operational `Actions:write` watchdog skipped for PR. These are **mock/local CI**, not live CPU10ms or deployment evidence.
+
+Official references: [Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/) and [environment variables](https://developers.cloudflare.com/workers/configuration/environment-variables/). Never place a PAT in `[vars]`, chat, git, PR comments or logs. The production `[secrets] required` declaration intentionally prevents accidental deployment without a Secret; it **does not apply** to the separate observer config.
+
+
 ## 2026-11-08: Workerd **positive-path** GitHub mock integration PASS (no real GitHub calls)
 
 The new isolated read-only PR job `cloudflare-workerd-integration` uses Cloudflare's official `@cloudflare/vitest-plugin` to run **four actual Workerd runtime tests** against the production `scheduled()` entrypoint. All outbound `fetch` calls are intercepted by a strict in-process fake GitHub API; the suite passes a clearly fake literal token and **never** uses GitHub repository secrets, Cloudflare authentication, real GitHub networking, or actual `workflow_dispatch`.
@@ -69,6 +94,8 @@ Offline: `node --test tests/cloudflare_capture_wakeup.test.mjs` (Node 22). Tests
 Existing Render safety suite remains in CI and was not edited. Local Node tests do **not** demonstrate Cloudflare Free CPU 10 ms, production dispatch, daily reliability, actual GitHub first-add, or billing/account readiness.
 
 ## Operator steps — **manual, not performed in this PR**
+
+**Follow the two-phase no-PAT observer rollout above first.** The PAT and required Secret steps below apply only to the production-capable configuration, never to `wrangler.observer.toml`. Do not use the production recovery mode until the observer's live Cron/CPU evidence has been checked and the owner has explicitly approved activation.
 
 1. Create or connect a Cloudflare account on Workers Free, and check remaining Cron capacity. Review compatibility date, pricing and current Free limits. Do not connect a paid plan implicitly.
 2. Create a dedicated fine-grained GitHub PAT restricted to repository `ikst2512-eng/boat-edge-clean` and `Actions: read/write`. Record expiry and rotate as needed. Do not paste it in ChatGPT, commits, PRs, logs or `wrangler.toml`.
