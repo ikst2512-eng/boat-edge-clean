@@ -112,8 +112,40 @@ class ExactRosterCoverageTests(unittest.TestCase):
     def test_missing_source_git_blob_refused(self):
         record = frozen(CODES[0])
         record.pop("source_git_blob_sha1")
-        with self.assertRaisesRegex(ValueError, "untrusted_original_source_git_blob"):
+        with self.assertRaisesRegex(ValueError, "unexpected_frozen_record_fields"):
             c.reconcile(DAY, MAIN, [CODES[0]], [record], {})
+
+    def test_result_or_posthoc_metadata_cannot_enter_freeze_roster(self):
+        for key, value in (
+            ("winning_ticket", "1-2-3"),
+            ("confirmed_result", {"first": 1, "second": 2, "third": 3}),
+            ("result_checked_at", "2026-11-09T11:55:00+09:00"),
+            ("post_result_label", "hit"),
+        ):
+            r = frozen(CODES[0])
+            r[key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(
+                    ValueError, "unexpected_frozen_record_fields"):
+                c.reconcile(DAY, MAIN, [CODES[0]], [r], {})
+
+    def test_unknown_metadata_or_modified_warning_refused(self):
+        r = frozen(CODES[0])
+        r["unreviewed_metadata"] = "external_signal"
+        with self.assertRaisesRegex(ValueError, "unexpected_frozen_record_fields"):
+            c.reconcile(DAY, MAIN, [CODES[0]], [r], {})
+        r = frozen(CODES[0])
+        r["warning"] = {"winner": "1-2-3"}
+        with self.assertRaisesRegex(ValueError, "untrusted_frozen_record_metadata"):
+            c.reconcile(DAY, MAIN, [CODES[0]], [r], {})
+
+    def test_exact_source_freeze_warning_remains_compatible(self):
+        r = frozen(CODES[0])
+        r["warning"] = (
+            "Candidate frozen by a local clock only. No independently "
+            "verified first receipt; cannot report formal accuracy."
+        )
+        report = c.reconcile(DAY, MAIN, [CODES[0]], [r], {})
+        self.assertEqual(report["frozen_locally_unverified"], 1)
 
     def test_empty_inventory_is_not_whole_day_proof(self):
         r = c.reconcile(DAY, MAIN, [], [], {})
