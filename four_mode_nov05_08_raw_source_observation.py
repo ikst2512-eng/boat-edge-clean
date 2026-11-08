@@ -145,16 +145,28 @@ def compare_one(day, root, pending, raw, fetched_at):
     }
 
 
-def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw):
+def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw, raw_dir=None):
     root = Path(root)
     reference = audit(root, days)
     by_day = {}
     errors = {}
+    retained_source_codes = []
     for day in days:
         pending = reference["by_day"][day]["pending_result_codes"]
         try:
             raw, fetched_at = fetcher(day)
-            by_day[day] = compare_one(day, root, pending, raw, fetched_at)
+            row = compare_one(day, root, pending, raw, fetched_at)
+            if raw_dir is not None:
+                # CI artifact only: exact original public bytes, append-only per run.
+                # Never write CLEAN confirmed_results or a model/candidate file.
+                target_dir = Path(raw_dir)
+                target_dir.mkdir(parents=True, exist_ok=True)
+                with (target_dir / (day + ".csv")).open("xb") as output:
+                    output.write(raw)
+                if hashlib.sha256((target_dir / (day + ".csv")).read_bytes()).hexdigest() != row["current_snapshot_sha256"]:
+                    raise ValueError("retained_public_source_byte_integrity_failed")
+                retained_source_codes.append(day)
+            by_day[day] = row
         except (OSError, UnicodeError, ValueError, TypeError, KeyError, AssertionError) as exc:
             # Do not assert a 404, timeout, invalid CSV or future stamp is a success.
             errors[day] = {"type": type(exc).__name__, "reason": str(exc)[:200]}
@@ -174,6 +186,9 @@ def observe(root=ROOT, days=DAYS, fetcher=fetch_public_raw):
         "days": list(days),
         "source_observation_days": observed,
         "source_errors": errors,
+        "public_raw_csv_retained_for_exact_replay": raw_dir is not None and len(retained_source_codes) == len(days),
+        "public_raw_csv_retained_day_codes": retained_source_codes,
+        "public_raw_csv_evidence_is_ci_artifact_only": raw_dir is not None,
         "by_day": by_day,
         "archived_v2_forecasts": reference["totals"]["forecast_files"],
         "reference_results_already_saved": reference["totals"]["evaluated"],
@@ -200,8 +215,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--root", type=Path, default=ROOT)
     p.add_argument("--output", type=Path)
+    p.add_argument("--source-raw-dir", type=Path, help="Retain original public CSV bytes in ephemeral CI artifact, not git/main")
     a = p.parse_args()
-    result = observe(a.root)
+    result = observe(a.root, raw_dir=a.source_raw_dir)
     if a.output:
         a.output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print("FOUR_MODE_POSTRACE_SOURCE_OBSERVATION=" + json.dumps(result, ensure_ascii=False, sort_keys=True))
