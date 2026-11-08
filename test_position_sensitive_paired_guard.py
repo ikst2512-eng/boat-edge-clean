@@ -126,6 +126,13 @@ class PairedGuardTests(unittest.TestCase):
         self.assertFalse(guarded["all_600_reference_results_present"])
         self.assertIsNone(guarded["reference_confirmatory_top5_top10_net_loss_observed"])
 
+    def test_nonmonotone_topn_hits_are_rejected(self):
+        score = synthetic_reference(full=True)
+        set_paired(score, "confirmation", "hit", 1, 5, 5, 0, 0)
+        set_paired(score, "confirmation", "hit", 3, 4, 4, 0, 0)
+        with self.assertRaisesRegex(ValueError, "nonmonotone_topn_hit_counts"):
+            assess_reference_score(score)
+
     def test_modified_counts_or_forged_certification_are_rejected(self):
         base = synthetic_reference(full=True)
         changed = deepcopy(base)
