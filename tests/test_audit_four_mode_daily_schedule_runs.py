@@ -347,7 +347,13 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
             @classmethod
             def now(cls, tz=None):
                 selected = after_fetch if state["fetched"] else before_fetch
-                return selected.astimezone(tz) if tz else selected.replace(tzinfo=None)
+                selected = selected.astimezone(tz) if tz else selected.replace(tzinfo=None)
+                # Preserve the patched datetime subclass for the audit's
+                # explicit isinstance(as_of, datetime) contract.
+                return cls(
+                    selected.year, selected.month, selected.day,
+                    selected.hour, selected.minute, selected.second,
+                    selected.microsecond, tzinfo=selected.tzinfo)
 
         def fetch(_):
             state["fetched"] = True
