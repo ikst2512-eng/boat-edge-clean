@@ -2,7 +2,7 @@
 import unittest
 
 from scripts.research_official_k_wind_missingness_sensitivity import (
-    band_of, observation, summarize,
+    _rate, band_of, observation, summarize,
 )
 
 
@@ -17,6 +17,10 @@ def race(wind=3, one_status="01", winner=1, unsettled=False):
 
 
 class OfficialKWindMissingnessTests(unittest.TestCase):
+    def test_display_percent_rounds_half_up_and_zero_denominator_unknown(self):
+        self.assertEqual(_rate(202, 320), 63.13)
+        self.assertIsNone(_rate(0, 0))
+
     def test_wind_band_boundaries(self):
         self.assertEqual([band_of(x) for x in (0, 2, 3, 4, 5, 10)],
                          ["0-2m", "0-2m", "3-4m", "3-4m", "5m+", "5m+"])
