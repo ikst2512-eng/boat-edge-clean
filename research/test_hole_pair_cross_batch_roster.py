@@ -99,6 +99,25 @@ class CrossBatchRosterTests(unittest.TestCase):
         self.assertTrue(r["rows"][0]["first_excluded_then_later_frozen"])
         self.assertEqual(r["formally_eligible"], 0)
 
+    def test_equal_reported_time_with_incompatible_dispositions_is_quarantined(self):
+        a = manifest([R1], [frozen()])
+        b2 = manifest([R1], [], {"after_t_minus_12": [R1]})
+        # Both apparent first clocks are equal: run ID cannot settle who came first.
+        report = b.audit([
+            observed(100, 200, a, "2026-11-09T01:55:00.000Z"),
+            observed(101, 201, b2, "2026-11-09T01:55:00.000Z"),
+        ])
+        self.assertEqual(report["quarantined_conflicts"], 1)
+        self.assertEqual(report["unique_frozen_unverified"], 0)
+        self.assertTrue(report["rows"][0]["ambiguous_equal_time_first_disposition"])
+        # Reverse run IDs: same quarantine, never let tiebreak order promote it.
+        report2 = b.audit([
+            observed(102, 202, a, "2026-11-09T01:55:00.000Z"),
+            observed(99, 199, b2, "2026-11-09T01:55:00.000Z"),
+        ])
+        self.assertEqual(report2["quarantined_conflicts"], 1)
+        self.assertTrue(report2["rows"][0]["ambiguous_equal_time_first_disposition"])
+
     def test_later_excluded_recheck_does_not_override_earliest_frozen(self):
         first = manifest([R1], [frozen()])
         second = manifest([R1], [], {"after_t_minus_12": [R1]})
