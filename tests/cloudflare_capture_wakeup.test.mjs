@@ -631,3 +631,108 @@ test('observer telemetry CLI returns nonzero and no fake success for incomplete 
     assert.equal(JSON.parse(child.stdout).missing_ticks,1);
   }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+
+import {auditRawWorkersLogs,RAW_LOG_SCHEMA} from '../cloudflare/audit_observer_raw_logs.mjs';
+
+function syntheticRawWorkersDay() {
+  const d=syntheticObserverDay();
+  const records=d.samples.flatMap(sample=>{
+    const id=sample.request_id;
+    const observed=Date.parse(sample.observed_at_utc);
+    const base={service:OBSERVER_NAME,requestId:id};
+    return [{
+      '$metadata':{...base,type:'cf-worker-event',message:'*/5 22-23,0-13 * * *'},
+      '$workers':{scriptName:OBSERVER_NAME,eventType:'scheduled',outcome:'ok',
+        cpuTimeMs:sample.cpu_time_ms,scriptVersion:{id:d.deployment_id}},
+      timestamp:observed+2,source:{message:'cron'},
+    },{
+      '$metadata':{...base,type:'cf-worker-log',message:'CLOUDFLARE_CAPTURE_OBSERVER_ONLY='+JSON.stringify(sample.custom_report)},
+      '$workers':{scriptName:OBSERVER_NAME,eventType:'scheduled',scriptVersion:{id:d.deployment_id}},
+      timestamp:observed,source:{message:'CLOUDFLARE_CAPTURE_OBSERVER_ONLY='+JSON.stringify(sample.custom_report)},
+    }];
+  });
+  return {schema:RAW_LOG_SCHEMA,worker:OBSERVER_NAME,utc_day:d.utc_day,
+    deployment_id:d.deployment_id,complete_export:true,all_pages_fetched:true,
+    sample_interval:1,total_matched_events:records.length,records};
+}
+
+test('raw Workers Logs audit correlates 192 invocation and 192 custom events by request ID',()=>{
+  const r=auditRawWorkersLogs(syntheticRawWorkersDay());
+  assert.equal(r.supplied_raw_records,384);
+  assert.equal(r.correlated_invocations,192);
+  assert.equal(r.cpu_ms.max,2.5);
+  assert.equal(r.observer_day_pass,true);
+  assert.equal(r.original_cloudflare_log_authenticity_independently_proven,false);
+  assert.equal(r.actual_github_dispatch_proven,false);
+});
+
+test('raw Workers Logs audit refuses sampled or incomplete/paginated queries',()=>{
+  for(const change of [x=>x.sample_interval=2,x=>x.all_pages_fetched=false,
+      x=>x.complete_export=false,x=>x.total_matched_events=1000]){
+    const x=syntheticRawWorkersDay();change(x);
+    const r=auditRawWorkersLogs(x);
+    assert.equal(r.observer_day_pass,false);
+    assert.ok(r.raw_issue_count>=1);
+  }
+});
+
+test('raw Workers Logs audit requires a real invocation CPU field, not custom log wall-time',()=>{
+  const x=syntheticRawWorkersDay();delete x.records[0].$workers.cpuTimeMs;
+  const r=auditRawWorkersLogs(x);
+  assert.equal(r.observer_day_pass,false);
+  assert.ok(r.issues.some(q=>q.includes('cpu_measurement_missing_or_invalid')));
+});
+
+test('raw Workers Logs audit rejects crossed deployment version IDs',()=>{
+  const x=syntheticRawWorkersDay();x.records[0].$workers.scriptVersion.id='DIFFERENT-VERSION';
+  const r=auditRawWorkersLogs(x);
+  assert.equal(r.observer_day_pass,false);
+  assert.ok(r.raw_issues.includes('invocation_version_mismatch'));
+  assert.equal(r.missing_ticks,1);
+});
+
+test('raw Workers Logs audit refuses missing custom reports and duplicated invocation logs',()=>{
+  for(const mutate of [x=>{x.records.splice(1,1);x.total_matched_events=x.records.length;},
+      x=>{x.records.push(structuredClone(x.records[0]));x.total_matched_events=x.records.length;}]) {
+    const x=syntheticRawWorkersDay();mutate(x);
+    const r=auditRawWorkersLogs(x);
+    assert.equal(r.observer_day_pass,false);
+    assert.ok(r.raw_issues.includes('request_record_cardinality_invalid'));
+  }
+});
+
+test('raw Workers Logs audit refuses conflicting cron metadata or mismatched invocation identity',()=>{
+  for(const mutate of [x=>x.records[0].$metadata.message='* * * * *',
+      x=>x.records[0].$workers.scriptName='untrusted-worker',
+      x=>x.records[1].$metadata.requestId='different-request']) {
+    const x=syntheticRawWorkersDay();mutate(x);
+    const r=auditRawWorkersLogs(x);
+    assert.equal(r.observer_day_pass,false);
+    assert.ok(r.raw_issue_count>=1);
+  }
+});
+
+test('raw Workers Logs audit rejects fake custom timestamps and fabricated observer reports',()=>{
+  const x=syntheticRawWorkersDay();
+  x.records[1].timestamp+=30000;
+  x.records[3].$metadata.message='CLOUDFLARE_CAPTURE_OBSERVER_ONLY={"schema":"FAKE"}';
+  const r=auditRawWorkersLogs(x);
+  assert.equal(r.observer_day_pass,false);
+  assert.ok(r.raw_issues.some(q=>q==='cloudflare_event_clock_mismatch'||q==='missing_or_malformed_observer_console_log'));
+});
+
+test('raw Workers Logs audit CLI executes locally without authentication or network',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-raw-observer-audit-'));
+  try{
+    const path=join(dir,'workers-logs.json');
+    writeFileSync(path,JSON.stringify(syntheticRawWorkersDay()),'utf8');
+    const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_observer_telemetry.mjs',import.meta.url));
+    const child=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(child.status,0,child.stderr);
+    const result=JSON.parse(child.stdout);
+    assert.equal(result.observer_day_pass,true);
+    assert.equal(result.raw_issue_count,0);
+    assert.equal(result.formal_t_minus_12_proven,false);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+});
