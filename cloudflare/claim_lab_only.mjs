@@ -22,15 +22,16 @@ export class CaptureClaimResearch extends DurableObject {
   }
 
   validSlot(kind,slotMs){
-    if(!Object.prototype.hasOwnProperty.call(WORKFLOWS,kind) ||
-       !Number.isSafeInteger(slotMs) || slotMs<=0 ||
-       !plannedSlots(kind,new Date(slotMs)).includes(slotMs)) {
-      throw new Error('research_invalid_slot');
-    }
+    return Object.prototype.hasOwnProperty.call(WORKFLOWS,kind) &&
+      Number.isSafeInteger(slotMs) && slotMs>0 &&
+      plannedSlots(kind,new Date(slotMs)).includes(slotMs);
   }
 
   async reserve(kind,slotMs){
-    this.validSlot(kind,slotMs);
+    if(!this.validSlot(kind,slotMs)) return {
+      kind,slot_ms:slotMs,acquired:false,status:'rejected_invalid_slot',
+      forecast_saved_proven:false,formal:false,
+    };
     // A single SQLite INSERT with UNIQUE constraint makes winner election
     // atomic even if several Worker invocations invoke this DO concurrently.
     // No await or external I/O between existence test and insertion.
@@ -43,8 +44,10 @@ export class CaptureClaimResearch extends DurableObject {
   }
 
   async reportRunId(kind,slotMs,runId){
-    this.validSlot(kind,slotMs);
-    if(!Number.isSafeInteger(runId)||runId<=0) throw new Error('research_invalid_run_id');
+    if(!this.validSlot(kind,slotMs)) return {recorded:false,
+      error:'research_invalid_slot',github_run_verified:false,forecast_saved_proven:false,formal:false};
+    if(!Number.isSafeInteger(runId)||runId<=0) return {recorded:false,
+      error:'research_invalid_run_id',github_run_verified:false,forecast_saved_proven:false,formal:false};
     // Can record a run ID at most once. Does NOT prove GitHub run completion.
     const saved=this.ctx.storage.sql.exec(
       'UPDATE research_claims SET reported_run_id=? WHERE kind=? AND slot_ms=? AND reported_run_id IS NULL RETURNING reported_run_id',
@@ -55,7 +58,10 @@ export class CaptureClaimResearch extends DurableObject {
   }
 
   async inspect(kind,slotMs){
-    this.validSlot(kind,slotMs);
+    if(!this.validSlot(kind,slotMs)) return {
+      claimed:false,error:'research_invalid_slot',
+      github_run_verified:false,forecast_saved_proven:false,formal:false,
+    };
     const rows=this.ctx.storage.sql.exec(
       'SELECT reported_run_id FROM research_claims WHERE kind=? AND slot_ms=?',kind,slotMs).toArray();
     return {claimed:rows.length===1,reported_run_id:rows[0]?.reported_run_id??null,
