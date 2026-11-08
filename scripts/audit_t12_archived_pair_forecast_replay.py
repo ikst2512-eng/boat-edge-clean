@@ -237,25 +237,56 @@ def reconcile(replays, *, get_frozen):
 
 
 def run(repo, token, *, zip_loader=load_archive, frozen_getter=frozen_remote,
-        zip_auditor=replay_source_zip):
+        zip_auditor=replay_source_zip, extracted_root=None,
+        metadata_getter=None, extracted_auditor=None):
     if not token or not isinstance(repo, str) or not REPO_PATTERN.fullmatch(repo):
         raise ValueError("read-only GitHub token and repository are required")
-    replays = [
-        zip_auditor(zip_loader(repo, token, artifact), run_id, digest)
-        for run_id, artifact, digest, _ in ARTIFACTS
-    ]
-    return reconcile(
+    if extracted_root is None:
+        # Exact original ZIP digest rehashed from the unmodified archive.
+        replays = [
+            zip_auditor(zip_loader(repo, token, artifact), run_id, digest)
+            for run_id, artifact, digest, _ in ARTIFACTS
+        ]
+        method = "original_actions_zip_sha256_rehashed"
+    else:
+        # GitHub artifact ZIP REST downloads may be inaccessible to PR tokens.
+        # Do not disguise their 401s as successful source downloads. Use
+        # download-artifact@v4 with authenticated metadata and fully replay
+        # all extracted original source bytes; distinguish ZIP digest scope.
+        from scripts.audit_t12_extracted_artifact_replay import (
+            artifact_metadata, replay_extracted
+        )
+        meta = metadata_getter or artifact_metadata
+        audit = extracted_auditor or replay_extracted
+        root = Path(extracted_root)
+        replays = [
+            audit(root / f"run-{run_id}", run_id=run_id,
+                  artifact_id=artifact, digest=digest,
+                  metadata=meta(repo, token, artifact))
+            for run_id, artifact, digest, _ in ARTIFACTS
+        ]
+        method = "extracted_originals_plus_authenticated_github_artifact_metadata"
+    result = reconcile(
         replays,
         get_frozen=lambda path: frozen_getter(repo, token, FORECAST_REF, path),
     )
+    result["github_artifact_validation_method"] = method
+    result["original_artifact_zip_digest_rehashed_by_ci"] = (
+        extracted_root is None
+    )
+    result["source_original_manifests_independently_replayed"] = True
+    return result
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--extracted-root",
+                        help="GitHub download-artifact v4 extracted artifacts")
     args = parser.parse_args()
-    result = run(args.repo, os.environ.get("GITHUB_TOKEN"))
+    result = run(args.repo, os.environ.get("GITHUB_TOKEN"),
+                 extracted_root=args.extracted_root)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
