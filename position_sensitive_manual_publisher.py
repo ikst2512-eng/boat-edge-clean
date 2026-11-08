@@ -201,11 +201,12 @@ def manual_publish_one(code, api_call, local_now):
     commit_meta_date, commit_meta = _check_status(
         api_call("GET", metadata_endpoint, None), {200})
     parents = commit_meta.get("parents")
-    if (type(parents) is not list or len(parents) != 1 or
+    if (commit_meta.get("sha") != commit["sha"] or
+            type(parents) is not list or len(parents) != 1 or
             type(parents[0]) is not dict or
             parents[0].get("sha") != ledger_sha_before):
         raise ValueError("created_commit_not_direct_child_of_ledger_head")
-    if (commit_meta_date < write_date or
+    if (commit_meta_date <= write_date or
             commit_meta_date.astimezone(JST) >= cutoff):
         raise ValueError("created_commit_metadata_clock_invalid")
     # After writing, read back the EXACT commit rather than a mutable branch.
@@ -261,7 +262,8 @@ def github_api_call(method, url, payload):
     if method == "GET" and not (
         url == API + "/git/ref/heads/main"
         or url == API + "/git/ref/heads/" + PROPOSED_LEDGER_BRANCH
-        or re.fullmatch(API.replace(".", "\\.") + r"/git/commits/[0-9a-f]{40}", url)
+        or re.fullmatch(
+            re.escape(API + "/git/commits/") + r"[0-9a-f]{40}", url)
         or re.fullmatch(
             re.escape(API + "/contents/four_mode_forecasts/") +
             r"20[0-9]{10}\.json\?ref=[0-9a-f]{40}", url)
