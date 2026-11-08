@@ -50,7 +50,7 @@ def fixture():
 
 def fetcher(calls):
     def fetch(url):
-        return calls[url]
+        return calls.get(url, (404, {"Date": stamp("2026-11-09T10:06:00+09:00")}, b"{}"))
     return fetch
 
 
