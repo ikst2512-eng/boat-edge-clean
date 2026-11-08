@@ -8,7 +8,7 @@ const section=document.getElementById('todayCandidateRaces');
 if(!status||!root||!dayLabel||!section)return;
 const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
 const pad=n=>String(n).padStart(2,'0');
-const onPages=location.hostname.endsWith('.github.io');
+const onPages=location.pathname.endsWith('/candidates.html')||location.hostname.endsWith('.github.io');
 const today=()=>{
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
  return p.year+'-'+p.month+'-'+p.day;
