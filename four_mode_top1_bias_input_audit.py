@@ -11,7 +11,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from clean_four_modes import ticket_order_audit
+from clean_four_modes import rank_modes, ticket_order_audit
+from research_model import probabilities
 
 CODE = re.compile(r"20[0-9]{10}\Z")
 VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
@@ -57,6 +58,21 @@ def verified_pre_result_snapshot(raw, code):
         ordered[name] = combos
     if ticket_order_audit(raw["modes"])["status"] != "pass":
         raise ValueError("mode_ticket_order_invalid")
+    # A syntactically valid list can still have been silently re-ordered or
+    # substituted. Recalculate the production V2 probability board using
+    # only the pre-race rates. No result, payout or future source is opened.
+    expected = rank_modes(probabilities(rates))
+    for name in MODES:
+        saved_tickets = raw["modes"][name]["tickets"]
+        expected_tickets = expected[name]["tickets"]
+        if any(
+            saved.get("combo") != generated["combo"]
+            or type(saved.get("p")) not in (int, float)
+            or not math.isfinite(saved["p"])
+            or saved["p"] != generated["p"]
+            for saved, generated in zip(saved_tickets, expected_tickets)
+        ):
+            raise ValueError("stored_ticket_not_reproduced_from_inputs")
     return rates, ordered
 
 
@@ -114,6 +130,7 @@ def audit(root, day):
         "coverage_of_unsaved_races_verified": False,
         "distinct_national_win_rate_vectors": len(rates_seen),
         "fixed_1000_case_prior_used_by_model": True,
+        "saved_ticket_order_and_scores_replayed": True,
         "forecast_features_in_production": ["six_national_win_rates"],
         "wind_st_course_motor_in_production_score": False,
         "same_top1_narrow_hit_balance": shared_nonhole,
