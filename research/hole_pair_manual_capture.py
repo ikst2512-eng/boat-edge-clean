@@ -66,7 +66,7 @@ def capture(day, source_sha, paths, read_source, read_blob, freezer,
         if type(blob) is not str or not SHA40.fullmatch(blob):
             raise ValueError("untrusted_main_forecast_blob")
         expected_blob = hashlib.sha1(
-            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+            b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
         ).hexdigest()
         if expected_blob != blob:
             raise ValueError("immutable_main_source_blob_content_mismatch")
