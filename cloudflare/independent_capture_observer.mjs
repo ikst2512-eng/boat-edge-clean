@@ -1,7 +1,7 @@
 // Cloudflare observer-only service entrypoint. NO GitHub API, PAT, fetch,
 // workflow_dispatch, or recovery policy execution lives in this handler.
 // Not the production-capable independent_capture_wakeup.mjs entrypoint.
-import {ALLOWED_CRON, SCHEMA, observe} from './independent_capture_policy.mjs';
+import {ALLOWED_CRON, SCHEMA, observe} from './independent_capture_slots.mjs';
 
 const SAFE_OBSERVER_ERRORS = new Set([
   'unexpected_cron_trigger', 'invalid_trigger_clock',
