@@ -160,5 +160,42 @@ class WriteOncePairLedgerTests(unittest.TestCase):
         self.assertEqual(self.store, {})
 
 
+    def test_cli_dry_run_cannot_write_or_open_network(self):
+        path = self.root / "candidate.json"
+        path.write_bytes(ledger.canonical_bytes(self.record))
+        argv = ["hole_pair_write_once_candidate_ledger.py",
+                "--record", str(path), "--root", str(self.root)]
+        with patch("sys.argv", argv), patch(
+                "hole_future_pair_precommit.select",
+                return_value=self.record["candidates"]), patch(
+                "hole_pair_write_once_candidate_ledger.github_observe",
+                side_effect=AssertionError("unexpected network read")):
+            ledger.main()
+        self.assertEqual(self.store, {})
+        self.assertEqual(self.created, [])
+
+    def test_cli_publish_cannot_run_from_pr_event(self):
+        path = self.root / "candidate.json"
+        path.write_bytes(ledger.canonical_bytes(self.record))
+        argv = ["hole_pair_write_once_candidate_ledger.py",
+                "--record", str(path), "--root", str(self.root),
+                "--publish"]
+        approval = {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "HOLE_PAIR_LEDGER_MANUAL_APPROVAL": "YES",
+            "GITHUB_REF": "refs/heads/research/hole-pair-future-precommit-20261105",
+            "GITHUB_REPOSITORY": "ikst2512-eng/boat-edge-clean",
+        }
+        with patch("sys.argv", argv), patch.dict(
+                "os.environ", approval, clear=True), patch(
+                "hole_future_pair_precommit.select",
+                return_value=self.record["candidates"]):
+            with self.assertRaisesRegex(
+                    ValueError, "manual_dispatch_approval_required"):
+                ledger.main()
+        self.assertEqual(self.store, {})
+        self.assertEqual(self.created, [])
+
+
 if __name__ == "__main__":
     unittest.main()
