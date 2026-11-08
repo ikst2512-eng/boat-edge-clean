@@ -18,7 +18,7 @@
     "balance",
     "hole"
   ],
-  "eligible_only": "new original and Top1 candidate generated and independently first-received strictly before T-12 AFTER this policy is registered; never score Nov 5-7 as prospective; require full original/official independent provenance; main integration reviewed manually",
+  "eligible_only": "Only original and Top1 candidate independently first-received before T-12 for eligible Nov9-Dec31 JST races after pre-registration; prior Nov5-8 are exploratory regardless of whether saved results exist; manual review for integration; unverified captures are reference-only",
   "pilot_races": 300,
   "confirmation_races": 300,
   "confirmation_min_distinct_dates": 5,
@@ -39,7 +39,7 @@
     "model_version_cohort_separated"
   ],
   "disallow": [
-    "retroactive Nov5-7 success claims",
+    "retroactive Nov5-8 success claims",
     "trained threshold on retrospective outcome",
     "same-second ambiguous T-12 accepted",
     "missing result replaced",
@@ -48,5 +48,8 @@
   "promotion_allowed": false,
   "formal_count": 0,
   "related_existing_protocol": "research/four_mode_all_modes_forward_protocol_20261106.json",
-  "existing_primary_metric_unchanged": true
+  "existing_primary_metric_unchanged": true,
+  "eligible_deadline_start_jst": "2026-11-09T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "eligibility_explanation": "Exclude all Nov 5-8 races to eliminate registration-day uncertainty and retrospective reuse; select first 300/next 300 unique future original and candidate captures without result-dependent replacement"
 }
