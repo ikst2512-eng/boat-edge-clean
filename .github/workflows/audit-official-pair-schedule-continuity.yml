@@ -14,6 +14,8 @@ on:
       - tests/test_audit_t12_blocker_join.py
       - scripts/audit_t12_scheduled_pair_zip.py
       - tests/test_audit_t12_scheduled_pair_zip.py
+      - scripts/audit_t12_archived_pair_forecast_replay.py
+      - tests/test_audit_t12_archived_pair_forecast_replay.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -27,7 +29,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,6 +43,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_external_archive_presence.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_blocker_join.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_pair_zip.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_archived_pair_forecast_replay.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -78,6 +81,16 @@ jobs:
             --schedule reports/official_pair_schedule_continuity.json \
             --archive reports/official_three_archive_presence.json \
             --output reports/official_t12_same_day_blockers.json
+      - name: Independently replay Nov5-8 real official ZIPs vs pinned GitHub forecasts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Requires authenticated 200 Actions ZIP bytes and exact pinned
+          # main-commit forecast blobs. No source/forecast data is written.
+          python -m scripts.audit_t12_archived_pair_forecast_replay \
+            --repo "$REPOSITORY" \
+            --output reports/historical_real_source_forecast_replay.json
       - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
         with:
@@ -86,5 +99,6 @@ jobs:
             reports/official_pair_schedule_continuity.json
             reports/official_three_archive_presence.json
             reports/official_t12_same_day_blockers.json
+            reports/historical_real_source_forecast_replay.json
           if-no-files-found: error
           retention-days: 30
