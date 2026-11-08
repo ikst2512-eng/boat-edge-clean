@@ -15,6 +15,8 @@ on:
       - research/four_mode_all_modes_forward_protocol_20261106.json
       - research/four_mode_top1_pair_forward_protocol_20261108.json
       - four_mode_top1_forward_reference.py
+      - four_mode_top1_head_exposure_audit.py
+      - test_four_mode_top1_head_exposure_audit.py
       - test_four_mode_top1_forward_reference.py
       - four_mode_top1_capture_run_inventory.py
       - test_four_mode_top1_capture_run_inventory.py
@@ -57,6 +59,8 @@ jobs:
         run: python -m unittest -v test_four_mode_forward_paired_score
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
+      - name: Unit-test Top1 first-boat versus third-boat change accounting
+        run: python -m unittest -v test_four_mode_top1_head_exposure_audit
       - name: Replay real Nov 5 original forecasts without reading results
         run: python four_mode_all_mode_same_job_shadow.py --audit-historical-input-day 20261105
       # Historical input-only check. This mode never opens confirmed results,
@@ -114,6 +118,51 @@ jobs:
                   raise SystemExit(f"protected_rank_drift:{day}")
               print(f"RESULT_BLIND_V2_REPLAY_VERIFIED:{day}:{count}/{count}")
           PY
+      - name: Classify discovery-only Top1 changes by finishing position without results
+        shell: bash
+        run: |
+          set -euo pipefail
+          for day in 20261105 20261106 20261107 20261108; do
+            python four_mode_top1_head_exposure_audit.py --day "$day" | tee "four_mode_top1_position_exposure_${day}.json"
+          done
+      - name: Verify complete discovery roster and distinct head-versus-ticket changes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for day, minimum in (("20261105", 106), ("20261106", 130),
+                               ("20261107", 122), ("20261108", 116)):
+              obj = json.loads(Path(f"four_mode_top1_position_exposure_{day}.json").read_text())
+              n = obj.get("original_v2_races")
+              if (type(n) is not int or n < minimum
+                      or (day != "20261108" and n != minimum)
+                      or obj.get("day") != day
+                      or obj.get("status") != "discovery_input_only_no_outcome_read"
+                      or obj.get("result_files_read") is not False
+                      or obj.get("formal") is not False
+                      or obj.get("model_improvement_proven") is not False):
+                  raise SystemExit(f"top1_input_or_result_leakage:{day}")
+              modes = obj.get("modes")
+              if type(modes) is not dict or set(modes) != {
+                  "narrow", "hit", "balance", "hole"
+              }:
+                  raise SystemExit(f"top1_mode_inventory:{day}")
+              for mode, row in modes.items():
+                  swaps = row.get("changed_exact_top1")
+                  heads = row.get("changed_first_boat")
+                  seconds = row.get("changed_second_boat")
+                  thirds = row.get("changed_third_boat")
+                  if (any(type(x) is not int or x < 0 or x > n
+                          for x in (swaps, heads, seconds, thirds))
+                          or heads > swaps or seconds > swaps or thirds > swaps
+                          or row.get("swaps_same_first_boat") != swaps - heads
+                          or sum(row.get("original_top1_heads", {}).values()) != n
+                          or sum(row.get("candidate_top1_heads", {}).values()) != n):
+                      raise SystemExit(f"top1_position_accounting_drift:{day}:{mode}")
+                  print(f"TOP1_POSITION_EXPOSURE:{day}:{mode}:{n}:"
+                        f"changed_exact={swaps}:changed_head={heads}:"
+                        f"changed_second={seconds}:changed_third={thirds}")
+          PY
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Check original and candidate replay before any result lookup
@@ -138,4 +187,8 @@ jobs:
             four_mode_shadow_input_replay_20261106.log
             four_mode_shadow_input_replay_20261107.log
             four_mode_shadow_input_replay_20261108.log
+            four_mode_top1_position_exposure_20261105.json
+            four_mode_top1_position_exposure_20261106.json
+            four_mode_top1_position_exposure_20261107.json
+            four_mode_top1_position_exposure_20261108.json
           retention-days: 30
