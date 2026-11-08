@@ -12,6 +12,8 @@ on:
       - tests/test_audit_t12_external_archive_presence.py
       - scripts/audit_t12_blocker_join.py
       - tests/test_audit_t12_blocker_join.py
+      - scripts/audit_t12_scheduled_pair_zip.py
+      - tests/test_audit_t12_scheduled_pair_zip.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -38,6 +40,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_three_original_frozen.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_external_archive_presence.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_blocker_join.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_pair_zip.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
