@@ -150,6 +150,63 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     expect(logs.join(' ')).not.toContain(TEST_TOKEN);
   });
 
+  it('a saturated recent schedule page fails closed in actual Workerd before any POST', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const calls = [];
+    vi.stubGlobal('fetch', vi.fn(async (rawUrl, options = {}) => {
+      const url = new URL(rawUrl);
+      expect(url.origin).toBe(GITHUB_ORIGIN);
+      calls.push({method: options.method, url: url.toString()});
+      expect(options.method).toBe('GET');
+      const rows = Array.from({length: 30}, (_, i) => ({
+        id: 8000 + i, event: 'schedule', head_branch: 'main',
+        status: 'completed', conclusion: 'success',
+        created_at: '2026-11-07T22:08:00Z',
+      }));
+      return Response.json({workflow_runs: rows});
+    }));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
+    expect(calls).toHaveLength(1);
+    expect(calls.every(c => c.method === 'GET')).toBe(true);
+  });
+
+  it('negative evidence: the current GET-to-POST design permits duplicate POSTs across concurrent invocations', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const calls = [];
+    let historyGets = 0;
+    let releaseBoth;
+    const bothAtLastHistory = new Promise(resolve => { releaseBoth = resolve; });
+    vi.stubGlobal('fetch', vi.fn(async (rawUrl, options = {}) => {
+      const url = new URL(rawUrl);
+      expect(url.origin).toBe(GITHUB_ORIGIN);
+      expect(expectedWorkflows.some(name => url.pathname.includes('/' + name + '/'))).toBe(true);
+      calls.push({method: options.method, path: url.pathname});
+      if (options.method === 'GET') {
+        historyGets += 1;
+        if (historyGets === 8) releaseBoth();
+        // Ensure both independently checked their GET history before either can POST.
+        if (historyGets >= 7) await bothAtLastHistory;
+        return Response.json({workflow_runs: []});
+      }
+      if (options.method === 'POST' && url.pathname.endsWith('/dispatches')) {
+        return new Response(null, {status: 204});
+      }
+      throw Error('BLOCKED_UNEXPECTED_ACTION');
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await Promise.all([invoke(), invoke()]);
+    expect(calls.filter(x => x.method === 'GET')).toHaveLength(8);
+    const posts = calls.filter(x => x.method === 'POST');
+    expect(posts).toHaveLength(4);
+    for (const workflow of expectedWorkflows) {
+      expect(posts.filter(x => x.path.endsWith('/' + workflow + '/dispatches'))).toHaveLength(2);
+    }
+    // Deliberately captures an UNRESOLVED production blocker; two simultaneous
+    // invocation histories are not a cross-provider atomic lock. Never enable
+    // dual recovery schedulers or certify exactly-once based on green CI.
+  });
+
   it('foreign cron never attempts a GitHub API request', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
     const {calls} = mockGitHub();
