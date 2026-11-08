@@ -67,12 +67,12 @@ def documents():
 class RealSourceGateTests(unittest.TestCase):
     def test_realistic_timely_receipts_after_forecast_do_not_prove_usage(self):
         report = join(CODE, *documents())
-        self.assertTrue(report["all_three_received_by_t12"])
+        self.assertTrue(report["forecast_and_two_http_receipts_before_t12"])
         self.assertEqual(report["public_odds_api_replay"]["raw_http_response_bytes"] > 0, True)
         self.assertTrue(report["public_odds_api_replay"]["120_trifecta_combos_in_api_response_verified"])
         self.assertFalse(report["official_beforeinfo_received_before_forecast_generation"])
         self.assertFalse(report["api_odds_received_before_forecast_generation"])
-        self.assertFalse(report["these_later_observations_could_be_forecast_inputs"])
+        self.assertFalse(report["two_http_receipts_received_by_forecast_generation"])
         self.assertFalse(report["formal_T12_forecast_eligible"])
         self.assertFalse(report["official_odds_original_SHA_receipt_independently_verified"])
 
@@ -81,7 +81,7 @@ class RealSourceGateTests(unittest.TestCase):
         data = json.loads(forecast)
         data["generated_at_jst"] = "2026-11-04T19:45:00+09:00"
         result = join(CODE, json.dumps(data).encode(), before, meta, replay)
-        self.assertTrue(result["these_later_observations_could_be_forecast_inputs"])
+        self.assertTrue(result["two_http_receipts_received_by_forecast_generation"])
         self.assertFalse(result["formal_T12_forecast_eligible"])
 
     def test_odds_sha_tamper_rejected(self):
@@ -118,7 +118,7 @@ class RealSourceGateTests(unittest.TestCase):
         replay["samples"][0]["attempts"][0]["finished_at_utc"] = "2026-11-04T10:55:00+00:00"
         report = join(CODE, forecast, before, meta, replay)
         self.assertFalse(report["api_odds_received_by_t12"])
-        self.assertFalse(report["all_three_received_by_t12"])
+        self.assertFalse(report["forecast_and_two_http_receipts_before_t12"])
 
     def test_forecast_generation_cannot_precede_own_saved_sources(self):
         forecast, before, meta, replay = documents()
