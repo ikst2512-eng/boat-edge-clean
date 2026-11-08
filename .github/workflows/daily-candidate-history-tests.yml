@@ -4,6 +4,9 @@ on:
     paths:
       - candidate_history.py
       - candidate_history.js
+      - candidates.html
+      - navigation.js
+      - .github/workflows/deploy-pages.yml
       - selection.html
       - server.py
       - test_candidate_history.py
