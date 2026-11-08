@@ -168,6 +168,41 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(result["per_slot_schedule_delivery_verified"])
         self.assertFalse(result["forecast_publication_verified"])
 
+    def test_api_history_coverage_does_not_certify_unfinished_day(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(21, "2026-11-08T07:07:00+09:00"),
+            self.make_run(20, "2026-11-07T20:52:00+09:00"),
+        ]
+        data = {"total_count": len(rows), "workflow_runs": rows}
+        run = lambda at: audit_day("owner/repo", "20261108", "token",
+                                   lambda _: data, as_of=at)
+        for hour, minute, due, elapsed in (
+                (9, 20, 9, False),
+                (20, 57, 56, False),
+        ):
+            with self.subTest(hour=hour, minute=minute):
+                result = run(datetime(2026, 11, 8, hour, minute, tzinfo=jst))
+                # The API page contains all currently visible runs, but
+                # could never prove all day-long schedule delivery.
+                self.assertTrue(result["full_day_metadata_coverage"])
+                self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], due)
+                self.assertEqual(result["jst_calendar_day_elapsed_at_audit"], elapsed)
+                self.assertFalse(result["full_calendar_day_schedule_delivery_verified"])
+                self.assertFalse(result["forecast_publication_verified"])
+                self.assertTrue(result["audit_as_of_jst"].startswith("2026-11-08T"))
+        following = run(datetime(2026, 11, 9, 3, 3, tzinfo=jst))
+        self.assertTrue(following["jst_calendar_day_elapsed_at_audit"])
+        self.assertTrue(following["all_nominal_daily_slots_due_at_audit"])
+        self.assertFalse(following["full_calendar_day_schedule_delivery_verified"])
+
+    def test_calendar_day_elapsed_flag_rejects_naive_scan_time(self):
+        rows = [self.make_run(1, "2026-11-08T07:07:00+09:00")]
+        with self.assertRaises(ValueError):
+            audit_day("owner/repo", "20261108", "token",
+                      lambda _: {"total_count": 1, "workflow_runs": rows},
+                      as_of=datetime(2026, 11, 8, 12, 0))
+
     def test_nominal_slot_count_matches_current_capture_cron(self):
         from pathlib import Path
         text = Path(".github/workflows/four-mode-prospective-capture.yml").read_text(
