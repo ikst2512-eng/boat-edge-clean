@@ -159,9 +159,9 @@ def join(race_code: str, forecast_raw: bytes, before_raw: bytes,
     weather_received = checked_jst(weather["http_received_at_jst"], "weather_received")
     if weather["received_at_or_before_t12"] != (weather_received <= cutoff):
         raise ValueError("official_weather_gate_disagrees_with_time")
-    all_three_reached_cutoff = (created <= cutoff and
+    forecast_and_two_http_receipts_t12 = (created <= cutoff and
                                 weather_received <= cutoff and odds_received <= cutoff)
-    could_use_both = (weather_received <= created and odds_received <= created)
+    two_http_receipts_by_forecast = (weather_received <= created and odds_received <= created)
     return {
         "schema": "BOAT_EDGE_SAME_RACE_T12_TEMPORAL_JOIN_RESEARCH_V1",
         "classification": "same_race_three_receipts_not_official_three_originals_or_forecast_certification",
@@ -175,10 +175,10 @@ def join(race_code: str, forecast_raw: bytes, before_raw: bytes,
         "forecast_generated_by_t12": created <= cutoff,
         "official_beforeinfo_received_by_t12": weather_received <= cutoff,
         "api_odds_received_by_t12": odds_received <= cutoff,
-        "all_three_received_by_t12": all_three_reached_cutoff,
+        "forecast_and_two_http_receipts_before_t12": forecast_and_two_http_receipts_t12,
         "official_beforeinfo_received_before_forecast_generation": weather_received <= created,
         "api_odds_received_before_forecast_generation": odds_received <= created,
-        "these_later_observations_could_be_forecast_inputs": could_use_both,
+        "two_http_receipts_received_by_forecast_generation": two_http_receipts_by_forecast,
         "weather_receipt_seconds_after_forecast_generation": round((weather_received-created).total_seconds(), 3),
         "odds_receipt_seconds_after_forecast_generation": round((odds_received-created).total_seconds(), 3),
         "official_beforeinfo": {
@@ -225,7 +225,7 @@ def main() -> None:
                         encoding="utf-8")
     print(json.dumps({
         "race_code": result["race_code"],
-        "all_receipts_before_t12": result["all_three_received_by_t12"],
+        "forecast_and_two_http_receipts_before_t12": result["forecast_and_two_http_receipts_before_t12"],
         "weather_before_forecast_generation": result["official_beforeinfo_received_before_forecast_generation"],
         "api_odds_before_forecast_generation": result["api_odds_received_before_forecast_generation"],
         "formal_T12_forecast_eligible": False,
