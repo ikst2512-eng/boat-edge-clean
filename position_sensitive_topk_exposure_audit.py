@@ -62,6 +62,7 @@ def compare_rankings(baseline, candidate):
             oldset, newset = set(o), set(c)
             retained = len(oldset & newset)
             row["topn"][str(n)] = {
+                "applicable": True,
                 "ordered_changed": o != c,
                 "membership_changed": oldset != newset,
                 "retained": retained,
