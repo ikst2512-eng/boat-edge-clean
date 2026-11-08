@@ -118,6 +118,23 @@ class CrossBatchRosterTests(unittest.TestCase):
         self.assertEqual(report2["quarantined_conflicts"], 1)
         self.assertTrue(report2["rows"][0]["ambiguous_equal_time_first_disposition"])
 
+    def test_artifact_observation_before_local_candidate_finish_refused(self):
+        data = manifest([R1], [frozen()])
+        with self.assertRaisesRegex(
+                ValueError, "artifact_observation_precedes_candidate_calculation"):
+            b.audit([observed(100, 200, data, "2026-11-09T01:50:59.000Z")])
+
+    def test_equal_time_different_exclusion_reasons_quarantined(self):
+        x = manifest([R1], [], {"after_t_minus_12": [R1]})
+        y = manifest([R1], [], {"invalid_deadline": [R1]})
+        report = b.audit([
+            observed(100, 200, x),
+            observed(101, 201, y),
+        ])
+        self.assertEqual(report["quarantined_conflicts"], 1)
+        self.assertEqual(report["initially_excluded"], 0)
+        self.assertTrue(report["rows"][0]["ambiguous_equal_time_first_disposition"])
+
     def test_later_excluded_recheck_does_not_override_earliest_frozen(self):
         first = manifest([R1], [frozen()])
         second = manifest([R1], [], {"after_t_minus_12": [R1]})
