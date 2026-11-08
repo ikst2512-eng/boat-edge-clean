@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - hole_future_pair_precommit.py
+      - research/hole_pair_future_holdout_protocol_20261109.json
       - test_hole_future_pair_precommit.py
       - hole_future_pair_pinned92_score.py
       - test_hole_future_pair_pinned92_score.py
