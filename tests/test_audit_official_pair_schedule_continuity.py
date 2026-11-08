@@ -33,19 +33,27 @@ class OfficialPairContinuityAuditTests(unittest.TestCase):
         return inventory(REPO, DAY, "unit-test-token",
                          fetch=fetch_pages({1: rows}, len(rows)), as_of=at)
 
-    def test_actual_nov7_two_runs_in_156_nominal_slots(self):
+    def test_actual_nov7_three_utc_runs_but_only_two_within_cron_hours(self):
         rows = [
             run(42342115412, "2026-11-07T05:17:49Z", conclusion="failure"),
             run(42369814345, "2026-11-07T11:49:44Z"),
+            # UTC Nov 7 but 02:07 JST Nov 8, outside configured cron hours.
+            run(42394773010, "2026-11-07T17:07:59Z"),
             run(9, "2026-11-07T11:59:00Z", path=".github/workflows/other.yml"),
         ]
         result = self.audit(rows)
         self.assertEqual(result["expected_slots_full_day"], 156)
         self.assertEqual(result["elapsed_nominal_slots_at_snapshot"], 156)
-        self.assertEqual(result["observed_official_pair_schedule_runs"], 2)
-        self.assertEqual(result["nominal_invocation_count_deficit"], 154)
-        self.assertEqual(result["observed_to_elapsed_slot_pct"], 1.28)
-        self.assertEqual((result["run_failure"], result["run_success"]), (1, 1))
+        self.assertEqual(result["observed_official_pair_schedule_runs"], 3)
+        self.assertEqual(result["observed_within_declared_cron_hours"], 2)
+        self.assertEqual(result["observed_outside_declared_cron_hours"], 1)
+        self.assertEqual(result["nominal_invocation_count_deficit"], 153)
+        self.assertEqual(result["observed_to_elapsed_slot_pct"], 1.92)
+        self.assertEqual(result["in_hours_invocation_count_deficit"], 154)
+        self.assertEqual(result["in_hours_to_elapsed_slot_pct"], 1.28)
+        self.assertEqual((result["run_failure"], result["run_success"]), (1, 2))
+        self.assertTrue(result["runs"][0]["created_within_declared_cron_hours"])
+        self.assertFalse(result["runs"][2]["created_within_declared_cron_hours"])
         self.assertFalse(result["raw_official_source_receipts_verified"])
         self.assertFalse(result["full_t12_source_certified"])
         self.assertFalse(result["schedule_slot_identity_verified"])
@@ -59,7 +67,10 @@ class OfficialPairContinuityAuditTests(unittest.TestCase):
     def test_zero_runs_reports_gap_but_not_source_failures(self):
         report = self.audit([])
         self.assertEqual(report["observed_official_pair_schedule_runs"], 0)
+        self.assertEqual(report["observed_within_declared_cron_hours"], 0)
+        self.assertEqual(report["observed_outside_declared_cron_hours"], 0)
         self.assertEqual(report["nominal_invocation_count_deficit"], 156)
+        self.assertEqual(report["in_hours_invocation_count_deficit"], 156)
         self.assertFalse(report["missing_trigger_root_cause_verified"])
         self.assertFalse(report["forecast_usable"])
 
@@ -69,6 +80,16 @@ class OfficialPairContinuityAuditTests(unittest.TestCase):
         self.assertEqual(report["elapsed_nominal_slots_at_snapshot"], 73)
         self.assertEqual(report["future_nominal_slots"], 83)
         self.assertEqual(report["nominal_invocation_count_deficit"], 72)
+
+    def test_cron_utc_hour_boundary_is_not_exact_minute_slot_proof(self):
+        rows = [run(1, "2026-11-07T12:59:00Z"),
+                run(2, "2026-11-07T13:00:00Z")]
+        report = self.audit(rows)
+        self.assertEqual(report["observed_official_pair_schedule_runs"], 2)
+        self.assertEqual(report["observed_within_declared_cron_hours"], 1)
+        self.assertEqual(report["observed_outside_declared_cron_hours"], 1)
+        self.assertEqual(report["in_hours_to_elapsed_slot_pct"], 0.64)
+        self.assertEqual(report["in_hours_invocation_count_deficit"], 155)
 
     def test_before_day_not_misreported_as_full_day_failure(self):
         report = self.audit([], at=datetime(2026, 11, 6, 23, 59, tzinfo=timezone.utc))
