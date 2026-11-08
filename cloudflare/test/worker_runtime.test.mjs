@@ -55,9 +55,9 @@ function mockGitHub({scheduledSuccess = false, failGetNumber = 0} = {}) {
   return {calls, fetcher};
 }
 
-async function invoke(cron = CRON) {
+async function invoke(cron = CRON, env = {GITHUB_DISPATCH_TOKEN: TEST_TOKEN, CLOUDFLARE_DISPATCH_ENABLED: 'true'}) {
   const ctx = createExecutionContext();
-  await worker.scheduled(scheduled(cron), {GITHUB_DISPATCH_TOKEN: TEST_TOKEN}, ctx);
+  await worker.scheduled(scheduled(cron), env, ctx);
   await waitOnExecutionContext(ctx);
 }
 
@@ -105,6 +105,29 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     await expect(invoke()).rejects.toThrow('github_history_http_error');
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(0);
     expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
+  });
+
+  it('default observer mode runs in Workerd without PAT or GitHub network, even in active window', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls} = mockGitHub();
+    const logs = [];
+    vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
+    await invoke(CRON, {});
+    expect(calls).toHaveLength(0);
+    const reports=logs.filter(x=>x.startsWith('CLOUDFLARE_CAPTURE_OBSERVER_ONLY='));
+    expect(reports).toHaveLength(1);
+    const report=JSON.parse(reports[0].split('=')[1]);
+    expect(report.mode).toBe('observe_only');
+    expect(report.github_history_checked).toBe(false);
+    expect(report.new_forecast_saved_proven).toBe(false);
+    expect(logs.join(' ')).not.toContain(TEST_TOKEN);
+  });
+
+  it('Workerd requires an exact string opt-in, not boolean true', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
+    const {calls} = mockGitHub();
+    await invoke(CRON, {CLOUDFLARE_DISPATCH_ENABLED: true, GITHUB_DISPATCH_TOKEN: TEST_TOKEN});
+    expect(calls).toHaveLength(0);
   });
 
   it('foreign cron never attempts a GitHub API request', async () => {
