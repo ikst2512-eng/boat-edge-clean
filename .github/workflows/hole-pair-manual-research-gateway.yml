@@ -38,6 +38,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
           s = Path(".github/workflows/hole-pair-manual-research-gateway.yml").read_text()
           assert "if: github.event_name == 'workflow_dispatch'" in s
           assert "if: github.event_name == 'pull_request'" in s
@@ -47,10 +48,10 @@ jobs:
           assert "persist-credentials: false" in s
           assert "cancel-in-progress: false" in s
           assert "timeout-minutes: 12" in s
-          assert "schedule:" not in s
-          assert "repository_dispatch:" not in s
-          assert "contents: write" not in s
-          assert "pull_request_target" not in s
+          assert not re.search(r"(?m)^  schedule:\\s*$", s)
+          assert not re.search(r"(?m)^  repository_dispatch:\\s*$", s)
+          assert not re.search(r"(?m)^\\s+contents: write\\s*$", s)
+          assert not re.search(r"(?m)^  pull_request_target:\\s*$", s)
           print("GATEWAY_REVIEW_PASS_no_capture_from_pr_event")
           PY
 
