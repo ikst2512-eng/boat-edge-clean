@@ -15,6 +15,8 @@ on:
       - research/test_hole_pair_capture_launch_audit.py
       - research/hole_pair_d1_receipt_chain_audit.py
       - research/test_hole_pair_d1_receipt_chain_audit.py
+      - research/hole_pair_universe_coverage.py
+      - research/test_hole_pair_universe_coverage.py
       - test_hole_pair_remote_receipt_evidence.py
       - research/hole_pair_future_holdout_protocol_20261109.json
       - test_hole_future_pair_precommit.py
@@ -40,6 +42,8 @@ jobs:
           python -m unittest -v research/test_hole_pair_first_receipt_sql.py
       - name: Fail closed on purported D1 receipt chain (offline, nonformal)
         run: python -m unittest -v research/test_hole_pair_d1_receipt_chain_audit.py
+      - name: Audit immutable-main source snapshot ID coverage (synthetic, read-only)
+        run: python -m unittest -v research/test_hole_pair_universe_coverage.py
       - name: Audit default-branch manual-dispatch registration (read-only)
         shell: bash
         run: |
@@ -83,6 +87,7 @@ jobs:
           from datetime import datetime, timedelta
           from pathlib import Path
           from hole_future_pair_precommit import JST, freeze
+          from research.hole_pair_universe_coverage import reconcile
 
           started = datetime.now(JST)
           day = started.strftime("%Y%m%d")
@@ -100,6 +105,7 @@ jobs:
               raise ValueError("unreasonably_large_new_day_inventory")
           records = []
           excluded = collections.Counter()
+          excluded_codes = collections.defaultdict(list)
           for name in sorted(paths):
               code = Path(name).stem
               source = subprocess.check_output(
@@ -118,8 +124,18 @@ jobs:
                       text=True).strip()
                   records.append(frozen)
               else:
-                  excluded[str(frozen.get("status", "invalid"))] += 1
+                  reason = str(frozen.get("status", "invalid"))
+                  excluded[reason] += 1
+                  excluded_codes[reason].append(code)
 
+          # The original Git snapshot, not outcome-dependent row filters,
+          # determines every race ID to account for in this batch.
+          source_codes = [Path(name).stem for name in paths]
+          coverage = reconcile(day, source_head, source_codes,
+                               records, dict(excluded_codes))
+          assert coverage["source_snapshot_race_coverage_complete"] is True
+          assert coverage["entire_day_or_official_schedule_complete_verified"] is False
+          assert coverage["excluded_by_reason"] == dict(sorted(excluded.items()))
           finished = datetime.now(JST)
           assert all(datetime.fromisoformat(row["local_finish_jst"]) <
                      datetime.fromisoformat(row["t_minus_12_jst"])
@@ -134,6 +150,9 @@ jobs:
               "eligible_forecasts_examined": len(paths),
               "frozen_count": len(records),
               "excluded_by_reason": dict(sorted(excluded.items())),
+              "source_forecast_codes": source_codes,
+              "excluded_race_codes_by_reason": coverage["excluded_race_codes_by_reason"],
+              "source_snapshot_coverage": coverage,
               "records": records,
               "formal": False,
               "prospective_validation": False,
