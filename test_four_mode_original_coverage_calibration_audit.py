@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from four_mode_original_coverage_calibration_audit import (
-    _estimated_coverage, _new_stats, _accumulate, _summarize, audit,
+    _estimated_coverage, _new_stats, _accumulate, _summarize, _descriptive_auc, audit,
 )
 from four_mode_nov05_08_daily_reference_audit import ROOT, DAYS, MODES
 
@@ -84,6 +84,7 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
         self.assertEqual(report["estimated_full_list_max_pct"], 80.0)
         self.assertEqual(report["estimated_full_list_population_stddev_pp"], 25.0)
         self.assertEqual(report["distinct_original_estimated_pct_values"], 2)
+        self.assertEqual(report["descriptive_original_estimate_hit_discrimination_auc"], 1.0)
 
     def test_empty_spread_uses_unknown_not_zero(self):
         row = _summarize(_new_stats())
@@ -109,6 +110,26 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "untrusted_estimated_probability"):
                     _accumulate(_new_stats(), value, False, "persisted")
+
+    def test_auc_known_perfect_and_inverted_ranks(self):
+        self.assertEqual(_descriptive_auc([(0.1, 0), (0.9, 1)]), 1.0)
+        self.assertEqual(_descriptive_auc([(0.9, 0), (0.1, 1)]), 0.0)
+        self.assertEqual(_descriptive_auc([(0.5, 0), (0.5, 1)]), 0.5)
+
+    def test_auc_ties_and_class_imbalance(self):
+        # 2 positives and 2 negatives, 4 positive/negative pairs:
+        # 2 wins at p=.7 and two tied comparison half-wins, total 3/4.
+        self.assertEqual(_descriptive_auc([(0.7, 1), (0.7, 0),
+                                            (0.7, 1), (0.1, 0)]), 0.75)
+        self.assertIsNone(_descriptive_auc([]))
+        self.assertIsNone(_descriptive_auc([(0.9, 1), (0.2, 1)]))
+        self.assertIsNone(_descriptive_auc([(0.9, 0), (0.2, 0)]))
+
+    def test_auc_rejects_malformed_histogram(self):
+        for cases in ([(float("nan"), 1)], [(0.5, True)],
+                      [(0.5, 2)], [[0.5, 1]], [(1.2, 0)]):
+            with self.subTest(cases=cases), self.assertRaisesRegex(ValueError, "invalid_auc_histogram"):
+                _descriptive_auc(cases)
 
     def _raws(self, order=(1, 2, 5), source_stamp=None):
         ts = source_stamp or self.saved["confirmed_at_jst"]
