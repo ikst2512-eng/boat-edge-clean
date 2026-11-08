@@ -203,7 +203,7 @@ class PairPrecommitTest(unittest.TestCase):
         raw = protocol.read_bytes()
         # First registered Git blob is immutable: protocol edits require a new
         # future-only protocol/version, never an in-place holdout definition.
-        git_blob = hashlib.sha1(("blob " + str(len(raw)) + "\\0").encode() + raw).hexdigest()
+        git_blob = hashlib.sha1(("blob " + str(len(raw)) + "\0").encode() + raw).hexdigest()
         self.assertEqual(git_blob, "e1acf640a099ab6f9a3c7a10f85062f472be3667")
         p = json.loads(protocol.read_text(encoding="utf-8"))
         self.assertEqual(p["schema"], "HOLE_PAIR_FUTURE_HOLDOUT_PROTOCOL_V1")
