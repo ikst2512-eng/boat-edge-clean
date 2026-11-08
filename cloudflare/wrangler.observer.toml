@@ -1,8 +1,8 @@
 # Optional zero-credential pilot Worker. This config is NOT deployed by this PR.
 # Safe to use for Cron timing / CPU observations before any GitHub PAT exists.
-# Production recovery must never be enabled in this observer Worker.
+# This dedicated observer entrypoint contains no GitHub request/dispatch path.
 name = "boat-edge-clean-independent-observer"
-main = "independent_capture_wakeup.mjs"
+main = "independent_capture_observer.mjs"
 compatibility_date = "2026-06-24"
 workers_dev = false
 
