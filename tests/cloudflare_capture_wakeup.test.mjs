@@ -10,12 +10,18 @@ const JST=9*60*60*1000;
 const jst=(h,m,d=5)=>new Date(Date.UTC(2026,10,d,h,m)-JST);
 const tick=(h,m,d=5)=>jst(h,m,d).getTime();
 const fakeRun=(event,when,rest={})=>({id:101,event,head_branch:'main',status:'completed',conclusion:'success',created_at:when.toISOString(),...rest});
-function mock({schedule=[],manual=[],failAt=0,failPost=false,postStatus=204}={}) {
+function mock({schedule=[],manual=[],failAt=0,failPost=false,postStatus=200}={}) {
   const calls=[];
   async function fetcher(url,options) {
     calls.push({url,method:options.method,body:options.body});
     if (failAt === calls.length) throw new Error('network_failure');
-    if (options.method==='POST') return {status:failPost?403:postStatus};
+    if (options.method==='POST') {
+      const status=failPost?403:postStatus;
+      const id=url.includes('/'+WORKFLOWS.clean+'/')?100101:100102;
+      const expectedApi='https://api.github.com/repos/ikst2512-eng/boat-edge-clean/actions/runs/'+id;
+      const expectedHtml='https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/'+id;
+      return {status,json:async()=>({workflow_run_id:id,run_url:expectedApi,html_url:expectedHtml})};
+    }
     const rows=url.includes('event=workflow_dispatch')?manual:schedule;
     return {status:200,json:async()=>({workflow_runs:rows})};
   }
@@ -64,12 +70,12 @@ test('source GitHub cron still matches plannedSlots and Render fallback',()=>{
 test('two eligible workflows dispatch only missing slots',async()=>{
   const m=mock();const out=await run(tick(7,10),m);
   assert.deepEqual(m.calls.map(x=>x.method),['GET','GET','GET','GET','POST','POST']);
-  for(const name of Object.keys(WORKFLOWS)) assert.equal(out.workflows[name].action,'dispatch_accepted_not_forecast_proof');
-  assert.ok(m.calls.filter(x=>x.method==='POST').every(x=>JSON.parse(x.body).ref==='main'));
+  for(const name of Object.keys(WORKFLOWS)) assert.equal(out.workflows[name].action,'dispatch_run_id_returned_not_forecast_proof');
+  assert.ok(m.calls.filter(x=>x.method==='POST').every(x=>JSON.parse(x.body).ref==='main' && JSON.parse(x.body).return_run_details===true));
   assert.equal(out.formal,false);assert.equal(out.new_forecast_saved_proven,false);
 });
 
-test('each accepted 204 emits a safe auditable receipt without token or GitHub run claim',async()=>{
+test('each verified 200 reports API run ID without claiming a completed GitHub run',async()=>{
   const m=mock(); const receipts=[]; const when=tick(7,10);
   const out=await execute({scheduledTime:when,now:when,token:'PRIVATE_TEST_TOKEN',
     fetcher:m.fetcher, onAccepted:x=>receipts.push(x)});
@@ -78,16 +84,18 @@ test('each accepted 204 emits a safe auditable receipt without token or GitHub r
   for(const entry of receipts){
     assert.equal(entry.event,'workflow_dispatch_accepted');
     assert.equal(entry.github_run_id_proven,false);
+    assert.ok(Number.isSafeInteger(entry.github_run_id_reported));
+    assert.equal(entry.github_run_url_reported,'https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/'+entry.github_run_id_reported);
     assert.equal(entry.new_forecast_saved_proven,false);
     assert.equal(entry.formal,false);
     assert.ok(entry.slot_jst.endsWith('+09:00'));
     assert.ok(entry.request_started_at_jst.endsWith('+09:00'));
     assert.ok(!JSON.stringify(entry).includes('PRIVATE_TEST_TOKEN'));
   }
-  assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');
+  assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
 });
 
-test('first 204 remains auditable when second dispatch fails',async()=>{
+test('first 200 run ID remains auditable when second dispatch fails',async()=>{
   const m=mock(); const receipts=[]; let posts=0;
   const guarded=async(url,options)=>{
     if(options.method==='POST' && ++posts===2)return {status:403};
@@ -99,6 +107,7 @@ test('first 204 remains auditable when second dispatch fails',async()=>{
   assert.equal(posts,2);
   assert.deepEqual(receipts.map(x=>x.workflow),['clean']);
   assert.equal(receipts[0].github_run_id_proven,false);
+  assert.equal(receipts[0].github_run_id_reported,100101);
 });
 
 test('GET failure emits no accepted-dispatch receipts',async()=>{
@@ -130,7 +139,7 @@ test('four-mode ends 20:52, CLEAN continues 21:10',async()=>{
 test('special final CLEAN slot only 22:30 and never after 22:33',async()=>{
   assert.equal(eligibleSlot('clean',jst(22,30)),tick(22,28));
   assert.equal(eligibleSlot('clean',jst(22,33)),null);
-  const m=mock();const out=await run(tick(22,30),m);assert.equal(out.workflows.clean.action,'dispatch_accepted_not_forecast_proof');
+  const m=mock();const out=await run(tick(22,30),m);assert.equal(out.workflows.clean.action,'dispatch_run_id_returned_not_forecast_proof');
 });
 
 test('reject cron invocation outside configured UTC, wrong minute',async()=>{
@@ -152,7 +161,7 @@ test('direct successful, queued, in_progress, unknown block dispatch',async()=>{
 
 test('failed scheduled run is recoverable but not publication proof',async()=>{
   const m=mock({schedule:[fakeRun('schedule',jst(7,8),{conclusion:'failure'})]});
-  const out=await run(tick(7,10),m);assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');assert.equal(out.on_time_cron_proven,false);
+  const out=await run(tick(7,10),m);assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');assert.equal(out.on_time_cron_proven,false);
 });
 
 test('manual dispatch near slot blocks even when manual failed',async()=>{
@@ -164,12 +173,12 @@ test('an earlier active main run blocks, earlier success does not',async()=>{
   let m=mock({schedule:[fakeRun('schedule',jst(7,8),{status:'queued',conclusion:null})]});
   let out=await run(tick(7,25),m);assert.equal(out.workflows.four_mode.reason,'previous_dispatch_or_active_job');noPosts(m);
   m=mock({schedule:[fakeRun('schedule',jst(7,8))]});out=await run(tick(7,25),m);
-  assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');
+  assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
 });
 
 test('nonmain cannot masquerade as successful main run',async()=>{
   const m=mock({schedule:[fakeRun('schedule',jst(7,8),{head_branch:'feature/other'})]});const out=await run(tick(7,10),m);
-  assert.equal(out.workflows.four_mode.action,'dispatch_accepted_not_forecast_proof');
+  assert.equal(out.workflows.four_mode.action,'dispatch_run_id_returned_not_forecast_proof');
 });
 
 test('malformed GitHub history fails closed',async()=>{
@@ -412,8 +421,45 @@ test('zero-credential observer pilot stays disabled and has no required PAT secr
   assert.ok(production.includes(cronExpr));
 });
 
-test('POST must return 204; no false success',async()=>{
-  const m=mock({postStatus:200});await assert.rejects(()=>run(tick(7,10),m),/dispatch_not_accepted/);
+test('legacy GitHub 204 with no run ID is fail-closed: no false confirmed receipt',async()=>{
+  const m=mock({postStatus:204}), receipts=[];
+  const when=tick(7,10);
+  await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+    fetcher:m.fetcher,onAccepted:x=>receipts.push(x)}),/github_dispatch_accepted_without_run_details/);
+  assert.equal(m.calls.filter(x=>x.method==='POST').length,1);
+  assert.deepEqual(receipts,[]);
+});
+
+test('GitHub 200 with forged, absent, or unparseable run details is not success proof',async()=>{
+  const valid=mock();
+  for(const broken of [
+    {workflow_run_id:0}, {workflow_run_id:'123'},
+    {workflow_run_id:100101,run_url:'https://evil.example/actions/runs/100101'},
+    {workflow_run_id:100101,run_url:'https://api.github.com/repos/other/repo/actions/runs/100101',
+      html_url:'https://github.com/other/repo/actions/runs/100101'},
+    {workflow_run_id:100101,run_url:'https://api.github.com/repos/ikst2512-eng/boat-edge-clean/actions/runs/100101',
+      html_url:'https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/999'},
+  ]){
+    let posts=0; const receipts=[];const when=tick(7,10);
+    const fetcher=async(url,options)=>{if(options.method==='POST'){posts++;return {status:200,json:async()=>broken};}
+      return valid.fetcher(url,options);};
+    await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+      fetcher,onAccepted:x=>receipts.push(x)}),/github_dispatch_run_details_missing_or_invalid/);
+    assert.equal(posts,1);assert.deepEqual(receipts,[]);
+  }
+  const when=tick(7,10);
+  const fetcher=async(url,options)=>options.method==='POST'?{status:200,json:async()=>{throw Error('invalid JSON');}}:valid.fetcher(url,options);
+  await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',fetcher}),/github_dispatch_run_details_missing_or_invalid/);
+});
+
+test('GitHub 401/403/404/429/500/503 POST errors never become run evidence',async()=>{
+  for(const status of [401,403,404,429,500,503]){
+    const m=mock({postStatus:status}), receipts=[];const when=tick(7,10);
+    await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
+      fetcher:m.fetcher,onAccepted:x=>receipts.push(x)}),/github_external_dispatch_not_accepted/);
+    assert.deepEqual(receipts,[]);
+    assert.equal(m.calls.filter(x=>x.method==='POST').length,1);
+  }
 });
 
 test('dedicated observer exports only default and has no dispatch-capable handler',()=>{
