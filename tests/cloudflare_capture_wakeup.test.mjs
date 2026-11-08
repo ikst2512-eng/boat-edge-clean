@@ -809,3 +809,34 @@ test('Cloudflare raw auditor rejects repeated or missing event cursor even when 
     assert.ok(result.raw_issues.some(q=>q.includes('event_cursor')));
   }
 });
+
+
+test('SQLite claim lab remains completely detached from production and observer',()=>{
+  const source=readFileSync(new URL('../cloudflare/claim_lab_only.mjs',import.meta.url),'utf8');
+  const config=readFileSync(new URL('../cloudflare/wrangler.claim-lab.toml',import.meta.url),'utf8');
+  const prod=readFileSync(new URL('../cloudflare/independent_capture_wakeup.mjs',import.meta.url),'utf8');
+  const pureObserver=readFileSync(new URL('../cloudflare/independent_capture_observer.mjs',import.meta.url),'utf8');
+  const prodConfig=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
+  const observerConfig=readFileSync(new URL('../cloudflare/wrangler.observer.toml',import.meta.url),'utf8');
+  assert.match(config,/name = "boat-edge-clean-claims-local-research-only"/);
+  assert.match(config,/main = "claim_lab_only.mjs"/);
+  assert.match(config,/workers_dev = false/);
+  assert.match(config,/crons = \[\]/);
+  assert.match(config,/new_sqlite_classes = \["CaptureClaimResearch"\]/);
+  assert.doesNotMatch(config,/GITHUB_DISPATCH_TOKEN|\[secrets\]|routes?\s*=/);
+  assert.doesNotMatch(prod, /claim_lab_only|CLAIMS_RESEARCH|CaptureClaimResearch/);
+  assert.doesNotMatch(pureObserver, /claim_lab_only|CLAIMS_RESEARCH|CaptureClaimResearch/);
+  assert.doesNotMatch(prodConfig, /CLAIMS_RESEARCH|CaptureClaimResearch/);
+  assert.doesNotMatch(observerConfig, /CLAIMS_RESEARCH|CaptureClaimResearch/);
+  const active=source.replace(/^\s*\/\/.*$/gm,'');
+  assert.doesNotMatch(active,/api\.github\.com|GITHUB_DISPATCH_TOKEN|\/dispatches|Authorization/);
+  assert.doesNotMatch(active,/\bfetch\s*\(.*github/i);
+  assert.doesNotMatch(active,/\bscheduled\s*\(/);
+});
+
+test('research gate has immutable claim-key invariant, no clear/retry/release path',()=>{
+  const source=readFileSync(new URL('../cloudflare/claim_lab_only.mjs',import.meta.url),'utf8');
+  assert.match(source,/PRIMARY KEY\(kind,slot_ms\)/);
+  assert.match(source,/ON CONFLICT DO NOTHING RETURNING slot_ms/);
+  assert.doesNotMatch(source,/DELETE FROM research_claims|DROP TABLE|UPDATE research_claims SET kind|\bclearClaim\s*\(/);
+});
