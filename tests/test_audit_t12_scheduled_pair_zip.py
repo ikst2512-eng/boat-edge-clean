@@ -225,6 +225,23 @@ class ActualScheduledPairZipReplayTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 replay(raw, RUN, digest, auditor=lambda x, y: audited())
 
+    def test_green_noop_with_hidden_source_original_is_rejected(self):
+        files = sources()
+        one = next(k for k in files if k.endswith("beforeinfo.json"))
+        raw, digest = zip_bytes(make_report(pair=False),
+                                {one: files[one]})
+        with self.assertRaisesRegex(ValueError, "undeclared"):
+            replay(raw, RUN, digest, auditor=lambda x, y: self.fail("unexpected"))
+
+    def test_hidden_foreign_race_original_cannot_be_silently_ignored(self):
+        files = sources()
+        files["official_joint_evidence/observations/"
+              "before_run42450048245/20261108/202611081409/"
+              "beforeinfo.json"] = b"hidden"
+        raw, digest = zip_bytes(original_files=files)
+        with self.assertRaisesRegex(ValueError, "undeclared"):
+            replay(raw, RUN, digest, auditor=lambda x, y: audited())
+
     def test_duplicate_zip_entries_rejected(self):
         raw, digest = zip_bytes(duplicate=True)
         with self.assertRaisesRegex(ValueError, "duplicate"):
