@@ -34,13 +34,24 @@ def _estimated_coverage(original, mode):
 
 
 def _new_stats():
-    return {"races": 0, "estimated_hits_sum": 0.0, "actual_full_ticket_hits": 0,
-            "squared_error_sum": 0.0, "saved_results": 0, "public_only_results": 0}
+    return {"races": 0, "estimated_hits_sum": 0.0, "estimated_square_sum": 0.0,
+            "estimated_min": None, "estimated_max": None, "estimated_distinct": set(),
+            "actual_full_ticket_hits": 0, "squared_error_sum": 0.0,
+            "saved_results": 0, "public_only_results": 0}
 
 
 def _accumulate(stats, probability, full_hit, result_kind):
     stats["races"] += 1
+    if (not isinstance(probability, (int, float)) or isinstance(probability, bool)
+            or not math.isfinite(probability) or not 0 <= probability <= 1):
+        raise ValueError("untrusted_estimated_probability")
     stats["estimated_hits_sum"] += probability
+    stats["estimated_square_sum"] += probability ** 2
+    stats["estimated_min"] = (probability if stats["estimated_min"] is None
+                               else min(stats["estimated_min"], probability))
+    stats["estimated_max"] = (probability if stats["estimated_max"] is None
+                               else max(stats["estimated_max"], probability))
+    stats["estimated_distinct"].add(round(probability * 100, 4))
     stats["actual_full_ticket_hits"] += int(full_hit)
     stats["squared_error_sum"] += (probability - int(full_hit)) ** 2
     stats["saved_results"] += int(result_kind == "persisted")
@@ -49,9 +60,18 @@ def _accumulate(stats, probability, full_hit, result_kind):
 
 def _summarize(stats):
     n = stats["races"]
+    mean = stats["estimated_hits_sum"] / n if n else None
+    variance = max(0.0, stats["estimated_square_sum"] / n - mean ** 2) if n else None
+    if n and (stats["estimated_min"] is None or stats["estimated_max"] is None
+              or len(stats["estimated_distinct"]) == 0):
+        raise ValueError("estimated_spread_missing")
     return {
         "races": n,
         "estimated_full_list_hit_rate_pct": round(100 * stats["estimated_hits_sum"] / n, 2) if n else None,
+        "estimated_full_list_min_pct": round(100 * stats["estimated_min"], 2) if n else None,
+        "estimated_full_list_max_pct": round(100 * stats["estimated_max"], 2) if n else None,
+        "estimated_full_list_population_stddev_pp": round(100 * math.sqrt(variance), 4) if n else None,
+        "distinct_original_estimated_pct_values": len(stats["estimated_distinct"]),
         "observed_full_list_hit_rate_pct": round(100 * stats["actual_full_ticket_hits"] / n, 2) if n else None,
         "observed_minus_estimated_percentage_points": round(
             100 * (stats["actual_full_ticket_hits"] - stats["estimated_hits_sum"]) / n, 2) if n else None,
@@ -149,6 +169,7 @@ def audit(root, raw_by_day, official_reference, observed_at=None):
         "official_non_scoreable_reference_manual_not_live_verified_by_CI": True,
         "source_raw_bytes_replayed_from_earlier_research_CI_step": True,
         "research_cohort_may_be_selection_biased": True,
+        "prediction_spread_is_not_proof_of_discrimination": True,
         "predictive_calibration_proven": False,
         "prospective_candidate_pairs": 0,
         "formal": False,
