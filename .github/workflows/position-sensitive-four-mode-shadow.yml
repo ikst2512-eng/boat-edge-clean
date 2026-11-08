@@ -9,6 +9,8 @@ on:
       - 'position_sensitive_topk_exposure_audit.py'
       - 'position_sensitive_paired_guard.py'
       - 'position_sensitive_paired_inference.py'
+      - 'position_sensitive_feature_inventory.py'
+      - 'test_position_sensitive_feature_inventory.py'
       - 'test_position_sensitive_paired_inference.py'
       - 'test_position_sensitive_paired_guard.py'
       - 'test_position_sensitive_topk_exposure_audit.py'
@@ -69,7 +71,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -171,6 +173,26 @@ jobs:
                       raise SystemExit(f"topk_overlap_partition_invalid:{mode}:{k}")
           print(f"POSITION_SENSITIVE_SAME_RACE_TOPK_EXPOSURE_VALIDATED:{n}/{n};NO_ACCURACY_CLAIM")
           PY
+      - name: Read-only archive feature coverage without official/T12 claims
+        run: |
+          python position_sensitive_feature_inventory.py --day 20261108 | tee position_shadow_feature_inventory.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path('position_shadow_input_only.json').read_text())
+          b = json.loads(Path('position_shadow_feature_inventory.json').read_text())
+          if (b.get('archived_files') != a['archived_files']
+                  or b.get('compared') != a['compared']
+                  or b.get('excluded') != 0
+                  or b.get('recorded_top_level_feature_counts', {}).get(
+                      'national_win_rates_six') != a['compared']
+                  or b.get('formal') is not False
+                  or b.get('formal_official_beforeinfo_six_odds120_verified') is not False
+                  or b.get('independent_candidate_first_remote_receipt_verified') is not False
+                  or b.get('model_improvement_proven') is not False):
+              raise SystemExit('feature_inventory_or_official_claim_invalid')
+          print(f"POSITION_SENSITIVE_FEATURE_COVERAGE_READONLY:{b['compared']}/{b['archived_files']}")
+          PY
       - name: Upload diagnostic (not accuracy or certification)
         uses: actions/upload-artifact@v4
         with:
@@ -180,4 +202,5 @@ jobs:
             position_shadow_topk_exposure.json
             position_paired_guard_unstarted.json
             position_paired_inference_unstarted.json
+            position_shadow_feature_inventory.json
           retention-days: 30
