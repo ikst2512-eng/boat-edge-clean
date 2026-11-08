@@ -94,6 +94,12 @@ def inspect(pair, frozen):
         missing.append("official_original_received_after_frozen_forecast")
     if not generated_before_t12:
         missing.append("frozen_forecast_generated_after_t12")
+    # A frozen forecast derived from the public race-title/card CSV is not
+    # proved to have used the later archived boatrace.jp official originals.
+    # Keep this explicit, independent of whether a source pair was fetched.
+    frozen_source_kind = frozen.get("input_source_kind")
+    if frozen_source_kind == "public_pre_race_csv":
+        missing.append("frozen_input_public_csv_not_official_originals")
     if frozen.get("beforeinfo") == "optional_not_in_snapshot":
         missing.append("official_beforeinfo_absent_from_frozen_snapshot")
     # Pair evidence never carries an independently verified official racelist.
@@ -118,6 +124,9 @@ def inspect(pair, frozen):
         "official_component_checks_verified": bool(components_verified),
         "official_exhibition_six_complete": exhibition_complete,
         "official_odds_120_complete": odds_120_complete,
+        "frozen_input_source_kind": (
+            frozen_source_kind if isinstance(frozen_source_kind, str) else None
+        ),
         "two_source_complete_before_t12": two_sources_complete,
         "source_receipts_before_t12": sources_before_t12,
         "forecast_generated_after_official_pair": generated_after_sources,
