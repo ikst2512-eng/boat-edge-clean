@@ -8,7 +8,7 @@ receipt, or the contents of any skipped artifacts.
 import argparse
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -18,12 +18,34 @@ WORKFLOW = "four-mode-prospective-capture.yml"
 PAGE_LIMIT = 100
 
 
-def audit_day(repo, day, token, fetch=None):
+# The main capture workflow currently declares four slots per hour, 07:07
+# through 20:52 JST. GitHub Actions created_at may be delayed, and its run
+# listing does not identify which cron occurrence created an individual run.
+NOMINAL_DAILY_CAPTURE_SLOTS = 56
+SCHEDULE_OBSERVATION_GRACE = timedelta(minutes=5)
+
+
+def nominal_schedule_slots_due(day, as_of):
+    """Count scheduled slots nominally due, not certified delivered or missed."""
+    date = datetime.strptime(day, "%Y%m%d").date()
+    if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("aware audit as_of required")
+    local = as_of.astimezone(JST)
+    first = datetime.combine(date, time(7, 7), tzinfo=JST)
+    return sum(
+        first + i * timedelta(minutes=15) + SCHEDULE_OBSERVATION_GRACE <= local
+        for i in range(NOMINAL_DAILY_CAPTURE_SLOTS)
+    )
+
+
+def audit_day(repo, day, token, fetch=None, *, as_of=None):
     if (not isinstance(repo, str) or len(repo.split("/")) != 2
             or not all(repo.split("/")) or not token
             or not isinstance(day, str) or len(day) != 8 or not day.isdigit()):
         raise ValueError("invalid_audit_arguments")
     datetime.strptime(day, "%Y%m%d")
+    as_of = as_of or datetime.now(timezone.utc)
+    due_slots = nominal_schedule_slots_due(day, as_of)
     url = (f"https://api.github.com/repos/{repo}/actions/workflows/"
            f"{quote(WORKFLOW)}/runs?event=schedule&per_page={PAGE_LIMIT}")
     if fetch is None:
@@ -77,10 +99,16 @@ def audit_day(repo, day, token, fetch=None):
             "day_jst": day, "total_history_runs_available": result["total_count"],
             "history_rows_inspected": len(rows), "full_day_metadata_coverage": complete,
             "same_day_scheduled_run_count": len(matching),
+            "nominal_schedule_slots_per_jst_day": NOMINAL_DAILY_CAPTURE_SLOTS,
+            "nominal_schedule_slots_due_as_of_audit": due_slots,
+            "observed_runs_below_nominal_due_by": max(0, due_slots - len(matching)),
+            "per_slot_schedule_delivery_verified": False,
             "failed_run_ids": failed, "pending_or_unknown_run_ids": pending,
             "forecast_publication_verified": False,
             "per_run_artifact_coverage_verified": False,
-            "note": "Workflow execution status only; no claim about artifact completeness."}
+            "note": ("Created-at day counts can differ from actual cron slots due to "
+                     "delayed GitHub scheduling; no per-slot delivery or forecast "
+                     "publication certification.")}
 
 
 def main():
@@ -96,6 +124,11 @@ def main():
     output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_SCHEDULE_METADATA=" + json.dumps(result, sort_keys=True))
+    if (result["observed_runs_below_nominal_due_by"] > 0
+            and os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"):
+        print("::warning::Scheduled-run count below nominal slots due; "
+              "individual missing slots are NOT certified by created_at metadata")
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"):
         if not result["full_day_metadata_coverage"]:
