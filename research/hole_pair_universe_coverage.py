@@ -24,6 +24,31 @@ EXCLUSION_REASONS = frozenset({
 })
 SCHEMA = "HOLE_PAIR_SOURCE_SNAPSHOT_COVERAGE_V1"
 
+# Closed schema: the future candidate must be exact result-blind freeze()
+# output plus the Git blob fingerprint added by the research batch. No
+# realized outcome, winner, post-result annotation or arbitrary extension.
+FROZEN_REQUIRED_FIELDS = frozenset({
+    "schema", "method", "status", "race_code", "model_version",
+    "deadline_jst", "t_minus_12_jst", "local_start_jst", "local_finish_jst",
+    "source_sha256", "source_git_blob_sha1", "locked_selector_git_blobs",
+    "method_source_sha256", "candidates", "candidates_sha256",
+    "formal", "prospective_validation", "independent_first_receipt_verified",
+    "production_forecast_changed",
+})
+FROZEN_OPTIONAL_FIELDS = frozenset({"warning"})
+
+
+def reject_outcome_contaminated_schema(record):
+    if type(record) is not dict or not (
+            FROZEN_REQUIRED_FIELDS <= set(record)
+            and not set(record) - (FROZEN_REQUIRED_FIELDS | FROZEN_OPTIONAL_FIELDS)):
+        raise ValueError("unexpected_frozen_record_fields")
+    if (record["model_version"] != "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
+            or type(record["locked_selector_git_blobs"]) is not dict
+            or type(record.get("warning", "")) is not str):
+        raise ValueError("untrusted_frozen_record_metadata")
+    return True
+
 
 def race_day(code, expected_day):
     if type(code) is not str or not RACE.fullmatch(code):
@@ -60,6 +85,7 @@ def reconcile(capture_day, source_main_sha, source_codes, frozen_records,
         raise ValueError("unrecognized_exclusion_reason")
     taken, frozen, exclusion_summary = set(), [], Counter()
     for record in frozen_records:
+        reject_outcome_contaminated_schema(record)
         code, cutoff = _validate_frozen(record)
         race_day(code, capture_day)
         sha1 = record.get("source_git_blob_sha1")
