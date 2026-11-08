@@ -22,6 +22,8 @@ CSV_URL = re.compile(r"https://boatracecsv\.github\.io/data/programs/(title|race
 API_URL = re.compile(r"https://boatraceopenapi\.github\.io/api/v1/(20\d{2})/(20\d{6})\.json")
 MAX_ZIP_BYTES = 4_000_000
 MAX_ENTRY_BYTES = 2_000_000
+MAX_TOTAL_UNCOMPRESSED = 8_000_000
+MAX_ARCHIVE_ENTRIES = 128
 
 
 def _load_json(value):
@@ -84,8 +86,19 @@ def audit_zip(data, expected_zip_sha256):
             names = z.namelist()
             if len(names) != len(set(names)) or any(n.startswith("/") or ".." in n.split("/") for n in names):
                 raise ValueError("duplicate_or_unsafe_artifact_paths")
-            if any(i.file_size > MAX_ENTRY_BYTES for i in z.infolist()):
+            members = z.infolist()
+            if len(members) > MAX_ARCHIVE_ENTRIES or sum(i.file_size for i in members) > MAX_TOTAL_UNCOMPRESSED:
+                raise ValueError("oversize_or_excessive_artifact_entries")
+            if any(i.file_size > MAX_ENTRY_BYTES for i in members):
                 raise ValueError("oversize_artifact_member")
+            # Every archived local HTTP receipt needs exactly one JSON manifest
+            # and one raw-byte member. A stray payload must never be ignored.
+            raw_names = [n for n in names if n.startswith(RAW_PREFIX)]
+            if (any(not re.fullmatch(re.escape(RAW_PREFIX) + r"[0-9a-f]{64}\.(?:json|bin)", n)
+                    for n in raw_names)
+                    or {n[:-5] for n in raw_names if n.endswith(".json")}
+                    != {n[:-4] for n in raw_names if n.endswith(".bin")}):
+                raise ValueError("unpaired_or_unexpected_raw_receipts")
             log = _load_json(z.read("four-mode-evidence/capture.log"))
             status = _load_json(z.read("four_mode_forecasts/capture_status.json"))
             day = status["day_jst"]
@@ -107,10 +120,15 @@ def audit_zip(data, expected_zip_sha256):
                         or meta.get("byte_count") != len(raw)
                         or meta.get("sha256") != hashlib.sha256(raw).hexdigest()):
                     raise ValueError("raw_http_receipt_mismatch")
+                # Writer names the file by SHA256(URL + NUL + exact raw bytes).
+                # Verify that content address, not just a self-reported digest.
+                url = meta.get("url", "")
+                if (type(url) is not str or hashlib.sha256(
+                        url.encode("utf-8") + b"\0" + raw).hexdigest() != stem):
+                    raise ValueError("raw_receipt_content_address_mismatch")
                 received = datetime.fromisoformat(meta["received_at_jst"])
                 if received.tzinfo is None or received.astimezone(JST).strftime("%Y%m%d") != day:
                     raise ValueError("invalid_source_receipt_date")
-                url = meta.get("url", "")
                 csv_match = CSV_URL.fullmatch(url)
                 api_match = API_URL.fullmatch(url)
                 if csv_match:
