@@ -634,7 +634,10 @@ jobs:
                       or not (0<=stats["estimated_full_list_min_pct"]<=stats["estimated_full_list_hit_rate_pct"]<=stats["estimated_full_list_max_pct"]<=100)
                       or stats["estimated_full_list_population_stddev_pp"] is None
                       or stats["estimated_full_list_population_stddev_pp"]<0
-                      or not (1<=stats["distinct_original_estimated_pct_values"]<=stats["races"])):
+                      or not (1<=stats["distinct_original_estimated_pct_values"]<=stats["races"])
+                      or stats["descriptive_original_estimate_hit_discrimination_auc"] is None
+                      or not 0<=stats["descriptive_original_estimate_hit_discrimination_auc"]<=1
+                      or c.get("auc_is_historical_same_cohort_not_future_holdout") is not True):
                   raise SystemExit("calibration_full_list_vs_top10_reconciliation:"+mode)
               print("ORIGINAL_CALIBRATION_REFERENCE:"+mode+
                     ":estimated_full_pct="+str(stats["estimated_full_list_hit_rate_pct"])+
@@ -644,7 +647,8 @@ jobs:
                     ":estimated_min="+str(stats["estimated_full_list_min_pct"])+
                     ":estimated_max="+str(stats["estimated_full_list_max_pct"])+
                     ":estimated_sd_pp="+str(stats["estimated_full_list_population_stddev_pp"])+
-                    ":distinct_estimates="+str(stats["distinct_original_estimated_pct_values"]))
+                    ":distinct_estimates="+str(stats["distinct_original_estimated_pct_values"])+
+                    ":historical_auc="+str(stats["descriptive_original_estimate_hit_discrimination_auc"]))
           print("ORIGINAL_CALIBRATION_FORMAL_COUNT:0")
           PY
       - name: Audit real frozen historical archives by version and day
