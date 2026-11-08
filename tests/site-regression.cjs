@@ -428,7 +428,7 @@ assert.ok(historicalPagesWorkflow.includes("if(!archived.ok())throw Error('CLEAN
 // GitHub Pages must ship the runtime navigation script referenced by index.html.
 const pagesWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
 assert.ok(html.includes("navScript.src='navigation.js'"),'site expects external navigation script');
-assert.ok(pagesWorkflow.includes('cp index.html navigation.js public/'),'Pages must publish both runtime assets');
+assert.ok(pagesWorkflow.includes('cp index.html navigation.js candidates.html candidate_history.js public/'),'Pages must publish main, candidate and navigation assets');
 assert.ok(pagesWorkflow.includes('cmp -s public/navigation.js /tmp/clean-deployed-navigation.js'),'Pages must verify deployed navigation asset');
 assert.ok(pagesWorkflow.includes('      - navigation.js'),'navigation changes must trigger Pages publication');
 console.log('PASS: Pages navigation asset packaging and verification');
@@ -615,72 +615,40 @@ assert.ok(archivePublish.includes('tabEvidence.exhibit.sourceVerified='),'publis
 assert.ok(archivePublish.includes("card?.verifiedPreview===true&&card?.source_audit?.beforeinfo?.status==='ok'"),'verification must require timestamp-gated snapshot and source audit');
 assert.ok(archivePublish.includes('unverified_exhibition_mislabeled_verified'),'contradictory exhibition status must fail diagnostic');
 
-// Candidate availability regression: real saved pre-deadline forecasts are reachable.
-assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut is available from any race view');
-assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut must work on GitHub Pages');
+// Candidate history now retains all pre-race Git records beyond deadline, with no six-race cap.
+// All chronology and tampering checks moved into Python's candidate_history.py and the
+// explicit test_candidate_history.py behavioral suite (also run on this PR).
+assert.ok(html.includes('締切前3レースと開催場へ戻る'),'home shortcut remains available');
+assert.ok(html.includes('https://boat-edge-clean.onrender.com/" aria-label="締切前3レースと開催場へ戻る'),'home shortcut unchanged');
 assert.ok(script.includes('else if(!archive?.ok){'),'schedule must fall back on Raw non-404 failures');
-assert.ok(candidateHtml.includes('id="candidateCards"'),'candidate page must show a live candidate container');
-assert.ok(candidateHtml.includes('showTodayCandidates();'),'candidate page must load saved predeadline forecasts');
-assert.ok(candidateHtml.includes("formatToParts(new Date()).filter(p=>p.type!=='literal')"),'race date must use locale-independent JST calendar parts');
-assert.ok(candidateHtml.includes('const code=dateParts.year+dateParts.month+dateParts.day;'),'race key must preserve YYYYMMDD order');
-assert.ok(!candidateHtml.includes("format(new Date()).replaceAll('-','')"),'a locale may display en-CA dates with slashes and must not break race keys');
-assert.ok(candidateHtml.includes('pred?.formal===false&&pred?.scoring===false'),'only research snapshots, not formal ticket recommendations');
-assert.ok(candidateHtml.includes("titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff"),'inverted source timestamps must exclude tickets before rendering');
-assert.ok(candidateHtml.includes("const validTimes=times.every(key=>isJstStamp(pred?.[key]))"),'missing or non-JST source timestamps must fail closed');
-assert.ok(candidateHtml.includes("recordedDeadline===limit&&limit-cutoff===12*60*1000"),'source deadline must match the schedule and T-12 boundary');
-assert.ok(candidateHtml.includes("if(!structurallyValid)continue;\n   available++;"),'invalid candidates must not increase displayed count');
-assert.ok(candidateHtml.includes("購入判断に使用しないでください"),'unverified remote first-seen must never become a purchase recommendation');
-assert.ok(!candidateHtml.includes('const recordedBeforeInput=generated<source'),'source inversion must not merely change warning copy');
-assert.ok(candidateHtml.includes('Date.now()>=limit'),'candidate page must not present closed races as open');
-assert.ok(candidateHtml.includes('for(let start=0;start<upcoming.length&&available<6;start+=12)'),'candidate discovery must scan beyond the first 18 upcoming races');
-assert.ok(candidateHtml.includes('Promise.all(batch.map(async race=>'),'candidate discovery must use bounded parallel fetches');
-assert.ok(!candidateHtml.includes('upcoming.slice(0,18)'),'candidate discovery must not truncate potentially valid later races');
-assert.ok(candidateHtml.includes("signal:AbortSignal.timeout(4500)"),'candidate batches must bound per-race HTTP waits');
-assert.ok(candidateHtml.includes('if(response.status===404)return null;'),'missing archive must be distinct from upstream network failure');
-assert.ok(candidateHtml.includes('if(pred.fetchFailure===true){fetchFailures++;continue}'),'network failures cannot count as valid candidate tickets');
-assert.ok(candidateHtml.includes('候補なしとは断定できません。'),'network outages must not be reported as no safe candidates');
+const candidateCode=fs.readFileSync('candidate_history.py','utf8');
+const candidateController=fs.readFileSync('candidate_history.js','utf8');
+const candidateStatic=fs.readFileSync('candidates.html','utf8');
+const candidateTests=fs.readFileSync('test_candidate_history.py','utf8');
+assert.ok(candidateHtml.includes('id="candidateCards"')&&candidateHtml.includes('src="/candidate_history.js"'),'Render candidate history must mount shared renderer');
+assert.ok(candidateStatic.includes('id="candidateCards"')&&candidateStatic.includes('src="candidate_history.js"'),'Pages candidate history must mount shared renderer');
+assert.ok(!candidateHtml.includes('showTodayCandidates();'),'expired six-item legacy candidate loop must not execute');
+assert.ok(candidateController.includes("const onPages=location.pathname.endsWith('/candidates.html')"),'Pages must not require Render for candidate archive');
+assert.ok(candidateController.includes("candidate_history/'+day+'.json"),'Pages must read day-scoped immutable manifest');
+assert.ok(candidateController.includes("showRace(race)"),'every record must be rendered');
+assert.ok(candidateController.includes('result_status')&&candidateController.includes('confirmed_archive'),'results must be separately validated');
+assert.ok(candidateCode.includes('saved_research_unattested')&&candidateCode.includes('first_git_add_verified'),'candidate view must not certify historical research');
+assert.ok(candidateCode.includes('deadline - cutoff != timedelta(minutes=12)'),'stored forecast must enforce the 12-minute input gate');
+assert.ok(candidateCode.includes('title_received <= generated and cards_received <= generated < cutoff'),'source receipt chronology must be preserved');
+assert.ok(candidateCode.includes('len(tickets) != len(set(tickets))'),'duplicate picks must be rejected');
+assert.ok(candidateTests.includes('test_all_eight_candidates_survive_deadline_without_six_item_limit'),'past-deadline retention must have behavioral coverage');
+assert.ok(candidateTests.includes('test_confirmed_result_never_creates_a_missing_prediction'),'result-to-forecast reconstruction must be impossible');
+console.log('PASS: immutable daily candidate records, chronology and no six-item cap');
 
-// Deployed Pages tests must follow navigation.js rewriting of candidate/review routes.
+// Published Pages must link to the Render-independent static candidate archive
+// while retaining separate P0 live API checks for race cards.
 const publishWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must test candidate and review navigation');
-assert.ok(publishWorkflow.includes('      - selection.html # Re-run the existing published Render candidate browser diagnostic on candidate UI changes.'),'candidate page updates must trigger published browser checks');
-assert.ok(publishWorkflow.includes("candidateResponse.status()!==200"),'published candidate destination must return real HTTP200');
-
-// Record the actual candidate list rather than only the candidate route HTTP200.
-const publicCandidateWorkflow=fs.readFileSync('.github/workflows/deploy-pages.yml','utf8');
-assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'published candidate list must be observed in browser');
-assert.ok(publicCandidateWorkflow.includes("document.querySelectorAll('#candidateCards > article.card')"),'candidate report must count rendered cards');
-assert.ok(publicCandidateWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must be distinct from displayed candidates');
-assert.ok(publicCandidateWorkflow.includes('candidate_warning_or_tickets_missing'),'public candidate page must retain research warning');
-
-
-// Behavioral regression: evaluate the production candidate guard, not only its text.
-const guardStart=candidateHtml.indexOf('   const isJstStamp=value=>');
-const guardEnd=candidateHtml.indexOf('   if(!structurallyValid)continue;',guardStart);
-assert.ok(guardStart>0&&guardEnd>guardStart,'candidate chronology guard must be extractable');
-const productionGuard=candidateHtml.slice(guardStart,guardEnd);
-const guardedCandidate=(candidate,nowMs)=>{
- const raceCode='202611040104',limit=Date.parse('2026-11-04T16:35:00+09:00');
- const fakeDate=class extends Date{static now(){return nowMs}};
- return vm.runInNewContext('(()=>{'+productionGuard+'return structurallyValid;})()',
-  {pred:candidate,raceCode,limit,Date:fakeDate,Set});
-};
-const safeCandidate={
- race_code:'202611040104',formal:false,scoring:false,status:'prospective_candidate',
- predictions:['1-2-3','1-3-2'],
- source_title_received_jst:'2026-11-04T11:01:33.708274+09:00',
- source_cards_received_jst:'2026-11-04T11:01:33.766393+09:00',
- generated_at:'2026-11-04T11:01:34.000000+09:00',
- cutoff_jst:'2026-11-04T16:23:00+09:00',
- source_deadline_jst:'2026-11-04T16:35:00+09:00'
-};
-const nowAfterGeneration=Date.parse('2026-11-04T16:00:00+09:00');
-assert.equal(guardedCandidate(safeCandidate,nowAfterGeneration),true,'correct post-input generation remains research-display eligible');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T11:01:33.627045+09:00'},nowAfterGeneration),false,'actual Nov 4 candidate chronology inversion is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'title receipt alone after generation is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T11:01:35+09:00'},nowAfterGeneration),false,'cards receipt alone after generation is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_title_received_jst:null},nowAfterGeneration),false,'missing title receipt is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-11-04T02:01:33Z'},nowAfterGeneration),false,'non-JST receipt is rejected even for equivalent instant');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:23:00+09:00'},nowAfterGeneration),false,'generation exactly at T-12 is rejected');
-assert.equal(guardedCandidate({...safeCandidate,source_deadline_jst:'2026-11-04T16:36:00+09:00'},nowAfterGeneration),false,'mismatching source race deadline is rejected');
-assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:20:00+09:00'},Date.parse('2026-11-04T16:00:00+09:00')),false,'future-dated generation is rejected');
+assert.ok(publishWorkflow.includes('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED'),'published browser must check candidate link');
+assert.ok(publishWorkflow.includes('      - selection.html'),'Render candidate page changes must trigger published browser checks');
+assert.ok(publishWorkflow.includes("candidateHref!=='/boat-edge-clean/candidates.html'"),'Pages candidate link must remain on Pages origin');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_DISPLAY'),'published candidate list must be observed');
+assert.ok(publishWorkflow.includes("document.querySelectorAll('#candidateCards > details.candidate-history-card')"),'browser must count all archived candidates');
+assert.ok(publishWorkflow.includes('CLEAN_CANDIDATE_PUBLIC_UNVERIFIED'),'source failures must stay distinguishable');
+assert.ok(publishWorkflow.includes('candidate_archive_not_complete_'),'test must detect lost candidate rows');
+assert.ok(publishWorkflow.includes("'prospective_predictions/**'"),'new candidate archival commits must trigger Pages refresh');
+console.log('PASS: independent Pages candidate publication and verification gates');
