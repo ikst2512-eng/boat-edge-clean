@@ -10,6 +10,8 @@ on:
       - tests/test_audit_t12_three_original_frozen.py
       - scripts/audit_t12_external_archive_presence.py
       - tests/test_audit_t12_external_archive_presence.py
+      - scripts/audit_t12_blocker_join.py
+      - tests/test_audit_t12_blocker_join.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -35,16 +37,17 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_frozen_chronology.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_three_original_frozen.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_external_archive_presence.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_blocker_join.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           REQUESTED_UTC_DAY: ${{ inputs.utc_day }}
         run: |
-          # PR checks replay the completed Nov 7 UTC audit cohort;
-          # dispatch may inspect any selected UTC day, including a partial day.
+          # The collector's UTC 00-12 cron is JST 09-21 on the same day.
+          # Pair the Nov 8 PR schedule inventory with Nov 8 archive presence.
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            day=20261107
+            day=20261108
           else
             day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
           fi
@@ -55,17 +58,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
+          REQUESTED_UTC_DAY: ${{ inputs.utc_day }}
         run: |
-          # PR regression checks independently re-query the known Nov 8 gap.
-          # Manual dispatch checks the active JST date, not an older race.
+          # The same UTC cron date maps to the same racing-day JST cohort.
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             day=20261108
           else
-            day="$(TZ=Asia/Tokyo date +%Y%m%d)"
+            day="${REQUESTED_UTC_DAY:-$(date -u +%Y%m%d)}"
           fi
           python -m scripts.audit_t12_external_archive_presence \
             --repo "$REPOSITORY" --day-jst "$day" \
             --output reports/official_three_archive_presence.json
+      - name: Join same-day schedule and original-archive blockers (read only)
+        run: |
+          python -m scripts.audit_t12_blocker_join \
+            --schedule reports/official_pair_schedule_continuity.json \
+            --archive reports/official_three_archive_presence.json \
+            --output reports/official_t12_same_day_blockers.json
       - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
         with:
@@ -73,5 +82,6 @@ jobs:
           path: |
             reports/official_pair_schedule_continuity.json
             reports/official_three_archive_presence.json
+            reports/official_t12_same_day_blockers.json
           if-no-files-found: error
           retention-days: 30
