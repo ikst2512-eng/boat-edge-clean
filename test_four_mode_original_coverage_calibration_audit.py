@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from four_mode_original_coverage_calibration_audit import (
-    _estimated_coverage, _new_stats, _accumulate, _summarize, _descriptive_auc, audit,
+    _estimated_coverage, _new_stats, _accumulate, _summarize, _descriptive_auc,
+    _leave_one_day_out_auc, audit,
 )
 from four_mode_nov05_08_daily_reference_audit import ROOT, DAYS, MODES
 
@@ -130,6 +131,77 @@ class OriginalCoverageCalibrationTests(unittest.TestCase):
                       [(0.5, 2)], [[0.5, 1]], [(1.2, 0)]):
             with self.subTest(cases=cases), self.assertRaisesRegex(ValueError, "invalid_auc_histogram"):
                 _descriptive_auc(cases)
+
+    @staticmethod
+    def _daily_stats_for_leave_one_out(*, invert_last=False):
+        data = {}
+        for i, day in enumerate(DAYS):
+            stats = {}
+            for mode in MODES:
+                state = _new_stats()
+                left, right = ((.95, 0), (.05, 1)) if invert_last and i == 3 else (
+                    (.1 + .1 * i, 0), (.9 - .1 * i, 1))
+                _accumulate(state, *left, "persisted")
+                _accumulate(state, *right, "persisted")
+                stats[mode] = state
+            data[day] = stats
+        return data
+
+    def test_leave_one_day_out_keeps_original_inputs_and_four_independent_exclusions(self):
+        data = self._daily_stats_for_leave_one_out()
+        summary = _leave_one_day_out_auc(data)
+        for mode in MODES:
+            item = summary[mode]
+            self.assertEqual(item["evaluable_day_exclusions"], 4)
+            self.assertEqual(item["minimum_three_day_auc"], 1)
+            self.assertEqual(item["maximum_three_day_auc"], 1)
+            self.assertEqual(item["range_across_omitted_days"], 0)
+            for excluded, case in item["excluding_each_day"].items():
+                self.assertEqual(case["excluded_day"], excluded)
+                self.assertNotIn(excluded, case["included_days"])
+                self.assertEqual(case["included_races"], 6)
+                self.assertEqual(case["observed_full_list_hits"], 3)
+                self.assertEqual(case["observed_full_list_misses"], 3)
+                self.assertEqual(case["descriptive_original_estimate_hit_discrimination_auc"], 1)
+            self.assertTrue(item["not_prospective_or_cross_validated_model_training"])
+
+    def test_one_outlier_day_is_identified_by_leave_one_out(self):
+        data = self._daily_stats_for_leave_one_out(invert_last=True)
+        detail = _leave_one_day_out_auc(data)["hit"]
+        last = DAYS[-1]
+        self.assertEqual(detail["excluding_each_day"][last][
+            "descriptive_original_estimate_hit_discrimination_auc"], 1)
+        self.assertLess(detail["minimum_three_day_auc"], 1)
+        self.assertGreater(detail["range_across_omitted_days"], 0)
+
+    def test_leave_one_day_out_rejects_partial_or_inconsistent_calendar(self):
+        data = self._daily_stats_for_leave_one_out()
+        del data[DAYS[0]]
+        with self.assertRaisesRegex(ValueError, "invalid_leave_one_day_out_day_roster"):
+            _leave_one_day_out_auc(data)
+        data = self._daily_stats_for_leave_one_out()
+        del data[DAYS[0]]["hole"]
+        with self.assertRaisesRegex(ValueError, "invalid_leave_one_day_out_modes"):
+            _leave_one_day_out_auc(data)
+        data = self._daily_stats_for_leave_one_out()
+        data[DAYS[1]]["hit"]["races"] = 3
+        with self.assertRaisesRegex(ValueError, "incomplete_leave_one_day_out_rows"):
+            _leave_one_day_out_auc(data)
+
+    def test_leave_one_day_out_no_positive_or_negative_is_unknown(self):
+        data = self._daily_stats_for_leave_one_out()
+        for day in DAYS:
+            for mode in MODES:
+                stats = _new_stats()
+                _accumulate(stats, .2, False, "persisted")
+                data[day][mode] = stats
+        item = _leave_one_day_out_auc(data)["narrow"]
+        self.assertEqual(item["evaluable_day_exclusions"], 0)
+        self.assertIsNone(item["minimum_three_day_auc"])
+        self.assertIsNone(item["maximum_three_day_auc"])
+        self.assertIsNone(item["range_across_omitted_days"])
+        self.assertTrue(all(v["descriptive_original_estimate_hit_discrimination_auc"] is None
+                            for v in item["excluding_each_day"].values()))
 
     def _raws(self, order=(1, 2, 5), source_stamp=None):
         ts = source_stamp or self.saved["confirmed_at_jst"]
