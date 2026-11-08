@@ -81,3 +81,24 @@ Exact-head [GitHub Actions #42460952169](https://github.com/ikst2512-eng/boat-ed
 - **#1692 venue/wind:** This candidate still uses only six national rates. Collect official 24-venue actual course, wind, motor, exhibition, wall data independently; apply only on future predeadline authentic evidence, never retrofit a favorable parameter.
 - **#1679 UI/Render:** No current UI/Render/healthz modification; production HTTP incident remains separate.
 - **#1698 this Draft:** Contains the immutable candidate, tests, and reference comparator; **do not merge or deploy automatically**.
+
+## 2026-11-08 same-race TopK turnover exposure, NOT scored accuracy
+
+Read-only [exact-head Actions #42465896933](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42465896933) succeeded: **22/22 tests**, 116/116 Nov-08 original saved boards reproduced, 0 excluded, preregistered three Git blobs unchanged. The new independent `position_sensitive_topk_exposure_audit.py` reads **only** `four_mode_forecasts`, not results, payouts, odds, or later outcomes. It uses the *same race, same fixed frozen selector*, and compares actual selected ticket membership and first/second pair effects, not artificial diversity constraints.
+
+| Mode (fixed ticket budget) | Top1 ticket changed | Top3 membership changed | Top5 membership changed | Top10 membership changed | Mean changed slots Top5 / Top10 | Old Top1 absent from new Top5 / Top10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| narrow (5) | 76/116 | 97/116 | 103/116 | **N/A** | 1.750 / **N/A** | 28 / **N/A** |
+| hit (10) | 76/116 | 97/116 | 103/116 | 108/116 | 1.750 / 2.647 | 28 / 9 |
+| balance (16) | 76/116 | 96/116 | 106/116 | 112/116 | 1.750 / 3.000 | 31 / 11 |
+| hole (22) | 107/116 | 113/116 | 114/116 | 115/116 | 3.500 / 5.397 | 86 / 71 |
+
+These are **replacement/overlap counts, not acquired or lost winning outcomes**. In particular, 108/116 membership changes in hit Top10 means many opportunities for either improved or worsened results; it is **not** evidence of Top10 non-inferiority. The small `narrow` mode has only five tickets, so a distinct "Top10" does not exist. It is reported **N/A**, never padded with five imaginary losses. The primary frozen candidate model, result-last paired scorer, protocol SHA, original predictions, all collection paths and `main` remain untouched.
+
+For this **specific preregistered candidate** (not #1693's selector), independent future pre-T−12 publication/first-remote receipts are still missing; the prospective cohort is **0**. The existing separate [pre-registration](../../research/four_mode_position_sensitive_forward_protocol_20261108.json) starts Nov 9 and reserves first 300 valid races for pilot and next 300 for confirmation. Only AFTER immutable pre-result candidate provenance and independent results are both established should its paired Top1/3/5/10 scorer calculate **baseline hits, candidate hits, gained hits, lost hits, denominators** in every mode. In the confirmation cohort, **any net Top5 or Top10 lost hits is an explicit block on promotion**; a nonnegative observed difference alone is still not a statistical demonstration of non-inferiority. If rigorous inferential support or input provenance is insufficient, retain **unproven/Draft**. Never tune the frozen coefficients using these outcomes.
+
+### Mechanism coverage and next independent hypothesis
+
+Current selector's **only per-race strength input** is the six national win rates. The tilt does NOT yet use verified actual entry/course, full six-boat exhibition, exhibition ST/turning/straight, motor, wind/height/direction, track condition, first/second-course wall performance or verified official 120-odds. Consequently it cannot claim to model all the race-specific effects requested. Before testing a later **new study identity**, require a typed, timestamped, independently preserved evidence vector with six named boats, actual entry, official T−12 completeness, course/ST/motor/exhibition and weather applicability; reject incomplete or late inputs rather than invent or backfill them. Distinguish pre-race historical ST from exhibition ST and do not treat wind effects learned at one venue as universally transferable. Keep first-boat probability changes separate from this frozen 2nd/3rd hypothesis and use fresh independent chronological holdout. All weather/venue source research remains owned by #1692, cross-mode general accuracy by #1693, and hole-specific hypothesis research by #1685/#1688; this PR only evaluates this selector's paired TopK exposure and prospective non-regression.
+
+**Evidence status (2026-11-08):** data input sensitivity proven; 116 saved races audited result-blind; 22 tests pass; confirmed improvement **0**; verified independent future candidate receipts **0**; production promotion **prohibited**.
