@@ -1,0 +1,33 @@
+name: CLEAN daily candidate history regression
+on:
+  pull_request:
+    paths:
+      - candidate_history.py
+      - candidate_history.js
+      - selection.html
+      - server.py
+      - test_candidate_history.py
+      - .github/workflows/daily-candidate-history-tests.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compile Python and check candidate browser script syntax
+        run: |
+          python -m compileall -q candidate_history.py server.py
+          node --check candidate_history.js
+      - name: Preserve all saved candidates and original predictions
+        run: python -m unittest -v test_candidate_history test_selection_dual test_four_mode_archive_api
+      - name: Check existing navigation invariants
+        run: python -m unittest discover -s tests -p test_navigation_contract.py -v
