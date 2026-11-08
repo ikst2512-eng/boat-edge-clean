@@ -188,6 +188,34 @@ class ManualCaptureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsafe_forecast_symlink"):
             self.run_capture()
 
+    def test_workflow_only_dispatches_with_typed_jst_ack_and_fails_missing_artifact(self):
+        workflow = (
+            Path(__file__).resolve().parent.parent /
+            ".github/workflows/hole-future-pair-precommit.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("  workflow_dispatch:\n    inputs:\n", workflow)
+        self.assertIn("      capture_day_jst:\n", workflow)
+        self.assertIn("      acknowledgement:\n", workflow)
+        self.assertIn("        required: true\n", workflow)
+        self.assertIn(
+            "HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}", workflow)
+        self.assertIn(
+            "HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}", workflow)
+        self.assertIn(
+            'python research/hole_pair_manual_capture.py --capture-day '
+            '"$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json',
+            workflow)
+        self.assertIn(
+            "          name: hole-future-pair-precutoff-candidates\n"
+            "          path: research_candidate_freeze.json\n"
+            "          if-no-files-found: error", workflow)
+        self.assertNotIn("for name in sorted(paths):", workflow)
+        # A PR test may never make a new candidate artifact.
+        self.assertIn(
+            "- name: Freeze future race candidates from immutable main forecasts "
+            "(research only)\n"
+            "        if: github.event_name == 'workflow_dispatch'", workflow)
+
     def test_empty_current_main_snapshot_not_reported_as_official_day(self):
         out = self.run_capture([])
         self.assertEqual(out["frozen_count"], 0)
