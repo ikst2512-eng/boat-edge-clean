@@ -18,6 +18,8 @@ on:
       - tests/test_audit_t12_archived_pair_forecast_replay.py
       - scripts/audit_t12_extracted_artifact_replay.py
       - tests/test_audit_t12_extracted_artifact_replay.py
+      - scripts/audit_t12_multiday_schedule_trend.py
+      - tests/test_audit_t12_multiday_schedule_trend.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -47,6 +49,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_pair_zip.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_archived_pair_forecast_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_extracted_artifact_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_multiday_schedule_trend.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -63,6 +66,16 @@ jobs:
           python -m scripts.audit_official_pair_schedule_continuity \
             --repo "$REPOSITORY" --day-utc "$day" \
             --output reports/official_pair_schedule_continuity.json
+      - name: Audit completed eight-day collector schedule trend (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Full Nov 1-8 history; all 156 UTC daily nominal slots have elapsed.
+          # A schedule event's creation is NOT proof of its intended slot.
+          python -m scripts.audit_t12_multiday_schedule_trend \
+            --repo "$REPOSITORY" --start-day 20261101 --end-day 20261108 \
+            --output reports/official_t12_eight_day_schedule_trend.json
       - name: Inventory persisted three-original branch presence (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -134,6 +147,7 @@ jobs:
             reports/official_pair_schedule_continuity.json
             reports/official_three_archive_presence.json
             reports/official_t12_same_day_blockers.json
+            reports/official_t12_eight_day_schedule_trend.json
             reports/historical_real_source_forecast_replay.json
           if-no-files-found: error
           retention-days: 30
