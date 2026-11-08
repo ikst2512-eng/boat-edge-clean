@@ -1,0 +1,43 @@
+{
+  "schema": "FOUR_MODE_NOV05_08_OFFICIAL_NON_SCOREABLE_REFERENCE_V1",
+  "reference_only": true,
+  "authored_date_jst": "2026-11-08",
+  "source_review": "manual_research_observation_of_official_public_pages_not_live_reverification_in_CI",
+  "cases": [
+    {
+      "kind": "cancelled_race_day",
+      "day": "20261106",
+      "race_codes": [
+        "202611060802",
+        "202611060803",
+        "202611060804",
+        "202611060805",
+        "202611060806",
+        "202611060807",
+        "202611060808",
+        "202611060809",
+        "202611060810",
+        "202611060811",
+        "202611060812"
+      ],
+      "expected_public_csv_reason": "not_in_published_csv",
+      "official_source_url": "https://www.motorboatracing-association.jp/abort/2026/11/",
+      "source_fact": "2026-11-06 Tokoname venue 08 entire meeting cancelled due to severe weather, rescheduled through Nov 10; original saved forecasts exist for venue 08 races 02-12"
+    },
+    {
+      "kind": "trifecta_not_established",
+      "day": "20261107",
+      "race_codes": [
+        "202611070302"
+      ],
+      "expected_public_csv_reason": "invalid_or_unfinished_finish_not_scoreable",
+      "official_source_url": "https://www.boatrace.jp/owpc/pc/race/raceresult?hd=20261107&jcd=03&rno=2",
+      "source_fact": "Edogawa venue 03 race 2: boats 1/2/3/5 false-started, 6 first and 4 second, trifecta not established / refunded"
+    }
+  ],
+  "exclusion_policy": "Keep original archives immutable and report outside exact trifecta denominator; never score a cancellation or no-trifecta as success or failure and never replace pre-registered cohort slots.",
+  "official_live_recheck_by_ci": false,
+  "formal": false,
+  "model_improvement_proven": false,
+  "model_promotion_allowed": false
+}
