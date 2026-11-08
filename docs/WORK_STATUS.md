@@ -1,3 +1,10 @@
+## 2026-11-08 12時台 JST｜Cloudflare Draft #1697 正規Cron→模擬GitHub復旧のWorkerd統合テスト合格
+- 従来は不正cron・期限切れcronの拒否をWorkerdで実証済み。今回さらにCloudflare公式`@cloudflare/vitest-plugin`で**正規Cronイベント→GitHub模擬API履歴GET→復旧POSTの正常経路**を本物のローカルWorkerd内で検証した。実GitHub/Cloudflareに一切通信せず、本物の秘密トークンも利用しない。
+- 新規`cloudflare/test/worker_runtime.test.mjs`の**4/4 PASS**：①07:10 JSTの有効枠ではGitHub模擬4GET完了後に模擬2POST（HTTP204）、正式認定フラグfalse ②両元cron成功済みでは4GET・POST0 ③3回目のGETが503なら両方POST0、受理ログ0 ④誤cronでは通信0。既存Node**32/32 PASS**・Python policy成功・Wrangler dry-run成功・Local Explorer実cron拒否テスト成功も維持。
+- GitHub Actions [#42443452124](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42443452124)でwatchdogと**別の読み取り専用PRジョブcloudflare-workerd-integration**の両方`completed/success`。専用ジョブは`contents:read`、checkout`persist-credentials:false`で本番watchdogの`actions:write`権限を引き継がない。テスト依存にVitest4.1.10/Workers Plugin1.3.0/Wrangler4.158.0、Node24を使用。
+- 初回CIのnpm10`edgesOut`障害はnpmのpeer依存解決であり、Node24・Vitest版更新・実行ディレクトリ固定で解消。失敗試行は負例として保持。依存のtransitive lockfileは未作成、運用前に再現性検討が必要。
+- **未証明**：Cloudflare本番Free Worker/Cron/Secret、CPU10ms適合、実GitHub workflow_dispatch/run ID、予想Git初回保存・T−12公式原本。模擬HTTP204を本番復旧と混同せず、正式認定0件。PRはDraftでmain自動統合禁止、既存Render Free本番・Render Python・GitHub原本収集cron・4モード予想への変更なし。
+
 ## 2026-11-08 12時台 JST｜Cloudflare Free 独立Cronの実Workerdローカル検証成功（Draft #1697）
 - 先に失敗したLocal Explorer経由のCronテストの実原因は、`wrangler@4.102.0`がLocal Explorer Cron実行に未対応だったため。Cloudflare公式仕様ではWrangler**4.139.0以上**が必須。PR専用CIのバージョンを`4.158.0`へ更新し、`scheduled()`をLocal Explorer APIから実際に呼び出した。既存Render Python/Web、main、予想原本に変更なし。
 - 新版Workerd上で2種類の実イベントを検証。①不正cron `* * * * *`は`unexpected_cron_trigger`でGitHub通信前に拒否。②設定どおりのcronだが過去の`scheduled_time=1700000000000`は`late_or_future_cron_trigger`でSecret確認／GitHub通信前に拒否。両者ともローカルAPI HTTP200でありGitHubの204ではなく、実復旧・原本保存の証明に採用しない。
