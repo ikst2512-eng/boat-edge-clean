@@ -50,6 +50,22 @@ class FrozenChronologyAuditTests(unittest.TestCase):
         self.assertFalse(result["accuracy_scoring_allowed"])
         self.assertFalse(result["formal"])
 
+    def test_real_clean_public_csv_not_mistaken_for_official_originals(self):
+        frozen = clean(input_source_kind="public_pre_race_csv")
+        result = inspect(pair(), frozen)
+        self.assertEqual(result["frozen_input_source_kind"], "public_pre_race_csv")
+        self.assertIn("frozen_input_public_csv_not_official_originals",
+                      result["missing_requirements"])
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["accuracy_scoring_allowed"])
+
+    def test_missing_input_kind_does_not_gain_official_certification(self):
+        result = inspect(pair(), clean())
+        self.assertIsNone(result["frozen_input_source_kind"])
+        self.assertIn("official_originals_not_linked_to_frozen_model_inputs",
+                      result["missing_requirements"])
+        self.assertFalse(result["full_t12_source_certified"])
+
     def test_real_v2_beforeinfo_is_not_in_10_17_frozen_snapshot(self):
         v2 = {"race_code": RACE,
               "generated_at_jst": "2026-11-08T10:17:12.313648+09:00",
