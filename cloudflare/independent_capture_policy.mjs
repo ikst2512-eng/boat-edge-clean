@@ -94,16 +94,37 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
     if (!Number.isFinite(current) || eligibleSlot(kind, new Date(current)) !== eligible[kind]) {
       throw new Error('recovery_window_expired_before_dispatch');
     }
-    const response = await fetcher(`${root}/dispatches`, {method: 'POST', headers: {...headers(token), 'Content-Type': 'application/json'},
-      body: JSON.stringify({ref: 'main'})});
-    if (!response || response.status !== 204) throw new Error('github_external_dispatch_not_accepted');
-    result.workflows[kind].action = 'dispatch_accepted_not_forecast_proof';
-    // GitHub returns only HTTP 204, not the run ID. Record each accepted POST
-    // independently so a later failure cannot erase a partial-success receipt.
-    // No token, request headers or forecast data is written to this log.
+    // GitHub.com has supported return_run_details since 2026-02-19
+    // (also with REST API version 2022-11-28). A 200 response is only
+    // evidence that GitHub reports a created run, NOT a completed execution
+    // or a new forecast. Do not poll/redispatch on ambiguous receipts.
+    const response = await fetcher(`${root}/dispatches`, {method: 'POST',
+      headers: {...headers(token), 'Content-Type': 'application/json'},
+      body: JSON.stringify({ref: 'main', return_run_details: true})});
+    // Legacy 204 can mean an actual run was created but its ID was NOT
+    // returned. Fail closed without issuing another POST in this invocation.
+    if (response?.status === 204) throw new Error('github_dispatch_accepted_without_run_details');
+    if (!response || response.status !== 200) throw new Error('github_external_dispatch_not_accepted');
+    let details;
+    try { details = await response.json(); } catch {
+      throw new Error('github_dispatch_run_details_missing_or_invalid');
+    }
+    const id=details?.workflow_run_id;
+    const expectedApi=`https://api.github.com/repos/${REPO}/actions/runs/${id}`;
+    const expectedHtml=`https://github.com/${REPO}/actions/runs/${id}`;
+    if (!Number.isSafeInteger(id) || id <= 0 ||
+        details.run_url !== expectedApi || details.html_url !== expectedHtml) {
+      throw new Error('github_dispatch_run_details_missing_or_invalid');
+    }
+    result.workflows[kind].action = 'dispatch_run_id_returned_not_forecast_proof';
+    result.workflows[kind].github_run_id_reported = id;
+    // Record each validated 200 receipt independently so a later failure
+    // cannot erase prior run IDs. No token, headers or source forecast data.
+    // The ID has NOT been independently verified against a completed run.
     onAccepted({schema: SCHEMA, event: 'workflow_dispatch_accepted',
       workflow: kind, slot_jst: result.workflows[kind].slot_jst,
       request_started_at_jst: new Date(current + JST).toISOString().replace('Z', '+09:00'),
+      github_run_id_reported: id, github_run_url_reported: expectedHtml,
       github_run_id_proven: false, new_forecast_saved_proven: false, formal: false});
   }
   result.action = 'checked_not_publication_proof';
