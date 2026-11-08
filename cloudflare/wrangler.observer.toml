@@ -6,6 +6,12 @@ main = "independent_capture_observer.mjs"
 compatibility_date = "2026-06-24"
 workers_dev = false
 
+# Every scheduled observer invocation must remain visible in Workers Logs.
+# Workers Logs are part of Workers observability; do not use paid Tail Workers.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [vars]
 CLOUDFLARE_DISPATCH_ENABLED = "false"
 
