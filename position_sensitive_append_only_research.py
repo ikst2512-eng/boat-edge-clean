@@ -81,7 +81,8 @@ def prepare_candidate(original_bytes, candidate_bytes, local_now_jst):
     }
 
 
-def publish_write_once(prepared, branch, remote_read, remote_create):
+def publish_write_once(original_bytes, candidate_bytes, local_now_jst,
+                       branch, remote_read, remote_create):
     """Optional dependency-injected create-only branch writer.
 
     CONTRACT for real adapters, NOT verified by this function:
@@ -92,6 +93,7 @@ def publish_write_once(prepared, branch, remote_read, remote_create):
     Do not use a mutable update_file, an upsert, or main. Even a successful
     write is not a first remote receipt. Remote time is NOT supplied here.
     """
+    prepared = prepare_candidate(original_bytes, candidate_bytes, local_now_jst)
     if (type(prepared) is not dict or prepared.get("schema") != SCHEMA
             or prepared.get("branch") != PROPOSED_LEDGER_BRANCH
             or branch != PROPOSED_LEDGER_BRANCH
