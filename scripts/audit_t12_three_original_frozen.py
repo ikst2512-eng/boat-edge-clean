@@ -102,6 +102,9 @@ def inspect(three, frozen, original_sha256):
     # Archive readback, git commit timestamps and a self-reported first_seen
     # cannot prove externally observed initial GitHub remote acceptance.
     missing.extend((
+        # A forecast's self-declared source SHA list is not independent proof
+        # the executed model actually consumed those raw bytes.
+        "independent_model_input_consumption_unverified",
         "independent_first_git_remote_receipt_unverified",
         "final_race_entry_not_independently_verified",
     ))
@@ -126,6 +129,8 @@ def inspect(three, frozen, original_sha256):
         "forecast_generated_by_t12": forecast_before_t12,
         "forecast_source_kind": frozen.get("input_source_kind"),
         "frozen_forecast_original_hashes_match": bool(lineage_matches),
+        "frozen_forecast_hash_linkage_is_self_declared_only": bool(lineage_matches),
+        "model_original_bytes_independently_replayed_as_inputs": False,
         "research_only_three_source_forecast_chain_ready": bool(research_chain_ready),
         "missing_requirements": missing,
         "independent_first_git_remote_receipt_verified": False,
