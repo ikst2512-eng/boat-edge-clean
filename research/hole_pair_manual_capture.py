@@ -7,6 +7,7 @@ confirmed_results; never write GitHub branches; do not promote to formal.
 """
 import argparse
 import collections
+import hashlib
 import json
 import os
 import re
@@ -64,6 +65,11 @@ def capture(day, source_sha, paths, read_source, read_blob, freezer,
         blob = read_blob(path)
         if type(blob) is not str or not SHA40.fullmatch(blob):
             raise ValueError("untrusted_main_forecast_blob")
+        expected_blob = hashlib.sha1(
+            b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw
+        ).hexdigest()
+        if expected_blob != blob:
+            raise ValueError("immutable_main_source_blob_content_mismatch")
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.is_symlink():
@@ -80,6 +86,8 @@ def capture(day, source_sha, paths, read_source, read_blob, freezer,
         if status == "locally_frozen_unverified":
             if "source_git_blob_sha1" in result:
                 raise ValueError("unexpected_prepopulated_original_blob")
+            if result.get("source_sha256") != hashlib.sha256(raw).hexdigest():
+                raise ValueError("frozen_candidate_original_source_sha256_mismatch")
             result["source_git_blob_sha1"] = blob
             records.append(result)
         elif status in EXCLUSION_REASONS:
