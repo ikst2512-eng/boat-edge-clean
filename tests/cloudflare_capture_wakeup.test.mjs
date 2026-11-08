@@ -840,3 +840,74 @@ test('research gate has immutable claim-key invariant, no clear/retry/release pa
   assert.match(source,/ON CONFLICT DO NOTHING RETURNING slot_ms/);
   assert.doesNotMatch(source,/DELETE FROM research_claims|DROP TABLE|UPDATE research_claims SET kind|\bclearClaim\s*\(/);
 });
+
+
+/* CROSS_PROVIDER_QUEUE_LAB_REGRESSION — negative evidence, NOT a production fix. */
+import {CURRENT_NATIVE_QUEUES, simulateGitHubConcurrency, counterexamples}
+  from '../cloudflare/cross_provider_queue_lab.mjs';
+
+test('actual native capture YAML has CLEAN default pending replacement and four-mode queue max',()=>{
+  const clean=readFileSync(new URL('../.github/workflows/clean-prospective.yml',import.meta.url),'utf8');
+  const four=readFileSync(new URL('../.github/workflows/four-mode-prospective-capture.yml',import.meta.url),'utf8');
+  function block(yaml){
+    const found=yaml.match(/^concurrency:\s*\n([\s\S]*?)^jobs:/m);
+    assert.ok(found,'missing workflow concurrency group');
+    return found[1].split('\n').filter(x=>!x.trim().startsWith('#')).join('\n');
+  }
+  const c=block(clean),f=block(four);
+  assert.match(c,/group:.*clean-prospective-capture/);
+  assert.match(f,/group:.*four-mode-publication/);
+  assert.match(c,/cancel-in-progress:\s*false/);
+  assert.match(f,/cancel-in-progress:\s*false/);
+  assert.doesNotMatch(c,/^\s*queue:\s*max\s*$/m,'CLEAN still has one replaceable pending slot');
+  assert.match(f,/^\s*queue:\s*max\s*$/m,'four-mode has up to 100 pending slots');
+  assert.equal(CURRENT_NATIVE_QUEUES.clean.queue,'single');
+  assert.equal(CURRENT_NATIVE_QUEUES.four_mode.queue,'max');
+});
+
+test('counterexample: one Cloudflare rescue can replace queued native CLEAN schedule',()=>{
+  const r=simulateGitHubConcurrency({queue:'single',running:'old_capture_running',
+    arrivals:['native_schedule_new_slot','cloudflare_recovery_same_slot']});
+  assert.deepEqual(r.canceled,['native_schedule_new_slot']);
+  assert.deepEqual(r.pending,['cloudflare_recovery_same_slot']);
+  assert.equal(r.production_dispatch_safe,false);
+});
+
+test('counterexample: even one atomic Cloudflare DO claim cannot protect native CLEAN pending job',()=>{
+  // Assume the perfect Cloudflare-internal deduplication outcome:
+  // only one rescue can reach GitHub from Cloudflare. Native schedule is
+  // outside that DO, and can still be replaced in a GitHub single queue.
+  const r=simulateGitHubConcurrency({queue:'single',running:'old_capture_running',
+    arrivals:['native_schedule_new_slot','single_cloudflare_DO_claim_winner']});
+  assert.deepEqual(r.canceled,['native_schedule_new_slot']);
+  assert.equal(r.verified_cross_provider_idempotency,false);
+});
+
+test('four-mode queue max retains duplicate requests: serial execution is not exactly once',()=>{
+  const r=simulateGitHubConcurrency({queue:'max',running:'old_four_mode_running',
+    arrivals:['native_schedule_new_slot','cloudflare_claim_winner_same_slot',
+      'second_uncoordinated_provider_same_slot']});
+  assert.deepEqual(r.canceled,[]);
+  assert.equal(r.pending.length,3);
+  assert.equal(r.production_dispatch_safe,false);
+});
+
+test('four-mode queue max cancels new rescue if 100 other requests are already pending',()=>{
+  const arrivals=Array.from({length:100},(_,i)=>'queued_'+i);
+  const r=simulateGitHubConcurrency({queue:'max',running:'old_four_mode_running',
+    arrivals:[...arrivals,'cloudflare_recovery_new_slot']});
+  assert.equal(r.pending.length,100);
+  assert.deepEqual(r.canceled,['cloudflare_recovery_new_slot']);
+  assert.equal(r.trace.at(-1).action,'queue_full_canceled');
+  assert.equal(r.actual_github_run_evidence,false);
+});
+
+test('cross-provider counterexample summary keeps recovery NO-GO and no event evidence',()=>{
+  const x=counterexamples();
+  assert.equal(x.clean_original_schedule_displaced,true);
+  assert.equal(x.four_mode_duplicate_pending.length,2);
+  assert.equal(x.four_mode_saturated_recovery_canceled,true);
+  assert.equal(x.github_runtime_behavior_independently_observed,false);
+  assert.equal(x.cross_provider_safe,false);
+  assert.equal(x.recovery_release_approved,false);
+});
