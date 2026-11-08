@@ -13,6 +13,8 @@ on:
       - test_hole_pair_write_once_candidate_ledger.py
       - research/hole_pair_capture_launch_audit.py
       - research/test_hole_pair_capture_launch_audit.py
+      - research/hole_pair_d1_receipt_chain_audit.py
+      - research/test_hole_pair_d1_receipt_chain_audit.py
       - test_hole_pair_remote_receipt_evidence.py
       - research/hole_pair_future_holdout_protocol_20261109.json
       - test_hole_future_pair_precommit.py
@@ -36,6 +38,8 @@ jobs:
         run: |
           node --test research/test_hole_pair_first_receipt_worker.mjs
           python -m unittest -v research/test_hole_pair_first_receipt_sql.py
+      - name: Fail closed on purported D1 receipt chain (offline, nonformal)
+        run: python -m unittest -v research/test_hole_pair_d1_receipt_chain_audit.py
       - name: Audit default-branch manual-dispatch registration (read-only)
         shell: bash
         run: |
