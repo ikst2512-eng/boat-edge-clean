@@ -1,5 +1,6 @@
 """Fail-closed regression gates for research-only hole pair precommit."""
 import json
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -199,6 +200,11 @@ class PairPrecommitTest(unittest.TestCase):
 
     def test_future_holdout_protocol_starts_after_inspected_days(self):
         protocol = Path(__file__).resolve().parent / "research" / "hole_pair_future_holdout_protocol_20261109.json"
+        raw = protocol.read_bytes()
+        # First registered Git blob is immutable: protocol edits require a new
+        # future-only protocol/version, never an in-place holdout definition.
+        git_blob = hashlib.sha1(("blob " + str(len(raw)) + "\\0").encode() + raw).hexdigest()
+        self.assertEqual(git_blob, "e1acf640a099ab6f9a3c7a10f85062f472be3667")
         p = json.loads(protocol.read_text(encoding="utf-8"))
         self.assertEqual(p["schema"], "HOLE_PAIR_FUTURE_HOLDOUT_PROTOCOL_V1")
         self.assertEqual(p["protocol_effective_day_jst"], "20261109")
