@@ -107,7 +107,7 @@ jobs:
         with:
           name: hole-future-pair-precutoff-candidates
           path: research_candidate_freeze.json
-          if-no-files-found: warn
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: hole-future-pair-precommit-readiness
