@@ -55,7 +55,7 @@ def _observe(proof, expected_bytes, expected_path, latest, earliest):
             or type(payload.get("content")) is not str):
         raise ValueError("remote_response_identity_drift")
     try:
-        raw = base64.b64decode(payload["content"].replace("\\n", ""), validate=True)
+        raw = base64.b64decode("".join(payload["content"].splitlines()), validate=True)
     except (ValueError, base64.binascii.Error) as exc:
         raise ValueError("invalid_remote_base64") from exc
     if raw != expected_bytes:
