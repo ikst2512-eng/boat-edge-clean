@@ -5,6 +5,7 @@ on:
       - candidate_history.py
       - candidate_history.js
       - candidates.html
+      - tests/candidate_history_browser.cjs
       - navigation.js
       - .github/workflows/deploy-pages.yml
       - selection.html
@@ -61,5 +62,18 @@ jobs:
           print('CANDIDATE_PAGES_DRY_RUN_PASS', obj['candidate_count'],
                 obj['research_forecast_count'], obj['confirmed_result_count'])
           PY
+      - name: Install isolated Chromium test browser
+        timeout-minutes: 6
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Verify iPhone-width Pages candidate history without Render
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory public >/tmp/clean-candidate-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node tests/candidate_history_browser.cjs
       - name: Check existing navigation invariants
         run: python -m unittest discover -s tests -p test_navigation_contract.py -v
