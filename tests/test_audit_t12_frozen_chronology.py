@@ -50,6 +50,81 @@ class FrozenChronologyAuditTests(unittest.TestCase):
         self.assertFalse(result["accuracy_scoring_allowed"])
         self.assertFalse(result["formal"])
 
+    def test_nov05_biwako11_replayed_pair_still_predates_frozen_clean(self):
+        # Receipt times correspond to original ZIP artifact 13391673467;
+        # this test is a chronology fixture, not a raw-byte replay.
+        source = pair(
+            race_code="202611051111",
+            cutoff_jst="2026-11-05T14:54:00+09:00",
+            before_received_jst="2026-11-05T14:50:49.136632+09:00",
+            odds_received_jst="2026-11-05T14:50:58.419703+09:00",
+        )
+        pred = clean(
+            race_code="202611051111",
+            generated_at="2026-11-05T11:04:24.496897+09:00",
+            input_source_kind="public_pre_race_csv",
+        )
+        checked = inspect(source, pred)
+        self.assertTrue(checked["two_source_complete_before_t12"])
+        self.assertFalse(checked["forecast_generated_after_official_pair"])
+        self.assertAlmostEqual(checked["last_source_minus_generation_seconds"],
+                               13593.923, places=3)
+        self.assertIn("frozen_input_public_csv_not_official_originals",
+                      checked["missing_requirements"])
+        self.assertFalse(checked["accuracy_scoring_allowed"])
+
+    def test_nov06_naruto10_replayed_pair_still_predates_frozen_clean(self):
+        # Receipt times correspond to original ZIP artifact 13480945699.
+        source = pair(
+            race_code="202611061410",
+            cutoff_jst="2026-11-06T14:53:00+09:00",
+            before_received_jst="2026-11-06T14:47:38.371341+09:00",
+            odds_received_jst="2026-11-06T14:47:48.721444+09:00",
+        )
+        pred = clean(
+            race_code="202611061410",
+            generated_at="2026-11-06T10:15:39.642861+09:00",
+            input_source_kind="public_pre_race_csv",
+        )
+        checked = inspect(source, pred)
+        self.assertTrue(checked["two_source_complete_before_t12"])
+        self.assertFalse(checked["forecast_generated_after_official_pair"])
+        self.assertAlmostEqual(checked["last_source_minus_generation_seconds"],
+                               16329.079, places=3)
+        self.assertIn("official_original_received_after_frozen_forecast",
+                      checked["missing_requirements"])
+        self.assertFalse(checked["full_t12_source_certified"])
+
+    def test_nov05_nov06_nov08_frozen_v2_missing_official_beforeinfo(self):
+        historical = (
+            ("202611051111", "2026-11-05T14:54:00+09:00",
+             "2026-11-05T14:50:49.136632+09:00",
+             "2026-11-05T14:50:58.419703+09:00",
+             "2026-11-05T11:15:10.119704+09:00"),
+            ("202611061410", "2026-11-06T14:53:00+09:00",
+             "2026-11-06T14:47:38.371341+09:00",
+             "2026-11-06T14:47:48.721444+09:00",
+             "2026-11-06T10:15:36.394911+09:00"),
+            (RACE, CUTOFF, BEFORE, ODDS,
+             "2026-11-08T10:17:12.313648+09:00"),
+        )
+        for race, cutoff, before, odds, generation in historical:
+            with self.subTest(race=race):
+                source = pair(race_code=race, cutoff_jst=cutoff,
+                              before_received_jst=before,
+                              odds_received_jst=odds)
+                frozen_v2 = {
+                    "race_code": race, "generated_at_jst": generation,
+                    "beforeinfo": "optional_not_in_snapshot",
+                }
+                checked = inspect(source, frozen_v2)
+                self.assertTrue(checked["two_source_complete_before_t12"])
+                self.assertFalse(checked["forecast_generated_after_official_pair"])
+                self.assertIn("official_beforeinfo_absent_from_frozen_snapshot",
+                              checked["missing_requirements"])
+                self.assertFalse(checked["formal"])
+                self.assertFalse(checked["forecast_usable"])
+
     def test_real_clean_public_csv_not_mistaken_for_official_originals(self):
         frozen = clean(input_source_kind="public_pre_race_csv")
         result = inspect(pair(), frozen)
