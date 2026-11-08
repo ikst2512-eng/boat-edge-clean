@@ -5,6 +5,7 @@ on:
       - four_mode_version_topn_audit.py
       - four_mode_nov05_08_daily_reference_audit.py
       - four_mode_result_raw_csv_audit.py
+      - research/four_mode_nov05_08_official_non_scoreable_reference.json
       - test_four_mode_result_raw_csv_audit.py
       - test_four_mode_nov05_08_daily_reference_audit.py
       - test_four_mode_version_topn_audit.py
@@ -347,7 +348,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python four_mode_result_raw_csv_audit.py --fetch | tee four_mode_current_raw_csv_status.json
+          python four_mode_result_raw_csv_audit.py --fetch --official-reference research/four_mode_nov05_08_official_non_scoreable_reference.json | tee four_mode_current_raw_csv_status.json
       - name: Refuse result-row disagreement and fabricated formal status
         run: |
           python - <<'PY'
@@ -363,6 +364,21 @@ jobs:
                   or v.get("current_raw_hash_not_historical_first_result_sha") is not True
                   or set(v.get("by_day",{}))!={"20261105","20261106","20261107","20261108"}):
               raise SystemExit("untrusted_public_result_source_audit")
+          official=v.get("official_non_scored_reference")
+          if (type(official) is not dict
+                  or official.get("non_scored_total")!=12
+                  or official.get("non_scored_counts_by_type")!={"cancelled_race_day":11,
+                                                                 "trifecta_not_established":1}
+                  or official.get("official_pages_live_rechecked_by_script") is not False
+                  or official.get("formal") is not False
+                  or official.get("model_promotion_allowed") is not False):
+              raise SystemExit("official_non_scoreable_reference_unverifiable")
+          if (official["remaining_unresolved_result_races"]+
+                  official["non_scored_total"]!=v["frozen_original_result_reference"]["pending_results"]
+                  or official["maximum_potential_trifecta_slots_in_saved_forecasts"]+
+                     official["non_scored_total"]!=v["frozen_original_result_reference"]["forecast_files"]):
+              raise SystemExit("official_non_scoreable_denominator_mismatch")
+          print("MANUALLY_REVIEWED_OFFICIAL_NON_SCOREABLE:"+str(official["non_scored_total"]))
           totals=v["totals"]
           ref=v["frozen_original_result_reference"]
           agree=totals.get("saved_result_rows_matched_current_csv",0)
