@@ -149,6 +149,25 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(result["per_slot_schedule_delivery_verified"])
         self.assertFalse(result["forecast_publication_verified"])
 
+    def test_delayed_overnight_run_is_only_observed_not_slot_proven(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(30, "2026-11-08T03:03:00+09:00"),
+            self.make_run(29, "2026-11-07T20:52:00+09:00"),
+        ]
+        result = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 8, 9, 20, tzinfo=jst),
+        )
+        # created_at=03:03 might be an extremely delayed previous-night slot;
+        # it cannot certify any actual 07:07+ slot for the new JST day.
+        self.assertEqual(result["same_day_scheduled_run_count"], 1)
+        self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], 9)
+        self.assertEqual(result["observed_runs_below_nominal_due_by"], 8)
+        self.assertFalse(result["per_slot_schedule_delivery_verified"])
+        self.assertFalse(result["forecast_publication_verified"])
+
     def test_nominal_slot_count_matches_current_capture_cron(self):
         from pathlib import Path
         text = Path(".github/workflows/four-mode-prospective-capture.yml").read_text(
