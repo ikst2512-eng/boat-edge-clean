@@ -173,6 +173,22 @@ jobs:
         run: python -m unittest -v test_four_mode_top1_bias_input_audit
       - name: Audit available archived Nov8 V2 input concentration, without results
         run: python four_mode_top1_bias_input_audit.py --day 20261108
+      - name: Refuse incomplete or tampered Nov8 prediction input reference
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from four_mode_top1_bias_input_audit import audit
+          report = audit(Path("."), "20261108")
+          if (report["valid_v2_saved"] < 116
+                  or report["valid_v2_saved"] != report["file_count"]
+                  or report["invalid_archives"]
+                  or report.get("saved_ticket_order_and_scores_replayed") is not True
+                  or report["distinct_national_win_rate_vectors"] != report["valid_v2_saved"]
+                  or report["confirmed_results_read"] is not False
+                  or report["formal"] is not False):
+              raise SystemExit("unverified_or_tampered_nov8_v2_archives")
+          print(f'NOV8_RESULT_BLIND_FORECAST_REPLAY_VERIFIED:{report["valid_v2_saved"]}/{report["file_count"]}')
+          PY
       - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
         run: python -m unittest -v test_four_mode_top1_forward_reference
       - name: Validate fail-closed read-only GitHub capture-run inventory
