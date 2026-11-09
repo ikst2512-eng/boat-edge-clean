@@ -49,6 +49,15 @@ jobs:
         run: |
           set -o pipefail
           node scripts/smoke_four_mode_mobile.cjs 2>&1 | tee mobile-webkit-smoke.log
+      # Browser-engine-specific four-tab assertions on the public Pages UI.
+      # PR-simulated CORS is NOT equivalent to production cross-origin success.
+      - name: Verify public four tabs with WebKit (simulated CORS clearly labeled)
+        shell: bash
+        env:
+          BROWSER_ENGINE: webkit
+        run: |
+          set -o pipefail
+          node tests/live-archived-forecast.cjs 2>&1 | tee webkit-public-tabs.log
       - name: Preserve browser test log
         if: always()
         uses: actions/upload-artifact@v4
@@ -58,6 +67,7 @@ jobs:
             browser-smoke.log
             render-reachability.log
             mobile-webkit-smoke.log
+            webkit-public-tabs.log
             test-results/
           if-no-files-found: warn
       # A later data-driven redeploy may make browser tests green after a genuine cold-wake outage.
