@@ -34,8 +34,9 @@ def _valid_board(board):
             raise ValueError("invalid_scenario_row")
         ticket, value = row
         if (type(ticket) not in (tuple, list)
-                or tuple(ticket) not in TICKETS
-                or any(type(x) is not int for x in ticket)):
+                or len(ticket) != 3
+                or any(type(x) is not int for x in ticket)
+                or tuple(ticket) not in TICKETS):
             raise ValueError("invalid_scenario_ticket")
         if (type(value) not in (float, int)
                 or not math.isfinite(value) or value < 0):
