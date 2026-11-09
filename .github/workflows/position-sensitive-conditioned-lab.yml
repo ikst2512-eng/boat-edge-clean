@@ -12,12 +12,15 @@ on:
       - 'test_position_sensitive_conditional_decomposition.py'
       - 'position_sensitive_cross_pr_t12_bridge.py'
       - 'test_position_sensitive_cross_pr_t12_bridge.py'
+      - 'position_sensitive_pinned_1694_artifact_handoff.py'
+      - 'test_position_sensitive_pinned_1694_artifact_handoff.py'
       - 'docs/research/conditioned_second_third_feature_lab_20261109.md'
       - '.github/workflows/position-sensitive-conditioned-lab.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   isolated-conditional-lab:
@@ -32,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Synthetic only; no outcome, network or external runner dependencies
-        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit test_position_sensitive_feature_ablation test_position_sensitive_conditional_decomposition test_position_sensitive_cross_pr_t12_bridge
+        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit test_position_sensitive_feature_ablation test_position_sensitive_conditional_decomposition test_position_sensitive_cross_pr_t12_bridge test_position_sensitive_pinned_1694_artifact_handoff
       - name: Ensure preregistered 300+300 model and baseline blobs unchanged
         run: |
           python - <<'PY'
@@ -83,3 +86,71 @@ jobs:
               'official_T12_proof': False,
           }, sort_keys=True))
           PY
+
+      - name: Download EXACT pinned successful #1694 read-only audit artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: official-pair-schedule-audit-42620400791
+          run-id: 42620400791
+          github-token: ${{ github.token }}
+          path: pinned-1694
+      - name: Inspect immutable run/artifact API metadata and whole candidate ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # No official HTTP sources are fetched. Pin the exact audit run,
+          # original artifact ID and SHA256 metadata (not source-HTTP proof).
+          gh api "repos/${{ github.repository }}/actions/runs/42620400791" > pinned-1694-run.json
+          gh api "repos/${{ github.repository }}/actions/artifacts/13676360800" > pinned-1694-artifact.json
+          # Existing whole-ledger verifier validates candidate/original V2
+          # bytes at the CURRENT fetched research-branch tip, no result reads.
+          python position_sensitive_live_roster_audit.py --output pinned-1698-roster.json
+          python - <<'PY'
+          from pathlib import Path
+          candidates = [
+              Path("pinned-1694/official_t12_same_race_proof_chain.json"),
+              Path("pinned-1694/reports/official_t12_same_race_proof_chain.json"),
+          ]
+          found = [p for p in candidates if p.is_file() and not p.is_symlink()]
+          if len(found) != 1:
+              raise SystemExit("pinned_1694_source_report_not_unique_or_missing")
+          Path("pinned-1694-report-path.txt").write_text(str(found[0]))
+          PY
+          python position_sensitive_pinned_1694_artifact_handoff.py \
+            --source-run-json pinned-1694-run.json \
+            --source-artifact-json pinned-1694-artifact.json \
+            --source-report "$(cat pinned-1694-report-path.txt)" \
+            --candidate-roster pinned-1698-roster.json \
+            --output pinned-1694-to-1698-handoff.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("pinned-1694-to-1698-handoff.json").read_text())
+          if (d.get("candidate_rows") < 16
+                  or d.get("matched_same_race_rows") != 0
+                  or d.get("source_races_in_pinned_report") != 3
+                  or d.get("new_candidate_independent_first_remote_receipts") != 0
+                  or d.get("formal_pilot") != 0
+                  or d.get("formal_confirmation") != 0
+                  or d.get("formal") is not False
+                  or d.get("promotion_allowed") is not False):
+              raise SystemExit("pinned_source_candidate_join_drift_requires_manual_review")
+          print("REAL_PINNED_1694_SOURCE_TO_FULL_1698_ROSTER", json.dumps({
+              "historical_source_races": d["source_races_in_pinned_report"],
+              "research_candidate_rows": d["candidate_rows"],
+              "same_race_matches": d["matched_same_race_rows"],
+              "unmatched": d["unmatched_candidate_rows"],
+              "formal_certifications": 0,
+          }, sort_keys=True))
+          PY
+      - name: Preserve nonformal pinned race-to-source gap diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-pinned-source-gap-${{ github.run_id }}
+          path: |
+            pinned-1694-to-1698-handoff.json
+            pinned-1698-roster.json
+            pinned-1694-run.json
+            pinned-1694-artifact.json
+          if-no-files-found: error
+          retention-days: 14
