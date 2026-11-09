@@ -43,6 +43,50 @@ class D1FirstAcceptanceSQLiteTests(unittest.TestCase):
         self.assertEqual(self.conn.execute(
             "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 1)
 
+    def test_late_identical_retry_preserves_original_first_row(self):
+        # An old, valid receipt may be read back after cutoff, but a retry
+        # cannot produce a second first-receipt timestamp or replace its bytes.
+        first = self.insert(body='{"immutable":"original"}')
+        self.assertIsNotNone(first)
+        original = dict(self.conn.execute(
+            "SELECT * FROM hole_pair_first_receipts WHERE race_code = ?",
+            ("202611090101",)).fetchone())
+        self.db_now = "2026-11-09T02:10:00Z"
+        self.assertIsNone(self.insert(body='{"immutable":"original"}'))
+        self.assertIsNone(self.insert(sha="b"*64,
+                                      body='{"immutable":"revision"}'))
+        stored = dict(self.conn.execute(
+            "SELECT * FROM hole_pair_first_receipts WHERE race_code = ?",
+            ("202611090101",)).fetchone())
+        self.assertEqual(stored, original)
+        self.assertEqual(self.conn.execute(
+            "SELECT COUNT(*) FROM hole_pair_first_receipts").fetchone()[0], 1)
+
+    def test_same_race_changed_cutoff_cannot_rewrite_first_receipt(self):
+        self.assertIsNotNone(self.insert())
+        original = dict(self.conn.execute(
+            "SELECT * FROM hole_pair_first_receipts").fetchone())
+        # A later claimed cutoff must never make a different first record.
+        self.assertIsNone(self.insert(
+            sha="b"*64, body='{"changed":"cutoff"}',
+            cutoff="2026-11-09T02:30:00.000Z",
+            finish="2026-11-09T01:52:00.000Z"))
+        self.assertEqual(dict(self.conn.execute(
+            "SELECT * FROM hole_pair_first_receipts").fetchone()), original)
+
+    def test_later_distinct_race_still_accepts_before_own_cutoff(self):
+        # Per-race idempotency must not become a same-day write lock.
+        self.assertIsNotNone(self.insert(code="202611090101"))
+        self.db_now = "2026-11-09T02:10:00Z"  # Race 01 already past cutoff
+        self.assertIsNotNone(self.insert(
+            code="202611090102", sha="b"*64,
+            cutoff="2026-11-09T02:20:00.000Z",
+            finish="2026-11-09T02:08:00.000Z"))
+        self.assertEqual([r[0] for r in self.conn.execute(
+            "SELECT race_code FROM hole_pair_first_receipts ORDER BY race_code"
+        ).fetchall()], ["202611090101", "202611090102"])
+        self.assertIsNone(self.insert(code="202611090101"))
+
     def test_same_second_early_margin_denies_new_insert(self):
         for now in ("2026-11-09T01:59:58Z", "2026-11-09T01:59:59Z",
                     "2026-11-09T02:00:00Z", "2026-11-09T02:05:00Z"):
@@ -158,6 +202,13 @@ class D1FirstAcceptanceSQLiteTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0][0], "202611090101")
         self.assertIn(rows[0][1], {"a" * 64, "b" * 64})
+
+    def test_simultaneous_identical_retries_insert_exactly_once(self):
+        # Four racing identical submissions cannot increment the denominator.
+        submissions = [("202611090101", "a" * 64)] * 4
+        inserted, rows = self._parallel_first_inserts(submissions)
+        self.assertEqual(sum(inserted), 1)
+        self.assertEqual(rows, [("202611090101", "a" * 64)])
 
     def test_parallel_distinct_race_ids_keep_both_first_receipts(self):
         # Unlike the daily once-only gateway, first-write uniqueness is per
