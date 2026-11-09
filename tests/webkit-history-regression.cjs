@@ -122,6 +122,36 @@ const server = http.createServer((request, response) => {
       return {sameViewCalls: 130, repeatedRenders: 8, stableWrites, afterRepeatedRender, raceBefore: 1, raceAfter: Number(changed.searchParams.get('race'))};
     });
     console.log('PASS_DRAFT_WEBKIT_IDEMPOTENT_HISTORY '+JSON.stringify(verdict));
+    // Back/forward must restore the selected race without burning any
+    // additional replaceState/pushState calls for an already-restored entry.
+    const beforeBack = await page.evaluate(() => ({...window.__historyMutationCounts}));
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => s.race === 1 &&
+      history.state?.snapshot?.race === 1 &&
+      new URL(location.href).searchParams.get('race') === '1');
+    const afterBack = await page.evaluate(() => ({...window.__historyMutationCounts}));
+    if (afterBack.replace !== beforeBack.replace || afterBack.push !== beforeBack.push)
+      throw Error('BACK_NAVIGATION_USED_REDUNDANT_HISTORY_WRITE '+JSON.stringify({beforeBack,afterBack}));
+    await page.evaluate(() => history.forward());
+    await page.waitForFunction(() => s.race === 2 &&
+      history.state?.snapshot?.race === 2 &&
+      new URL(location.href).searchParams.get('race') === '2');
+    const afterForward = await page.evaluate(() => ({...window.__historyMutationCounts}));
+    if (afterForward.replace !== afterBack.replace || afterForward.push !== afterBack.push)
+      throw Error('FORWARD_NAVIGATION_USED_REDUNDANT_HISTORY_WRITE '+JSON.stringify({afterBack,afterForward}));
+    // The four actual shortcut buttons must still update both view and URL
+    // after history throttling protections are applied.
+    for (const view of ['card', 'exhibit', 'result', 'forecast']) {
+      await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
+      await page.waitForFunction(expected => activeView === expected &&
+        history.state?.snapshot?.view === expected &&
+        new URL(location.href).searchParams.get('screen') === expected, view);
+    }
+    console.log('PASS_DRAFT_WEBKIT_BACK_FORWARD_FOUR_TABS '+JSON.stringify({
+      raceRestored: true, zeroHistoryWritesOnBackForward: true,
+      views: ['card','exhibit','result','forecast'],
+      beforeBack, afterForward
+    }));
     console.log('UNASSESSED: published Pages, real Render transport, live CORS, predeadline exhibition, physical iPhone Safari');
   } catch (error) {
     console.error('FAIL_DRAFT_WEBKIT_IDEMPOTENT_HISTORY '+String(error));
