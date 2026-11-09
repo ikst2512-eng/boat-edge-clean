@@ -80,9 +80,17 @@ async function runCase(browser,port,origin,code,path='/api/four-mode-archive'){
         assert.equal(err.status,422,name+' Pages 422 status');
         const bad=await runCase(browser,port,'https://untrusted-site.example','202611061006');
         assert.equal(bad.blocked,true,name+' unexpected cross-origin access: '+JSON.stringify(bad));
-        const health=await runCase(browser,port,pages,'202611061006','/healthz');
-        assert.equal(health.blocked,true,name+' non-allowlisted health endpoint leaked CORS');
-        console.log('DRAFT_LOCAL_BROWSER_CORS_'+name.toUpperCase()+'_PASS allowed200=200 allowed422=422 untrusted=blocked health=blocked');
+        // Playwright's synthetic route.fulfill can let a missing-header
+        // response through despite browser CORS; test raw Handler headers
+        // rather than assuming a mocked no-ACAO response is blocked.
+        const health=await fetch('http://127.0.0.1:'+port+'/healthz',{
+          headers:{Origin:pages}
+        });
+        assert.equal(health.status,200,name+' local health status');
+        assert.equal(health.headers.get('access-control-allow-origin'),null,
+          name+' local health must not expose CORS');
+        assert.equal(await health.text(),'ok',name+' local health body');
+        console.log('DRAFT_LOCAL_BROWSER_CORS_'+name.toUpperCase()+'_PASS allowed200=200 allowed422=422 untrusted=blocked health_raw_header=absent');
       }finally{await browser.close();}
     }
     console.log('PUBLISHED_PAGES_RENDER_CORS_NOT_YET_VERIFIED');
