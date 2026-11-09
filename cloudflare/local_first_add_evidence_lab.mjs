@@ -94,16 +94,19 @@ export function auditLocalFirstAddEvidence(input){
       bad('record_'+i+'_blob_digest_mismatch');
     let rec;
     try{rec=JSON.parse(raw)}catch{bad('record_'+i+'_json_invalid');continue}
-    if(!isObj(rec)||rec.race_code!==code||rec.formal!==false&&rec.formal!==undefined||
+    if(!isObj(rec)||rec.race_code!==code||
+        (kind==='clean' ? rec.formal!==false : rec.formal!==undefined&&rec.formal!==false)||
         rec.validated!==false){bad('record_'+i+'_race_or_research_status_invalid');continue}
     const generated=clock(kind==='clean'?rec.generated_at:rec.generated_at_jst);
     const title=clock(rec.source_title_received_jst),cards=clock(rec.source_cards_received_jst);
     const deadline=clock(kind==='clean'?rec.source_deadline_jst:rec.deadline_jst);
     const cutoff=kind==='clean'?clock(rec.cutoff_jst):deadline===null?null:deadline-12*60_000;
+    // Date in the race code is JAPAN local date, not UTC date.
+    // The source timestamps must be aware +09:00; do not accept an
+    // unrelated UTC calendar day simply because it matches the race code.
     if([generated,title,cards,deadline,cutoff].some(x=>x===null)||
-       new Date(deadline).toISOString().slice(0,10).replaceAll('-','')!==code.slice(0,8) &&
        new Date(deadline+9*3600000).toISOString().slice(0,10).replaceAll('-','')!==code.slice(0,8)){
-      bad('record_'+i+'_clock_or_race_date_invalid');continue
+      bad('record_'+i+'_clock_or_race_date_invalid');continue;
     }
     if(kind==='clean'){
       if(rec.status!=='prospective_candidate'||deadline-cutoff!==12*60_000||
