@@ -12,10 +12,10 @@
 
 - [\`scripts/research_water_diagram_http_receipt.py\`](../../scripts/research_water_diagram_http_receipt.py): \`--jcd\` で指定された1場の正規公式URLにHTTPS GETする。HTTP 200、転送後の同一場公式URL、\`Content-Type: image/png\`、非変換 \`Content-Encoding\`、\`Content-Length\`、最大5MB、PNG内部署名・IHDR/IDAT/IEND・チャンクCRCを検証し、原バイトのSHA256、受信開始／完了UTC、応答Date・ETag・Last-Modifiedを**研究出力に限って記録**する。
 - 受領後は \`original_response.png\`、\`receipt.json\`、\`COMPLETE\` を固有名ディレクトリに保存。出力ルートのシンボリックリンク、既存の同一出力名への上書き、偽のT−12/方位認定フラグ、受領時刻文字列からのディレクトリ脱出を拒否。
-- [\`scripts/test_research_water_diagram_http_receipt.py\`](../../scripts/test_research_water_diagram_http_receipt.py): HTTP 403、外部／別場転送、HTML応答、gzip変換、Content-Length不一致、PNG CRC破損、バイト改ざん、既存名上書き、偽の公式方位・公式矢印・T−12・本番承認、危険な時刻文字列、出力シンボリックリンクを**オフラインの偽応答で模擬**して拒否をテスト。**ローカル12テスト／12成功**。
+- [\`scripts/test_research_water_diagram_http_receipt.py\`](../../scripts/test_research_water_diagram_http_receipt.py): HTTP 403、外部／別場転送、HTML応答、gzip変換、Content-Length不一致、PNG CRC破損、バイト改ざん、既存名上書き、偽の公式方位・公式矢印・T−12・本番承認、危険な時刻文字列、出力シンボリックリンクを**オフラインの偽応答で模擬**して拒否をテスト。**ローカル14テスト／14成功（保存直前の偽PNG・メタデータ改ざん2件を追加）**。
 - 保存後のGitHub Git blob SHAと、テスト時に使用したローカルのGit blob SHAが**2/2完全一致**。
-  - 受領器: \`04dc64bd00feda6f580c5cb78b8274c3ebb3ad52\`
-  - オフラインテスト: \`615cccb345e6f8d98f1e9571f5f77b73db658beb\`
+  - 受領器: \`824b7036e3e655bc1938d2e92ff517ae2651636f\`
+  - オフラインテスト: \`1a2e7acac5db89829218589b4685f5d91d1e543c\`
 
 **テスト成功はダミーPNG/HTTP応答に関する安全性の確認であり、実際の公式PNG受領成功・HTTP原本の第三者認定・北方位の認定・予想精度改善の証拠ではない。**
 
@@ -40,3 +40,13 @@ python scripts/research_water_diagram_http_receipt.py \
 - 公式Kの結果後風向・ST・波高を同じレースの事前入力に使用しない。T−12前の公式beforeinfo・6艇展示・120通りオッズ・候補予想初回遠隔保存、③/⑤の前向き非劣化確認を完了するまで、本番採用禁止。
 
 今回追加は**研究用Pythonスクリプト1件、研究用オフラインテスト1件、この研究メモ1件のみ**。GitHub Actions/収集cronの新規起動・既存ワークフロー編集は行わない。**本番風補正0件、正式改善認定0件、main自動統合0件。**
+
+## 追加の保存直前監査：偽PNGをSHAだけ一致させる欠陥を実証し修正
+
+11月9日の独立ローカル監査で、初版 `write_bundle` に**保存直前にPNG実体を再検査しない**抜けを発見した。攻撃的なテストとして任意の `<html>not a PNG</html>` バイト列に合わせ `receipt["png_sha256"]` を再計算し、元プログラムの `write_bundle` に直接渡すと、**HTMLが `original_response.png` として保存され、`COMPLETE` も作られることを実際に再現**した。これは「ネットワーク実受領」の再現ではなく、受領関数を呼ぶ側に渡せる内部パラメータの整合性検査不足である。
+
+**修正:** `write_bundle` の保存前に `png_dimensions(raw)` によるPNG構造/CRCを再検査し、`png_bytes == len(raw)`、`png_dimensions`、`Content-Type=image/png`、`Content-Encoding=identity` に相当するレシート値との完全照合を追加。SHAが一致していても非PNGなら拒否し、出力フォルダーを作らない。
+
+**同じファイルをオフライン再実行**し、以前の12件＋「SHA一致偽PNG」「レシート画像長/寸法/型・変換フラグ偽装」の2件、**14/14成功**。GitHubにコミットした2ファイルのGit blob SHAも、実行したローカル2ファイルと一致（上記SHAを最新化済み）。
+
+**証拠の限界:** この修正を通過しても公式PNGをインターネットから実際に受信・日時・HTTP署名を第三者検証した証拠にはならない。作業コンテナでは外部DNSが失敗しており、公式水面図原画像の**実受領とSHA原本固定は今も0/24場**。GitHub研究CIはローカル14テストとは別に状態を確認する。今回の追加は既存研究スクリプトと単体テストと研究メモの変更のみで、main・収集ワークフロー・Render・UI・予想4モードの変更なし。
