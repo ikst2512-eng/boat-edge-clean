@@ -89,6 +89,25 @@ class HttpReceiptTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fetch_once('21', opener=opener_of(raw=bytes(bad)))
 
+    def test_crc_valid_png_but_invalid_zlib_rejected_over_http(self):
+        ihdr = struct.pack('>IIBBBBB', 2, 1, 8, 2, 0, 0, 0)
+        false_png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr)
+                     + chunk(b'IDAT', b'not-zlib') + chunk(b'IEND', b''))
+        with self.assertRaisesRegex(ValueError, 'png_invalid_zlib_stream'):
+            fetch_once('21', opener=opener_of(raw=false_png))
+
+    def test_valid_crc_fake_png_fails_bundle_before_any_write(self):
+        raw, receipt = fetch_once('21', opener=opener_of())
+        ihdr = struct.pack('>IIBBBBB', 2, 1, 8, 2, 0, 0, 0)
+        forged = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr)
+                  + chunk(b'IDAT', b'not-zlib') + chunk(b'IEND', b''))
+        receipt['png_sha256'] = hashlib.sha256(forged).hexdigest()
+        receipt['png_bytes'] = len(forged)
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError, 'png_invalid_zlib_stream'):
+                write_bundle(Path(d), forged, receipt)
+            self.assertEqual(list(Path(d).iterdir()), [])
+
     def test_write_saved_raw_bytes_and_metadata_never_certified(self):
         raw,r = fetch_once('21',opener=opener_of(),timestamp=self.clock)
         with tempfile.TemporaryDirectory() as d:
