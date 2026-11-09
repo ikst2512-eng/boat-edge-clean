@@ -33,15 +33,25 @@ const SITE = 'https://ikst2512-eng.github.io/boat-edge-clean/';
       document.documentElement.dataset.cleanNavigationInit === '1' &&
       typeof setView === 'function' && typeof render === 'function' &&
       document.querySelectorAll('.race-detail-shortcuts button').length === 4,
-    {timeout: 20000});
+    null, {timeout: 20000});
     // Ensure this is the released navigation owner, rather than quietly
     // passing the old published assets while exercising a synthetic fixture.
     assert.equal(await page.evaluate(() => window.__boatEdgeNavigationOwnsHistory),
       true, 'Published navigation.js hotfix has NOT reached GitHub Pages');
+    // The public page starts at HOME; enter a race panel before clicking its
+    // shortcuts, which are intentionally hidden on home.
+    await page.evaluate(async () => {
+      setView('forecast');
+      render();
+      await Promise.resolve();
+    });
+    await page.waitForFunction(() =>
+      activeView === 'forecast' && !document.querySelector('.race-detail-shortcuts').hidden,
+    null, {timeout: 15000});
     const baseline = await page.evaluate(() => ({...window.__publicHistoryWrites}));
     // A few genuine UI tab actions should not multiply history writes; the
     // exhaustive 130/40 stress belongs in OFFLINE WebKit CI to avoid live API load.
-    for (const view of ['forecast', 'card', 'exhibit', 'result', 'forecast']) {
+    for (const view of ['card', 'exhibit', 'result', 'forecast']) {
       await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
       await page.waitForFunction(expected => activeView === expected &&
         history.state?.snapshot?.view === expected &&
@@ -51,8 +61,8 @@ const SITE = 'https://ikst2512-eng.github.io/boat-edge-clean/';
     const afterTabs = await page.evaluate(() => ({...window.__publicHistoryWrites}));
     assert.equal(afterTabs.replace, baseline.replace,
       'Published tab navigation amplified replaceState');
-    assert.equal(afterTabs.push-baseline.push, 5,
-      'Published tab navigation must record exactly five view changes');
+    assert.equal(afterTabs.push-baseline.push, 4,
+      'Published tab navigation must record exactly four view changes');
 
     const beforeRace = await page.evaluate(() => ({
       counts: {...window.__publicHistoryWrites},
@@ -98,7 +108,7 @@ const SITE = 'https://ikst2512-eng.github.io/boat-edge-clean/';
       throw Error('Published WebKit history pageerror ' + JSON.stringify(errors));
     console.log('LIVE_PUBLISHED_WEBKIT_HISTORY_PASS ' + JSON.stringify({
       realPublicPages: true, realWebKit: true, noMocks: true,
-      tabChanges: 5, raceChanges: 1, backForward: true,
+      tabChanges: 4, raceChanges: 1, backForward: true,
       tabWrites: afterTabs, raceWrites: afterRace.counts,
       nonHistoryPageErrors: errors.length,
     }));
