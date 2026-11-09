@@ -74,7 +74,7 @@ jobs:
           from datetime import datetime, timezone, timedelta
           preflight = capture.split(
               '      - name: Verify deliberate current-day research capture BEFORE checkout\n', 1
-          )[1].split('      - name: Checkout exact reviewed research implementation', 1)[0]
+          )[1].split('      - name: Refuse later independent manual dispatch on the same JST day', 1)[0]
           preflight = preflight.split('        run: |\n', 1)[1]
           bash_script = '\n'.join(line[10:] for line in preflight.splitlines()) + '\n'
           env = dict(os.environ)
