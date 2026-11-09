@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {auditLocalFirstAddEvidence,computeLocalBlobHashes,FIRST_ADD_LAB_SCHEMA} from '../cloudflare/local_first_add_evidence_lab.mjs';
 import {auditNativePublisherPair,auditNativePublisherPostPush} from '../cloudflare/native_publication_receipt_lab.mjs';
 import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
 import observerWorker from '../cloudflare/independent_capture_observer.mjs';
@@ -1278,5 +1280,122 @@ test('native publisher receipt audit errors on missing success branch or unknown
     ['if git push origin HEAD:main; then\n exit 0','unknown'],
   ]){
     assert.throws(()=>auditNativePublisherPostPush(source,kind),/invalid_native_publisher_source|native_publisher_push/);
+  }
+});
+
+
+function syntheticLocalFirstAdd(kind='clean') {
+  const code='202611090101',a='a'.repeat(64),b='b'.repeat(64);
+  const record=kind==='clean' ? {
+    race_code:code,status:'prospective_candidate',validated:false,formal:false,
+    source_title_sha256:a,source_cards_sha256:b,
+    input_sha256:createHash('sha256').update(a+':'+b).digest('hex'),
+    source_deadline_jst:'2026-11-09T21:00:00+09:00',
+    cutoff_jst:'2026-11-09T20:48:00+09:00',
+    generated_at:'2026-11-09T20:20:00+09:00',
+    source_title_received_jst:'2026-11-09T20:18:00+09:00',
+    source_cards_received_jst:'2026-11-09T20:19:00+09:00',
+  } : {
+    schema:'CLEAN_FOUR_MODES_PREDEADLINE_V1',race_code:code,
+    status:'provisional',validated:false,
+    deadline_jst:'2026-11-09T21:00:00+09:00',
+    generated_at_jst:'2026-11-09T20:20:00+09:00',
+    source_title_received_jst:'2026-11-09T20:18:00+09:00',
+    source_cards_received_jst:'2026-11-09T20:19:00+09:00',
+    source_sha256:{title:a,race_cards:b},
+    modes:{hit:[],balance:[],hole:[],narrow:[]},
+  };
+  const raw=JSON.stringify(record)+'\n',hash=computeLocalBlobHashes(raw);
+  const path=(kind==='clean'?'prospective_predictions/':'four_mode_forecasts/')+code+'.json';
+  return {
+    schema:FIRST_ADD_LAB_SCHEMA,publisher:kind,
+    repository:'ikst2512-eng/boat-edge-clean',branch:'main',
+    github_run:{id:100123,workflow_path:'.github/workflows/'+
+      (kind==='clean'?'clean-prospective.yml':'four-mode-prospective-capture.yml'),
+      event:'workflow_dispatch',head_branch:'main',status:'completed',conclusion:'success'},
+    reported_dispatch_run_id:100123,
+    commit:{sha:'1'.repeat(40),parent_sha:'2'.repeat(40),
+      committed_at_jst:'2026-11-09T20:30:00+09:00'},
+    claimed_added_paths:[path],
+    records:[{path,claimed_git_status:'added',original_git_blob_utf8:raw,
+      claimed_git_blob_sha1:hash.git_blob_sha1,claimed_raw_sha256:hash.raw_sha256}],
+  };
+}
+function rewriteLocalBlob(manifest, transform) {
+  const row=manifest.records[0],data=JSON.parse(row.original_git_blob_utf8);
+  transform(data);
+  row.original_git_blob_utf8=JSON.stringify(data)+'\n';
+  const hash=computeLocalBlobHashes(row.original_git_blob_utf8);
+  row.claimed_git_blob_sha1=hash.git_blob_sha1;
+  row.claimed_raw_sha256=hash.raw_sha256;
+}
+
+test('local first-add manifest validates CLEAN and four-mode original blob/clock contracts without certifying release',()=>{
+  for(const kind of ['clean','four_mode']){
+    const manifest=syntheticLocalFirstAdd(kind);
+    const result=auditLocalFirstAddEvidence(manifest);
+    assert.equal(result.local_content_consistency_pass,true,JSON.stringify(result.issues));
+    assert.equal(result.records_checked,1);
+    assert.equal(result.git_first_add_parent_tree_independently_proven,false);
+    assert.equal(result.github_manifest_authenticity_independently_proven,false);
+    assert.equal(result.remote_server_first_receipt_independently_proven,false);
+    assert.equal(result.official_beforeinfo_six_boats_proven,false);
+    assert.equal(result.odds_120_combinations_proven,false);
+    assert.equal(result.official_t_minus_12_proven,false);
+    assert.equal(result.cross_provider_recovery_release_approved,false);
+  }
+});
+
+test('local first-add manifest fails on forged GitHub runs, altered source files, roster inconsistencies',()=>{
+  const cases=[
+    x=>x.github_run.id=100124,
+    x=>x.github_run.event='pull_request',
+    x=>x.github_run.head_branch='other',
+    x=>x.github_run.status='queued',
+    x=>x.github_run.workflow_path='.github/workflows/other.yml',
+    x=>x.commit.parent_sha=x.commit.sha,
+    x=>x.commit.committed_at_jst='2026-11-09T20:10:00+09:00',
+    x=>x.commit.committed_at_jst='2026-11-09T21:00:00+09:00',
+    x=>x.records[0].original_git_blob_utf8+=' ', // digest now mismatches
+    x=>x.records[0].claimed_git_blob_sha1='0'.repeat(40),
+    x=>x.records[0].claimed_raw_sha256='f'.repeat(64),
+    x=>x.records[0].claimed_git_status='modified',
+    x=>x.claimed_added_paths=[],
+    x=>x.claimed_added_paths=['prospective_predictions/202611090102.json'],
+    x=>x.records.push(structuredClone(x.records[0])),
+    x=>x.repository='untrusted/repo',
+    x=>x.reported_dispatch_run_id=123456789,
+    x=>rewriteLocalBlob(x,r=>r.formal=true),
+    x=>rewriteLocalBlob(x,r=>r.race_code='202611090102'),
+    x=>rewriteLocalBlob(x,r=>r.cutoff_jst='2026-11-09T20:49:00+09:00'),
+    x=>rewriteLocalBlob(x,r=>r.generated_at='2026-11-09T20:50:00+09:00'),
+    x=>rewriteLocalBlob(x,r=>r.source_cards_received_jst='2026-11-09T20:21:00+09:00'),
+    x=>rewriteLocalBlob(x,r=>r.input_sha256='f'.repeat(64)),
+    x=>rewriteLocalBlob(x,r=>r.source_deadline_jst='2026-11-10T00:01:00+09:00'),
+    x=>rewriteLocalBlob(x,r=>r.source_title_received_jst='2026-11-09T20:18:00Z'),
+  ];
+  for(const [i,mutate] of cases.entries()){
+    const m=syntheticLocalFirstAdd();mutate(m);
+    const result=auditLocalFirstAddEvidence(m);
+    assert.equal(result.local_content_consistency_pass,false,
+      'mutation '+i+' did not fail: '+JSON.stringify(result));
+    assert.ok(result.issue_count>0);
+    assert.equal(result.official_t_minus_12_proven,false);
+  }
+});
+
+test('four-mode local first-add evidence checks T-20 generation, research schema and source digests',()=>{
+  for(const mutate of [
+    x=>rewriteLocalBlob(x,r=>r.generated_at_jst='2026-11-09T20:41:00+09:00'),
+    x=>rewriteLocalBlob(x,r=>r.status='formal'),
+    x=>rewriteLocalBlob(x,r=>r.validated=true),
+    x=>rewriteLocalBlob(x,r=>delete r.modes.hole),
+    x=>rewriteLocalBlob(x,r=>r.source_sha256.race_cards='12345'),
+    x=>rewriteLocalBlob(x,r=>r.deadline_jst='2026-11-10T00:01:00+09:00'),
+  ]){
+    const x=syntheticLocalFirstAdd('four_mode');mutate(x);
+    const result=auditLocalFirstAddEvidence(x);
+    assert.equal(result.local_content_consistency_pass,false,JSON.stringify(result));
+    assert.equal(result.official_t_minus_12_proven,false);
   }
 });
