@@ -7,6 +7,7 @@ individual official HTTP bytes or first forecast Git remote receipt.
 Never counts a candidate toward 300+300 or opens confirmed results.
 """
 import json
+import hashlib
 from pathlib import Path
 import re
 
@@ -22,6 +23,10 @@ SOURCE_ARTIFACT_NAME = "official-pair-schedule-audit-42620400791"
 SOURCE_ARTIFACT_DIGEST = (
     "sha256:acffef2d77d754df6ebf90db42d1301d10ac2bffe55241b4eff5d2618be32e73"
 )
+# Independently extracted from that exact full ZIP whose SHA matched the
+# GitHub artifact digest. Pins the precise original report bytes, not JSON
+# formatting, so a substituted syntactically valid report is rejected.
+SOURCE_REPORT_SHA256 = "cc7e94e16ecb9535d5dfaac81f0f6248a8ec7bb375efbe0030cdd799386d638d"
 REPO = "ikst2512-eng/boat-edge-clean"
 SCHEMA = "POSITION_SENSITIVE_PINNED_1694_REAL_ARTIFACT_HANDOFF_V1"
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
@@ -48,6 +53,18 @@ def _strict_metadata(run, artifact):
             or artifact.get("digest") != SOURCE_ARTIFACT_DIGEST
             or artifact.get("expired") is not False):
         raise ValueError("source_artifact_metadata_not_pinned")
+
+
+def read_exact_pinned_report(path):
+    """Refuse replacement of the original audited report even if schema matches."""
+    path = Path(path)
+    if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= 250_000:
+        raise ValueError("unsafe_pinned_report_path")
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != SOURCE_REPORT_SHA256:
+        raise ValueError("pinned_source_report_raw_sha256_mismatch")
+    from position_sensitive_cross_pr_t12_bridge import _reject_duplicate_keys
+    return json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
 
 
 def pinned_handoff(run, artifact, report, roster):
@@ -98,6 +115,7 @@ def pinned_handoff(run, artifact, report, roster):
         "source_code_head_sha": SOURCE_HEAD_SHA,
         "source_artifact_id": SOURCE_ARTIFACT_ID,
         "source_artifact_metadata_digest": SOURCE_ARTIFACT_DIGEST,
+        "source_report_raw_sha256_expected_by_pinned_cli": SOURCE_REPORT_SHA256,
         "source_artifact_metadata_pins_self_consistent": True,
         "candidate_remote_branch_tip_self_recorded": roster["fetched_research_branch_tip"],
         "source_races_in_pinned_report": report["races_compared"],
@@ -138,7 +156,7 @@ def main():
     args = parser.parse_args()
     run = _read_json_file(args.source_run_json, 150_000)
     artifact = _read_json_file(args.source_artifact_json, 60_000)
-    report = _read_json_file(args.source_report, 250_000)
+    report = read_exact_pinned_report(args.source_report)
     roster = _read_json_file(args.candidate_roster, 250_000)
     result = pinned_handoff(run, artifact, report, roster)
     path = Path(args.output)
