@@ -66,3 +66,14 @@ This is **absence of fields within the 104 original forecast JSONs**, not a univ
 
 The legacy shadow suite at [#42617013414](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42617013414) also succeeded on the same exact head. The source-packet and feature-lab changes are not imported by production.
 
+
+## New exact same-race 4-mode feature ablation (unregistered experimental laboratory)
+
+`position_sensitive_feature_ablation.py` compares **three** calculations on one supplied race: original V2 six-rate board, the **unchanged frozen #1698 selector** (six-rate conditional 0.50/0.25), and a **separately unregistered** extra-feature conditional layer. The feature layer is a hypothetical sensitivity exercise, NOT the registered #1698 300+300 selector and NOT evidence of forecast skill. It uses `rank_modes` unchanged on all three boards, preserving each mode's fixed research ticket budget: narrow 5, hit 10, balance 16, hole 22.
+
+For every mode it reports Top1/3/5/10 ordered changes, membership turnover, retained/replaced tickets and whether the Top1 first boat changed. **Narrow Top10 is explicitly inapplicable** (budget five). It also computes leave-one-active-feature-out comparisons to isolate which inputs mechanically move 2nd/3rd ranks; these effects are nonadditive and are **not** causal importance or evidence of higher hit rates. A zero-weight/unknown feature is not marked as used and cannot quietly change ticket membership. All supplied features are untrusted synthetic/manual lab inputs, not official pre-T−12 verified six-boat evidence.
+
+The output carries a SHA256 fingerprint of precisely supplied race-rate/feature/coefficient/study inputs; this is **local content identity only**, not evidence of source authenticity, a GitHub first add or a remotely witnessed publication. Missing active feature values, duplicate or invalid boats, nonfinite parameters, outcomes/payout leakage and incorrect 120-way boards fail closed; the code reads no result, odds or payment archives. `topk_hit_rate_measured=false`, `roi_measured=false`, `formal=false` and `promotion_allowed=false` unconditionally.
+
+The current synthetic ablation does not update 1st-place win masses or replace the broader all-mode scenario model tracked in [Issue #1708](https://github.com/ikst2512-eng/boat-edge-clean/issues/1708). Pre-event signed source provenance, fitted feature coefficients, prospective distinct registration and independent 300+300 confirmed future races must precede any performance or UI claim. Live model and the archived 116/104 forecasts remain unmodified.
+
