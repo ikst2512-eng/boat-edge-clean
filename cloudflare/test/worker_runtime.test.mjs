@@ -47,7 +47,7 @@ function mockGitHub({scheduledSuccess = false, olderQueued = false, failGetNumbe
         ? [{id:7002,event:'schedule',head_branch:'main',status:'queued',
             conclusion:null,created_at:'2026-11-07T19:00:00Z'}]
         : [];
-      return Response.json({workflow_runs: eventRows});
+      return Response.json({total_count:eventRows.length,workflow_runs: eventRows});
     }
     if (method === 'POST' && u.pathname.endsWith('/dispatches') &&
         JSON.parse(options.body).ref === 'main' &&
@@ -221,7 +221,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
         status: 'completed', conclusion: 'success',
         created_at: '2026-11-07T22:08:00Z',
       }));
-      return Response.json({workflow_runs: rows});
+      return Response.json({total_count:rows.length,workflow_runs: rows});
     }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
@@ -229,6 +229,45 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     // The fail-closed verdict must still produce zero POSTs.
     expect(calls).toHaveLength(2);
     expect(calls.every(c => c.method === 'GET')).toBe(true);
+  });
+
+  it('old completed runs on a full history page cannot hide page-2 pending native schedule',async()=>{
+    vi.spyOn(Date,'now').mockReturnValue(TEST_NOW);
+    const calls=[];
+    vi.stubGlobal('fetch',vi.fn(async(rawUrl,opts={})=>{
+      const url=new URL(rawUrl);
+      expect(url.origin).toBe(GITHUB_ORIGIN);
+      calls.push(opts.method);
+      expect(opts.method).toBe('GET');
+      const event=url.searchParams.get('event');
+      if(event==='schedule') {
+        const rows=Array.from({length:30},(_,i)=>({
+          id:40000+i,event:'schedule',head_branch:'main',status:'completed',
+          conclusion:'success',created_at:'2026-11-07T19:00:00Z',
+        }));
+        return Response.json({total_count:31,workflow_runs:rows});
+      }
+      return Response.json({total_count:0,workflow_runs:[]});
+    }));
+    vi.spyOn(console,'error').mockImplementation(()=>{});
+    await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
+    expect(calls.every(x=>x==='GET')).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('missing total_count must fail before a GitHub recovery POST',async()=>{
+    vi.spyOn(Date,'now').mockReturnValue(TEST_NOW);
+    const calls=[];
+    vi.stubGlobal('fetch',vi.fn(async(rawUrl,opts={})=>{
+      const url=new URL(rawUrl);
+      expect(url.origin).toBe(GITHUB_ORIGIN);
+      calls.push(opts.method);
+      expect(opts.method).toBe('GET');
+      return Response.json({workflow_runs:[]});
+    }));
+    vi.spyOn(console,'error').mockImplementation(()=>{});
+    await expect(invoke()).rejects.toThrow('github_history_missing_or_malformed');
+    expect(calls).toEqual(['GET']);
   });
 
   it('negative evidence: the current GET-to-POST design permits duplicate POSTs across concurrent invocations', async () => {
@@ -247,7 +286,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
         if (historyGets === 8) releaseBoth();
         // Ensure both independently checked their GET history before either can POST.
         if (historyGets >= 7) await bothAtLastHistory;
-        return Response.json({workflow_runs: []});
+        return Response.json({total_count:0,workflow_runs: []});
       }
       if (options.method === 'POST' && url.pathname.endsWith('/dispatches')) {
         const id = url.pathname.includes('/clean-prospective.yml/') ? 600001 : 600002;
