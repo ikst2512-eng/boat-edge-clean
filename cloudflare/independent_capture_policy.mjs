@@ -138,6 +138,11 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
     }
     result.workflows[kind].action = 'dispatch_run_id_returned_not_forecast_proof';
     result.workflows[kind].github_run_id_reported = id;
+    // Native workflow_dispatch currently has NO capture-slot input: the
+    // workflow executes a live-time collection. A returned GitHub run ID does
+    // not prove that the run captured this locally computed planned slot.
+    // The slot_jst field is only a Cloudflare decision-time correlation key.
+    result.workflows[kind].github_execution_slot_bound_proven = false;
     // Record each validated 200 receipt independently so a later failure
     // cannot erase prior run IDs. No token, headers or source forecast data.
     // The ID has NOT been independently verified against a completed run.
@@ -145,7 +150,8 @@ export async function execute({scheduledTime, now, token, fetcher, clock = () =>
       workflow: kind, slot_jst: result.workflows[kind].slot_jst,
       request_started_at_jst: new Date(current + JST).toISOString().replace('Z', '+09:00'),
       github_run_id_reported: id, github_run_url_reported: expectedHtml,
-      github_run_id_proven: false, new_forecast_saved_proven: false, formal: false});
+      github_run_id_proven: false, github_execution_slot_bound_proven: false,
+      new_forecast_saved_proven: false, formal: false});
   }
   result.action = 'checked_not_publication_proof';
   return result;
