@@ -91,3 +91,53 @@ Render/CORS/WebKit/UI modification or main merge.
 **Important:** A green unit test proves only this mathematical integration's
 input guards and deterministic behavior. It does not prove better hit rate,
 official wind/tide receipt or deployment.
+
+
+## Follow-up 2026-11-09 — separately test first-head probability and actual feature sensitivity
+
+This Draft now includes two **research-only** pieces in addition to the original scenario mixture.
+
+1. `scenario_first_head_research.py` accepts an existing 120-way
+   baseline and six **explicit uncalibrated head log-shift hypotheses**.
+   It alters `P(first=h)` with stable normalization but preserves each
+   `P(second,third | first)` exactly. It exposes the separate first-head
+   mass to resolve a limitation of the locked #1698 second/third research,
+   while **never changing #1698's registered SHA or candidate**.
+2. `scenario_feature_effect_probe.py` runs an explicitly supplied
+   result-blind research emitter twice, once per caller-supplied alternate
+   feature value, and compares the **entire mixed 120-way digest** and
+   Top1/5/10 picks. Fields can include six national rates, local rate,
+   ST/exhibition, motor, exhibition entry, wall/escape assist, wind speed
+   and bearing, wave height, tide height/phase/station and venue. This
+   checks **numerical sensitivity only**, NOT predictive importance or
+   causal validity.
+3. A fixture **supplies both wind and tide values**, but the hypothesis
+   emitter uses only wind. The unit test must report that wind changed
+   the board while tide did **not** change it. Tide being present in the
+   input does not mean it was consumed by the model.
+4. Any supplied result, payout, final post-race entry, post-race wind,
+   non-finite feature, forged formal result, unsupported field or invalid
+   complete-board hash is rejected. Research outputs remain
+   `formal=false`, `production_changed=false`, with no source
+   authentication or independently witnessed first receipt.
+5. The new research first-head shifts are caller-supplied hypotheses,
+   **not** coefficients derived from official wind or tide. Neither
+   the model nor the tests automatically predict the weather or fit
+   oceanographic relationships. Real conversion from course/venue,
+   wind and tide to scenario/head likelihoods still requires
+   #1692/#1694 source semantics, a separately preregistered identity
+   and #1693's forward 300+300 results.
+
+### Extended test command
+
+```bash
+python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe
+```
+
+**Important restriction:** `prestart_entry_course_observed` is **not**
+the final result's actual entry course; no post-race entry can be fed
+into a pre-race forecast. Exhibition entry may differ from live entry.
+Unverified absolute wind FROM bearing or undocumented tide station
+relationship must be marked missing, not guessed and not reported as
+a verified effect. This feature-effect inspector cannot itself certify
+any remote official input, time-of-measurement or output publication.
