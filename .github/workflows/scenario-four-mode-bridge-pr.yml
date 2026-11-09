@@ -11,6 +11,8 @@ on:
       - 'test_scenario_feature_effect_probe.py'
       - 'scenario_official_exhibition_projection.py'
       - 'test_scenario_official_exhibition_projection.py'
+      - 'scenario_exhibition_all_mode_runner.py'
+      - 'test_scenario_exhibition_all_mode_runner.py'
       - 'docs/research/scenario_all_mode_bridge_1708.md'
       - '.github/workflows/scenario-four-mode-bridge-pr.yml'
 
@@ -27,3 +29,14 @@ jobs:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
         run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection
+      - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 6de21c9d1584f354161fde47293af72cca8d0100
+          mkdir -p "$RUNNER_TEMP/position1698"
+          git show 6de21c9d1584f354161fde47293af72cca8d0100:position_sensitive_conditioned_lab.py > "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py"
+          test "$(git hash-object "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py")" = "1e58fd62134a3aa4121b636e12005d04b5026748"
+      - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
+        env:
+          RESEARCH_1698_PIN_REQUIRED: '1'
+        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner
