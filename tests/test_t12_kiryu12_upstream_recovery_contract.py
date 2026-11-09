@@ -2,11 +2,13 @@
 import unittest
 from pathlib import Path
 
-PATH = ".github/workflows/t12-kiryu12-upstream-recovery-20261103.yml"
+PATH = "tests/fixtures/retired_workflows/t12-kiryu12-upstream-recovery-20261103.yml"
+ACTIVE_WORKFLOW_PATH = ".github/workflows/t12-kiryu12-upstream-recovery-20261103.yml"
 
 
 class KiryuResearchUpstreamRecoveryContract(unittest.TestCase):
     def test_only_actual_successful_upstream_schedule_writes_research_evidence(self):
+        self.assertFalse(Path(ACTIVE_WORKFLOW_PATH).exists(), "expired event-driven workflow must remain retired")
         workflow = Path(PATH).read_text()
         self.assertIn("workflow_run:", workflow)
         self.assertIn("types: [completed]", workflow)
