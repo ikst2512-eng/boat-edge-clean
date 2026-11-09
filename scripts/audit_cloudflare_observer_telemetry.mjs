@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {auditObserverTelemetry} from '../cloudflare/audit_observer_telemetry.mjs';
 import {auditRawWorkersLogs, RAW_LOG_SCHEMA} from '../cloudflare/audit_observer_raw_logs.mjs';
+import {auditTelemetryApiPages, API_SCHEMA} from '../cloudflare/audit_observer_api_pages.mjs';
 
 if (process.argv.length !== 3) {
   console.error('usage: node scripts/audit_cloudflare_observer_telemetry.mjs <normalized-export.json>');
@@ -14,8 +15,8 @@ if (process.argv.length !== 3) {
     const raw = readFileSync(process.argv[2]);
     const inputSha256 = createHash('sha256').update(raw).digest('hex');
     const data = JSON.parse(raw.toString('utf8'));
-    const result = data?.schema === RAW_LOG_SCHEMA
-      ? auditRawWorkersLogs(data) : auditObserverTelemetry(data);
+    const result = data?.schema === API_SCHEMA ? auditTelemetryApiPages(data)
+      : data?.schema === RAW_LOG_SCHEMA ? auditRawWorkersLogs(data) : auditObserverTelemetry(data);
     // Output is intentionally small, deterministic, and contains no raw logs
     // or credentials; retain original Cloudflare evidence separately.
     console.log(JSON.stringify({...result, input_sha256: inputSha256}, null, 2));
