@@ -61,6 +61,18 @@ class OriginalOnlyFutureInputReadinessTest(unittest.TestCase):
         self.assertEqual(out["valid_v2_original_inputs"], 0)
         self.assertEqual(out["invalid_inputs"][0]["reason"], "result_or_candidate_leak_into_saved_original")
 
+    def test_two_independent_source_hashes_are_required(self):
+        obj = json.loads(original())
+        self.assertEqual(set(obj["source_sha256"]), {"race_cards", "title"})
+        obj["source_sha256"]["race_cards"] = "not-a-hash"
+        out = self.check(entry(json.dumps(obj).encode()))
+        self.assertEqual(out["valid_v2_original_inputs"], 0)
+        self.assertEqual(out["invalid_inputs"][0]["reason"], "missing_input_source_digest")
+        obj["source_sha256"] = "a" * 64
+        out = self.check(entry(json.dumps(obj).encode()))
+        self.assertEqual(out["valid_v2_original_inputs"], 0)
+        self.assertEqual(out["invalid_inputs"][0]["reason"], "missing_input_source_digest")
+
     def test_source_timestamp_after_generation_fails(self):
         obj = json.loads(original())
         obj["source_cards_received_jst"] = obj["deadline_jst"]
