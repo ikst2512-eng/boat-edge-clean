@@ -316,6 +316,53 @@ class FourModeForwardTests(unittest.TestCase):
         self.assertEqual(with_extra["phase_progress"]["confirmation"]["pending_result_slots"], 300)
         self.assertEqual(with_extra["phase_progress"]["confirmation"]["formally_certified_pairs"], 0)
 
+    def test_reference_digest_changes_if_pre_result_clock_claim_changes(self):
+        row = self.row()
+        before = score([row], {}, self.policy)
+        updated = copy.deepcopy(row)
+        # Still valid chronological order, but different claimant-supplied
+        # observation time MUST change the local digest.
+        updated["candidate_github_observed_jst"] = "2026-11-07T08:10:09+09:00"
+        after = score([updated], {}, self.policy)
+        self.assertNotEqual(before["selected_pre_result_roster_sha256_reference_only"],
+                            after["selected_pre_result_roster_sha256_reference_only"])
+        self.assertFalse(after["formal"])
+        self.assertFalse(after["independent_first_remote_receipt_verified"])
+
+    def test_topn_paired_reference_rates_show_gains_losses_without_significance(self):
+        a = self.row()
+        b = copy.deepcopy(a)
+        b["race_code"] = "202611070102"
+        b["deadline_jst"] = "2026-11-07T08:40:00+09:00"
+        c = copy.deepcopy(a)
+        c["race_code"] = "202611070103"
+        c["deadline_jst"] = "2026-11-07T08:45:00+09:00"
+        for row in (a, b):
+            row["candidate"]["hit"][0] = "6-5-4"
+        gain = self.result()
+        gain["finish_order"] = [6, 5, 4]
+        loss = self.result()
+        loss["race_code"] = b["race_code"]
+        report = score([c, b, a], {
+            a["race_code"]: gain, b["race_code"]: loss}, self.policy)
+        top1 = report["scores"]["pilot"]["hit"]["top1"]
+        self.assertEqual(
+            tuple(top1[k] for k in ("baseline", "candidate", "gained", "lost")),
+            (1, 1, 1, 1))
+        self.assertEqual(top1["both_hit_reference_only"], 0)
+        self.assertEqual(top1["neither_hit_reference_only"], 0)
+        self.assertEqual(top1["paired_discordant_reference_only"], 2)
+        self.assertEqual(top1["denominator_reference_only"], 2)
+        self.assertEqual(top1["baseline_hit_pct_reference_only"], 50.0)
+        self.assertEqual(top1["candidate_hit_pct_reference_only"], 50.0)
+        self.assertEqual(top1["net_gain_pp_reference_only"], 0.0)
+        self.assertEqual(report["phase_progress"]["pilot"]["pending_result_slots"], 1)
+        self.assertIsNone(
+            report["scores"]["confirmation"]["hit"]["top10"]
+                ["net_gain_pp_reference_only"])
+        self.assertFalse(report["formal"])
+        self.assertFalse(report["model_improvement_proven"])
+
 
 if __name__ == "__main__":
     unittest.main()
