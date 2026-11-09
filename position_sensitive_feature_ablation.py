@@ -8,6 +8,7 @@ import hashlib
 import json
 
 from clean_four_modes import rank_modes
+from position_sensitive_conditional_decomposition import compare_conditional_decomposition
 from research_model import probabilities
 from four_mode_position_sensitive_shadow import shadow_probabilities
 from position_sensitive_conditioned_lab import (
@@ -118,6 +119,8 @@ def audit_feature_ablation(national_win_rates, evidence, coefficients, study_id)
         "frozen_six_rate_vs_exploratory_features": _mode_compare(frozen, enhanced),
         "original_v2_vs_exploratory_features": _mode_compare(original, enhanced),
         "leave_one_feature_out": removal,
+        "frozen_to_experimental_position_decomposition": compare_conditional_decomposition(
+            frozen_rows, candidate["ranked_board"]),
         "frozen_top1_by_mode": {m: frozen[m][0] for m in MODES},
         "experimental_top1_by_mode": {m: enhanced[m][0] for m in MODES},
         "ticket_budgets": MODES.copy(),
