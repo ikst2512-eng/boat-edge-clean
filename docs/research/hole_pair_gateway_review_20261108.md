@@ -117,3 +117,29 @@ The manual capture driver frozen at #1685 commit `464d1641a5c7b981248ab17ba5bdc4
 **Do not attempt to solve coverage by removing the duplicate guard unreviewed.** Before formal research, a separately reviewed design must use durable **per-race** first-write/receipt with independent, trustworthy time, repeated pre-cutoff observation windows as appropriate, a reliable official race-schedule universe and missingness accounting. Such a design may replace this deliberately restrictive one-dispatch-per-day safety proposal; it requires an explicit architecture/security review and would not retroactively validate today's Draft.
 
 Current release decision: **HOLD**; #1701 and #1702 are Draft/unmerged; formal pilot 0/300, confirmation 0/300; no main/Render/Cloudflare/production changes.
+
+## November 9 — per-race atomicity research test handoff (not an activation)
+
+**Separate research Draft #1685** now includes two new *real SQLite WAL concurrency* checks in `research/test_hole_pair_first_receipt_sql.py`. [CI #42608065163](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42608065163) passed the research-only Cloudflare receiver offline validation; the prospective candidate-capture job was skipped. Changes were limited to test code; the candidate method, locked selector SHA, research Worker SQL, D1 schema and production code were unchanged.
+
+The tests run the exact Worker-exported `INSERT_SQL` using **two independent SQLite connections** at the same time. They verify that conflicting candidate SHA256 values for the **same 12-digit race code** produce exactly one new receipt, while **two different race codes** each preserve their first write. The deterministic test clock simulates a valid pre-cutoff window. This is stronger evidence about SQLite per-race uniqueness under concurrent writes than an in-memory mock, but **NOT** a Cloudflare D1 deployment or authenticated independent first-acceptance proof.
+
+**Architecture boundary:** The undeployed `research/hole_pair_first_receipt_worker.mjs` on #1685 is a per-race first-write *proposal*. This #1702 gateway still performs a separate one-manual-dispatch-per-JST-day check and **does not send candidate records to that Worker**; it is not a complete per-race capture service. Do not delete the daily gate or claim higher coverage without a separately reviewed end-to-end receipt path. If an operator later approves a per-race transport, it must be tested on real D1 under duplicate/conflicting concurrent HTTP requests, outage/retry, before/after true official T−12, retention and administrator independence before any formal admission.
+
+**SHA pin separation:** #1685 now has test-only head `a7983f74bd80da57fc3460f48f63ab7667c1d71c`. The #1702 gateway intentionally continues to pin the already reviewed **unchanged runtime implementation** SHA `464d1641a5c7b981248ab17ba5bdc42b7bfa698b`. Do not silently repin a manually reviewed gateway because research tests changed; future repinning requires explicit security and reproducibility review.
+
+**Evidence owners without duplicate modifications:** Official beforeinfo/exhibition six-boat originals, 120 distinct odds, race deadline and original T−12 chronology belong to separate read-only T−12 audit [#1694](https://github.com/ikst2512-eng/boat-edge-clean/pull/1694); #1685 owns hole-pair first-write prototype and research candidate validation; #1702 owns only the isolated manual gateway security review. A green CI in any one Draft is not a substitute for a single-race cross-system evidence chain.
+
+### Gate-by-gate status (2026-11-09 JST)
+
+| Gate | Evidence | Status |
+| --- | --- | --- |
+| SQLite same-race concurrent uniqueness | Real WAL threaded inserts, #1685 CI #42608065163 | Offline verified |
+| SQLite distinct-race independent writes | Two independent race IDs, same CI | Offline verified |
+| Cloudflare D1 deployed, live concurrent first-write | No deployed receiver or signed external witness | **Unverified** |
+| Official same-race T−12 beforeinfo/exhibition six boats | Original-source independent chain not certified | **Unverified** |
+| Official same-race T−12 all 120 trifecta odds | Original-source independent chain not certified | **Unverified** |
+| Full day race universe / missingness | #1702 one-snapshot workflow not a complete official schedule | **Unverified** |
+| 300 pilot + disjoint 300 confirmation | No formally eligible independent receipts | **0/300 + 0/300** |
+
+**Decision remains HOLD.** Drafts #1685, #1694, #1701 and #1702 stay unmerged; no workflow dispatch, main change, production predictor/UI, Render or Cloudflare activation. Do not count simulator tests toward formal prediction accuracy.
