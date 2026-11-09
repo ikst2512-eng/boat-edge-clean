@@ -10,6 +10,7 @@ on:
       - tests/live-racecard-navigation.cjs
       - tests/live-verified-payout.cjs
       - tests/live-archived-forecast.cjs
+      - tests/live-public-archive-cors.cjs
       - tests/webkit-history-regression.cjs
       - tests/render-http-reachability.sh
       - .github/workflows/live-browser.yml
@@ -31,6 +32,7 @@ jobs:
           node --check tests/live-racecard-navigation.cjs
           node --check tests/live-archived-forecast.cjs
           node --check tests/webkit-history-regression.cjs
+          node --check tests/live-public-archive-cors.cjs
       - name: Capture Render connection timing (non-gating diagnostic)
         shell: bash
         run: |
@@ -94,6 +96,15 @@ jobs:
           done
           if [[ "$failures" -gt 0 ]]; then exit 1; fi
           echo 'PASS_POST_BROWSER_RENDER_HTTP_ONLY: no claim about real CORS, idle wake or physical Safari.'
+      # Unlike the historical E2E that may use a clearly labeled PR-only
+      # ACAO simulation, this uses the actual published Pages origin and
+      # the browser's CORS enforcement without any route interception.
+      - name: Confirm real Pages-to-Render CORS in Chromium (unmocked)
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live-public-archive-cors.cjs 2>&1 | tee real-public-archive-cors.log
       - name: Preserve browser test log
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,6 +115,7 @@ jobs:
             render-reachability.log
             mobile-webkit-smoke.log
             webkit-public-tabs.log
+            real-public-archive-cors.log
             test-results/
           if-no-files-found: warn
       # This checks the UNSIMULATED live response. A PR-only browser route
