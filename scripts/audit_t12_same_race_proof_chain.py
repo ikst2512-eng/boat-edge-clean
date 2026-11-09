@@ -187,10 +187,60 @@ def compose(nov3, nov9, remote):
         raise ValueError("cross-race source identity collision")
     if any(r["same_race_three_source_readiness"] for r in out):
         raise ValueError("unsupported formal candidate")
+    # These are observed coverage counts for the three *fixed historical*
+    # races, not an independent prospective performance denominator.
+    # Reuse source-replayed per-race booleans; never upgrade an old forecast.
+    five_gate_keys = (
+        "official_beforeinfo_six_exhibition",
+        "official_odds_120",
+        "official_deadline_source_cutoff",
+        "forecast_after_official_sources_before_t12",
+        "independent_first_forecast_git_acceptance",
+    )
+    five_gate_rows = []
+    for race in out:
+        checks = {
+            "official_beforeinfo_six_exhibition": (
+                race["official_beforeinfo_original"] is True
+                and race["six_boat_exhibition_complete"] is True),
+            "official_odds_120": race["official_odds_original"] is True,
+            "official_deadline_source_cutoff": (
+                race["official_t12_source_cutoff_met"] is True),
+            "forecast_after_official_sources_before_t12": (
+                race["frozen_forecast_generated_after_all_originals"] is True),
+            "independent_first_forecast_git_acceptance": (
+                race["independent_first_forecast_git_remote_receipt_verified"] is True),
+        }
+        five_gate_rows.append({
+            "race_code": race["race_code"],
+            "gates": checks,
+            "all_five_verified": all(checks.values()),
+            "extra_official_racelist_original": race["official_racelist_original"] is True,
+            "extra_model_original_consumption": race["actual_model_input_consumption_verified"] is True,
+            "extra_final_entry": race["final_race_entry_verified"] is True,
+            "formal": False,
+        })
+    five_gate_counts = {
+        key: sum(row["gates"][key] is True for row in five_gate_rows)
+        for key in five_gate_keys
+    }
+    if len(five_gate_rows) != 3 or any(row["all_five_verified"] for row in five_gate_rows):
+        raise ValueError("historical cohort cannot be formally certified")
     return {
         "schema": SCHEMA,
         "scope": "three_disjoint_real_historical_source_races_no_cross_race_stitch",
         "races_compared": len(out),
+        "historical_five_gate_counts": five_gate_counts,
+        "historical_five_gate_by_race": five_gate_rows,
+        "historical_all_five_gates_verified": 0,
+        "historical_extra_gate_counts": {
+            "official_racelist_original": sum(
+                row["extra_official_racelist_original"] is True for row in five_gate_rows),
+            "actual_model_original_consumption": sum(
+                row["extra_model_original_consumption"] is True for row in five_gate_rows),
+            "final_entry_verified": sum(
+                row["extra_final_entry"] is True for row in five_gate_rows),
+        },
         "raw_three_original_sets_present": 1,
         "two_original_sets_with_complete_exhibition_and_120_odds": 2,
         "source_archive_server_published_before_t12_races": 2,

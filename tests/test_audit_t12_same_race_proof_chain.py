@@ -125,6 +125,49 @@ class NoCrossRaceOrAcrossDayStitching(unittest.TestCase):
             self.assertTrue(race["independent_source_archive_server_publication_by_t12"])
             self.assertFalse(race["same_race_three_source_readiness"])
 
+    def test_five_gate_same_race_counts_preserve_missing_evidence(self):
+        result = compose(triple(), paired(), artifact())
+        self.assertEqual(result["historical_five_gate_counts"], {
+            "official_beforeinfo_six_exhibition": 2,
+            "official_odds_120": 3,
+            "official_deadline_source_cutoff": 3,
+            "forecast_after_official_sources_before_t12": 0,
+            "independent_first_forecast_git_acceptance": 0,
+        })
+        self.assertEqual(result["historical_extra_gate_counts"], {
+            "official_racelist_original": 1,
+            "actual_model_original_consumption": 0,
+            "final_entry_verified": 0,
+        })
+        self.assertEqual(result["historical_all_five_gates_verified"], 0)
+        self.assertEqual(len(result["historical_five_gate_by_race"]), 3)
+        self.assertFalse(result["formal"])
+        self.assertIsNone(result["formal_accuracy_denominator"])
+
+    def test_gate_counts_cannot_borrow_official_racelist_from_other_race(self):
+        rows = compose(triple(), paired(), artifact())["historical_five_gate_by_race"]
+        by_code = {row["race_code"]: row for row in rows}
+        self.assertEqual(set(by_code), {NOV03, *NOV09})
+        self.assertFalse(by_code[NOV03]["gates"]["official_beforeinfo_six_exhibition"])
+        self.assertTrue(by_code[NOV03]["extra_official_racelist_original"])
+        for code in NOV09:
+            self.assertTrue(by_code[code]["gates"]["official_beforeinfo_six_exhibition"])
+            self.assertTrue(by_code[code]["gates"]["official_odds_120"])
+            self.assertFalse(by_code[code]["extra_official_racelist_original"])
+            self.assertFalse(by_code[code]["gates"]["forecast_after_official_sources_before_t12"])
+            self.assertFalse(by_code[code]["gates"]["independent_first_forecast_git_acceptance"])
+            self.assertFalse(by_code[code]["all_five_verified"])
+
+    def test_all_five_required_cannot_erase_independent_consumption_gate(self):
+        result = compose(triple(), paired(), artifact())
+        for row in result["historical_five_gate_by_race"]:
+            self.assertFalse(row["extra_model_original_consumption"])
+            self.assertFalse(row["extra_final_entry"])
+            self.assertFalse(row["formal"])
+        self.assertFalse(result["t12_eligible"])
+        self.assertFalse(result["accuracy_scoring_allowed"])
+        self.assertEqual(result["new_formal_certifications"], 0)
+
     def test_three_files_without_exhibition_does_not_pass(self):
         x = triple()
         x["six_registration_and_exhibition_components_complete"] = True
