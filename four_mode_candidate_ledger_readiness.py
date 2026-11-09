@@ -45,6 +45,11 @@ def review(tree, get_blob):
         path = entry["path"]
         if not path.startswith(PREFIXES):
             continue
+        if entry.get("type") == "tree":
+            if (not re.fullmatch(r"(four_mode_all|four_mode_all_observation)/20[0-9]{6}", path)
+                    or entry.get("mode") != "040000"):
+                raise ValueError("unsafe_candidate_ledger_directory")
+            continue
         match = ENTRY.fullmatch(path)
         if (match is None or entry.get("type") != "blob"
                 or entry.get("mode") != "100644"
