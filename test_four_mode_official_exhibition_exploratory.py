@@ -115,7 +115,7 @@ class OfficialExhibitionExplorationTests(unittest.TestCase):
     def test_fake_official_claim_without_matching_raw_is_rejected(self):
         s,when,old=self.sample()
         s["normalized_source_claim"]["exhibition_times"][0]=7.55
-        with self.assertRaisesRegex(ValueError,"declared_features"):
+        with self.assertRaisesRegex(ValueError,"normalized_exhibition_times"):
             explore(s,old,generated_at_jst=when)
 
     def test_unverified_original_result_leak_and_wrong_race_rejected(self):
