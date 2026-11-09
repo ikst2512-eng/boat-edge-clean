@@ -58,7 +58,7 @@ jobs:
           assert not re.search(r"(?m)^\s+- uses: actions/upload-artifact@", review)
           assert re.search(r"(?m)^          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b$", capture)
           assert capture.count('persist-credentials: false') == 1
-          assert review.count('persist-credentials: false') == 1
+          assert re.search(r"(?m)^          persist-credentials: false$", review)
           assert 'contents: read' in header and 'contents: write' not in header
           assert 'contents: write' not in capture
           assert 'CAPTURE_UNVERIFIED_RESEARCH' in capture
