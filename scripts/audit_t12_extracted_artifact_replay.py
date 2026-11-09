@@ -39,6 +39,89 @@ def artifact_metadata(repo, token, artifact_id):
         return json.load(response)
 
 
+def replay_original_zip_file(path, *, run_id, artifact_id, digest, metadata,
+                             auditor=raw_source_replay):
+    """Rehash the *original* remote Actions ZIP when its actual bytes are provided.
+
+    Unlike replay_extracted, this checks the exact archive bytes and CRC, not a
+    reconstructed ZIP. This is an optional independent read-only sidecar;
+    successful ZIP provenance does not attest the model or first forecast push.
+    """
+    if (type(run_id) is not int or run_id <= 0
+            or type(artifact_id) is not int or artifact_id <= 0
+            or not isinstance(digest, str) or HEX.fullmatch(digest) is None
+            or not isinstance(metadata, dict)
+            or metadata.get("id") != artifact_id
+            or metadata.get("name") != f"independent-late-preview-{run_id}"
+            or metadata.get("expired") is not False
+            or metadata.get("digest") != "sha256:" + digest
+            or (metadata.get("workflow_run") or {}).get("id") != run_id
+            or type(metadata.get("size_in_bytes")) is not int
+            or not 0 < metadata["size_in_bytes"] <= 20_000_000):
+        raise ValueError("invalid original GitHub artifact identity or metadata")
+    path = Path(path)
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("actual original ZIP file is missing or unsafe")
+    size = path.stat().st_size
+    if size != metadata["size_in_bytes"] or not 0 < size <= 20_000_000:
+        raise ValueError("actual original ZIP byte size mismatches GitHub")
+    raw = path.read_bytes()
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != digest:
+        raise ValueError("actual original ZIP hash mismatches GitHub metadata")
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            entries = archive.infolist()
+            if not entries or len(entries) > 2000:
+                raise ValueError("invalid original ZIP member count")
+            names = set()
+            total = 0
+            for member in entries:
+                name = member.filename
+                parts = name.replace("\\", "/").split("/")
+                unix_kind = (member.external_attr >> 16) & 0o170000
+                if (not name or name.startswith("/") or "\\" in name
+                        or any(x in (".", "..", "") for x in parts if x)
+                        or ".." in parts or unix_kind == 0o120000
+                        or name in names
+                        or member.file_size > 2_000_000):
+                    raise ValueError("unsafe original ZIP member")
+                names.add(name)
+                total += member.file_size
+                if total > 20_000_000:
+                    raise ValueError("oversized original ZIP extracted bytes")
+            if archive.testzip() is not None:
+                raise ValueError("original ZIP CRC mismatch")
+    except (zipfile.BadZipFile, OSError, RuntimeError) as exc:
+        raise ValueError("original GitHub ZIP unreadable") from exc
+    source = auditor(raw, run_id, digest)
+    if (not isinstance(source, dict) or source.get("run_id") != run_id
+            or source.get("artifact_sha256") != digest
+            or source.get("full_t12_source_certified") is not False
+            or source.get("formal") is not False):
+        raise ValueError("original ZIP source audit not fail-closed")
+    return {
+        "schema": "T12_ORIGINAL_ACTIONS_ZIP_DIRECT_REHASH_V1",
+        "run_id": run_id,
+        "artifact_id": artifact_id,
+        "original_zip_sha256_verified": True,
+        "original_zip_sha256": actual,
+        "original_zip_byte_size": size,
+        "original_zip_members_crc_verified": len(entries),
+        "official_source_originals_replayed": True,
+        "original_source_replay": source,
+        "independent_source_server_publication_timing_verified_by_this_check": False,
+        "first_forecast_git_remote_receipt_verified": False,
+        "model_original_input_consumption_verified": False,
+        "full_t12_source_certified": False,
+        "accuracy_scoring_allowed": False,
+        "formal_accuracy_denominator": None,
+        "new_formal_certifications": 0,
+        "formal": False,
+        "t12_eligible": False,
+    }
+
+
 def replay_extracted(root, *, run_id, artifact_id, digest, metadata,
                      auditor=raw_source_replay):
     if (type(run_id) is not int or run_id <= 0

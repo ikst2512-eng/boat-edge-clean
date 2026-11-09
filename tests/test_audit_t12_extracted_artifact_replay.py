@@ -1,10 +1,13 @@
 """Test auth/artifact metadata and honest scope of extracted original replay."""
 import hashlib
+import io
 import tempfile
 import unittest
+import zipfile
+from contextlib import redirect_stderr
 from pathlib import Path
 
-from scripts.audit_t12_extracted_artifact_replay import replay_extracted
+from scripts.audit_t12_extracted_artifact_replay import replay_extracted, replay_original_zip_file
 
 RUN = 42450048245
 ARTIFACT = 13604969020
@@ -126,6 +129,92 @@ class ExtractedOriginalArtifactAuditTests(unittest.TestCase):
             replay_extracted(root, run_id=RUN, artifact_id=ARTIFACT,
                              digest=DIGEST, metadata=metadata(), auditor=check)
             self.assertTrue(state["checked"])
+
+
+    def _original_zip(self, root, *, files=None):
+        files = files or {"official_joint_evidence/observations/test.json": b"{}"}
+        target = Path(root) / "downloaded-original.zip"
+        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as out:
+            for name, content in files.items():
+                out.writestr(name, content)
+        raw = target.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        return target, digest, metadata(
+            digest="sha256:" + digest, size_in_bytes=len(raw))
+
+    def test_actual_original_zip_hash_and_crc_are_recomputed(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(root)
+            report = replay_original_zip_file(
+                path, run_id=RUN, artifact_id=ARTIFACT,
+                digest=digest, metadata=meta, auditor=auditor)
+            self.assertTrue(report["original_zip_sha256_verified"])
+            self.assertEqual(report["original_zip_sha256"], digest)
+            self.assertEqual(report["original_zip_members_crc_verified"], 1)
+            self.assertFalse(report["first_forecast_git_remote_receipt_verified"])
+            self.assertFalse(report["formal"])
+            self.assertIsNone(report["formal_accuracy_denominator"])
+
+    def test_raw_zip_content_changed_after_metadata_is_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(root)
+            path.write_bytes(path.read_bytes() + b"tamper")
+            with self.assertRaises(ValueError):
+                replay_original_zip_file(path, run_id=RUN, artifact_id=ARTIFACT,
+                                         digest=digest, metadata=meta, auditor=auditor)
+
+    def test_invalid_zip_with_matching_metadata_still_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "original.zip"
+            raw = b"not a zip file"
+            path.write_bytes(raw)
+            digest = hashlib.sha256(raw).hexdigest()
+            meta = metadata(digest="sha256:" + digest, size_in_bytes=len(raw))
+            with self.assertRaisesRegex(ValueError, "unreadable"):
+                replay_original_zip_file(path, run_id=RUN, artifact_id=ARTIFACT,
+                                         digest=digest, metadata=meta, auditor=auditor)
+
+    def test_path_traversal_original_zip_is_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(
+                root, files={"../outside.json": b"bad"})
+            with self.assertRaisesRegex(ValueError, "unsafe"):
+                replay_original_zip_file(path, run_id=RUN, artifact_id=ARTIFACT,
+                                         digest=digest, metadata=meta, auditor=auditor)
+
+    def test_wrong_run_and_github_digest_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(root)
+            for key, value in (("id", ARTIFACT + 1),
+                               ("digest", "sha256:" + "0" * 64),
+                               ("expired", True),
+                               ("name", "another-archive")):
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    replay_original_zip_file(
+                        path, run_id=RUN, artifact_id=ARTIFACT,
+                        digest=digest, metadata={**meta, key: value},
+                        auditor=auditor)
+
+    def test_original_zip_bad_source_replay_cannot_certify(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(root)
+            with self.assertRaisesRegex(ValueError, "fail-closed"):
+                replay_original_zip_file(
+                    path, run_id=RUN, artifact_id=ARTIFACT,
+                    digest=digest, metadata=meta,
+                    auditor=lambda raw, run, sha: {
+                        "run_id": run, "artifact_sha256": sha,
+                        "full_t12_source_certified": False, "formal": True,
+                    })
+
+    def test_original_zip_symlink_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            path, digest, meta = self._original_zip(root)
+            link = Path(root) / "symlink.zip"
+            link.symlink_to(path)
+            with self.assertRaisesRegex(ValueError, "unsafe"):
+                replay_original_zip_file(link, run_id=RUN, artifact_id=ARTIFACT,
+                                         digest=digest, metadata=meta, auditor=auditor)
 
 
 if __name__ == "__main__":
