@@ -1178,6 +1178,24 @@ test('Telemetry API wrapper rejects unsafe timeframe, query view, filters and cu
   }
 });
 
+test('Telemetry API must reject equally unscoped or wrong-Worker event/calculation filters',()=>{
+  for(const poison of [
+    x=>{x.events_query.request.filters={};x.sampling_query.request.filters={};},
+    x=>{x.events_query.request.filters.value='different-worker';x.sampling_query.request.filters.value='different-worker';},
+    x=>{x.events_query.request.filters.key='$metadata.message';x.sampling_query.request.filters.key='$metadata.message';},
+    x=>{x.events_query.request.filters.operation='includes';x.sampling_query.request.filters.operation='includes';},
+    x=>{x.events_query.request.filters.kind='group';x.sampling_query.request.filters.kind='group';},
+    x=>{x.events_query.request.filters.extra='poison';x.sampling_query.request.filters.extra='poison';},
+  ]){
+    const input=syntheticApiTelemetryDay();poison(input);
+    const out=auditTelemetryApiPages(input);
+    assert.equal(out.observer_day_pass,false);
+    assert.equal(out.api_query_structure_pass,false);
+    assert.ok(out.api_issues.includes('api_observer_service_scope_not_proven'),JSON.stringify(out.api_issues));
+    assert.equal(out.actual_cloudflare_api_authenticity_independently_proven,false);
+  }
+});
+
 test('Telemetry API wrapper CLI accepts exact response envelope but never certifies genuine account',()=>{
   const dir=mkdtempSync(join(tmpdir(),'boat-edge-telemetry-query-'));
   try {
