@@ -34,6 +34,8 @@ on:
       - tests/test_audit_t12_scheduled_source_topology.py
       - scripts/audit_t12_full_workflow_inventory.py
       - tests/test_audit_t12_full_workflow_inventory.py
+      - scripts/audit_t12_scheduled_transitive_routes.py
+      - tests/test_audit_t12_scheduled_transitive_routes.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -71,6 +73,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_source_topology.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_full_workflow_inventory.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_transitive_routes.py' -v
       - name: Checkout pinned main workflow Git tree in an isolated directory
         uses: actions/checkout@v4
         with:
@@ -82,6 +85,11 @@ jobs:
           python -m scripts.audit_t12_full_workflow_inventory \
             --pinned-checkout pinned-workflow-main \
             --output reports/official_t12_all_main_workflow_inventory.json
+      - name: Trace transitive source scripts for all 51 pinned scheduled workflows (read only)
+        run: |
+          python -m scripts.audit_t12_scheduled_transitive_routes \
+            --pinned-checkout pinned-workflow-main \
+            --output reports/official_t12_51_scheduled_transitive_static.json
       - name: Audit immutable main official-source collection topology (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -294,5 +302,6 @@ jobs:
             reports/official_t12_same_race_proof_chain.json
             reports/official_t12_scheduled_source_topology.json
             reports/official_t12_all_main_workflow_inventory.json
+            reports/official_t12_51_scheduled_transitive_static.json
           if-no-files-found: error
           retention-days: 30
