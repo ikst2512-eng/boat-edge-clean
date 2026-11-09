@@ -79,7 +79,78 @@ jobs:
           assert "assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']" in capture
           assert 'test -s research_capture_provenance.json' in capture
           assert 'research_capture_provenance.json' in capture
-          print('REVIEW_ONLY_GATE_PASS_dispatch_main_plus_local_manifest_provenance')
+          # Exercise the embedded provenance generator using synthetic bytes,
+          # not real race candidates, network, or workflow_dispatch.
+          import contextlib
+          import hashlib
+          import io
+          import json
+          import os
+          import tempfile
+          from unittest.mock import patch
+          marker = '      - name: Bind nonformal candidate manifest to exact workflow run and source commit\n'
+          snippet = capture.split(marker, 1)[1].split(
+              '      - name: Save both candidate manifest and local run provenance', 1
+          )[0]
+          snippet = snippet.split("          python - <<'PY'\n", 1)[1].split(
+              '\n          PY\n', 1
+          )[0]
+          script = '\n'.join(line[10:] for line in snippet.splitlines()) + '\n'
+          compiled = compile(script, '<nonformal-provenance>', 'exec')
+          saved_cwd = Path.cwd()
+          with tempfile.TemporaryDirectory() as tmp:
+              os.chdir(tmp)
+              try:
+                  main_sha = 'a' * 40
+                  research_sha = '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+                  synthetic = {
+                      'source_main_commit': main_sha,
+                      'capture_day_jst': '20261109',
+                      'formal': False,
+                      'independent_first_receipt_verified': False,
+                  }
+                  raw = json.dumps(synthetic, sort_keys=True).encode()
+                  Path('research_candidate_freeze.json').write_bytes(raw)
+                  fake_env = {
+                      'GITHUB_SHA': main_sha,
+                      'GITHUB_REF': 'refs/heads/main',
+                      'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                      'GITHUB_WORKFLOW_REF': 'test/repo/.github/workflows/hole-pair-manual-gateway.yml@refs/heads/main',
+                      'GITHUB_RUN_ID': '12345',
+                      'GITHUB_RUN_ATTEMPT': '1',
+                      'INPUT_CAPTURE_DAY_JST': '20261109',
+                  }
+                  def fake_git(argv, text=False):
+                      assert argv[:2] == ['git', 'rev-parse']
+                      return research_sha if argv[-1] == 'HEAD' else main_sha
+                  def exercise(env, batch):
+                      Path('research_candidate_freeze.json').write_bytes(batch)
+                      Path('research_capture_provenance.json').unlink(missing_ok=True)
+                      with patch.dict(os.environ, env), patch(
+                          'subprocess.check_output', side_effect=fake_git
+                      ), contextlib.redirect_stdout(io.StringIO()):
+                          exec(compiled, {'__name__': '__main__'})
+                  exercise(fake_env, raw)
+                  sidecar = json.loads(Path('research_capture_provenance.json').read_text())
+                  assert sidecar['manifest_sha256'] == hashlib.sha256(raw).hexdigest()
+                  assert sidecar['manifest_bytes'] == len(raw)
+                  assert sidecar['source_main_commit'] == main_sha
+                  assert sidecar['github_run_id'] == 12345
+                  assert sidecar['formal'] is False
+                  assert sidecar['independent_first_receipt_verified'] is False
+                  for bad_env, bad_raw in (
+                      ({**fake_env, 'GITHUB_SHA': 'b' * 40}, raw),
+                      (fake_env, json.dumps({**synthetic, 'formal': True}).encode()),
+                  ):
+                      try:
+                          exercise(bad_env, bad_raw)
+                      except AssertionError:
+                          assert not Path('research_capture_provenance.json').exists()
+                      else:
+                          raise AssertionError('provenance_fail_closed_negative_case_failed')
+              finally:
+                  os.chdir(saved_cwd)
+          print('REVIEW_ONLY_GATE_PASS_synthetic_provenance_positive_and_negative')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
