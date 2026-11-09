@@ -57,6 +57,8 @@ on:
       - 'cloudflare/vitest.config.mjs'
       - 'cloudflare/test/worker_runtime.test.mjs'
       - 'tests/cloudflare_capture_wakeup.test.mjs'
+      - 'tests/cloudflare_observer_preflight.test.mjs'
+      - 'scripts/preflight_cloudflare_observer.mjs'
 permissions:
   actions: read
   contents: read
@@ -113,7 +115,10 @@ jobs:
           node-version: '22'
       - name: Run Cloudflare external wakeup safety tests (PR only)
         if: ${{ github.event_name == 'pull_request' }}
-        run: node --test tests/cloudflare_capture_wakeup.test.mjs
+        run: |
+          node --test tests/cloudflare_capture_wakeup.test.mjs
+          node --test tests/cloudflare_observer_preflight.test.mjs
+          node scripts/preflight_cloudflare_observer.mjs
       - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
         run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
