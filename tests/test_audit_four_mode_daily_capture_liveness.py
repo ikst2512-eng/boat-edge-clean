@@ -157,5 +157,64 @@ class CaptureLivenessTests(unittest.TestCase):
         self.assertEqual(result["completed_unknown_outcome_count"], 0)
 
 
+    def test_preopening_success_cannot_certify_capture_window(self):
+        result = report("20261109", {"recent_capture_runs": [
+            run(901, "2026-11-09T03:03:00+09:00"),
+        ]})
+        # Keep raw execution truth, but do not claim this as a scheduled
+        # 07:07+ observation; a delayed prior-night Cron can start at 03:03.
+        self.assertEqual(result["status"], "capture_success_observed")
+        self.assertEqual(result["completed_success_count"], 1)
+        self.assertEqual(result["completed_success_in_capture_window_count"], 0)
+        self.assertFalse(result["capture_window_success_observed"])
+        self.assertEqual(
+            result["same_day_outside_capture_window_run_ids"]["pre_opening"],
+            [901])
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+        self.assertFalse(should_fail(result, "pull_request", "refs/pull/1/merge"))
+        self.assertFalse(result["per_nominal_slot_capture_delivery_verified"])
+
+    def test_postwindow_success_cannot_certify_capture_window(self):
+        result = report("20261109", {"recent_capture_runs": [
+            run(902, "2026-11-09T20:57:01+09:00"),
+        ]})
+        self.assertEqual(result["completed_success_count"], 1)
+        self.assertEqual(result["completed_success_in_capture_window_count"], 0)
+        self.assertEqual(
+            result["same_day_outside_capture_window_run_ids"][
+                "after_last_slot_grace"], [902])
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+
+    def test_window_boundaries_and_dispatch_do_not_prove_slot_identity(self):
+        result = report("20261109", {"recent_capture_runs": [
+            run(910, "2026-11-09T07:06:59+09:00"),
+            run(911, "2026-11-09T07:07:00+09:00"),
+            run(912, "2026-11-09T20:57:00+09:00", event="workflow_dispatch"),
+            run(913, "2026-11-09T20:57:01+09:00"),
+        ]})
+        self.assertEqual(result["completed_success_count"], 4)
+        self.assertEqual(result["completed_success_in_capture_window_count"], 2)
+        self.assertEqual(result["same_day_in_capture_window_run_ids"], [911, 912])
+        self.assertTrue(result["capture_window_success_observed"])
+        self.assertEqual(result["same_day_outside_capture_window_run_ids"], {
+            "pre_opening": [910], "after_last_slot_grace": [913]})
+        self.assertFalse(result["per_nominal_slot_capture_delivery_verified"])
+        self.assertFalse(result["publication_verified"])
+        self.assertFalse(should_fail(result, "schedule", "refs/heads/main"))
+
+    def test_only_in_window_pending_does_not_claim_success(self):
+        result = report("20261109", {"recent_capture_runs": [
+            run(920, "2026-11-09T07:07:00+09:00",
+                status="in_progress", conclusion=None),
+            run(921, "2026-11-09T03:03:00+09:00"),
+        ]})
+        self.assertEqual(result["status"], "capture_success_observed")
+        self.assertEqual(result["completed_success_count"], 1)
+        self.assertEqual(result["pending_count"], 1)
+        self.assertFalse(result["capture_window_success_observed"])
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+
+
+
 if __name__ == "__main__":
     unittest.main()
