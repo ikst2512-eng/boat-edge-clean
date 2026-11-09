@@ -17,6 +17,8 @@ on:
       - 'position_sensitive_future_topk_exposure.py'
       - 'position_sensitive_candidate_delivery_gap.py'
       - 'position_sensitive_candidate_batch_export.py'
+      - 'position_sensitive_schedule_run_inventory.py'
+      - 'test_position_sensitive_schedule_run_inventory.py'
       - 'test_position_sensitive_candidate_batch_export.py'
       - 'test_position_sensitive_candidate_delivery_gap.py'
       - 'test_position_sensitive_future_topk_exposure.py'
@@ -98,7 +100,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -341,6 +343,32 @@ jobs:
                   raise SystemExit("unexpected_batch_candidate_outside_open_roster")
           print("POSITION_SENSITIVE_OFFLINE_BATCH_CANDIDATES="+str(p["planned_local_only"])+";NO_GITHUB_WRITE")
           PY
+      - name: Verify source cron slots against read-only pinned main without remote Actions queries
+        run: |
+          python - <<'PY'
+          import subprocess
+          from position_sensitive_schedule_run_inventory import _source_schedule
+          raw=subprocess.check_output([
+            "git","show",
+            "refs/remotes/origin/main:.github/workflows/four-mode-prospective-capture.yml"
+          ])
+          _source_schedule(raw)
+          print("POSITION_SENSITIVE_MAIN_CRON_56_SLOTS_READONLY")
+          PY
+          python position_sensitive_schedule_run_inventory.py | tee position_schedule_inventory_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("position_schedule_inventory_unstarted.json").read_text())
+          if (d.get("status") != "schedule_run_inventory_not_invoked" or
+                  d.get("first_remote_candidate_receipts_verified") != 0 or
+                  d.get("complete_scheduled_and_rescue_run_inventory_verified") is not False or
+                  d.get("formal") is not False or
+                  d.get("promotion_allowed") is not False or
+                  d.get("production_changed") is not False):
+              raise SystemExit("false_cron_gap_to_actual_failure_or_formal_proof")
+          print("POSITION_SENSITIVE_SCHEDULE_READONLY_NOT_CLAIMING_MISSED_RUNS")
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -483,6 +511,7 @@ jobs:
             position_public_comment_checkpoint.json
             position_future_paired_exposure.json
             position_candidate_delivery_gap.json
+            position_schedule_inventory_unstarted.json
             position_candidate_batch_local.json
             position_shadow_t12_windows.json
           retention-days: 30
