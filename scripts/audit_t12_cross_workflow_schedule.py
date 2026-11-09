@@ -45,7 +45,8 @@ MAX_PAGES = 20
 
 
 def compare(repo, start_day, end_day, token=None, *, fetch=None, as_of=None):
-    if not isinstance(repo, str) or not REPO.fullmatch(repo):
+    if (not isinstance(repo, str) or not REPO.fullmatch(repo)
+            or any(part in (".", "..") for part in repo.split("/"))):
         raise ValueError("invalid GitHub repository")
     if any(not isinstance(s, str) or not DAY.fullmatch(s)
            for s in (start_day, end_day)):
