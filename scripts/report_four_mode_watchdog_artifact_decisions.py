@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts.report_four_mode_schedule_publications import safe_json
+from scripts.inventory_four_mode_watchdog_dispatch import api_json
+from scripts.clean_prospective_watchdog import trusted_schedule_completion, TRUSTED_SCHEDULES
 
 
 def timestamp(value):
@@ -22,7 +24,22 @@ def timestamp(value):
     return date.astimezone(timezone.utc)
 
 
-def inspect_clean_webhook_recovery(history, downloader, limit=12):
+def verify_webhook_upstream(parent, claimed_id, claimed_name, watchdog_started, repository):
+    """Independently verify the exact main scheduled parent from the GitHub API."""
+    if (not isinstance(parent, dict) or type(parent.get("id")) is not int
+            or parent["id"] != claimed_id
+            or parent.get("name") != claimed_name):
+        return False
+    try:
+        created = timestamp(parent.get("created_at"))
+    except (ValueError, TypeError, OverflowError):
+        return False
+    if created > watchdog_started:
+        return False
+    return trusted_schedule_completion({"workflow_run": parent}, repository)
+
+
+def inspect_clean_webhook_recovery(history, downloader, limit=12, *, parent_fetcher=None):
     """Check a bounded sample of *successful webhook jobs*, not all webhooks.
 
     The existing watchdog writes a separate CLEAN decision artifact after a
@@ -34,8 +51,6 @@ def inspect_clean_webhook_recovery(history, downloader, limit=12):
     if (not isinstance(candidates, list) or not isinstance(clean_runs, list)
             or type(limit) is not int or not 1 <= limit <= 12):
         raise ValueError("invalid clean webhook audit history")
-    from scripts.clean_prospective_watchdog import TRUSTED_SCHEDULES
-
     following = []
     seen_clean = set()
     for item in clean_runs:
@@ -69,6 +84,7 @@ def inspect_clean_webhook_recovery(history, downloader, limit=12):
                "decision": None, "claimed_upstream_run_id": None,
                "claimed_upstream_workflow": None,
                "upstream_parent_verified": False,
+               "upstream_parent_status": "not_checked",
                "temporally_following_clean_dispatch_ids": [],
                "following_clean_dispatch_completed_success_ids": [],
                "causal_link_proven": False,
@@ -112,6 +128,21 @@ def inspect_clean_webhook_recovery(history, downloader, limit=12):
                 row["decision"] = record["action"]
                 row["claimed_upstream_run_id"] = record["upstream_run_id"]
                 row["claimed_upstream_workflow"] = record["upstream_workflow"]
+                if parent_fetcher is not None:
+                    try:
+                        parent = parent_fetcher(record["upstream_run_id"])
+                    except (OSError, ValueError, TypeError, KeyError) as exc:
+                        row["upstream_parent_status"] = (
+                            "fetch_failed_" + type(exc).__name__)
+                    else:
+                        verified = verify_webhook_upstream(
+                            parent, record["upstream_run_id"],
+                            record["upstream_workflow"], started,
+                            run["head_repository_full_name"])
+                        row["upstream_parent_verified"] = verified
+                        row["upstream_parent_status"] = (
+                            "github_schedule_parent_verified" if verified
+                            else "github_parent_metadata_mismatch")
                 if record["action"] == "fallback_dispatch_accepted_not_capture_proof":
                     correlated = [
                         item for at, item in following
@@ -136,13 +167,17 @@ def inspect_clean_webhook_recovery(history, downloader, limit=12):
             for r in verified),
         "clean_webhook_unknown_evidence": len(rows) - len(verified),
         "clean_webhook_first_page_only": True,
+        "clean_webhook_upstream_parents_verified": sum(
+            r["upstream_parent_verified"] is True for r in rows),
+        "clean_webhook_upstream_parent_unknown_or_mismatch": sum(
+            r["upstream_parent_verified"] is False for r in rows),
         "clean_webhook_causal_link_proven": False,
         "clean_webhook_new_first_add_proven": False,
         "clean_webhook_runs": rows,
     }
 
 
-def inspect(history, downloader, limit=40):
+def inspect(history, downloader, limit=40, *, parent_fetcher=None):
     if (not isinstance(history, dict)
             or not isinstance(history.get("recent_watchdog_runs"), list)
             or not isinstance(history.get("recent_capture_runs"), list)
@@ -206,7 +241,8 @@ def inspect(history, downloader, limit=40):
                         if checked_at <= when <= checked_at + timedelta(minutes=3))
         rows.append(row)
     verified = [r for r in rows if r["evidence_status"] == "decision_artifact_verified"]
-    clean = inspect_clean_webhook_recovery(history, downloader)
+    clean = inspect_clean_webhook_recovery(
+        history, downloader, parent_fetcher=parent_fetcher)
     return {"schema": "FOUR_MODE_WATCHDOG_ARTIFACT_DECISIONS_V1",
             **clean,
             "runs_checked": len(rows),
@@ -236,7 +272,13 @@ def main():
         subprocess.run(["gh", "run", "download", str(run_id), "--repo", args.repo,
                         "--name", f"four-mode-watchdog-decision-{run_id}",
                         "--dir", str(dest)], check=True, capture_output=True, timeout=40)
-    result = inspect(history, download)
+    def fetch_parent(parent_run_id):
+        # Read-only, bounded to at most 12 successful webhook samples.
+        # Same API parser/authentication as the existing inventory.
+        return api_json(
+            f"https://api.github.com/repos/{args.repo}/actions/runs/{parent_run_id}",
+            os.environ["GH_TOKEN"])
+    result = inspect(history, download, parent_fetcher=fetch_parent)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -250,6 +292,8 @@ def main():
         "clean_webhook_decisions_verified": result["clean_webhook_decisions_verified"],
         "clean_webhook_fallback_accepted_verified": result["clean_webhook_fallback_accepted_verified"],
         "clean_webhook_unknown_evidence": result["clean_webhook_unknown_evidence"],
+        "clean_webhook_upstream_parents_verified": result["clean_webhook_upstream_parents_verified"],
+        "clean_webhook_upstream_parent_unknown_or_mismatch": result["clean_webhook_upstream_parent_unknown_or_mismatch"],
         "clean_webhook_rows": result["clean_webhook_runs"],
         "accepted_rows": [r for r in result["runs"] if r["decision"] == "fallback_dispatch_accepted"]
     }, sort_keys=True))
