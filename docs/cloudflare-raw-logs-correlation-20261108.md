@@ -69,3 +69,53 @@ The raw audit now rejects **missing/repeated event IDs**, including otherwise va
 **Evidence limitation:** a manually constructed JSON object with `complete_export=true` and `sample_interval=1` is still an operator assertion, not validated Cloudflare response metadata. The raw verifier checks internal consistency and reports `original_cloudflare_log_authenticity_independently_proven=false` unconditionally. The account owner's original telemetry query response, query window, page cursors, statistics, Cloudflare deployment ID, and export timestamps must be retained for independent verification. No real Cloudflare account is connected to this audit, and no live CPU/Cron/dispatch proof has been collected.
 
 PR #1697 CI at `693d8955a60c591beee80b4fba5b2937d34dce25` ([run #42477032602](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42477032602)) passed Python **96/96**, Node **67/67**, local Workerd **9/9**; Wrangler dry-runs PASS. This does not reduce the separately reproduced non-atomic GET→POST duplicate-dispatch risk. Recovery and production deployment remain **NO-GO**, Draft/unmerged.
+
+
+## 2026-11-09 — Raw Cloudflare Telemetry API query-response audit (offline)
+
+Official [Cloudflare Telemetry Query API](https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/) distinguishes an `events` view with `events.count` and `events.events[]` from a separate `calculations` view exposing `aggregates[].sampleInterval`. The query's `limit` can be 2000 and its `offset` is an event-ID pagination cursor. An event count in an operator-maintained summary **does not prove that the account returned all records**.
+
+`cloudflare/audit_observer_api_pages.mjs` now takes **two retained API query request/response pairs** and derives the same normalized raw audit input only when both independently agree:
+
+- Events query: `request.view="events"`, `request.limit=2000`, empty/missing `request.offset`; `response.status="COMPLETED"`; `response.events.count === response.events.events.length === 384` for **192 invocation + 192 dedicated observer custom logs**.
+- Sampling query: `request.view="calculations"`, `response.status="COMPLETED"`; exactly one aggregate with `count=384` and **`sampleInterval=1`**. This is not inferred from `observability.head_sampling_rate=1`; account/platform sampling must be assessed independently.
+- Both retained request definitions and both reported result timeframes must equal the **same complete UTC day** in milliseconds (`00:00:00Z` to the following `00:00:00Z`), and the two request filter objects must be canonically identical.
+- A short page, inconsistent event count, non-empty cursor, incomplete query status, different filter/window, multiple aggregate groups, or sampled metrics **fails closed**. The 384 records then pass through the existing event-ID, request-ID, Cron, CPU 10ms, deployment-version and clock audit. No HTTP API calls or deployment occur.
+
+**Example envelope structure (NOT real telemetry; intentionally incomplete):**
+
+```json
+{
+  "schema": "BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V1",
+  "utc_day": "2026-11-09",
+  "worker": "boat-edge-clean-independent-observer",
+  "deployment_id": "REPLACE-WITH-REAL-DEPLOYMENT-ID",
+  "events_query": {
+    "request": {
+      "view": "events",
+      "limit": 2000,
+      "timeframe": {"from": 1794182400000, "to": 1794268800000},
+      "filters": {"kind": "filter", "key": "$metadata.service", "value": "boat-edge-clean-independent-observer", "type": "string", "operation": "eq"}
+    },
+    "response": {"status": "COMPLETED", "timeframe": {"from": 1794182400000, "to": 1794268800000}, "events": {"count": 0, "events": []}}
+  },
+  "sampling_query": {
+    "request": {
+      "view": "calculations",
+      "timeframe": {"from": 1794182400000, "to": 1794268800000},
+      "filters": {"kind": "filter", "key": "$metadata.service", "value": "boat-edge-clean-independent-observer", "type": "string", "operation": "eq"}
+    },
+    "response": {"status": "COMPLETED", "timeframe": {"from": 1794182400000, "to": 1794268800000}, "calculations": [{"aggregates": [{"count": 0, "sampleInterval": 1}]}]}
+  }
+}
+```
+
+**Treat the JSON as a conceptual audit-envelope example.** Exact query request fields and response wrapping must be mapped from a genuine Cloudflare export; do not fabricate missing response fields to force a positive result. The UTC epoch values must match the selected `utc_day`. A required response field missing from the real API is **an unresolved integration mismatch, not evidence of successful coverage**.
+
+The offline CLI automatically detects this schema:
+
+```sh
+node scripts/audit_cloudflare_observer_telemetry.mjs ./cf-telemetry-2026-11-09.json
+```
+
+The result includes a SHA-256 digest of the exact input bytes, plus `actual_cloudflare_api_authenticity_independently_proven:false` unconditionally. Export retrieval/query provenance and API authentication cannot be verified from a JSON file alone. A **passing synthetic fixture is not a real Cloudflare 192/192 day, a CPU measurement, a GitHub rescue, or formal T−12 evidence**. Production recovery remains source-hard-locked and NO-GO until independent release approval.
