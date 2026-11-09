@@ -80,7 +80,8 @@ function actualRecord(kind,code,buf,commitTime){
        generated>=deadline-20*60000)throw Error('four_mode_archive_source_contract_invalid');
   }
   return {
-    // Expose the original +09:00 deadline, never label a UTC string as JST.\n    code,deadline_jst:kind==='clean'?rec.source_deadline_jst:rec.deadline_jst,
+    // Expose original +09:00 deadline, never label a UTC string as JST.
+    code,deadline_jst:kind==='clean'?rec.source_deadline_jst:rec.deadline_jst,
     generated_at_jst:kind==='clean'?rec.generated_at:rec.generated_at_jst,
     source_title_received_jst:rec.source_title_received_jst,
     source_cards_received_jst:rec.source_cards_received_jst,
