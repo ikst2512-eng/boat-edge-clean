@@ -6,6 +6,7 @@ on:
       - index.html
       - server.py
       - tests/live-archived-forecast.cjs
+      - tests/live-public-archive-cors.cjs
       - tests/render-http-reachability.sh
       - .github/workflows/live-archived-forecast.yml
   workflow_dispatch:
@@ -27,6 +28,8 @@ jobs:
         run: |
           set -o pipefail
           bash tests/render-http-reachability.sh 2>&1 | tee render-reachability.log
+      - name: Check unsimulated public CORS test syntax
+        run: node --check tests/live-public-archive-cors.cjs
       - name: Install browser runner
         timeout-minutes: 12
         run: |
@@ -34,12 +37,23 @@ jobs:
           npx playwright install --with-deps --only-shell chromium
       - name: Verify actual stored prediction displayed on public site
         run: node tests/live-archived-forecast.cjs
+      # Unlike the historical E2E that may use a clearly labeled PR-only
+      # ACAO simulation, this uses the actual published Pages origin and
+      # the browser's CORS enforcement without any route interception.
+      - name: Confirm real Pages-to-Render CORS in Chromium (unmocked)
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live-public-archive-cors.cjs 2>&1 | tee real-public-archive-cors.log
       - name: Preserve transport diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: clean-archive-reachability-${{ github.run_id }}
-          path: render-reachability.log
+          path: |
+            render-reachability.log
+            real-public-archive-cors.log
           if-no-files-found: warn
       # This checks the UNSIMULATED live response. A PR-only browser route
       # fulfilling a fake ACAO header can never satisfy production readiness.
