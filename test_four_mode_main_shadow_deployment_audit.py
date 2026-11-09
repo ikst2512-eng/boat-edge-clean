@@ -118,8 +118,13 @@ class DeploymentAuditTests(unittest.TestCase):
             result = audit_live()
         self.assertEqual(result["main_commit_sha"], MAIN_SHA)
         self.assertEqual(result["draft_commit_sha"], DRAFT_SHA)
+        self.assertFalse(result["draft_verified_at_exact_pr_head_sha"])
         self.assertEqual(observed[2], ("show", MAIN_SHA + ":" + WORKFLOW))
         self.assertEqual(observed[3], ("show", DRAFT_SHA + ":" + WORKFLOW))
+        with patch("four_mode_main_shadow_deployment_audit.git", side_effect=fake_git):
+            exact = audit_live(draft_ref=DRAFT_SHA)
+        self.assertTrue(exact["draft_verified_at_exact_pr_head_sha"])
+        self.assertEqual(exact["draft_commit_sha"], DRAFT_SHA)
         with self.assertRaisesRegex(ValueError, "unsafe_nonpinned"):
             audit_live(main_ref="some_feature_branch")
 
