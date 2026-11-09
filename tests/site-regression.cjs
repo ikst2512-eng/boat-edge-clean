@@ -348,8 +348,13 @@ assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/cl
 assert.ok(!html.includes("fetchTimed('/api/clean-result?hd="),'review must not request API from GitHub Pages');
 
 // Published Pages must fetch racecard/exhibition from the actual CLEAN API host.
-assert.ok(html.includes("fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd="),'racecard must use CLEAN Render');
-assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd="),'Pages-relative racecard API would return 404');
+assert.ok(html.includes("fetchForecastRacecard('https://boat-edge-clean.onrender.com/api/clean-racecard?hd=")&&
+          script.includes("pending=fetchTimed(url,{cache:'no-store'})")&&
+          script.includes("return response.clone()"),
+          'forecast racecard must use CLEAN Render with fresh in-flight sharing and independent response bodies');
+assert.ok(!html.includes("fetchTimed('/api/clean-racecard?hd=")&&
+          !html.includes("fetchForecastRacecard('/api/clean-racecard?hd="),
+          'Pages-relative racecard API would return 404');
 assert.ok(script.includes('await loadHeldVenues();'),'racecard loading must wait for the verified daily schedule');
 assert.ok(script.includes('todayVenueRaces.partial_coverage!==true'),'partial frozen schedules must not prove a race is absent');
 assert.ok(script.includes("scheduledVenue?'このレースは開催されていません':'この場は開催されていません'"),'confirmed non-held selections must stop before the racecard API');
