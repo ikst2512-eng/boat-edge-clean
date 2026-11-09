@@ -14,6 +14,8 @@ on:
       - 'position_sensitive_remote_observer.py'
       - 'position_sensitive_live_roster_audit.py'
       - 'position_sensitive_public_comment_witness.py'
+      - 'position_sensitive_future_topk_exposure.py'
+      - 'test_position_sensitive_future_topk_exposure.py'
       - 'test_position_sensitive_public_comment_witness.py'
       - 'test_position_sensitive_live_roster_audit.py'
       - 'position_sensitive_manual_publisher.py'
@@ -92,7 +94,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -247,6 +249,34 @@ jobs:
               raise SystemExit("public_comment_not_created_before_T12")
           print("POSITION_SENSITIVE_UNEDITED_PUBLIC_CHECKPOINT_PRET12_NONFORMAL=" + race)
           PY
+      - name: Live ledger per-race Top1 3 5 10 paired ticket exposure WITHOUT results
+        run: |
+          python position_sensitive_future_topk_exposure.py --ledger-ref refs/remotes/origin/position-sensitive-forward-evidence-ledger --original-ref refs/remotes/origin/main --output position_future_paired_exposure.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("position_future_paired_exposure.json").read_text())
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          live=json.loads(Path("position_candidate_live_roster_observation.json").read_text())
+          checkpoint=json.loads(Path("position_public_comment_checkpoint.json").read_text())
+          by_code={x["race_code"]:x for x in p["rows"]}
+          if (p.get("status") != "future_research_candidate_outcome_blind_exposure_only"
+                  or p.get("candidate_files") != history["candidate_files"]
+                  or p.get("candidate_files") != live["candidate_files"]
+                  or p.get("same_race_pairs_validated") != p["candidate_files"]
+                  or checkpoint["race_code"] not in by_code
+                  or by_code[checkpoint["race_code"]]["candidate_sha256"] != checkpoint["candidate_sha256"]
+                  or p.get("outcome_files_read") != 0
+                  or p.get("actual_hit_rates_calculated") is not False
+                  or p.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or p.get("formal") is not False
+                  or p.get("model_improvement_proven") is not False
+                  or p.get("promotion_allowed") is not False
+                  or p.get("production_changed") is not False):
+              raise SystemExit("future_paired_exposure_false_proof_or_roster_drift")
+          print("POSITION_SENSITIVE_FUTURE_PAIR_OUTCOME_BLIND=" + json.dumps(
+              {"candidates":p["candidate_files"], "mode":p["by_mode"]},sort_keys=True))
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -387,5 +417,6 @@ jobs:
             position_ledger_history_audit.json
             position_candidate_live_roster_observation.json
             position_public_comment_checkpoint.json
+            position_future_paired_exposure.json
             position_shadow_t12_windows.json
           retention-days: 30
