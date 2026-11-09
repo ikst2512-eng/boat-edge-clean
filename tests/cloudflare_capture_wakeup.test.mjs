@@ -1215,7 +1215,7 @@ test('static native publication evidence gate only accepts checks after successf
   const header='name: illustrative\n';
   const push='  if git push origin HEAD:main; then\n';
   const check='  git fetch origin main\n  git merge-base --is-ancestor HEAD FETCH_HEAD\n';
-  const evidence='  git rev-parse HEAD\n  echo \\"commit_sha\\" > clean-capture-evidence/publication.json\n';
+  const evidence='  git rev-parse HEAD\n  echo "commit_sha" > clean-capture-evidence/publication.json\n';
   const success='  exit 0\n  fi\n';
   const clean=header+push+check+evidence+success;
   const accepted=auditNativePublisherPostPush(clean,'clean');
