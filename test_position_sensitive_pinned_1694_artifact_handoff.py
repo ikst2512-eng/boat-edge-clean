@@ -1,10 +1,14 @@
 """Synthetic contract tests; the real #1694 artifact is fetched only by CI."""
 import copy
+import json
+import tempfile
+from pathlib import Path
 import unittest
 
 from position_sensitive_pinned_1694_artifact_handoff import (
     pinned_handoff, SOURCE_RUN_ID, SOURCE_HEAD_SHA, SOURCE_WORKFLOW,
     SOURCE_ARTIFACT_ID, SOURCE_ARTIFACT_NAME, SOURCE_ARTIFACT_DIGEST, REPO,
+    SOURCE_REPORT_SHA256, read_exact_pinned_report,
 )
 from test_position_sensitive_cross_pr_t12_bridge import report
 
@@ -143,6 +147,24 @@ class PinnedSourceConsumerTests(unittest.TestCase):
         c["rows"][2]["race_code"] = c["rows"][0]["race_code"]
         with self.assertRaisesRegex(ValueError, "candidate_roster_duplicate"):
             self.assess(c=c)
+
+    def test_pinned_original_report_raw_checksum_not_just_schema(self):
+        self.assertEqual(len(SOURCE_REPORT_SHA256), 64)
+        with tempfile.TemporaryDirectory() as temp:
+            fake = Path(temp) / "fake-official-report.json"
+            fake.write_text(json.dumps(report()), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,
+                                        "pinned_source_report_raw_sha256_mismatch"):
+                read_exact_pinned_report(fake)
+
+    def test_pinned_report_source_path_refuses_symlink(self):
+        with tempfile.TemporaryDirectory() as temp:
+            target = Path(temp) / "actual-report.json"
+            target.write_text(json.dumps(report()), encoding="utf-8")
+            linked = Path(temp) / "linked-report.json"
+            linked.symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "unsafe_pinned_report_path"):
+                read_exact_pinned_report(linked)
 
     def test_no_future_roster_does_not_create_samples(self):
         c = roster()
