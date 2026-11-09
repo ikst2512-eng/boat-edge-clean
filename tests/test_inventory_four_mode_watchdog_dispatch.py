@@ -19,7 +19,8 @@ class WatchdogInventoryTest(unittest.TestCase):
             ("four-mode-prospective-capture.yml", "workflow_dispatch"): [row(2, "workflow_dispatch", "2026-11-03T05:30:00Z")],
             ("four-mode-capture-watchdog.yml", "schedule"): [],
             ("four-mode-capture-watchdog.yml", "push"): [row(3, "push", "2026-11-03T05:25:00Z")],
-            ("four-mode-capture-watchdog.yml", "workflow_run"): []}
+            ("four-mode-capture-watchdog.yml", "workflow_run"): [],
+            ("clean-prospective.yml", "workflow_dispatch"): []}
         def fetch(url, token):
             for (workflow, event), vals in events.items():
                 if workflow in url and ("event=" + event) in url:
@@ -161,6 +162,37 @@ class WatchdogInventoryTest(unittest.TestCase):
         scope = result["source_coverage"][
             "four-mode-capture-watchdog.yml:workflow_run"]
         self.assertEqual(scope["excluded_nonmain_or_unverified_run_ids"], [805])
+
+    def test_clean_dispatch_and_successful_webhook_samples_separate(self):
+        def fetch(url, token):
+            if "four-mode-capture-watchdog.yml" in url and "event=workflow_run" in url:
+                return {"workflow_runs": [
+                    row(904, "workflow_run", "2026-11-03T05:54:00Z", "skipped"),
+                    row(905, "workflow_run", "2026-11-03T05:50:00Z")]}
+            if "clean-prospective.yml" in url and "event=workflow_dispatch" in url:
+                return {"workflow_runs": [
+                    row(906, "workflow_dispatch", "2026-11-03T05:50:05Z")]}
+            return {"workflow_runs": []}
+        data = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(data["clean_workflow_dispatch"]["success"], 1)
+        self.assertEqual([r["id"] for r in data["recent_clean_dispatch_runs"]], [906])
+        self.assertEqual([r["id"] for r in data["recent_successful_watchdog_workflow_run"]], [905])
+        self.assertEqual([r["id"] for r in data["recent_watchdog_workflow_run"]], [904, 905])
+        self.assertEqual(data["capture_workflow_dispatch"]["success"], 0)
+        self.assertFalse(data["forecast_saved_proven"])
+
+    def test_clean_foreign_branch_is_not_published_main_dispatch(self):
+        def fetch(url, token):
+            if "clean-prospective.yml" in url and "event=workflow_dispatch" in url:
+                return {"workflow_runs": [
+                    row(908, "workflow_dispatch", "2026-11-03T05:50:05Z",
+                        branch="audit/not-main")]}
+            return {"workflow_runs": []}
+        data = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(data["clean_workflow_dispatch"]["returned"], 0)
+        self.assertEqual(data["source_coverage"][
+            "clean-prospective.yml:workflow_dispatch"
+        ]["excluded_nonmain_or_unverified_run_ids"], [908])
 
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
