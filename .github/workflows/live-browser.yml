@@ -45,6 +45,7 @@ jobs:
       # Existing read-only WebKit/Chromium mobile check; not physical iPhone Safari.
       # Distinct from the Pages->Render CORS release gate.
       - name: Verify iPhone-size WebKit four-mode forecast, odds and race switching
+        if: ${{ success() || failure() }}
         shell: bash
         run: |
           set -o pipefail
@@ -52,6 +53,7 @@ jobs:
       # Browser-engine-specific four-tab assertions on the public Pages UI.
       # PR-simulated CORS is NOT equivalent to production cross-origin success.
       - name: Verify public four tabs with WebKit (simulated CORS clearly labeled)
+        if: ${{ success() || failure() }}
         shell: bash
         env:
           BROWSER_ENGINE: webkit
