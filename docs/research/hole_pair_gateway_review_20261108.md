@@ -64,3 +64,18 @@ For each race code, the future reviewer must independently bind **the same race 
 The D1 Worker/SQLite prototype on #1685 is **undeployed**. Its self-reported database receipt and simulated SQL tests do not establish an externally signed or independently authenticated first acceptance, official cutoff or full six-boat/120-odds T−12 chain. The only permitted status until each gate is independently established is `formal=false`, `pilot_formally_eligible=0`, `confirmation_formally_eligible=0`, `production_promotion_allowed=false`.
 
 **Manual decision still required:** one gateway only, permission scope, usage/retention budgets, idempotency, independent witness design, official-source acquisition, and a new exact-path default-branch registration audit. No manual dispatch, real remote capture, Cloudflare deploy, model, Render, UI or main change is authorized by a passing review CI.
+
+## November 9 reproducible chain-of-custody enhancement (still NONFORMAL)
+
+The proposed manual gateway now rejects a drifted Git main source: immediately after fetching `origin/main`, it compares that commit against GitHub's immutable `GITHUB_SHA` from the selected `main` workflow-dispatch event. If main moved while the runner queued, the run **fails before selecting candidates**, rather than silently consuming a newer source snapshot. The existing exact research-code SHA pin remains unchanged.
+
+After creating and validating the nonformal candidate manifest, a new **local provenance sidecar** `research_capture_provenance.json` is derived from the exact original manifest bytes and local Git refs. It records:
+- GitHub workflow run ID, attempt and workflow ref, dispatch-time main SHA, source main SHA and pinned research SHA.
+- Date, original manifest filename, exact byte length and SHA256.
+- Explicit `formal=false`, `independent_first_receipt_verified=false`, `official_t12_complete_verified=false` and `production_promotion_allowed=false`.
+
+The upload now requires **both nonempty files** and stores both in the same 30-day `hole-pair-manual-unverified-YYYYMMDD` Actions artifact. The original candidate manifest bytes are not rewritten. This makes a future manual run easier to audit by run and input commit, but does **not** provide durable independent first-acceptance evidence. Thirty-day GitHub artifact retention is insufficient as the sole archive for the intended 600-race longitudinal study; external immutable archival/retention must be separately reviewed before formal certification.
+
+**Simulated test evidence:** the PR-only review job extracts the exact embedded sidecar generator and executes it with synthetic manifest bytes and stubbed Git refs; it checks SHA256, byte size, run ID and false proof flags. Wrong dispatch main SHA or a forged `formal=true` manifest must fail without creating a sidecar. These tests have **no outcome data, external network, Cloudflare, candidate collection, or production integration**. [CI #42588574527](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42588574527) passed: `review_only` success, real `capture` skipped.
+
+**Still blocked:** first independently authenticated remote acceptance with trusted time; original official T−12 cutoff and per-race six-boat beforeinfo/exhibition + 120 distinct odds; actual manual execution proof; cross-run durable first-write/dedup/quarantine; storage/retention decisions; distinct fixed 300 pilot and 300 confirmatory cohorts. No main merge or actual dispatch is authorized by the sidecar or CI results.
