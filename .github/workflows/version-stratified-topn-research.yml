@@ -24,6 +24,8 @@ on:
       - test_four_mode_top1_head_exposure_audit.py
       - test_four_mode_top1_forward_reference.py
       - four_mode_top1_bias_input_audit.py
+      - four_mode_nov09_main_original_input_readiness.py
+      - test_four_mode_nov09_main_original_input_readiness.py
       - four_mode_top1_head_prior_shadow.py
       - test_four_mode_top1_head_prior_shadow.py
       - research/four_mode_hit_head_prior_forward_protocol_20261108.json
@@ -228,6 +230,44 @@ jobs:
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
       - name: Test fixed prior Top1 concentration and absence of result reads
         run: python -m unittest -v test_four_mode_top1_bias_input_audit
+      - name: Unit test pinned current-main Nov9 original input-only audit
+        run: python -m unittest -v test_four_mode_nov09_main_original_input_readiness
+      - name: Read pinned current-main Nov9 originals without merging or reading any results
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+          python four_mode_nov09_main_original_input_readiness.py --day 20261109 --git-ref refs/remotes/origin/main --output four_mode_nov09_current_main_input_readiness.json
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          row=json.loads(Path("four_mode_nov09_current_main_input_readiness.json").read_text())
+          if (row["day"]!="20261109"
+                  or not re.fullmatch("[0-9a-f]{40}",row["pinned_main_commit"])
+                  or row["file_count"]<104
+                  or row["valid_v2_original_inputs"]!=row["file_count"]
+                  or row["invalid_inputs"]
+                  or row["source_cards_and_title_before_generated"]!=row["file_count"]
+                  or row["results_read"] is not False
+                  or row["outcome_metric_computed"] is not False
+                  or row["candidate_generated_or_modified"] is not False
+                  or row["official_beforeinfo_six_and_odds_120_from_original_verified"] is not False
+                  or row["independent_first_remote_candidate_receipt_verified"] is not False
+                  or row["complete_capture_run_inventory_verified"] is not False
+                  or row["formal"] is not False
+                  or row["formal_count"]!=0
+                  or row["model_improvement_proven"] is not False
+                  or row["model_promotion_allowed"] is not False):
+              raise SystemExit("NOV09_CURRENT_MAIN_RESULT_BLIND_INPUT_EVIDENCE_FAILED")
+          for mode,heads in row["top1_head_counts_original"].items():
+              if sum(heads.values())!=row["valid_v2_original_inputs"]:
+                  raise SystemExit("NOV09_TOP1_HEAD_PARTITION_INVALID:"+mode)
+          if (row["generated_before_deadline_minus_12_min"]+
+                  row["generated_before_deadline_but_after_t12"] !=
+                  row["valid_v2_original_inputs"]):
+              raise SystemExit("NOV09_T12_GENERATION_ONLY_DENOMINATOR_INVALID")
+          print("NOV09_PINNED_MAIN_INPUT_REPLAY_PASS:"+str(row["valid_v2_original_inputs"])+
+                ":official_T12=UNVERIFIED:first_remote_candidate=UNVERIFIED:formal=0")
+          PY
       - name: Audit available archived Nov8 V2 input concentration, without results
         run: python four_mode_top1_bias_input_audit.py --day 20261108
       - name: Refuse incomplete or tampered Nov8 prediction input reference
@@ -704,6 +744,7 @@ jobs:
           path: |
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
+            four_mode_nov09_current_main_input_readiness.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
