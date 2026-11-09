@@ -2,6 +2,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createExecutionContext, createScheduledController, waitOnExecutionContext} from 'cloudflare:test';
 import worker from '../independent_capture_wakeup.mjs';
 import observerWorker from '../independent_capture_observer.mjs';
+import {execute} from '../independent_capture_policy.mjs';
 
 // The real Worker runs in Workerd. This suite NEVER performs an external
 // network request, never loads real secrets and never deploys to Cloudflare.
@@ -71,6 +72,17 @@ async function invoke(cron = CRON, env = {GITHUB_DISPATCH_TOKEN: TEST_TOKEN, CLO
   await waitOnExecutionContext(ctx);
 }
 
+// The research policy remains exercised inside real local Workerd with ALL
+// outbound GitHub operations intercepted. This helper is intentionally not
+// the locked, deployment-facing scheduled() entrypoint.
+async function invokePolicy() {
+  const result=await execute({scheduledTime:TEST_NOW,now:TEST_NOW,token:TEST_TOKEN,
+    fetcher:fetch,clock:Date.now,
+    onAccepted:receipt=>console.log('CLOUDFLARE_DISPATCH_RECEIPT='+JSON.stringify(receipt))});
+  console.log('CLOUDFLARE_CAPTURE_WAKEUP='+JSON.stringify(result));
+  return result;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -83,7 +95,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     const logs = [];
     vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
 
-    await invoke();
+    await invokePolicy();
     expect(calls.map(c => c.method)).toEqual(['GET','GET','GET','GET','POST','POST']);
     for (const c of calls.filter(x => x.method === 'POST')) {
       expect(JSON.parse(c.body)).toEqual({ref: 'main',return_run_details:true});
@@ -114,7 +126,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       }
       return fetcher(url, options);
     }));
-    await expect(invoke()).rejects.toThrow('github_dispatch_accepted_without_run_details');
+    await expect(invokePolicy()).rejects.toThrow('github_dispatch_accepted_without_run_details');
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(1);
     expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
     expect(logs.join(' ')).not.toContain(TEST_TOKEN);
@@ -134,7 +146,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       }
       return fetcher(url, options);
     }));
-    await expect(invoke()).rejects.toThrow('github_dispatch_run_details_missing_or_invalid');
+    await expect(invokePolicy()).rejects.toThrow('github_dispatch_run_details_missing_or_invalid');
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(1);
     expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
     expect(logs.join(' ')).not.toContain(TEST_TOKEN);
@@ -143,7 +155,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
   it('both original schedule runs already succeeded: four GETs and zero POSTs', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
     const {calls} = mockGitHub({scheduledSuccess: true});
-    await invoke();
+    await invokePolicy();
     expect(calls.map(x => x.method)).toEqual(['GET','GET','GET','GET']);
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(0);
   });
@@ -151,7 +163,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
   it('older-than-120m native queued main schedule suppresses both Cloudflare rescues in actual Workerd', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
     const {calls} = mockGitHub({olderQueued:true});
-    await invoke();
+    await invokePolicy();
     expect(calls.map(x=>x.method)).toEqual(['GET','GET','GET','GET']);
     expect(calls.filter(x=>x.method==='POST')).toHaveLength(0);
   });
@@ -162,9 +174,21 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     const logs = [];
     vi.spyOn(console, 'log').mockImplementation(message => logs.push(String(message)));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(invoke()).rejects.toThrow('github_history_http_error');
+    await expect(invokePolicy()).rejects.toThrow('github_history_http_error');
     expect(calls.filter(x => x.method === 'POST')).toHaveLength(0);
     expect(logs.filter(x => x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='))).toHaveLength(0);
+  });
+
+  it('deployment-facing scheduled Worker hard-locks even with true flag and valid token',async()=>{
+    vi.spyOn(Date,'now').mockReturnValue(TEST_NOW);
+    const {calls}=mockGitHub();
+    const errors=[];
+    vi.spyOn(console,'error').mockImplementation(message=>errors.push(String(message)));
+    await expect(invoke(CRON,{CLOUDFLARE_DISPATCH_ENABLED:'true',
+      GITHUB_DISPATCH_TOKEN:TEST_TOKEN})).rejects.toThrow('cross_provider_recovery_hard_locked');
+    expect(calls).toHaveLength(0);
+    expect(errors.join(' ')).toContain('cross_provider_recovery_hard_locked');
+    expect(errors.join(' ')).not.toContain(TEST_TOKEN);
   });
 
   it('default observer mode runs in Workerd without PAT or GitHub network, even in active window', async () => {
@@ -225,7 +249,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       return Response.json({total_count:rows.length,workflow_runs: rows});
     }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
+    await expect(invokePolicy()).rejects.toThrow('github_history_pagination_incomplete');
     // execute() reads BOTH schedule and manual history before validating the full page.
     // The fail-closed verdict must still produce zero POSTs.
     expect(calls).toHaveLength(2);
@@ -251,7 +275,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       return Response.json({total_count:0,workflow_runs:[]});
     }));
     vi.spyOn(console,'error').mockImplementation(()=>{});
-    await expect(invoke()).rejects.toThrow('github_history_pagination_incomplete');
+    await expect(invokePolicy()).rejects.toThrow('github_history_pagination_incomplete');
     expect(calls.every(x=>x==='GET')).toBe(true);
     expect(calls).toHaveLength(1);
   });
@@ -267,7 +291,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       return Response.json({workflow_runs:[]});
     }));
     vi.spyOn(console,'error').mockImplementation(()=>{});
-    await expect(invoke()).rejects.toThrow('github_history_missing_or_malformed');
+    await expect(invokePolicy()).rejects.toThrow('github_history_missing_or_malformed');
     expect(calls).toEqual(['GET']);
   });
 
@@ -300,7 +324,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
       throw Error('BLOCKED_UNEXPECTED_ACTION');
     }));
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    await Promise.all([invoke(), invoke()]);
+    await Promise.all([invokePolicy(), invokePolicy()]);
     expect(calls.filter(x => x.method === 'GET')).toHaveLength(8);
     const posts = calls.filter(x => x.method === 'POST');
     expect(posts).toHaveLength(4);
