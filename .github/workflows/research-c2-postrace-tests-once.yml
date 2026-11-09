@@ -20,6 +20,12 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile research-only parser wrapper
-        run: python -m py_compile scripts/research_official_k_c2_escape_conditional_92day.py
+        run: |
+          python -m py_compile scripts/research_official_k_c2_escape_conditional_92day.py
+          python -m py_compile scripts/research_venue24_feature_readiness_gate.py
       - name: Run C1/C2 postrace cohort synthetic offline tests
         run: python -m unittest discover -s tests -p 'test_research_official_k_c2_escape_conditional_92day.py' -v
+      - name: Run 24-venue frozen sources and feature-readiness source gate
+        run: python scripts/research_venue24_feature_readiness_gate.py
+      - name: Reject 11 illegal venue feature promotions and source mutations
+        run: python -m unittest discover -s tests -p 'test_research_venue24_feature_readiness_gate.py' -v
