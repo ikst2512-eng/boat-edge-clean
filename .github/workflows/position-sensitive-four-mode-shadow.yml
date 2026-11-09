@@ -12,6 +12,8 @@ on:
       - 'position_sensitive_feature_inventory.py'
       - 'position_sensitive_receipt_intake.py'
       - 'position_sensitive_remote_observer.py'
+      - 'position_sensitive_live_roster_audit.py'
+      - 'test_position_sensitive_live_roster_audit.py'
       - 'position_sensitive_manual_publisher.py'
       - 'test_position_sensitive_manual_publisher.py'
       - 'test_position_sensitive_manual_server_chronology.py'
@@ -88,7 +90,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -182,60 +184,32 @@ jobs:
               raise SystemExit('remote_witness_falsely_attested')
           print('POSITION_SENSITIVE_REMOTE_HTTP_OBSERVER_NOT_INVOKED')
           PY
-      - name: One-off real GitHub server-Date observation of Nov09 research candidate (not first receipt)
+      - name: Actual read-only GitHub server-Date observations for all saved pre-T12 research candidates
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python position_sensitive_live_roster_audit.py --live --output position_candidate_live_roster_observation.json
           python - <<'PY'
-          import hashlib
           import json
-          import subprocess
-          from datetime import datetime, timezone
           from pathlib import Path
-          from position_sensitive_remote_observer import observe_candidate, github_get
-          from four_mode_position_sensitive_forward import _verify_snapshot, protocol
-
-          code = "202611091912"
-          cutoff = datetime.fromisoformat("2026-11-09T20:26:00+09:00")
-          now = datetime.now(timezone.utc)
-          output = Path("position_candidate_nov09_live_http_observation.json")
-          if now >= cutoff:
-              report = {
-                  "status": "not_observed_due_to_T12_cutoff",
-                  "race_code": code,
-                  "remote_candidate_first_receipt_verified": False,
-                  "formal": False,
-                  "promotion_allowed": False,
-                  "model_improvement_proven": False,
-              }
-          else:
-              exact = subprocess.check_output([
-                  "git", "show",
-                  "d0176b671363bed275045a0d454732f7cabff1a8:four_mode_forecasts/" + code + ".json",
-              ], timeout=20)
-              if hashlib.sha256(exact).hexdigest() != (
-                      "9375c44f8795ba8ced90450ace5f82e1a3e88efdd7ec3b95c1af931c71a3b401"):
-                  raise SystemExit("original_exact_sha256_changed")
-              # Actual authenticated GitHub API GET with server Date; no write or
-              # call to the candidate publisher. Cannot certify first arrival.
-              report = observe_candidate(code, exact, github_get)
-              if (report.get("status") !=
-                      "github_candidate_existing_preT12_observation_not_first_receipt"
-                      or report.get("independent_candidate_first_remote_receipt_verified") is not False
-                      or report.get("formal") is not False
-                      or report.get("promotion_allowed") is not False
-                      or report.get("model_improvement_proven") is not False):
-                  raise SystemExit("false_remote_receipt_certificate")
-          output.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True,
-                                       indent=2) + "\\n", encoding="utf-8")
-          print("POSITION_SENSITIVE_REAL_GITHUB_GET_NONFORMAL=" + json.dumps({
-              k: report.get(k) for k in (
-                  "status", "race_code", "server_observed_utc",
-                  "candidate_sha256",
-                  "independent_candidate_first_remote_receipt_verified",
-                  "formal"
-              )
-          }, sort_keys=True))
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          report=json.loads(Path("position_candidate_live_roster_observation.json").read_text())
+          counts=report.get("status_counts",{})
+          if (report.get("status") != "whole_remote_ledger_snapshot_observed_nonformal"
+                  or report.get("candidate_files") != history["candidate_files"]
+                  or report.get("candidate_original_exact_replays") != history["candidate_original_exact_replays"]
+                  or report.get("fetched_research_branch_tip") != history["observed_branch_commit_sha"]
+                  or sum(counts.values()) != report["candidate_files"]
+                  or report.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or report.get("formal") is not False
+                  or report.get("promotion_allowed") is not False
+                  or report.get("model_improvement_proven") is not False
+                  or report.get("production_changed") is not False):
+              raise SystemExit("whole_research_ledger_observation_not_safe")
+          print("POSITION_SENSITIVE_WHOLE_LEDGER_LIVE_HTTP_OBSERVED=" +
+                json.dumps({"candidates": report["candidate_files"],
+                            "status_counts": counts,
+                            "first_remote_attested": 0}, sort_keys=True))
           PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
@@ -375,6 +349,6 @@ jobs:
             position_manual_publisher_unstarted.json
             position_append_only_unstarted.json
             position_ledger_history_audit.json
-            position_candidate_nov09_live_http_observation.json
+            position_candidate_live_roster_observation.json
             position_shadow_t12_windows.json
           retention-days: 30
