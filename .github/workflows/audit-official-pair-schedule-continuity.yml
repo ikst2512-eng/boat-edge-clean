@@ -22,6 +22,8 @@ on:
       - tests/test_audit_t12_multiday_schedule_trend.py
       - scripts/audit_t12_nov09_real_pair_forecast_replay.py
       - tests/test_audit_t12_nov09_real_pair_forecast_replay.py
+      - scripts/audit_t12_cross_workflow_schedule.py
+      - tests/test_audit_t12_cross_workflow_schedule.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -53,6 +55,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_extracted_artifact_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_multiday_schedule_trend.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_nov09_real_pair_forecast_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_cross_workflow_schedule.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -79,6 +82,16 @@ jobs:
           python -m scripts.audit_t12_multiday_schedule_trend \
             --repo "$REPOSITORY" --start-day 20261101 --end-day 20261108 \
             --output reports/official_t12_eight_day_schedule_trend.json
+      - name: Compare contemporaneous collector vs peer workflow schedule records
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Nov 6-8 are completed days after the compared workflows' cron edits.
+          # Equal UTC 00-12 creation hours, not actual intended cron slots.
+          python -m scripts.audit_t12_cross_workflow_schedule \
+            --repo "$REPOSITORY" --start-day 20261106 --end-day 20261108 \
+            --output reports/t12_cross_workflow_schedule_controls.json
       - name: Inventory persisted three-original branch presence (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -193,5 +206,6 @@ jobs:
             reports/official_three_archive_live_day.json
             reports/official_t12_live_day_blockers.json
             reports/official_t12_nov09_source_vs_forecast.json
+            reports/t12_cross_workflow_schedule_controls.json
           if-no-files-found: error
           retention-days: 30
