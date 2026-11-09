@@ -81,3 +81,28 @@ test('invalid/missing source cannot result in an approved state', () => {
   rejects({...baseline,observerSource:null},'observerSource_missing');
   assert.equal(verifyObserverOnlyPreflight(null).observer_preflight_pass,false);
 });
+
+test('unknown TOML keys must fail even if every expected key is still present', () => {
+  // Old preflight counted only seven known keys; it would ignore both
+  // unrecognized bindings and additional safety-affecting configuration.
+  rejects({...baseline,observerConfig:baseline.observerConfig +
+    '\n[vars]\nEXTRA_SECRET_SOURCE = "not_allowed"\n'},
+    'observer_unknown_or_duplicate_toml_key');
+  rejects({...baseline,observerConfig:baseline.observerConfig +
+    '\nexperimental_key = true\n'},'observer_unknown_or_duplicate_toml_key');
+});
+test('duplicate observer setting cannot silently override original value', () => {
+  rejects({...baseline,observerConfig:baseline.observerConfig +
+    '\n[triggers]\ncrons = ["*/5 22-23,0-13 * * *"]\n'},
+    'observer_unknown_or_duplicate_toml_key');
+});
+test('unsupported TOML syntax must fail closed until reviewed', () => {
+  rejects({...baseline,observerConfig:baseline.observerConfig +
+    '\nvars.EXTRA_REMOTE_SETTING = "value"\n'},
+    'observer_unrecognized_toml_statement');
+});
+test('runtime compatibility date is pinned to tested Workerd version', () => {
+  rejects(mutate('observerConfig','compatibility_date = "2026-06-24"',
+    'compatibility_date = "2026-11-09"'),
+    'observer_runtime_compatibility_date_invalid');
+});
