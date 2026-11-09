@@ -165,6 +165,106 @@ class FourModeForwardTests(unittest.TestCase):
         self.assertEqual(report["matched_by_phase"],{})
         self.assertIn("untrusted_result_or_time",report["invalid_result_counts"])
 
+    def test_empty_phase_progress_is_unstarted_and_never_certified(self):
+        report = score([], {}, self.policy)
+        for phase in ("pilot", "confirmation"):
+            progress = report["phase_progress"][phase]
+            self.assertEqual(progress["reference_status"], "not_started")
+            self.assertEqual(progress["reserved_pre_result_slots_reference_only"], 0)
+            self.assertEqual(progress["unreserved_slots"], 300)
+            self.assertEqual(progress["formally_certified_pairs"], 0)
+            self.assertEqual(
+                progress["formal_status"],
+                "not_started_unverified_first_receipt_and_official_T12")
+        self.assertFalse(report["formal"])
+
+    def test_pending_and_invalid_results_reserve_slots_not_losses(self):
+        a = self.row()
+        b = copy.deepcopy(a)
+        b["race_code"] = "202611070102"
+        b["deadline_jst"] = "2026-11-07T08:40:00+09:00"
+        result = self.result()
+        result["race_code"] = b["race_code"]
+        result["finish_order"] = [1, 1, 3]  # invalid result is not a miss
+        report = score([a, b], {b["race_code"]: result}, self.policy)
+        pilot = report["phase_progress"]["pilot"]
+        self.assertEqual(pilot["reserved_pre_result_slots_reference_only"], 2)
+        self.assertEqual(pilot["pending_result_slots"], 1)
+        self.assertEqual(pilot["invalid_result_slots"], 1)
+        self.assertEqual(pilot["matched_result_pairs_reference_only"], 0)
+        self.assertEqual(pilot["reference_status"], "collecting_reference_only")
+        self.assertEqual(pilot["formally_certified_pairs"], 0)
+        self.assertEqual(report["scores"]["pilot"]["hit"]["top10"]["lost"], 0)
+
+    def test_fixed_300_301_boundary_without_result_based_backfill(self):
+        # Synthetic pre-result fixtures, not real forecast evidence.
+        rows = []
+        for i in range(301):
+            row = self.row()
+            day = "07" if i < 288 else "08"
+            index = i if i < 288 else i - 288
+            venue = index // 12 + 1
+            race = index % 12 + 1
+            row["race_code"] = f"202611{day}{venue:02d}{race:02d}"
+            if day == "08":
+                for key in (
+                    "deadline_jst", "official_source_received_jst",
+                    "baseline_generated_jst", "baseline_github_observed_jst",
+                    "candidate_generated_jst", "candidate_github_observed_jst"):
+                    row[key] = row[key].replace("2026-11-07", "2026-11-08")
+            rows.append(row)
+        report = score(list(reversed(rows)), {}, self.policy)
+        pilot = report["phase_progress"]["pilot"]
+        confirmation = report["phase_progress"]["confirmation"]
+        self.assertEqual((pilot["reserved_pre_result_slots_reference_only"],
+                          confirmation["reserved_pre_result_slots_reference_only"]),
+                         (300, 1))
+        self.assertEqual((pilot["pending_result_slots"],
+                          confirmation["pending_result_slots"]), (300, 1))
+        self.assertEqual((pilot["unreserved_slots"],
+                          confirmation["unreserved_slots"]), (0, 299))
+        self.assertEqual(confirmation["reference_status"],
+                         "collecting_reference_only")
+        self.assertEqual(pilot["formally_certified_pairs"], 0)
+        self.assertEqual(confirmation["formally_certified_pairs"], 0)
+
+    def test_full_synthetic_reference_phase_does_not_upgrade_formal(self):
+        # This verifies only the reporting vocabulary on test fixtures.
+        rows, results = [], {}
+        for venue in range(1, 25):
+            for race in range(1, 13):
+                row = self.row()
+                code = f"20261107{venue:02d}{race:02d}"
+                row["race_code"] = code
+                result = self.result()
+                result["race_code"] = code
+                results[code] = result
+                rows.append(row)
+        for race in range(1, 13):
+            row = self.row()
+            row["race_code"] = f"2026110801{race:02d}"
+            for key in (
+                "deadline_jst", "official_source_received_jst",
+                "baseline_generated_jst", "baseline_github_observed_jst",
+                "candidate_generated_jst", "candidate_github_observed_jst"):
+                row[key] = row[key].replace("2026-11-07", "2026-11-08")
+            result = self.result()
+            result["race_code"] = row["race_code"]
+            for key in ("confirmed_at_jst", "collected_at_jst"):
+                result[key] = result[key].replace("2026-11-07", "2026-11-08")
+            result["source_url"] = result["source_url"].replace("/07.csv", "/08.csv")
+            results[row["race_code"]] = result
+            rows.append(row)
+        report = score(rows, results, self.policy)
+        pilot = report["phase_progress"]["pilot"]
+        self.assertEqual(pilot["reference_status"], "reference_complete_nonformal")
+        self.assertEqual(pilot["matched_result_pairs_reference_only"], 300)
+        self.assertEqual(pilot["formally_certified_pairs"], 0)
+        self.assertEqual(pilot["formal_status"],
+                         "not_started_unverified_first_receipt_and_official_T12")
+        self.assertFalse(report["model_improvement_proven"])
+        self.assertFalse(report["model_promotion_allowed"])
+
 
 if __name__ == "__main__":
     unittest.main()
