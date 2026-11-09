@@ -5,6 +5,7 @@ opportunities or a first-remote-receipt audit. It never reads race outcomes,
 publishes a candidate, dispatches a collector or changes the frozen selector.
 """
 import argparse
+import hashlib
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -121,6 +122,7 @@ def audit_delivery_gap(git, day, as_of):
                 raise ValueError("saved_candidate_not_reproducible") from exc
             if checked["code"] != code:
                 raise ValueError("candidate_original_code_mismatch")
+            candidate_hash = hashlib.sha256(candidate_bytes).hexdigest()
             status = "candidate_saved_exact_replay_no_first_receipt"
         elif generated > as_of:
             status = "original_recorded_generation_after_observation_clock"
@@ -134,6 +136,8 @@ def audit_delivery_gap(git, day, as_of):
             "deadline_jst": deadline.isoformat(),
             "T_minus_12_jst": cutoff.isoformat(),
             "candidate_saved": saved,
+            "original_sha256": hashlib.sha256(raw).hexdigest(),
+            "candidate_sha256": candidate_hash if saved else None,
             "independent_first_remote_receipt_verified": False,
         })
     status_counts = {
@@ -147,6 +151,15 @@ def audit_delivery_gap(git, day, as_of):
     }
     count = len(rows)
     saved = status_counts["candidate_saved_exact_replay_no_first_receipt"]
+    # Stable digest of this EXACT pinned Git source/candidate roster, not a
+    # remote immutability attestation. It lets auditors compare CI artifacts.
+    roster_identity = {
+        "day": day, "main_sha": main_sha, "ledger_sha": ledger_sha,
+        "rows": rows, "invalid_original_files": invalid,
+    }
+    roster_digest = hashlib.sha256(
+        json.dumps(roster_identity, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     return {
         "schema": SCHEMA,
         "status": "pinned_local_git_original_to_candidate_gap_nonformal",
@@ -164,6 +177,8 @@ def audit_delivery_gap(git, day, as_of):
         "candidate_delivery_coverage_pct_of_eligible_original_files":
             round(100 * saved / count, 2) if count else None,
         "status_counts": status_counts,
+        "per_race_complete_saved_original_roster": rows,
+        "pinned_snapshot_roster_sha256": roster_digest,
         "open_missing_race_examples": [
             row["race_code"] for row in rows
             if row["status"] == "missing_candidate_local_window_still_open"
