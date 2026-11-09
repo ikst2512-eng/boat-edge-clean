@@ -83,7 +83,14 @@ export function auditRawWorkersLogs(input) {
     const event=group.invocations[0],custom=group.custom[0],e=event.$workers,c=custom.$workers;
     const version=e.scriptVersion?.id;
     if(version!==input.deployment_id){add('invocation_version_mismatch');continue;}
-    if(c.scriptVersion?.id && c.scriptVersion.id!==version){add('custom_version_mismatch');continue;}
+    // scriptVersion is optional in the Cloudflare API schema. For a positive
+    // same-deployment audit, however, an absent custom-log version leaves the
+    // invocation-to-console association unverified even with a requestId.
+    // Fail closed rather than treating missing version metadata as agreement.
+    if(typeof c.scriptVersion?.id!=='string' || !c.scriptVersion.id){
+      add('custom_version_missing');continue;
+    }
+    if(c.scriptVersion.id!==version){add('custom_version_mismatch');continue;}
     if(!['scheduled','cron'].includes(e.eventType)){add('not_a_cron_invocation');continue;}
     // Official invocation logs describe Cron events by their cron expression;
     // some telemetry formats also place it under $workers.event.cron.
@@ -97,8 +104,8 @@ export function auditRawWorkersLogs(input) {
     const scheduled=parseJstDate(report.scheduled_at_jst),observed=parseJstDate(report.checked_at_jst);
     if(scheduled===null || observed===null){add('invalid_observer_clock_fields');continue;}
     if(!Number.isSafeInteger(event.timestamp) || !Number.isSafeInteger(custom.timestamp) ||
-       Math.abs(custom.timestamp-observed)>10000 || event.timestamp<scheduled ||
-       event.timestamp>observed+15000){
+       Math.abs(custom.timestamp-observed)>10000 || custom.timestamp<scheduled ||
+       event.timestamp<scheduled || event.timestamp>observed+15000){
       add('cloudflare_event_clock_mismatch');continue;
     }
     normalized.push({
