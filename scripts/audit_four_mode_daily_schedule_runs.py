@@ -107,6 +107,19 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
         row["run_id"] for row in matching
         if row["created_at_jst"] < first_nominal_jst)
     after_first_nominal_count = len(matching) - len(pre_first_nominal_run_ids)
+    # A run created long after the final 20:52 JST slot is still a real
+    # GitHub execution, but cannot demonstrate that the day's capture window
+    # was served. Keep it visible instead of silently granting liveness.
+    last_nominal_with_grace_jst = (
+        first_nominal_jst
+        + (NOMINAL_DAILY_CAPTURE_SLOTS - 1) * timedelta(minutes=15)
+        + SCHEDULE_OBSERVATION_GRACE
+    )
+    after_final_window_run_ids = sorted(
+        row["run_id"] for row in matching
+        if row["created_at_jst"] > last_nominal_with_grace_jst)
+    within_window_count = (
+        after_first_nominal_count - len(after_final_window_run_ids))
     # When a full page is all from this day, older scheduled runs may have
     # been truncated. A previous-day boundary (or short unpaginated listing)
     # is needed to certify full same-day metadata coverage.
@@ -128,6 +141,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "same_day_scheduled_run_count": len(matching),
             "same_day_pre_first_nominal_run_ids": pre_first_nominal_run_ids,
             "same_day_at_or_after_first_nominal_run_count": after_first_nominal_count,
+            "same_day_after_final_nominal_grace_run_ids": after_final_window_run_ids,
+            "same_day_within_nominal_window_run_count": within_window_count,
+            "observed_within_window_below_nominal_due_by": max(
+                0, due_slots - within_window_count),
             "observed_after_first_runs_below_nominal_due_by": max(
                 0, due_slots - after_first_nominal_count),
             "nominal_schedule_slots_per_jst_day": NOMINAL_DAILY_CAPTURE_SLOTS,
@@ -142,8 +159,11 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
                      "calendar day. Created-at counts may include delayed prior "
                      "cron triggers; any pre-07:07 JST observations are "
                      "excluded from the execution-presence gate while retained "
-                     "in the raw same-day count. Future-dated API entries "
-                     "fail closed; no per-slot delivery or publication proof.")}
+                     "in the raw same-day count. Runs after the final 20:52 "
+                     "JST slot plus five minutes remain raw observations but "
+                     "do not satisfy the daily window-presence gate. Future-"
+                     "dated API entries fail closed; no per-slot delivery or "
+                     "publication proof.")}
 
 
 def main():
@@ -170,9 +190,10 @@ def main():
             print("::error::Full JST day scheduled run metadata not covered by API page")
             raise SystemExit(2)
         if (result["nominal_schedule_slots_due_as_of_audit"] > 0
-                and result["same_day_at_or_after_first_nominal_run_count"] == 0):
-            print("::error::No scheduled V2 capture after first nominal JST slot; "
-                  "pre-opening delayed runs cannot certify today's execution")
+                and result["same_day_within_nominal_window_run_count"] == 0):
+            print("::error::No scheduled V2 capture in nominal JST window; "
+                  "pre-opening delayed runs cannot certify today's execution, "
+                  "nor can post-window late runs")
             raise SystemExit(2)
         if result["failed_run_ids"]:
             print("::error::Scheduled V2 captures failed earlier today, outside bounded artifact audit")
