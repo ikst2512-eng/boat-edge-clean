@@ -59,3 +59,21 @@ jobs:
               raise SystemExit('116_original_replay_drift')
           print('ORIGINAL_INPUT_ONLY_REPLAY_116_OF_116')
           PY
+      - name: Audit available Nov09 archived race fields without results or source claims
+        run: |
+          python position_sensitive_feature_inventory.py --day 20261109 > input_only_nov09_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path('input_only_nov09_coverage.json').read_text())
+          if (d.get('excluded') or d.get('compared') != d.get('archived_files')
+                  or d.get('formal') is not False
+                  or d.get('model_improvement_proven') is not False
+                  or d.get('formal_official_beforeinfo_six_odds120_verified') is not False):
+              raise SystemExit('nov09_archive_schema_or_replay_failed')
+          print('NOV09_RESEARCH_ARCHIVE_FIELD_INVENTORY_ONLY', json.dumps({
+              'records': d.get('archived_files'),
+              'fields': d.get('recorded_top_level_feature_counts'),
+              'official_T12_proof': False,
+          }, sort_keys=True))
+          PY
