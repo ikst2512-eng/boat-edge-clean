@@ -54,3 +54,20 @@ The Draft policy now blocks a rescue if **any main-branch run in the actually fe
 **Current Render workspace read-only inspection (2026-11-08 JST):** the visible service listing contained one `boat-edge-clean` web service, no separate Render Cron Job service. This does **not** exclude fallback orchestration by GitHub Actions calling Render, or services outside the inspected workspace. No Render change was performed.
 
 Keep `CLOUDFLARE_DISPATCH_ENABLED="false"`, Observer-only first-stage deployment as a future owner action, Draft PR #1697 unmerged. Do not alter main/native GitHub schedules/Render or claim official T−12 evidence from mocked tests.
+
+
+## 2026-11-09 — GitHub history pagination ambiguity independently blocked
+
+An additional fail-open case was detected in the **dormant** Cloudflare recovery policy. Before this fix, the `per_page=30` first-page guard only rejected a full page if its *oldest visible main run* was within the previous two hours of the target slot. If the page contained one older completed run, but an **even older active queued native run** was hidden on page two, the rescue policy could mistakenly conclude no native job was outstanding. That is unsafe for CLEAN's GitHub default `queue:single` and does not become safe merely because Cloudflare has its own SQLite claim winner.
+
+**Draft-only correction:** `cloudflare/independent_capture_policy.mjs` now rejects **every full 30-row page**. It additionally requires the GitHub REST `list workflow runs` response's documented `total_count` field to be a non-negative safe integer **exactly equal to the number of returned first-page rows**. Missing, contradictory or larger `total_count` fails closed (the first page may not be complete). No extra API requests, background polling, or pagination loops are introduced, preserving the initial 4-GET, at-most-2-POST budget. The new guard trades some recovery coverage for avoidance of a false safe conclusion.
+
+**Regression evidence (synthetic, NOT real GitHub incident):**
+- Simulate 30 completed main runs, all at least 3h old; an unseen 31st native queued run may exist on page two. The 30-row response now blocks all rescue POSTs.
+- A short response with `total_count > rows.length`, absent `total_count`, negative/fractional `total_count` or `total_count < rows.length` blocks before POST.
+- A complete short response (`total_count === rows.length < 30`) retains normal recovery eligibility when no active native job exists; this is an availability regression check.
+- Both Node policy tests and **actual local Workerd** tests independently exercise the rejection, with intercepted/no-real-network GitHub calls.
+
+This still **cannot** detect a native scheduled workflow which GitHub has not created at the time the API is queried, or a competing Render/out-of-band dispatch **after** the GET. Even complete GitHub history does not provide an atomic cross-provider lock; DO-only locking remains insufficient. Official response schema: [GitHub Actions workflow runs REST endpoint](https://docs.github.com/en/rest/actions/workflow-runs). GitHub concurrency semantics: [Control workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+**Release remains NO-GO.** This code is only in Draft PR #1697. The recovery flag is disabled, production Render and native GitHub Actions are unchanged; no live Cloudflare deployment or CPU measurement was performed as part of this change. An actual GitHub run ID, immutable forecast first-add and official pre-T−12 source still require independent live evidence.
