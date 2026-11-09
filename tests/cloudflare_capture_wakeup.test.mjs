@@ -23,7 +23,7 @@ function mock({schedule=[],manual=[],failAt=0,failPost=false,postStatus=200}={})
       return {status,json:async()=>({workflow_run_id:id,run_url:expectedApi,html_url:expectedHtml})};
     }
     const rows=url.includes('event=workflow_dispatch')?manual:schedule;
-    return {status:200,json:async()=>({workflow_runs:rows})};
+    return {status:200,json:async()=>({total_count:rows.length,workflow_runs:rows})};
   }
   return {calls,fetcher};
 }
@@ -213,6 +213,46 @@ test('malformed GitHub history fails closed',async()=>{
   }
 });
 
+test('a saturated first page with old completed main runs must never hide an even older pending native run',async()=>{
+  // A page-2 queued CLEAN schedule is invisible to a first-page-only scan.
+  // Previously the old row could satisfy the 120-minute boundary and permit POST.
+  const now=tick(7,10);
+  const rows=Array.from({length:30},(_,i)=>fakeRun('schedule',jst(4,0),{
+    id:1000+i, status:'completed', conclusion:'success',
+  }));
+  const m=mock({schedule:rows});
+  await assert.rejects(()=>run(now,m),/github_history_pagination_incomplete/);
+  noPosts(m);
+});
+
+test('GitHub total_count beyond first-page rows, absent, fractional or inconsistent fails before POST',async()=>{
+  for(const count of [31,undefined,1.5,-1,0]){
+    const m=mock();
+    const fetcher=async(url,opts)=>{
+      const result=await m.fetcher(url,opts);
+      if(opts.method==='GET' && url.includes('event=schedule')){
+        return {status:200,json:async()=>({
+          ...(count===undefined?{}:{total_count:count}),
+          workflow_runs: [fakeRun('schedule',jst(4,0))],
+        })};
+      }
+      return result;
+    };
+    const now=tick(7,10);
+    await assert.rejects(()=>execute({scheduledTime:now,now,token:'TEST',fetcher}),
+      /github_history_missing_or_malformed|github_history_pagination_incomplete/);
+    noPosts(m);
+  }
+});
+
+test('complete short GitHub history with exact count remains eligible in the absence of native runs',async()=>{
+  const m=mock();
+  const out=await run(tick(7,10),m);
+  assert.equal(m.calls.filter(x=>x.method==='POST').length,2);
+  assert.equal(out.formal,false);
+  assert.equal(out.new_forecast_saved_proven,false);
+});
+
 test('full first page cannot hide recent main run',async()=>{
   const rows=Array.from({length:30},(_,i)=>fakeRun('schedule',jst(7,8),{id:i+1}));
   const m=mock({schedule:rows});await assert.rejects(()=>run(tick(7,10),m),/pagination_incomplete/);noPosts(m);
@@ -260,7 +300,7 @@ test('explicit GitHub 401/403/404/429/500/503 history failures never become reco
         m.calls.push({url,method:options.method});
         assert.equal(options.method,'GET','a failed history query must block every POST');
         gets++;
-        return gets===failAt?{status}:{status:200,json:async()=>({workflow_runs:[]})};
+        return gets===failAt?{status}:{status:200,json:async()=>({total_count:0,workflow_runs:[]})};
       };
       await assert.rejects(()=>run(tick(7,10),m),/github_history_http_error/);
       noPosts(m);
@@ -276,7 +316,7 @@ test('network timeouts on any GitHub history GET never produce a 204 receipt',as
       m.calls.push({url,method:options.method});
       assert.equal(options.method,'GET','never POST after timeout');
       if(++gets===failAt)throw new Error('simulated_transport_timeout');
-      return {status:200,json:async()=>({workflow_runs:[]})};
+      return {status:200,json:async()=>({total_count:0,workflow_runs:[]})};
     };
     const when=tick(7,10);
     await assert.rejects(()=>execute({scheduledTime:when,now:when,token:'TEST',
