@@ -2,9 +2,12 @@
 
 No network / Cloudflare account / D1 deployment / GitHub write.
 """
+import concurrent.futures
 import pathlib
 import re
 import sqlite3
+import tempfile
+import threading
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -92,6 +95,81 @@ class D1FirstAcceptanceSQLiteTests(unittest.TestCase):
         self.assertIsNone(self.insert(body="X"*40000))
         self.assertEqual(self.conn.execute(
             "SELECT count(*) FROM hole_pair_first_receipts").fetchone()[0], 0)
+
+
+    def _parallel_first_inserts(self, submissions):
+        """Exercise the exact Worker INSERT on independent SQLite connections.
+
+        An on-disk WAL database, not a mock map, arbitrates simultaneous
+        candidates. The artificial SQLite clock only keeps the fixture fixed.
+        This is NOT proof of deployed D1 behavior or independent time.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            database = str(pathlib.Path(temporary) / "research-receipts.sqlite3")
+            setup = sqlite3.connect(database, isolation_level=None)
+            try:
+                setup.execute("PRAGMA journal_mode=WAL")
+                setup.executescript(SCHEMA)
+            finally:
+                setup.close()
+            barrier = threading.Barrier(len(submissions))
+            sql = INSERT.replace(
+                "strftime('%s', 'now')",
+                "strftime('%s', '2026-11-09T01:55:00Z')",
+            )
+
+            def attempt(item):
+                code, digest = item
+                connection = sqlite3.connect(database, timeout=10, isolation_level=None)
+                try:
+                    connection.execute("PRAGMA busy_timeout=10000")
+                    barrier.wait(timeout=5)
+                    return connection.execute(sql, (
+                        code, digest, '{"test":"nonformal"}',
+                        "2026-11-09T02:00:00.000Z",
+                        "2026-11-09T02:00:00.000Z",
+                        "2026-11-09T01:51:00.000Z",
+                    )).fetchone() is not None
+                finally:
+                    connection.close()
+
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=len(submissions)
+            ) as pool:
+                inserted = list(pool.map(attempt, submissions))
+            check = sqlite3.connect(database)
+            try:
+                rows = check.execute(
+                    "SELECT race_code, candidate_sha256 FROM "
+                    "hole_pair_first_receipts ORDER BY race_code"
+                ).fetchall()
+            finally:
+                check.close()
+            return inserted, rows
+
+    def test_simultaneous_conflicting_same_race_writes_at_most_one_row(self):
+        # Two distinct bytes (two SHA256s) must never both become first.
+        submissions = [
+            ("202611090101", "a" * 64),
+            ("202611090101", "b" * 64),
+        ]
+        inserted, rows = self._parallel_first_inserts(submissions)
+        self.assertEqual(sum(inserted), 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "202611090101")
+        self.assertIn(rows[0][1], {"a" * 64, "b" * 64})
+
+    def test_parallel_distinct_race_ids_keep_both_first_receipts(self):
+        # Unlike the daily once-only gateway, first-write uniqueness is per
+        # race_code; a later independent race must not be suppressed.
+        submissions = [
+            ("202611090101", "a" * 64),
+            ("202611090102", "b" * 64),
+        ]
+        inserted, rows = self._parallel_first_inserts(submissions)
+        self.assertEqual(sum(inserted), 2)
+        self.assertEqual([row[0] for row in rows],
+                         ["202611090101", "202611090102"])
 
 
 if __name__ == "__main__":
