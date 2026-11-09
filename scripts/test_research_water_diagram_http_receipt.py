@@ -117,6 +117,25 @@ class HttpReceiptTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'false_success'):
                     write_bundle(Path(d), raw, fake)
 
+    def test_sha_consistent_fake_png_rejected_on_write(self):
+        raw, r = fetch_once('21', opener=opener_of())
+        fake = b'<html>not a PNG</html>'
+        r['png_sha256'] = hashlib.sha256(fake).hexdigest()
+        r['png_bytes'] = len(fake)
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(ValueError):
+                write_bundle(Path(d), fake, r)
+            self.assertEqual(list(Path(d).iterdir()), [])
+
+    def test_png_metadata_substitution_rejected_on_write(self):
+        raw, r = fetch_once('21', opener=opener_of())
+        with tempfile.TemporaryDirectory() as d:
+            for change in ({'png_bytes': 0}, {'png_dimensions': [22, 11]},
+                           {'content_type': 'text/html'}, {'content_encoding': 'gzip'}):
+                with self.assertRaisesRegex(ValueError, 'receipt_length_or_png_dimensions_inconsistent|receipt_content_type_or_encoding_inconsistent'):
+                    write_bundle(Path(d), raw, {**r, **change})
+            self.assertEqual(list(Path(d).iterdir()), [])
+
     def test_untrusted_timestamp_cannot_change_directory(self):
         raw, r = fetch_once('21', opener=opener_of())
         r['response_finished_utc'] = '../forged'
