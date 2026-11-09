@@ -34,6 +34,7 @@ def fixture():
         "exhibition_courses": [1,2,3,4,5,6],
         "exhibition_times": [6.5,6.6,6.7,6.8,6.9,7.0],
         "exhibition_st": [0.11,0.12,0.13,0.14,0.15,0.16],
+        "exhibition_tilts": [-0.5,0.0,0.5,0.0,0.0,0.0],
         "odds_3t": {"-".join(p): float(i+1) for i,p
                     in enumerate(permutations("123456",3))},
     }
@@ -125,12 +126,14 @@ class FutureLineagePreflightTests(unittest.TestCase):
                     preflight(s,c)
 
     def test_exhibition_missing_or_nonfinite_rejected(self):
-        for mutation in ("five_st","duplicate_course","nan"):
+        for mutation in ("five_st","five_tilts","duplicate_course","nan"):
             with self.subTest(mutation=mutation):
                 s,c=fixture()
                 n=s["normalized_source_claim"]
                 if mutation=="five_st":
                     n["exhibition_st"].pop()
+                elif mutation=="five_tilts":
+                    n["exhibition_tilts"].pop()
                 elif mutation=="duplicate_course":
                     n["exhibition_courses"][-1]=5
                 else:
@@ -168,6 +171,12 @@ class FutureLineagePreflightTests(unittest.TestCase):
                     c["generated_at_jst"]="2026-11-10T14:28:00+09:00"
                 with self.assertRaises(ValueError):
                     preflight(s,c)
+
+    def test_source_normalization_cannot_include_results(self):
+        s,c=fixture()
+        s["normalized_source_claim"]["winning_ticket"]="1-2-3"
+        with self.assertRaisesRegex(ValueError,"outcome_leak_in_normalized_claim"):
+            preflight(s,c)
 
     def test_no_outcome_leak_or_fake_certifications(self):
         for field,value,target in (
