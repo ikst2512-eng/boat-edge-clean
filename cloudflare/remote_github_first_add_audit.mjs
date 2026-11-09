@@ -43,7 +43,9 @@ async function get(fetcher,url){
 }
 function bytesFromBase64(data,max){
   if(!isObj(data)||data.encoding!=='base64'||typeof data.content!=='string')throw Error('github_blob_payload_invalid');
-  // GitHub base64 uses optional CR/LF line wrapping; arbitrary spaces or\n  // non-canonical encodings are not acceptable original byte evidence.\n  const compact=data.content.replace(/\r|\n/g,'');
+  // GitHub base64 uses optional CR/LF wrapping; arbitrary spaces or
+  // non-canonical encodings must not count as original byte evidence.
+  const compact=data.content.replace(/\r|\n/g,'');
   if(compact.length>Math.ceil(max/3)*4+8||!/^[A-Za-z0-9+/]*={0,2}$/.test(compact))
     throw Error('github_blob_base64_invalid');
   const buf=Buffer.from(compact,'base64');
