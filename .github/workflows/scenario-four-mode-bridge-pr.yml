@@ -5,6 +5,10 @@ on:
     paths:
       - 'scenario_four_mode_bridge.py'
       - 'test_scenario_four_mode_bridge.py'
+      - 'scenario_first_head_research.py'
+      - 'test_scenario_first_head_research.py'
+      - 'scenario_feature_effect_probe.py'
+      - 'test_scenario_feature_effect_probe.py'
       - 'docs/research/scenario_all_mode_bridge_1708.md'
       - '.github/workflows/scenario-four-mode-bridge-pr.yml'
 
@@ -20,4 +24,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe
