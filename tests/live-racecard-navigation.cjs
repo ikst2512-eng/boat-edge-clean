@@ -94,6 +94,8 @@ const {chromium}=require('playwright');
   let selected=null;
   let selections=[];
   let liveExhibitionVerified=false;
+  let repeatedExhibitionVerified=false;
+  let repeatedExhibitionTimings=[];
   let previewWindowCount=0;
   let scheduleFeedStatus='unavailable';
   const raceDiagnostics=[];
@@ -192,6 +194,7 @@ const {chromium}=require('playwright');
       throw Error('LIVE_EXHIBITION_TIMESTAMP_INVALID '+JSON.stringify({race:expected,observed:audit.fetched_at,deadline:d.meta?.deadline}));
      if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('LIVE_EXHIBITION_INCOMPLETE '+expected);
      // Cross-check that the actual user-facing forecast preview can consume the same race.
+     const firstDomStartedAt=Date.now();
      await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
        {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
      // Official feeds may express the same ST as F.01 or -0.01, and .11 or
@@ -246,6 +249,9 @@ const {chromium}=require('playwright');
       }));
       throw error;
      }
+     const firstDomElapsedMs=Date.now()-firstDomStartedAt;
+     if(firstDomElapsedMs>12000)
+      throw Error('LIVE_EXHIBITION_INITIAL_OVER_12S '+JSON.stringify({race:expected,elapsedMs:firstDomElapsedMs}));
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
      const shown=displayed.map(text=>{
       const match=text.match(/^(\d+)号艇展示\s+([+-]?\d+(?:\.\d+)?)｜チルト\s+([+-]?\d+(?:\.\d+)?)｜進入\s+(\d+)コース｜展示ST\s+(\S+)$/);
@@ -267,7 +273,56 @@ const {chromium}=require('playwright');
       continue;
      }
      liveExhibitionVerified=true;
-     console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({race:expected,exhibition_count:6,values_verified:true}));
+     console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({
+      race:expected,exhibition_count:6,values_verified:true,initialDomMs:firstDomElapsedMs
+     }));
+     // A single correct six-boat screen does not prove sustained 12s display.
+     // When the cutoff allows, re-render the SAME actual predeadline race twice.
+     // Require a new browser request each time: a stale, already-populated DOM
+     // cannot be used to claim that the Render/API path is stable.
+     if(deadline-Date.now()>=32000){
+      let racecardRequests=0;
+      const countRacecard=request=>{
+       try{
+        const u=new URL(request.url());
+        if(u.hostname==='boat-edge-clean.onrender.com'&&u.pathname==='/api/clean-racecard'&&
+           u.searchParams.get('hd')===today&&Number(u.searchParams.get('jcd'))===selected.venue&&
+           Number(u.searchParams.get('rno'))===selected.race)racecardRequests++;
+       }catch{}
+      };
+      page.on('request',countRacecard);
+      try{
+       for(let attempt=1;attempt<=2;attempt++){
+        const beforeRequests=racecardRequests,startedAt=Date.now();
+        await page.evaluate(()=>render());
+        await page.waitForFunction(k=>sameRaceKey()===k&&
+         document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length===6,
+         expected,{timeout:12000});
+        const elapsedMs=Date.now()-startedAt;
+        const nextRows=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
+        if(elapsedMs>12000||JSON.stringify(nextRows)!==JSON.stringify(displayed)||
+           racecardRequests<=beforeRequests){
+         throw Error('LIVE_EXHIBITION_REPEATED_DISPLAY_NOT_STABLE '+
+          JSON.stringify({race:expected,attempt,elapsedMs,requestDelta:racecardRequests-beforeRequests,
+           sixRows:nextRows.length,valuesIdentical:JSON.stringify(nextRows)===JSON.stringify(displayed)}));
+        }
+        if(Date.now()>=deadline){
+         console.log('LIVE_EXHIBITION_REPEAT_CUTOFF_REACHED_NOT_A_PASS '+expected);
+         break;
+        }
+        repeatedExhibitionTimings.push(elapsedMs);
+       }
+       if(repeatedExhibitionTimings.length===2){
+        repeatedExhibitionVerified=true;
+        console.log('LIVE_EXHIBITION_REPEAT_WITHIN_12S_PASS '+JSON.stringify({
+         race:expected,repeats:2,initialDomMs:firstDomElapsedMs,
+         repeatDomMs:repeatedExhibitionTimings,realBrowserRequests:true,
+         valuesMatched:true,predeadline:true
+        }));
+       }
+      }finally{page.off('request',countRacecard)}
+     }else console.log('LIVE_EXHIBITION_REPEAT_INSUFFICIENT_PREDEADLINE_WINDOW_NOT_A_PASS '+
+      JSON.stringify({race:expected,remainingMs:deadline-Date.now()}));
     }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
    }else if([400,404,422,502,503].includes(api.http)){raceDiagnostics.push({race:expected,http:api.http,preview:'API利用不可'});console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify({race:expected,http:api.http,status:api.body?.status}));}
    else throw Error('UNEXPECTED_RACE_API_RESPONSE '+api.http);
@@ -277,6 +332,8 @@ const {chromium}=require('playwright');
   console.log('PASS_NAVIGATION: Published Pages switches venue/race and card/exhibition without stale selected race.');
   const exhibitionVerdict=liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS';
   console.log(exhibitionVerdict);
+  console.log(repeatedExhibitionVerified?'PASS_LIVE_EXHIBITION_REPEAT_WITHIN_12S':
+   'UNVERIFIED_LIVE_EXHIBITION_REPEAT_WITHIN_12S_NOT_A_PASS');
   // Scheduled monitoring must detect an actual live-data gap rather than
   // silently passing because navigation worked. Nighttime / no-race runs
   // remain explicitly unverified, never a fabricated exhibition success.
@@ -292,6 +349,7 @@ const {chromium}=require('playwright');
     '| 開催情報ソースの取得 | '+(scheduleFeedStatus==='ok'?'成功':'失敗・未取得')+' |',
     '| 締切前検査の対象数 | '+selections.length+'件（最大8件） |',
     '| 締切前展示6艇分の本番照合 | '+proof+' |',
+    '| 同一レース再表示2回・各12秒以内 | '+(repeatedExhibitionVerified?'実測成功（'+repeatedExhibitionTimings.join('ms / ')+'ms）':'未実証（短い残り時間・対象なし・通信失敗など）')+' |',
     '| 実測対象レース | '+(selected?selections.map(x=>today+'-'+String(x.venue).padStart(2,'0')+'-'+String(x.race).padStart(2,'0')).join(', '):'なし')+' |',
     '',
     '判定: `'+exhibitionVerdict+'`',
