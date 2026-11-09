@@ -28,6 +28,8 @@ on:
       - four_mode_official_feature_sensitivity_audit.py
       - four_mode_official_future_lineage_preflight.py
       - four_mode_official_raw_semantic_replay.py
+      - four_mode_official_exhibition_exploratory.py
+      - test_four_mode_official_exhibition_exploratory.py
       - test_four_mode_official_raw_semantic_replay.py
       - test_four_mode_official_future_lineage_preflight.py
       - test_four_mode_official_feature_sensitivity_audit.py
@@ -333,6 +335,8 @@ jobs:
           print("NOV09_PINNED_MAIN_INPUT_REPLAY_PASS:"+str(row["valid_v2_original_inputs"])+
                 ":official_T12=UNVERIFIED:first_remote_candidate=UNVERIFIED:formal=0")
           PY
+      - name: Test separate unregistered official-exhibition heuristic prototype (no forecast)
+        run: python -m unittest -v test_four_mode_official_exhibition_exploratory
       - name: Replay test-shaped official raw bytes with production source parsers (nonformal)
         run: python -m unittest -v test_four_mode_official_raw_semantic_replay
       - name: Test future official three-original source lineage preflight (nonformal)
