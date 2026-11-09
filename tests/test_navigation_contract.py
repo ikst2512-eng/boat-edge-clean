@@ -49,6 +49,62 @@ class NavigationContractTest(unittest.TestCase):
         self.assertIn('function setForecastPane(pane)', self.index)
         self.assertIn('class="forecast-combined-race"', self.index)
 
+    def test_deadline_heading_and_status_contrast_override(self):
+        self.assertIn('#deadlineSection h2{color:#193958!important}', self.index)
+        self.assertIn('#deadlineStatus{color:#355675!important}', self.index)
+
+    def test_hidden_forecast_race_list_does_not_prefetch_results(self):
+        self.assertIn('class="forecast-race-list" hidden', self.index)
+        start = self.index.index('async function loadResultList(){')
+        pane = self.index.index("const pane=document.querySelector('#forecast > .forecast-race-list');", start)
+        guard = self.index.index("if(activeView!=='forecast'||!pane||pane.hidden)return;", pane)
+        fanout = self.index.index('const entries=await Promise.all', start)
+        self.assertLess(pane, guard)
+        self.assertLess(guard, fanout)
+
+    def test_four_mode_archive_cors_allows_only_pages_origin(self):
+        """The real read-only endpoint must be usable from GitHub Pages."""
+        from http.client import HTTPConnection
+        from http.server import ThreadingHTTPServer
+        from threading import Thread
+        from server import Handler
+
+        origin = "https://ikst2512-eng.github.io"
+        with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as httpd:
+            thread = Thread(target=httpd.serve_forever, daemon=True)
+            thread.start()
+            try:
+                # The empty-but-valid archive must be visible as HTTP 404 to Pages.
+                for race_code, status in (("202611061006", 200), ("209901010101", 404), ("invalid", 422)):
+                    for request_origin in (origin, "https://not-the-clean-site.example"):
+                        conn = HTTPConnection("127.0.0.1", httpd.server_port, timeout=10)
+                        try:
+                            conn.request(
+                                "GET", "/api/four-mode-archive?code=" + race_code,
+                                headers={"Origin": request_origin}
+                            )
+                            response = conn.getresponse()
+                            response.read()
+                            self.assertEqual(response.status, status)
+                            self.assertEqual(response.getheader("Access-Control-Allow-Origin"), origin)
+                            if request_origin != origin:
+                                self.assertNotEqual(response.getheader("Access-Control-Allow-Origin"), request_origin)
+                        finally:
+                            conn.close()
+                # No CORS permission must leak onto unrelated routes.
+                conn = HTTPConnection("127.0.0.1", httpd.server_port, timeout=10)
+                try:
+                    conn.request("GET", "/healthz", headers={"Origin": origin})
+                    response = conn.getresponse()
+                    response.read()
+                    self.assertEqual(response.status, 200)
+                    self.assertIsNone(response.getheader("Access-Control-Allow-Origin"))
+                finally:
+                    conn.close()
+            finally:
+                httpd.shutdown()
+                thread.join(timeout=10)
+
     def test_duplicate_forecast_picker_never_reappears(self):
         self.assertIn("document.getElementById('forecastQuick').hidden=true", self.index)
         self.assertNotIn("document.getElementById('forecastQuick').hidden=view!=='forecast'", self.index)
@@ -119,6 +175,40 @@ class NavigationContractTest(unittest.TestCase):
                         "destination.searchParams.set('venue'",
                         "destination.searchParams.set('race'"):
             self.assertIn(snippet, self.nav)
+
+
+    def test_slow_or_failed_http_diagnostics_are_query_free(self):
+        """Failures and stalls are logged without recording token/query strings."""
+        from http.server import BaseHTTPRequestHandler
+        from unittest.mock import patch
+        import server
+
+        for status, elapsed_s, expected_warning in (
+            (200, 0.1, False),
+            (503, 0.1, True),
+            (200, 5.1, True),
+        ):
+            with self.subTest(status=status, elapsed_s=elapsed_s):
+                handler = object.__new__(server.Handler)
+                handler.path = "/api/clean-racecard?token=SECRET_QUERY_MUST_NOT_APPEAR"
+                handler.command = "GET"
+
+                def simulate_response(obj):
+                    obj._diagnostic_status = status
+
+                with patch.object(BaseHTTPRequestHandler, "handle_one_request", simulate_response), \
+                     patch.object(server.time, "monotonic", side_effect=[100.0, 100.0 + elapsed_s]), \
+                     patch.object(server.logging, "warning") as warn:
+                    handler.handle_one_request()
+
+                self.assertEqual(warn.call_count, int(expected_warning))
+                self.assertEqual(server._HTTP_IN_FLIGHT, 0)
+                if expected_warning:
+                    args = warn.call_args.args
+                    self.assertEqual(args[1], "/api/clean-racecard")
+                    self.assertEqual(args[2], status)
+                    self.assertGreaterEqual(args[3], 0)
+                    self.assertNotIn("SECRET_QUERY_MUST_NOT_APPEAR", str(args))
 
 
 if __name__ == "__main__":

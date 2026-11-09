@@ -2,7 +2,12 @@ name: CLEAN published archived forecast browser check
 on:
   pull_request:
     paths:
+      # Re-test public Pages/Render when release-critical UI or CORS code changes.
+      - index.html
+      - server.py
       - tests/live-archived-forecast.cjs
+      - tests/live-public-archive-cors.cjs
+      - tests/render-http-reachability.sh
       - .github/workflows/live-archived-forecast.yml
   workflow_dispatch:
   schedule:
@@ -12,14 +17,66 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: |
+      - name: Capture Render connection timing (non-gating diagnostic)
+        shell: bash
+        run: |
+          set -o pipefail
+          bash tests/render-http-reachability.sh 2>&1 | tee render-reachability.log
+      - name: Check unsimulated public CORS test syntax
+        run: node --check tests/live-public-archive-cors.cjs
+      - name: Install browser runner
+        timeout-minutes: 12
+        run: |
           npm install --no-save playwright@1.58.2
           npx playwright install --with-deps --only-shell chromium
       - name: Verify actual stored prediction displayed on public site
         run: node tests/live-archived-forecast.cjs
+      # Unlike the historical E2E that may use a clearly labeled PR-only
+      # ACAO simulation, this uses the actual published Pages origin and
+      # the browser's CORS enforcement without any route interception.
+      - name: Confirm real Pages-to-Render CORS in Chromium (unmocked)
+        if: always()
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/live-public-archive-cors.cjs 2>&1 | tee real-public-archive-cors.log
+      - name: Preserve transport diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-archive-reachability-${{ github.run_id }}
+          path: |
+            render-reachability.log
+            real-public-archive-cors.log
+          if-no-files-found: warn
+      # This checks the UNSIMULATED live response. A PR-only browser route
+      # fulfilling a fake ACAO header can never satisfy production readiness.
+      # Intentionally remains red until a separately approved live deployment.
+      - name: Gate actual public archive CORS independently of browser simulation
+        if: always()
+        shell: bash
+        run: |
+          if ! grep -Eq '^RENDER_DIAG_RELEASE_GATES .*live_archive_cors=pass([[:space:]]|$)' render-reachability.log; then
+            echo '::error::Public archive CORS not verified on actual Render response. A PR-simulated ACAO header is not production evidence.'
+            grep -E '^RENDER_DIAG_(PROBE name=archive-get|RELEASE_GATES )' render-reachability.log || true
+            exit 1
+          fi
+          echo 'PASS_UNSIMULATED_LIVE_ARCHIVE_CORS_ONLY: actual Pages Origin header returned by Render.'
+      # A later data-driven redeploy may make browser tests green after a genuine cold-wake outage.
+      # Preserve all logs first, then fail this job if the initial live /healthz probe failed.
+      - name: Gate HTTP transport independently of late browser recovery
+        if: always()
+        shell: bash
+        run: |
+          if ! grep -Eq '^RENDER_DIAG_RELEASE_GATES health_http=pass([[:space:]]|$)' render-reachability.log; then
+            echo '::error::Render /healthz was not HTTP 200 during the initial transport diagnostic; late browser success or data-only redeploy cannot erase this outage.'
+            grep -E '^RENDER_DIAG_(PROBE name=health-|RELEASE_GATES )' render-reachability.log || true
+            exit 1
+          fi
+          echo 'PASS_INITIAL_RENDER_HTTP_TRANSPORT_ONLY: live CORS, predeadline exhibition and idle-wake stability require separate proof.'

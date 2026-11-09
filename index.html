@@ -223,6 +223,9 @@ header small{color:#476988}
 button,input,select{border-color:var(--clean-border)}
 button.on,.view-tabs button.on{background:#237ab5;color:#fff;border-color:#237ab5}
 .active-race-strip,#deadlineSection{background:#eaf6ff!important;color:#193958!important;border:1px solid #b9d9f1}
+/* Keep imminent-race headings legible after changing the panel from navy to pale blue. */
+#deadlineSection h2{color:#193958!important}
+#deadlineStatus{color:#355675!important}
 #dailyReviewSummary{border:2px solid var(--clean-important);border-radius:10px;background:#fff;padding:12px;color:var(--clean-important);font-size:14px;font-weight:800}
 .daily-review-venue>summary{background:#eaf6ff;color:#193958}
 .daily-review-venue-races{background:#fff}
@@ -407,7 +410,7 @@ async function loadEntryScenario(){
  const controls=document.getElementById('entryScenarioControls');
  controls.hidden=true;entryScenarioState=null;entryScenarioSetStatus('事前出走表・進入データを検証中…');
  try{
-  const res=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
+  const res=await fetchForecastRacecard('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)));
   if(request!==entryScenarioRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   if(!res.ok)throw Error('RACECARD_UNAVAILABLE');
   const raw=await res.json();
@@ -443,7 +446,7 @@ document.getElementById('entryScenarioReset').addEventListener('click',()=>{
  entryScenarioState.order=entryScenarioState.baseline.slice();
  entryScenarioDrawControls();entryScenarioRecalculate();
 });
-function render(){document.getElementById('forecastVenue').value=String(s.venue+1);document.getElementById('resultVenue').value=String(s.venue+1);document.getElementById('forecastRace').value=String(s.race);if(pendingVenuePick&&(pendingVenuePick.date!==s.date||pendingVenuePick.venue!==s.venue||pendingVenuePick.race!==s.race))pendingVenuePick=null;day.value=s.date;document.querySelector('.venue-list-heading').firstChild.textContent=s.date===fmt(jst())?'本日のレース ':' '+s.date+' の開催場 ';loadHeldVenues();updateRacePickerLabels();document.querySelectorAll('#deadlineList .deadline-item').forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));[...vb.children].forEach((b,i)=>{b.classList.toggle('on',s.venue===i);b.setAttribute('aria-pressed',s.venue===i)});[...rb.children].forEach((b,i)=>{b.classList.toggle('on',s.race===i+1);b.setAttribute('aria-pressed',s.race===i+1)});syncActiveRaceDeadline();document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1);document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1);const url=new URL(location.href);url.searchParams.set('date',s.date);url.searchParams.set('venue',String(s.venue+1));url.searchParams.set('race',String(s.race));if(!datePinned&&!venueTouched&&!venueSpecified)url.searchParams.set('follow','1');else url.searchParams.delete('follow');history.replaceState(null,'',url);if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast'){loadEntryScenario();loadPredictions();loadResult();loadForecastResult();loadResultList();loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}else if(activeView==='result'){loadPredictions();loadResult();loadResultList()}else if(activeView==='review')loadReview()}day.addEventListener('change',()=>{if(/^\d{4}-\d{2}-\d{2}$/.test(day.value)){datePinned=true;venueTouched=true;s.date=day.value;render()}});for(let [id,n] of [['prev',-1],['next',1]])document.getElementById(id).addEventListener('click',()=>{let d=new Date(s.date+'T12:00:00');d.setDate(d.getDate()+n);datePinned=true;venueTouched=true;s.date=fmt(d);render()});document.getElementById('today').addEventListener('click',()=>{datePinned=false;venueTouched=false;venueSpecified=false;s.date=fmt(jst());venueDateChecked='';render()});let predictionTickets=[],selectedTop=10,predictionOdds={},predictionProbabilities={},predictionModes={},selectedPredictionMode='research',verifiedForecastWinner=null,confirmedForecastResult=null,confirmedForecastResultKey='';document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{selectedPredictionMode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('on',b===button);b.setAttribute('aria-pressed',String(b===button))});applyPredictionMode();}));function applyPredictionMode(){const chosen=predictionModes[selectedPredictionMode];predictionTickets=(chosen?.tickets||[]).slice(0,selectedPredictionMode==='research'?10:30);predictionOdds=chosen?.odds||{};predictionProbabilities=chosen?.probabilities||{};drawPredictions();}document.querySelectorAll('[data-prediction-top]').forEach(button=>button.addEventListener('click',()=>{selectedTop=Number(button.dataset.predictionTop);document.querySelectorAll('[data-prediction-top]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));drawPredictions();}));function renderForecastAiLeaderShares(){
+function render(){document.getElementById('forecastVenue').value=String(s.venue+1);document.getElementById('resultVenue').value=String(s.venue+1);document.getElementById('forecastRace').value=String(s.race);if(pendingVenuePick&&(pendingVenuePick.date!==s.date||pendingVenuePick.venue!==s.venue||pendingVenuePick.race!==s.race))pendingVenuePick=null;day.value=s.date;document.querySelector('.venue-list-heading').firstChild.textContent=s.date===fmt(jst())?'本日のレース ':' '+s.date+' の開催場 ';loadHeldVenues();updateRacePickerLabels();document.querySelectorAll('#deadlineList .deadline-item').forEach(b=>b.classList.toggle('selected',Number(b.dataset.venue)===s.venue+1&&Number(b.dataset.race)===s.race));[...vb.children].forEach((b,i)=>{b.classList.toggle('on',s.venue===i);b.setAttribute('aria-pressed',s.venue===i)});[...rb.children].forEach((b,i)=>{b.classList.toggle('on',s.race===i+1);b.setAttribute('aria-pressed',s.race===i+1)});syncActiveRaceDeadline();document.getElementById('previousRace').disabled=s.race===1||!hasConfirmedRace(s.venue+1,s.race-1);document.getElementById('followingRace').disabled=s.race===12||!hasConfirmedRace(s.venue+1,s.race+1);const url=new URL(location.href);url.searchParams.set('date',s.date);url.searchParams.set('venue',String(s.venue+1));url.searchParams.set('race',String(s.race));if(!datePinned&&!venueTouched&&!venueSpecified)url.searchParams.set('follow','1');else url.searchParams.delete('follow');if(url.href!==location.href&&!window.__boatEdgeNavigationOwnsHistory)history.replaceState(null,'',url);if(activeView==='card'||activeView==='exhibit')loadRaceData();else if(activeView==='forecast'){loadEntryScenario();loadPredictions();loadResult();loadForecastResult();loadResultList();loadForecastPreview();loadForecastCourseStats();loadForecastPriorResults()}else if(activeView==='result'){loadPredictions();loadResult();loadResultList()}else if(activeView==='review')loadReview()}day.addEventListener('change',()=>{if(/^\d{4}-\d{2}-\d{2}$/.test(day.value)){datePinned=true;venueTouched=true;s.date=day.value;render()}});for(let [id,n] of [['prev',-1],['next',1]])document.getElementById(id).addEventListener('click',()=>{let d=new Date(s.date+'T12:00:00');d.setDate(d.getDate()+n);datePinned=true;venueTouched=true;s.date=fmt(d);render()});document.getElementById('today').addEventListener('click',()=>{datePinned=false;venueTouched=false;venueSpecified=false;s.date=fmt(jst());venueDateChecked='';render()});let predictionTickets=[],selectedTop=10,predictionOdds={},predictionProbabilities={},predictionModes={},selectedPredictionMode='research',verifiedForecastWinner=null,confirmedForecastResult=null,confirmedForecastResultKey='';document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{selectedPredictionMode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('on',b===button);b.setAttribute('aria-pressed',String(b===button))});applyPredictionMode();}));function applyPredictionMode(){const chosen=predictionModes[selectedPredictionMode];predictionTickets=(chosen?.tickets||[]).slice(0,selectedPredictionMode==='research'?10:30);predictionOdds=chosen?.odds||{};predictionProbabilities=chosen?.probabilities||{};drawPredictions();}document.querySelectorAll('[data-prediction-top]').forEach(button=>button.addEventListener('click',()=>{selectedTop=Number(button.dataset.predictionTop);document.querySelectorAll('[data-prediction-top]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));drawPredictions();}));function renderForecastAiLeaderShares(){
  const root=document.getElementById('forecastAiLeaderShares');if(!root)return;
  root.replaceChildren();
  const eligible=selectedPredictionMode==='research'?predictionTickets.slice(0,10):[];
@@ -557,7 +560,7 @@ function setView(view,fromBack=false){
  document.getElementById('forecast').hidden=view!=='forecast';
  document.getElementById('resultSection').hidden=view!=='result';document.getElementById('reviewSection').hidden=view!=='review';
  document.getElementById('raceDataHeading').textContent=view==='exhibit'?'展示情報':'出走表・選手成績';
- const url=new URL(location.href);url.searchParams.delete('view');history.replaceState(null,'',url);
+ const url=new URL(location.href);url.searchParams.delete('view');if(url.href!==location.href&&!window.__boatEdgeNavigationOwnsHistory)history.replaceState(null,'',url);
 }
 document.querySelectorAll('.site-global-nav a[href^="/"]').forEach(a=>a.addEventListener('click',()=>{const u=new URL(a.href);u.search=location.search;a.href=u.pathname+u.search;}));
 // Keyboard navigation stays inside the four tabs; Enter/Space works natively.
@@ -570,6 +573,21 @@ setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}if(activeView==='result')loadResult(true)}});
 async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
+const forecastRacecardFlights=new Map();
+// Share only simultaneous reads of the *same* racecard. Do not cache finished responses:
+// saved forecasts and live exhibition must always be allowed to refresh.
+async function fetchForecastRacecard(url){
+ let pending=forecastRacecardFlights.get(url);
+ if(!pending){
+  pending=fetchTimed(url,{cache:'no-store'});
+  forecastRacecardFlights.set(url,pending);
+  const clear=()=>{if(forecastRacecardFlights.get(url)===pending)forecastRacecardFlights.delete(url)};
+  void pending.then(clear,clear);
+ }
+ const response=await pending;
+ // Each consumer independently validates its own copy of the one fetched response.
+ return response.clone();
+}
 // Confirmed result files are published with Pages as a same-origin fallback when GitHub Raw fails.
 async function fetchCleanResultArchive(code){
  if(!/^20\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
@@ -718,7 +736,7 @@ async function loadForecastCourseStats(){
  setUnavailable();
  try{
   const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
-  const response=await fetchTimed(url,{cache:'no-store'});if(!response.ok){if(sourceLabel)sourceLabel.textContent='実コース別成績：API取得失敗（HTTP '+response.status+'）';return;}
+  const response=await fetchForecastRacecard(url);if(!response.ok){if(sourceLabel)sourceLabel.textContent='実コース別成績：API取得失敗（HTTP '+response.status+'）';return;}
   const raw=await response.json();
   if(requestId!==forecastCourseStatsRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   const audit=raw.source_audit?.course_stats,deadline=Date.parse(raw.meta?.date+'T'+raw.meta?.deadline+':00+09:00'),fetched=Date.parse(audit?.fetched_at);
@@ -917,7 +935,10 @@ let resultListRequestId=0;
 async function loadResultList(){
  const token=++resultListRequestId,date=s.date,venue=s.venue+1;
  const list=document.getElementById('resultList'),status=document.getElementById('resultListStatus');
- if(activeView!=='forecast')return;
+ // The legacy all-races pane is hidden on the four-tab UI. Do not fetch 12
+ // archived results unless a user explicitly opens this pane.
+ const pane=document.querySelector('#forecast > .forecast-race-list');
+ if(activeView!=='forecast'||!pane||pane.hidden)return;
  list.replaceChildren();status.textContent=names[venue-1]+' 1〜12RのCLEAN確定結果を確認中…';
  // Keep every race navigable while remote results, payout, and racer data load.
  for(let race=1;race<=12;race++){
@@ -1248,7 +1269,7 @@ async function loadForecastPreview(){
  root.replaceChildren();status.textContent='展示・直前の取得状態を確認中…';
  try{
   const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
-  const response=await fetchTimed(url,{cache:'no-store'});
+  const response=await fetchForecastRacecard(url);
   if(token!==forecastPreviewRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   if(!response.ok){status.textContent='展示・直前は配信待ち、または取得できません。出走表・予想は別途確認できます。';return}
   const raw=await response.json();

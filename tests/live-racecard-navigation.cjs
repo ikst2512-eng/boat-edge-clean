@@ -4,6 +4,27 @@ const {chromium}=require('playwright');
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  // Separate network errors, non-200s and CORS from a slow DOM update.
+  // This is read-only observation; do not add a permissive header or retry.
+  const racecardNetwork=[];
+  const recordRacecard=(event,request,extra={})=>{
+   try{
+    const u=new URL(request.url());
+    if(u.hostname!=='boat-edge-clean.onrender.com'||u.pathname!=='/api/clean-racecard')return;
+    racecardNetwork.push({event,atJst:new Date().toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo'}),
+     race:u.searchParams.get('hd')+'-'+String(u.searchParams.get('jcd')).padStart(2,'0')+
+      '-'+String(u.searchParams.get('rno')).padStart(2,'0'),...extra});
+    if(racecardNetwork.length>40)racecardNetwork.shift();
+   }catch{}
+  };
+  page.on('request',req=>recordRacecard('started',req));
+  page.on('response',res=>recordRacecard('response',res.request(),{
+   http:res.status(),cors:res.headers()['access-control-allow-origin']||'missing'
+  }));
+  page.on('requestfinished',req=>recordRacecard('finished',req));
+  page.on('requestfailed',req=>recordRacecard('failed',req,{
+   reason:String(req.failure()||'unknown').slice(0,160)
+  }));
   const site='https://ikst2512-eng.github.io/boat-edge-clean/';
   const res=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
   if(!res?.ok())throw Error('PAGES_UNAVAILABLE '+res?.status());
@@ -94,6 +115,8 @@ const {chromium}=require('playwright');
   let selected=null;
   let selections=[];
   let liveExhibitionVerified=false;
+  let repeatedExhibitionVerified=false;
+  let repeatedExhibitionTimings=[];
   let previewWindowCount=0;
   let scheduleFeedStatus='unavailable';
   const raceDiagnostics=[];
@@ -192,23 +215,186 @@ const {chromium}=require('playwright');
       throw Error('LIVE_EXHIBITION_TIMESTAMP_INVALID '+JSON.stringify({race:expected,observed:audit.fetched_at,deadline:d.meta?.deadline}));
      if(preview?.racers?.length!==6||preview?.start_exhibition?.length!==6)throw Error('LIVE_EXHIBITION_INCOMPLETE '+expected);
      // Cross-check that the actual user-facing forecast preview can consume the same race.
+     const firstDomStartedAt=Date.now();
      await page.evaluate(item=>{datePinned=true;venueTouched=true;s.date=item.date;s.venue=item.venue-1;s.race=item.race;setView('forecast');render();},
        {date:today.slice(0,4)+'-'+today.slice(4,6)+'-'+today.slice(6,8),...selected});
+     // Official feeds may express the same ST as F.01 or -0.01, and .11 or
+     // 0.11. Compare lane, exhibition time, tilt, course and SIGNED ST values;
+     // never turn a negative (flying) ST into a positive on display.
+     const signedStart=value=>{
+      const text=String(value??'').trim();
+      if(/^F\.?\d{1,2}$/i.test(text))return -Number('0.'+text.slice(1).replace('.',''));
+      return /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)?Number(text):NaN;
+     };
      const expectedRows=Array.from({length:6},(_,i)=>{
       const lane=i+1,ex=preview.racers.find(v=>Number(v.lane)===lane),st=preview.start_exhibition.find(v=>Number(v.lane)===lane);
       if(!ex||!st)throw Error('LIVE_EXHIBITION_MISSING_LANE '+lane);
-      return {lane,text:'展示 '+ex.exhibition_time+'｜チルト '+ex.tilt+'｜進入 '+st.course+'コース｜展示ST '+st.st};
+      return {lane,time:Number(ex.exhibition_time),tilt:Number(ex.tilt),
+       course:Number(st.course),st:signedStart(st.st),raw_st:st.st};
      });
-     await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
+     try{
+      await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
+     }catch(error){
+      // Never turn this timeout into a pass; preserve DOM evidence for a precise repair.
+      const dom=await page.evaluate(()=>{
+       const root=document.getElementById('forecastPreviewRows');
+       return {
+        shownRaceKey:typeof sameRaceKey==='function'?sameRaceKey():'unavailable',
+        previewRows:root?.children.length??null,
+        previewText:root?.innerText?.slice(0,350)||'',
+        previewHtml:root?.innerHTML?.slice(0,650)||'',
+        visibleForecast:!!document.getElementById('forecast')?.getClientRects().length,
+        selectedRace:document.getElementById('activeRaceLabel')?.textContent?.trim()?.slice(0,140)||'',
+        previewStatus:document.getElementById('forecastPreviewStatus')?.textContent?.trim()?.slice(0,220)||''
+       };
+      }).catch(e=>({diagnosticError:String(e)}));
+      // A passing direct API response and a still-pending 12s UI are distinct
+      // failure modes. Observe again AFTER the UI's own 15s fetch timeout.
+      // The original 12s failure is still thrown below; never grant a pass.
+      const afterUiTimeout=await page.waitForTimeout(4000).then(()=>page.evaluate(()=>{
+       const entries=performance.getEntriesByType('resource')
+        .filter(entry=>entry.name.includes('/api/clean-racecard?')).slice(-6);
+       return {
+        raceKey:typeof sameRaceKey==='function'?sameRaceKey():'unavailable',
+        view:typeof activeView==='string'?activeView:'unavailable',
+        previewRows:document.getElementById('forecastPreviewRows')?.children.length??null,
+        previewStatus:document.getElementById('forecastPreviewStatus')?.textContent?.trim()?.slice(0,220)||'',
+        resourceTimings:entries.map(entry=>({
+         name:entry.name.slice(0,180),durationMs:Math.round(entry.duration),
+         responseEndMs:Math.round(entry.responseEnd),initiator:entry.initiatorType
+        }))
+       };
+      })).catch(e=>({diagnosticError:String(e)}));
+      console.error('LIVE_EXHIBITION_DOM_TIMEOUT_NOT_A_PASS '+JSON.stringify({
+       race:expected,dom,afterUiTimeout,network:racecardNetwork.filter(x=>x.race===expected).slice(-18),pageErrors:errors.slice(0,5),reason:String(error)
+      }));
+      throw error;
+     }
+     const firstDomElapsedMs=Date.now()-firstDomStartedAt;
+     if(firstDomElapsedMs>12000)
+      throw Error('LIVE_EXHIBITION_INITIAL_OVER_12S '+JSON.stringify({race:expected,elapsedMs:firstDomElapsedMs}));
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
-     if(displayed.length!==6||expectedRows.some((row,i)=>!displayed[i].includes(row.text)))
-      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,displayed}));
+     const shown=displayed.map(text=>{
+      const match=text.match(/^(\d+)号艇展示\s+([+-]?\d+(?:\.\d+)?)｜チルト\s+([+-]?\d+(?:\.\d+)?)｜進入\s+(\d+)コース｜展示ST\s+(\S+)$/);
+      return match?{lane:Number(match[1]),time:Number(match[2]),tilt:Number(match[3]),
+       course:Number(match[4]),st:signedStart(match[5]),raw_st:match[5]}:null;
+     });
+     const sameNumber=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<0.000001;
+     if(displayed.length!==6||expectedRows.some((row,i)=>{
+      const current=shown[i];
+      return !current||row.lane!==current.lane||row.course!==current.course||
+       !sameNumber(row.time,current.time)||!sameNumber(row.tilt,current.tilt)||!sameNumber(row.st,current.st);
+     }))
+      throw Error('LIVE_EXHIBITION_DOM_MISMATCH '+JSON.stringify({expectedRows,shown,displayed}));
+     console.log('LIVE_EXHIBITION_SIGNED_ST_EQUIVALENCE_PASS '+JSON.stringify({
+      race:expected,original:expectedRows.map(row=>row.raw_st),shown:shown.map(row=>row.raw_st)
+     }));
      if(Date.now()>=deadline){
       console.log('LIVE_EXHIBITION_DISPLAY_AFTER_CUTOFF_NOT_A_PASS '+expected);
       continue;
      }
      liveExhibitionVerified=true;
-     console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({race:expected,exhibition_count:6,values_verified:true}));
+     console.log('LIVE_EXHIBITION_DOM_PASS '+JSON.stringify({
+      race:expected,exhibition_count:6,values_verified:true,initialDomMs:firstDomElapsedMs
+     }));
+     // A single correct six-boat screen does not prove sustained 12s display.
+     // When the cutoff allows, re-render the SAME actual predeadline race twice.
+     // Require a new browser request each time: a stale, already-populated DOM
+     // cannot be used to claim that the Render/API path is stable.
+     if(deadline-Date.now()>=32000){
+      let racecardRequests=0;
+      const countRacecard=request=>{
+       try{
+        const u=new URL(request.url());
+        if(u.hostname==='boat-edge-clean.onrender.com'&&u.pathname==='/api/clean-racecard'&&
+           u.searchParams.get('hd')===today&&Number(u.searchParams.get('jcd'))===selected.venue&&
+           Number(u.searchParams.get('rno'))===selected.race)racecardRequests++;
+       }catch{}
+      };
+      page.on('request',countRacecard);
+      try{
+       for(let attempt=1;attempt<=2;attempt++){
+        const beforeRequests=racecardRequests,startedAt=Date.now();
+        // A request START alone is not proof the body arrived and was rendered.
+        const nextRequestPromise=page.waitForRequest(req=>{
+         try{
+          const u=new URL(req.url());
+          return req.method()==='GET'&&u.hostname==='boat-edge-clean.onrender.com'&&
+           u.pathname==='/api/clean-racecard'&&u.searchParams.get('hd')===today&&
+           Number(u.searchParams.get('jcd'))===selected.venue&&
+           Number(u.searchParams.get('rno'))===selected.race;
+         }catch{return false}
+        },{timeout:12000});
+        await page.evaluate(()=>{
+         render();
+         if(document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length)
+          throw Error('REPEATED_EXHIBITION_OLD_DOM_NOT_CLEARED');
+        });
+        const httpRequest=await nextRequestPromise;
+        let responseTimer,renewed;
+        try{
+         renewed=await Promise.race([
+          (async()=>{
+           const response=await httpRequest.response();
+           if(!response||response.status()!==200)
+            throw Error('REPEATED_EXHIBITION_HTTP_NOT_200 '+(response?.status()??'no_response'));
+           const failed=await response.finished();
+           if(failed)throw Error('REPEATED_EXHIBITION_HTTP_INCOMPLETE '+String(failed));
+           return response.json();
+          })(),
+          new Promise((_,reject)=>{responseTimer=setTimeout(()=>
+           reject(Error('REPEATED_EXHIBITION_HTTP_BODY_TIMEOUT')),12000)})
+         ]);
+        }finally{clearTimeout(responseTimer)}
+        const receivedAt=Date.parse(renewed?.source_audit?.beforeinfo?.fetched_at);
+        if(renewed?.race_key!==expected||renewed?.schema_version!=='boat-edge-race-v5'||
+           renewed?.source_audit?.beforeinfo?.status!=='ok'||
+           !Number.isFinite(receivedAt)||receivedAt>=deadline||receivedAt>Date.now()||
+           renewed?.beforeinfo?.racers?.length!==6||renewed?.beforeinfo?.start_exhibition?.length!==6)
+         throw Error('REPEATED_EXHIBITION_HTTP_BODY_UNVERIFIED '+JSON.stringify({
+          race:expected,attempt,responseKey:renewed?.race_key
+         }));
+        const sourceRows=Array.from({length:6},(_,i)=>{
+         const lane=i+1,ex=renewed.beforeinfo.racers.find(x=>Number(x.lane)===lane),
+          st=renewed.beforeinfo.start_exhibition.find(x=>Number(x.lane)===lane);
+         return {lane,time:Number(ex?.exhibition_time),tilt:Number(ex?.tilt),
+          course:Number(st?.course),st:signedStart(st?.st)};
+        });
+        if(sourceRows.some((row,i)=>!expectedRows[i]||Object.keys(row).some(field=>
+           field==='lane'?row.lane!==expectedRows[i].lane:
+           !sameNumber(row[field],expectedRows[i][field]))))
+         throw Error('REPEATED_EXHIBITION_HTTP_VALUES_UNVERIFIED '+JSON.stringify({
+          race:expected,attempt,sourceRows
+         }));
+        await page.waitForFunction(k=>sameRaceKey()===k&&
+         document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length===6&&
+         document.getElementById('forecastPreviewStatus')?.textContent.startsWith('締切前取得の展示情報'),
+         expected,{timeout:12000});
+        const elapsedMs=Date.now()-startedAt;
+        const nextRows=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
+        if(elapsedMs>12000||JSON.stringify(nextRows)!==JSON.stringify(displayed)||
+           racecardRequests<=beforeRequests){
+         throw Error('LIVE_EXHIBITION_REPEATED_DISPLAY_NOT_STABLE '+
+          JSON.stringify({race:expected,attempt,elapsedMs,requestDelta:racecardRequests-beforeRequests,
+           sixRows:nextRows.length,valuesIdentical:JSON.stringify(nextRows)===JSON.stringify(displayed)}));
+        }
+        if(Date.now()>=deadline){
+         console.log('LIVE_EXHIBITION_REPEAT_CUTOFF_REACHED_NOT_A_PASS '+expected);
+         break;
+        }
+        repeatedExhibitionTimings.push(elapsedMs);
+       }
+       if(repeatedExhibitionTimings.length===2){
+        repeatedExhibitionVerified=true;
+        console.log('LIVE_EXHIBITION_REPEAT_WITHIN_12S_PASS '+JSON.stringify({
+         race:expected,repeats:2,initialDomMs:firstDomElapsedMs,
+         repeatDomMs:repeatedExhibitionTimings,completedHttp200Responses:2,sourceSixBoatsMatched:true,
+         valuesMatched:true,predeadline:true
+        }));
+       }
+      }finally{page.off('request',countRacecard)}
+     }else console.log('LIVE_EXHIBITION_REPEAT_INSUFFICIENT_PREDEADLINE_WINDOW_NOT_A_PASS '+
+      JSON.stringify({race:expected,remainingMs:deadline-Date.now()}));
     }else console.log('LIVE_EXHIBITION_NOT_VERIFIED '+JSON.stringify({race:expected,status:audit?.status,source_status:audit?.source_status}));
    }else if([400,404,422,502,503].includes(api.http)){raceDiagnostics.push({race:expected,http:api.http,preview:'API利用不可'});console.log('LIVE_RACE_DATA_UNAVAILABLE_NOT_A_PASS '+JSON.stringify({race:expected,http:api.http,status:api.body?.status}));}
    else throw Error('UNEXPECTED_RACE_API_RESPONSE '+api.http);
@@ -218,6 +404,8 @@ const {chromium}=require('playwright');
   console.log('PASS_NAVIGATION: Published Pages switches venue/race and card/exhibition without stale selected race.');
   const exhibitionVerdict=liveExhibitionVerified?'PASS_LIVE_EXHIBITION_SIX_BOATS':'UNVERIFIED_LIVE_EXHIBITION_NOT_A_PASS';
   console.log(exhibitionVerdict);
+  console.log(repeatedExhibitionVerified?'PASS_LIVE_EXHIBITION_REPEAT_WITHIN_12S':
+   'UNVERIFIED_LIVE_EXHIBITION_REPEAT_WITHIN_12S_NOT_A_PASS');
   // Scheduled monitoring must detect an actual live-data gap rather than
   // silently passing because navigation worked. Nighttime / no-race runs
   // remain explicitly unverified, never a fabricated exhibition success.
@@ -233,6 +421,7 @@ const {chromium}=require('playwright');
     '| 開催情報ソースの取得 | '+(scheduleFeedStatus==='ok'?'成功':'失敗・未取得')+' |',
     '| 締切前検査の対象数 | '+selections.length+'件（最大8件） |',
     '| 締切前展示6艇分の本番照合 | '+proof+' |',
+    '| 同一レース再表示2回・各12秒以内 | '+(repeatedExhibitionVerified?'実測成功（'+repeatedExhibitionTimings.join('ms / ')+'ms）':'未実証（短い残り時間・対象なし・通信失敗など）')+' |',
     '| 実測対象レース | '+(selected?selections.map(x=>today+'-'+String(x.venue).padStart(2,'0')+'-'+String(x.race).padStart(2,'0')).join(', '):'なし')+' |',
     '',
     '判定: `'+exhibitionVerdict+'`',
