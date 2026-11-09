@@ -177,5 +177,39 @@ class NavigationContractTest(unittest.TestCase):
             self.assertIn(snippet, self.nav)
 
 
+    def test_slow_or_failed_http_diagnostics_are_query_free(self):
+        """Failures and stalls are logged without recording token/query strings."""
+        from http.server import BaseHTTPRequestHandler
+        from unittest.mock import patch
+        import server
+
+        for status, elapsed_s, expected_warning in (
+            (200, 0.1, False),
+            (503, 0.1, True),
+            (200, 5.1, True),
+        ):
+            with self.subTest(status=status, elapsed_s=elapsed_s):
+                handler = object.__new__(server.Handler)
+                handler.path = "/api/clean-racecard?token=SECRET_QUERY_MUST_NOT_APPEAR"
+                handler.command = "GET"
+
+                def simulate_response(obj):
+                    obj._diagnostic_status = status
+
+                with patch.object(BaseHTTPRequestHandler, "handle_one_request", simulate_response), \
+                     patch.object(server.time, "monotonic", side_effect=[100.0, 100.0 + elapsed_s]), \
+                     patch.object(server.logging, "warning") as warn:
+                    handler.handle_one_request()
+
+                self.assertEqual(warn.call_count, int(expected_warning))
+                self.assertEqual(server._HTTP_IN_FLIGHT, 0)
+                if expected_warning:
+                    args = warn.call_args.args
+                    self.assertEqual(args[1], "/api/clean-racecard")
+                    self.assertEqual(args[2], status)
+                    self.assertGreaterEqual(args[3], 0)
+                    self.assertNotIn("SECRET_QUERY_MUST_NOT_APPEAR", str(args))
+
+
 if __name__ == "__main__":
     unittest.main()
