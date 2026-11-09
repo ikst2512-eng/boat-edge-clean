@@ -15,6 +15,7 @@ def workflow(candidate=False):
     s = (
         "name: Four-mode prospective capture (research only)\n"
         "on:\n  pull_request:\n    paths: []\n"
+        "concurrency:\n  group: ${{ github.event_name == 'pull_request' }}\n"
         "jobs:\n"
         "  capture:\n"
         "    if: github.ref == 'refs/heads/main' && "
