@@ -95,7 +95,7 @@ export async function verifyRealGithubFirstAdd({publisher,raceCode,commitSha,fet
   if(!Object.hasOwn(PATHS,publisher)||!checkCode(raceCode)||!SHA.test(commitSha)||
      typeof fetcher!=='function')throw Error('invalid_remote_github_sample_request');
   const path=PATHS[publisher]+raceCode+'.json';
-  const enc=encodeURIComponent(path);
+  const enc=path.split('/').map(encodeURIComponent).join('/');
   const commit=await get(fetcher,API+'/commits/'+commitSha);
   if(!isObj(commit)||commit.sha!==commitSha||!Array.isArray(commit.parents)||commit.parents.length!==1||
      !SHA.test(commit.parents[0]?.sha)||!Array.isArray(commit.files))
