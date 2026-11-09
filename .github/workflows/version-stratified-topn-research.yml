@@ -231,15 +231,24 @@ jobs:
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
       - name: Verify draft-only candidate workflow is not mistaken for main execution
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           python -m unittest -v test_four_mode_main_shadow_deployment_audit
           git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
-          python four_mode_main_shadow_deployment_audit.py --output four_mode_main_candidate_stage_readiness.json
+          if [[ -n "${PR_HEAD_SHA:-}" ]]; then
+            git fetch --no-tags --depth=1 origin "$PR_HEAD_SHA"
+            python four_mode_main_shadow_deployment_audit.py --draft-sha "$PR_HEAD_SHA" --output four_mode_main_candidate_stage_readiness.json
+          else
+            python four_mode_main_shadow_deployment_audit.py --output four_mode_main_candidate_stage_readiness.json
+          fi
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           v=json.loads(Path("four_mode_main_candidate_stage_readiness.json").read_text())
+          if os.environ.get("PR_HEAD_SHA") and v.get("draft_verified_at_exact_pr_head_sha") is not True:
+              raise SystemExit("PR_HEAD_WAS_NOT_INDEPENDENTLY_PINNED")
           if (v["main_candidate_stages_deployed_in_source"] is not False
                   or v["draft_candidate_stages_available_for_manual_review"] is not True
                   or v["live_candidate_step_execution_verified"] is not False
