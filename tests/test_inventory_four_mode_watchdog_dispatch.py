@@ -97,6 +97,70 @@ class WatchdogInventoryTest(unittest.TestCase):
             "four-mode-prospective-capture.yml:schedule"
         ]["excluded_nonmain_or_unverified_run_ids"], [903])
 
+    def test_webhook_watchdog_is_distinct_from_direct_decision_artifacts(self):
+        events = {
+            ("four-mode-capture-watchdog.yml", "schedule"): [
+                row(801, "schedule", "2026-11-03T05:40:00Z")],
+            ("four-mode-capture-watchdog.yml", "workflow_run"): [
+                row(802, "workflow_run", "2026-11-03T05:50:00Z",
+                    "skipped"),
+                row(803, "workflow_run", "2026-11-03T05:55:00Z")],
+        }
+        def fetch(url, token):
+            for (workflow, event), data in events.items():
+                if workflow in url and ("event=" + event) in url:
+                    return {"workflow_runs": data, "total_count": len(data)}
+            return {"workflow_runs": [], "total_count": 0}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(result["watchdog_schedule"]["success"], 1)
+        self.assertEqual(result["watchdog_workflow_run"]["returned"], 2)
+        self.assertEqual(result["watchdog_workflow_run"]["success"], 1)
+        self.assertEqual(result["watchdog_workflow_run"]["skipped"], 1)
+        self.assertEqual(result["watchdog_workflow_run"][
+            "completed_other_non_success"], 1)
+        # Historical artifact audit must not be crowded out by webhook jobs.
+        self.assertEqual([r["id"] for r in result["recent_watchdog_runs"]],
+                         [801])
+        self.assertEqual([r["id"] for r in result["recent_watchdog_workflow_run"]],
+                         [803, 802])
+        self.assertEqual(result["latest_watchdog"]["id"], 801)
+        self.assertEqual(result["latest_watchdog_workflow_run"]["id"], 803)
+        self.assertFalse(result["dispatch_accepted_proven"])
+        self.assertFalse(result["forecast_saved_proven"])
+
+    def test_webhook_first_page_truncation_not_assumed_complete(self):
+        def fetch(url, token):
+            if ("four-mode-capture-watchdog.yml" in url
+                    and "event=workflow_run" in url):
+                return {"workflow_runs": [
+                    row(804, "workflow_run", "2026-11-03T05:52:00Z",
+                        "skipped")], "total_count": 950}
+            return {"workflow_runs": [], "total_count": 0}
+        result = inventory("example/project", "fake", fetch, NOW)
+        count = result["watchdog_workflow_run"]
+        self.assertEqual(count["returned"], 1)
+        self.assertEqual(count["skipped"], 1)
+        self.assertEqual(count["success"], 0)
+        scope = result["source_coverage"][
+            "four-mode-capture-watchdog.yml:workflow_run"]
+        self.assertTrue(scope["first_page_only"])
+        self.assertTrue(scope["may_be_truncated"])
+        self.assertEqual(scope["total_count_reported"], 950)
+
+    def test_untrusted_webhook_origin_excluded_from_main_liveness(self):
+        def fetch(url, token):
+            if ("four-mode-capture-watchdog.yml" in url
+                    and "event=workflow_run" in url):
+                return {"workflow_runs": [
+                    row(805, "workflow_run", "2026-11-03T05:52:00Z",
+                        head_repo="foreign/fork")]}
+            return {"workflow_runs": []}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(result["watchdog_workflow_run"]["returned"], 0)
+        scope = result["source_coverage"][
+            "four-mode-capture-watchdog.yml:workflow_run"]
+        self.assertEqual(scope["excluded_nonmain_or_unverified_run_ids"], [805])
+
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
             return {"workflow_runs": []}
