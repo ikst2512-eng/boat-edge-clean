@@ -72,6 +72,16 @@ class CandidateDeliveryGapTests(unittest.TestCase):
         self.assertEqual(report["candidate_files_on_day"], 1)
         self.assertEqual(report["candidate_exact_original_replays"], 1)
         self.assertEqual(report["originals_missing_candidate"], 2)
+        self.assertEqual(len(report["per_race_complete_saved_original_roster"]), 3)
+        self.assertEqual(len(report["pinned_snapshot_roster_sha256"]), 64)
+        self.assertEqual(report["per_race_complete_saved_original_roster"][0]["candidate_saved"], True)
+        self.assertEqual(len(report["per_race_complete_saved_original_roster"][0]["candidate_sha256"]), 64)
+        self.assertEqual(
+            len([r for r in report["per_race_complete_saved_original_roster"]
+                 if r["candidate_sha256"] is None]), 2)
+        repeated = audit_delivery_gap(git, "20261109", ASOF)
+        self.assertEqual(report["pinned_snapshot_roster_sha256"],
+                         repeated["pinned_snapshot_roster_sha256"])
         self.assertEqual(report["candidate_delivery_coverage_pct_of_eligible_original_files"], 33.33)
         self.assertEqual(report["status_counts"]["missing_candidate_local_window_still_open"], 1)
         self.assertEqual(report["status_counts"]["missing_candidate_local_window_elapsed"], 1)
