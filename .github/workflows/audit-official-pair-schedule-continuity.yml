@@ -32,6 +32,8 @@ on:
       - tests/test_audit_t12_same_race_proof_chain.py
       - scripts/audit_t12_scheduled_source_topology.py
       - tests/test_audit_t12_scheduled_source_topology.py
+      - scripts/audit_t12_full_workflow_inventory.py
+      - tests/test_audit_t12_full_workflow_inventory.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -68,6 +70,18 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_source_topology.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_full_workflow_inventory.py' -v
+      - name: Checkout pinned main workflow Git tree in an isolated directory
+        uses: actions/checkout@v4
+        with:
+          ref: 4bd080ad77778053575cf497c8a6b85b959ce173
+          path: pinned-workflow-main
+          persist-credentials: false
+      - name: Inspect ALL 149 pinned main workflow Git blobs for actual schedule and direct capture refs
+        run: |
+          python -m scripts.audit_t12_full_workflow_inventory \
+            --pinned-checkout pinned-workflow-main \
+            --output reports/official_t12_all_main_workflow_inventory.json
       - name: Audit immutable main official-source collection topology (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -279,5 +293,6 @@ jobs:
             reports/official_t12_nov03_pinned_three_originals.json
             reports/official_t12_same_race_proof_chain.json
             reports/official_t12_scheduled_source_topology.json
+            reports/official_t12_all_main_workflow_inventory.json
           if-no-files-found: error
           retention-days: 30
