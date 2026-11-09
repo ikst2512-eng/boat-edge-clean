@@ -234,6 +234,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest -v test_four_mode_main_shadow_deployment_audit
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
           python four_mode_main_shadow_deployment_audit.py --output four_mode_main_candidate_stage_readiness.json
           python - <<'PY'
           import json
