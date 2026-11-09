@@ -108,7 +108,7 @@ class ScheduleVsRunVisibilityTests(unittest.TestCase):
     def test_mismatching_production_cron_fails_before_acceptance(self):
         for altered in (
             WORKFLOW_BYTES.replace(b"7,22,37,52 23",b"7,22,37,52 21"),
-            WORKFLOW_BYTES.replace(b"7,22,37,52 23 * * *\n", b""),
+            WORKFLOW_BYTES.replace(b"    - cron: '7,22,37,52 23 * * *'\n", b""),
             WORKFLOW_BYTES.replace(b"refs/heads/main", b"refs/heads/research"),
         ):
             with self.subTest(altered=altered), self.assertRaisesRegex(
