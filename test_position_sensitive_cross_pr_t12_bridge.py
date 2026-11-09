@@ -129,9 +129,11 @@ class CrossPrSourceBridgeTests(unittest.TestCase):
     def test_matching_complete_self_claim_never_promotes(self):
         r = report()
         x = r["races"][0]
-        x["six_boat_exhibition_complete"] = True
+        for key in COMPONENTS:
+            x[key] = True
         x["same_race_three_source_readiness"] = True
         r["fully_qualified_same_race_three_original_t12_sources"] = 1
+        r["forecasts_generated_after_all_originals"] = 1
         d = assess_cross_pr_blockers(r, [x["race_code"]])
         self.assertIn("upstream_authenticity_and_candidate_receipts_not_verified_here",
                       d["by_race"][0]["blockers"])
