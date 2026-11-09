@@ -8,7 +8,7 @@ import hashlib
 import json
 import unittest
 
-from test_four_mode_position_sensitive_forward import frozen
+from test_four_mode_position_sensitive_forward import archive, frozen
 from position_sensitive_public_comment_witness import (
     ID, REPO, RACE, SCHEMA, audit_public_comment,
 )
@@ -19,7 +19,9 @@ FIRST_ADD = "3665b15b36c617c042f0c93685e6bcdd4ba1e31a"
 
 
 def fixture():
-    candidate, original = frozen()
+    candidate, original = frozen(
+        archive(RACE, deadline="2026-11-09T20:38:00+09:00"),
+        "2026-11-09T14:25:53+09:00")
     exact = (json.dumps(candidate, ensure_ascii=False, sort_keys=True,
                         indent=2) + "\n").encode()
     hash_value = hashlib.sha256(exact).hexdigest()
