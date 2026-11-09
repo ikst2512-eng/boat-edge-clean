@@ -74,7 +74,8 @@ class RetiredOneDateWorkflowReferences(unittest.TestCase):
                     continue
                 source = path.read_text(encoding="utf-8")
                 for basename in self.RETIRED:
-                    if basename in source:
+                    # Historical tests may read an inert fixture, not an active workflow.
+                    if basename in source.replace("tests/fixtures/retired_workflows/" + basename, ""):
                         references.append((str(path.relative_to(root)), basename))
         self.assertEqual([], references, "source still hardcodes retired active workflow")
 
