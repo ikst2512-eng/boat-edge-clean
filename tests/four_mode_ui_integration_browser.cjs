@@ -95,6 +95,9 @@ async function verify(page,r){
       try{
         const page=await browser.newPage({viewport:{width:390,height:844}});
         let archiveCalls=0;
+        // Hold only the transport of one genuine Handler response to simulate
+        // an older race finishing after a new race has rendered.
+        let deferredArchive=null;
         await page.route('**/*',async route=>{
           const request=route.request(),url=new URL(request.url());
           if(url.origin===PAGES && url.pathname==='/boat-edge-clean/navigation.js')
@@ -103,6 +106,12 @@ async function verify(page,r){
             return route.fulfill({status:200,contentType:'text/html',body:html});
           if(url.origin===RENDER && url.pathname==='/api/four-mode-archive'){
             archiveCalls++;
+            if(deferredArchive && !deferredArchive.blocked &&
+               url.searchParams.get('code')===deferredArchive.code){
+              deferredArchive.blocked=true;
+              deferredArchive.notify();
+              await deferredArchive.gate;
+            }
             const headers=await request.allHeaders();
             const raw=await fetch('http://127.0.0.1:'+port+
               url.pathname+url.search,{headers:headers.origin?{Origin:headers.origin}:{}});
@@ -151,6 +160,36 @@ async function verify(page,r){
         await page.waitForFunction(k=>sameRaceKey()===k &&
           history.state?.snapshot?.date==='2026-11-06',key(first),{timeout:15000});
         const restored=await verify(page,first);
+
+        // Delayed first-race HTTP must not overwrite a later selected race.
+        // This keeps the original Handler response unmodified; only its
+        // transport completion is deliberately scheduled out of order.
+        let markSeen,release;
+        const seen=new Promise(resolve=>{markSeen=resolve});
+        const gate=new Promise(resolve=>{release=resolve});
+        deferredArchive={code:first.code,blocked:false,notify:markSeen,gate};
+        await page.evaluate(()=>render());
+        await Promise.race([seen,new Promise((_,reject)=>{
+          const id=setTimeout(()=>reject(Error('First-race delayed HTTP never started')),6000);
+          seen.then(()=>clearTimeout(id));
+        })]);
+        await page.evaluate(r=>{
+          datePinned=true;venueTouched=true;
+          s.date=r.date;s.venue=r.venue-1;s.race=r.race;render();
+        },second);
+        const fastSwitched=await verify(page,second);
+        const late=page.waitForResponse(res=>res.url().includes(
+          '/api/four-mode-archive?code='+first.code),{timeout:15000});
+        release();
+        await late;
+        await page.waitForTimeout(300);
+        const afterLate=await verify(page,second);
+        assert.deepEqual(afterLate,fastSwitched,
+          'Late response from old race must never replace latest visible race');
+        deferredArchive=null;
+        console.log('DRAFT_INTEGRATED_FOUR_MODE_STALE_HTTP_'+name.toUpperCase()+'_PASS '+
+          JSON.stringify({held:first.code,visible:second.code,sourceUnmodified:true}));
+
         console.log('DRAFT_INTEGRATED_FOUR_MODE_UI_'+name.toUpperCase()+'_PASS '+
           JSON.stringify({original:initial,switched,restored,
             realLocalHandler:true,sourceFilesUnchanged:true,
