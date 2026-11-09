@@ -313,3 +313,27 @@ Exact dropped/replacement ticket slots: `hit Top10=2`, `balance Top5=1 / Top10=1
 [CI #42585107968](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42585107968) **SUCCESS — 127/127 tests** after a regression-test fix that blocks the pre-registration cutoff's early Nov08 dates before any Git read. Its public checkpoint, whole-ledger live observation and TopK exposure outputs are uploaded as diagnostics, and checked against each other's exact SHA identities.
 
 **Evidence gates remain unchanged:** candidate bytes genuinely stored **1/600 (~0.17%)**, candidate exact original matched **1**, pre-T−12 GitHub observed existence **1**, first independently verified remote receipt **0**, complete run denominator **not verified**, official beforeinfo/exhibition 6/120 **not verified**, formally eligible pilot **0/300**, confirmation **0/300**, hit-rate improvement **not measured**. No live adoption, no auto-merge, and no main/Render/collector/UI changes.
+
+## 2026-11-09 17:38 JST — count missing *candidate* freezes among every saved original
+
+**Why this matters:** the previously observed **one successful research candidate** was not a complete intake denominator. Counting only published candidates conceals source-to-candidate attrition. New `position_sensitive_candidate_delivery_gap.py` gives a read-only snapshot of **all currently saved original V2** forecasts for a selected forward day, enumerated from one pinned `origin/main` commit, versus **all candidate files** at one pinned independent research-ledger branch tip. It checks every original by recomputing **all four mode rankings from the frozen V2 dependencies**, requires intact pre-T−12 original chronology, and replays every saved candidate. No result, payout, performance scoring, write, scheduling or publishing.
+
+**Actual [CI #42587377550](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42587377550): SUCCESS, 136/136 tests.** The **2026-11-09 17:38 JST** source/candidate snapshot showed:
+
+| Stored original V2 opportunity snapshot | Count |
+|---|---:|
+| Original forecast files eligible for exact result-blind source replay | **104** |
+| Original replay invalid/excluded | **0** |
+| Matching source-bound position-sensitive candidate already on research ledger | **1** |
+| Original exists, no new candidate, local T−12 freeze window elapsed | **86** |
+| Original exists, no new candidate, local T−12 freeze window still open | **17** |
+| Original's recorded generation later than the runner clock | **0** |
+| **Candidate delivery as % of available saved original files** | **1/104 = 0.96%** |
+
+The **103 missing candidates must NOT be retroactively created once their T−12 cutoff has passed**. In particular, **86** were already elapsed at the audit instant; **17** were still within their theoretical local publication window, but that count diminishes as deadlines pass. The one stored candidate is `202611091912` with recorded T−12 cutoff **20:26 JST**. A positive local time window is NOT evidence a candidate was ever independently received before cutoff.
+
+For reproducibility and missing-data accounting, the diagnostic artifact `position_candidate_delivery_gap.json` now records the **complete per-race main original roster**, exact original SHA-256, any candidate SHA-256, per-race status, all exclusions, both pinned Git commit tips and an independently reproducible SHA-256 of the observed roster. Tests include all-original enumeration versus an isolated saved candidate, source tampering, mismatched candidates, absent original source, unapproved paths, forbidden Nov08 retrospective day, empty denominators, future clock and lack of outcome access.
+
+**Denominator caveat:** This is *not* the complete roster of race opportunities nor a verifiable run/dispatch/rescue schedule inventory. It counts only originals already visible in the fetched main Git snapshot, so 104 is not 104 independent first remote receipts and not the denominator of a formally eligible 300+300 holdout. The **0.96%** is strictly candidate **delivery coverage among saved originals**, not a hit rate. Every output fixes `candidate_first_remote_receipts_independently_verified=0`, `formal_forward_eligible_races=0`, `promotion_allowed=false`.
+
+**Operational implication:** manual-only future candidate publication is a major bottleneck. The highest-priority next step is a **separately reviewed, create-only research publisher with genuine independent predeadline first-remote receipt**, plus a complete frozen opportunity inventory. Do not change the production collector or merge #1698 into main to address this. No retrospective backfill, no forced ticket diversification, no approval to adopt or deploy.
