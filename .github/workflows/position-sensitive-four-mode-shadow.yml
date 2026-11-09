@@ -151,13 +151,14 @@ jobs:
           PY
       - name: Audit isolated research ledger remote Git history (read only)
         run: |
-          python position_sensitive_ledger_history_audit.py --branch-ref refs/remotes/origin/position-sensitive-forward-evidence-ledger | tee position_ledger_history_audit.json
+          python position_sensitive_ledger_history_audit.py --branch-ref refs/remotes/origin/position-sensitive-forward-evidence-ledger --original-ref refs/remotes/origin/main | tee position_ledger_history_audit.json
           python - <<'PY'
           import json
           from pathlib import Path
           d = json.loads(Path("position_ledger_history_audit.json").read_text())
           if (d.get("status") != "linear_create_only_history_local_git_view_only"
                   or d.get("base_commit_sha") != "6b371040fd2fc4398bfa882e6557c333cc0800c8"
+                  or d.get("candidate_original_exact_replays") != d.get("candidate_files")
                   or d.get("candidate_first_remote_receipts_independently_verified") != 0
                   or d.get("formal") is not False
                   or d.get("model_improvement_proven") is not False
