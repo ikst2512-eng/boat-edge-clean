@@ -97,7 +97,12 @@ def freeze(row, p):
             "candidate": row["candidate"], "selectors": tuple(sorted(selectors.items())),
             "method": row["candidate_method_sha256"],
             "source_digest": row["source_sha256"],
-            "original_digest": row["original_forecast_sha256"]}
+            "original_digest": row["original_forecast_sha256"],
+            "source_received_jst": source.isoformat(),
+            "baseline_generated_jst": bg.isoformat(),
+            "baseline_github_observed_jst": bo.isoformat(),
+            "candidate_generated_jst": cg.isoformat(),
+            "candidate_github_observed_jst": co.isoformat()}
 
 
 def score(pre_result_rows, results, p):
@@ -134,6 +139,13 @@ def score(pre_result_rows, results, p):
             "deadline_jst": row["deadline"].isoformat(),
             "source_sha256": row["source_digest"],
             "original_forecast_sha256": row["original_digest"],
+            "self_reported_pre_result_chronology_jst": {
+                "official_source_received_jst": row["source_received_jst"],
+                "baseline_generated_jst": row["baseline_generated_jst"],
+                "baseline_github_observed_jst": row["baseline_github_observed_jst"],
+                "candidate_generated_jst": row["candidate_generated_jst"],
+                "candidate_github_observed_jst": row["candidate_github_observed_jst"],
+            },
             "candidate_method_sha256": row["method"],
             "mode_candidate_selector_sha256": dict(row["selectors"]),
             "baseline": row["baseline"],
@@ -203,9 +215,25 @@ def score(pre_result_rows, results, p):
         for mode in scores[phase]:
             for k in TOPS:
                 c = scores[phase][mode][f"top{k}"]
-                c["denominator_reference_only"] = matched[phase]
+                n = matched[phase]
+                c["denominator_reference_only"] = n
                 if c["candidate"]-c["baseline"] != c["gained"]-c["lost"]:
                     raise ValueError("paired_score_mismatch")
+                both = c["baseline"] - c["lost"]
+                neither = n - both - c["gained"] - c["lost"]
+                if min(both, neither) < 0:
+                    raise ValueError("paired_partition_mismatch")
+                c["both_hit_reference_only"] = both
+                c["neither_hit_reference_only"] = neither
+                c["paired_discordant_reference_only"] = c["gained"] + c["lost"]
+                # Descriptive rates ONLY: do not run inferential tests or
+                # market "precision" until independent formal cohort audit.
+                c["baseline_hit_pct_reference_only"] = (
+                    round(100 * c["baseline"] / n, 2) if n else None)
+                c["candidate_hit_pct_reference_only"] = (
+                    round(100 * c["candidate"] / n, 2) if n else None)
+                c["net_gain_pp_reference_only"] = (
+                    round(100 * (c["gained"] - c["lost"]) / n, 2) if n else None)
     phase_progress = {}
     for phase, target in (("pilot", p["pilot_races"]),
                           ("confirmation", p["confirmation_races"])):
