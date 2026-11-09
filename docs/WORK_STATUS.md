@@ -1,3 +1,10 @@
+## 2026-11-09 JST 重複・期限切れワークフロー整理（Draft・main未変更）
+- main再帰Git treeで追跡blob 11,956件、Actions YAML 149件を確認。Git blob SHA完全一致は1組（公式展示原本とfixture）であり用途が異なるため両方保持。名前・目的・処理が似たworkflowの機能重複は別途監査が必要。
+- 穴ペア手動ゲートウェイDraft #1701 は #1702 と目的重複、#1702側の固定source SHA・原本blob照合・競合ゲートウェイ拒否の方が強いため、コメント付きで #1701を2026-11-09に未統合close。#1702はDraftを維持し有効化しない。
+- 復旧Draft #1704（CORS）と #1705（WebKit）のアプリ/テスト変更計7ファイルは #1706 とdiff完全一致。#1706の統合検証・公開動作証明前に個別Draftを削除・統合しない。#1707は復旧後に画面整理。
+- 別Draft cleanup/retire-expired-t12-workflows-20261109 で期限切れ日付固定の4 workflowのみ削除提案（原本・研究コード・テスト・実績履歴は保持）：official-json-t12-oneoff-20261102.yml（年次cronが次年に失敗）、official-shimonoseki10-joint-oneoff-20261102.yml（過去日専用手動ジョブ）、t12-kiryu12-upstream-recovery-20261103.yml（毎回workflow_run通知後も2026-11-03以外skip）、official-three-original-t12-reinspect.yml（2026-11-03単発監査の次年cronは実行不要）。
+- 既存のCLEAN/4モード収集、watchdog、Render/Cloudflare、公式T-12証拠、歴史研究原本やUIは変更しない。GitHubの旧run/commitは保持。cleanupの検証はCIと他workflow依存監査が必要で、現在はmain削除・実運用改善を確認していない。mainへの自動統合は禁止。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
