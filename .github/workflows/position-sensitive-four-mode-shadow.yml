@@ -206,6 +206,13 @@ jobs:
                   or report.get("model_improvement_proven") is not False
                   or report.get("production_changed") is not False):
               raise SystemExit("whole_research_ledger_observation_not_safe")
+          print("POSITION_SENSITIVE_WHOLE_LEDGER_ROWS_NONFORMAL=" +
+                json.dumps([{
+                    "race_code": row["race_code"],
+                    "status": row["status"],
+                    "observed_at_utc": row.get("observed_at_utc"),
+                    "candidate_sha256": row["candidate_sha256"],
+                } for row in report["rows"]], sort_keys=True))
           print("POSITION_SENSITIVE_WHOLE_LEDGER_LIVE_HTTP_OBSERVED=" +
                 json.dumps({"candidates": report["candidate_files"],
                             "status_counts": counts,
