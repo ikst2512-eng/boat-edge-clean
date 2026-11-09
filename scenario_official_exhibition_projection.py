@@ -14,6 +14,7 @@ import json
 import math
 import re
 from datetime import datetime, timedelta
+from itertools import permutations
 
 CODE = re.compile(r"20[0-9]{10}\Z")
 SHA = re.compile(r"[a-f0-9]{64}\Z")
@@ -83,6 +84,8 @@ def project_exhibition_research(source_bundle, candidate, replay_callback):
     _guard_no_post_result(candidate)
     if source_bundle.get("formal") is True or candidate.get("formal") is True:
         raise ValueError("forged_formal_source_or_candidate")
+    if source_bundle.get("schema") != "FOUR_MODE_FUTURE_OFFICIAL_INPUT_LINEAGE_PREFLIGHT_V1":
+        raise ValueError("wrong_existing_lineage_contract")
     code = source_bundle.get("race_code")
     if (type(code) is not str or not CODE.fullmatch(code)
             or not 1 <= int(code[8:10]) <= 24
@@ -155,7 +158,11 @@ def project_exhibition_research(source_bundle, candidate, replay_callback):
                      "exhibition_st")
     tilts = _values_six(normalized["exhibition_tilts"], -5, 5, "tilt")
     odds = normalized["odds_3t"]
-    if type(odds) is not dict or len(odds) != 120:
+    expected_odds = {"-".join(map(str, t)) for t in permutations(range(1, 7), 3)}
+    if (type(odds) is not dict or set(odds) != expected_odds
+            or any(type(value) not in (int, float)
+                   or not math.isfinite(value) or value <= 0
+                   for value in odds.values())):
         raise ValueError("odds_120_structurally_missing")
 
     replay = replay_callback(source_bundle, candidate)
