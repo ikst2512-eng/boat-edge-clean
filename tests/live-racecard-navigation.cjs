@@ -294,9 +294,60 @@ const {chromium}=require('playwright');
       try{
        for(let attempt=1;attempt<=2;attempt++){
         const beforeRequests=racecardRequests,startedAt=Date.now();
-        await page.evaluate(()=>render());
+        // A request START alone is not proof the body arrived and was rendered.
+        const nextRequestPromise=page.waitForRequest(req=>{
+         try{
+          const u=new URL(req.url());
+          return req.method()==='GET'&&u.hostname==='boat-edge-clean.onrender.com'&&
+           u.pathname==='/api/clean-racecard'&&u.searchParams.get('hd')===today&&
+           Number(u.searchParams.get('jcd'))===selected.venue&&
+           Number(u.searchParams.get('rno'))===selected.race;
+         }catch{return false}
+        },{timeout:12000});
+        await page.evaluate(()=>{
+         render();
+         if(document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length)
+          throw Error('REPEATED_EXHIBITION_OLD_DOM_NOT_CLEARED');
+        });
+        const httpRequest=await nextRequestPromise;
+        let responseTimer,renewed;
+        try{
+         renewed=await Promise.race([
+          (async()=>{
+           const response=await httpRequest.response();
+           if(!response||response.status()!==200)
+            throw Error('REPEATED_EXHIBITION_HTTP_NOT_200 '+(response?.status()??'no_response'));
+           const failed=await response.finished();
+           if(failed)throw Error('REPEATED_EXHIBITION_HTTP_INCOMPLETE '+String(failed));
+           return response.json();
+          })(),
+          new Promise((_,reject)=>{responseTimer=setTimeout(()=>
+           reject(Error('REPEATED_EXHIBITION_HTTP_BODY_TIMEOUT')),12000)})
+         ]);
+        }finally{clearTimeout(responseTimer)}
+        const receivedAt=Date.parse(renewed?.source_audit?.beforeinfo?.fetched_at);
+        if(renewed?.race_key!==expected||renewed?.schema_version!=='boat-edge-race-v5'||
+           renewed?.source_audit?.beforeinfo?.status!=='ok'||
+           !Number.isFinite(receivedAt)||receivedAt>=deadline||receivedAt>Date.now()||
+           renewed?.beforeinfo?.racers?.length!==6||renewed?.beforeinfo?.start_exhibition?.length!==6)
+         throw Error('REPEATED_EXHIBITION_HTTP_BODY_UNVERIFIED '+JSON.stringify({
+          race:expected,attempt,responseKey:renewed?.race_key
+         }));
+        const sourceRows=Array.from({length:6},(_,i)=>{
+         const lane=i+1,ex=renewed.beforeinfo.racers.find(x=>Number(x.lane)===lane),
+          st=renewed.beforeinfo.start_exhibition.find(x=>Number(x.lane)===lane);
+         return {lane,time:Number(ex?.exhibition_time),tilt:Number(ex?.tilt),
+          course:Number(st?.course),st:signedStart(st?.st)};
+        });
+        if(sourceRows.some((row,i)=>!expectedRows[i]||Object.keys(row).some(field=>
+           field==='lane'?row.lane!==expectedRows[i].lane:
+           !sameNumber(row[field],expectedRows[i][field])))
+         throw Error('REPEATED_EXHIBITION_HTTP_VALUES_UNVERIFIED '+JSON.stringify({
+          race:expected,attempt,sourceRows
+         }));
         await page.waitForFunction(k=>sameRaceKey()===k&&
-         document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length===6,
+         document.querySelectorAll('#forecastPreviewRows .clean-race-lane').length===6&&
+         document.getElementById('forecastPreviewStatus')?.textContent.startsWith('締切前取得の展示情報'),
          expected,{timeout:12000});
         const elapsedMs=Date.now()-startedAt;
         const nextRows=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
@@ -316,7 +367,7 @@ const {chromium}=require('playwright');
         repeatedExhibitionVerified=true;
         console.log('LIVE_EXHIBITION_REPEAT_WITHIN_12S_PASS '+JSON.stringify({
          race:expected,repeats:2,initialDomMs:firstDomElapsedMs,
-         repeatDomMs:repeatedExhibitionTimings,realBrowserRequests:true,
+         repeatDomMs:repeatedExhibitionTimings,completedHttp200Responses:2,sourceSixBoatsMatched:true,
          valuesMatched:true,predeadline:true
         }));
        }
