@@ -43,6 +43,8 @@ class FeatureEffectTests(unittest.TestCase):
         self.assertFalse(result["official_t12_certified"])
         self.assertEqual(self.base, original)
         self.assertFalse(result["promotion_allowed"])
+        self.assertIsNone(result["confirmed_results_read"])
+        self.assertFalse(result["external_emitter_result_blind_independently_verified"])
 
     def test_same_value_and_missing_variant_rejected(self):
         for variants in [{"wind_speed_mps": 2.0},
