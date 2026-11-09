@@ -139,6 +139,7 @@ def compose_scenario_research(scenario_boards, scenario_weights):
         "status": "result_blind_synthetic_or_unattested_scenario_mixture",
         "scenario_weights_hypotheses": {name: weights[name] for name in sorted(names)},
         "scenario_board_sha256": {name: _digest(boards[name]) for name in sorted(names)},
+        "mixed_120_board_sha256": _digest(combined),
         "top10_reference": top10,
         "existing_four_mode_selector_on_mixture": modes,
         "separate_scenario_hole_research": {
