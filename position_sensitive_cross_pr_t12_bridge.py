@@ -148,3 +148,42 @@ def assess_cross_pr_blockers(source_report, candidate_race_codes):
             "No cross-race original substitution, outcome read or scoring."
         ),
     }
+
+
+
+def _reject_duplicate_keys(pairs):
+    data = {}
+    for key, value in pairs:
+        if key in data:
+            raise ValueError("duplicate_json_key")
+        data[key] = value
+    return data
+
+
+def _read_json_file(path, maximum):
+    """Treat both upstream reports and candidate rosters as UNTRUSTED files."""
+    from pathlib import Path
+    import json
+    path = Path(path)
+    if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= maximum:
+        raise ValueError("unsafe_json_report_path")
+    return json.loads(path.read_bytes(), object_pairs_hook=_reject_duplicate_keys)
+
+
+def main():
+    """Offline manual handoff only; prints noncertifying blocker JSON to stdout."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--t12-report", required=True)
+    parser.add_argument("--candidate-codes", required=True)
+    args = parser.parse_args()
+    source = _read_json_file(args.t12_report, 250_000)
+    codes = _read_json_file(args.candidate_codes, 30_000)
+    print(json.dumps(assess_cross_pr_blockers(source, codes),
+                     ensure_ascii=False, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()
