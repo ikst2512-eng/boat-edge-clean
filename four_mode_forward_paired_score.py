@@ -95,7 +95,9 @@ def freeze(row, p):
         raise ValueError("forged_formal_status")
     return {"code": code, "deadline": deadline, "baseline": row["baseline"],
             "candidate": row["candidate"], "selectors": tuple(sorted(selectors.items())),
-            "method": row["candidate_method_sha256"]}
+            "method": row["candidate_method_sha256"],
+            "source_digest": row["source_sha256"],
+            "original_digest": row["original_forecast_sha256"]}
 
 
 def score(pre_result_rows, results, p):
@@ -120,7 +122,31 @@ def score(pre_result_rows, results, p):
     # All selector and method bytes must be fixed BEFORE any result lookup.
     if len({(r["selectors"],r["method"]) for r in roster.values()}) > 1:
         raise ValueError("selector_changed_across_future_races")
-    ordered = sorted(roster.values(),key=lambda r:(r["deadline"],r["code"]))[:600]
+    # Build the reference roster identity entirely from pre-result information.
+    # Stable across caller ordering / outcome arrival, but NOT an independently
+    # time-stamped freeze or an authenticated first remote receipt.
+    ordered_all = sorted(roster.values(), key=lambda r: (r["deadline"], r["code"]))
+    fixed_capacity = p["pilot_races"] + p["confirmation_races"]
+    ordered = ordered_all[:fixed_capacity]
+    pre_result_manifest = [
+        {
+            "race_code": row["code"],
+            "deadline_jst": row["deadline"].isoformat(),
+            "source_sha256": row["source_digest"],
+            "original_forecast_sha256": row["original_digest"],
+            "candidate_method_sha256": row["method"],
+            "mode_candidate_selector_sha256": dict(row["selectors"]),
+            "baseline": row["baseline"],
+            "candidate": row["candidate"],
+        }
+        for row in ordered
+    ]
+    reference_roster_sha256 = (
+        hashlib.sha256(json.dumps(pre_result_manifest, sort_keys=True,
+                                  separators=(",", ":"), ensure_ascii=False)
+                       .encode("utf-8")).hexdigest()
+        if pre_result_manifest else None
+    )
     scores = {phase:{m:{f"top{k}":{"baseline":0,"candidate":0,"gained":0,"lost":0}
                    for k in TOPS} for m in COUNTS} for phase in ("pilot","confirmation")}
     # This scorer is NEVER a formal certifier. Report phase progress separately
@@ -209,6 +235,9 @@ def score(pre_result_rows, results, p):
             "complete_capture_run_inventory_verified":False,
             "eligible_roster_count":len(ordered), "matched_by_phase":dict(matched),
             "phase_progress":phase_progress,
+            "selected_pre_result_roster_sha256_reference_only":reference_roster_sha256,
+            "valid_pre_result_candidate_records_reference_only":len(ordered_all),
+            "candidate_records_after_fixed_600_not_scored":len(ordered_all)-len(ordered),
             "pending_result_codes":pending,"invalid_result_counts":dict(bad),
             "excluded_before_result_read":dict(excluded),"scores":scores,
             "warning":"GitHub observation != first remote receipt. This script cannot authenticate supplied SHA or timestamps. No formal/prospective performance without independent source bytes and complete capture-run inventory."}
