@@ -269,3 +269,26 @@ On **2026-11-09 14:31:10 JST** (GitHub REST `Date: 2026-11-09T05:31:10+00:00`), 
 CI **102/102 tests SUCCESS**, live remote ledger **1 actual candidate / 1 exact Python source replay**, 116/116 historical Nov08 input-only replay, no changed frozen model code, and the actual observation diagnostic was stored as `position_candidate_nov09_live_http_observation.json` in artifact `position-sensitive-input-only-42567753710` (**artifact ID 13651932744**). No `--publish` was invoked by CI, no live forecast changed, and no results/payouts/odds were read. The PR's observation step is **one-off race scoped**, and after T−12 it records `not_observed_due_to_T12_cutoff` rather than falsely attesting a late observation.
 
 **Do not over-certify:** the first Github API HTTP 200 on an object already stored **does not prove its FIRST remote receipt**, and Actions logs/artifacts are not independent historical WORM timestamps. The ledger branch is not protected. Candidate independently attested first-receipt **0**, formal forward-eligible sample **0**, complete 300+300 paired outcome sample **0**, official T−12 beforeinfo/exhibition six/120 odds still not verified. This is meaningful *pre-cutoff remote existence evidence* only. All research remains Draft, no main merge, auto-merge, UI/Render or production schedule change.
+
+## 2026-11-09 16:55 JST — result-blind FULL prospective candidate-roster monitor
+
+Confirmed a **real** research-ledger candidate exists for \`202611091912\`, committed in **create-only** separate ledger, as documented above. Unlike the prior hard-coded one-race GitHub observation, new \`position_sensitive_live_roster_audit.py\` enumerates **every** candidate file at one locally fetched and pinned immutable Git commit of \`refs/remotes/origin/position-sensitive-forward-evidence-ledger\`, checks the complete list (approved paths, unique identity, <=600 files), reads exact originals from \`refs/remotes/origin/main\`, and validates **ALL** candidates and four-mode ticket lists against the preregistered selector **before** making any remote GitHub HTTP calls.
+
+For each candidate before its exact T−12 cutoff, the tool performs read-only GitHub ref+Contents GETs with server UTC \`Date\`, confirming the actual observed ref commit **equals the roster's fetched commit**, as well as exact original SHA-256 and candidate SHA-256. If a candidate is already past T−12, the program reports \`deadline_cutoff_elapsed_no_new_observation_attempt\` and makes **no late call**; it never relabels a post-cutoff observation as pre-cutoff proof. Any mixed/corrupt roster, failed HTTP response, forged/changed tip or incorrect bytes fails closed rather than cherry-picking surviving rows. This does not claim a comprehensive **scheduled-run** inventory or an independent source of first remote receipt.
+
+CI's old one-off \`202611091912\` witness was replaced with a **whole-ledger** witness; there is still **NO publisher, no scheduled candidate collector and no remote write** in the PR workflow. Nine added regression tests exercise no-observer-after-cutoff, missing/bootstrap/duplicate/unapproved paths, no HTTP on local validation failure, changed tip, changed remote bytes and intentional live opt-out.
+
+[Exact-head CI #42582397029](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42582397029) **SUCCESS**, **111/111 tests**, immutable preregistration unchanged, **116/116 historical Nov08 V2 original replays**, and actual Nov09 research ledger **1 candidate / 1 exact original replay**. GitHub server UTC \`Date\` for the new live GET was **2026-11-09 07:55:58 UTC / 16:55:58 JST**, against **20:26 JST** cutoff, and exactly matches candidate SHA-256 **\`29f8e94800b9a904538b8d0e7a9fbad02baf94b296e1a2bc2dc5e999cbf2cf41\`**. The job uploaded \`position_candidate_live_roster_observation.json\` as a **nonformal** Actions artifact, not a first-receipt certificate.
+
+Result-blind ticket comparison on that **one** future saved candidate, using exact research-ledger bytes:
+
+| Mode | Original Top1 | Candidate Top1 | Top5 overlap | Top10 overlap |
+|---|---|---|---|---|
+| narrow | 1-2-4 | 1-2-4 | 5/5 | N/A (five-ticket mode) |
+| hit | 1-2-4 | 1-2-4 | 5/5 | 8/10 |
+| balance | 1-2-4 | 1-2-4 | 4/5 | 9/10 |
+| hole | 1-5-2 | 1-4-3 | 3/5 | 6/10 |
+
+Top1 changes only for **hole**, not every mode; **do not optimize toward forced diversity** or infer any hit-rate improvement. Only pre-result ranks were accessed; no result or payout was included in this comparison.
+
+**Evidence separation:** candidate physically stored **1**, independently authenticated **pre-T−12 GitHub existence observed 1**, independently verified **FIRST remote receipt 0**, official complete predeadline beforeinfo/6 exhibition/120 odds **0**, complete scheduled/rescue-run inventory **0**, formally eligible race **0**, pre-registered pilot/confirmation formally scored **0/300 + 0/300**. Unprotected candidate branch history remains vulnerable to an unseen earlier rewrite. Nothing is promoted; main, source collectors, Render/UI, fixed model, #1693 and hole-mode research stay unchanged. Draft PR only, no auto-merge.
