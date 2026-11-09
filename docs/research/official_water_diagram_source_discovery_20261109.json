@@ -286,7 +286,7 @@
       "prior_secondary_B_heading_deg": 180,
       "prior_secondary_hypotheses_disagree": false,
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=11",
-      "primary_diagram_image_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_11.png",
+      "primary_diagram_image_url": "https://boatrace.jp/static_extra/pc/images/img_water1_11.png",
       "primary_operator_diagram_image_url": null,
       "diagram_fetch_stage": "official_diagram_rendered",
       "diagram_fetch_failure_reason": null,
