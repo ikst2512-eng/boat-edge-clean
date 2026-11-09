@@ -19,7 +19,7 @@ def claimed_receipt(c):
         "official_t12_complete_verified": False,
         "formal": False,
         "production_promotion_allowed": False,
-        "warning": "Self-reported storage time is not independently signed.",
+        "warning": a.WORKER_WARNING,
     }
 
 
@@ -95,6 +95,51 @@ class D1ReceiptChainAuditTests(unittest.TestCase):
             r["first_received_at_utc"] = t
             with self.subTest(t=t), self.assertRaisesRegex(ValueError, "invalid_claimed_utc"):
                 a.audit_one(c, r)
+
+    def test_noncanonical_worker_timestamps_are_rejected(self):
+        c = candidate()
+        # The Worker returns exactly YYYY-MM-DDTHH:MM:SS.mmmZ.
+        malformed = (
+            "2026-11-09T01:55:00Z",
+            "2026-11-09T01:55:00+00:00",
+            "2026-11-09T01:55:00.0Z",
+            "2026-11-09T01:55:00.0000Z",
+            "2026-11-09T01:55:00.000+00:00",
+            "2026-11-09T01:55:00.000+09:00",
+            "2026-11-09T01:55:00.000000Z",
+        )
+        for field in ("first_received_at_utc", "declared_cutoff_utc"):
+            for value in malformed:
+                receipt = claimed_receipt(c)
+                receipt[field] = value
+                with self.subTest(field=field, value=value):
+                    with self.assertRaisesRegex(ValueError, "invalid_claimed_utc"):
+                        a.audit_one(c, receipt)
+
+    def test_worker_warning_must_match_exact_transport_contract(self):
+        c = candidate()
+        for warning in (
+            "Winner was 1-2-3",
+            "Independently verified first receipt.",
+            "Self-reported storage time is not independently signed.",
+            "",
+            None,
+        ):
+            receipt = claimed_receipt(c)
+            receipt["warning"] = warning
+            with self.subTest(warning=warning):
+                with self.assertRaisesRegex(
+                        ValueError, "conflicting_d1_receipt_identity_or_claim"):
+                    a.audit_one(c, receipt)
+
+    def test_fixed_transport_warning_remains_nonformal(self):
+        c = candidate()
+        receipt = claimed_receipt(c)
+        self.assertEqual(receipt["warning"], a.WORKER_WARNING)
+        result = a.audit_one(c, receipt)
+        self.assertTrue(result["claimed_receiver_receipt_consistent"])
+        self.assertFalse(result["receiver_receipt_authenticated"])
+        self.assertFalse(result["formally_eligible"])
 
     def test_repeat_does_not_add_independent_receipt(self):
         c = candidate()
