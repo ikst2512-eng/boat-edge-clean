@@ -28,6 +28,8 @@ on:
       - tests/test_audit_t12_remote_artifact_publication.py
       - scripts/audit_t12_saved_three_original_replay.py
       - tests/test_audit_t12_saved_three_original_replay.py
+      - scripts/audit_t12_same_race_proof_chain.py
+      - tests/test_audit_t12_same_race_proof_chain.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -62,6 +64,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_cross_workflow_schedule.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -218,6 +221,13 @@ jobs:
             --repo "$REPOSITORY" \
             --replay reports/official_t12_nov09_source_vs_forecast.json \
             --output reports/official_t12_nov09_remote_archive_time.json
+      - name: Compare Nov3 and Nov9 real source-proof gates without cross-race substitution
+        run: |
+          python -m scripts.audit_t12_same_race_proof_chain \
+            --nov03-three reports/official_t12_nov03_pinned_three_originals.json \
+            --nov09-two reports/official_t12_nov09_source_vs_forecast.json \
+            --nov09-remote reports/official_t12_nov09_remote_archive_time.json \
+            --output reports/official_t12_same_race_proof_chain.json
       - name: Inspect CURRENT JST racing day's collector and durable originals (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -253,5 +263,6 @@ jobs:
             reports/t12_cross_workflow_schedule_controls.json
             reports/official_t12_nov09_remote_archive_time.json
             reports/official_t12_nov03_pinned_three_originals.json
+            reports/official_t12_same_race_proof_chain.json
           if-no-files-found: error
           retention-days: 30
