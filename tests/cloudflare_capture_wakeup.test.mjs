@@ -378,64 +378,37 @@ test('scheduled adapter refuses foreign or missing Cron identities before any ne
   }
 });
 
-test('real scheduled adapter runs both mocked recoveries and emits scrubbed receipts',async()=>{
-  const when=tick(7,10),m=mock(),logs=[],errors=[];
-  const oldFetch=globalThis.fetch,oldNow=Date.now,oldLog=console.log,oldError=console.error;
-  globalThis.fetch=m.fetcher;
-  Date.now=()=>when;
-  console.log=message=>logs.push(String(message));
-  console.error=message=>errors.push(String(message));
-  try{
-    await cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',type:'scheduled',scheduledTime:when},
-      {GITHUB_DISPATCH_TOKEN:'PRIVATE_TEST_TOKEN',CLOUDFLARE_DISPATCH_ENABLED:'true'}, {});
-  }finally{
-    globalThis.fetch=oldFetch;Date.now=oldNow;console.log=oldLog;console.error=oldError;
-  }
+test('dormant recovery policy separately produces traceable mocked receipts without publication proof',async()=>{
+  const when=tick(7,10),m=mock(),receipts=[];
+  const out=await execute({scheduledTime:when,now:when,token:'PRIVATE_TEST_TOKEN',
+    fetcher:m.fetcher,clock:()=>when,onAccepted:x=>receipts.push(x)});
   assert.deepEqual(m.calls.map(x=>x.method),['GET','GET','GET','GET','POST','POST']);
-  const receipts=logs.filter(x=>x.startsWith('CLOUDFLARE_DISPATCH_RECEIPT='));
-  const reports=logs.filter(x=>x.startsWith('CLOUDFLARE_CAPTURE_WAKEUP='));
-  assert.equal(receipts.length,2);
-  assert.equal(reports.length,1);
-  assert.deepEqual(receipts.map(x=>JSON.parse(x.split('=')[1]).workflow),['clean','four_mode']);
-  assert.equal(JSON.parse(reports[0].slice(reports[0].indexOf('=')+1)).new_forecast_saved_proven,false);
-  assert.deepEqual(errors,[]);
-  assert.ok(logs.every(x=>!x.includes('PRIVATE_TEST_TOKEN')));
+  assert.deepEqual(receipts.map(x=>x.workflow),['clean','four_mode']);
+  assert.ok(receipts.every(x=>Number.isSafeInteger(x.github_run_id_reported) &&
+    x.github_run_id_proven===false && x.new_forecast_saved_proven===false &&
+    x.github_execution_slot_bound_proven===false && x.formal===false));
+  assert.equal(out.formal,false);
+  assert.ok(!JSON.stringify(receipts).includes('PRIVATE_TEST_TOKEN'));
 });
 
-test('scheduled adapter missing Secret fails before network with redacted error',async()=>{
-  const m=mock(),errors=[];
+test('hard-locked recovery Worker refuses ALL live POSTs even with the token and opt-in true',async()=>{
+  const when=tick(7,10),m=mock(),errors=[];
   const oldFetch=globalThis.fetch,oldNow=Date.now,oldError=console.error;
-  globalThis.fetch=m.fetcher;Date.now=()=>tick(7,10);console.error=message=>errors.push(String(message));
+  globalThis.fetch=m.fetcher;Date.now=()=>when;console.error=message=>errors.push(String(message));
   try{
-    await assert.rejects(()=>cloudflareWorker.scheduled({cron:'*/5 22-23,0-13 * * *',scheduledTime:tick(7,10)},
-      {CLOUDFLARE_DISPATCH_ENABLED:'true'},{}),/GITHUB_DISPATCH_TOKEN_required/);
+    for(const token of [undefined,'PRIVATE_TEST_TOKEN']){
+      await assert.rejects(()=>cloudflareWorker.scheduled({
+        cron:'*/5 22-23,0-13 * * *',scheduledTime:when},
+        {CLOUDFLARE_DISPATCH_ENABLED:'true',GITHUB_DISPATCH_TOKEN:token},{}),
+        /cross_provider_recovery_hard_locked/);
+    }
   }finally{globalThis.fetch=oldFetch;Date.now=oldNow;console.error=oldError;}
   assert.equal(m.calls.length,0);
-  assert.equal(errors.length,1);
-  assert.ok(errors[0].includes('GITHUB_DISPATCH_TOKEN_required'));
-  assert.ok(!errors[0].includes('Bearer'));
-});
-
-test('observer-only pure report computes recovery slots without credentials or GitHub calls',()=>{
-  const out=observe({scheduledTime:tick(7,10),now:tick(7,10)});
-  assert.equal(out.action,'no_network_no_dispatch');
-  assert.equal(out.mode,'observe_only');
-  assert.equal(out.github_history_checked,false);
-  assert.equal(out.github_run_id_proven,false);
-  assert.equal(out.formal,false);
-  assert.ok(out.eligible_slots_jst.clean);
-  assert.ok(out.eligible_slots_jst.four_mode);
-  assert.equal(typeof out.eligible_slots_jst.clean,'string');
-});
-
-test('observer-only rejects expired Cron time before reporting',()=>{
-  assert.throws(()=>observe({scheduledTime:tick(7,10)-120000,now:tick(7,10)}),/late_or_future_cron_trigger/);
-});
-
-test('Wrangler config makes non-dispatch observer the default',()=>{
-  const config=readFileSync(new URL('../cloudflare/wrangler.toml',import.meta.url),'utf8');
-  assert.match(config,/CLOUDFLARE_DISPATCH_ENABLED = "false"/);
-  assert.match(config,/required = \["GITHUB_DISPATCH_TOKEN"\]/);
+  assert.equal(errors.length,2);
+  assert.ok(errors.every(x=>x.includes('cross_provider_recovery_hard_locked') &&
+    !x.includes('PRIVATE_TEST_TOKEN') && !x.includes('Bearer')));
+  const source=readFileSync(new URL('../cloudflare/independent_capture_wakeup.mjs',import.meta.url),'utf8');
+  assert.match(source,/const CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED = true;/);
 });
 
 test('scheduled adapter defaults to observer with zero GitHub requests and no secret',async()=>{
