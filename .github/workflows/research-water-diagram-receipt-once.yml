@@ -1,0 +1,48 @@
+name: BOAT water diagram one-shot receipt (research only)
+
+on:
+  push:
+    branches:
+      - research/venue-environment-factor-baseline-20261106
+    paths:
+      - .github/workflows/research-water-diagram-receipt-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-water-diagram-one-shot-1692
+  cancel-in-progress: false
+
+jobs:
+  receive-one-official-image:
+    if: github.ref == 'refs/heads/research/venue-environment-factor-baseline-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Offline PNG and HTTP rejection tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest -q scripts.test_research_water_diagram_byte_gate
+          python3 -m unittest -q scripts.test_research_water_diagram_http_receipt
+      - name: Single direct HTTPS receipt of official Ashiya 21 water diagram
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/boat-water-receipt-1692"
+          python3 scripts/research_water_diagram_http_receipt.py \
+            --jcd 21 \
+            --timeout 15 \
+            --output-root "$RUNNER_TEMP/boat-water-receipt-1692"
+      - name: Preserve original bytes and JSON evidence only if actually captured
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-ashiya-21-png-one-shot-research-only
+          path: ${{ runner.temp }}/boat-water-receipt-1692/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
