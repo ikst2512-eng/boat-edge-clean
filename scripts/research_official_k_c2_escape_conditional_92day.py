@@ -18,7 +18,24 @@ if __package__:
 else:
     from research_official_k_one_day_compare import RACE, parse_k, unpack_lha
 
+EXPECTED_ARTIFACT_SHA256 = "c668f545bae54f8148616315e307ed2a2b04a77a0cb8abf88bf3ea078749ce8e"
+EXPECTED_ARTIFACT_BYTES = 3398466
 EXCLUDED = {"F", "S0", "S1", "S2"}
+
+def verify_original_zip(artifact_zip: Path):
+    """Pin entire original Actions ZIP independently from its enclosed manifest."""
+    if artifact_zip.is_symlink() or not artifact_zip.is_file():
+        raise ValueError("official_K_artifact_missing_or_symlink")
+    if artifact_zip.stat().st_size != EXPECTED_ARTIFACT_BYTES:
+        raise ValueError("official_K_artifact_size_not_frozen")
+    h = hashlib.sha256()
+    with artifact_zip.open("rb") as inp:
+        for chunk in iter(lambda: inp.read(1024 * 1024), b""):
+            h.update(chunk)
+    digest = h.hexdigest()
+    if digest != EXPECTED_ARTIFACT_SHA256:
+        raise ValueError("official_K_artifact_SHA_does_not_match_independent_receipt")
+    return digest
 BANDS = ("0-2m", "3-4m", "5m+")
 FIELDS = ("c1_escapement", "c1_win", "c2_sashi", "c2_win",
           "c3_makuri", "c4_makuri", "c3_makurizashi", "c4_makurizashi")
@@ -70,6 +87,7 @@ def analyze(artifact_zip: Path):
     }
     sha_rows = []
     raw_n = known_c1_n = known_c1_wins = 0
+    pinned_sha256 = verify_original_zip(artifact_zip)
     with ZipFile(artifact_zip) as z:
         if z.testzip() is not None:
             raise ValueError("source_artifact_ZIP_CRC_failed")
@@ -119,7 +137,7 @@ def analyze(artifact_zip: Path):
         "schema": "BOAT_EDGE_OFFICIAL_K_C2_ESCAPE_POSTRACE_V1",
         "period": "2026-08-01/2026-10-31",
         "classification": "official_primary_postrace_descriptive_only_not_T12",
-        "source": {"artifact_id": 13607470249, "raw_races": raw_n, "sha_verified_days": len(sha_rows),
+        "source": {"artifact_id": 13607470249, "zip_sha256": pinned_sha256, "raw_races": raw_n, "sha_verified_days": len(sha_rows),
                    "prior_C1_valid": known_c1_n, "prior_C1_wins": known_c1_wins},
         "definitions": {
             "eligible": "six distinct actual course entrants, C1/C2 statuses not F/S0/S1/S2, settled winner",
