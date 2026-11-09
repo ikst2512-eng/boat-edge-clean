@@ -97,3 +97,24 @@ jobs:
             exit 1
           fi
           echo 'PAGES_PUBLIC_HTTP_PASS'
+          # A single low-volume archive/API CORS diagnostic for the Pages origin.
+          # This DOES NOT replace #1679's real browser E2E.
+          archive_headers="$(mktemp)"
+          archive_body="$(mktemp)"
+          trap 'rm -f "$body" "$robots" "$robots_after" "$pages" "$archive_headers" "$archive_body"' EXIT
+          archive_result="$(curl --silent --show-error --connect-timeout 5 --max-time 8 \
+            --retry 0 --header 'Origin: https://ikst2512-eng.github.io' \
+            --dump-header "$archive_headers" --output "$archive_body" \
+            --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}' \
+            "$base/api/four-mode-archive?code=202610300101" 2>&1)" || archive_result='http=000 transport_error'
+          cors_origin="$(awk 'tolower($1)=="access-control-allow-origin:"{gsub(/\r/,"",$2);print $2}' "$archive_headers" | tail -n 1)"
+          echo "PUBLIC_UI_ARCHIVE_CANARY $archive_result cors_origin=$cors_origin"
+          if [[ "$archive_result" =~ ^http=200[[:space:]] ]] &&
+             [[ "$cors_origin" == 'https://ikst2512-eng.github.io' ]]; then
+            echo 'PUBLIC_UI_ARCHIVE_CORS_HEADER_PASS'
+          else
+            # Keep CORS and slow API failures visible, but the heartbeat's
+            # success means only transport and Pages HTML are reachable.
+            echo "::warning::PUBLIC_UI_ARCHIVE_NOT_BROWSER_READY status_or_cors_failed"
+          fi
+          echo 'UI_BROWSER_E2E_NOT_CERTIFIED_BY_HEARTBEAT'
