@@ -19,7 +19,7 @@ In contrast, `.github/workflows/four-mode-prospective-capture.yml` after success
 
 `cloudflare/native_publication_receipt_lab.mjs` reads raw native workflow YAML as text. It identifies the success branch *after* `if git push origin HEAD:main; then` up to its `exit 0`, and separately reports whether that branch contains (a) fetch remote main followed by ancestry confirmation, (b) published HEAD SHA capture, (c) a local publication receipt artifact with `commit_sha`. The output explicitly keeps `remote_publication_independently_observed:false`, `publication_immutable_first_add_proven:false`, `formal_t_minus_12_proven:false`, and `cross_provider_recovery_release_approved:false`, even for four-mode.
 
-Tests inspect both **real GitHub YAML files**, assert the known CLEAN-vs-four-mode difference, and reject illustrative checks placed before push, after success exit, in reverse order, or missing SHA metadata. This is a conservative string-based source contract check, **not** a YAML interpreter or a runtime GitHub observation. Any native workflow changes should trigger a fresh owner review and must not be counted as certification from a passing static fixture.
+Tests inspect both **real GitHub YAML files**, assert the known CLEAN-vs-four-mode difference, and reject illustrative checks placed before push, after success exit, in reverse order, or missing SHA metadata. The source audit now requires actual shell fetch/ancestry command lines, an assigned Python `sha = subprocess.check_output(["git","rev-parse","HEAD"], ...)` result, and a `target.write_text(json.dumps(...))` receipt with `"commit_sha": sha` and the expected publication path. Comment-only lines, `echo`-quoted command strings, and naked `git rev-parse HEAD` output must NOT count. This is a conservative string-based source contract check, **not** a YAML interpreter or a runtime GitHub observation. Any native workflow changes should trigger a fresh owner review and must not be counted as certification from a passing static fixture.
 
 ## Work for publisher owners in a separate reviewed Draft
 
@@ -32,3 +32,6 @@ Tests inspect both **real GitHub YAML files**, assert the known CLEAN-vs-four-mo
 ## NO-GO is unchanged
 
 The hard-locked recovery Worker must remain unable to dispatch even if `CLOUDFLARE_DISPATCH_ENABLED="true"` and PAT are present. The sole candidate for eventual owner-approved cloud deployment is the isolated, credential-free Observer. Real 24h Cloudflare logs/Free CPU <=10ms, cross-provider idempotent publication, actual GitHub job outcome, independently verified first-add SHA, and official T−12 original evidence remain unproven. No main merge/production change/auto-merge is authorized.
+
+
+**Review boundary:** This matcher is intentionally conservative, not a shell/Python control-flow interpreter. A new publisher implementation using equivalent but different commands should initially fail source-contract review, not be automatically approved. Source-level success may still be unreachable at runtime, and remote first-add remains unverified without independent GitHub evidence.
