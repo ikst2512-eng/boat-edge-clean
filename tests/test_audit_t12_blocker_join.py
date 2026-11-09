@@ -61,6 +61,27 @@ class SameDayT12BlockedResearchAudit(unittest.TestCase):
         self.assertFalse(report["accuracy_scoring_allowed"])
         self.assertFalse(report["per_slot_http_failures_inferred"])
 
+    def test_zero_observed_collector_start_explicitly_blocked_without_http_claim(self):
+        no_runs = schedule(
+            observed_official_pair_schedule_runs=0,
+            observed_within_declared_cron_hours=0,
+            runs=[],
+        )
+        report = join(no_runs, archive())
+        self.assertTrue(report["collector_no_in_hours_schedule_runs_observed"])
+        self.assertEqual(report["invocation_count_deficit_in_cron_hours"], 142)
+        self.assertEqual(report["invocation_count_coverage_pct"], 0.0)
+        self.assertIn("no_collector_schedule_run_created_in_declared_hours",
+                      report["missing_requirements"])
+        self.assertFalse(report["per_slot_http_failures_inferred"])
+        self.assertFalse(report["formal"])
+
+    def test_one_observed_collector_start_keeps_zero_start_marker_off(self):
+        report = join(schedule(), archive())
+        self.assertFalse(report["collector_no_in_hours_schedule_runs_observed"])
+        self.assertNotIn("no_collector_schedule_run_created_in_declared_hours",
+                         report["missing_requirements"])
+
     def test_future_archive_directory_not_auto_certified(self):
         a = archive(existing_day_directories=["20261103", "20261108"],
                     day_directory_present=True,
