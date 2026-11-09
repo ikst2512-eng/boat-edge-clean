@@ -1,5 +1,20 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-09: observer logs and query-scope acceptance update (Draft only)
+
+The dedicated zero-credential `cloudflare/wrangler.observer.toml` uses the documented Workers Logs layout: `[observability]` with `enabled = true`, and `[observability.logs]` with `invocation_logs = true` and `head_sampling_rate = 1`. The PR-only source preflight now rejects missing invocation logs, a non-one sampling rate, unexpected tables/keys and altered Cron identity. Wrangler `deploy --dry-run` and synthetic/local Workerd checks **do not prove** live logging has started.
+
+For `BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V1` input, preserve the **actual request filters** for BOTH the events query and the independent calculations query. The API wrapper now requires the **same exact scoped leaf** for each:
+
+```json
+{"kind":"filter","key":"$metadata.service","value":"boat-edge-clean-independent-observer","type":"string","operation":"eq"}
+```
+
+Previously, two identical but unrestricted/foreign-worker filter objects could satisfy the equality check. A filtered 384-record synthetic envelope cannot prove that Cloudflare's sampling calculation applied to the correct Worker unless both queries match this exact scope. Unexpected filter groups or extra predicates fail closed pending independent review. The source's `api_query_structure_pass` asserts only the operator-provided request/response structure, **never authenticates the Cloudflare API response** or confirms actual Free-plan CPU.
+
+Official documentation: https://developers.cloudflare.com/workers/observability/query-builder/ and https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/ .
+
+
 ## Status / evidence boundary (2026-11-08)
 
 This guide covers a **future manual**, owner-approved, zero-GitHub-credential pilot of `cloudflare/wrangler.observer.toml`. Nothing here means Cloudflare has been connected, an account charged, a Worker deployed, a Cron observed, or production GitHub recovery authorized. The existing Render service/fallback, native GitHub schedules, prediction archives and `main` must remain unchanged. Draft PR #1697 only.
