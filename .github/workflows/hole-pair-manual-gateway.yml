@@ -64,7 +64,15 @@ jobs:
           assert 'CAPTURE_UNVERIFIED_RESEARCH' in capture
           assert 'cancel-in-progress: false' in header
           assert 'research_candidate_freeze.json' in capture
-          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_no_pr_capture')
+          competitors = (
+              '.github/workflows/hole-pair-manual-research-gateway.yml',
+              '.github/workflows/hole-future-pair-precommit.yml',
+          )
+          for competitor in competitors:
+              assert not Path(competitor).exists(), 'competing_gateway_present_in_merge_tree:' + competitor
+              assert competitor in capture, 'missing_live_competing_gateway_guard:' + competitor
+          assert 'git cat-file -e "origin/main:$competing"' in capture
+          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_no_pr_capture_no_duplicate_gateway')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -106,6 +114,17 @@ jobs:
           test "$(git rev-parse HEAD)" = "$HOLE_RESEARCH_LOCKED_COMMIT"
           # Temporary runtime token is read-only. Main is fetched, not edited.
           git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          # Fail closed if a competing manual/legacy gateway reached main.
+          # This prevents THIS gateway from collecting alongside a second path;
+          # it cannot control executions initiated through the other workflow.
+          for competing in \
+            .github/workflows/hole-pair-manual-research-gateway.yml \
+            .github/workflows/hole-future-pair-precommit.yml; do
+            if git cat-file -e "origin/main:$competing" 2>/dev/null; then
+              echo "::error::competing research capture workflow on main: $competing; refuse this capture"
+              exit 3
+            fi
+          done
           python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
           python - <<'PY'
           import json
