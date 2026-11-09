@@ -48,7 +48,8 @@ export function verifyObserverOnlyPreflight(sources) {
   // counting known lines would miss it. Restrictive allowlist, not TOML parser.
   const allowed = new Map([
     ['', new Set(['name', 'main', 'compatibility_date', 'workers_dev'])],
-    ['observability', new Set(['enabled', 'head_sampling_rate'])],
+    ['observability', new Set(['enabled'])],
+    ['observability.logs', new Set(['invocation_logs', 'head_sampling_rate'])],
     ['vars', new Set(['CLOUDFLARE_DISPATCH_ENABLED'])],
     ['triggers', new Set(['crons'])],
   ]);
@@ -57,7 +58,7 @@ export function verifyObserverOnlyPreflight(sources) {
   for (const line of oc.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
-    const section = trimmed.match(/^\[([A-Za-z_][A-Za-z_0-9]*)\](?:\s+#.*)?$/);
+    const section = trimmed.match(/^\[([A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*)\](?:\s+#.*)?$/);
     if (section) {
       activeSection = section[1];
       if (!allowed.has(activeSection)) failures.push('observer_unexpected_or_missing_toml_section');
@@ -79,9 +80,9 @@ export function verifyObserverOnlyPreflight(sources) {
   // The observer configuration is deliberately minimal: reject extra TOML
   // sections, remote routes, secret/binding declarations and repeat keys.
   const sections = [...oc.matchAll(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/gm)].map(m => m[1]);
-  requireCheck(sections.length === 3 &&
-    sections.every(s => ['vars','triggers','observability'].includes(s)) &&
-    new Set(sections).size === 3, 'observer_unexpected_or_missing_toml_section');
+  requireCheck(sections.length === 4 &&
+    sections.every(s => ['vars','triggers','observability','observability.logs'].includes(s)) &&
+    new Set(sections).size === 4, 'observer_unexpected_or_missing_toml_section');
   requireCheck(count(oc, /^\s*name\s*=\s*"boat-edge-clean-independent-observer"\s*(?:#.*)?$/gm) === 1,
     'observer_identity_invalid');
   requireCheck(count(oc, /^\s*main\s*=\s*"independent_capture_observer.mjs"\s*(?:#.*)?$/gm) === 1,
@@ -95,11 +96,12 @@ export function verifyObserverOnlyPreflight(sources) {
   requireCheck(count(oc, /^\s*CLOUDFLARE_DISPATCH_ENABLED\s*=\s*"false"\s*(?:#.*)?$/gm) === 1,
     'observer_dispatch_flag_not_off');
   requireCheck(count(oc, /^\s*enabled\s*=\s*true\s*(?:#.*)?$/gm) === 1 &&
+    count(oc, /^\s*invocation_logs\s*=\s*true\s*(?:#.*)?$/gm) === 1 &&
     count(oc, /^\s*head_sampling_rate\s*=\s*1(?:\.0)?\s*(?:#.*)?$/gm) === 1,
     'observer_logs_not_full_sample');
   requireCheck(!/\[\[|\bGITHUB_DISPATCH_TOKEN\b|\b(?:route|routes|account_id|zone_id|kv_namespaces|durable_objects|secrets|r2_buckets)\s*=/i.test(oc),
     'observer_forbidden_binding_or_route');
-  requireCheck(count(oc,/^\s*(?:name|main|compatibility_date|workers_dev|crons|CLOUDFLARE_DISPATCH_ENABLED|enabled|head_sampling_rate)\s*=/gm) === 8,
+  requireCheck(count(oc,/^\s*(?:name|main|compatibility_date|workers_dev|crons|CLOUDFLARE_DISPATCH_ENABLED|enabled|invocation_logs|head_sampling_rate)\s*=/gm) === 9,
     'observer_repeated_or_extra_control_key');
 
   requireCheck(/from\s+['"]\.\/independent_capture_slots\.mjs['"]/.test(os),
