@@ -29,8 +29,10 @@ jobs:
           set -euo pipefail
           body="$(mktemp)"
           robots="$(mktemp)"
+          robots_after="$(mktemp)"
           pages="$(mktemp)"
-          trap 'rm -f "$body" "$robots" "$pages"' EXIT
+          trap 'rm -f "$body" "$robots" "$robots_after" "$pages"' EXIT
+          echo "RENDER_CHECK_CONTEXT event=${GITHUB_EVENT_NAME:-unknown} utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) sha=${GITHUB_SHA:-unknown}"
           base='https://boat-edge-clean.onrender.com'
           # /robots.txt is served by the edge while asleep and does NOT wake Free instances.
           # Diagnostic only: its status never substitutes for GET /healthz success.
@@ -43,6 +45,60 @@ jobs:
           else
             echo "RENDER_IDLE_SIGNAL unclassified_http=$robot_http"
           fi
+          # Recheck robots after health: an idle->origin transition is informative,
+          # but only /healthz 200 plus exact body can pass this job.
+          report_robots_after() {
+            local after_http
+            after_http="$(curl --silent --show-error --connect-timeout 5 --max-time 8 \
+              --retry 0 --output "$robots_after" --write-out '%{http_code}' \
+              "$base/robots.txt")" || after_http='000'
+            if [[ "$after_http" == '200' ]] &&
+               grep -Eiq '^[[:space:]]*Disallow:[[:space:]]*/[[:space:]]*
+          # HTTP non-200, timeout, or incorrect body. Never hide missed wakeups.
+          if ! result="$(curl --silent --show-error             --connect-timeout 5 --max-time 30 --retry 0             --output "$body"             --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}'             "$base/healthz" 2>&1)"; then
+            echo "::error::RENDER_HTTP_UNAVAILABLE $(printf '%s' "$result" | head -c 300)"
+            report_robots_after
+            exit 1
+          fi
+          echo "RENDER_READINESS_PROBE $result"
+          report_robots_after
+          # A recovered instance can be usable but still slow for a mobile visitor.
+          # Log this separately; do not silently present a slow start as fast.
+          ttfb="${result##*ttfb=}"
+          if [[ "$ttfb" =~ ^[0-9]+([.][0-9]+)?$ ]] &&
+             awk -v ms="$ttfb" 'BEGIN {exit !(ms > 10)}'; then
+            echo "::warning::RENDER_HTTP_SLOW_START ttfb_seconds=$ttfb threshold_seconds=10"
+          fi
+          if [[ ! "$result" =~ ^http=200[[:space:]] ]] ||
+             ! cmp -s "$body" <(printf 'ok'); then
+            echo "::error::RENDER_HEALTH_NOT_EXACT_200_OK bytes=$(wc -c < "$body" | tr -d ' ')"
+            exit 1
+          fi
+          echo 'RENDER_PUBLIC_HEALTH_PASS'
+          # Verify the public UI independently from the Render API origin.
+          # An HTTP 200 from /healthz alone does not prove the UI is reachable.
+          if ! pages_result="$(curl --silent --show-error --location --max-redirs 2 \
+            --connect-timeout 5 --max-time 15 --retry 0 --output "$pages" \
+            --write-out 'http=%{http_code} total=%{time_total}' \
+            'https://ikst2512-eng.github.io/boat-edge-clean/' 2>&1)"; then
+            echo "::error::PAGES_UNAVAILABLE $(printf '%s' "$pages_result" | head -c 250)"
+            exit 1
+          fi
+          echo "PAGES_READINESS_PROBE $pages_result"
+          if [[ ! "$pages_result" =~ ^http=200[[:space:]] ]] ||
+             ! grep -Fq 'BOAT EDGE CLEAN' "$pages"; then
+            echo '::error::PAGES_NOT_VALID_HTML'
+            exit 1
+          fi
+          echo 'PAGES_PUBLIC_HTTP_PASS'
+ "$robots_after"; then
+              echo 'RENDER_IDLE_AFTER possible-free-idle-response'
+            elif [[ "$after_http" == '404' ]] && cmp -s "$robots_after" <(printf 'not found'); then
+              echo 'RENDER_IDLE_AFTER origin-404'
+            else
+              echo "RENDER_IDLE_AFTER unclassified_http=$after_http"
+            fi
+          }
           # A request can prevent idle while the instance is active; fail closed on
           # HTTP non-200, timeout, or incorrect body. Never hide missed wakeups.
           if ! result="$(curl --silent --show-error             --connect-timeout 5 --max-time 30 --retry 0             --output "$body"             --write-out 'http=%{http_code} total=%{time_total} ttfb=%{time_starttransfer}'             "$base/healthz" 2>&1)"; then
