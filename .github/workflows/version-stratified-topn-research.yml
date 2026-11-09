@@ -31,6 +31,8 @@ on:
       - research/four_mode_hit_head_prior_forward_protocol_20261108.json
       - test_four_mode_top1_bias_input_audit.py
       - four_mode_top1_capture_run_inventory.py
+      - four_mode_candidate_ledger_readiness.py
+      - test_four_mode_candidate_ledger_readiness.py
       - test_four_mode_top1_capture_run_inventory.py
       - docs/research/four_mode_forward_all_modes_20261106.md
       - .github/workflows/version-stratified-topn-research.yml
@@ -226,6 +228,30 @@ jobs:
           PY
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
+      - name: Unit-test fail-closed durable candidate ledger inventory
+        run: python -m unittest -v test_four_mode_candidate_ledger_readiness
+      - name: Read actual remote four-mode candidate branch without scoring
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python four_mode_candidate_ledger_readiness.py --output four_mode_candidate_remote_readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path("four_mode_candidate_remote_readiness.json").read_text())
+          if (r.get("formal") is not False
+                  or r.get("model_improvement_proven") is not False
+                  or r.get("model_promotion_allowed") is not False
+                  or r.get("independent_first_remote_candidate_receipt_verified") is not False
+                  or r.get("official_three_originals_verified") is not False
+                  or r.get("complete_run_attempt_inventory_verified") is not False
+                  or r.get("future_paired_races_admitted") != 0):
+              raise SystemExit("REMOTE_CANDIDATE_EVIDENCE_OVERCLAIM")
+          print("CANDIDATE_LEDGER_BOUNDED_INVENTORY:"
+                + str(r["durable_candidate_records"])
+                + ":FIRST_RECEIPT_UNVERIFIED:FORMAL=0")
+          PY
       - name: Check original and candidate replay before any result lookup
         run: python -m unittest -v test_four_mode_all_shadow_reference_review
       - name: Test fixed prior Top1 concentration and absence of result reads
@@ -745,6 +771,7 @@ jobs:
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
             four_mode_nov09_current_main_input_readiness.json
+            four_mode_candidate_remote_readiness.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
