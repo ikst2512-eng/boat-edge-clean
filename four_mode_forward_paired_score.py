@@ -245,6 +245,9 @@ def preflight_unregistered_scenario_bridge(baseline, bridge):
         for k in TOPS:
             old_top, new_top = set(old[:k]), set(candidate[:k])
             top[f"top{k}"] = {
+                "requested_topn": k,
+                "effective_ticket_count": min(k, size),
+                "requested_topn_exceeds_mode_budget": k > size,
                 "original_ticket_count": len(old_top),
                 "scenario_ticket_count": len(new_top),
                 "unchanged_ticket_count": len(old_top & new_top),
