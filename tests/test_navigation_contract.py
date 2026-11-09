@@ -91,6 +91,10 @@ class NavigationContractTest(unittest.TestCase):
                          'forecast-inline-evidence'):
             with self.subTest(required=required):
                 self.assertIn(required, stats)
+        self.assertIn('id="forecastQuinellaRows"', stats)
+        self.assertIn('全国・当地・モーター・ボートの2連対率', stats)
+        self.assertIn("const raceCardValid=raw.race_key===key", self.index)
+        self.assertIn("value.toFixed(1)+'%':'未取得'", self.index)
         self.assertIn('aria-label="連対率と選手データ" hidden', stats)
         self.assertIn("stats:root.querySelector('.forecast-stats-pane')", self.index)
         self.assertIn("setForecastPane(v.pane==='stats'?'stats':'prediction')", self.nav)
