@@ -5,7 +5,8 @@ import unittest
 from itertools import permutations
 from four_mode_forward_paired_score import (COUNTS, PROTOCOL, protocol_check, score,
                                        exact_mcnemar_two_sided_reference,
-                                       confirmation_holm_reference)
+                                       confirmation_holm_reference,
+                                       preflight_unregistered_scenario_bridge)
 
 
 class FourModeForwardTests(unittest.TestCase):
@@ -457,6 +458,96 @@ class FourModeForwardTests(unittest.TestCase):
             "pilot_or_confirmation_not_fully_scored_reference")
         self.assertIsNone(
             pending["confirmation_top10_holm_reference_only"]["p_values_reference_only"])
+
+    def scenario_bridge(self):
+        original = self.row()["baseline"]
+        return {
+            "schema": "ALL_MODE_SCENARIO_BRIDGE_EXPLORATORY_V1",
+            "mixed_120_board_sha256": "a" * 64,
+            "mode_ticket_budgets": dict(COUNTS),
+            "existing_four_mode_selector_on_mixture": {
+                mode: {"tickets": [{"combo": combo, "p": 0.5}
+                                   for combo in combos]}
+                for mode, combos in original.items()
+            },
+            "source_feature_provenance_independently_verified": False,
+            "verified_official_six_exhibition_and_120_odds": False,
+            "first_remote_receipt_verified": False,
+            "scenario_weights_calibrated": False,
+            "probabilities_calibrated": False,
+            "confirmed_results_read": False,
+            "formal": False,
+            "forecast_usable": False,
+            "betting_recommendation": False,
+            "production_changed": False,
+            "model_improvement_proven": False,
+            "promotion_allowed": False,
+        }
+
+    def test_1710_scenario_preflight_exposes_ticket_changes_not_hits(self):
+        original = self.row()["baseline"]
+        bridge = self.scenario_bridge()
+        hit = bridge["existing_four_mode_selector_on_mixture"]["hit"]["tickets"]
+        hit[0]["combo"], hit[1]["combo"] = hit[1]["combo"], hit[0]["combo"]
+        result = preflight_unregistered_scenario_bridge(original, bridge)
+        self.assertTrue(result["comparison"]["hit"]["top1_exact_combo_changed"])
+        self.assertFalse(result["comparison"]["narrow"]["top1_exact_combo_changed"])
+        self.assertEqual(
+            result["comparison"]["hit"]["topn_exposure_result_blind"]["top1"]
+                  ["new_tickets_not_hits"], 1)
+        self.assertFalse(
+            result["comparison"]["hit"]["topn_exposure_result_blind"]["top3"]
+                  ["membership_changed"])
+        self.assertTrue(result["requires_new_future_only_preregistration"])
+        self.assertFalse(result["confirmed_results_read"])
+        self.assertFalse(result["winning_hit_gain_or_loss_computed"])
+        self.assertFalse(result["candidate_eligible_for_1693_registered_600"])
+        self.assertFalse(result["model_promotion_allowed"])
+
+    def test_1710_scenario_false_formal_and_malformed_ticket_rejected(self):
+        original = self.row()["baseline"]
+        for key, value in (
+            ("formal", True),
+            ("confirmed_results_read", True),
+            ("source_feature_provenance_independently_verified", True),
+            ("first_remote_receipt_verified", True),
+            ("promotion_allowed", True),
+        ):
+            bad = self.scenario_bridge()
+            bad[key] = value
+            with self.subTest(field=key):
+                with self.assertRaisesRegex(
+                    ValueError, "outcome_or_forged_scenario_certification"):
+                    preflight_unregistered_scenario_bridge(original, bad)
+        bad = self.scenario_bridge()
+        bad["finish_order"] = [1, 2, 3]
+        with self.assertRaisesRegex(ValueError, "outcome_or_forged"):
+            preflight_unregistered_scenario_bridge(original, bad)
+        bad = self.scenario_bridge()
+        bad["existing_four_mode_selector_on_mixture"]["hole"]["tickets"][1]["combo"] = (
+            bad["existing_four_mode_selector_on_mixture"]["hole"]["tickets"][0]["combo"])
+        with self.assertRaisesRegex(ValueError, "invalid_or_changed_ticket_budget"):
+            preflight_unregistered_scenario_bridge(original, bad)
+        bad = self.scenario_bridge()
+        bad["existing_four_mode_selector_on_mixture"]["hit"]["tickets"][0]["p"] = float("nan")
+        with self.assertRaisesRegex(ValueError, "invalid_scenario_mode_ticket"):
+            preflight_unregistered_scenario_bridge(original, bad)
+
+    def test_1710_unregistered_metadata_can_never_enter_1693_roster(self):
+        row = self.row()
+        for field, value in (
+            ("scenario_bridge", self.scenario_bridge()),
+            ("scenario_candidate_study_id", "new_unregistered_future_model"),
+            ("unregistered_scenario_model", True),
+        ):
+            invalid = copy.deepcopy(row)
+            invalid[field] = value
+            result = score([invalid], {}, self.policy)
+            self.assertEqual(result["eligible_roster_count"], 0)
+            self.assertIn("scenario_candidate_requires_separate_future_registration",
+                          result["excluded_before_result_read"])
+            self.assertFalse(result["formal"])
+            self.assertFalse(result["model_promotion_allowed"])
 
 
 if __name__ == "__main__":
