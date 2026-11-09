@@ -55,3 +55,14 @@ The source packet lab intentionally accepts only same-race-day received-at-JST c
 
 **Existing measured missingness:** GitHub research CI for saved Nov-08 116 V2 original files observed `national_win_rates_six=116/116`, `public_title_card_digests_recorded=116/116`, while `actual_entry_six_structured=0`, `exhibition_ST_six_structured=0`, `exhibition_six_structured=0`, `motor_six_structured=0`, `wind_structured=0`, `wave_height=0`, `odds_120_structured=0`. This audits **recorded original-file fields**, NOT proof that no other archive/source contains the features. None are authenticated as official T−12.
 
+## Nov-09 original-file result-blind feature audit (exact CI)
+
+The separate research-only CI at [#42617013458](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42617013458) **passed 23/23 synthetic negative/consistency tests**, Nov-08 original V2 116/116 replay and frozen preregistration source blob pins. It also audited all **104 Nov-09** archived original V2 files (104/104, excluded 0) as available to that exact-head checkout, without reading finish results:
+- six national win rates: **104/104**, public title/card SHA records: **104/104**;
+- structured six-boat official beforeinfo / actual entry / exhibition / exhibition ST / motor: **0/104**;
+- structured wind / wave height / official 120-way odds: **0/104**.
+
+This is **absence of fields within the 104 original forecast JSONs**, not a universal claim that other official data sources contain no information or that raw original bytes are independently authenticated. The frozen #1698 selector continues to use **only six national win rates**; no inferred missing features were fed to the new model. The four-kind packet integrity test reports even a fully synthetic packet as untrusted and not formally eligible.
+
+The legacy shadow suite at [#42617013414](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42617013414) also succeeded on the same exact head. The source-packet and feature-lab changes are not imported by production.
+
