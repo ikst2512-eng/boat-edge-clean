@@ -1,10 +1,14 @@
 name: Isolated WebKit navigation-history hotfix checks
 on:
+  # Manual from default branch only AFTER an explicitly approved release.
+  # PR builds use local WebKit and syntax-check the future production probe.
+  workflow_dispatch:
   pull_request:
     paths:
       - index.html
       - navigation.js
       - tests/webkit-history-hotfix.cjs
+      - tests/live_webkit_history_postdeploy.cjs
       - .github/workflows/webkit-history-hotfix.yml
 permissions:
   contents: read
@@ -23,9 +27,13 @@ jobs:
         run: |
           node --check navigation.js
           node --check tests/webkit-history-hotfix.cjs
+          node --check tests/live_webkit_history_postdeploy.cjs
       - name: Install local WebKit engine
         run: |
           npm install --no-save --no-package-lock playwright@1.58.2
           npx playwright install --with-deps webkit
       - name: Verify real WebKit history quotas, race changes and back/forward
         run: node tests/webkit-history-hotfix.cjs
+      - name: Verify REAL published Pages WebKit history (manual only after deployment)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_webkit_history_postdeploy.cjs
