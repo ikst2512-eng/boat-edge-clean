@@ -83,6 +83,17 @@ async function verify(page,r){
 (async()=>{
   const {child,port}=await localHandler();
   try{
+    // Verify the exact production Handler static routes which will be
+    // compared against both deployed hosts by the manual postrelease gate.
+    for(const [asset,route] of [['index.html','/index.html'],['navigation.js','/navigation.js']]){
+      const r=await fetch('http://127.0.0.1:'+port+route,{
+        signal:AbortSignal.timeout(10000),cache:'no-store'
+      });
+      assert.equal(r.status,200,'Handler must serve '+asset);
+      assert.deepEqual(Buffer.from(await r.arrayBuffer()),fs.readFileSync(asset),
+        'Handler served bytes must equal checked-out '+asset);
+    }
+    console.log('DRAFT_RENDER_HANDLER_FRONTEND_BYTES_MATCH source=index.html,navigation.js');
     // These are real Handler headers from a real HTTP response, even though
     // Playwright transports the response to a synthetic Pages-origin document.
     const check=await fetch('http://127.0.0.1:'+port+
