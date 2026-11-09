@@ -1,9 +1,11 @@
 """Off-line research-only unit tests, never mutate forecasts or main."""
 import unittest
 from scripts.research_official_k_c2_escape_conditional_92day import (
-    race_outcome, wind_bin, public_counts,
+    race_outcome, wind_bin, public_counts, verify_original_zip,
 )
 from collections import Counter
+from tempfile import TemporaryDirectory
+from pathlib import Path
 
 def race(winner=1, method="逃げ", special=None, missing_course=None):
     special=special or {}
@@ -56,6 +58,35 @@ class TestKConditional(unittest.TestCase):
         self.assertEqual([wind_bin(x) for x in (0,2,3,4,5,10)],
                          ["0-2m","0-2m","3-4m","3-4m","5m+","5m+"])
         with self.assertRaises(ValueError): wind_bin(-1)
+
+    def test_original_zip_rejects_mismatching_file(self):
+        with TemporaryDirectory() as d:
+            f = Path(d) / "official.zip"
+            f.write_bytes(b"fake_zip_with_matching_embedded_manifest_impossible")
+            with self.assertRaisesRegex(ValueError, "artifact_size_not_frozen"):
+                verify_original_zip(f)
+
+    def test_original_zip_rejects_missing_file(self):
+        with TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError, "missing_or_symlink"):
+                verify_original_zip(Path(d) / "missing.zip")
+
+    def test_original_zip_rejects_same_size_forgery(self):
+        with TemporaryDirectory() as d:
+            f = Path(d) / "official.zip"
+            with f.open("wb") as out:
+                out.truncate(3398466)
+            with self.assertRaisesRegex(ValueError, "SHA_does_not_match"):
+                verify_original_zip(f)
+
+    def test_original_zip_rejects_symlink(self):
+        with TemporaryDirectory() as d:
+            source = Path(d) / "source.zip"
+            source.write_bytes(b"not_the_archive")
+            linked = Path(d) / "linked.zip"
+            linked.symlink_to(source)
+            with self.assertRaisesRegex(ValueError, "missing_or_symlink"):
+                verify_original_zip(linked)
 
     def test_zero_denominator_not_false_zero(self):
         self.assertIsNone(public_counts(Counter())["c2_sashi"]["percent"])
