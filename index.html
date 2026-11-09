@@ -714,6 +714,7 @@ async function loadForecastCourseStats(){
  const requestId=++forecastCourseStatsRequestId;
  const key=sameRaceKey(),target=document.querySelector('.forecast-statistics table[aria-label="コース成績と決まり手"] tbody');
  if(!target)return;
+ const sourceLabel=document.getElementById('forecastCourseStatsSource');
  const quinellaRows=document.getElementById('forecastQuinellaRows');
  const quinellaStatus=document.getElementById('forecastQuinellaStatus');
  if(quinellaRows){quinellaRows.replaceChildren();if(quinellaStatus)quinellaStatus.textContent='未取得';}
