@@ -5,6 +5,7 @@ on:
     paths:
       - server.py
       - tests/test_four_mode_archive_cors_hotfix.py
+      - tests/four_mode_archive_cors_browser.cjs
       - .github/workflows/four-mode-archive-cors-hotfix.yml
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
 jobs:
   actual-http-cors:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,3 +24,13 @@ jobs:
           python-version: '3.12'
       - name: Verify exact allow-origin headers from real local HTTP
         run: python -m unittest discover -s tests -p 'test_four_mode_archive_cors_hotfix.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser engines for isolated cross-origin CORS check
+        timeout-minutes: 10
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Verify browser-enforced CORS with unmodified local Handler headers
+        run: node tests/four_mode_archive_cors_browser.cjs
