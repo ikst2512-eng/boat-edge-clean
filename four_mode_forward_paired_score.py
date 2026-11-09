@@ -5,6 +5,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime, timedelta
+from math import comb
 from pathlib import Path
 
 from collect_clean_results import BASE as CONFIRMED_RESULT_SOURCE_BASE
@@ -105,6 +106,86 @@ def freeze(row, p):
             "candidate_github_observed_jst": co.isoformat()}
 
 
+def exact_mcnemar_two_sided_reference(gained, lost):
+    """Conditional exact two-sided binomial p on discordant SAME-race pairs.
+
+    This is only numerical machinery; provenance of input observations is
+    never authenticated by a p-value. No optional testing or early stopping.
+    """
+    if (type(gained) is not int or type(lost) is not int or
+            min(gained, lost) < 0 or gained + lost > 300):
+        raise ValueError("invalid_paired_discordance_for_300_confirmation")
+    discordant = gained + lost
+    if discordant == 0:
+        return 1.0
+    smaller = min(gained, lost)
+    return min(1.0, 2 * sum(comb(discordant, k)
+                           for k in range(smaller + 1)) / (2 ** discordant))
+
+
+def confirmation_holm_reference(scores, phase_progress, dates, policy):
+    """Locked four-mode Top10 two-sided Holm arithmetic; NEVER certification."""
+    target_pilot = policy["pilot_races"]
+    target_confirm = policy["confirmation_races"]
+    required_dates = policy["minimum_distinct_confirmation_dates"]
+    expected_policy = "four_mode_top10_holm_two_sided_0.05"
+    if (target_pilot != 300 or target_confirm != 300 or
+            required_dates != 5 or
+            policy["multiple_comparisons"] != expected_policy):
+        raise ValueError("unsupported_registered_confirmation_design")
+    available_days = sorted(set(dates))
+    answer = {
+        "status": "not_ready",
+        "formal": False,
+        "model_improvement_proven": False,
+        "model_promotion_allowed": False,
+        "primary_metric": "paired_top10_exact_trifecta",
+        "correction": expected_policy,
+        "distinct_confirmed_confirmation_dates": len(available_days),
+        "confirmed_confirmation_dates_reference_only": available_days,
+        "minimum_distinct_confirmation_dates": required_dates,
+        "comparison_count": 4,
+        "p_values_reference_only": None,
+        "holm_reject_reference_only": None,
+        "candidate_positive_and_holm_reference_only": None,
+        "warning": "Numerical result-only reference; candidate FIRST remote receipt, "
+                   "official T-12 provenance and complete attempts are NOT attested.",
+    }
+    if any(phase_progress[name]["matched_result_pairs_reference_only"] != size
+           for name, size in (("pilot", target_pilot),
+                              ("confirmation", target_confirm))):
+        answer["status"] = "pilot_or_confirmation_not_fully_scored_reference"
+        return answer
+    if len(available_days) < required_dates:
+        answer["status"] = "insufficient_distinct_confirmation_dates"
+        return answer
+    pvals = {
+        mode: exact_mcnemar_two_sided_reference(
+            scores["confirmation"][mode]["top10"]["gained"],
+            scores["confirmation"][mode]["top10"]["lost"])
+        for mode in COUNTS
+    }
+    ordered = sorted(pvals, key=lambda mode: (pvals[mode], mode))
+    rejected = {}
+    stopped = False
+    for index, mode in enumerate(ordered):
+        threshold = 0.05 / (len(ordered) - index)
+        reject = (not stopped and pvals[mode] <= threshold)
+        rejected[mode] = reject
+        if not reject:
+            stopped = True
+    answer["status"] = "numerical_holm_reference_only_not_certified"
+    answer["p_values_reference_only"] = pvals
+    answer["holm_reject_reference_only"] = rejected
+    answer["candidate_positive_and_holm_reference_only"] = {
+        mode: rejected[mode] and
+              scores["confirmation"][mode]["top10"]["gained"] >
+              scores["confirmation"][mode]["top10"]["lost"]
+        for mode in COUNTS
+    }
+    return answer
+
+
 def score(pre_result_rows, results, p):
     protocol_check(p)
     if not isinstance(pre_result_rows,list) or not isinstance(results,dict):
@@ -170,6 +251,7 @@ def score(pre_result_rows, results, p):
     }
     pending_by_phase = Counter()
     invalid_by_phase = Counter()
+    confirmed_dates_by_phase = {"pilot": set(), "confirmation": set()}
     matched = Counter(); pending = []; bad = Counter()
     for index,row in enumerate(ordered):
         code = row["code"]
@@ -203,6 +285,7 @@ def score(pre_result_rows, results, p):
             invalid_by_phase[phase] += 1
             continue
         matched[phase] += 1
+        confirmed_dates_by_phase[phase].add(row["deadline"].date().isoformat())
         winning = "-".join(map(str,finish))
         for mode in COUNTS:
             for k in TOPS:
@@ -257,12 +340,15 @@ def score(pre_result_rows, results, p):
             "formal_status": "not_started_unverified_first_receipt_and_official_T12",
             "formally_certified_pairs": 0,
         }
+    holm_reference = confirmation_holm_reference(
+        scores, phase_progress, confirmed_dates_by_phase["confirmation"], p)
     return {"status":"reference_only_not_certified", "formal":False,
             "model_improvement_proven":False, "model_promotion_allowed":False,
             "independent_first_remote_receipt_verified":False,
             "complete_capture_run_inventory_verified":False,
             "eligible_roster_count":len(ordered), "matched_by_phase":dict(matched),
             "phase_progress":phase_progress,
+            "confirmation_top10_holm_reference_only":holm_reference,
             "selected_pre_result_roster_sha256_reference_only":reference_roster_sha256,
             "valid_pre_result_candidate_records_reference_only":len(ordered_all),
             "candidate_records_after_fixed_600_not_scored":len(ordered_all)-len(ordered),
