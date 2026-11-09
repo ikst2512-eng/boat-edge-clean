@@ -125,3 +125,28 @@ The new bridge's **offline handoff CLI**, without networking or publication, is:
 
 Both paths are caller-controlled and treated as untrusted. Validate and pin the source report independently **outside the bridge**, because JSON fields and source-code comments are not provenance. Output remains `formal=false` and no result files are opened; it lists matched/unmatched race codes and nonexclusive missing evidence per race. Historical replay and real source-row identity must be independently confirmed by #1694; this tool cannot upgrade any candidate to a 300+300 slot by itself. No main/UI/Render/collector/forecast file changed.
 
+
+## 2026-11-09 — Actual pinned #1694 Actions artifact consumed in #1698 CI
+
+**New #1698-only consumer:** `position_sensitive_pinned_1694_artifact_handoff.py` (no production imports). It reads the **actual GitHub Actions artifact** emitted by #1694's already-successful independent official source audit, plus the **existing** full-ledger `position_sensitive_live_roster_audit.py` result generated against the fetched candidate Git ref. No new official HTTP fetch, alternate T−12 source parser, code-triggered publication, result lookup, UI change, or new cron was added.
+
+Pinned evidence for replay and reproducibility:
+
+| Exact item | Immutable expected identity |
+|---|---|
+| #1694 independent source CI run | `42620400791`, `conclusion=success` |
+| #1694 source Git head | `e46094a1cdccf8faa3661c401188d9bb746a0ab6` |
+| #1694 Actions artifact ID | `13676360800` (`official-pair-schedule-audit-42620400791`) |
+| Artifact original ZIP SHA256 | `acffef2d77d754df6ebf90db42d1301d10ac2bffe55241b4eff5d2618be32e73` |
+| Inside-ZIP report original SHA256 | `cc7e94e16ecb9535d5dfaac81f0f6248a8ec7bb375efbe0030cdd799386d638d` |
+| Source report | `official_t12_same_race_proof_chain.json` |
+| #1698 fetched candidate research ledger Git tip at successful join | `fdf1eb6c77f275fc7fd18d5b039e5f41ec8b5462` |
+
+The full 27,985-byte GitHub source Actions artifact ZIP was **independently downloaded and SHA256-checked** against the GitHub artifact digest; ZIP CRC reported no corrupt entries; the 5,914-byte exact source report SHA256 was also independently computed. This checks archival byte consistency, **not** the official HTTP origins reaudited by the #1694 workflow. The new CLI also now rejects any report whose raw SHA256 differs, including an otherwise structurally valid swapped report. The downloaded report's listed 3 races were confirmed directly.
+
+Real isolated GitHub [#1698 pinned handoff run #42622318287](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42622318287) succeeded: 61/61 synthetic unit tests, fixed blob guard unchanged, Nov08 original 116/116, Nov09 saved original 104/104, **actual same-race join 0/16** against the 3 historically audited #1694 races. A separate [read-only join output ZIP artifact](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42622318287) records the per-race missing-source reasons and GitHub run/artifact metadata. A source audit ZIP published before T−12 does **not** demonstrate a subsequent forecast first Git remote acceptance.
+
+Source report's actual bounded five-gate audit: beforeinfo exhibition **2/3**, official odds 120 **3/3**, deadline-source cutoff **3/3**, **post-official-source frozen forecasts 0/3**, **independent first forecast Git acceptance 0/3**. The extra racelist gate was **1/3**, actual model original consumption **0/3**, final entry independently verified **0/3**. Thus no fully qualified triad, no prospective eligible sample, no post-hoc filling.
+
+**Important artifact retention limitation:** GitHub's selected Actions artifacts were uploaded with finite retention (the source workflow says 30 days). The pinned live handoff deliberately **fails closed** if the source artifact expires or is replaced. A future audit may require the #1694 owner to preserve a newly verified immutable source witness and its exact SHA, and then explicitly review/re-pin the consumer. Do not silently switch to `latest`, cherry-pick unrelated #1694 validation into #1698, or treat an expired artifact as an indication that official races did not exist. No auto-merge.
+
