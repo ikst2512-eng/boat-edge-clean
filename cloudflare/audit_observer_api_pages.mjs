@@ -54,6 +54,18 @@ export function auditTelemetryApiPages(input) {
   // unfiltered sampling query to attest a narrowly filtered event query.
   if(!isObj(metadata?.filters)||!isObj(calc?.filters) ||
      canonical(metadata.filters)!==canonical(calc.filters))bad('api_filter_provenance_mismatch');
+  // Equal filters are not necessarily the RIGHT filters. The former equality
+  // check would accept two equally unscoped queries, allowing a sampled
+  // calculation for a different Worker to stand in for this Observer.
+  // Require one explicit exact-service leaf; any group/OR/extra predicates
+  // require separate review rather than silently changing the audit scope.
+  const exactObserverFilter = f => isObj(f) &&
+    Object.keys(f).every(k=>['kind','key','value','type','operation'].includes(k)) &&
+    Object.keys(f).length===5 &&
+    f.kind==='filter' && f.key==='$metadata.service' &&
+    f.value===OBSERVER_NAME && f.type==='string' && f.operation==='eq';
+  if(!exactObserverFilter(metadata?.filters)||!exactObserverFilter(calc?.filters))
+    bad('api_observer_service_scope_not_proven');
   if(e?.response?.status!=='COMPLETED'||s?.response?.status!=='COMPLETED')
       bad('api_query_not_completed');
   if(!Array.isArray(eventRows)||evt?.count!==384||eventRows?.length!==384)
