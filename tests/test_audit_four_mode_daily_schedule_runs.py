@@ -459,5 +459,64 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(report["forecast_publication_verified"])
 
 
+
+    def test_latest_daytime_observation_silence_is_reported_without_slot_proof(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(32, "2026-11-09T15:10:20+09:00"),
+            self.make_run(31, "2026-11-09T10:37:58+09:00"),
+            self.make_run(30, "2026-11-08T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261109", "token",
+            lambda _: {"total_count": 3, "workflow_runs": rows},
+            as_of=datetime(2026, 11, 9, 16, 53, 2, tzinfo=jst))
+        self.assertEqual(report["same_day_within_nominal_window_run_count"], 2)
+        self.assertEqual(report["latest_in_window_run_created_at_jst"],
+                         "2026-11-09T15:10:20+09:00")
+        self.assertEqual(report["minutes_since_latest_in_window_observation"],
+                         102.7)
+        self.assertEqual(report["in_window_silence_observation_end_jst"],
+                         "2026-11-09T16:53:02+09:00")
+        self.assertFalse(report["per_slot_schedule_delivery_verified"])
+        self.assertFalse(report["forecast_publication_verified"])
+
+    def test_overnight_scan_caps_daytime_silence_at_final_grace(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [self.make_run(9, "2026-11-09T15:10:20+09:00")]
+        fetch = lambda _: {"total_count": 1, "workflow_runs": rows}
+        first = audit_day(
+            "owner/repo", "20261109", "token", fetch,
+            as_of=datetime(2026, 11, 9, 22, 20, tzinfo=jst))
+        later = audit_day(
+            "owner/repo", "20261109", "token", fetch,
+            as_of=datetime(2026, 11, 10, 9, 20, tzinfo=jst))
+        for result in (first, later):
+            self.assertEqual(
+                result["minutes_since_latest_in_window_observation"], 346.67)
+            self.assertEqual(
+                result["in_window_silence_observation_end_jst"],
+                "2026-11-09T20:57:00+09:00")
+            self.assertFalse(result["full_calendar_day_schedule_delivery_verified"])
+
+    def test_only_off_window_runs_yield_unknown_not_zero_silence(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(9, "2026-11-09T22:14:34+09:00"),
+            self.make_run(8, "2026-11-09T03:03:00+09:00"),
+            self.make_run(7, "2026-11-08T20:52:00+09:00"),
+        ]
+        result = audit_day(
+            "owner/repo", "20261109", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 10, 3, 3, tzinfo=jst))
+        self.assertEqual(result["same_day_scheduled_run_count"], 2)
+        self.assertEqual(result["same_day_within_nominal_window_run_count"], 0)
+        self.assertIsNone(result["latest_in_window_run_created_at_jst"])
+        self.assertIsNone(result["minutes_since_latest_in_window_observation"])
+        self.assertFalse(result["per_slot_schedule_delivery_verified"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
