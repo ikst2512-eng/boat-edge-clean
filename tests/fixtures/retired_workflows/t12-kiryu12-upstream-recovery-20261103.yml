@@ -1,0 +1,54 @@
+name: T12 Kiryu12 upstream completion recovery (research only, Nov 3)
+on:
+  workflow_run:
+    workflows: ['Four-mode prospective capture (research only)', 'CLEAN prospective pre-cutoff capture']
+    types: [completed]
+permissions:
+  contents: write
+jobs:
+  recover-observation:
+    # Accept success or failure from a genuine scheduled upstream run on main.\n    # Its unrelated research/publication failures do not invalidate fresh,\n    # independently fetched T12 originals. Reject cancellation, PR, dispatch.
+    # This was a ONE-DAY Nov 3 research-only recovery. Later successful
+    # scheduled upstream runs must skip this job, not fail with expired T12.
+    # The Python gate below still enforces the exact JST window for that day.
+    if: ${{ startsWith(github.event.workflow_run.run_started_at, '2026-11-03T') && github.event.workflow_run.event == 'schedule' && (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    concurrency:
+      group: kiryu12-t12-upstream-recovery-20261103
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require one-day and safe pre-T12 window
+        env:
+          UPSTREAM_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          from scripts.gate_kiryu12_upstream_recovery import check_window
+          check_window(datetime.now(timezone.utc), os.environ["UPSTREAM_STARTED_AT"])
+          print("Verified Kiryu12 recovery window and upstream timestamp")
+          PY
+      - name: Write original three-source evidence only to dedicated branch and reread it
+        env:
+          GITHUB_EVIDENCE_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.run_external_three_t12 \
+            --race-code 202611030112 \
+            --repo ikst2512-eng/boat-edge-clean \
+            --branch research-t12-external-evidence
+      - name: Declare limits (no reliability certification)
+        if: always()
+        run: |
+          {
+            echo 'Research-only recovery from an existing scheduled GitHub workflow.'
+            echo 'This is NOT an external scheduler and does not prove T12 reliability.'
+            echo 'Archive result never certifies final entry or authorizes forecasts.'
+            echo 'A missing workflow_run is not observed by this job.'
+          } >> "$GITHUB_STEP_SUMMARY"
