@@ -71,5 +71,86 @@ class WatchdogInventoryTest(unittest.TestCase):
         self.assertEqual(d["capture_schedule"]["pending"], 1)
         self.assertEqual(d["capture_schedule"]["success"], 0)
 
+
+    def test_duplicate_ids_on_single_api_page_fail_closed(self):
+        def fetch(url, token):
+            if "event=schedule" in url and "four-mode-prospective-capture.yml" in url:
+                return {"workflow_runs": [row(101, "schedule", "2026-11-03T02:00:00Z"),
+                                          row(101, "schedule", "2026-11-03T02:00:00Z")]}
+            return {"workflow_runs": []}
+        with self.assertRaisesRegex(ValueError, "duplicate workflow run"):
+            inventory("example/project", "fake", fetch, NOW)
+
+    def test_duplicate_ids_across_event_pages_fail_closed(self):
+        def fetch(url, token):
+            if "four-mode-prospective-capture.yml" in url:
+                if "event=schedule" in url:
+                    return {"workflow_runs": [row(102, "schedule", "2026-11-03T02:00:00Z")]}
+                if "event=workflow_dispatch" in url:
+                    return {"workflow_runs": [
+                        row(102, "workflow_dispatch", "2026-11-03T03:00:00Z")]}
+            return {"workflow_runs": []}
+        with self.assertRaisesRegex(ValueError, "same_run_id_in_multiple"):
+            inventory("example/project", "fake", fetch, NOW)
+
+    def test_noncompleted_run_claiming_success_is_not_accepted(self):
+        def fetch(url, token):
+            if "four-mode-prospective-capture.yml" in url and "event=schedule" in url:
+                bad = row(103, "schedule", "2026-11-03T03:00:00Z")
+                bad["status"] = "in_progress"
+                return {"workflow_runs": [bad]}
+            return {"workflow_runs": []}
+        with self.assertRaisesRegex(ValueError, "noncompleted_run_has_conclusion"):
+            inventory("example/project", "fake", fetch, NOW)
+
+    def test_completed_unknown_and_cancelled_are_separate_from_failure(self):
+        def fetch(url, token):
+            if "four-mode-prospective-capture.yml" in url and "event=schedule" in url:
+                return {"workflow_runs": [
+                    row(104, "schedule", "2026-11-03T02:00:00Z", None),
+                    row(105, "schedule", "2026-11-03T03:00:00Z", "cancelled"),
+                    row(106, "schedule", "2026-11-03T04:00:00Z", "failure")]}
+            return {"workflow_runs": []}
+        result = inventory("example/project", "fake", fetch, NOW)
+        counted = result["capture_schedule"]
+        self.assertEqual(counted["returned"], 3)
+        self.assertEqual(counted["success"], 0)
+        self.assertEqual(counted["failed"], 1)
+        self.assertEqual(counted["completed_unknown_outcome"], 1)
+        self.assertEqual(counted["completed_other_non_success"], 1)
+        self.assertEqual(counted["pending"], 0)
+        self.assertFalse(result["forecast_saved_proven"])
+
+    def test_incomplete_paginated_listing_not_misreported_complete(self):
+        def fetch(url, token):
+            if "four-mode-prospective-capture.yml" in url and "event=schedule" in url:
+                return {"workflow_runs": [row(107, "schedule", "2026-11-03T02:00:00Z")],
+                        "total_count": 4}
+            return {"workflow_runs": [], "total_count": 0}
+        result = inventory("example/project", "fake", fetch, NOW)
+        coverage = result["source_coverage"]["four-mode-prospective-capture.yml:schedule"]
+        self.assertEqual(coverage["returned"], 1)
+        self.assertEqual(coverage["total_count_reported"], 4)
+        self.assertTrue(coverage["may_be_truncated"])
+
+    def test_inconsistent_total_count_and_oversized_page_fail_closed(self):
+        payloads = [
+            {"workflow_runs": [row(108, "schedule", "2026-11-03T02:00:00Z")],
+             "total_count": 0},
+            {"workflow_runs": [], "total_count": True},
+            {"workflow_runs": [
+                row(200+i, "schedule", "2026-11-03T02:00:00Z")
+                for i in range(101)]},
+        ]
+        for payload in payloads:
+            with self.subTest(payload_size=len(payload["workflow_runs"])):
+                def fetch(url, token):
+                    if ("four-mode-prospective-capture.yml" in url
+                            and "event=schedule" in url):
+                        return payload
+                    return {"workflow_runs": []}
+                with self.assertRaises(ValueError):
+                    inventory("example/project", "fake", fetch, NOW)
+
 if __name__ == "__main__":
     unittest.main()
