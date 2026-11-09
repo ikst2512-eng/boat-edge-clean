@@ -549,6 +549,64 @@ class FourModeForwardTests(unittest.TestCase):
             self.assertFalse(result["formal"])
             self.assertFalse(result["model_promotion_allowed"])
 
+    def test_narrow_nominal_top10_is_effectively_top5(self):
+        row = self.row()
+        report = score([row], {row["race_code"]: self.result()}, self.policy)
+        narrow = report["scores"]["pilot"]["narrow"]
+        self.assertEqual(narrow["top10"]["requested_topn"], 10)
+        self.assertEqual(narrow["top10"]["effective_ticket_count"], 5)
+        self.assertTrue(narrow["top10"]["requested_topn_exceeds_mode_budget"])
+        self.assertEqual(narrow["top10"]["baseline"], narrow["top5"]["baseline"])
+        self.assertEqual(narrow["top10"]["candidate"], narrow["top5"]["candidate"])
+        self.assertEqual(report["scores"]["pilot"]["hit"]["top10"]
+                         ["effective_ticket_count"], 10)
+        self.assertFalse(report["scores"]["pilot"]["hit"]["top10"]
+                         ["requested_topn_exceeds_mode_budget"])
+        self.assertEqual(report["scores"]["pilot"]["hole"]["top10"]
+                         ["effective_ticket_count"], 10)
+        self.assertIsNone(report["topn_regression_diagnostics_reference_only"]
+                          ["confirmation"]["any_mode_topn_with_fewer_hits_reference_only"])
+        self.assertFalse(report["formal"])
+
+    def test_top10_gain_can_coexist_with_top1_regression(self):
+        a = self.row()
+        b = copy.deepcopy(a)
+        b["race_code"] = "202611070102"
+        b["deadline_jst"] = "2026-11-07T08:40:00+09:00"
+        old_a = a["candidate"]["hit"]
+        a["candidate"]["hit"] = [old_a[1], old_a[0]] + old_a[2:]
+        b["candidate"]["hit"] = b["candidate"]["hit"][:-1] + ["6-5-4"]
+        r1 = self.result()
+        r2 = self.result()
+        r2["race_code"] = b["race_code"]
+        r2["finish_order"] = [6, 5, 4]
+        report = score([b, a], {a["race_code"]: r1, b["race_code"]: r2},
+                       self.policy)
+        hit = report["scores"]["pilot"]["hit"]
+        self.assertEqual(hit["top1"]["baseline"] - hit["top1"]["candidate"], 1)
+        self.assertEqual(hit["top10"]["candidate"] - hit["top10"]["baseline"], 1)
+        diagnostic = report["topn_regression_diagnostics_reference_only"]["pilot"]
+        self.assertEqual(diagnostic["same_race_denominator_reference_only"], 2)
+        self.assertEqual(diagnostic["modes"]["hit"]
+                         ["topn_with_fewer_hits_reference_only"], ["top1"])
+        self.assertEqual(diagnostic["modes"]["hit"]
+                         ["top10_primary_net_change_reference_only"], 1)
+        self.assertTrue(diagnostic["any_mode_topn_with_fewer_hits_reference_only"])
+        self.assertEqual(diagnostic["status"], "descriptive_only_not_a_release_gate")
+        self.assertFalse(report["formal"])
+        self.assertFalse(report["model_promotion_allowed"])
+
+    def test_1710_preflight_labels_narrow_effective_topn(self):
+        result = preflight_unregistered_scenario_bridge(
+            self.row()["baseline"], self.scenario_bridge())
+        x = result["comparison"]["narrow"]["topn_exposure_result_blind"]["top10"]
+        self.assertEqual(x["requested_topn"], 10)
+        self.assertEqual(x["effective_ticket_count"], 5)
+        self.assertTrue(x["requested_topn_exceeds_mode_budget"])
+        self.assertEqual(x["original_ticket_count"], 5)
+        self.assertEqual(x["scenario_ticket_count"], 5)
+        self.assertFalse(result["candidate_eligible_for_1693_registered_600"])
+
 
 if __name__ == "__main__":
     unittest.main()
