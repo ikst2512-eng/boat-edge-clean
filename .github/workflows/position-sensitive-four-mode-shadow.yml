@@ -15,6 +15,8 @@ on:
       - 'position_sensitive_live_roster_audit.py'
       - 'position_sensitive_public_comment_witness.py'
       - 'position_sensitive_future_topk_exposure.py'
+      - 'position_sensitive_candidate_delivery_gap.py'
+      - 'test_position_sensitive_candidate_delivery_gap.py'
       - 'test_position_sensitive_future_topk_exposure.py'
       - 'test_position_sensitive_public_comment_witness.py'
       - 'test_position_sensitive_live_roster_audit.py'
@@ -94,7 +96,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -277,6 +279,33 @@ jobs:
           print("POSITION_SENSITIVE_FUTURE_PAIR_OUTCOME_BLIND=" + json.dumps(
               {"candidates":p["candidate_files"], "mode":p["by_mode"]},sort_keys=True))
           PY
+      - name: Full-day original-to-candidate delivery gap is not a forward sample
+        run: |
+          python position_sensitive_candidate_delivery_gap.py --day 20261109 --output position_candidate_delivery_gap.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("position_candidate_delivery_gap.json").read_text())
+          history=json.loads(Path("position_ledger_history_audit.json").read_text())
+          if (d.get("status") != "pinned_local_git_original_to_candidate_gap_nonformal"
+                  or d.get("day_jst") != "20261109"
+                  or d.get("main_git_snapshot_sha") is None
+                  or d.get("ledger_git_snapshot_sha") != history.get("observed_branch_commit_sha")
+                  or d.get("candidate_files_on_day") > history.get("candidate_files", -1)
+                  or d.get("candidate_exact_original_replays") != d.get("candidate_files_on_day")
+                  or d.get("eligible_original_exact_replays", -1) < d.get("candidate_files_on_day", 0)
+                  or d.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or d.get("formal_forward_eligible_races") != 0
+                  or d.get("official_beforeinfo_exhibition_six_odds120_verified") is not False
+                  or d.get("complete_capture_and_rescue_run_inventory_verified") is not False
+                  or d.get("model_improvement_proven") is not False
+                  or d.get("promotion_allowed") is not False
+                  or d.get("production_changed") is not False):
+              raise SystemExit("false_candidate_delivery_to_formal_promotion")
+          n=d["eligible_original_exact_replays"]
+          c=d["candidate_exact_original_replays"]
+          print(f"POSITION_SENSITIVE_NOV09_ORIGINAL_TO_CANDIDATE_DELIVERY:{c}/{n};NOT_FORMAL")
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -418,5 +447,6 @@ jobs:
             position_candidate_live_roster_observation.json
             position_public_comment_checkpoint.json
             position_future_paired_exposure.json
+            position_candidate_delivery_gap.json
             position_shadow_t12_windows.json
           retention-days: 30
