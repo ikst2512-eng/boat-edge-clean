@@ -123,11 +123,22 @@ def score(pre_result_rows, results, p):
     ordered = sorted(roster.values(),key=lambda r:(r["deadline"],r["code"]))[:600]
     scores = {phase:{m:{f"top{k}":{"baseline":0,"candidate":0,"gained":0,"lost":0}
                    for k in TOPS} for m in COUNTS} for phase in ("pilot","confirmation")}
+    # This scorer is NEVER a formal certifier. Report phase progress separately
+    # from the official 300+300 study to avoid promoting replayed evidence.
+    # A pending/invalid outcome reserves its pre-result roster slot.
+    phase_slots = {
+        "pilot": len(ordered[:p["pilot_races"]]),
+        "confirmation": len(ordered[p["pilot_races"]:p["pilot_races"] + p["confirmation_races"]]),
+    }
+    pending_by_phase = Counter()
+    invalid_by_phase = Counter()
     matched = Counter(); pending = []; bad = Counter()
     for index,row in enumerate(ordered):
         code = row["code"]
+        phase = "pilot" if index < p["pilot_races"] else "confirmation"
         if code not in results or results[code] is None:
             pending.append(code)
+            pending_by_phase[phase] += 1
             continue
         outcome = results[code]
         try:
@@ -151,8 +162,8 @@ def score(pre_result_rows, results, p):
                 raise ValueError("invalid_finish")
         except (ValueError,KeyError,TypeError) as e:
             bad[str(e)] += 1
+            invalid_by_phase[phase] += 1
             continue
-        phase = "pilot" if index < 300 else "confirmation"
         matched[phase] += 1
         winning = "-".join(map(str,finish))
         for mode in COUNTS:
@@ -169,11 +180,35 @@ def score(pre_result_rows, results, p):
                 c["denominator_reference_only"] = matched[phase]
                 if c["candidate"]-c["baseline"] != c["gained"]-c["lost"]:
                     raise ValueError("paired_score_mismatch")
+    phase_progress = {}
+    for phase, target in (("pilot", p["pilot_races"]),
+                          ("confirmation", p["confirmation_races"])):
+        reserved = phase_slots[phase]
+        confirmed = matched[phase]
+        waiting = pending_by_phase[phase]
+        invalid = invalid_by_phase[phase]
+        if reserved != confirmed + waiting + invalid:
+            raise ValueError("phase_roster_result_partition_mismatch")
+        phase_progress[phase] = {
+            "target": target,
+            "reserved_pre_result_slots_reference_only": reserved,
+            "unreserved_slots": target - reserved,
+            "matched_result_pairs_reference_only": confirmed,
+            "pending_result_slots": waiting,
+            "invalid_result_slots": invalid,
+            "reference_status": (
+                "not_started" if reserved == 0 else
+                "reference_complete_nonformal" if reserved == target and
+                confirmed == target else "collecting_reference_only"),
+            "formal_status": "not_started_unverified_first_receipt_and_official_T12",
+            "formally_certified_pairs": 0,
+        }
     return {"status":"reference_only_not_certified", "formal":False,
             "model_improvement_proven":False, "model_promotion_allowed":False,
             "independent_first_remote_receipt_verified":False,
             "complete_capture_run_inventory_verified":False,
             "eligible_roster_count":len(ordered), "matched_by_phase":dict(matched),
+            "phase_progress":phase_progress,
             "pending_result_codes":pending,"invalid_result_counts":dict(bad),
             "excluded_before_result_read":dict(excluded),"scores":scores,
             "warning":"GitHub observation != first remote receipt. This script cannot authenticate supplied SHA or timestamps. No formal/prospective performance without independent source bytes and complete capture-run inventory."}
