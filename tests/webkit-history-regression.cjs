@@ -57,7 +57,7 @@ const server = http.createServer((request, response) => {
     });
     await page.waitForFunction(() => typeof setView === 'function' && typeof render === 'function');
 
-    const verdict = await page.evaluate(() => {
+    const verdict = await page.evaluate(async () => {
       for (let i = 0; i < 130; i++) setView('forecast');
       const unchanged = new URL(location.href);
       if (unchanged.searchParams.get('race') !== '1') throw Error('SAME_RACE_URL_CHANGED');
@@ -65,6 +65,8 @@ const server = http.createServer((request, response) => {
       // A real race change still must update the browser address exactly once.
       s.race = 2;
       render();
+      // navigation.js intentionally schedules the new history entry as a microtask.
+      await Promise.resolve();
       const changed = new URL(location.href);
       if (changed.searchParams.get('race') !== '2') throw Error('RACE_CHANGE_URL_MISSING');
       if (changed.searchParams.get('venue') !== '1') throw Error('VENUE_URL_CHANGED');
