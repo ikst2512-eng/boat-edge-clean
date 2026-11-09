@@ -5,6 +5,7 @@ on:
     paths:
       # Re-test public Pages/Render when release-critical UI or CORS code changes.
       - index.html
+      - navigation.js
       - server.py
       - tests/live-racecard-navigation.cjs
       - tests/live-verified-payout.cjs
