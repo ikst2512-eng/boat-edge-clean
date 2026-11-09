@@ -7,6 +7,9 @@ on:
   pull_request:
     paths:
       - server.py
+      - index.html
+      - navigation.js
+      - 'four_mode_forecasts/**'
       - tests/test_four_mode_archive_cors_hotfix.py
       - tests/four_mode_archive_cors_browser.cjs
       - tests/live_four_mode_archive_cors_postdeploy.cjs
