@@ -187,3 +187,90 @@ This is a **read-only research adapter**, no changes to #1693/#1694/#1698
 frozen code, result collector, action schedule, historical forecasts,
 main, Render or UI. It should never be directly exposed to users as
 production predictions.
+
+
+## 2026-11-09 follow-up: pinned #1698 actual conditional math wired into all modes
+
+The new `scenario_exhibition_all_mode_runner.py` is a **read-only,
+unregistered research orchestrator**. It accepts an output from the
+nonformal `scenario_official_exhibition_projection.py`, six caller-supplied
+national win rates, explicit per-scenario first-place log shifts and
+conditional-second/third coefficients, explicit scenario mixture weights,
+and the *existing* #1698
+`experimental_conditional_board` passed as a callback.
+
+### Actual data path (research-only)
+
+1. The official-exhibition *projection* must identify **one** race and
+   six unique registration numbers, preserve all three source-claim SHA-256s,
+   and include its newly added `exhibition_features_sha256`, which binds
+   the full six-boat projected exhibition vector to the orchestration input.
+   An altered vector with unchanged SHA is rejected.
+2. `research_model.probabilities()` supplies the **unchanged** original
+   national-win-rate baseline. **Its six supplied rates are not independently
+   bound to the same official first-receipt chain** by this runner.
+3. For each scenario, `hypothetical_head_board` applies the
+   **caller-provided and uncalibrated** six-boat first-place shift. It
+   preserves conditional second/third distributions. Those head shifts
+   are **not learned from official ST, wind, tide, motor, entry or water**.
+4. #1698's existing conditional lab (no copied implementation) then
+   reweights second/third given the head using **six supplied exhibition
+   ST values**. The integration enforces the actual lab response contract,
+   checks 120 unique normalized ordered tickets and verifies exactly
+   conserved mass for each first boat.
+5. The original #1710 mixed-scenario bridge combines those six-place
+   probability boards into one common board for **all four existing
+   5/10/16/22-count modes**, plus separate attack/benefit supported hole
+   hypotheses. All coefficients/weights are explicit unregistered
+   numeric *hypotheses*, not empirically supported effects.
+6. Output fingerprints include original source SHA, normalized claim SHA,
+   full six-exhibition-vector SHA and combined 120-way board SHA.
+   **None of these alone constitutes independently attested HTTP source
+   origin or remote-first prediction acceptance.** Live model is unchanged.
+
+### Real integration defect detected; safe restriction (do not conceal CI failure)
+
+A first cross-PR CI attempt,
+[Actions #42623798530](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42623798530),
+ran 28 local checks successfully and fetched exactly pinned
+#1698 commit `6de21c9d1584f354161fde47293af72cca8d0100`,
+file blob `1e58fd62134a3aa4121b636e12005d04b5026748`.
+But 4/8 integrated tests **failed** due to
+`ValueError: invalid_exhibition_time_s`. The **unregistered #1698 lab**
+declares `exhibition_time_s` valid 40–90 seconds, while official raw
+beforeinfo and #1693 fixtures use exhibition times **around 6–7 seconds**;
+the #1698 synthetic fixture itself uses 47s. It is a unit-schema bug,
+not a valid excuse to multiply real exhibition times by 10.
+
+The #1698 owner was notified in its existing Draft review comments.
+Until that lab's units/tests are fixed and separately reviewed:
+- **Only exhibition ST** is allowed to influence #1710's live research
+  integration; exhibition time/course/tilt are retained in projected
+  metadata **but not scored**.
+- The runner rejects any attempt to activate `exhibition_time_s`
+  coefficients or to feed missing unverified actual entry, wind, wave,
+  tide, wall or motor data. No fake values, 10x time transformation,
+  wind bearing or tide phase inference.
+- A unit test changes exhibition time (with the synthetic projection
+  checksum recomputed) and confirms the research 120-board **does not**
+  change; another changes ST and confirms it **does** change.
+- **Fixing the #1698 lab must not alter its frozen 0.50/0.25 candidate,
+  registered method SHA or 300+300 cohort.** This PR does not commit
+  to its branch or implement a duplicate conditional ranking method.
+
+After blocking unsupported time inputs, the exact-code integration
+[Actions #42624423181](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42624423181)
+**passed all 37 tests (28 isolation + 9 using the actual pinned #1698
+conditional-likelihood implementation)**. These use **synthetic**
+projected exhibition and explicit coefficients. Not authentic official
+capture, not validated wind/tide, not real T−12 evidence, not prospective
+Top1/3/5/10 improvement. `formal=false`, `forecast_usable=false`,
+`production_changed=false`, `promotion_allowed=false`.
+
+Next: #1698 repairs the exhibition-second bound in its *unregistered*
+lab, #1694 supplies **independently first-remote-attested** three-source
+official raw originals captured before T−12 for the same race, #1692
+validates any specific wind-bearing/tide-station semantics, #1693
+evaluates a *separately registered* future hypothesis 300+300 without
+outcome leakage, and #1706/#1707 independently recover and render
+only an approved model. This Draft cannot be merged automatically.
