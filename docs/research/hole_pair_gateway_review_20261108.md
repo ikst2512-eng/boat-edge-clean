@@ -10,7 +10,7 @@ This **standalone, single-workflow entry point** is proposed for manual review a
 
 ## Exact security boundaries
 
-- `on: workflow_dispatch` **only**. No `schedule`, `push` or `pull_request` capture. Job checks `github.ref == 'refs/heads/main'`; branch-selection cannot bypass.
+- **Capture only through `workflow_dispatch`; `pull_request` runs a separate `review_only` self-audit and never collects candidates.** No `schedule`, `push` or `pull_request` capture. The capture job checks `github.ref == 'refs/heads/main'`; branch-selection cannot bypass.
 - Requires two explicit manual inputs: `capture_day_jst` and literal `CAPTURE_UNVERIFIED_RESEARCH` acknowledgment. The underlying reviewed driver checks the date against the actual *current Japan date*, requires 2026-11-09 or later, and rejects PR, cron, stale/backdated or future-day calls.
 - Checks out **exact pinned research commit** `464d1641a5c7b981248ab17ba5bdc42b7bfa698b` (a verified 2026-11-08 Draft #1685 CI head), not a mutable research branch or an arbitrary user-supplied ref.
 - `contents: read` is the only repository permission. It fetches the `origin/main` commit and original `four_mode_forecasts/` files to inspect the current-day snapshot, never pushes or writes any branch. No secret/token to Cloudflare or another server. The temporary GitHub runtime token only has read access to repository contents.
@@ -40,3 +40,27 @@ Before any manual merge/run, a human reviewer must confirm:
 - Added a **PR-only review job**, explicitly separate from the `workflow_dispatch` capture job. On [CI #42567225027](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42567225027), `review_only` passed and **`capture` was skipped**. Also added current-JST/day/typed-ack checks *before checkout*, a main-only dispatch job guard, and disabled persistence of checkout credentials. The repository is public, so this does not require a read-write GitHub token to fetch `origin/main`.
 
 **Manual recommendation, NOT permission to deploy:** review one isolated gateway (prefer #1702's more recent pinned source), mark #1701 superseded only with the reviewers' agreement, and keep both unmerged until the required operator/security decision. Future merging of a single manual dispatcher would still be a change to default main requiring explicit review; this chat has NOT merged, enabled, or executed a gateway. Every output stays nonformal, and real signed independent first receipt, official T−12 original six-boat/120-odds evidence, cross-run deduplication and pilot/confirmation eligibility remain separate blocked gates.
+
+## November 9 follow-up — live competing-gateway guard and launch audit path mismatch
+
+**Status remains HOLD / Draft / unmerged.** [#1702](https://github.com/ikst2512-eng/boat-edge-clean/pull/1702) is still the preferred single manually reviewed proposal. As observed on 2026-11-09, the default `main` tree contained none of these three gateway files:
+- `.github/workflows/hole-pair-manual-gateway.yml` (this #1702 proposal)
+- `.github/workflows/hole-pair-manual-research-gateway.yml` (competing #1701 proposal)
+- `.github/workflows/hole-future-pair-precommit.yml` (larger #1685 research workflow)
+
+**Readiness-audit mismatch (not a live failure):** the pinned #1685 `research/hole_pair_capture_launch_audit.py` checks only `.github/workflows/hole-future-pair-precommit.yml`. If #1702 alone were subsequently manually merged, that older script would continue reporting `default_branch_dispatch_prerequisite_satisfied=false` because it checks a different path. This false negative is *not* proof that #1702 cannot dispatch, and a green old audit would not prove that #1702 safely ran. Before any activation, a separately reviewed gateway-specific audit must inspect the actual default-branch `hole-pair-manual-gateway.yml` and the registered workflow in GitHub Actions. Do not edit the locked #1685 source or silently widen this PR to repair the mismatch.
+
+**New fail-closed duplicate-gateway safeguard on #1702 only:** the PR-only review verifies neither competing file exists in its checked-out merge tree. The manual capture job, if separately authorized in the future, also checks both competing workflow paths in the freshly fetched immutable `origin/main` tree **before calling the research capture driver** and fails if either exists. This mitigates accidental dual capture initiated through #1702; it cannot prevent someone from separately executing #1701 or repeating #1702 later in the day. Cross-run exact race-ID/bytes deduplication and independent first-write evidence remain mandatory.
+
+### Formal per-race admissibility (all required, no shortcuts)
+
+For each race code, the future reviewer must independently bind **the same race ID** across all of the following, and quarantine or exclude when any item is missing:
+1. Original immutable source forecast bytes, Git blob SHA1, SHA256, candidate bytes/selector+method hashes and fixed tickets; an independently authenticated *first* remote receipt of the exact candidate bytes with tamper-evident trusted server time **before the official T−12 cutoff**, not a later GET or Actions artifact.
+2. Official race identity and official deadline, raw original official race-card/beforeinfo and exhibition values for **all six boats**, each with provenance and authenticated receipt before T−12.
+3. Raw official three-way odds covering **all 120 distinct combinations** (not inferred from a count alone), with exact content digest, source and independently defensible receipt time before T−12.
+4. Complete across-run source/race-ID census, missingness/exclusion reasons, cross-batch conflict quarantine and verified independent confirmed result **opened only after fixed candidate validation**.
+5. Fixed study method/cohort boundaries: 300 pilot observations followed by an untouched separate 300 confirmation, with race ID unique across both; historic Nov 6–8 study data never imported as future confirmatory observations.
+
+The D1 Worker/SQLite prototype on #1685 is **undeployed**. Its self-reported database receipt and simulated SQL tests do not establish an externally signed or independently authenticated first acceptance, official cutoff or full six-boat/120-odds T−12 chain. The only permitted status until each gate is independently established is `formal=false`, `pilot_formally_eligible=0`, `confirmation_formally_eligible=0`, `production_promotion_allowed=false`.
+
+**Manual decision still required:** one gateway only, permission scope, usage/retention budgets, idempotency, independent witness design, official-source acquisition, and a new exact-path default-branch registration audit. No manual dispatch, real remote capture, Cloudflare deploy, model, Render, UI or main change is authorized by a passing review CI.
