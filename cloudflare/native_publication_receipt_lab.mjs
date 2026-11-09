@@ -13,7 +13,7 @@ const REMOTE_ANCESTRY = /^[ \t]*git merge-base --is-ancestor HEAD FETCH_HEAD[ \t
 // echo of those words must NOT count as storing the commit identity.
 const SHA_ASSIGN = /(?:^|\n)[ \t]*sha[ \t]*=[ \t]*subprocess\.check_output\([ \t\r\n]*\[[ \t\r\n]*["']git["'][ \t]*,[ \t]*["']rev-parse["'][ \t]*,[ \t]*["']HEAD["']/m;
 const COMMIT_JSON_KEY = /["']commit_sha["'][ \t]*:[ \t]*sha\b/;
-const JSON_WRITE = /\btarget\.write_text\([ \t\r\n]*json\.dumps\(/;
+const JSON_WRITE = /(?:^|\n)[ \t]*target\.write_text\([ \t\r\n]*json\.dumps\(/m;
 const TARGETS = Object.freeze({
   clean: /\btarget\s*=\s*Path\(\s*["']clean-capture-evidence\/publication\.json["']\s*\)/,
   four_mode: /\btarget\s*=\s*Path\(\s*["']four-mode-evidence\/publication\.json["']\s*\)/,
