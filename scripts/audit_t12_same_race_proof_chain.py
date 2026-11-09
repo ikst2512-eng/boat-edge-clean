@@ -211,10 +211,32 @@ def compose(nov3, nov9, remote):
             "independent_first_forecast_git_acceptance": (
                 race["independent_first_forecast_git_remote_receipt_verified"] is True),
         }
+        # The local HTTP receipt claimed by the collector is NOT the same
+        # proof as independent GitHub source ZIP publication. Neither is the
+        # FIRST remote acceptance of the frozen forecast in Git history.
+        source_published = (
+            race["independent_source_archive_server_publication_by_t12"] is True)
+        if checks["official_beforeinfo_six_exhibition"] is False:
+            next_blocker = "complete_six_boat_exhibition_missing"
+        elif race["official_racelist_original"] is not True:
+            next_blocker = "same_race_official_racelist_missing"
+        elif source_published is False:
+            next_blocker = "independent_source_zip_publication_unverified"
+        elif checks["forecast_after_official_sources_before_t12"] is False:
+            next_blocker = "source_following_forecast_not_generated"
+        elif checks["independent_first_forecast_git_acceptance"] is False:
+            next_blocker = "first_forecast_git_remote_receipt_unverified"
+        else:
+            next_blocker = "other_formal_gates_unverified"
         five_gate_rows.append({
             "race_code": race["race_code"],
             "gates": checks,
             "all_five_verified": all(checks.values()),
+            "collector_source_receipt_self_reported_before_t12": (
+                race["official_t12_source_cutoff_met"] is True),
+            "independent_source_zip_published_before_t12": source_published,
+            "source_zip_publication_is_first_forecast_git_receipt": False,
+            "next_source_or_forecast_blocker": next_blocker,
             "extra_official_racelist_original": race["official_racelist_original"] is True,
             "extra_model_original_consumption": race["actual_model_input_consumption_verified"] is True,
             "extra_final_entry": race["final_race_entry_verified"] is True,
@@ -233,6 +255,23 @@ def compose(nov3, nov9, remote):
         "historical_five_gate_counts": five_gate_counts,
         "historical_five_gate_by_race": five_gate_rows,
         "historical_all_five_gates_verified": 0,
+        "historical_source_time_provenance": {
+            "collector_source_receipt_self_reported_before_t12": sum(
+                row["collector_source_receipt_self_reported_before_t12"]
+                for row in five_gate_rows),
+            "independent_source_zip_published_before_t12": sum(
+                row["independent_source_zip_published_before_t12"]
+                for row in five_gate_rows),
+            "first_forecast_git_remote_receipt_verified": sum(
+                row["gates"]["independent_first_forecast_git_acceptance"]
+                for row in five_gate_rows),
+        },
+        "historical_first_blocker_counts": {
+            stage: sum(row["next_source_or_forecast_blocker"] == stage
+                       for row in five_gate_rows)
+            for stage in sorted({row["next_source_or_forecast_blocker"]
+                                 for row in five_gate_rows})
+        },
         "historical_extra_gate_counts": {
             "official_racelist_original": sum(
                 row["extra_official_racelist_original"] is True for row in five_gate_rows),

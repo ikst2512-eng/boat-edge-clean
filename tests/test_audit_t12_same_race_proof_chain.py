@@ -168,6 +168,44 @@ class NoCrossRaceOrAcrossDayStitching(unittest.TestCase):
         self.assertFalse(result["accuracy_scoring_allowed"])
         self.assertEqual(result["new_formal_certifications"], 0)
 
+    def test_collector_timestamp_not_equal_independent_source_zip(self):
+        report = compose(triple(), paired(), artifact())
+        self.assertEqual(report["historical_source_time_provenance"], {
+            "collector_source_receipt_self_reported_before_t12": 3,
+            "independent_source_zip_published_before_t12": 2,
+            "first_forecast_git_remote_receipt_verified": 0,
+        })
+        old = report["historical_five_gate_by_race"][0]
+        self.assertTrue(old["collector_source_receipt_self_reported_before_t12"])
+        self.assertFalse(old["independent_source_zip_published_before_t12"])
+        self.assertFalse(old["source_zip_publication_is_first_forecast_git_receipt"])
+
+    def test_earliest_blocker_is_per_race_and_no_cross_race_stitch(self):
+        report = compose(triple(), paired(), artifact())
+        self.assertEqual(report["historical_first_blocker_counts"], {
+            "complete_six_boat_exhibition_missing": 1,
+            "same_race_official_racelist_missing": 2,
+        })
+        by_code = {r["race_code"]: r for r in report["historical_five_gate_by_race"]}
+        self.assertEqual(by_code[NOV03]["next_source_or_forecast_blocker"],
+                         "complete_six_boat_exhibition_missing")
+        for code in NOV09:
+            self.assertEqual(by_code[code]["next_source_or_forecast_blocker"],
+                             "same_race_official_racelist_missing")
+            self.assertTrue(by_code[code]["independent_source_zip_published_before_t12"])
+            self.assertFalse(by_code[code]["source_zip_publication_is_first_forecast_git_receipt"])
+        self.assertEqual(report["new_formal_certifications"], 0)
+
+    def test_synthetically_removed_independent_publication_cannot_certify(self):
+        x = artifact()
+        x["race_rows"][0]["github_artifact_updated_before_t12_one_sec_margin"] = False
+        with self.assertRaises(ValueError):
+            compose(triple(), paired(), x)
+        report = compose(triple(), paired(), artifact())
+        self.assertEqual(report["historical_all_five_gates_verified"], 0)
+        self.assertFalse(report["accuracy_scoring_allowed"])
+        self.assertIsNone(report["formal_accuracy_denominator"])
+
     def test_three_files_without_exhibition_does_not_pass(self):
         x = triple()
         x["six_registration_and_exhibition_components_complete"] = True
