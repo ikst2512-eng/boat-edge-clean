@@ -23,7 +23,7 @@ const {chromium}=require('playwright');
   }));
   page.on('requestfinished',req=>recordRacecard('finished',req));
   page.on('requestfailed',req=>recordRacecard('failed',req,{
-   reason:req.failure()?.errorText||'unknown'
+   reason:String(req.failure()||'unknown').slice(0,160)
   }));
   const site='https://ikst2512-eng.github.io/boat-edge-clean/';
   const res=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
