@@ -1437,7 +1437,16 @@ function mockedRemoteGithubFirstAdd(kind='clean') {
   const row=m.records[0],path=row.path,commitSha=m.commit.sha,parent=m.commit.parent_sha;
   const ghSha=row.claimed_git_blob_sha1,body=row.original_git_blob_utf8;
   const root='https://api.github.com/repos/ikst2512-eng/boat-edge-clean/';
+  const rootTreeSha='3'.repeat(40),archiveTreeSha='4'.repeat(40);
+  const dirname=kind==='clean'?'prospective_predictions':'four_mode_forecasts';
   const normal={
+    [root+'git/commits/'+parent]:{sha:parent,tree:{sha:rootTreeSha}},
+    [root+'git/trees/'+rootTreeSha]:{sha:rootTreeSha,truncated:false,tree:[
+      {path:dirname,type:'tree',mode:'040000',sha:archiveTreeSha}
+    ]},
+    [root+'git/trees/'+archiveTreeSha]:{sha:archiveTreeSha,truncated:false,tree:[
+      {path:'202611080101.json',type:'blob',mode:'100644',sha:'a'.repeat(40)}
+    ]},
     [root+'commits/'+commitSha]:{
       sha:commitSha,parents:[{sha:parent}],
       files:[{filename:path,status:'added',sha:ghSha}],
@@ -1463,7 +1472,7 @@ function mockedRemoteGithubFirstAdd(kind='clean') {
     if(!Object.hasOwn(normal,url))throw Error('unexpected_unmocked_network:'+url);
     return {status:200,json:async()=>structuredClone(normal[url])};
   };
-  return {manifest:m,normal,parentUrl,calls,fetcher,body,ghSha,commitSha};
+  return {manifest:m,normal,parentUrl,calls,fetcher,body,ghSha,commitSha,parent,root,rootTreeSha,archiveTreeSha};
 }
 
 test('real-GitHub read-only audit verifies added path, original blob, parent absence and main ancestry without formal T-12 claim',async()=>{
@@ -1475,6 +1484,10 @@ test('real-GitHub read-only audit verifies added path, original blob, parent abs
     assert.equal(res.schema,REMOTE_GITHUB_SCHEMA);
     assert.equal(res.source_blob_commit_consistency_pass,true);
     assert.equal(res.git_parent_addition_checked,true);
+    assert.equal(res.git_parent_tree_absence_checked,true);
+    assert.equal(res.git_parent_tree_sha,x.rootTreeSha);
+    assert.equal(res.git_parent_archive_directory_tree_sha,x.archiveTreeSha);
+    assert.equal(res.record.deadline_jst,'2026-11-09T21:00:00+09:00');
     assert.equal(res.current_main_ancestry_checked,true);
     assert.equal(res.git_blob_sha1,x.ghSha);
     assert.equal(res.record.code,'202611090101');
@@ -1483,7 +1496,7 @@ test('real-GitHub read-only audit verifies added path, original blob, parent abs
     assert.equal(res.native_run_id_independently_proven,false);
     assert.equal(res.official_t_minus_12_proven,false);
     assert.equal(res.formal_recovery_proven,false);
-    assert.equal(x.calls.length,5);
+    assert.equal(x.calls.length,8);
     assert.ok(x.calls.every(c=>c.method==='GET'&&!('Authorization' in c.headers)));
   }
 });
@@ -1511,6 +1524,42 @@ test('remote GitHub source audit fails closed on fake additions, missing parent,
     await assert.rejects(()=>verifyRealGithubFirstAdd({publisher:'clean',
       raceCode:'202611090101',commitSha:x.commitSha,fetcher}),/github_parent_file_absence_unproven/);
   }
+});
+
+test('parent Git tree must independently prove path absence; no truncated page or corrupted ancestry allowed',async()=>{
+  const changes=[
+    x=>x.normal[x.root+'git/commits/'+x.parent].sha='f'.repeat(40),
+    x=>x.normal[x.root+'git/commits/'+x.parent].tree.sha='f'.repeat(40),
+    x=>x.normal[x.root+'git/trees/'+x.rootTreeSha].truncated=true,
+    x=>delete x.normal[x.root+'git/trees/'+x.rootTreeSha].tree,
+    x=>x.normal[x.root+'git/trees/'+x.rootTreeSha].sha='f'.repeat(40),
+    x=>x.normal[x.root+'git/trees/'+x.rootTreeSha].tree[0].mode='100644',
+    x=>x.normal[x.root+'git/trees/'+x.rootTreeSha].tree.push(
+      structuredClone(x.normal[x.root+'git/trees/'+x.rootTreeSha].tree[0])),
+    x=>x.normal[x.root+'git/trees/'+x.archiveTreeSha].truncated=true,
+    x=>x.normal[x.root+'git/trees/'+x.archiveTreeSha].sha='f'.repeat(40),
+    x=>x.normal[x.root+'git/trees/'+x.archiveTreeSha].tree.push({
+      path:'202611090101.json',type:'blob',mode:'100644',sha:'a'.repeat(40)}),
+    x=>x.normal[x.root+'git/trees/'+x.archiveTreeSha].tree=null,
+    x=>x.normal[x.root+'git/blobs/'+x.ghSha].size=999999,
+    x=>x.normal[x.root+'git/blobs/'+x.ghSha].content+=' ',
+  ];
+  for(const [index,change] of changes.entries()){
+    const x=mockedRemoteGithubFirstAdd();
+    change(x);
+    await assert.rejects(()=>verifyRealGithubFirstAdd({publisher:'clean',
+      raceCode:'202611090101',commitSha:x.commitSha,fetcher:x.fetcher}),undefined,
+      'tree mutation '+index+' must fail');
+    assert.ok(x.calls.every(call=>call.method==='GET'));
+  }
+  // This is a valid first-add if the WHOLE archive directory was absent at
+  // the parent, but not if the whole root tree response was truncated.
+  const x=mockedRemoteGithubFirstAdd();
+  x.normal[x.root+'git/trees/'+x.rootTreeSha].tree=[];
+  const outcome=await verifyRealGithubFirstAdd({publisher:'clean',
+    raceCode:'202611090101',commitSha:x.commitSha,fetcher:x.fetcher});
+  assert.equal(outcome.git_parent_tree_absence_checked,true);
+  assert.equal(outcome.git_parent_archive_directory_tree_sha,null);
 });
 
 test('real-GitHub source auditor rejects malformed race code and wrong publisher before any network',async()=>{
