@@ -275,6 +275,16 @@ jobs:
                   exec(compiled, {'__name__': '__main__'})
           exercise()
           assert seen
+          exercise(history={
+              'total_count': 2, 'workflow_runs': [
+                  {'id': 503, 'created_at': created,
+                   'event': 'workflow_dispatch', 'head_branch': 'main'},
+                  {'id': 504, 'created_at':
+                   (start + timedelta(minutes=40)).astimezone(
+                       timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                   'event': 'workflow_dispatch', 'head_branch': 'main'},
+              ],
+          })
           before = len(seen)
           exercise(responses=[fake_history([]), fake_history([503])])
           assert len(seen) - before == 2, 'current_run_visibility_retry_not_observed'
@@ -284,6 +294,21 @@ jobs:
           # Every ambiguous, duplicate, stale, malformed or missing read fails.
           for data, overrides, network_error in (
               (fake_history([502, 503]), None, False),
+              # Higher ID but earlier created_at: ID-only sorting would
+              # incorrectly accept the current run as the first dispatch.
+              ({
+                  'total_count': 2, 'workflow_runs': [
+                      {'id': 503, 'created_at': created,
+                       'event': 'workflow_dispatch', 'head_branch': 'main'},
+                      {'id': 504, 'created_at':
+                       (start + timedelta(minutes=20)).astimezone(
+                           timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                       'event': 'workflow_dispatch', 'head_branch': 'main'},
+                  ],
+              }, None, False),
+              # A second run created at precisely the same time is
+              # ambiguous even if the current run ID is lower.
+              (fake_history([503, 504]), None, False),
               (fake_history([502]), None, False),
               (fake_history([503, 503]), None, False),
               (fake_history([]), None, False),
@@ -389,6 +414,7 @@ jobs:
                   or type(runs) is not list or len(runs) != count):
               raise SystemExit('incomplete_or_unbounded_manual_run_history')
           ids = []
+          created_by_id = {}
           for run in runs:
               if type(run) is not dict:
                   raise SystemExit('untrusted_manual_run_record')
@@ -403,10 +429,16 @@ jobs:
               if dt.tzinfo is None or not first <= dt.astimezone(timezone.utc) <= last:
                   raise SystemExit('out_of_day_manual_run_history')
               ids.append(rid)
+              created_by_id[rid] = dt.astimezone(timezone.utc)
           if len(set(ids)) != count or current not in ids:
               raise SystemExit('incomplete_self_or_duplicate_run_history')
-          if min(ids) != current:
-              raise SystemExit('earlier_manual_dispatch_exists_today_refuse_second_run')
+          # A smaller run ID alone cannot prove earliest creation. Reject
+          # clock/ID contradictions and same-second ties, including a higher
+          # run ID whose server created_at predates this run.
+          if (min(ids) != current or any(
+                  when <= created_by_id[current]
+                  for rid, when in created_by_id.items() if rid != current)):
+              raise SystemExit('earlier_or_tied_manual_dispatch_exists_today_refuse_second_run')
           print('FIRST_LISTED_MANUAL_DISPATCH_ONLY_NONFORMAL', current)
           PY
       - name: Checkout exact reviewed research implementation (never branch tip)
