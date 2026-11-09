@@ -9,6 +9,7 @@ on:
       - navigation.js
       - tests/webkit-history-hotfix.cjs
       - tests/live_webkit_history_postdeploy.cjs
+      - tests/live_pages_assets_postdeploy.cjs
       - .github/workflows/webkit-history-hotfix.yml
 permissions:
   contents: read
@@ -28,6 +29,11 @@ jobs:
           node --check navigation.js
           node --check tests/webkit-history-hotfix.cjs
           node --check tests/live_webkit_history_postdeploy.cjs
+          node --check tests/live_pages_assets_postdeploy.cjs
+          node tests/live_pages_assets_postdeploy.cjs --self-test
+      - name: Verify published HTML and JS match checked-out release (manual only)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_pages_assets_postdeploy.cjs
       - name: Install local WebKit engine
         run: |
           npm install --no-save --no-package-lock playwright@1.58.2
