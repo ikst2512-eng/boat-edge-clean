@@ -62,11 +62,37 @@ const server = http.createServer((request, response) => {
         body: 'offline test fixture'
       });
     });
+    // Offline-only network fixture: prove three concurrent forecast consumers
+    // use ONE HTTP request, but a later refresh is never served from cache.
+    const fixtureUrl = 'https://boat-edge-clean.onrender.com/api/clean-racecard?hd=20990101&jcd=24&rno=12';
+    let fixtureRequests = 0;
+    await page.route(url => url.href === fixtureUrl, route => {
+      fixtureRequests++;
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        headers: {'access-control-allow-origin': '*'},
+        body: JSON.stringify({fixture: 'draft-singleflight-only', request: fixtureRequests})
+      });
+    });
     await page.goto(localOrigin + '/?date=2026-10-30&venue=1&race=1', {
       waitUntil: 'domcontentloaded', timeout: 30000
     });
     await page.waitForFunction(() => typeof setView === 'function' && typeof render === 'function');
 
+    const singleflight = await page.evaluate(async url => {
+      const responses = await Promise.all([
+        fetchForecastRacecard(url), fetchForecastRacecard(url), fetchForecastRacecard(url)
+      ]);
+      return Promise.all(responses.map(response => response.json()));
+    }, fixtureUrl);
+    if (fixtureRequests !== 1 || singleflight.length !== 3 ||
+        singleflight.some(data => data.fixture !== 'draft-singleflight-only' || data.request !== 1))
+      throw Error('DRAFT_RACECARD_SINGLEFLIGHT_FAILED ' + JSON.stringify({fixtureRequests, singleflight}));
+    const refreshed = await page.evaluate(async url => (await fetchForecastRacecard(url)).json(), fixtureUrl);
+    if (fixtureRequests !== 2 || refreshed.request !== 2)
+      throw Error('DRAFT_RACECARD_STALE_CACHED_RESPONSE ' + JSON.stringify({fixtureRequests, refreshed}));
+    console.log('PASS_DRAFT_RACECARD_SINGLEFLIGHT ' +
+      JSON.stringify({concurrentConsumers: 3, firstNetworkRequests: 1, afterRefresh: fixtureRequests}));
     const verdict = await page.evaluate(async () => {
       const initialWrites = {...window.__historyMutationCounts};
       for (let i = 0; i < 130; i++) setView('forecast');
