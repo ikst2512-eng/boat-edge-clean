@@ -410,7 +410,7 @@ async function loadEntryScenario(){
  const controls=document.getElementById('entryScenarioControls');
  controls.hidden=true;entryScenarioState=null;entryScenarioSetStatus('事前出走表・進入データを検証中…');
  try{
-  const res=await fetchTimed('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)),{cache:'no-store'});
+  const res=await fetchForecastRacecard('https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14)));
   if(request!==entryScenarioRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   if(!res.ok)throw Error('RACECARD_UNAVAILABLE');
   const raw=await res.json();
@@ -573,6 +573,21 @@ setInterval(()=>{if(document.hidden)return;if(!datePinned&&s.date!==fmt(jst())){
 // Refresh the selected today's race on return; keep unrelated tabs/network idle.
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(todayVenueRaces?.date===s.date)renderDeadlines(todayVenueRaces);if(!datePinned&&s.date!==fmt(jst())){s.date=fmt(jst());venueDateChecked='';render();return}if(s.date===fmt(jst())){loadHeldVenues(true);if(activeView==='card'||activeView==='exhibit')loadRaceData(true);if(activeView==='forecast'){if(!verifiedCache.has(sameRaceKey()))loadPredictions();loadResult(true)}if(activeView==='result')loadResult(true)}});
 async function fetchTimed(url,options={}){return fetch(url,{...options,signal:AbortSignal.timeout(15000)})}
+const forecastRacecardFlights=new Map();
+// Share only simultaneous reads of the *same* racecard. Do not cache finished responses:
+// saved forecasts and live exhibition must always be allowed to refresh.
+async function fetchForecastRacecard(url){
+ let pending=forecastRacecardFlights.get(url);
+ if(!pending){
+  pending=fetchTimed(url,{cache:'no-store'});
+  forecastRacecardFlights.set(url,pending);
+  const clear=()=>{if(forecastRacecardFlights.get(url)===pending)forecastRacecardFlights.delete(url)};
+  void pending.then(clear,clear);
+ }
+ const response=await pending;
+ // Each consumer independently validates its own copy of the one fetched response.
+ return response.clone();
+}
 // Confirmed result files are published with Pages as a same-origin fallback when GitHub Raw fails.
 async function fetchCleanResultArchive(code){
  if(!/^20\d{10}$/.test(code))throw Error('RESULT_RACE_CODE_INVALID');
@@ -721,7 +736,7 @@ async function loadForecastCourseStats(){
  setUnavailable();
  try{
   const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
-  const response=await fetchTimed(url,{cache:'no-store'});if(!response.ok){if(sourceLabel)sourceLabel.textContent='実コース別成績：API取得失敗（HTTP '+response.status+'）';return;}
+  const response=await fetchForecastRacecard(url);if(!response.ok){if(sourceLabel)sourceLabel.textContent='実コース別成績：API取得失敗（HTTP '+response.status+'）';return;}
   const raw=await response.json();
   if(requestId!==forecastCourseStatsRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   const audit=raw.source_audit?.course_stats,deadline=Date.parse(raw.meta?.date+'T'+raw.meta?.deadline+':00+09:00'),fetched=Date.parse(audit?.fetched_at);
@@ -1254,7 +1269,7 @@ async function loadForecastPreview(){
  root.replaceChildren();status.textContent='展示・直前の取得状態を確認中…';
  try{
   const url='https://boat-edge-clean.onrender.com/api/clean-racecard?hd='+key.slice(0,8)+'&jcd='+Number(key.slice(9,11))+'&rno='+Number(key.slice(12,14));
-  const response=await fetchTimed(url,{cache:'no-store'});
+  const response=await fetchForecastRacecard(url);
   if(token!==forecastPreviewRequestId||key!==sameRaceKey()||activeView!=='forecast')return;
   if(!response.ok){status.textContent='展示・直前は配信待ち、または取得できません。出走表・予想は別途確認できます。';return}
   const raw=await response.json();
