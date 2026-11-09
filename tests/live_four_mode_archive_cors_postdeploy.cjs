@@ -9,6 +9,7 @@ const PAGES_URL = PAGES_ORIGIN + '/boat-edge-clean/';
 const API = 'https://boat-edge-clean.onrender.com/api/four-mode-archive';
 const cases = [
   {code: '202611061006', expected: 200},
+  {code: '209901010101', expected: 404}, // syntactically valid, no historical archive
   {code: 'not-a-race-code', expected: 422},
 ];
 
@@ -28,6 +29,16 @@ async function checkDirectHeaders() {
       'Live archive response is not a JSON object for ' + code);
     console.log('LIVE_ARCHIVE_RAW_CORS_PASS code='+code+' status='+response.status+' acao='+acao);
   }
+  // Security check: never reflect an untrusted Origin back to the caller.
+  const untrusted = 'https://untrusted-site.example';
+  const negative = await fetch(API + '?code=not-a-race-code', {
+    headers: {Origin: untrusted},
+    signal: AbortSignal.timeout(30000),
+  });
+  assert.equal(negative.status, 422, 'Unexpected live negative-control HTTP status');
+  assert.equal(negative.headers.get('access-control-allow-origin'), PAGES_ORIGIN,
+    'Live archive API CORS allowlist must remain fixed to Pages, not reflect Origin');
+  console.log('LIVE_ARCHIVE_UNTRUSTED_ORIGIN_NOT_REFLECTED');
 }
 
 async function checkBrowser(name, engine) {
