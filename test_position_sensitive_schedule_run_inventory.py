@@ -124,6 +124,7 @@ class ScheduleVsRunVisibilityTests(unittest.TestCase):
 
     def test_live_readonly_audit_pins_main_and_one_page(self):
         expected = schedule_run_url(DAY,NOW,1)
+        expected_manual = schedule_run_url(DAY,NOW,1,"workflow_dispatch")
         calls = []
         def git(*args):
             calls.append(("git",args))
@@ -135,14 +136,47 @@ class ScheduleVsRunVisibilityTests(unittest.TestCase):
             raise AssertionError("unallowlisted_git_call")
         def fetch(url):
             calls.append(("get",url))
-            self.assertEqual(url,expected)
-            return page([run(1)])
+            if url == expected:
+                return page([run(1)])
+            self.assertEqual(url,expected_manual)
+            return page([run(2,event="workflow_dispatch")])
         report=live_audit(DAY,NOW,fetch=fetch,git=git)
         self.assertTrue(report["live_readonly_github_api_invoked"])
         self.assertEqual(report["main_git_snapshot_sha"],"c"*40)
         self.assertEqual(report["observed_matching_four_mode_scheduled_runs"],1)
-        self.assertEqual(sum(x[0]=="get" for x in calls),1)
+        self.assertEqual(report["observed_matching_four_mode_manual_dispatch_runs"],1)
+        self.assertEqual(report["observed_manual_dispatch_main_branch_runs"],1)
+        self.assertEqual(sum(x[0]=="get" for x in calls),2)
         self.assertFalse(report["formal"])
+
+    def test_manual_dispatch_reported_separately_no_claim_of_slot_filling(self):
+        scheduled = [page([run(1)])]
+        dispatched = [page([
+            run(2,event="workflow_dispatch"),
+            run(3,event="workflow_dispatch",branch="research/safe"),
+        ])]
+        out = audit_run_inventory(DAY,NOW,WORKFLOW_BYTES,scheduled,dispatched)
+        self.assertEqual(out["observed_matching_four_mode_scheduled_runs"],1)
+        self.assertEqual(out["observed_matching_four_mode_manual_dispatch_runs"],2)
+        self.assertEqual(out["observed_manual_dispatch_main_branch_runs"],1)
+        self.assertEqual(out["observed_manual_dispatch_nonmain_branch_runs"],1)
+        self.assertEqual(out["numerical_elapsed_minus_observed_run_count"],49)
+        self.assertFalse(out["manual_dispatch_success_proves_capture_publication"])
+        self.assertFalse(out["complete_scheduled_and_rescue_run_inventory_verified"])
+        self.assertFalse(out["run_to_exact_cron_slot_attribution_verified"])
+        self.assertFalse(out["formal"])
+
+    def test_manual_dispatch_bad_pagination_and_cross_event_duplicate_rejected(self):
+        scheduled=[page([run(1)])]
+        with self.assertRaisesRegex(ValueError, "manual_dispatch_pagination_incomplete"):
+            audit_run_inventory(DAY,NOW,WORKFLOW_BYTES,scheduled,
+                                [page([run(2,event="workflow_dispatch")],total=101)])
+        with self.assertRaisesRegex(ValueError, "invalid_or_duplicate_manual_dispatch_run"):
+            audit_run_inventory(DAY,NOW,WORKFLOW_BYTES,scheduled,
+                                [page([run(1,event="workflow_dispatch")])])
+        with self.assertRaisesRegex(ValueError, "invalid_or_duplicate_manual_dispatch_run"):
+            audit_run_inventory(DAY,NOW,WORKFLOW_BYTES,scheduled,
+                                [page([run(2)])])
 
     def test_unallowlisted_http_url_fails_without_network(self):
         with self.assertRaisesRegex(ValueError, "not_allowlisted"):
