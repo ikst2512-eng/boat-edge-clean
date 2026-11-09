@@ -265,6 +265,57 @@ class FourModeForwardTests(unittest.TestCase):
         self.assertFalse(report["model_improvement_proven"])
         self.assertFalse(report["model_promotion_allowed"])
 
+    def test_pre_result_roster_digest_ignores_order_and_result_timing(self):
+        a = self.row()
+        b = copy.deepcopy(a)
+        b["race_code"] = "202611070102"
+        b["deadline_jst"] = "2026-11-07T08:40:00+09:00"
+        baseline = score([a, b], {}, self.policy)
+        after = score([b, a], {a["race_code"]: self.result()}, self.policy)
+        digest = baseline["selected_pre_result_roster_sha256_reference_only"]
+        self.assertRegex(digest, r"^[0-9a-f]{64}$")
+        self.assertEqual(digest,
+            after["selected_pre_result_roster_sha256_reference_only"])
+        self.assertFalse(after["formal"])
+        modified = copy.deepcopy(b)
+        modified["candidate"]["hit"][0], modified["candidate"]["hit"][1] = (
+            modified["candidate"]["hit"][1], modified["candidate"]["hit"][0])
+        altered = score([a, modified], {}, self.policy)
+        self.assertNotEqual(digest,
+            altered["selected_pre_result_roster_sha256_reference_only"])
+        # No remote-first-receipt evidence is created by hashing local input.
+        self.assertFalse(altered["independent_first_remote_receipt_verified"])
+        self.assertEqual(altered["phase_progress"]["pilot"]["formally_certified_pairs"], 0)
+
+    def test_fixed_600_overflow_is_explicit_and_not_backfilled(self):
+        # 601 synthetic pre-result entries across 3 days; none is real data.
+        rows = []
+        for i in range(601):
+            day = 7 + i // 288
+            offset = i % 288
+            venue, race = offset // 12 + 1, offset % 12 + 1
+            row = self.row()
+            row["race_code"] = f"202611{day:02d}{venue:02d}{race:02d}"
+            for key in (
+                "deadline_jst", "official_source_received_jst",
+                "baseline_generated_jst", "baseline_github_observed_jst",
+                "candidate_generated_jst", "candidate_github_observed_jst"):
+                row[key] = row[key].replace("2026-11-07",
+                                            f"2026-11-{day:02d}")
+            rows.append(row)
+        first_600 = score(rows[:600], {}, self.policy)
+        with_extra = score(list(reversed(rows)), {}, self.policy)
+        self.assertEqual(
+            first_600["selected_pre_result_roster_sha256_reference_only"],
+            with_extra["selected_pre_result_roster_sha256_reference_only"])
+        self.assertEqual(first_600["candidate_records_after_fixed_600_not_scored"], 0)
+        self.assertEqual(with_extra["candidate_records_after_fixed_600_not_scored"], 1)
+        self.assertEqual(with_extra["valid_pre_result_candidate_records_reference_only"], 601)
+        self.assertEqual(with_extra["eligible_roster_count"], 600)
+        self.assertEqual(with_extra["phase_progress"]["pilot"]["pending_result_slots"], 300)
+        self.assertEqual(with_extra["phase_progress"]["confirmation"]["pending_result_slots"], 300)
+        self.assertEqual(with_extra["phase_progress"]["confirmation"]["formally_certified_pairs"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
