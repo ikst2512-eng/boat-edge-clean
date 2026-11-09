@@ -8,6 +8,8 @@ on:
       - research/hole_pair_first_receipt_worker.mjs
       - research/hole_pair_first_receipt_schema.sql
       - research/test_hole_pair_first_receipt_worker.mjs
+      - research/hole_pair_signed_first_receipt_audit.mjs
+      - research/test_hole_pair_signed_first_receipt_audit.mjs
       - research/test_hole_pair_first_receipt_sql.py
       - docs/research/hole_pair_cloudflare_first_acceptance_draft.md
       - test_hole_pair_write_once_candidate_ledger.py
@@ -59,6 +61,8 @@ jobs:
         run: |
           node --test research/test_hole_pair_first_receipt_worker.mjs
           python -m unittest -v research/test_hole_pair_first_receipt_sql.py
+      - name: Verify signed external-first-receipt claims (ephemeral key, nonformal)
+        run: node --test research/test_hole_pair_signed_first_receipt_audit.mjs
       - name: Fail closed on purported D1 receipt chain (offline, nonformal)
         run: python -m unittest -v research/test_hole_pair_d1_receipt_chain_audit.py
       - name: Audit immutable-main source snapshot ID coverage (synthetic, read-only)
