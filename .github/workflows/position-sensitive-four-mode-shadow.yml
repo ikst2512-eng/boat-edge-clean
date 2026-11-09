@@ -19,6 +19,8 @@ on:
       - 'position_sensitive_candidate_batch_export.py'
       - 'position_sensitive_schedule_run_inventory.py'
       - 'position_sensitive_run_job_reconcile.py'
+      - 'position_sensitive_original_publication_audit.py'
+      - 'test_position_sensitive_original_publication_audit.py'
       - 'test_position_sensitive_run_job_reconcile.py'
       - 'test_position_sensitive_schedule_run_inventory.py'
       - 'test_position_sensitive_candidate_batch_export.py'
@@ -102,7 +104,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory test_position_sensitive_run_job_reconcile
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory test_position_sensitive_run_job_reconcile test_position_sensitive_original_publication_audit
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -413,6 +415,21 @@ jobs:
                 str(a["scheduled_slots_elapsed"]))
           print("POSITION_SENSITIVE_LIVE_NO_FIRST_RECEIPT_CERTIFICATION")
           PY
+      - name: Capture job log-to-published-file audit defaults to no log and no network
+        run: |
+          python position_sensitive_original_publication_audit.py | tee position_original_publication_unstarted.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("position_original_publication_unstarted.json").read_text())
+          if (v.get("status") != "no_authenticated_capture_job_log_supplied"
+                  or v.get("candidate_first_remote_receipts_verified") != 0
+                  or v.get("formal") is not False
+                  or v.get("promotion_allowed") is not False
+                  or v.get("production_changed") is not False):
+              raise SystemExit("publication_log_audit_cannot_claim_proof_without_log")
+          print("POSITION_SENSITIVE_ORIGINAL_PUBLICATION_LOG_AUDIT_UNSTARTED_SAFE")
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -558,6 +575,7 @@ jobs:
             position_schedule_inventory_unstarted.json
             position_schedule_run_live.json
             position_schedule_jobs_live.json
+            position_original_publication_unstarted.json
             position_candidate_batch_local.json
             position_shadow_t12_windows.json
           retention-days: 30
