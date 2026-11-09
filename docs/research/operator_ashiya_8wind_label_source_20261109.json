@@ -1,0 +1,86 @@
+{
+  "schema": "BOAT_EDGE_OPERATOR_RELATIVE_WIND_8_DIRECTION_TEXT_AUDIT_V1",
+  "site_code": "21",
+  "venue": "芦屋",
+  "documented_at_jst": "2026-11-09",
+  "scope": "Draft PR 1692 research audit; historical/dynamic operator display, not T12",
+  "geometric_rule": "Wind direction is FROM north in degrees. candidate boat heading from start to mark1. abs(from-heading) 0=head, 45=oblique head, 90=cross, 135=oblique tail, 180=tail. For a boat heading east, north wind comes from its left and south from right.",
+  "evidence_type": "operator_public_rendered_text_without_origin_raw_html_sha",
+  "source_document_sha256": null,
+  "water_diagram_original_png_sha256": null,
+  "original_same_race_wind_arrow_sha256": null,
+  "t12_beforeinfo_original_sha256": null,
+  "official_diagram_second_reader_signed_off": false,
+  "raw_html_frozen_and_replayable": false,
+  "operator_label_semantics_approved_for_all_venues": false,
+  "source_rows": [
+    {
+      "wind_from": "北",
+      "operator_label": "左横風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "北東",
+      "operator_label": "向い風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=9&page=datafile-motor_histdtl&select=32",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "東",
+      "operator_label": "向い風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "南東",
+      "operator_label": "向い風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "南",
+      "operator_label": "右横風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "南西",
+      "operator_label": "追い風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "西",
+      "operator_label": "追い風",
+      "source_url": "https://boatrace-ashiya.com/sp/?motor_no=23&page=datafile-motor_histdtl&select=1",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    },
+    {
+      "wind_from": "北西",
+      "operator_label": "追い風",
+      "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+      "original_html_sha256": null,
+      "observed_source_type": "operator_motor_history_public_text_rendering_not_raw_receipt"
+    }
+  ],
+  "calm_row": {
+    "wind_from": "無風",
+    "operator_label": "無風",
+    "source_url": "https://www.boatrace-ashiya.com/sp/?motor_no=4&page=datafile-motor_histdtl&select=20",
+    "wind_m": 0,
+    "original_html_sha256": null
+  },
+  "acceptance_policy": "If eight distinct nonzero winds each have one operator label, compare eight candidate directions. Derive only hypothesis and never certify real stadium heading without SHA'd official diagram plus same-race original arrow.",
+  "formal_heading_certified": false,
+  "t12_eligible": false,
+  "production_authorized": false,
+  "main_modified": false
+}
