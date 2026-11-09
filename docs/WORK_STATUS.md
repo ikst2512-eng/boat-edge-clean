@@ -1,3 +1,11 @@
+## 2026-11-09 UTC 実行履歴付きActions重複監査（Draft #1709・main未変更）
+- GitHub REST `actions/runs?event=workflow_run&created=YYYY-MM-DD&per_page=100&page=N` の全ページ取得で、2026-11-07 UTC=187件（2ページ）、11-08 UTC=901件（10ページ）、11-09 UTC=665件（7ページ、同日進行中の監査時点）をID重複ゼロで確認。合計1,753件。内訳はsuccess 364、skipped 1,371、cancelled 18、failure 0（workflow_run起動に限る）。これはschedule/PR/pushなどの全実行数ではない。
+- 期限切れの「T12 Kiryu12 upstream completion recovery (research only, Nov 3)」だけで11-07=22件・11-08=108件・11-09=69件の計199件が`skipped`（199/199）。旧ジョブは現在も現行mainの4モード/CLEAN完了イベントで起動されるため、PR #1709で現役workflow定義を削除する実測根拠。PRは未統合なので効果はまだ本番実証されていない。
+- 他のworkflow_runは成功実績を伴うため、そのまま削除しない。「Four-mode capture schedule watchdog」3日で703件中skipped 663件、success 40件。「Entry course missed-cron activation watchdog」184件中skipped 173件、success 11件。「CLEAN independent confirmed result collection」184件中skipped 169件、success 11件、cancelled 4件。「CLEAN V236 verification queue」284件中skipped 167件、success 103件、cancelled 14件。skipはGitHub Actions run記録数の過多を示すが、実際のrunner課金・保存の無駄や安全な統合余地はジョブログ/保存成果と分けて審査する。
+- 本番書き込み `collect-clean-results.yml` と `v236-verification.yml` は共有concurrency group `clean-main-data-writers` で直列化し、独立結果取得と事前凍結済み予想状態の更新を別役割としている。cron重複に見えても安全性なしで統合・停止しない。4モード収集/CLEAN収集は独立原本で、同一業務とはみなさない。
+- 静的監査ではmainのworkflows 149定義から期限切れ4定義を撤去するDraft #1709があり、当該Draft適用後の現役workflow定義は145件の見込み。加えて公式racelistの古い`pull_request.paths`2参照を除去し、root`test_clean_prospective_watchdog.py`の過去契約参照を不活性fixtureに付替え。全現役workflow・検査対象のコード経路に旧4ジョブ名/パスの未解決参照が無いことを追加テストで検証。
+- 同じDraft head `26bc040d8446b97dcb298c80d3eb2bd466d3b4b3` のCI [official racecard #42620475139](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42620475139) と [watchdog #42620475138](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42620475138) は各success。watchdogの復旧dispatchステップはskip。本番での復旧・公開サイト・全149workflowのcross-CIまでは証明しない。原本・予想ロジック・UIは不変更。mainへの自動統合はしない。
+
 ## 2026-11-09 JST 重複・期限切れワークフロー整理（Draft・main未変更）
 - main再帰Git treeで追跡blob 11,956件、Actions YAML 149件を確認。Git blob SHA完全一致は1組（公式展示原本とfixture）であり用途が異なるため両方保持。名前・目的・処理が似たworkflowの機能重複は別途監査が必要。
 - 穴ペア手動ゲートウェイDraft #1701 は #1702 と目的重複、#1702側の固定source SHA・原本blob照合・競合ゲートウェイ拒否の方が強いため、コメント付きで #1701を2026-11-09に未統合close。#1702はDraftを維持し有効化しない。
