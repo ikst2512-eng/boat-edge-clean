@@ -74,7 +74,12 @@ jobs:
           assert 'git cat-file -e "origin/main:$competing"' in capture
           assert 'test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)"' in capture
           assert 'main changed since manual dispatch' in capture
-          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_pinned_dispatch_main')
+          assert "'manifest_sha256': hashlib.sha256(raw).hexdigest()" in capture
+          assert "'github_run_id': run_id" in capture
+          assert "assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']" in capture
+          assert 'test -s research_capture_provenance.json' in capture
+          assert 'research_capture_provenance.json' in capture
+          print('REVIEW_ONLY_GATE_PASS_dispatch_main_plus_local_manifest_provenance')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -150,11 +155,73 @@ jobs:
           print('NONFORMAL_FROZEN_COUNT',obj['frozen_count'])
           print('EXCLUSIONS',obj['excluded_by_reason'])
           PY
-      - name: Save exact nonformal research candidate manifest (not first receipt)
-        uses: actions/upload-artifact@v4
+      - name: Bind nonformal candidate manifest to exact workflow run and source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          src = Path('research_candidate_freeze.json')
+          raw = src.read_bytes()
+          batch = json.loads(raw)
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          main_sha = git('rev-parse', '--verify', 'refs/remotes/origin/main')
+          research_sha = git('rev-parse', '--verify', 'HEAD')
+          assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']
+          assert research_sha == '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/main'
+          assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
+          assert batch['formal'] is False and batch['independent_first_receipt_verified'] is False
+          assert batch['capture_day_jst'] == os.environ['INPUT_CAPTURE_DAY_JST']
+          run_id = int(os.environ['GITHUB_RUN_ID'])
+          attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
+          assert run_id > 0 and attempt > 0
+          local_provenance = {
+              'schema': 'HOLE_PAIR_GATEWAY_LOCAL_PROVENANCE_V1',
+              'github_run_id': run_id,
+              'github_run_attempt': attempt,
+              'github_event_name': os.environ['GITHUB_EVENT_NAME'],
+              'github_workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'github_dispatch_main_sha': os.environ['GITHUB_SHA'],
+              'source_main_commit': main_sha,
+              'pinned_research_commit': research_sha,
+              'capture_day_jst': batch['capture_day_jst'],
+              'manifest_file': src.name,
+              'manifest_sha256': hashlib.sha256(raw).hexdigest(),
+              'manifest_bytes': len(raw),
+              'formal': False,
+              'independent_first_receipt_verified': False,
+              'official_t12_complete_verified': False,
+              'production_promotion_allowed': False,
+              'warning': 'Actions/local provenance only; NOT an independent first remote receipt.',
+          }
+          Path('research_capture_provenance.json').write_text(
+              json.dumps(local_provenance, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print('LOCAL_MANIFEST_SHA256', local_provenance['manifest_sha256'])
+          print('NONFORMAL_RUN_ID', run_id, 'ATTEMPT', attempt)
+          PY
+        env:
+          INPUT_CAPTURE_DAY_JST: ${{ inputs.capture_day_jst }}
+      - name: Save both candidate manifest and local run provenance (not first receipt)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s research_candidate_freeze.json
+          test -s research_capture_provenance.json
+      - uses: actions/upload-artifact@v4
         with:
           name: hole-pair-manual-unverified-${{ inputs.capture_day_jst }}
-          path: research_candidate_freeze.json
+          path: |
+            research_candidate_freeze.json
+            research_capture_provenance.json
           if-no-files-found: error
           retention-days: 30
       - name: Fail a zero-candidate run rather than announcing capture success
