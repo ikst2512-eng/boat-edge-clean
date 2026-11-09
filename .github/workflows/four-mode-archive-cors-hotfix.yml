@@ -11,6 +11,7 @@ on:
       - tests/four_mode_archive_cors_browser.cjs
       - tests/live_four_mode_archive_cors_postdeploy.cjs
       - tests/live_four_mode_display_postdeploy.cjs
+      - tests/four_mode_ui_integration_browser.cjs
       - .github/workflows/four-mode-archive-cors-hotfix.yml
 
 permissions:
@@ -39,10 +40,13 @@ jobs:
           npx playwright install --with-deps chromium webkit
       - name: Verify browser-enforced CORS with unmodified local Handler headers
         run: node tests/four_mode_archive_cors_browser.cjs
+      - name: Verify actual saved four-mode UI through real local Handler in Chromium and WebKit
+        run: node tests/four_mode_ui_integration_browser.cjs
       - name: Syntax-check postdeploy public-origin gates (PR-only)
         run: |
           node --check tests/live_four_mode_archive_cors_postdeploy.cjs
           node --check tests/live_four_mode_display_postdeploy.cjs
+          node --check tests/four_mode_ui_integration_browser.cjs
       - name: Verify REAL published Pages to Render CORS (manual AFTER deployment)
         if: github.event_name == 'workflow_dispatch'
         run: node tests/live_four_mode_archive_cors_postdeploy.cjs
