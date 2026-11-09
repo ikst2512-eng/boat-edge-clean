@@ -341,7 +341,7 @@ const {chromium}=require('playwright');
         });
         if(sourceRows.some((row,i)=>!expectedRows[i]||Object.keys(row).some(field=>
            field==='lane'?row.lane!==expectedRows[i].lane:
-           !sameNumber(row[field],expectedRows[i][field])))
+           !sameNumber(row[field],expectedRows[i][field]))))
          throw Error('REPEATED_EXHIBITION_HTTP_VALUES_UNVERIFIED '+JSON.stringify({
           race:expected,attempt,sourceRows
          }));
