@@ -742,5 +742,93 @@ class ScheduledEvidenceTest(unittest.TestCase):
         self.assertFalse(result["remote_main_verified"])
 
 
+    def test_delayed_night_run_attributes_local_forecasts_to_race_dates(self):
+        # A 03:07 JST GitHub execution may publish files for 11/08. Run-day
+        # is not interchangeable with each immutable archive's race-code day.
+        delayed = {**self.RUN, "created_at": "2026-11-08T18:07:00Z"}
+        sha = "a" * 40
+        codes = ["202611082312", "202611090101"]
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 2,
+                "commit_sha": sha})
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": sha, "published_forecasts": 2,
+                "records": [{"race_code": code} for code in codes]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": sha, "published_new_count": 2,
+                "records": [{"race_code": code} for code in reversed(codes)]})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed", "detail": {
+                    "status": "published_with_durable_early_observation",
+                    "evidence_required": True, "published": 2}})
+        result = report({"runs": [delayed]}, download)
+        # Old run-day summary is retained explicitly as *run-day*, never
+        # promoted to a complete forecast-race-day count.
+        self.assertEqual(
+            result["publication_evidence_by_run_day_jst"]["20261109"][
+                "final_gate_published_forecast_count"], 2)
+        by_race_day = result["artifact_local_publications_by_race_day_jst"]
+        self.assertEqual(
+            by_race_day["20261108"]["artifact_local_forecast_count"], 1)
+        self.assertEqual(
+            by_race_day["20261109"]["artifact_local_forecast_count"], 1)
+        self.assertEqual(
+            by_race_day["20261108"]["run_ids_created_on_other_or_unknown_jst_day"],
+            [123])
+        self.assertEqual(
+            by_race_day["20261109"]["run_ids_created_on_other_or_unknown_jst_day"],
+            [])
+        self.assertEqual(
+            result["published_run_ids_without_verified_local_race_day"], [])
+        self.assertFalse(result["full_day_publication_coverage_verified"])
+        self.assertFalse(result["remote_main_verified"])
+
+    def test_published_without_matching_race_roster_stays_unattributed(self):
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 2,
+                "commit_sha": "a" * 40})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed", "detail": {
+                    "status": "published_with_durable_early_observation",
+                    "evidence_required": True, "published": 2}})
+        result = report({"runs": [self.RUN]}, download)
+        self.assertEqual(result["final_gate_published_forecast_count"], 2)
+        self.assertEqual(result["artifact_local_publications_by_race_day_jst"], {})
+        self.assertEqual(
+            result["published_run_ids_without_verified_local_race_day"], [123])
+
+    def test_invalid_race_calendar_date_rejected_for_local_date_attribution(self):
+        sha = "a" * 40
+        def download(_, root):
+            self.save(root, "four-mode-evidence/publication.json", {
+                "outcome": "pushed_to_main", "added_forecasts": 1,
+                "commit_sha": sha})
+            self.save(root, "four-mode-evidence/third-rate-shadow.json", {
+                "schema": "V2_THIRD_RATE_SAME_JOB_FROZEN_SHADOW_V1",
+                "publication_commit_sha": sha, "published_forecasts": 1,
+                "records": [{"race_code": "202613010101"}]})
+            self.save(root, "four-mode-evidence/hole-shadow.json", {
+                "schema": "HOLE_SHADOW_PUBLISHED_SAME_JOB_V1",
+                "publication_commit_sha": sha, "published_new_count": 1,
+                "records": [{"race_code": "202613010101"}]})
+            self.save(root, "four-mode-evidence/final-evidence-verdict.json", {
+                "schema": "FOUR_MODE_FINAL_EVIDENCE_VERDICT_V1",
+                "status": "passed", "detail": {
+                    "status": "published_with_durable_early_observation",
+                    "evidence_required": True, "published": 1}})
+        result = report({"runs": [self.RUN]}, download)
+        self.assertEqual(result["artifact_local_publications_by_race_day_jst"], {})
+        self.assertEqual(
+            result["published_run_ids_without_verified_local_race_day"], [123])
+        self.assertFalse(result["remote_main_verified"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
