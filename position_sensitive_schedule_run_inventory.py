@@ -103,19 +103,21 @@ def query_window(day, now_utc):
     return beginning, now_utc
 
 
-def schedule_run_url(day, now_utc, page):
+def schedule_run_url(day, now_utc, page, event="schedule"):
+    if event not in ("schedule", "workflow_dispatch"):
+        raise ValueError("invalid_actions_event")
     if type(page) is not int or not 1 <= page <= 20:
         raise ValueError("invalid_actions_page")
     start, end = query_window(day, now_utc)
     window = (start.strftime("%Y-%m-%dT%H:%M:%SZ") + ".." +
               end.strftime("%Y-%m-%dT%H:%M:%SZ"))
     return ROOT_URL + "/actions/runs?" + urllib.parse.urlencode({
-        "event": "schedule", "created": window,
+        "event": event, "created": window,
         "per_page": PER_PAGE, "page": page,
     })
 
 
-def audit_run_inventory(day, now_utc, workflow_bytes, pages):
+def audit_run_inventory(day, now_utc, workflow_bytes, pages, dispatch_pages=None):
     """Fully paginate a retrieved API window, without proving schedule coverage.
 
     A caller-provided page is untrusted; this pure function cannot attest
@@ -169,6 +171,59 @@ def audit_run_inventory(day, now_utc, workflow_bytes, pages):
             "conclusion": r["conclusion"],
         })
     matches.sort(key=lambda r: (r["created_at_utc"], r["run_id"]))
+    # Separately enumerate explicit manual dispatches, not interchangeable with
+    # schedule-created runs. This remains only a finite current API window.
+    dispatch = []
+    dispatch_total = None
+    if dispatch_pages is not None:
+        if (type(dispatch_pages) is not list or not dispatch_pages
+                or len(dispatch_pages) > 20):
+            raise ValueError("missing_or_excess_dispatch_pages")
+        observed = set()
+        seen_manual = 0
+        for page in dispatch_pages:
+            if (type(page) is not dict
+                    or type(page.get("total_count")) is not int
+                    or not 0 <= page["total_count"] <= MAX_RUNS
+                    or type(page.get("workflow_runs")) is not list
+                    or len(page["workflow_runs"]) > PER_PAGE):
+                raise ValueError("invalid_manual_dispatch_api_page")
+            if dispatch_total is None:
+                dispatch_total = page["total_count"]
+            elif dispatch_total != page["total_count"]:
+                raise ValueError("manual_dispatch_pagination_changed")
+            for run in page["workflow_runs"]:
+                seen_manual += 1
+                if (type(run) is not dict or type(run.get("id")) is not int
+                        or run["id"] <= 0 or run["id"] in observed
+                        or run["id"] in seen or
+                        run.get("event") != "workflow_dispatch"):
+                    raise ValueError("invalid_or_duplicate_manual_dispatch_run")
+                observed.add(run["id"])
+                created = _at_utc(run.get("created_at"))
+                if not start <= created <= end:
+                    raise ValueError("manual_dispatch_outside_requested_window")
+                if run.get("path") != WORKFLOW:
+                    continue
+                if (run.get("head_branch") is None or
+                        run.get("status") not in
+                        ("queued", "in_progress", "completed") or
+                        run.get("conclusion") not in
+                        (None, "success", "failure", "cancelled", "skipped",
+                         "timed_out", "action_required", "neutral", "stale")):
+                    raise ValueError("untrusted_manual_dispatch_state")
+                dispatch.append({
+                    "run_id": run["id"],
+                    "created_at_utc": created.isoformat(),
+                    "branch": run["head_branch"],
+                    "main_capture_branch": run["head_branch"] == "main",
+                    "status": run["status"],
+                    "conclusion": run["conclusion"],
+                })
+        if (len(dispatch_pages) != max(1, (dispatch_total + PER_PAGE - 1)//PER_PAGE)
+                or seen_manual != dispatch_total):
+            raise ValueError("manual_dispatch_pagination_incomplete")
+        dispatch.sort(key=lambda x: (x["created_at_utc"], x["run_id"]))
     elapsed = [x for x in slots if x.astimezone(UTC) <= now_utc]
     future = [x for x in slots if x.astimezone(UTC) > now_utc]
     successes = sum(x["conclusion"] == "success" for x in matches)
@@ -194,6 +249,15 @@ def audit_run_inventory(day, now_utc, workflow_bytes, pages):
         "observed_matching_four_mode_scheduled_runs": len(matches),
         "observed_matching_workflow_success_conclusions": successes,
         "matching_scheduled_runs": matches,
+        "manual_dispatch_api_checked": dispatch_pages is not None,
+        "api_manual_dispatch_runs_all_repo_in_window": dispatch_total,
+        "observed_matching_four_mode_manual_dispatch_runs": len(dispatch),
+        "observed_manual_dispatch_main_branch_runs":
+            sum(x["main_capture_branch"] for x in dispatch),
+        "observed_manual_dispatch_nonmain_branch_runs":
+            sum(not x["main_capture_branch"] for x in dispatch),
+        "matching_manual_dispatch_runs": dispatch,
+        "manual_dispatch_success_proves_capture_publication": False,
         "numerical_elapsed_minus_observed_run_count":
             len(elapsed) - len(matches),
         "this_difference_proves_individual_missed_or_failed_slots": False,
@@ -209,8 +273,8 @@ def audit_run_inventory(day, now_utc, workflow_bytes, pages):
         "production_changed": False,
         "warning": (
             "Only runs returned in this time-windowed Actions list are counted. "
-            "GitHub delayed/non-created scheduled jobs, manual rescue, workflow "
-            "disablement and other external gaps are not independently "
+            "GitHub delayed/non-created scheduled jobs, undocumented rescues, "
+            "workflow disablement and other external gaps are not independently "
             "exhausted. Expected cron-slot minus observed run count is a "
             "NUMERICAL gap, not verified missed executions. Run success alone "
             "does not prove candidate publication or first remote receipt."
@@ -219,7 +283,8 @@ def audit_run_inventory(day, now_utc, workflow_bytes, pages):
 
 
 def _live_fetch_json(url):
-    if not url.startswith(ROOT_URL + "/actions/runs?event=schedule&"):
+    if not (url.startswith(ROOT_URL + "/actions/runs?event=schedule&")
+            or url.startswith(ROOT_URL + "/actions/runs?event=workflow_dispatch&")):
         raise ValueError("not_allowlisted_readonly_actions_endpoint")
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     headers = {
@@ -258,15 +323,19 @@ def live_audit(day, now_utc, fetch=_live_fetch_json, git=_git):
     if COMMIT_RE.fullmatch(ref) is None:
         raise ValueError("untrusted_main_ref")
     workflow = git("show", ref + ":" + WORKFLOW)
-    pages = []
-    for page_index in range(1, 21):
-        obj = fetch(schedule_run_url(day, now_utc, page_index))
-        pages.append(obj)
-        if (type(obj) is dict and type(obj.get("total_count")) is int
-                and type(obj.get("workflow_runs")) is list and
-                len(pages) >= max(1, (obj["total_count"] + PER_PAGE - 1)//PER_PAGE)):
-            break
-    report = audit_run_inventory(day, now_utc, workflow, pages)
+    def collect(event):
+        rows = []
+        for page_index in range(1, 21):
+            obj = fetch(schedule_run_url(day, now_utc, page_index, event))
+            rows.append(obj)
+            if (type(obj) is dict and type(obj.get("total_count")) is int
+                    and type(obj.get("workflow_runs")) is list and
+                    len(rows) >= max(1, (obj["total_count"] + PER_PAGE - 1)//PER_PAGE)):
+                break
+        return rows
+    scheduled = collect("schedule")
+    dispatched = collect("workflow_dispatch")
+    report = audit_run_inventory(day, now_utc, workflow, scheduled, dispatched)
     report["main_git_snapshot_sha"] = ref
     report["live_readonly_github_api_invoked"] = True
     return report
