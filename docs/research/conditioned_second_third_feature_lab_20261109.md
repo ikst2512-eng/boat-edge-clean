@@ -77,3 +77,14 @@ The output carries a SHA256 fingerprint of precisely supplied race-rate/feature/
 
 The current synthetic ablation does not update 1st-place win masses or replace the broader all-mode scenario model tracked in [Issue #1708](https://github.com/ikst2512-eng/boat-edge-clean/issues/1708). Pre-event signed source provenance, fitted feature coefficients, prospective distinct registration and independent 300+300 confirmed future races must precede any performance or UI claim. Live model and the archived 116/104 forecasts remain unmodified.
 
+
+## Exact sequential probability decomposition, no forced ticket choices
+
+The pure `position_sensitive_conditional_decomposition.py` now reconstructs every valid three-boat probability as
+
+`P(h,s,t) = P(h) × P(s | h) × P(t | h,s)`,
+
+and checks the reconstruction of all **120** tickets. For each of six first boats it lists `P(second=s | h)` before and after the experimental layer. For all 30 legal first/second pairs it lists `P(third=t | h,s)`, with separate absolute probability changes, Top2 boat choice changes, and Top3 boat choice changes. Each six-boat head mass must be exactly preserved: if a feature edit shifts any `P(h)`, the comparison rejects it. All conditionals are mathematical decompositions of the same frozen-head joint board; they are **not separately fitted**, and there is **no claim** that the displayed probabilities are statistically calibrated.
+
+This decomposition is included alongside the four-mode Top1/3/5/10 rank/membership and leave-one-feature-out inspection. Equal boards yield zero conditional differences and no forced ranking diversity. It remains entirely outcome-blind, unregistered, synthetic/manual-input research. The head/second/third explanation is **not** used in production or UI, and must not be presented as a confirmed mechanism without official source receipts and future outcome validation.
+
