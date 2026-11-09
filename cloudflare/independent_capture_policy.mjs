@@ -22,8 +22,11 @@ function validatedEvents(rows, expectedEvent, slot, now) {
     if (!Number.isFinite(created) || created > now) throw new Error('github_history_chronology_invalid');
     if (row.head_branch === 'main') parsed.push({created, row});
   }
-  // A full first page may hide an active/successful previous job: fail closed.
-  if (rows.length === HISTORY_PAGE_SIZE && (!parsed.length || Math.min(...parsed.map(x => x.created)) >= slot - 120 * MINUTE)) {
+  // A FULL page is ambiguous even if its oldest visible main-branch run
+  // predates the recovery slot by hours. An even older queued native run may
+  // be on page two and could be displaced by CLEAN's queue:single dispatch.
+  // Never treat a partial first-page view as "no active previous job".
+  if (rows.length === HISTORY_PAGE_SIZE) {
     throw new Error('github_history_pagination_incomplete');
   }
   return parsed;
@@ -61,7 +64,17 @@ async function history(fetcher, root, event, token) {
   const response = await fetcher(url, {method: 'GET', headers: headers(token)});
   if (!response || response.status !== 200) throw new Error('github_history_http_error');
   const payload = await response.json();
-  if (!payload || !Array.isArray(payload.workflow_runs)) throw new Error('github_history_missing_or_malformed');
+  if (!payload || !Array.isArray(payload.workflow_runs) ||
+      !Number.isSafeInteger(payload.total_count) || payload.total_count < 0 ||
+      payload.total_count < payload.workflow_runs.length) {
+    throw new Error('github_history_missing_or_malformed');
+  }
+  // Github's list-workflow-runs response includes total_count; compare it
+  // against the first-page result instead of trusting rows.length alone.
+  // Missing or contradictory pagination metadata is never a safe dispatch.
+  if (payload.total_count !== payload.workflow_runs.length) {
+    throw new Error('github_history_pagination_incomplete');
+  }
   return payload.workflow_runs;
 }
 
