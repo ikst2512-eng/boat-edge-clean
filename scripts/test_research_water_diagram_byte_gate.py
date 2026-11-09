@@ -94,6 +94,48 @@ class DiagramByteGateTests(unittest.TestCase):
             r = receipt_for_file("21", self.source, original)
             self.assertEqual(r["png_raw_length"], len(self.raw))
 
+    def test_valid_crc_but_invalid_zlib_rejected(self):
+        ihdr = struct.pack(">IIBBBBB", 2, 1, 8, 2, 0, 0, 0)
+        invalid = PNG_SIG + chunk(b"IHDR", ihdr) + chunk(b"IDAT", b"not-zlib") + chunk(b"IEND", b"")
+        with self.assertRaisesRegex(ValueError, "png_invalid_zlib_stream"):
+            png_dimensions(invalid)
+
+    def test_wrong_raster_length_and_bad_row_filter_rejected(self):
+        ihdr = struct.pack(">IIBBBBB", 2, 1, 8, 2, 0, 0, 0)
+        for raw, message in ((b"\x00\x01", "png_invalid_or_truncated_raster_size"),
+                             (b"\x05" + b"\x00" * 6, "png_invalid_scanline_filter")):
+            fake = PNG_SIG + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+            with self.assertRaisesRegex(ValueError, message):
+                png_dimensions(fake)
+
+    def test_deflate_expansion_exceeding_image_shape_rejected(self):
+        ihdr = struct.pack(">IIBBBBB", 2, 1, 8, 2, 0, 0, 0)
+        fake = PNG_SIG + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(b"\x00" * 1_000_000)) + chunk(b"IEND", b"")
+        with self.assertRaisesRegex(ValueError, "png_invalid_or_truncated_raster_size"):
+            png_dimensions(fake)
+
+    def test_palette_png_requires_palette_and_accepts_valid_palette(self):
+        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0)
+        body = chunk(b"IHDR", ihdr)
+        idat = chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+        with self.assertRaisesRegex(ValueError, "nonconsecutive_idat_or_missing_palette"):
+            png_dimensions(PNG_SIG + body + idat + chunk(b"IEND", b""))
+        good = PNG_SIG + body + chunk(b"PLTE", b"\xff\x00\x00") + idat + chunk(b"IEND", b"")
+        self.assertEqual(png_dimensions(good), (1, 1))
+
+    def test_nonconsecutive_idat_rejected(self):
+        ihdr = struct.pack(">IIBBBBB", 2, 1, 8, 2, 0, 0, 0)
+        compressed = zlib.compress(b"\x00\xff\x00\x00\x00\xff\x00")
+        fake = (PNG_SIG + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed[:3])
+                + chunk(b"tEXt", b"a\x00b") + chunk(b"IDAT", compressed[3:]) + chunk(b"IEND", b""))
+        with self.assertRaisesRegex(ValueError, "nonconsecutive_idat_or_missing_palette"):
+            png_dimensions(fake)
+
+    def test_valid_adam7_one_pixel(self):
+        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 1)
+        valid = PNG_SIG + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00")) + chunk(b"IEND", b"")
+        self.assertEqual(png_dimensions(valid), (1, 1))
+
     def test_bad_revision_rejected(self):
         with self.assertRaises(ValueError):
             make_receipt("21", self.source, self.raw, claimed_page_revision="Nov-9-2026")
