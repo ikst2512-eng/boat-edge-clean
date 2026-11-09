@@ -1211,11 +1211,20 @@ test('CLEAN remote main receipt gap is independently identified against actual n
   assert.equal(out.four_mode.publication_immutable_first_add_proven,false);
 });
 
-test('static native publication evidence gate only accepts checks after successful push',()=>{
+test('static native publication evidence gate requires executable post-push checks and JSON receipt',()=>{
   const header='name: illustrative\n';
   const push='  if git push origin HEAD:main; then\n';
   const check='  git fetch origin main\n  git merge-base --is-ancestor HEAD FETCH_HEAD\n';
-  const evidence='  git rev-parse HEAD\n  echo "commit_sha" > clean-capture-evidence/publication.json\n';
+  const evidence=[
+    "  python - <<'PY'",
+    'import subprocess,json',
+    'from pathlib import Path',
+    'sha = subprocess.check_output(',
+    '  ["git", "rev-parse", "HEAD"], text=True).strip()',
+    'target = Path("clean-capture-evidence/publication.json")',
+    'target.write_text(json.dumps({"commit_sha": sha}), encoding="utf-8")',
+    'PY',
+  ].join('\n')+'\n';
   const success='  exit 0\n  fi\n';
   const clean=header+push+check+evidence+success;
   const accepted=auditNativePublisherPostPush(clean,'clean');
@@ -1228,11 +1237,38 @@ test('static native publication evidence gate only accepts checks after successf
     header+push+'  git merge-base --is-ancestor HEAD FETCH_HEAD\n  git fetch origin main\n'+evidence+success,
     header+push+check+success+evidence,
     header+push+check+evidence.replace('commit_sha','other')+success,
+    header+push+check+evidence.replace('target.write_text','print')+success,
+    header+push+check+evidence.replace('subprocess.check_output','print')+success,
+    header+push+check+evidence.replace('clean-capture-evidence','wrong-output')+success,
+    header+push+check+evidence.replace('target.write_text(json.dumps','echo "$(target.write_text(json.dumps')+success,
+    header+push+check+'  echo "git rev-parse HEAD"\n  echo \'"commit_sha"\' > clean-capture-evidence/publication.json\n'+success,
   ]){
     const out=auditNativePublisherPostPush(invalid,'clean');
     assert.equal(out.source_level_receipt_contract_present,false);
     assert.equal(out.cross_provider_recovery_release_approved,false);
   }
+});
+
+test('source-only comments and echo statements cannot fabricate a successful native post-push receipt',()=>{
+  const native='  if git push origin HEAD:main; then\n';
+  const fake=[
+    '  # git fetch origin main',
+    '  # git merge-base --is-ancestor HEAD FETCH_HEAD',
+    '  echo "git fetch origin main"',
+    '  echo "git merge-base --is-ancestor HEAD FETCH_HEAD"',
+    '  # sha = subprocess.check_output(["git", "rev-parse", "HEAD"])',
+    '  # target = Path("clean-capture-evidence/publication.json")',
+    '  # target.write_text(json.dumps({"commit_sha": sha}))',
+    '  exit 0',
+  ].join('\n');
+  const out=auditNativePublisherPostPush(native+fake,'clean');
+  assert.deepEqual(out.missing_contracts,[
+    'remote_main_ancestry_after_push_not_checked',
+    'exact_published_commit_sha_not_recorded_in_success_path',
+    'published_commit_receipt_artifact_not_found',
+  ]);
+  assert.equal(out.cross_provider_recovery_release_approved,false);
+  assert.throws(()=>auditNativePublisherPostPush('# '+native+fake,'clean'),/native_publisher_push_block_missing/);
 });
 
 test('native publisher receipt audit errors on missing success branch or unknown workflow',()=>{
