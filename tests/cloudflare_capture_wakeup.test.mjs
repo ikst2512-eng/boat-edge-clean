@@ -1088,3 +1088,46 @@ test('counterfactual CLEAN queue max preserves both pending jobs, but does NOT p
   assert.deepEqual(saturated.canceled,['native_schedule_delayed']);
   assert.equal(saturated.production_dispatch_safe,false);
 });
+
+
+test('GitHub returned run IDs never attest the original slot without independent publication evidence',async()=>{
+  const m=mock(),receipts=[],when=tick(7,10);
+  const result=await execute({scheduledTime:when,now:when,token:'TEST_ONLY',
+    fetcher:m.fetcher,onAccepted:r=>receipts.push(r)});
+  assert.equal(receipts.length,2);
+  for(const kind of Object.keys(WORKFLOWS)){
+    assert.equal(result.workflows[kind].github_execution_slot_bound_proven,false);
+    assert.equal(result.workflows[kind].new_forecast_saved_proven,undefined);
+    assert.equal(typeof result.workflows[kind].github_run_id_reported,'number');
+  }
+  for(const receipt of receipts){
+    assert.equal(receipt.github_execution_slot_bound_proven,false);
+    assert.equal(receipt.github_run_id_proven,false);
+    assert.equal(receipt.new_forecast_saved_proven,false);
+    assert.equal(receipt.formal,false);
+    // Never pass a recovery-slot claim to the native workflow unless the
+    // native publisher owners introduce an independently audited protocol.
+  }
+  assert.ok(m.calls.filter(c=>c.method==='POST').every(c=>
+    JSON.stringify(JSON.parse(c.body))===JSON.stringify({ref:'main',return_run_details:true})));
+});
+
+test('native workflow_dispatch has no capture-slot contract and current collectors use execution-time clocks',()=>{
+  const clean=readFileSync(new URL('../.github/workflows/clean-prospective.yml',import.meta.url),'utf8');
+  const four=readFileSync(new URL('../.github/workflows/four-mode-prospective-capture.yml',import.meta.url),'utf8');
+  for(const [kind,yaml] of [['clean',clean],['four_mode',four]]){
+    assert.match(yaml,/^  workflow_dispatch:\s*$/m,kind);
+    // Isolate the on: trigger section rather than mistaking unrelated
+    // inputs in job steps for workflow_dispatch event parameters.
+    const beforePr=yaml.split(/^  pull_request:/m)[0];
+    assert.doesNotMatch(beforePr,/^    inputs:\s*$/m,
+      kind+': current native workflow cannot receive an explicit target slot');
+  }
+  const cleanCollector=readFileSync(new URL('../collect_clean_prospective.py',import.meta.url),'utf8');
+  const fourCollector=readFileSync(new URL('../clean_four_mode_capture.py',import.meta.url),'utf8');
+  assert.match(cleanCollector,/def collect\(day=None\):\s*\n\s*now = datetime\.now\(JST\)/);
+  assert.match(fourCollector,/def collect\(root=ROOT, now=None, read=read_rows\):\s*\n\s*now_is_live = now is None\s*\n\s*now=now or datetime\.now\(JST\)/);
+  const policy=readFileSync(new URL('../cloudflare/independent_capture_policy.mjs',import.meta.url),'utf8');
+  assert.match(policy,/github_execution_slot_bound_proven = false/);
+  assert.match(policy,/github_execution_slot_bound_proven: false/);
+});
