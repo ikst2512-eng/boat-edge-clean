@@ -1,6 +1,7 @@
-const {chromium}=require('playwright');
+const {chromium,webkit}=require('playwright');
 (async()=>{
- const browser=await chromium.launch({headless:true});
+ const browserEngine=process.env.BROWSER_ENGINE==='webkit'?'webkit':'chromium';
+ const browser=await (browserEngine==='webkit'?webkit:chromium).launch({headless:true});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];
@@ -263,7 +264,9 @@ const {chromium}=require('playwright');
     const first=state();tab('result').click();const second=state();tab('exhibition').click();const third=state();tab('races').click();const fourth=state();tab('prediction').click();
     return {first,second,third,fourth,homeDeadline:document.querySelector('[data-home-only] #deadlineSection')!==null}
   });
+  if(browserEngine==='webkit'&&tabUi.legacyPublishedPage)throw Error('WEBKIT_PUBLIC_FOUR_TABS_ABSENT');
   if(!tabUi.legacyPublishedPage&&(!tabUi.homeDeadline||!tabUi.first.prediction||tabUi.first.result||!tabUi.second.result||tabUi.second.prediction||!tabUi.third.exhibition||tabUi.third.result||!tabUi.fourth.races||tabUi.fourth.prediction))throw Error('FORECAST_TABS_NOT_EXCLUSIVE '+JSON.stringify(tabUi));
+  if(browserEngine==='webkit')console.log('PASS_WEBKIT_PUBLIC_FOUR_TABS '+JSON.stringify(tabUi));
   await page.evaluate(()=>{setView('home');render()});
   const homeUi=await page.evaluate(()=>({back:!document.getElementById('raceBrowserToolbar').hidden,home:!document.querySelector('[data-home-only]').hidden}));
   if(homeUi.back||!homeUi.home)throw Error('HOME_BACK_STILL_VISIBLE '+JSON.stringify(homeUi));
