@@ -114,7 +114,7 @@ export async function auditOne(record, envelope, trust) {
 export async function auditBatch(records, envelopes, trust) {
   if (!Array.isArray(records) || records.length > 500 || !object(envelopes))
     fail('untrusted_witness_batch');
-  const rows = [], seen = new Set();
+  const rows = [], seen = new Set(), claimedIdsByRace = new Map();
   for (const record of records) {
     if (!object(record) || typeof record.race_code !== 'string' || seen.has(record.race_code))
       fail('duplicate_or_invalid_frozen_race');
@@ -133,6 +133,7 @@ export async function auditBatch(records, envelopes, trust) {
     const ids = new Set(verified.map(x => x.claimed_immutable_receipt_id));
     const clock = new Set(verified.map(x => x.claimed_first_accepted_at_utc));
     const conflict = ids.size !== 1 || clock.size !== 1;
+    claimedIdsByRace.set(record.race_code, ids);
     rows.push({race_code:record.race_code,
       status:conflict ? 'signed_first_receipt_conflict_quarantined' :
         'signed_claim_consistent_not_independent_receipt',
@@ -142,17 +143,131 @@ export async function auditBatch(records, envelopes, trust) {
   }
   if (Object.keys(envelopes).some(code => !seen.has(code)))
     fail('orphan_witness_attestation');
+  // A receipt ID is a claimed globally immutable first-insert identity.
+  // A valid signature cannot authorize the SAME ID for different race codes.
+  const firstOwner = new Map(), collisions = new Set();
+  for (const [race, ids] of claimedIdsByRace) {
+    for (const id of ids) {
+      if (firstOwner.has(id) && firstOwner.get(id) !== race) {
+        collisions.add(firstOwner.get(id));
+        collisions.add(race);
+      } else firstOwner.set(id, race);
+    }
+  }
+  for (const row of rows) {
+    if (collisions.has(row.race_code)) {
+      row.status = 'signed_receipt_id_reused_across_races_quarantined';
+      row.signed_claims_conflict = true;
+      row.cross_race_receipt_id_collision = true;
+    }
+  }
   return {
     schema:'HOLE_PAIR_EXTERNAL_SIGNATURE_READINESS_BATCH_V1',
     examined:records.length,
     signed_claim_races:rows.filter(x => x.status === 'signed_claim_consistent_not_independent_receipt').length,
     quarantined_signed_claim_conflicts:rows.filter(x => x.signed_claims_conflict).length,
     missing_signed_claim_races:rows.filter(x => x.status === 'no_signed_witness_attestation').length,
+    race_ids_quarantined_for_cross_race_receipt_id:collisions.size,
     independent_first_receipt_verified:0,
     officially_qualified_t12:0,
     formally_eligible:0,
     formal:false,
     production_promotion_allowed:false,
     rows,
+  };
+}
+
+
+/**
+ * Cross-batch candidate/receipt **conflict** audit, never an admission engine.
+ * Caller-supplied batch order, fake GitHub run metadata or first timestamps are
+ * not independently authenticated. Do not pick "earliest" signed claim here.
+ * Existing cross-run original-manifest audit remains separate.
+ */
+export async function auditAcrossBatches(batches, trust) {
+  if (!Array.isArray(batches) || batches.length === 0 || batches.length > 40)
+    fail('untrusted_cross_batch_receipt_roster');
+  const byRace = new Map(), receiptOwners = new Map();
+  let observations = 0, signedClaims = 0;
+  for (const batch of batches) {
+    if (!exact(batch, ['records', 'envelopes']))
+      fail('untrusted_cross_batch_shape');
+    // Reuse the same closed-schema, same-batch first-receipt audit.
+    await auditBatch(batch.records, batch.envelopes, trust);
+    observations += batch.records.length;
+    if (observations > 5000) fail('unbounded_cross_batch_candidate_observations');
+    for (const record of batch.records) {
+      const v = await validateRecord(record);
+      const digest = createHash('sha256').update(v.record_text).digest('hex');
+      let item = byRace.get(v.code);
+      if (!item) {
+        item = {race_code:v.code, observations:0, candidateDigests:new Set(),
+          claimedReceiptIds:new Set(), claimedFirstClocks:new Set(),
+          acceptedClaimSignatures:0};
+        byRace.set(v.code, item);
+      }
+      item.observations++;
+      item.candidateDigests.add(digest);
+      for (const envelope of batch.envelopes[v.code] || []) {
+        // Only consider authentic signatures under the caller-supplied key,
+        // including a matching candidate digest and strict local timestamps.
+        const receipt = await auditOne(record, envelope, trust);
+        signedClaims++;
+        item.acceptedClaimSignatures++;
+        item.claimedReceiptIds.add(receipt.claimed_immutable_receipt_id);
+        item.claimedFirstClocks.add(receipt.claimed_first_accepted_at_utc);
+        let owners = receiptOwners.get(receipt.claimed_immutable_receipt_id);
+        if (!owners) {
+          owners = new Set();
+          receiptOwners.set(receipt.claimed_immutable_receipt_id, owners);
+        }
+        owners.add(v.code);
+      }
+    }
+  }
+  const crossRace = new Set();
+  for (const owners of receiptOwners.values()) {
+    if (owners.size > 1) for (const code of owners) crossRace.add(code);
+  }
+  const rows = [...byRace.values()].sort((a,b)=>a.race_code.localeCompare(b.race_code)).map(item => {
+    const candidateConflict = item.candidateDigests.size > 1;
+    const receiptConflict = item.claimedReceiptIds.size > 1 ||
+      item.claimedFirstClocks.size > 1 || crossRace.has(item.race_code);
+    const status = (candidateConflict || receiptConflict)
+      ? 'cross_batch_candidate_or_signed_receipt_conflict_quarantined'
+      : item.acceptedClaimSignatures
+        ? 'consistent_signature_claim_not_independent_first_receipt'
+        : 'cross_batch_signed_receipt_missing';
+    return {
+      race_code:item.race_code,
+      candidate_observations:item.observations,
+      unique_candidate_sha256_claims:item.candidateDigests.size,
+      verified_under_supplied_key_claims:item.acceptedClaimSignatures,
+      distinct_claimed_immutable_receipt_ids:item.claimedReceiptIds.size,
+      distinct_claimed_first_acceptance_clocks:item.claimedFirstClocks.size,
+      repeated_candidate_with_changed_bytes: candidateConflict,
+      conflicting_signed_first_write_claims:receiptConflict,
+      cross_race_receipt_id_reuse:crossRace.has(item.race_code),
+      status,
+      formally_eligible:false,
+    };
+  });
+  return {
+    schema:'HOLE_PAIR_EXTERNAL_SIGNATURE_CROSS_BATCH_CONFLICT_AUDIT_V1',
+    batches_examined:batches.length,
+    candidate_observations:observations,
+    distinct_race_codes:rows.length,
+    signed_claims_checked_under_supplied_key:signedClaims,
+    race_ids_quarantined_for_conflicts:rows.filter(x=>x.status==='cross_batch_candidate_or_signed_receipt_conflict_quarantined').length,
+    race_ids_with_cross_race_receipt_id_reuse:crossRace.size,
+    repeated_same_candidate_observations_not_counted_again:observations-rows.length,
+    independent_witness_key_custody_verified:false,
+    independent_first_receipt_verified:0,
+    official_t12_complete_verified:0,
+    formally_eligible:0,
+    formal:false,
+    production_promotion_allowed:false,
+    rows,
+    warning:'Caller-supplied Ed25519 trust and receipts prove no external custody, immutable first write, official cutoff, results or formal cohort admission.',
   };
 }
