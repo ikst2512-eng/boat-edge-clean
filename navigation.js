@@ -64,11 +64,18 @@ const sync=()=>{
  history.pushState({boatEdgeNav:true,position,snapshot:next},'',u);
 
 };
+// The base UI may already have the desired URL and navigation state.
+// Skip redundant writes to avoid WebKit's 100 history changes per 10 seconds.
+const restoreNavigationLocation=(url,state)=>{
+ const after=history.state;
+ if(location.href!==url||(after!==state&&JSON.stringify(after)!==JSON.stringify(state)))
+  history.replaceState(state,'',url);
+};
 if(originalSetView){
- setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
+ setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);restoreNavigationLocation(url,state);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
 if(originalRender){
- render=function(){const url=location.href,state=history.state;const result=originalRender();history.replaceState(state,'',url);scheduleSync();return result;};
+ render=function(){const url=location.href,state=history.state;const result=originalRender();restoreNavigationLocation(url,state);scheduleSync();return result;};
 }
 window.addEventListener('popstate',event=>{
  const state=event.state;
