@@ -46,9 +46,17 @@ def check_runs(payload, event):
         # evidence, not a positive capture.
         if r.get("status") != "completed" and r.get("conclusion") is not None:
             raise ValueError("noncompleted_run_has_conclusion")
+        # A feature-branch workflow_dispatch can finish "success" while its
+        # privileged capture job is skipped (main-only). Preserve the branch
+        # and owning repository so it cannot masquerade as main publication.
+        head_repo = r.get("head_repository")
+        head_repo_name = (head_repo.get("full_name")
+                          if isinstance(head_repo, dict) else None)
         rows.append({"id": r["id"], "event": event, "created_at": moment.isoformat(),
                      "status": r.get("status"), "conclusion": r.get("conclusion"),
-                     "html_url": r.get("html_url")})
+                     "html_url": r.get("html_url"),
+                     "head_branch": r.get("head_branch"),
+                     "head_repository_full_name": head_repo_name})
     return rows
 
 
@@ -69,18 +77,33 @@ def inventory(repo, token, fetch=api_json, now=None):
             payload = fetch(url, token)
             rows = check_runs(payload, event)
             total = payload.get("total_count")
+            # GitHub's event-filtered API may include successful manual runs
+            # on a feature branch. For those, the capture job is intentionally
+            # skipped. Unknown branch/repository provenance also fails closed.
+            # Never count any of them toward main's liveness or watchdog.
+            main_rows = [
+                r for r in rows
+                if r["head_branch"] == "main"
+                and r["head_repository_full_name"] == repo]
+            excluded = [
+                r["id"] for r in rows
+                if r["head_branch"] != "main"
+                or r["head_repository_full_name"] != repo]
             coverage[workflow + ":" + event] = {
-                "returned": len(rows), "first_page_only": True,
+                "returned": len(rows), "main_verified_returned": len(main_rows),
+                "excluded_nonmain_or_unverified_run_ids": excluded,
+                "first_page_only": True,
                 "total_count_reported": total,
                 "may_be_truncated": (
                     len(rows) == 100 or
                     (type(total) is int and total > len(rows)))}
+            # Even excluded rows must be checked for duplicate API run IDs.
             for r in rows:
                 if r["id"] in global_seen_ids:
                     raise ValueError("same_run_id_in_multiple_event_listings")
                 global_seen_ids.add(r["id"])
                 r["workflow"] = workflow
-            all_rows.extend(rows)
+            all_rows.extend(main_rows)
     all_rows.sort(key=lambda r: r["created_at"], reverse=True)
     captures = [r for r in all_rows if r["workflow"] == CAPTURE]
     watchdogs = [r for r in all_rows if r["workflow"] == WATCHDOG]
@@ -118,9 +141,12 @@ def inventory(repo, token, fetch=api_json, now=None):
             "dispatch_accepted_proven": False,
             "forecast_saved_proven": False,
             "note": ("Run listings are bounded first-page metadata only. "
-                     "Pending, completed with no conclusion, and other "
-                     "non-success outcomes are separate. A successful job "
-                     "does not prove dispatch cause, main publication, or "
+                     "Only main-branch runs from the expected source repo "
+                     "count toward capture and watchdog liveness; excluded "
+                     "run IDs remain visible in source_coverage. Pending, "
+                     "completed with no conclusion, and other non-success "
+                     "outcomes are separate. A successful job does not "
+                     "prove dispatch cause, main publication, or "
                      "individual Cron slot delivery."),
             "recent_capture_runs": captures,
             "recent_watchdog_runs": watchdogs[:40]}
