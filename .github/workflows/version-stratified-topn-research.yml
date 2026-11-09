@@ -31,6 +31,8 @@ on:
       - research/four_mode_hit_head_prior_forward_protocol_20261108.json
       - test_four_mode_top1_bias_input_audit.py
       - four_mode_top1_capture_run_inventory.py
+      - four_mode_capture_attempt_inventory.py
+      - test_four_mode_capture_attempt_inventory.py
       - four_mode_candidate_ledger_readiness.py
       - four_mode_main_shadow_deployment_audit.py
       - test_four_mode_main_shadow_deployment_audit.py
@@ -41,6 +43,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   read-only-audit:
     runs-on: ubuntu-latest
@@ -344,6 +347,33 @@ jobs:
           PY
       - name: Verify separate Nov9 Top1 holdout and result-first leakage rejection
         run: python -m unittest -v test_four_mode_top1_forward_reference
+      - name: Unit-test observed live run job attempt inventory
+        run: python -m unittest -v test_four_mode_capture_attempt_inventory
+      - name: Check Nov9 observed scheduled/manual capture job attempts, not nominal cron
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python four_mode_capture_attempt_inventory.py --utc-day 2026-11-09 --output four_mode_nov09_observed_job_attempts.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("four_mode_nov09_observed_job_attempts.json").read_text())
+          if (x["formal"] is not False
+                  or x["model_promotion_allowed"] is not False
+                  or x["complete_expected_schedule_inventory_verified"] is not False
+                  or x["candidate_artifact_publication_verified"] is not False
+                  or x["candidate_independent_first_remote_receipt_verified"] is not False
+                  or x["admitted_prospective_pairs"] != 0
+                  or x["observed_capture_runs"] < 3
+                  or x["observed_run_attempts_with_complete_job_metadata"] <
+                       x["observed_capture_runs"]):
+              raise SystemExit("OBSERVED_ATTEMPT_METADATA_OR_FORMAL_GATE_INVALID")
+          print("NOV09_OBSERVED_RUN_ATTEMPTS:"
+                +str(x["observed_capture_runs"])+":"
+                +str(x["observed_run_attempts_with_complete_job_metadata"])
+                +":CANDIDATE_FIRST_REMOTE_UNVERIFIED:FORMAL=0")
+          PY
       - name: Validate fail-closed read-only GitHub capture-run inventory
         run: python -m unittest -v test_four_mode_top1_capture_run_inventory
       - name: Report independent Top1 reference status without scoring historical dates
@@ -803,6 +833,7 @@ jobs:
             four_mode_nov09_current_main_input_readiness.json
             four_mode_candidate_remote_readiness.json
             four_mode_main_candidate_stage_readiness.json
+            four_mode_nov09_observed_job_attempts.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
