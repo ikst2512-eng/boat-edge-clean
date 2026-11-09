@@ -44,7 +44,7 @@ class BatchExporterTests(unittest.TestCase):
 
     def test_margin_near_T12_never_exports(self):
         git=FakeGit()
-        t=datetime.fromisoformat("2026-11-09T15:28:00+09:00")
+        t=datetime.fromisoformat("2026-11-09T15:19:00+09:00")
         out=plan_batch(git,"20261109",t)
         self.assertEqual(out["planned_local_only"],0)
         self.assertTrue(any(s["reason"]=="insufficient_upload_margin"
@@ -95,9 +95,8 @@ class BatchExporterTests(unittest.TestCase):
         out=plan_batch(git,"20261109",datetime.fromisoformat(JST))
         self.assertEqual(out["planned_local_only"],0)
         self.assertEqual(len(out["skipped"]),2)
-        self.assertEqual(len(out["candidate_first_remote_receipts_independently_verified"]
-                              if isinstance(out["candidate_first_remote_receipts_independently_verified"], str)
-                              else []),0)
+        self.assertEqual(out["candidate_first_remote_receipts_independently_verified"],0)
+        self.assertFalse(out["promotion_allowed"])
 
 
 if __name__=="__main__":
