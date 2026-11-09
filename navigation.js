@@ -37,6 +37,9 @@ if(typeof s==='undefined'||typeof activeView==='undefined')return;
 const back=document.getElementById('raceViewBack');
 const originalSetView=typeof setView==='function'?setView:null;
 const originalRender=typeof render==='function'?render:null;
+// After bootstrap, the navigation wrapper owns URL/history changes.
+// The base UI must not replace the current history entry before sync() pushes the next one.
+if(originalSetView&&originalRender)window.__boatEdgeNavigationOwnsHistory=true;
 let restoring=false;
 let syncScheduled=false;
 const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;queueMicrotask(()=>{syncScheduled=false;sync();});};
