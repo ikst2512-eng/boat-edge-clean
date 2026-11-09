@@ -72,7 +72,9 @@ jobs:
               assert not Path(competitor).exists(), 'competing_gateway_present_in_merge_tree:' + competitor
               assert competitor in capture, 'missing_live_competing_gateway_guard:' + competitor
           assert 'git cat-file -e "origin/main:$competing"' in capture
-          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_no_pr_capture_no_duplicate_gateway')
+          assert 'test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)"' in capture
+          assert 'main changed since manual dispatch' in capture
+          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_pinned_dispatch_main')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -114,6 +116,12 @@ jobs:
           test "$(git rev-parse HEAD)" = "$HOLE_RESEARCH_LOCKED_COMMIT"
           # Temporary runtime token is read-only. Main is fetched, not edited.
           git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          # Dispatch was requested against one exact main commit. Never silently
+          # switch to a different main source if the branch changed in the queue.
+          test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)" || {
+            echo "::error::main changed since manual dispatch; no research freeze"
+            exit 4
+          }
           # Fail closed if a competing manual/legacy gateway reached main.
           # This prevents THIS gateway from collecting alongside a second path;
           # it cannot control executions initiated through the other workflow.
