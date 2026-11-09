@@ -2,7 +2,18 @@
 import unittest
 
 from research import hole_pair_d1_receipt_chain_audit as a
-from test_hole_pair_remote_receipt_evidence import candidate
+from test_hole_pair_remote_receipt_evidence import candidate as remote_evidence_candidate
+
+
+def candidate():
+    """Use the complete original Worker candidate shape for D1 audit tests."""
+    record = remote_evidence_candidate()
+    record.update({
+        "model_version": a.WORKER_MODEL_VERSION,
+        "source_git_blob_sha1": "b" * 40,
+        "locked_selector_git_blobs": dict(a.WORKER_LOCKED_SELECTOR_BLOBS),
+    })
+    return record
 
 
 def claimed_receipt(c):
@@ -69,6 +80,42 @@ class D1ReceiptChainAuditTests(unittest.TestCase):
         r["race_code"] = "202611090102"
         with self.assertRaisesRegex(ValueError, "conflicting_d1_receipt_identity_or_claim"):
             a.audit_one(c, r)
+
+    def test_candidate_must_meet_full_pinned_worker_record_contract(self):
+        # A forged D1 response must not be called consistent for a payload
+        # the actual Worker would have refused at its input boundary.
+        base = candidate()
+        examples = []
+        missing_blob = dict(base)
+        del missing_blob["source_git_blob_sha1"]
+        examples.append(missing_blob)
+        wrong_blob = dict(base, source_git_blob_sha1="Z" * 40)
+        examples.append(wrong_blob)
+        wrong_model = dict(base, model_version="UNREVIEWED_MODEL")
+        examples.append(wrong_model)
+        wrong_selector = dict(base)
+        wrong_selector["locked_selector_git_blobs"] = {
+            **base["locked_selector_git_blobs"],
+            "hole_third_choice_research.py": "0" * 40,
+        }
+        examples.append(wrong_selector)
+        additional = dict(base, confirmed_winner="1-2-3")
+        examples.append(additional)
+        forged_warning = dict(base, warning="Winner was 1-2-3")
+        examples.append(forged_warning)
+        for idx, record in enumerate(examples):
+            with self.subTest(case=idx):
+                with self.assertRaisesRegex(
+                        ValueError, "candidate_not_accepted_by_worker_contract"):
+                    a.audit_one(record, claimed_receipt(record))
+
+    def test_canonical_worker_warning_allowed_but_remains_nonformal(self):
+        record = candidate()
+        record["warning"] = a.WORKER_FROZEN_WARNING
+        result = a.audit_one(record, claimed_receipt(record))
+        self.assertTrue(result["claimed_receiver_receipt_consistent"])
+        self.assertFalse(result["formally_eligible"])
+        self.assertFalse(result["receiver_receipt_authenticated"])
 
     def test_cutoff_and_receipt_time_must_be_strict(self):
         c = candidate()
