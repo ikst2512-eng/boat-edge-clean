@@ -1,7 +1,7 @@
 """Regression tests for read-only static scheduled transitive source tracing."""
 import unittest
 from scripts.audit_t12_scheduled_transitive_routes import (
-    inspect, job_commands, literal_links, python_links, module_path,
+    inspect, job_commands, literal_links, python_links, module_path, dynamic_process_sites,
 )
 
 PREFIX = ".github/workflows/"
@@ -264,6 +264,70 @@ jobs:
         self.assertIn(PREFIX+"network.yml", result["runtime_or_local_unknown_workflow_paths"])
         self.assertFalse(result["official_http_capture_proven"])
         self.assertFalse(result["formal"])
+
+
+    def test_dynamic_git_callsite_includes_source_path_and_line(self):
+        result = report({"scripts/entry.py": (
+            b"import subprocess\n"
+            b"sha = 'missing'\n"
+            b"subprocess.run(['git', 'show', sha])\n"
+        )})
+        row = result["rows"][0]
+        self.assertEqual(row["dynamic_subprocess_site_count"], 1)
+        site = row["dynamic_subprocess_sites"][0]
+        self.assertEqual(site["file"], "scripts/entry.py")
+        self.assertEqual(site["line"], 3)
+        self.assertEqual(site["via"], [PREFIX+"periodic.yml", "scripts/entry.py"])
+        self.assertEqual(site["bucket"], "git_with_dynamic_arguments")
+        self.assertEqual(result["dynamic_subprocess_workflow_bucket_counts"]
+                         ["git_with_dynamic_arguments"], 1)
+        self.assertTrue(site["potential_external_effects_unverified"])
+        self.assertFalse(result["no_indirect_capture_proven"])
+
+    def test_dynamic_http_client_is_not_proven_official_receipt(self):
+        result = report({"scripts/entry.py": (
+            b"import subprocess\n"
+            b"subprocess.run(['curl', target_url])\n"
+        )})
+        site = result["rows"][0]["dynamic_subprocess_sites"][0]
+        self.assertEqual(site["bucket"], "http_client_with_dynamic_arguments")
+        self.assertEqual(site["literal_executable"], "curl")
+        self.assertFalse(result["official_http_capture_proven"])
+        self.assertFalse(result["formal"])
+
+    def test_dynamic_executable_expression_keeps_unknown(self):
+        result = report({"scripts/entry.py": (
+            b"import subprocess\n"
+            b"subprocess.Popen(command)\n"
+        )})
+        site = result["rows"][0]["dynamic_subprocess_sites"][0]
+        self.assertEqual(site["api"], "subprocess.Popen")
+        self.assertEqual(site["bucket"], "executable_expression_unknown")
+        self.assertIsNone(site["literal_executable"])
+        self.assertIn("dynamic_subprocess", result["rows"][0]["unresolved"])
+
+    def test_static_literal_process_is_not_a_dynamic_site(self):
+        src = "import subprocess\nsubprocess.run(['git', 'status'])\n"
+        self.assertEqual(dynamic_process_sites(src), [])
+        self.assertFalse(report({"scripts/entry.py": src.encode()})["formal"])
+
+    def test_transitive_process_site_preserves_call_chain(self):
+        result = report({
+            "scripts/entry.py": b"from scripts.helper import launch\n",
+            "scripts/helper.py": b"import subprocess\nsubprocess.run(['python', task])\n",
+        })
+        site = result["rows"][0]["dynamic_subprocess_sites"][0]
+        self.assertEqual(site["bucket"], "python_shell_with_dynamic_arguments")
+        self.assertEqual(site["via"], [PREFIX+"periodic.yml", "scripts/entry.py",
+                                        "scripts/helper.py"])
+        self.assertFalse(result["new_forecast_remote_acceptance_proven"])
+
+    def test_unparseable_script_does_not_become_verified_absence(self):
+        result = report({"scripts/entry.py": b"invalid python !!!\n"})
+        row = result["rows"][0]
+        self.assertEqual(row["dynamic_subprocess_site_count"], 0)
+        self.assertIn("unparseable_python", row["unresolved"])
+        self.assertFalse(row["absence_proven"])
 
 
 if __name__ == "__main__":

@@ -129,6 +129,62 @@ def python_links(text, paths):
     return links, unknown
 
 
+PROCESS_CALLS = (
+    "subprocess.run", "subprocess.Popen", "subprocess.call",
+    "subprocess.check_output", "os.system", "os.popen",
+)
+PROCESS_BUCKETS = (
+    "git_with_dynamic_arguments", "http_client_with_dynamic_arguments",
+    "python_shell_with_dynamic_arguments", "other_literal_executable",
+    "executable_expression_unknown",
+)
+
+
+def dynamic_process_sites(source):
+    """Annotate dynamic process invocations; never execute or mark safe."""
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        return []
+    sites = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        try:
+            api = ast.unparse(node.func)
+        except (ValueError, AttributeError):
+            continue
+        if api not in PROCESS_CALLS:
+            continue
+        arg = node.args[0] if node.args else None
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            continue  # Existing literal linker, not a dynamic call.
+        if isinstance(arg, (ast.Tuple, ast.List)) and all(
+                isinstance(item, ast.Constant) and isinstance(item.value, str)
+                for item in arg.elts):
+            continue  # Existing literal linker.
+        literal_program = None
+        if isinstance(arg, (ast.Tuple, ast.List)) and arg.elts:
+            first = arg.elts[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                literal_program = first.value
+        executable = (literal_program or "").rsplit("/", 1)[-1].lower()
+        if executable in ("git", "git.exe"):
+            bucket = "git_with_dynamic_arguments"
+        elif executable in ("curl", "wget", "http", "https"):
+            bucket = "http_client_with_dynamic_arguments"
+        elif executable in ("python", "python3", "bash", "sh", "node", "npm", "npx"):
+            bucket = "python_shell_with_dynamic_arguments"
+        elif executable:
+            bucket = "other_literal_executable"
+        else:
+            bucket = "executable_expression_unknown"
+        sites.append({"line": node.lineno, "api": api, "bucket": bucket,
+                      "literal_executable": literal_program,
+                      "potential_external_effects_unverified": True})
+    return sorted(sites, key=lambda x: (x["line"], x["api"]))
+
+
 def inspect(workflows, paths, load, strict=True):
     scheduled = []
     for p, source in workflows.items():
@@ -144,6 +200,7 @@ def inspect(workflows, paths, load, strict=True):
         runs, uses = job_commands(workflows[workflow].decode("utf-8"))
         parent, seen, todo, unknown = {}, set(), deque(), set()
         external_refs = set()
+        process_sites = []
         def add(p, by):
             if p in paths and p not in parent and p != workflow:
                 parent[p] = by
@@ -188,6 +245,12 @@ def inspect(workflows, paths, load, strict=True):
             if p.endswith(".py"):
                 links, missing = python_links(source, paths)
                 unknown.update(missing)
+                for site in dynamic_process_sites(source):
+                    chain = [p]
+                    while parent.get(chain[-1]) not in (None, workflow):
+                        chain.append(parent[chain[-1]])
+                    process_sites.append({"file": p, "via": [workflow] + list(reversed(chain)),
+                                          **site})
             elif p.endswith((".yml", ".yaml")):
                 inner, uses2 = job_commands(source)
                 for run in inner:
@@ -206,11 +269,15 @@ def inspect(workflows, paths, load, strict=True):
                     unknown.add("dynamic_shell")
             for child in links:
                 add(child, p)
+        process_sites.sort(key=lambda item: (item["file"], item["line"], item["api"]))
         non_external_unknown = unknown - {"external_action_unexpanded"}
         setup_refs = sorted(x for x in external_refs if x.startswith(SETUP_ACTION_PREFIXES))
         other_refs = sorted(external_refs - set(setup_refs))
         rows.append({"workflow": workflow, "run_blocks": len(runs),
                      "local_sources_reached": len(seen), "racelist_candidate_chains": matches,
+                     "dynamic_subprocess_site_count": len(process_sites),
+                     "dynamic_subprocess_sites": process_sites[:120],
+                     "dynamic_subprocess_site_list_truncated": len(process_sites) > 120,
                      "unresolved": sorted(unknown),
                      "unresolved_non_external": sorted(non_external_unknown),
                      "external_action_refs": sorted(external_refs),
@@ -233,6 +300,12 @@ def inspect(workflows, paths, load, strict=True):
             "scheduled_with_other_external_action_refs": sum(bool(x["external_other_action_refs"]) for x in rows),
             "scheduled_with_no_unresolved": sum(not x["unresolved"] for x in rows),
             "unresolved_reason_workflow_counts": reason_counts,
+            "dynamic_subprocess_workflow_bucket_counts": {
+                bucket: sum(any(site["bucket"] == bucket for site in row["dynamic_subprocess_sites"])
+                            for row in rows)
+                for bucket in PROCESS_BUCKETS},
+            "dynamic_subprocess_workflows_with_truncated_site_list": sum(
+                row["dynamic_subprocess_site_list_truncated"] for row in rows),
             "scheduled_with_runtime_or_local_unknown": sum(
                 bool(set(x["unresolved"]) & runtime_unknowns) for x in rows),
             "runtime_or_local_unknown_workflow_paths": sorted(
@@ -246,7 +319,7 @@ def inspect(workflows, paths, load, strict=True):
             "same_race_three_originals_proven": False, "new_forecast_remote_acceptance_proven": False,
             "formal": False, "t12_eligible": False, "new_formal_certifications": 0,
             "formal_accuracy_denominator": None,
-            "limitations": "Literal static graph only. Setup-action labeling is triage, not source inspection or proof of safety. Imports may be unused; dynamic dispatch, local/external actions and runtime network calls remain unproven."}
+            "limitations": "Literal static graph only. Process buckets derive from a literal executable prefix or unknown expressions, not observed execution; git can perform network calls. Reached imports may be unused; dynamic dispatch, local/external actions and HTTP source receipts remain unproven."}
 
 
 def scan(root):
