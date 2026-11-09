@@ -1,0 +1,102 @@
+{
+  "schema": "BOAT_EDGE_OFFICIAL_WATER_DIAGRAM_HTTP_ORIGINAL_CAPTURE_AUDIT_V1",
+  "record_date_jst": "2026-11-09",
+  "venue_code": "21",
+  "venue_name": "芦屋",
+  "research_only": true,
+  "main_modified": false,
+  "existing_ci_or_cron_modified": false,
+  "render_or_ui_or_predictions_modified": false,
+  "auto_merge_permitted": false,
+  "source_claim": {
+    "official_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_21.png",
+    "requested_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_21.png",
+    "final_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_21.png",
+    "http_status": 200,
+    "content_type": "image/png",
+    "content_encoding": "identity",
+    "server_date_header": "Mon, 09 Nov 2026 11:38:18 GMT",
+    "server_etag_header": "\"700c-5f16f5e1d43ab\"",
+    "server_last_modified_header": "Wed, 04 Jan 2023 12:31:46 GMT",
+    "site_data_diagram_effective_date_display": "2023/01/01",
+    "client_start_utc": "2026-11-09T11:38:18.239473+00:00",
+    "client_finish_utc": "2026-11-09T11:38:18.568708+00:00",
+    "http_provenance_basis": "HTTPS GitHub-hosted isolated runner response log and bundled raw bytes, not independent notarization"
+  },
+  "raw_image": {
+    "file_basename": "original_response.png",
+    "byte_length": 28684,
+    "width_px": 580,
+    "height_px": 227,
+    "color_mode": "RGB",
+    "file_format": "PNG",
+    "sha256": "7a8b50f685f738e3625bdf6bc212074ba78af34bcdea7ac350e5e3422ee357cf",
+    "python_pillow_image_verify_success": true,
+    "zip_member_crc_verified": true
+  },
+  "github_actions": {
+    "repository": "ikst2512-eng/boat-edge-clean",
+    "branch": "research/venue-environment-factor-baseline-20261106",
+    "run_id": 42610527366,
+    "job_id": 129137460244,
+    "commit_sha": "9f3ca36676d6b1b1d6ecde0025ae0c54496b67cb",
+    "event": "push",
+    "conclusion": "success",
+    "workflow_file": ".github/workflows/research-water-diagram-receipt-once.yml",
+    "run_url": "https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42610527366",
+    "permission": "contents: read",
+    "secrets_used": false,
+    "original_source_retrieval_once": true,
+    "offline_png_tests_passed": 16,
+    "offline_http_tests_passed": 16,
+    "artifact_id": 13670072140,
+    "artifact_name": "official-ashiya-21-png-one-shot-research-only",
+    "artifact_zip_sha256": "b1f3dec7393aec3673bbe9664d09161f34d5bd260730309ed14c2e831d8bbd94",
+    "artifact_zip_size_bytes": 30625,
+    "artifact_created_at_utc": "2026-11-09T11:38:19Z",
+    "artifact_expires_at_utc": "2026-11-10T11:38:18Z"
+  },
+  "independent_second_pass": {
+    "artifact_zip_opened_and_member_crc_verified": true,
+    "artifact_zip_sha256_equal_to_actions_upload_log": true,
+    "raw_image_sha256_equal_to_receipt_json": true,
+    "raw_image_sha256_equal_to_actions_job_log": true,
+    "png_signature_and_dimensions_verified": true,
+    "png_pillow_verify_success": true,
+    "independent_second_visual_reader_for_compass_and_markers_completed": false
+  },
+  "research_orientation_observation": {
+    "visually_mark_2_left_and_mark_1_right": true,
+    "north_compass_symbol_in_top_right": true,
+    "axis_hypothesis": "eastward start-to-first-mark in diagram, compatible with secondary A heading east",
+    "exact_geodetic_bearing_certified": false,
+    "diagram_is_schematic_not_survey_map": true
+  },
+  "missing_evidence": {
+    "independent_original_http_receipt_notarization": true,
+    "second_independent_image_reader": true,
+    "official_same_race_wind_arrow_original_sha": true,
+    "official_arrow_from_to_semantics": true,
+    "predeadline_beforeinfo_first_receipt": true,
+    "full_six_exhibition_receipt": true,
+    "odds_120_predeadline_receipt": true,
+    "initial_forecast_first_receipt_before_T12": true
+  },
+  "progress": {
+    "first_party_diagram_raw_bytes_captured_venues": 1,
+    "venue_count": 24,
+    "raw_image_capture_pct": 4.166666666666667,
+    "official_relative_wind_geometry_certified_venues": 0,
+    "official_relative_wind_model_approvals": 0,
+    "production_wind_correction_count": 0,
+    "formal_forecast_improvement_count": 0
+  },
+  "cautions": [
+    "GitHub uploaded artifact is retained only 1 day; this JSON freezes digests and provenance but cannot replace the original bytes after expiration.",
+    "The PNG is a published schematic; compass and buoy positions alone do not certify an exact geodetic start-to-first-mark azimuth.",
+    "Raw PNG capture does not establish which direction an official per-race weather arrow points (wind FROM vs TO).",
+    "The wind/image was retrieved on 2026-11-09 after historical races; it cannot be used retroactively as a T-12 feature.",
+    "Local and CI test successes are distinct from a proven forecast accuracy improvement.",
+    "The new one-shot workflow is on the Draft research branch only; existing workflows, cron, main, Render, UI and predictions are unchanged."
+  ]
+}
