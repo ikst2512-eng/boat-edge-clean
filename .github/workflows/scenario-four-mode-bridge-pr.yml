@@ -1,0 +1,23 @@
+name: Research-only all-mode scenario bridge CI
+
+on:
+  pull_request:
+    paths:
+      - 'scenario_four_mode_bridge.py'
+      - 'test_scenario_four_mode_bridge.py'
+      - 'docs/research/scenario_all_mode_bridge_1708.md'
+      - '.github/workflows/scenario-four-mode-bridge-pr.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scenario-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check scenario bridge safety and all four mode contracts
+        run: python -m unittest -v test_scenario_four_mode_bridge
