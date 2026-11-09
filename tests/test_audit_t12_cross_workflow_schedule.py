@@ -184,7 +184,7 @@ class CrossWorkflowT12ScheduleControl(unittest.TestCase):
         for row in result["controls"].values():
             all_ids += row["in_hours_run_ids"] + row["outside_hours_run_ids"]
         self.assertEqual(len(all_ids), len(set(all_ids)))
-        self.assertEqual(len(all_ids), 18)
+        self.assertEqual(len(all_ids), 21)
 
 
 if __name__ == "__main__":
