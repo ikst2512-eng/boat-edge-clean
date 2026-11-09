@@ -1140,7 +1140,7 @@ test('native workflow_dispatch has no capture-slot contract and current collecto
 });
 
 
-import {auditTelemetryApiPages,API_SCHEMA} from '../cloudflare/audit_observer_api_pages.mjs';
+import {auditTelemetryApiPages,API_SCHEMA,buildObserverTelemetryQueries} from '../cloudflare/audit_observer_api_pages.mjs';
 
 function syntheticApiTelemetryDay() {
   const raw=syntheticRawWorkersDay(),start=Date.parse(raw.utc_day+'T00:00:00Z');
@@ -1257,6 +1257,77 @@ test('Telemetry API V2 rejects equally unscoped/foreign filters or datasets',()=
     assert.ok(out.api_issues.includes('api_observer_dataset_and_service_scope_invalid'),JSON.stringify(out.api_issues));
     assert.equal(out.actual_cloudflare_api_authenticity_independently_proven,false);
   }
+});
+
+test('Cloudflare query ABR level and dry/compare modes cannot masquerade as unsampled 384 records',()=>{
+  for(const poison of [
+    x=>x.events_query.response.result.statistics={abr_level:2},
+    x=>x.sampling_query.response.result.statistics={abr_level:3},
+    x=>x.events_query.response.result.run.statistics={abr_level:1.5},
+    x=>x.sampling_query.response.result.run.statistics={abr_level:0},
+    x=>x.events_query.request.dry=true,
+    x=>x.sampling_query.request.dry=true,
+    x=>x.events_query.request.compare=true,
+    x=>x.sampling_query.request.compare=true,
+    x=>x.events_query.response.result.run.dry=true,
+    x=>x.sampling_query.response.result.run.dry=true,
+  ]) {
+    const input=syntheticApiTelemetryDay();poison(input);
+    const result=auditTelemetryApiPages(input);
+    assert.equal(result.observer_day_pass,false);
+    assert.equal(result.api_query_structure_pass,false);
+    assert.ok(result.api_issues.some(x=>[
+      'api_adaptive_query_sampling_not_exact',
+      'api_result_dry_run_not_accepted',
+      'api_request_compare_or_dry_not_allowed',
+    ].includes(x)),JSON.stringify(result.api_issues));
+  }
+  // Optional ABR is documented as 1 when absent. Explicit 1 also passes.
+  const accepted=syntheticApiTelemetryDay();
+  accepted.events_query.response.result.statistics={abr_level:1};
+  accepted.sampling_query.response.result.run.statistics={abr_level:1};
+  assert.equal(auditTelemetryApiPages(accepted).observer_day_pass,true);
+});
+
+test('Cloudflare effective count query must agree with the requested count',()=>{
+  for(const poison of [
+    x=>x.sampling_query.response.result.run.query.parameters.calculations[0].operator='sum',
+    x=>x.sampling_query.response.result.run.query.parameters.calculations=[],
+    x=>x.events_query.response.result.run.query.parameters.calculations=[{operator:'count'}],
+  ]) {
+    const input=syntheticApiTelemetryDay();poison(input);
+    const report=auditTelemetryApiPages(input);
+    assert.equal(report.observer_day_pass,false);
+    assert.ok(report.api_issues.includes('api_effective_aggregate_not_count'),JSON.stringify(report.api_issues));
+  }
+});
+
+test('read-only API request generator outputs exact V2 scope without tokens or network',()=>{
+  const gen=buildObserverTelemetryQueries('2026-11-09');
+  assert.equal(gen.authenticated_to_cloudflare,false);
+  assert.equal(gen.actually_executed,false);
+  assert.equal(gen.account_evidence_proven,false);
+  assert.equal(gen.recovery_approved,false);
+  assert.equal(gen.events_request.limit,2000);
+  assert.equal(gen.events_request.parameters.view,'events');
+  assert.equal(gen.sampling_request.parameters.calculations[0].operator,'count');
+  const witness=syntheticApiTelemetryDay();
+  witness.events_query.request=gen.events_request;
+  witness.sampling_query.request=gen.sampling_request;
+  witness.events_query.response.result.run.query.parameters=
+    structuredClone(gen.events_request.parameters);
+  witness.sampling_query.response.result.run.query.parameters=
+    structuredClone(gen.sampling_request.parameters);
+  assert.equal(auditTelemetryApiPages(witness).observer_day_pass,true);
+  assert.throws(()=>buildObserverTelemetryQueries('2026-11-31'),/invalid_utc_day/);
+  const script=fileURLToPath(new URL('../scripts/print_cloudflare_observer_telemetry_queries.mjs',import.meta.url));
+  const child=spawnSync(process.execPath,[script,'2026-11-09'],{encoding:'utf8',timeout:15000});
+  assert.equal(child.status,0,child.stderr);
+  const printed=JSON.parse(child.stdout);
+  assert.deepEqual(printed,gen);
+  assert.doesNotMatch(child.stdout,/Authorization|Bearer|GITHUB_DISPATCH_TOKEN/);
+  const invalid=spawnSync(process.execPath,[script,'invalid-date'],{encoding:'utf8',timeout:15000});
+  assert.equal(invalid.status,2);
 });
 
 test('Telemetry API V2 explicitly refuses V1 pseudo-API envelope and schema',()=>{
