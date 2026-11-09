@@ -4,6 +4,27 @@ const {chromium}=require('playwright');
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  // Separate network errors, non-200s and CORS from a slow DOM update.
+  // This is read-only observation; do not add a permissive header or retry.
+  const racecardNetwork=[];
+  const recordRacecard=(event,request,extra={})=>{
+   try{
+    const u=new URL(request.url());
+    if(u.hostname!=='boat-edge-clean.onrender.com'||u.pathname!=='/api/clean-racecard')return;
+    racecardNetwork.push({event,atJst:new Date().toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo'}),
+     race:u.searchParams.get('hd')+'-'+String(u.searchParams.get('jcd')).padStart(2,'0')+
+      '-'+String(u.searchParams.get('rno')).padStart(2,'0'),...extra});
+    if(racecardNetwork.length>40)racecardNetwork.shift();
+   }catch{}
+  };
+  page.on('request',req=>recordRacecard('started',req));
+  page.on('response',res=>recordRacecard('response',res.request(),{
+   http:res.status(),cors:res.headers()['access-control-allow-origin']||'missing'
+  }));
+  page.on('requestfinished',req=>recordRacecard('finished',req));
+  page.on('requestfailed',req=>recordRacecard('failed',req,{
+   reason:req.failure()?.errorText||'unknown'
+  }));
   const site='https://ikst2512-eng.github.io/boat-edge-clean/';
   const res=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
   if(!res?.ok())throw Error('PAGES_UNAVAILABLE '+res?.status());
@@ -245,7 +266,7 @@ const {chromium}=require('playwright');
        };
       })).catch(e=>({diagnosticError:String(e)}));
       console.error('LIVE_EXHIBITION_DOM_TIMEOUT_NOT_A_PASS '+JSON.stringify({
-       race:expected,dom,afterUiTimeout,pageErrors:errors.slice(0,5),reason:String(error)
+       race:expected,dom,afterUiTimeout,network:racecardNetwork.filter(x=>x.race===expected).slice(-18),pageErrors:errors.slice(0,5),reason:String(error)
       }));
       throw error;
      }
