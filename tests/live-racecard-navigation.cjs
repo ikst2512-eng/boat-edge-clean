@@ -208,7 +208,25 @@ const {chromium}=require('playwright');
       return {lane,time:Number(ex.exhibition_time),tilt:Number(ex.tilt),
        course:Number(st.course),st:signedStart(st.st),raw_st:st.st};
      });
-     await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
+     try{
+      await page.waitForFunction(key=>document.getElementById('forecastPreviewRows')?.children.length===6&&sameRaceKey()===key,expected,{timeout:12000});
+     }catch(error){
+      // Never turn this timeout into a pass; preserve DOM evidence for a precise repair.
+      const dom=await page.evaluate(()=>{
+       const root=document.getElementById('forecastPreviewRows');
+       return {
+        shownRaceKey:typeof sameRaceKey==='function'?sameRaceKey():'unavailable',
+        previewRows:root?.children.length??null,
+        previewText:root?.innerText?.slice(0,350)||'',
+        previewHtml:root?.innerHTML?.slice(0,650)||'',
+        visibleForecast:!!document.getElementById('forecast')?.getClientRects().length,
+        selectedRace:document.getElementById('activeRaceLabel')?.textContent?.trim()?.slice(0,140)||'',
+        previewStatus:document.getElementById('forecastPreviewStatus')?.textContent?.trim()?.slice(0,220)||''
+       };
+      }).catch(e=>({diagnosticError:String(e)}));
+      console.error('LIVE_EXHIBITION_DOM_TIMEOUT_NOT_A_PASS '+JSON.stringify({race:expected,dom,pageErrors:errors.slice(0,5),reason:String(error)}));
+      throw error;
+     }
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
      const shown=displayed.map(text=>{
       const match=text.match(/^(\d+)号艇展示\s+([+-]?\d+(?:\.\d+)?)｜チルト\s+([+-]?\d+(?:\.\d+)?)｜進入\s+(\d+)コース｜展示ST\s+(\S+)$/);
