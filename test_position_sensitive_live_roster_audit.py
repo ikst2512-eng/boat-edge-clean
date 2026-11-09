@@ -4,7 +4,7 @@ import hashlib
 import json
 import unittest
 
-from test_four_mode_position_sensitive_forward import frozen
+from test_four_mode_position_sensitive_forward import archive, frozen
 from position_sensitive_live_roster_audit import (
     inspect_roster, PREFIX, README, REMOTE_REF, ORIGINAL_REF,
 )
@@ -15,7 +15,9 @@ UTC_AFTER = datetime.fromisoformat("2026-11-09T20:27:00+09:00")
 
 
 def make_fixture():
-    s, original = frozen()
+    s, original = frozen(archive("202611091912",
+                                deadline="2026-11-09T20:38:00+09:00"),
+                         "2026-11-09T14:25:00+09:00")
     candidate = json.dumps(s, ensure_ascii=False, sort_keys=True).encode()
     path = PREFIX+s["race_code"]+".json"
     return s, original, candidate, path
