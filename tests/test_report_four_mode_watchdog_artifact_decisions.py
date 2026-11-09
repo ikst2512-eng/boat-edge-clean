@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.report_four_mode_watchdog_artifact_decisions import inspect
+from scripts.report_four_mode_watchdog_artifact_decisions import inspect, verify_webhook_upstream
 
 
 def run(run_id=10, event="push"):
@@ -162,6 +162,64 @@ class ArtifactDecisionTests(unittest.TestCase):
         self.assertEqual(data["clean_webhook_unknown_evidence"], 1)
         self.assertFalse(data["clean_webhook_causal_link_proven"])
         self.assertFalse(data["remote_publication_proven"])
+
+    def test_trusted_upstream_github_metadata_verified_independently(self):
+        payload = {
+            "id": 700, "name": "Four-mode prospective capture (research only)",
+            "event": "schedule", "head_branch": "main",
+            "status": "completed", "conclusion": "success",
+            "head_repository": {"full_name": "example/project"},
+            "created_at": "2026-11-03T06:20:00Z",
+        }
+        from datetime import datetime, timezone
+        watchdog_started = datetime(2026, 11, 3, 6, 23, 49,
+                                    tzinfo=timezone.utc)
+        self.assertTrue(verify_webhook_upstream(
+            payload, 700, payload["name"], watchdog_started,
+            "example/project"))
+        for modified in (
+                dict(payload, id=701),
+                dict(payload, name="Forged parent name"),
+                dict(payload, event="workflow_dispatch"),
+                dict(payload, head_branch="feature"),
+                dict(payload, status="in_progress", conclusion=None),
+                dict(payload, conclusion="failure"),
+                dict(payload, head_repository={"full_name": "foreign/repo"}),
+                dict(payload, created_at="2026-11-03T06:24:00Z")):
+            with self.subTest(modified=modified):
+                self.assertFalse(verify_webhook_upstream(
+                    modified, 700, payload["name"], watchdog_started,
+                    "example/project"))
+
+    def test_parent_api_failure_is_unknown_not_verified(self):
+        history = {"recent_watchdog_runs": [], "recent_capture_runs": [],
+                   "recent_successful_watchdog_workflow_run": [{
+                       "id": 706, "workflow": "four-mode-capture-watchdog.yml",
+                       "event": "workflow_run", "head_branch": "main",
+                       "head_repository_full_name": "example/project",
+                       "created_at": "2026-11-03T06:23:49Z",
+                       "status": "completed", "conclusion": "success"}]}
+        def download(run_id, root):
+            file = root / "clean-prospective-watchdog-decision.json"
+            file.write_text(json.dumps({
+                "schema": "CLEAN_PROSPECTIVE_WATCHDOG_DECISION_V1",
+                "github_run_id": str(run_id), "event": "workflow_run",
+                "trigger_ref": "refs/heads/main", "target": "clean-prospective.yml",
+                "formal": False, "remote_first_seen_verified": False,
+                "new_forecast_saved_proven": False,
+                "action": "fallback_dispatch_accepted_not_capture_proof",
+                "checked_at_utc": "2026-11-03T06:24:00Z",
+                "upstream_run_id": 700,
+                "upstream_workflow": "Four-mode prospective capture (research only)"
+            }), encoding="utf-8")
+        def unavailable(_):
+            raise OSError("api unavailable")
+        data = inspect(history, download, parent_fetcher=unavailable)
+        self.assertEqual(data["clean_webhook_decisions_verified"], 1)
+        self.assertEqual(data["clean_webhook_upstream_parents_verified"], 0)
+        self.assertEqual(data["clean_webhook_runs"][0]["upstream_parent_status"],
+                         "fetch_failed_OSError")
+        self.assertFalse(data["clean_webhook_causal_link_proven"])
 
     def test_only_bounded_recent_watchdogs_checked(self):
         history = {"recent_watchdog_runs": [run(3), run(2), run(1)],
