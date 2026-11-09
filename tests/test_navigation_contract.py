@@ -78,7 +78,7 @@ class NavigationContractTest(unittest.TestCase):
         end = self.index.index('<section class="forecast-stats-pane"', start)
         prediction = self.index[start:end]
         data_start = end
-        data_end = self.index('<section class="forecast-result-tab"', data_start)
+        data_end = self.index.index('<section class="forecast-result-tab"', data_start)
         stats = self.index[data_start:data_end]
         self.assertIn('id="fourModeForecastRows"', prediction)
         for forbidden in ('forecast-statistics', 'forecastLeaderRows',
