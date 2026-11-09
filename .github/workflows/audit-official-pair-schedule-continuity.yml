@@ -26,6 +26,8 @@ on:
       - tests/test_audit_t12_cross_workflow_schedule.py
       - scripts/audit_t12_remote_artifact_publication.py
       - tests/test_audit_t12_remote_artifact_publication.py
+      - scripts/audit_t12_saved_three_original_replay.py
+      - tests/test_audit_t12_saved_three_original_replay.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -59,6 +61,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_nov09_real_pair_forecast_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_cross_workflow_schedule.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -116,6 +119,33 @@ jobs:
             --schedule reports/official_pair_schedule_continuity.json \
             --archive reports/official_three_archive_presence.json \
             --output reports/official_t12_same_day_blockers.json
+      - name: Independently re-read Nov3 stored official three originals by pinned Git SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Use the original evidence-branch Git commit, not mutable refs or
+          # the saved report as a success shortcut. Fetch/re-hash all 6 source
+          # blobs and manifests; re-run real racelist+beforeinfo+120 odds.
+          python -m scripts.audit_t12_saved_three_original_replay \
+            --repo "$REPOSITORY" \
+            --git-commit d0ed89f146dff117021c2bc042b20259d6715515 \
+            --race-code 202611030112 \
+            --observation-id ext20261103T08003263231e6e \
+            --output reports/official_t12_nov03_pinned_three_originals.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("reports/official_t12_nov03_pinned_three_originals.json").read_text())
+          missing={"exhibition_six_courses","exhibition_times_six",
+                   "tilt_six","start_exhibition_six"}
+          if (set(p["missing_source_components"])!=missing
+                  or p["source_research_components_complete"] is not False
+                  or p["qualified_three_source_candidates"] != 0
+                  or p["new_formal_certifications"] != 0
+                  or p["formal"] is not False):
+              raise SystemExit("NOV03_PINNED_OFFICIAL_ORIGINAL_REPLAY_REGRESSED")
+          PY
       - name: Download archived official-source files from Actions run 41976534374
         uses: actions/download-artifact@v4
         with:
@@ -222,5 +252,6 @@ jobs:
             reports/official_t12_nov09_source_vs_forecast.json
             reports/t12_cross_workflow_schedule_controls.json
             reports/official_t12_nov09_remote_archive_time.json
+            reports/official_t12_nov03_pinned_three_originals.json
           if-no-files-found: error
           retention-days: 30
