@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {auditNativePublisherPair,auditNativePublisherPostPush} from '../cloudflare/native_publication_receipt_lab.mjs';
 import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
 import observerWorker from '../cloudflare/independent_capture_observer.mjs';
 import * as observerExports from '../cloudflare/independent_capture_observer.mjs';
@@ -1188,4 +1189,58 @@ test('Telemetry API wrapper CLI accepts exact response envelope but never certif
     assert.equal(result.actual_cloudflare_api_authenticity_independently_proven,false);
     assert.equal(result.formal_t_minus_12_proven,false);
   }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test('CLEAN remote main receipt gap is independently identified against actual native YAML',()=>{
+  const clean=readFileSync(new URL('../.github/workflows/clean-prospective.yml',import.meta.url),'utf8');
+  const mode=readFileSync(new URL('../.github/workflows/four-mode-prospective-capture.yml',import.meta.url),'utf8');
+  const out=auditNativePublisherPair(clean,mode);
+  assert.equal(out.clean.source_contains_main_push,true);
+  assert.equal(out.clean.post_push_remote_main_ancestry_check,false);
+  assert.equal(out.clean.exact_published_commit_sha_captured,false);
+  assert.equal(out.clean.publication_receipt_artifact_emitted,false);
+  assert.equal(out.clean.source_level_receipt_contract_present,false);
+  assert.equal(out.four_mode.post_push_remote_main_ancestry_check,true);
+  assert.equal(out.four_mode.exact_published_commit_sha_captured,true);
+  assert.equal(out.four_mode.publication_receipt_artifact_emitted,true);
+  assert.equal(out.four_mode.source_level_receipt_contract_present,true);
+  assert.equal(out.both_source_contracts_present,false);
+  assert.equal(out.cross_provider_recovery_release_approved,false);
+  assert.equal(out.clean.publication_immutable_first_add_proven,false);
+  assert.equal(out.four_mode.publication_immutable_first_add_proven,false);
+});
+
+test('static native publication evidence gate only accepts checks after successful push',()=>{
+  const header='name: illustrative\n';
+  const push='  if git push origin HEAD:main; then\n';
+  const check='  git fetch origin main\n  git merge-base --is-ancestor HEAD FETCH_HEAD\n';
+  const evidence='  git rev-parse HEAD\n  echo \\"commit_sha\\" > clean-capture-evidence/publication.json\n';
+  const success='  exit 0\n  fi\n';
+  const clean=header+push+check+evidence+success;
+  const accepted=auditNativePublisherPostPush(clean,'clean');
+  assert.equal(accepted.source_level_receipt_contract_present,true);
+  assert.equal(accepted.remote_publication_independently_observed,false);
+  assert.equal(accepted.cross_provider_recovery_release_approved,false);
+  for(const invalid of [
+    header+check+evidence+push+success,
+    header+push+evidence+success+check,
+    header+push+'  git merge-base --is-ancestor HEAD FETCH_HEAD\n  git fetch origin main\n'+evidence+success,
+    header+push+check+success+evidence,
+    header+push+check+evidence.replace('commit_sha','other')+success,
+  ]){
+    const out=auditNativePublisherPostPush(invalid,'clean');
+    assert.equal(out.source_level_receipt_contract_present,false);
+    assert.equal(out.cross_provider_recovery_release_approved,false);
+  }
+});
+
+test('native publisher receipt audit errors on missing success branch or unknown workflow',()=>{
+  for(const [source,kind] of [
+    ['name: no publication','clean'],
+    ['if git push origin HEAD:main; then\n echo pending\n fi','four_mode'],
+    ['if git push origin HEAD:main; then\n exit 0','unknown'],
+  ]){
+    assert.throws(()=>auditNativePublisherPostPush(source,kind),/invalid_native_publisher_source|native_publisher_push/);
+  }
 });
