@@ -18,7 +18,8 @@ class WatchdogInventoryTest(unittest.TestCase):
             ("four-mode-prospective-capture.yml", "schedule"): [row(1, "schedule", "2026-11-03T03:54:14Z")],
             ("four-mode-prospective-capture.yml", "workflow_dispatch"): [row(2, "workflow_dispatch", "2026-11-03T05:30:00Z")],
             ("four-mode-capture-watchdog.yml", "schedule"): [],
-            ("four-mode-capture-watchdog.yml", "push"): [row(3, "push", "2026-11-03T05:25:00Z")]}
+            ("four-mode-capture-watchdog.yml", "push"): [row(3, "push", "2026-11-03T05:25:00Z")],
+            ("four-mode-capture-watchdog.yml", "workflow_run"): []}
         def fetch(url, token):
             for (workflow, event), vals in events.items():
                 if workflow in url and ("event=" + event) in url:
