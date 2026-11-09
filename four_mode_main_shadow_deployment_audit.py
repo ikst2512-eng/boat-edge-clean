@@ -97,7 +97,8 @@ def git(*args):
 
 
 def audit_live(main_ref="refs/remotes/origin/main", draft_ref="HEAD"):
-    if main_ref != "refs/remotes/origin/main" or draft_ref != "HEAD":
+    if (main_ref != "refs/remotes/origin/main"
+            or (draft_ref != "HEAD" and not GIT_SHA.fullmatch(draft_ref))):
         raise ValueError("unsafe_nonpinned_workflow_ref")
     main_sha = git("rev-parse", "--verify", main_ref + "^{commit}").decode().strip()
     draft_sha = git("rev-parse", "--verify", draft_ref + "^{commit}").decode().strip()
@@ -105,14 +106,21 @@ def audit_live(main_ref="refs/remotes/origin/main", draft_ref="HEAD"):
         raise ValueError("unverifiable_commit")
     main = git("show", main_sha + ":" + WORKFLOW)
     draft = git("show", draft_sha + ":" + WORKFLOW)
-    return review(main, draft, main_sha, draft_sha)
+    report = review(main, draft, main_sha, draft_sha)
+    report["draft_verified_at_exact_pr_head_sha"] = draft_ref != "HEAD"
+    report["draft_source_warning"] = (
+        "Exact PR head commit selected by caller and read via git show"
+        if draft_ref != "HEAD" else
+        "HEAD can be a GitHub PR synthetic merge checkout, not the real PR head")
+    return report
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path)
+    p.add_argument("--draft-sha", help="Exact GitHub PR-head commit SHA after fetching it")
     args = p.parse_args()
-    result = audit_live()
+    result = audit_live(draft_ref=args.draft_sha or "HEAD")
     data = json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     if args.output:
         args.output.write_text(data, encoding="utf-8")
