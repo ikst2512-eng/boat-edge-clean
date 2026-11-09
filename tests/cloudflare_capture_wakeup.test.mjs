@@ -1104,3 +1104,88 @@ test('native workflow_dispatch has no capture-slot contract and current collecto
   assert.match(policy,/github_execution_slot_bound_proven = false/);
   assert.match(policy,/github_execution_slot_bound_proven: false/);
 });
+
+
+import {auditTelemetryApiPages,API_SCHEMA} from '../cloudflare/audit_observer_api_pages.mjs';
+
+function syntheticApiTelemetryDay() {
+  const raw=syntheticRawWorkersDay(),start=Date.parse(raw.utc_day+'T00:00:00Z');
+  const timeframe={from:start,to:start+86400000};
+  const filters={kind:'filter',key:'$metadata.service',value:OBSERVER_NAME,type:'string',operation:'eq'};
+  return {schema:API_SCHEMA,utc_day:raw.utc_day,worker:raw.worker,
+    deployment_id:raw.deployment_id,
+    events_query:{
+      request:{view:'events',timeframe:{...timeframe},limit:2000,filters:structuredClone(filters)},
+      response:{status:'COMPLETED',timeframe:{...timeframe},
+        events:{count:raw.records.length,events:raw.records}}},
+    sampling_query:{
+      request:{view:'calculations',timeframe:{...timeframe},filters:structuredClone(filters)},
+      response:{status:'COMPLETED',timeframe:{...timeframe},
+        calculations:[{aggregates:[{count:raw.records.length,sampleInterval:1}]}]}},
+  };
+}
+
+test('Telemetry API wrapper derives complete 384 event / unsampled day from two real-shaped responses',()=>{
+  const report=auditTelemetryApiPages(syntheticApiTelemetryDay());
+  assert.equal(report.api_query_structure_pass,true);
+  assert.equal(report.observer_day_pass,true);
+  assert.equal(report.unique_observed_ticks,192);
+  assert.equal(report.cpu_ms.max,2.5);
+  assert.equal(report.actual_cloudflare_api_authenticity_independently_proven,false);
+  assert.equal(report.actual_github_dispatch_proven,false);
+  assert.equal(report.immutable_forecast_first_add_proven,false);
+  assert.equal(report.formal_t_minus_12_proven,false);
+});
+
+test('Telemetry API wrapper rejects truncation, event count mismatch and sampled metrics',()=>{
+  for(const poison of [
+    x=>x.events_query.response.events.count=385,
+    x=>x.events_query.response.events.events.pop(),
+    x=>x.sampling_query.response.calculations[0].aggregates[0].sampleInterval=2,
+    x=>x.sampling_query.response.calculations[0].aggregates[0].count=383,
+    x=>x.sampling_query.response.calculations.push({aggregates:[{count:384,sampleInterval:1}]}),
+    x=>x.sampling_query.response.calculations[0].aggregates.push({count:384,sampleInterval:1}),
+  ]) {
+    const input=syntheticApiTelemetryDay();poison(input);
+    const result=auditTelemetryApiPages(input);
+    assert.equal(result.observer_day_pass,false);
+    assert.equal(result.api_query_structure_pass,false);
+    assert.ok(result.api_issue_count>=1);
+  }
+});
+
+test('Telemetry API wrapper rejects unsafe timeframe, query view, filters and cursor',()=>{
+  for(const poison of [
+    x=>x.events_query.request.timeframe.from+=60000,
+    x=>x.events_query.response.timeframe.to-=60000,
+    x=>x.sampling_query.request.timeframe.to+=60000,
+    x=>x.sampling_query.response.timeframe.from-=60000,
+    x=>x.events_query.request.limit=100,
+    x=>x.events_query.request.offset='unreviewed-cursor',
+    x=>x.sampling_query.request.filters.value='different-worker',
+    x=>x.events_query.request.filters.kind='other-filter',
+    x=>x.events_query.response.status='STARTED',
+    x=>x.sampling_query.response.status='STARTED',
+  ]){
+    const input=syntheticApiTelemetryDay();poison(input);
+    const result=auditTelemetryApiPages(input);
+    assert.equal(result.observer_day_pass,false);
+    assert.ok(result.api_issue_count>=1);
+  }
+});
+
+test('Telemetry API wrapper CLI accepts exact response envelope but never certifies genuine account',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-telemetry-query-'));
+  try {
+    const path=join(dir,'telemetry-api.json');
+    writeFileSync(path,JSON.stringify(syntheticApiTelemetryDay()),'utf8');
+    const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_observer_telemetry.mjs',import.meta.url));
+    const child=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(child.status,0,child.stderr);
+    const result=JSON.parse(child.stdout);
+    assert.equal(result.observer_day_pass,true);
+    assert.match(result.input_sha256,/^[a-f0-9]{64}$/);
+    assert.equal(result.actual_cloudflare_api_authenticity_independently_proven,false);
+    assert.equal(result.formal_t_minus_12_proven,false);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+});
