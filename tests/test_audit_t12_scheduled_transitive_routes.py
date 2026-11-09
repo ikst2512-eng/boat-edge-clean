@@ -158,6 +158,10 @@ jobs:
         self.assertTrue(row["only_external_action_unresolved"])
         self.assertEqual(result["scheduled_with_only_external_action_unknown"], 1)
         self.assertEqual(result["scheduled_with_non_external_unknown"], 0)
+        self.assertEqual(result["unresolved_reason_workflow_counts"],
+                         {"external_action_unexpanded": 1})
+        self.assertEqual(result["scheduled_with_runtime_or_local_unknown"], 0)
+        self.assertEqual(result["scheduled_with_only_expression_or_setup_unknown"], 1)
         self.assertEqual(row["external_other_action_refs"], [])
         self.assertEqual(len(row["external_setup_action_refs"]), 2)
         self.assertTrue(row["unresolved"])
@@ -198,6 +202,9 @@ jobs:
         self.assertIn("dynamic_import", row["unresolved_non_external"])
         self.assertFalse(row["only_external_action_unresolved"])
         self.assertEqual(result["scheduled_with_non_external_unknown"], 1)
+        self.assertEqual(result["scheduled_with_runtime_or_local_unknown"], 1)
+        self.assertIn("dynamic_import", result["unresolved_reason_workflow_counts"])
+        self.assertIn(PREFIX+"dynamic.yml", result["runtime_or_local_unknown_workflow_paths"])
         self.assertFalse(result["no_indirect_capture_proven"])
 
     def test_external_action_nested_reusable_workflow_keeps_unknown(self):
@@ -222,6 +229,41 @@ jobs:
         self.assertIn("vendor/custom@v2", row["external_action_refs"])
         self.assertIn("external_action_unexpanded", row["unresolved"])
         self.assertFalse(result["no_indirect_capture_proven"])
+
+
+    def test_expression_is_not_a_false_capture_certificate(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${{ github.run_id }}"
+"""
+        result = report({}, {PREFIX+"expressions.yml": workflow})
+        self.assertEqual(result["scheduled_with_only_expression_or_setup_unknown"], 1)
+        self.assertEqual(result["scheduled_with_runtime_or_local_unknown"], 0)
+        self.assertEqual(result["unresolved_reason_workflow_counts"],
+                         {"dynamic_workflow_expression": 1, "external_action_unexpanded": 1})
+        self.assertFalse(result["no_indirect_capture_proven"])
+
+    def test_network_shell_is_prioritized_but_no_http_capture_claim(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl https://example.invalid/check
+"""
+        result = report({}, {PREFIX+"network.yml": workflow})
+        self.assertEqual(result["scheduled_with_runtime_or_local_unknown"], 1)
+        self.assertEqual(result["scheduled_with_only_expression_or_setup_unknown"], 0)
+        self.assertIn(PREFIX+"network.yml", result["runtime_or_local_unknown_workflow_paths"])
+        self.assertFalse(result["official_http_capture_proven"])
+        self.assertFalse(result["formal"])
 
 
 if __name__ == "__main__":

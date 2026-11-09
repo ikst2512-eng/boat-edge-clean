@@ -218,6 +218,12 @@ def inspect(workflows, paths, load, strict=True):
                      "external_other_action_refs": other_refs,
                      "only_external_action_unresolved": unknown == {"external_action_unexpanded"},
                      "absence_proven": False})
+    reason_counts = {reason: sum(reason in row["unresolved"] for row in rows)
+                     for reason in sorted({x for row in rows for x in row["unresolved"]})}
+    runtime_unknowns = {"non_python_network_or_process", "dynamic_subprocess",
+                        "dynamic_import", "dynamic_code", "dynamic_shell",
+                        "local_action_unexpanded", "nested_local_action_unexpanded",
+                        "missing_source", "unparseable_python", "file_limit"}
     return {"schema": "T12_PINNED_TRANSITIVE_STATIC_V1", "main_sha": PINNED,
             "workflows": len(workflows), "scheduled_workflows": len(scheduled),
             "scheduled_with_candidate_chain": sum(bool(x["racelist_candidate_chains"]) for x in rows),
@@ -226,6 +232,16 @@ def inspect(workflows, paths, load, strict=True):
             "scheduled_with_only_external_action_unknown": sum(x["only_external_action_unresolved"] for x in rows),
             "scheduled_with_other_external_action_refs": sum(bool(x["external_other_action_refs"]) for x in rows),
             "scheduled_with_no_unresolved": sum(not x["unresolved"] for x in rows),
+            "unresolved_reason_workflow_counts": reason_counts,
+            "scheduled_with_runtime_or_local_unknown": sum(
+                bool(set(x["unresolved"]) & runtime_unknowns) for x in rows),
+            "runtime_or_local_unknown_workflow_paths": sorted(
+                x["workflow"] for x in rows if set(x["unresolved"]) & runtime_unknowns),
+            "scheduled_with_only_expression_or_setup_unknown": sum(
+                bool(x["unresolved"]) and
+                set(x["unresolved"]).issubset({"dynamic_workflow_expression",
+                                              "external_action_unexpanded"}) and
+                not x["external_other_action_refs"] for x in rows),
             "rows": rows, "no_indirect_capture_proven": False, "official_http_capture_proven": False,
             "same_race_three_originals_proven": False, "new_forecast_remote_acceptance_proven": False,
             "formal": False, "t12_eligible": False, "new_formal_certifications": 0,
