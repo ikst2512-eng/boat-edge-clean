@@ -4,7 +4,9 @@ compatibility_date = "2026-06-24"
 workers_dev = false
 
 [vars]
-# Two-step rollout: only literal 'true' permits GitHub Actions dispatch.
+# Dormant research-only recovery config. The Worker has a source-level
+# cross-provider NO-GO lock; setting this var to 'true' will FAIL CLOSED,
+# even with a valid GitHub Secret. Owner-reviewed source change required.
 CLOUDFLARE_DISPATCH_ENABLED = "false"
 
 [triggers]
