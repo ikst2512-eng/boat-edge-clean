@@ -41,6 +41,16 @@ const server = http.createServer((request, response) => {
     const localOrigin = 'http://127.0.0.1:' + server.address().port;
     browser = await webkit.launch({headless: true});
     const page = await browser.newPage({viewport: {width: 390, height: 844}});
+    await page.addInitScript(() => {
+      window.__historyMutationCounts = {replace: 0, push: 0};
+      for (const method of ['replaceState', 'pushState']) {
+        const original = history[method].bind(history);
+        history[method] = (...args) => {
+          window.__historyMutationCounts[method === 'replaceState' ? 'replace' : 'push']++;
+          return original(...args);
+        };
+      }
+    });
     // Preserve local asset delivery; external data is intentionally unavailable.
     // This isolates history throttling, not live exhibition, CORS, or betting accuracy.
     await page.route('**/*', route => {
@@ -58,7 +68,20 @@ const server = http.createServer((request, response) => {
     await page.waitForFunction(() => typeof setView === 'function' && typeof render === 'function');
 
     const verdict = await page.evaluate(async () => {
+      const initialWrites = {...window.__historyMutationCounts};
       for (let i = 0; i < 130; i++) setView('forecast');
+      const afterSameView = {...window.__historyMutationCounts};
+      if (afterSameView.replace !== initialWrites.replace || afterSameView.push !== initialWrites.push)
+        throw Error('SAME_VIEW_MUTATED_BROWSER_HISTORY '+JSON.stringify({initialWrites,afterSameView}));
+      // A repeated re-render of an unchanged race must not burn WebKit's history quota.
+      render();
+      await Promise.resolve();
+      const stableWrites = {...window.__historyMutationCounts};
+      for (let i = 0; i < 8; i++) render();
+      await Promise.resolve();
+      const afterRepeatedRender = {...window.__historyMutationCounts};
+      if (afterRepeatedRender.replace !== stableWrites.replace || afterRepeatedRender.push !== stableWrites.push)
+        throw Error('SAME_RACE_RENDER_MUTATED_BROWSER_HISTORY '+JSON.stringify({stableWrites,afterRepeatedRender}));
       const unchanged = new URL(location.href);
       if (unchanged.searchParams.get('race') !== '1') throw Error('SAME_RACE_URL_CHANGED');
       if (unchanged.searchParams.has('view')) throw Error('LEGACY_VIEW_QUERY_LEFTOVER');
@@ -70,7 +93,7 @@ const server = http.createServer((request, response) => {
       const changed = new URL(location.href);
       if (changed.searchParams.get('race') !== '2') throw Error('RACE_CHANGE_URL_MISSING');
       if (changed.searchParams.get('venue') !== '1') throw Error('VENUE_URL_CHANGED');
-      return {sameViewCalls: 130, raceBefore: 1, raceAfter: Number(changed.searchParams.get('race'))};
+      return {sameViewCalls: 130, repeatedRenders: 8, stableWrites, afterRepeatedRender, raceBefore: 1, raceAfter: Number(changed.searchParams.get('race'))};
     });
     console.log('PASS_DRAFT_WEBKIT_IDEMPOTENT_HISTORY '+JSON.stringify(verdict));
     console.log('UNASSESSED: published Pages, real Render transport, live CORS, predeadline exhibition, physical iPhone Safari');
