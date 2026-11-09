@@ -4,7 +4,7 @@ from itertools import permutations
 import math
 import unittest
 
-from position_sensitive_conditioned_lab import experimental_conditional_board
+from position_sensitive_conditioned_lab import experimental_conditional_board, inspect_feature_readiness
 
 
 def baseline():
@@ -140,6 +140,24 @@ class ConditionalLabTests(unittest.TestCase):
         self.assertEqual(ordered[:3], ordered[:5][:3])
         self.assertEqual(ordered[:5], ordered[:10][:5])
         self.assertTrue(a["requires_independent_new_preregistration"])
+
+
+    def test_available_vs_missing_evidence_does_not_impute(self):
+        data = evidence()
+        del data["boats"][5]["exhibition_st_s"]
+        del data["context"]["start_heading_true_deg"]
+        status = inspect_feature_readiness(data)
+        self.assertIn("motor_2ren_pct", status["structurally_present_features"])
+        self.assertIn("local_win_rate", status["structurally_present_features"])
+        self.assertIn("exhibition_st_s", status["missing_or_invalid_features"])
+        self.assertIn("headwind_x_entry", status["missing_or_invalid_features"])
+        self.assertNotIn("wave_x_entry", status["missing_or_invalid_features"])
+        self.assertFalse(status["feature_values_imputed"])
+        self.assertFalse(status["official_bytes_and_predeadline_receipts_verified"])
+        self.assertFalse(status["formal"])
+        data["confirmed_finish"] = "1-2-3"
+        with self.assertRaisesRegex(ValueError, "outcome_contaminated"):
+            inspect_feature_readiness(data)
 
 
 if __name__ == "__main__":
