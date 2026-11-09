@@ -2,7 +2,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash, generateKeyPairSync, sign} from 'node:crypto';
-import {auditOne, auditBatch, statementBytes, STATEMENT_SCHEMA, ENVELOPE_SCHEMA} from './hole_pair_signed_first_receipt_audit.mjs';
+import {auditOne, auditBatch, auditAcrossBatches, statementBytes, STATEMENT_SCHEMA, ENVELOPE_SCHEMA} from './hole_pair_signed_first_receipt_audit.mjs';
 import {canonicalRecord} from './hole_pair_first_receipt_worker.mjs';
 
 const METHOD='ea30508cd899b10336754cfeec69c69c73f18e09fba421016d6cddc69b9cabcb';
@@ -153,4 +153,130 @@ test('invalid trust anchor rejected; never generate/persist verifier signing sec
                    {...w.trust,spki_sha256:'not-a-hash'}]){
     await assert.rejects(auditOne(c,e,tr));
   }
+});
+
+
+// Cross-race and cross-run negative evidence: all data below are synthetic.
+test('two valid signatures with same receipt ID for DIFFERENT race codes are quarantined',async()=>{
+  const w=witness(),a=candidate(),b=candidate('202611090102');
+  const r=await auditBatch([a,b],{
+    [a.race_code]:[envelope(a,w)],
+    [b.race_code]:[envelope(b,w)],
+  },w.trust);
+  assert.equal(r.examined,2);
+  assert.equal(r.race_ids_quarantined_for_cross_race_receipt_id,2);
+  assert.equal(r.quarantined_signed_claim_conflicts,2);
+  assert.ok(r.rows.every(x=>x.cross_race_receipt_id_collision===true));
+  assert.equal(r.formally_eligible,0);
+});
+test('different immutable receipt IDs across different races are not falsely quarantined',async()=>{
+  const w=witness(),a=candidate(),b=candidate('202611090102');
+  const r=await auditBatch([a,b],{
+    [a.race_code]:[envelope(a,w)],
+    [b.race_code]:[envelope(b,w,{immutable_receipt_id:'receipt-for-race-b'})],
+  },w.trust);
+  assert.equal(r.race_ids_quarantined_for_cross_race_receipt_id,0);
+  assert.equal(r.signed_claim_races,2);
+  assert.equal(r.formally_eligible,0);
+});
+test('cross-batch repeat of same candidate + same signed receipt does not count twice',async()=>{
+  const w=witness(),c=candidate(),e=envelope(c,w);
+  const batch={records:[c],envelopes:{[c.race_code]:[e]}};
+  const r=await auditAcrossBatches([batch,structuredClone(batch)],w.trust);
+  assert.equal(r.batches_examined,2);
+  assert.equal(r.candidate_observations,2);
+  assert.equal(r.distinct_race_codes,1);
+  assert.equal(r.repeated_same_candidate_observations_not_counted_again,1);
+  assert.equal(r.race_ids_quarantined_for_conflicts,0);
+  assert.equal(r.formally_eligible,0);
+});
+test('cross-batch changed same-race candidate digest triggers quarantine',async()=>{
+  const w=witness(),a=candidate(),b=structuredClone(a);
+  b.local_finish_jst='2026-11-09T10:52:00+09:00';
+  const r=await auditAcrossBatches([
+    {records:[a],envelopes:{[a.race_code]:[envelope(a,w)]}},
+    {records:[b],envelopes:{[b.race_code]:[envelope(b,w)]}},
+  ],w.trust);
+  assert.equal(r.distinct_race_codes,1);
+  assert.equal(r.race_ids_quarantined_for_conflicts,1);
+  assert.equal(r.rows[0].repeated_candidate_with_changed_bytes,true);
+  assert.equal(r.rows[0].status,'cross_batch_candidate_or_signed_receipt_conflict_quarantined');
+});
+test('cross-batch same-race signed first acceptance timestamp conflict is quarantined',async()=>{
+  const w=witness(),c=candidate();
+  const r=await auditAcrossBatches([
+    {records:[c],envelopes:{[c.race_code]:[envelope(c,w)]}},
+    {records:[c],envelopes:{[c.race_code]:[envelope(c,w,{
+      first_accepted_at_utc_claim:'2026-11-09T01:56:00.000Z',
+    })]}},
+  ],w.trust);
+  assert.equal(r.rows[0].distinct_claimed_first_acceptance_clocks,2);
+  assert.equal(r.rows[0].conflicting_signed_first_write_claims,true);
+  assert.equal(r.race_ids_quarantined_for_conflicts,1);
+});
+test('cross-batch different receipt IDs for the same candidate are quarantined',async()=>{
+  const w=witness(),c=candidate();
+  const r=await auditAcrossBatches([
+    {records:[c],envelopes:{[c.race_code]:[envelope(c,w)]}},
+    {records:[c],envelopes:{[c.race_code]:[envelope(c,w,{
+      immutable_receipt_id:'some-new-first-id',
+    })]}},
+  ],w.trust);
+  assert.equal(r.rows[0].distinct_claimed_immutable_receipt_ids,2);
+  assert.equal(r.race_ids_quarantined_for_conflicts,1);
+});
+test('cross-batch recycled receipt ID across separate race codes quarantines both',async()=>{
+  const w=witness(),a=candidate(),b=candidate('202611090102');
+  const r=await auditAcrossBatches([
+    {records:[a],envelopes:{[a.race_code]:[envelope(a,w)]}},
+    {records:[b],envelopes:{[b.race_code]:[envelope(b,w)]}},
+  ],w.trust);
+  assert.equal(r.race_ids_with_cross_race_receipt_id_reuse,2);
+  assert.equal(r.race_ids_quarantined_for_conflicts,2);
+  assert.ok(r.rows.every(x=>x.cross_race_receipt_id_reuse));
+});
+test('cross-batch valid separate races stay separate, though still nonformal',async()=>{
+  const w=witness(),a=candidate(),b=candidate('202611090102');
+  const r=await auditAcrossBatches([
+    {records:[a],envelopes:{[a.race_code]:[envelope(a,w)]}},
+    {records:[b],envelopes:{[b.race_code]:[envelope(b,w,{
+      immutable_receipt_id:'unique-for-race-b',
+    })]}},
+  ],w.trust);
+  assert.equal(r.distinct_race_codes,2);
+  assert.equal(r.race_ids_quarantined_for_conflicts,0);
+  assert.equal(r.formally_eligible,0);
+  assert.equal(r.independent_first_receipt_verified,0);
+  assert.equal(r.independent_witness_key_custody_verified,false);
+});
+test('same race with missing and later signed claim is still not independently proven',async()=>{
+  const w=witness(),c=candidate();
+  const r=await auditAcrossBatches([
+    {records:[c],envelopes:{}},
+    {records:[c],envelopes:{[c.race_code]:[envelope(c,w)]}},
+  ],w.trust);
+  assert.equal(r.rows[0].verified_under_supplied_key_claims,1);
+  assert.equal(r.rows[0].candidate_observations,2);
+  assert.equal(r.race_ids_quarantined_for_conflicts,0);
+  assert.equal(r.formally_eligible,0);
+});
+test('cross-batch forged schema, malformed receipt or orphan fails closed',async()=>{
+  const w=witness(),c=candidate();
+  for(const batch of [
+    {records:[c],envelopes:{},formal:true},
+    {records:[c],envelopes:{'202611090102':[envelope(c,w)]}},
+    {records:[{...c,formal:true}],envelopes:{}},
+    {records:[c],envelopes:{[c.race_code]:[{
+      ...envelope(c,w),signature_b64:'invalid'
+    }]}},
+  ]){
+    await assert.rejects(auditAcrossBatches([batch],w.trust));
+  }
+});
+test('cross-batch empty or too many unverified runs rejected without scoring',async()=>{
+  const w=witness();
+  await assert.rejects(auditAcrossBatches([],w.trust),/untrusted_cross_batch_receipt_roster/);
+  await assert.rejects(auditAcrossBatches(Array.from({length:41},()=>({
+    records:[],envelopes:{}
+  })),w.trust),/untrusted_cross_batch_receipt_roster/);
 });
