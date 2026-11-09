@@ -14,6 +14,7 @@ on:
       - tests/four_mode_archive_cors_browser.cjs
       - tests/live_four_mode_archive_cors_postdeploy.cjs
       - tests/live_four_mode_display_postdeploy.cjs
+      - tests/live_pages_assets_postdeploy.cjs
       - tests/four_mode_ui_integration_browser.cjs
       - .github/workflows/four-mode-archive-cors-hotfix.yml
 
@@ -36,6 +37,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify published HTML and JS match checked-out release (manual only)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_pages_assets_postdeploy.cjs
       - name: Install browser engines for isolated cross-origin CORS check
         timeout-minutes: 10
         run: |
@@ -50,6 +54,8 @@ jobs:
           node --check tests/live_four_mode_archive_cors_postdeploy.cjs
           node --check tests/live_four_mode_display_postdeploy.cjs
           node --check tests/four_mode_ui_integration_browser.cjs
+          node --check tests/live_pages_assets_postdeploy.cjs
+          node tests/live_pages_assets_postdeploy.cjs --self-test
       - name: Verify REAL published Pages to Render CORS (manual AFTER deployment)
         if: github.event_name == 'workflow_dispatch'
         run: node tests/live_four_mode_archive_cors_postdeploy.cjs
