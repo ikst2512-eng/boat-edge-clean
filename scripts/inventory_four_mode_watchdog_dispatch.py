@@ -70,7 +70,7 @@ def inventory(repo, token, fetch=api_json, now=None):
     coverage = {}
     global_seen_ids = set()
     for workflow, events in ((CAPTURE, ("schedule", "workflow_dispatch")),
-                             (WATCHDOG, ("schedule", "push"))):
+                             (WATCHDOG, ("schedule", "push", "workflow_run"))):
         for event in events:
             url = (f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}"
                    f"/runs?event={event}&per_page=100")
@@ -107,6 +107,12 @@ def inventory(repo, token, fetch=api_json, now=None):
     all_rows.sort(key=lambda r: r["created_at"], reverse=True)
     captures = [r for r in all_rows if r["workflow"] == CAPTURE]
     watchdogs = [r for r in all_rows if r["workflow"] == WATCHDOG]
+    # Keep legacy direct-trigger watchdog artifact consumers stable. The
+    # high-volume workflow_run hook is a distinct source and a completed
+    # skipped job is *not* a successful recovery. Its API page is bounded.
+    direct_watchdogs = [r for r in watchdogs
+                        if r["event"] in ("schedule", "push")]
+    webhook_watchdogs = [r for r in watchdogs if r["event"] == "workflow_run"]
     latest_capture = captures[0] if captures else None
     gap = None
     if latest_capture is not None:
@@ -128,6 +134,9 @@ def inventory(repo, token, fetch=api_json, now=None):
                 "completed_other_non_success": sum(
                     r["status"] == "completed"
                     and r["conclusion"] not in ("success", "failure", None)
+                    for r in selected),
+                "skipped": sum(
+                    r["status"] == "completed" and r["conclusion"] == "skipped"
                     for r in selected)}
     return {"schema": "FOUR_MODE_WATCHDOG_DISPATCH_COVERAGE_V1",
             "as_of_utc": now.isoformat(),
@@ -135,21 +144,34 @@ def inventory(repo, token, fetch=api_json, now=None):
             "capture_workflow_dispatch": count(captures, "workflow_dispatch"),
             "watchdog_schedule": count(watchdogs, "schedule"),
             "watchdog_push": count(watchdogs, "push"),
+            "watchdog_workflow_run": count(watchdogs, "workflow_run"),
             "latest_capture": latest_capture, "minutes_since_latest_capture": gap,
-            "latest_watchdog": watchdogs[0] if watchdogs else None,
+            # Preserve latest direct-trigger watchdog semantics for existing
+            # consumers, and expose webhook observations independently.
+            "latest_watchdog": direct_watchdogs[0] if direct_watchdogs else None,
+            "latest_watchdog_workflow_run": (
+                webhook_watchdogs[0] if webhook_watchdogs else None),
             "source_coverage": coverage,
             "dispatch_accepted_proven": False,
             "forecast_saved_proven": False,
             "note": ("Run listings are bounded first-page metadata only. "
                      "Only main-branch runs from the expected source repo "
                      "count toward capture and watchdog liveness; excluded "
-                     "run IDs remain visible in source_coverage. Pending, "
+                     "run IDs remain visible in source_coverage. The watchdog "
+                     "workflow_run counts cover only its first GitHub API "
+                     "page and cannot prove 72-hour event totals. Skipped is "
+                     "a subset of completed_other_non_success, not a dispatch. "
+                     "Pending, "
                      "completed with no conclusion, and other non-success "
                      "outcomes are separate. A successful job does not "
                      "prove dispatch cause, main publication, or "
                      "individual Cron slot delivery."),
             "recent_capture_runs": captures,
-            "recent_watchdog_runs": watchdogs[:40]}
+            # Do not displace actual direct watchdog decision artifacts with
+            # high-volume webhook skipped runs. Keep the raw webhook scope
+            # separate and explicitly bounded.
+            "recent_watchdog_runs": direct_watchdogs[:40],
+            "recent_watchdog_workflow_run": webhook_watchdogs[:40]}
 
 
 def main():
@@ -167,6 +189,8 @@ def main():
         "capture_workflow_dispatch": data["capture_workflow_dispatch"],
         "watchdog_schedule": data["watchdog_schedule"],
         "watchdog_push": data["watchdog_push"],
+        "watchdog_workflow_run": data["watchdog_workflow_run"],
+        "latest_watchdog_workflow_run": data["latest_watchdog_workflow_run"],
         "latest_capture": data["latest_capture"],
         "recent_capture_runs": data["recent_capture_runs"][:10],
         "minutes_since_latest_capture": data["minutes_since_latest_capture"]}, sort_keys=True))
