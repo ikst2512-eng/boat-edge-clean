@@ -3,7 +3,9 @@ import copy
 import json
 import unittest
 from itertools import permutations
-from four_mode_forward_paired_score import COUNTS, PROTOCOL, protocol_check, score
+from four_mode_forward_paired_score import (COUNTS, PROTOCOL, protocol_check, score,
+                                       exact_mcnemar_two_sided_reference,
+                                       confirmation_holm_reference)
 
 
 class FourModeForwardTests(unittest.TestCase):
@@ -362,6 +364,99 @@ class FourModeForwardTests(unittest.TestCase):
                 ["net_gain_pp_reference_only"])
         self.assertFalse(report["formal"])
         self.assertFalse(report["model_improvement_proven"])
+
+    def test_exact_two_sided_paired_discordance_math_and_invalid_cases(self):
+        self.assertEqual(exact_mcnemar_two_sided_reference(0, 0), 1.0)
+        self.assertEqual(exact_mcnemar_two_sided_reference(1, 0), 1.0)
+        self.assertEqual(exact_mcnemar_two_sided_reference(8, 0), 0.0078125)
+        self.assertEqual(exact_mcnemar_two_sided_reference(0, 8), 0.0078125)
+        self.assertEqual(exact_mcnemar_two_sided_reference(1, 1), 1.0)
+        self.assertGreater(exact_mcnemar_two_sided_reference(299, 1), 0.0)
+        for gained, lost in ((-1, 0), (301, 0), (True, 0), (3.0, 0)):
+            with self.subTest(gained=gained, lost=lost):
+                with self.assertRaisesRegex(ValueError, "invalid_paired_discordance"):
+                    exact_mcnemar_two_sided_reference(gained, lost)
+
+    def test_holm_reference_requires_full_cohort_five_days_and_four_modes(self):
+        policy = self.policy
+        data = {"confirmation": {
+            m: {"top10": {"gained": 0, "lost": 0}} for m in COUNTS}}
+        data["confirmation"]["hit"]["top10"]["gained"] = 8
+        data["confirmation"]["balance"]["top10"]["gained"] = 7
+        progress = {
+            "pilot": {"matched_result_pairs_reference_only": 300},
+            "confirmation": {"matched_result_pairs_reference_only": 299}}
+        days = {"2026-11-12", "2026-11-13", "2026-11-14",
+                "2026-11-15", "2026-11-16"}
+        blocked = confirmation_holm_reference(data, progress, days, policy)
+        self.assertEqual(blocked["status"],
+                         "pilot_or_confirmation_not_fully_scored_reference")
+        self.assertIsNone(blocked["p_values_reference_only"])
+        progress["confirmation"]["matched_result_pairs_reference_only"] = 300
+        only_four_days = confirmation_holm_reference(
+            data, progress, sorted(days)[:4], policy)
+        self.assertEqual(only_four_days["status"],
+                         "insufficient_distinct_confirmation_dates")
+        self.assertIsNone(only_four_days["holm_reject_reference_only"])
+        ready = confirmation_holm_reference(data, progress, days, policy)
+        self.assertEqual(ready["status"],
+                         "numerical_holm_reference_only_not_certified")
+        self.assertEqual(ready["comparison_count"], 4)
+        self.assertTrue(ready["holm_reject_reference_only"]["hit"])
+        self.assertTrue(ready["holm_reject_reference_only"]["balance"])
+        self.assertFalse(ready["holm_reject_reference_only"]["narrow"])
+        self.assertFalse(ready["holm_reject_reference_only"]["hole"])
+        self.assertTrue(ready["candidate_positive_and_holm_reference_only"]["hit"])
+        self.assertFalse(ready["formal"])
+        self.assertFalse(ready["model_improvement_proven"])
+        self.assertFalse(ready["model_promotion_allowed"])
+
+    def test_full_synthetic_600_reference_significance_never_admits_formal(self):
+        # Synthetic perfectly favorable confirmation results are intentionally
+        # unrealistic; they prove a very tiny numerical p never promotes a model.
+        rows, outcomes = [], {}
+        for day_offset in range(10):
+            day = 7 + day_offset
+            for i in range(60):
+                row = self.row()
+                row["race_code"] = f"202611{day:02d}{i//12+1:02d}{i%12+1:02d}"
+                for key in ("deadline_jst", "official_source_received_jst",
+                            "baseline_generated_jst", "baseline_github_observed_jst",
+                            "candidate_generated_jst", "candidate_github_observed_jst"):
+                    row[key] = row[key].replace(
+                        "2026-11-07", f"2026-11-{day:02d}")
+                result = self.result()
+                result["race_code"] = row["race_code"]
+                for key in ("confirmed_at_jst", "collected_at_jst"):
+                    result[key] = result[key].replace(
+                        "2026-11-07", f"2026-11-{day:02d}")
+                result["source_url"] = result["source_url"].replace(
+                    "/07.csv", f"/{day:02d}.csv")
+                if day_offset >= 5:
+                    row["candidate"]["hit"][-1] = "6-5-4"
+                    result["finish_order"] = [6, 5, 4]
+                rows.append(row)
+                outcomes[row["race_code"]] = result
+        result = score(rows, outcomes, self.policy)
+        test = result["confirmation_top10_holm_reference_only"]
+        self.assertEqual(test["distinct_confirmed_confirmation_dates"], 5)
+        self.assertEqual(test["status"],
+                         "numerical_holm_reference_only_not_certified")
+        self.assertLess(test["p_values_reference_only"]["hit"], 0.0001)
+        self.assertTrue(test["candidate_positive_and_holm_reference_only"]["hit"])
+        self.assertEqual(result["phase_progress"]["pilot"]["matched_result_pairs_reference_only"], 300)
+        self.assertEqual(result["phase_progress"]["confirmation"]["matched_result_pairs_reference_only"], 300)
+        self.assertEqual(result["phase_progress"]["confirmation"]["formally_certified_pairs"], 0)
+        self.assertFalse(result["formal"])
+        self.assertFalse(result["model_improvement_proven"])
+        self.assertFalse(result["model_promotion_allowed"])
+        outcomes.pop(rows[-1]["race_code"])
+        pending = score(rows, outcomes, self.policy)
+        self.assertEqual(
+            pending["confirmation_top10_holm_reference_only"]["status"],
+            "pilot_or_confirmation_not_fully_scored_reference")
+        self.assertIsNone(
+            pending["confirmation_top10_holm_reference_only"]["p_values_reference_only"])
 
 
 if __name__ == "__main__":
