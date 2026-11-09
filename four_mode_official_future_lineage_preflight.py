@@ -9,6 +9,7 @@ first remote receipt or prospective predictive improvement.
 It does not change the frozen four-mode selector or registered 300+300 study,
 fetch sources, run predictions, write forecast data, or read race results.
 """
+import argparse
 import base64
 import binascii
 import hashlib
@@ -17,6 +18,7 @@ import math
 import re
 from datetime import datetime, timedelta
 from itertools import permutations
+from pathlib import Path
 
 SCHEMA = "FOUR_MODE_FUTURE_OFFICIAL_INPUT_LINEAGE_PREFLIGHT_V1"
 KINDS = ("racelist", "beforeinfo", "odds120")
@@ -172,3 +174,35 @@ def preflight(source_bundle, candidate):
                    "and first remote receipt are not authenticated by this local "
                    "preflight. No production or cohort admission is authorized.",
     }
+
+
+
+def _load_local_json(value):
+    path = Path(value)
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 5_000_000:
+        raise ValueError("invalid_or_oversized_local_input")
+    return json.loads(path.read_bytes())
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--source-bundle", required=True,
+                   help="Separate, untrusted official-source original-byte manifest")
+    p.add_argument("--candidate", required=True,
+                   help="Future candidate's declared source-byte lineage")
+    p.add_argument("--output", type=Path,
+                   help="Optional RESEARCH report only; never a forecast")
+    a = p.parse_args()
+    result = preflight(_load_local_json(a.source_bundle),
+                       _load_local_json(a.candidate))
+    payload = json.dumps(result, sort_keys=True, ensure_ascii=False, indent=2)+"\n"
+    if a.output:
+        if a.output.is_symlink():
+            raise ValueError("refuse_report_symlink")
+        a.output.write_text(payload, encoding="utf-8")
+    print("FUTURE_OFFICIAL_LINEAGE_NONFORMAL=" +
+          json.dumps(result, sort_keys=True, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
