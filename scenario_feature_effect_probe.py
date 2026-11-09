@@ -99,6 +99,9 @@ def probe_feature_effects(input_state, variants, emit):
         "synthetic_or_unattested_inputs_only": True,
         "formal": False,
         "official_t12_certified": False,
-        "confirmed_results_read": False,
+        # The injected callback may be external; this probe cannot prove it
+        # did not read outcomes. Do not advertise result-blind provenance.
+        "confirmed_results_read": None,
+        "external_emitter_result_blind_independently_verified": False,
         "promotion_allowed": False,
     }
