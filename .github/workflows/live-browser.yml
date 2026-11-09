@@ -34,6 +34,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.58.2
           npx playwright install --with-deps --only-shell chromium
+          npx playwright install --with-deps webkit
       - name: Test real published Pages and Render API
         shell: bash
         run: |
@@ -41,6 +42,13 @@ jobs:
           node tests/live-racecard-navigation.cjs 2>&1 | tee browser-smoke.log
           node tests/live-verified-payout.cjs 2>&1 | tee -a browser-smoke.log
           node tests/live-archived-forecast.cjs 2>&1 | tee -a browser-smoke.log
+      # Existing read-only WebKit/Chromium mobile check; not physical iPhone Safari.
+      # Distinct from the Pages->Render CORS release gate.
+      - name: Verify iPhone-size WebKit four-mode forecast, odds and race switching
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/smoke_four_mode_mobile.cjs 2>&1 | tee mobile-webkit-smoke.log
       - name: Preserve browser test log
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,6 +57,7 @@ jobs:
           path: |
             browser-smoke.log
             render-reachability.log
+            mobile-webkit-smoke.log
             test-results/
           if-no-files-found: warn
       # A later data-driven redeploy may make browser tests green after a genuine cold-wake outage.
