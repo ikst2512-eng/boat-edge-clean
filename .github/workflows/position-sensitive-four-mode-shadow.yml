@@ -16,6 +16,8 @@ on:
       - 'position_sensitive_public_comment_witness.py'
       - 'position_sensitive_future_topk_exposure.py'
       - 'position_sensitive_candidate_delivery_gap.py'
+      - 'position_sensitive_candidate_batch_export.py'
+      - 'test_position_sensitive_candidate_batch_export.py'
       - 'test_position_sensitive_candidate_delivery_gap.py'
       - 'test_position_sensitive_future_topk_exposure.py'
       - 'test_position_sensitive_public_comment_witness.py'
@@ -96,7 +98,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -309,6 +311,36 @@ jobs:
           print("POSITION_SENSITIVE_NOV09_INVALID_ORIGINALS="+str(len(d["invalid_original_files"])))
           print(f"POSITION_SENSITIVE_NOV09_ORIGINAL_TO_CANDIDATE_DELIVERY:{c}/{n};NOT_FORMAL")
           PY
+      - name: Prepare safe non-publishing batch candidate exports from eligible saved originals
+        run: |
+          python position_sensitive_candidate_batch_export.py --day 20261109 --output position_candidate_batch_local.json --emit-candidate-lines
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("position_candidate_batch_local.json").read_text())
+          d=json.loads(Path("position_candidate_delivery_gap.json").read_text())
+          if (p.get("schema") != "POSITION_SENSITIVE_BATCH_LOCAL_EXPORT_V1"
+                  or p.get("main_git_snapshot_sha") != d.get("main_git_snapshot_sha")
+                  or p.get("ledger_git_snapshot_sha") != d.get("ledger_git_snapshot_sha")
+                  or p.get("source_to_candidate_roster_sha256") != d.get("pinned_snapshot_roster_sha256")
+                  # The CI clock may advance across the two independent
+                  # snapshots; original and previously saved counts must not.
+                  or p.get("original_exact_replays") != d.get("eligible_original_exact_replays")
+                  or p.get("previously_saved_candidates") != d.get("candidate_exact_original_replays")
+                  or p.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or p.get("formal_forward_eligible_races") != 0
+                  or p.get("formal") is not False
+                  or p.get("promotion_allowed") is not False
+                  or p.get("production_changed") is not False):
+              raise SystemExit("unsafe_batch_export_or_snapshot_drift")
+          for row in p.get("candidates", []):
+              if row["race_code"] not in {
+                  r["race_code"] for r in d["per_race_complete_saved_original_roster"]
+                  if r["status"] == "missing_candidate_local_window_still_open"
+              }:
+                  raise SystemExit("unexpected_batch_candidate_outside_open_roster")
+          print("POSITION_SENSITIVE_OFFLINE_BATCH_CANDIDATES="+str(p["planned_local_only"])+";NO_GITHUB_WRITE")
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -451,5 +483,6 @@ jobs:
             position_public_comment_checkpoint.json
             position_future_paired_exposure.json
             position_candidate_delivery_gap.json
+            position_candidate_batch_local.json
             position_shadow_t12_windows.json
           retention-days: 30
