@@ -7,6 +7,8 @@ success is NOT proof of authenticated HTTP origin, first remote Git receipt,
 method consumption, or any effect on predictive accuracy. No official wind,
 actual race entry, motor or tide features are invented.
 """
+import base64
+import binascii
 import hashlib
 import json
 import math
@@ -31,7 +33,7 @@ BLOCKED = frozenset({
     "result", "finish_order", "winning_ticket", "confirmed_result",
     "confirmed_at_jst", "payout", "winning_combo",
     "post_race_weather", "final_entry_course",
-    "formal", "production_forecast",
+    "production_forecast",
 })
 
 
@@ -79,6 +81,8 @@ def project_exhibition_research(source_bundle, candidate, replay_callback):
         raise ValueError("source_candidate_and_raw_replay_required")
     _guard_no_post_result(source_bundle)
     _guard_no_post_result(candidate)
+    if source_bundle.get("formal") is True or candidate.get("formal") is True:
+        raise ValueError("forged_formal_source_or_candidate")
     code = source_bundle.get("race_code")
     if (type(code) is not str or not CODE.fullmatch(code)
             or not 1 <= int(code[8:10]) <= 24
@@ -118,8 +122,15 @@ def project_exhibition_research(source_bundle, candidate, replay_callback):
     for kind in sorted(hashes):
         item = originals[kind]
         if (type(item) is not dict
-                or item.get("sha256") != hashes[kind]):
-            raise ValueError("original_digest_mismatch")
+                or item.get("sha256") != hashes[kind]
+                or type(item.get("raw_base64")) is not str):
+            raise ValueError("original_digest_or_bytes_missing")
+        try:
+            raw = base64.b64decode(item["raw_base64"], validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("malformed_original_bytes") from exc
+        if not raw or len(raw) > 1_000_000 or hashlib.sha256(raw).hexdigest() != hashes[kind]:
+            raise ValueError("original_bytes_do_not_match_claimed_digest")
         when = _jst(item.get("received_at_jst"))
         if not when < deadline - timedelta(minutes=12):
             raise ValueError("source_not_received_before_t12")
