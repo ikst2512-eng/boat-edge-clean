@@ -143,3 +143,28 @@ The tests run the exact Worker-exported `INSERT_SQL` using **two independent SQL
 | 300 pilot + disjoint 300 confirmation | No formally eligible independent receipts | **0/300 + 0/300** |
 
 **Decision remains HOLD.** Drafts #1685, #1694, #1701 and #1702 stay unmerged; no workflow dispatch, main change, production predictor/UI, Render or Cloudflare activation. Do not count simulator tests toward formal prediction accuracy.
+
+## November 9 — tighten earliest manual dispatch to BOTH run ID and actual creation time (Draft, NONFORMAL)
+
+**Problem found and fixed on #1702:** the previous duplicate-run guard identified the first same-JST-day manual dispatch solely via `min(GitHub run IDs)`. GitHub's workflow-run records also provide `created_at`, but the code was not cross-checking that time. An inconsistent/misordered run history could therefore give a misleading "first" decision. The revised guard requires **both** the current run to have the smallest observed run ID **and** its creation timestamp to be **strictly earlier** than every other run in the bounded same-day history. An equal-second/tied timestamp or an earlier timestamp attached to a higher ID is now fail-closed; neither a later attempt nor a conflicting observation can silently authorize collection.
+
+The original bounded three-read visibility retry, 100-run cap, event/branch/date checks, explicit JST current-day acknowledgment, rerun prohibition, read-only permissions and GitHub Actions concurrency serialization remain intact. The PR-only tests execute the actual embedded checker with synthetic histories: a current first run with a later run is allowed by the local checker, whereas older run ID, higher-ID-but-earlier-time and same-second ties are rejected. **This remains advisory:** GitHub's eventually consistent list is not a transactional first-write lock or an authenticated independent candidate receipt.
+
+**Actual CI:** [#42620373512](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42620373512) **SUCCESS** at #1702 code commit `6bcc9297da6a0ea9966767852c825f33a4f9fc2f`; `review_only` passed and `capture` was **SKIPPED**. No real manual dispatch, candidate freeze, independent receipt or source/original collector run occurred.
+
+## November 9 — independently check the ACTUAL #1702 default-main workflow path
+
+The old #1685 launcher checks a **different** workflow name (`.github/workflows/hole-future-pair-precommit.yml`) and therefore cannot answer whether this standalone #1702 manual gateway is installed. A new #1702 **PR-only read-only audit step** fetches the default `main` Git ref and inspects its immutable Git tree for:
+- the **exact** target `.github/workflows/hole-pair-manual-gateway.yml`;
+- competing `.github/workflows/hole-pair-manual-research-gateway.yml` (#1701) and `.github/workflows/hole-future-pair-precommit.yml` (#1685).
+
+It emits a JSON status including the main SHA, exact path presence and competing paths. It fails closed if a competing gateway is already on main. It never runs any capture, changes main, supplies or requests secrets, or claims workflow-dispatch availability from a mere Git file presence; `github_actions_registration_or_manual_dispatch_verified=false` by construction. Checking actual enabled registration and permission through GitHub Actions would be a separate operator action **after** a separately approved main-only gateway change; it is not proven here.
+
+**Actual latest head at audit:** [CI #42620490808](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42620490808) **SUCCESS**, `review_only` success and real `capture` skipped. Default main Git SHA `4bd080ad77778053575cf497c8a6b85b959ce173` had:
+- `exact_gateway_file_in_default_git_tree=false`;
+- `competing_gateway_files_in_default_git_tree=[]`;
+- `registration_prerequisite_path_satisfied=false`;
+- `github_actions_registration_or_manual_dispatch_verified=false`;
+- `independent_first_remote_receipt_verified=false`, `official_t12_complete_verified=false`, `formal=false`.
+
+**Decision still HOLD.** The new tests only tighten *theoretical* manual dispatch protections and show the precise default-main registration blocker. They do not change the pinned #1685 freezer commit `464d1641a5c7b981248ab17ba5bdc42b7bfa698b`, do not repair the one-manual-snapshot/day coverage limitation, and do not replace a real per-race atomic independent-first-receipt service. The #1694 owner handles original official beforeinfo/exhibition (all six boats), racelist and 120-way odds. The #1685 owner handles locked hole-pair selector and future 300 pilot + 300 untouched confirmation design. Both formal cohorts remain **0/300**. Do not merge either #1701 or #1702 automatically; no main, production, Render, Cloudflare, UI or model changes occurred.
