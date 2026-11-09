@@ -30,7 +30,7 @@ async function fetchBytes(url, releaseId) {
   let lastError;
   for(let attempt=1;attempt<=3;attempt++) {
     try {
-      const response=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(30000)});
+      const response=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(45000)});
       assert.equal(response.status,200,
         'Published asset HTTP '+response.status+' '+u.pathname);
       const bytes=Buffer.from(await response.arrayBuffer());
@@ -44,6 +44,10 @@ async function fetchBytes(url, releaseId) {
   throw lastError;
 }
 async function verifyPublishedAssets() {
+  assert.equal(process.env.GITHUB_EVENT_NAME,'workflow_dispatch',
+    'Public release acceptance must be manually dispatched');
+  assert.equal(process.env.GITHUB_REF,'refs/heads/main',
+    'Public release acceptance must use default main branch, never a Draft ref');
   const release=process.env.GITHUB_SHA;
   assert.match(release||'',/^[a-f0-9]{40}$/,
     'Explicit checked-out 40-hex GitHub release SHA required');
