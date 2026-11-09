@@ -233,8 +233,9 @@ jobs:
                   } for number in ids],
               }
           seen = []
-          def exercise(history=None, overrides=None, network_error=False):
+          def exercise(history=None, overrides=None, network_error=False, responses=None):
               data = fake_history([503]) if history is None else history
+              response_iter = iter(responses) if responses is not None else None
               def fake_urlopen(req, timeout):
                   assert timeout == 12
                   url = urllib.parse.urlsplit(req.full_url)
@@ -248,13 +249,20 @@ jobs:
                   seen.append(req.full_url)
                   if network_error:
                       raise OSError('mocked GitHub history read unavailable')
-                  return io.BytesIO(json.dumps(data).encode('utf-8'))
+                  result = next(response_iter) if response_iter is not None else data
+                  return io.BytesIO(json.dumps(result).encode('utf-8'))
               with patch.dict(os.environ, {**env, **(overrides or {})}), patch(
                   'urllib.request.urlopen', side_effect=fake_urlopen
-              ), contextlib.redirect_stdout(io.StringIO()):
+              ), patch('time.sleep', return_value=None), contextlib.redirect_stdout(io.StringIO()):
                   exec(compiled, {'__name__': '__main__'})
           exercise()
           assert seen
+          before = len(seen)
+          exercise(responses=[fake_history([]), fake_history([503])])
+          assert len(seen) - before == 2, 'current_run_visibility_retry_not_observed'
+          before = len(seen)
+          exercise(responses=[fake_history([]), fake_history([]), fake_history([503])])
+          assert len(seen) - before == 3, 'third_bounded_visibility_attempt_not_observed'
           # Every ambiguous, duplicate, stale, malformed or missing read fails.
           for data, overrides, network_error in (
               (fake_history([502, 503]), None, False),
@@ -274,7 +282,7 @@ jobs:
                   pass
               else:
                   raise AssertionError('manual_history_fail_closed_case_missed')
-          print('REVIEW_ONLY_GATE_PASS_one_run_per_jst_day_synthetic_history_fail_closed')
+          print('REVIEW_ONLY_GATE_PASS_bounded_visibility_retry_and_history_fail_closed')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
