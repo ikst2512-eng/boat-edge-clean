@@ -385,3 +385,30 @@ Added `position_sensitive_schedule_run_inventory.py` and synthetic negative test
 **[Exact-head CI #42603008822](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42603008822): SUCCESS, 156/156 tests.** It also passed registered selector/source-blob checks, 116/116 old Nov08 input-only replay, and the candidate ledger's read-only verification. The initial schedule test attempt failed one negative test because a fixture's replacement string omitted a YAML quote (no actual mutation happened); fixed, and the exact-head CI passed.
 
 **Forward classification unchanged:** the separate research ledger contains 16 Nov09 candidates, with previous pre-T−12 **existence** observations for all 16, but independently verified candidate **FIRST remote receipts 0**, official all-input T−12 six/120 validation 0, **complete** capture/scheduled/rescue opportunities not independently attested, formally admitted pilot **0/300**, confirmation **0/300**. There is no model improvement or ROI certification. The only mutations are to #1698's Draft research/CI/docs; **main, live collector, Render, UI, fixed beta selector, and other research PRs stay untouched**. No scheduled research publisher was activated or auto-merge requested.
+
+## 2026-11-09 20:03 JST — live GitHub Actions job-level reconciliation in read-only PR CI
+
+The previous monitoring could observe `schedule` and `workflow_dispatch` *run objects*, but a green workflow/run was not a reliable indicator that its actual `capture` job completed. Added **`position_sensitive_run_job_reconcile.py`** and 8 synthetic negative/positive tests. The tool accepts the full, separately paginated scheduler/dispatch run inventory already made by `position_sensitive_schedule_run_inventory.py`, then performs an independent **read-only GET** of `/actions/runs/<run_id>/jobs?per_page=100&page=N` for every matching run. It requires a complete per-run job pagination, rejects foreign/duplicate job IDs, missing or duplicate `test`/`capture` jobs, inconsistent run IDs, implausible job state and forged run identities. A manual dispatch on a non-main branch is explicitly classified separately from main capture.
+
+The research-only PR workflow now *really performs* the live, read-only GitHub API schedule + manual run listing **and** job reconciliation. It has `contents: read` only, no dispatch/push/PUT/POST or schedule activation, stores the exact JSON reports `position_schedule_run_live.json` and `position_schedule_jobs_live.json` in its 30-day diagnostic artifact, and validates **`formal=false`, `promotion_allowed=false`** before declaring diagnostic success. GitHub 403/404/timeouts or incomplete pagination are errors, never valid zero-run results. The original production workflow and candidate collector are unmodified.
+
+**Actual [CI #42605872198](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42605872198) SUCCESS: 164/164 tests.** At `2026-11-09T11:03Z` (**20:03 JST**) the actual GitHub API / job data yielded:
+
+| Distinct object / test | Observed count |
+|---|---:|
+| Cron slots configured for Nov09 JST | **56** |
+| Cron slot timestamps elapsed as of observation | **52** |
+| GitHub-created original four-mode scheduled workflow runs | **3** |
+| GitHub-created original four-mode manual dispatch workflow runs | **1** |
+| Scheduled runs with completed-success `capture` job | **3** |
+| Manually dispatched main runs with completed-success `capture` job | **1** |
+| Observed research-ledger candidate files replayed from original V2 | **16/16** |
+| Candidate delivery among 104 original main forecasts | **16/104 (15.38%)** |
+| Original-main records already past local T−12 without candidate | **88** |
+| Saved-original records still in a candidate freeze window | **0** |
+
+The **52 − 3 = 49 numerical gap** does **not** prove 49 individual missed, failed, suppressed or delayed scheduled executions; GitHub does not reliably attach each run ID to one exact intended cron slot. The manual dispatch must not be used to artificially fill scheduled slots. A `capture` job concluding success may perform tests and staging with **no eligible file pushed**, so 3/3 + 1/1 completed capture jobs **do not certify forecast publications**, and even confirmed original publications would not prove new candidate first remote arrivals.
+
+The new CI originally failed one negative fixture that did not return a mock jobs page 2; fixed it to return an explicitly empty page while claiming 101 results, which the code correctly rejects as incomplete. The subsequent successful CI has no test failures. No outcome, payout, other research PR or official source data was modified or used for inference.
+
+**Remaining gates:** separate candidate independently verified *FIRST* remote receipt **0**, complete predeadline beforeinfo + six-boat exhibition + 120 odds **not authenticated**, complete Actions/schedule/rescue opportunity denominator **not proven**, valid 300 pilot + 300 confirmation eligible outcome pairs **0**, no model accuracy/ROI/noninferiority conclusion. Keep Draft unmerged, no main or Render/UI/collector changes, no changes to frozen second/third beta. A separate approved immutable witness and early scheduled candidate-only publisher are still needed for meaningful large-scale prospective verification.
