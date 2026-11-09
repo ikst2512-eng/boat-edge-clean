@@ -190,6 +190,92 @@ jobs:
                   os.chdir(saved_cwd)
           print('REVIEW_ONLY_GATE_PASS_synthetic_provenance_positive_and_negative')
           PY
+      - name: Exercise same-day manual dispatch history gate offline (synthetic only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import contextlib
+          import io
+          import json
+          import os
+          import urllib.parse
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+          from unittest.mock import patch
+
+          s = Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
+          capture = s.split('\n  capture:\n', 1)[1]
+          gate = capture.split(
+              '      - name: Refuse later independent manual dispatch on the same JST day (research-only)\n', 1
+          )[1].split('      - name: Checkout exact reviewed research implementation', 1)[0]
+          embedded = gate.split("          python - <<'PY'\n", 1)[1].split('\n          PY\n', 1)[0]
+          script = '\n'.join(line[10:] for line in embedded.splitlines()) + '\n'
+          compiled = compile(script, '<synthetic-same-day-dispatch-guard>', 'exec')
+          jst = timezone(timedelta(hours=9))
+          start = datetime.now(jst).replace(hour=0, minute=0, second=0, microsecond=0)
+          day = start.strftime('%Y%m%d')
+          created = (start + timedelta(minutes=30)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+          env = {
+              'GITHUB_REPOSITORY': 'ikst2512-eng/boat-edge-clean',
+              'GITHUB_EVENT_NAME': 'workflow_dispatch',
+              'GITHUB_REF': 'refs/heads/main',
+              'GITHUB_RUN_ATTEMPT': '1',
+              'GITHUB_RUN_ID': '503',
+              'INPUT_CAPTURE_DAY_JST': day,
+          }
+          def fake_history(ids, when=created):
+              return {
+                  'total_count': len(ids),
+                  'workflow_runs': [{
+                      'id': number, 'created_at': when,
+                      'event': 'workflow_dispatch', 'head_branch': 'main',
+                  } for number in ids],
+              }
+          seen = []
+          def exercise(history=None, overrides=None, network_error=False):
+              data = fake_history([503]) if history is None else history
+              def fake_urlopen(req, timeout):
+                  assert timeout == 12
+                  url = urllib.parse.urlsplit(req.full_url)
+                  assert url.netloc == 'api.github.com'
+                  assert url.path.endswith('/actions/workflows/hole-pair-manual-gateway.yml/runs')
+                  args = urllib.parse.parse_qs(url.query)
+                  assert args.get('event') == ['workflow_dispatch']
+                  assert args.get('branch') == ['main']
+                  assert args.get('per_page') == ['100']
+                  assert 'created' in args
+                  seen.append(req.full_url)
+                  if network_error:
+                      raise OSError('mocked GitHub history read unavailable')
+                  return io.BytesIO(json.dumps(data).encode('utf-8'))
+              with patch.dict(os.environ, {**env, **(overrides or {})}), patch(
+                  'urllib.request.urlopen', side_effect=fake_urlopen
+              ), contextlib.redirect_stdout(io.StringIO()):
+                  exec(compiled, {'__name__': '__main__'})
+          exercise()
+          assert seen
+          # Every ambiguous, duplicate, stale, malformed or missing read fails.
+          for data, overrides, network_error in (
+              (fake_history([502, 503]), None, False),
+              (fake_history([502]), None, False),
+              (fake_history([503, 503]), None, False),
+              (fake_history([]), None, False),
+              (fake_history(list(range(1, 102))), None, False),
+              (fake_history([503], '2026-11-08T00:00:00Z'), None, False),
+              (None, {'GITHUB_RUN_ID': '504'}, False),
+              (None, {'GITHUB_RUN_ATTEMPT': '2'}, False),
+              (None, {'GITHUB_REPOSITORY': 'other/repo'}, False),
+              (None, None, True),
+          ):
+              try:
+                  exercise(data, overrides, network_error)
+              except (AssertionError, OSError, ValueError, KeyError, SystemExit):
+                  pass
+              else:
+                  raise AssertionError('manual_history_fail_closed_case_missed')
+          print('REVIEW_ONLY_GATE_PASS_one_run_per_jst_day_synthetic_history_fail_closed')
+          PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
