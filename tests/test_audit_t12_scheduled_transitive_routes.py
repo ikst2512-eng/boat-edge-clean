@@ -142,5 +142,87 @@ jobs:
         self.assertEqual(problems, set())
 
 
+    def test_setup_action_only_is_tracked_not_cleared(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - run: python -m scripts.entry
+"""
+        result = report({"scripts/entry.py": b"pass\\n"}, {PREFIX+"setup.yml": workflow})
+        row = result["rows"][0]
+        self.assertTrue(row["only_external_action_unresolved"])
+        self.assertEqual(result["scheduled_with_only_external_action_unknown"], 1)
+        self.assertEqual(result["scheduled_with_non_external_unknown"], 0)
+        self.assertEqual(row["external_other_action_refs"], [])
+        self.assertEqual(len(row["external_setup_action_refs"]), 2)
+        self.assertTrue(row["unresolved"])
+        self.assertFalse(row["absence_proven"])
+        self.assertFalse(result["no_indirect_capture_proven"])
+
+    def test_custom_external_action_remains_unknown(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    steps:
+      - uses: third-party/capture@v1
+      - uses: actions/checkout@v4
+      - run: python -m scripts.entry
+"""
+        result = report({"scripts/entry.py": b"pass\\n"}, {PREFIX+"custom.yml": workflow})
+        row = result["rows"][0]
+        self.assertEqual(row["external_other_action_refs"], ["third-party/capture@v1"])
+        self.assertEqual(result["scheduled_with_other_external_action_refs"], 1)
+        self.assertTrue(row["only_external_action_unresolved"])
+        self.assertFalse(result["official_http_capture_proven"])
+
+    def test_dynamic_import_not_hidden_by_setup_action(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    steps:
+      - uses: actions/setup-python@v5
+      - run: python -m scripts.entry
+"""
+        entry = b"import importlib\\nimportlib.import_module(input())\\n"
+        result = report({"scripts/entry.py": entry}, {PREFIX+"dynamic.yml": workflow})
+        row = result["rows"][0]
+        self.assertIn("dynamic_import", row["unresolved_non_external"])
+        self.assertFalse(row["only_external_action_unresolved"])
+        self.assertEqual(result["scheduled_with_non_external_unknown"], 1)
+        self.assertFalse(result["no_indirect_capture_proven"])
+
+    def test_external_action_nested_reusable_workflow_keeps_unknown(self):
+        workflow = b"""on:
+  schedule:
+    - cron: '0 * * * *'
+jobs:
+  audit:
+    uses: ./.github/workflows/helper.yml
+"""
+        helper = b"""on:
+  workflow_call:
+jobs:
+  audit:
+    steps:
+      - uses: vendor/custom@v2
+      - run: python -m scripts.entry
+"""
+        result = report({"scripts/entry.py": b"pass\\n"},
+                        {PREFIX+"start.yml": workflow, PREFIX+"helper.yml": helper})
+        row = next(x for x in result["rows"] if x["workflow"] == PREFIX+"start.yml")
+        self.assertIn("vendor/custom@v2", row["external_action_refs"])
+        self.assertIn("external_action_unexpanded", row["unresolved"])
+        self.assertFalse(result["no_indirect_capture_proven"])
+
+
 if __name__ == "__main__":
     unittest.main()

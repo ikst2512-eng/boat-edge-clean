@@ -10,6 +10,13 @@ from pathlib import Path
 from scripts.audit_t12_full_workflow_inventory import PINNED, _events
 
 TARGET = ("capture_official_racelist_receipt", "observe_three_official_t12_originals", "/owpc/pc/race/racelist")
+# Known workflow setup/upload actions are still external code, never negative proof.
+# This list is only used for human triage of unresolved references.
+SETUP_ACTION_PREFIXES = (
+    "actions/checkout@", "actions/setup-python@", "actions/setup-node@",
+    "actions/setup-java@", "actions/cache@", "actions/upload-artifact@",
+    "actions/download-artifact@",
+)
 PY = re.compile(r"\bpython(?:3(?:\.\d+)?)?\s+(?:-u\s+|-B\s+|-O\s+)*(?:-m\s+([\w.]+)|([\w./-]+\.py))")
 SH = re.compile(r"\b(?:bash|sh)\s+([\w./-]+\.sh)")
 IMP = re.compile(r"(?m)^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))")
@@ -136,6 +143,7 @@ def inspect(workflows, paths, load, strict=True):
     for workflow in sorted(scheduled):
         runs, uses = job_commands(workflows[workflow].decode("utf-8"))
         parent, seen, todo, unknown = {}, set(), deque(), set()
+        external_refs = set()
         def add(p, by):
             if p in paths and p not in parent and p != workflow:
                 parent[p] = by
@@ -155,6 +163,7 @@ def inspect(workflows, paths, load, strict=True):
                 else:
                     unknown.add("local_action_unexpanded")
             elif "@" in use:
+                external_refs.add(use)
                 unknown.add("external_action_unexpanded")
         matches = []
         while todo:
@@ -188,24 +197,40 @@ def inspect(workflows, paths, load, strict=True):
                         links.add(use.removeprefix("./"))
                     elif use.startswith("./"):
                         unknown.add("nested_local_action_unexpanded")
+                    elif "@" in use:
+                        external_refs.add(use)
+                        unknown.add("external_action_unexpanded")
             elif p.endswith(".sh"):
                 links = literal_links(source, paths)
                 if re.search(r"\b(?:source|eval|curl|wget)\b", source):
                     unknown.add("dynamic_shell")
             for child in links:
                 add(child, p)
+        non_external_unknown = unknown - {"external_action_unexpanded"}
+        setup_refs = sorted(x for x in external_refs if x.startswith(SETUP_ACTION_PREFIXES))
+        other_refs = sorted(external_refs - set(setup_refs))
         rows.append({"workflow": workflow, "run_blocks": len(runs),
                      "local_sources_reached": len(seen), "racelist_candidate_chains": matches,
-                     "unresolved": sorted(unknown), "absence_proven": False})
+                     "unresolved": sorted(unknown),
+                     "unresolved_non_external": sorted(non_external_unknown),
+                     "external_action_refs": sorted(external_refs),
+                     "external_setup_action_refs": setup_refs,
+                     "external_other_action_refs": other_refs,
+                     "only_external_action_unresolved": unknown == {"external_action_unexpanded"},
+                     "absence_proven": False})
     return {"schema": "T12_PINNED_TRANSITIVE_STATIC_V1", "main_sha": PINNED,
             "workflows": len(workflows), "scheduled_workflows": len(scheduled),
             "scheduled_with_candidate_chain": sum(bool(x["racelist_candidate_chains"]) for x in rows),
             "scheduled_with_unresolved": sum(bool(x["unresolved"]) for x in rows),
+            "scheduled_with_non_external_unknown": sum(bool(x["unresolved_non_external"]) for x in rows),
+            "scheduled_with_only_external_action_unknown": sum(x["only_external_action_unresolved"] for x in rows),
+            "scheduled_with_other_external_action_refs": sum(bool(x["external_other_action_refs"]) for x in rows),
+            "scheduled_with_no_unresolved": sum(not x["unresolved"] for x in rows),
             "rows": rows, "no_indirect_capture_proven": False, "official_http_capture_proven": False,
             "same_race_three_originals_proven": False, "new_forecast_remote_acceptance_proven": False,
             "formal": False, "t12_eligible": False, "new_formal_certifications": 0,
             "formal_accuracy_denominator": None,
-            "limitations": "Literal static graph only. Imports may be unused; dynamic dispatch, local/external actions and runtime network calls remain unproven."}
+            "limitations": "Literal static graph only. Setup-action labeling is triage, not source inspection or proof of safety. Imports may be unused; dynamic dispatch, local/external actions and runtime network calls remain unproven."}
 
 
 def scan(root):
