@@ -150,6 +150,21 @@ class CandidateLedgerReadinessTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     review(altered, blobs.__getitem__)
 
+    def test_expected_recursive_git_tree_directories_are_allowed(self):
+        tree, blobs = setup()
+        tree["tree"].insert(0, {
+            "path": "four_mode_all/20261109", "type": "tree",
+            "mode": "040000", "sha": "a"*40,
+        })
+        tree["tree"].insert(1, {
+            "path": "four_mode_all_observation/20261109", "type": "tree",
+            "mode": "040000", "sha": "b"*40,
+        })
+        self.assertEqual(review(tree, blobs.__getitem__)["matching_observation_notes"], 1)
+        tree["tree"][0]["path"] = "four_mode_all/20261109/fake-extra-directory"
+        with self.assertRaisesRegex(ValueError, "unsafe_candidate_ledger_directory"):
+            review(tree, blobs.__getitem__)
+
     def test_observation_count_and_identity_rejected(self):
         for field, value in (("locally_frozen_count", 2),
                              ("observed_before_t_minus_12", 2),
