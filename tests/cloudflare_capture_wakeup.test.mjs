@@ -780,6 +780,36 @@ test('raw Workers Logs audit rejects crossed deployment version IDs',()=>{
   assert.equal(r.missing_ticks,1);
 });
 
+test('raw logs require custom event to carry the exact deployment ID',()=>{
+  for(const poison of [
+    x=>delete x.records[1].$workers.scriptVersion,
+    x=>delete x.records[1].$workers.scriptVersion.id,
+    x=>x.records[1].$workers.scriptVersion.id='DIFFERENT-VERSION',
+  ]){
+    const x=syntheticRawWorkersDay();poison(x);
+    const result=auditRawWorkersLogs(x);
+    assert.equal(result.observer_day_pass,false);
+    assert.equal(result.supplied_raw_records,384);
+    assert.equal(result.correlated_invocations,191);
+    assert.ok(result.raw_issues.some(q=>
+      q==='custom_version_missing'||q==='custom_version_mismatch'),JSON.stringify(result.raw_issues));
+    assert.equal(result.original_cloudflare_log_authenticity_independently_proven,false);
+  }
+});
+
+test('raw logs reject a console record timestamp before its scheduled Cron tick',()=>{
+  const x=syntheticRawWorkersDay();
+  const scheduled=Date.parse(x.records[1].$metadata.message.split('=')[1]
+    ? JSON.parse(x.records[1].$metadata.message.split('=')[1]).scheduled_at_jst : '');
+  assert.ok(Number.isFinite(scheduled));
+  // This was previously inside abs(console.timestamp-observed)<=10s and could
+  // pass even though the console event apparently predates its Cron.
+  x.records[1].timestamp=scheduled-5000;
+  const out=auditRawWorkersLogs(x);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.raw_issues.includes('cloudflare_event_clock_mismatch'),JSON.stringify(out.raw_issues));
+});
+
 test('raw Workers Logs audit refuses missing custom reports and duplicated invocation logs',()=>{
   for(const mutate of [x=>{x.records.splice(1,1);x.total_matched_events=x.records.length;},
       x=>{x.records.push(structuredClone(x.records[0]));x.total_matched_events=x.records.length;}]) {
