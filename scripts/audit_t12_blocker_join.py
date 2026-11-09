@@ -90,6 +90,7 @@ def join(schedule, archive):
         "official_pair_collector_schedule_runs_observed": observed,
         "official_pair_collector_schedule_runs_created_in_cron_hours": in_hours,
         "nominal_elapsed_five_minute_slots": elapsed,
+        "collector_no_in_hours_schedule_runs_observed": elapsed > 0 and in_hours == 0,
         "invocation_count_deficit_in_cron_hours": in_hours_deficit,
         "invocation_count_coverage_pct": (
             round(100 * in_hours / elapsed, 2) if elapsed else None),
@@ -103,6 +104,8 @@ def join(schedule, archive):
                              if n_races == 0 else
                              "durable_directories_exist_but_not_verified"),
         "missing_requirements": [
+            *(['no_collector_schedule_run_created_in_declared_hours']
+              if elapsed > 0 and in_hours == 0 else []),
             *(["no_durable_official_three_original_race_directories"]
               if n_races == 0 else
               ["persisted_official_three_original_bytes_not_reaudited"]),
