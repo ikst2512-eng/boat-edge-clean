@@ -292,3 +292,24 @@ Result-blind ticket comparison on that **one** future saved candidate, using exa
 Top1 changes only for **hole**, not every mode; **do not optimize toward forced diversity** or infer any hit-rate improvement. Only pre-result ranks were accessed; no result or payout was included in this comparison.
 
 **Evidence separation:** candidate physically stored **1**, independently authenticated **pre-T−12 GitHub existence observed 1**, independently verified **FIRST remote receipt 0**, official complete predeadline beforeinfo/6 exhibition/120 odds **0**, complete scheduled/rescue-run inventory **0**, formally eligible race **0**, pre-registered pilot/confirmation formally scored **0/300 + 0/300**. Unprotected candidate branch history remains vulnerable to an unseen earlier rewrite. Nothing is promoted; main, source collectors, Render/UI, fixed model, #1693 and hole-mode research stay unchanged. Draft PR only, no auto-merge.
+
+## 2026-11-09 17:19 JST — public GitHub checkpoint and automated prospective ticket turnover (NOT a first-remote receipt)
+
+The one real research-only candidate already published in `position-sensitive-forward-evidence-ledger` for race `202611091912` was cross-checked against a **second GitHub public record**, [PR comment #6735313191](https://github.com/ikst2512-eng/boat-edge-clean/pull/1698#issuecomment-6735313191). GitHub's Issues Comments API reports this comment `created_at = updated_at = 2026-11-09T08:12:02Z` (**17:12:02 JST**), which is before the race's **20:26 JST T−12** cutoff. The comment names the candidate SHA-256 `29f8e94800b9a904538b8d0e7a9fbad02baf94b296e1a2bc2dc5e999cbf2cf41`, Git blob SHA-1 `054eaad2c770c308f1dd53f54a2ed7fbf8db13dc`, original source SHA-256 `9375c44f8795ba8ced90450ace5f82e1a3e88efdd7ec3b95c1af931c71a3b401`, and the actual candidate first-add commit `3665b15b36c617c042f0c93685e6bcdd4ba1e31a`. A separate [GitHub Actions #42582605064](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42582605064) had independently read the candidate via authenticated Contents HTTP and server `Date = 2026-11-09T07:57:57Z` (16:57:57 JST); exact original/candidate replays passed, but **this is existence, not FIRST remote arrival**.
+
+New read-only `position_sensitive_public_comment_witness.py` binds the current GitHub API comment's ID, owner, PR URL, server `created_at`/present `updated_at`, exact path/cutoff/original/candidate digests and **unique Git first-add commit from the fetched ledger history**. It rejects edited, spoofed, after-cutoff or mismatched comments. A test fixture has no weight as real external provenance. Critically, **a GitHub comment is EDITABLE and a dated claim inside it is NOT proof the candidate was first remotely received at that time**. The audit always sets `comment_is_immutable=false`, `independent_candidate_first_remote_receipts_verified=0`, `formal=false`, `promotion_allowed=false`. The proof is a *second corroborating GitHub-created checkpoint*, not an independent first-receipt certificate and not evidence that all capture opportunities were present.
+
+New `position_sensitive_future_topk_exposure.py` independently enumerates **every candidate file on the frozen fetched research-branch tip**, fetches exact main V2 originals, replays all four locked candidate modes, and counts **ordered-rank changes separately from TopK membership changes** without opening any result or payout. On the **one** actual future candidate, mode-specific changed ticket *membership* is:
+
+| Mode | Top1 changed | Top3 changed | Top5 changed | Top10 changed |
+|---|---:|---:|---:|---:|
+| narrow | 0 | 1 | 0 | N/A |
+| hit | 0 | 1 | 0 | 1 |
+| balance | 0 | 0 | 1 | 1 |
+| hole | 1 | 1 | 1 | 1 |
+
+Exact dropped/replacement ticket slots: `hit Top10=2`, `balance Top5=1 / Top10=1`, `hole Top3=2 / Top5=2 / Top10=4`; narrow/hit Top5 membership remains the same even if rank order changed. Top1 does **not** need to differ on every race: preserving the original Top1 when it is also the candidate's highest probability is valid and avoids forced diversity.
+
+[CI #42585107968](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42585107968) **SUCCESS — 127/127 tests** after a regression-test fix that blocks the pre-registration cutoff's early Nov08 dates before any Git read. Its public checkpoint, whole-ledger live observation and TopK exposure outputs are uploaded as diagnostics, and checked against each other's exact SHA identities.
+
+**Evidence gates remain unchanged:** candidate bytes genuinely stored **1/600 (~0.17%)**, candidate exact original matched **1**, pre-T−12 GitHub observed existence **1**, first independently verified remote receipt **0**, complete run denominator **not verified**, official beforeinfo/exhibition 6/120 **not verified**, formally eligible pilot **0/300**, confirmation **0/300**, hit-rate improvement **not measured**. No live adoption, no auto-merge, and no main/Render/collector/UI changes.
