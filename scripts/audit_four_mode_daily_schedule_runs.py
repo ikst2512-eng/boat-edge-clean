@@ -179,11 +179,13 @@ def main():
     output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_SCHEDULE_METADATA=" + json.dumps(result, sort_keys=True))
-    if (result["observed_runs_below_nominal_due_by"] > 0
+    if (result["observed_within_window_below_nominal_due_by"] > 0
             and os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"):
-        print("::warning::Scheduled-run count below nominal slots due; "
-              "individual missing slots are NOT certified by created_at metadata")
+        shortfall = result["observed_within_window_below_nominal_due_by"]
+        print(f"::warning::In-window schedule observations below nominal due by "
+              f"{shortfall}; numerical shortfall ONLY, individual missing "
+              "Cron slots are NOT proven by created_at metadata")
     if (os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"):
         if not result["full_day_metadata_coverage"]:
