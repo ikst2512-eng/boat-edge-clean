@@ -51,7 +51,7 @@ const initial=snapshot();
 const existing=history.state&&history.state.boatEdgeNav?history.state:null;
 let position=existing?existing.position:0;
 let current=existing?existing.snapshot:initial;
-history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
+if(!existing)history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
 const sync=()=>{
  if(restoring)return;
  const next=snapshot();if(key(next)===key(current))return;
@@ -86,7 +86,8 @@ window.addEventListener('popstate',event=>{
  s.date=v.date;s.venue=v.venue;s.race=v.race;
  if(originalSetView)originalSetView(v.view);
  if(originalRender)originalRender();
- history.replaceState(state,'',location.href);
+ // A genuine popstate already restored state; repair it only if the base UI cleared it.
+ if(history.state!==state)history.replaceState(state,'',location.href);
  restoring=false;
 });
 // The only back control is in index.html; browser history takes precedence.
