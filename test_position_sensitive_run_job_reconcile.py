@@ -109,10 +109,11 @@ class ResearchCaptureJobReconcileTests(unittest.TestCase):
         inv,jobs=fixture()
         fetch,calls=fetcher(jobs)
         def truncated(url):
-            response=fetch(url)
             if url == jobs_url(11,1):
                 return {"total_count": 101, "jobs": jobs[11]}
-            return response
+            if url == jobs_url(11,2):
+                return {"total_count": 101, "jobs": []}
+            return fetch(url)
         with self.assertRaisesRegex(ValueError,"pagination_incomplete"):
             reconcile_jobs(inv,truncated)
 
