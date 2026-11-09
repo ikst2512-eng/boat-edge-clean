@@ -93,5 +93,69 @@ class CaptureLivenessTests(unittest.TestCase):
                 report("20261104", inventory)
 
 
+    def test_completed_without_conclusion_is_unknown_not_confirmed_failure(self):
+        result = report("20261104", {"recent_capture_runs": [
+            run(81, status="completed", conclusion=None),
+        ]})
+        self.assertEqual(result["status"], "capture_outcome_unknown")
+        self.assertEqual(result["completed_success_count"], 0)
+        self.assertEqual(result["completed_failure_count"], 0)
+        self.assertEqual(result["completed_non_success_count"], 0)
+        self.assertEqual(result["completed_unknown_outcome_count"], 1)
+        self.assertEqual(result["completed_unknown_outcome_run_ids"], [81])
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+        self.assertFalse(should_fail(result, "pull_request", "refs/pull/3/merge"))
+        self.assertFalse(result["publication_verified"])
+
+    def test_failure_plus_unknown_is_not_all_observed_failed(self):
+        result = report("20261104", {"recent_capture_runs": [
+            run(82, conclusion="failure"),
+            run(83, status="completed", conclusion=None),
+        ]})
+        self.assertEqual(result["status"], "capture_outcome_unknown")
+        self.assertEqual(result["completed_failure_count"], 1)
+        self.assertEqual(result["completed_non_success_count"], 1)
+        self.assertEqual(result["completed_unknown_outcome_run_ids"], [83])
+        self.assertTrue(should_fail(result, "schedule", "refs/heads/main"))
+
+    def test_duplicate_run_ids_do_not_inflate_capture_success(self):
+        for rows in (
+            [run(84), run(84)],
+            [run(84), run(84, event="workflow_dispatch")],
+        ):
+            with self.subTest(rows=rows), self.assertRaises(ValueError):
+                report("20261104", {"recent_capture_runs": rows})
+
+    def test_malformed_coverage_returns_a_preserved_unavailable_report(self):
+        malformed = {"recent_capture_runs": [run(85)],
+                     "source_coverage": {WF + ":schedule": None}}
+        with self.assertRaises(ValueError):
+            report("20261104", malformed)
+        with tempfile.TemporaryDirectory() as directory:
+            inp = Path(directory) / "inventory.json"
+            output = Path(directory) / "liveness.json"
+            inp.write_text(json.dumps(malformed), encoding="utf-8")
+            args = ["audit", "--inventory", str(inp), "--output",
+                    str(output), "--day-jst", "20261104"]
+            with patch("sys.argv", args), patch.dict(
+                    "os.environ", {"GITHUB_EVENT_NAME": "schedule",
+                                   "GITHUB_REF": "refs/heads/main"}):
+                with self.assertRaises(SystemExit) as e:
+                    main()
+            self.assertEqual(e.exception.code, 2)
+            saved = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(saved["status"], "capture_inventory_unavailable")
+            self.assertEqual(saved["error_type"], "ValueError")
+
+    def test_completed_cancelled_is_non_success_not_null_outcome(self):
+        result = report("20261104", {"recent_capture_runs": [
+            run(86, status="completed", conclusion="cancelled"),
+        ]})
+        self.assertEqual(result["status"], "all_observed_captures_failed")
+        self.assertEqual(result["completed_failure_count"], 0)
+        self.assertEqual(result["completed_non_success_count"], 1)
+        self.assertEqual(result["completed_unknown_outcome_count"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
