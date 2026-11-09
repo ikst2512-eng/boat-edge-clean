@@ -1,5 +1,23 @@
 # Cloudflare Free independent capture wakeup — Draft / not deployed
 
+## 2026-11-09 CURRENT operator gate — Observer only, recovery HARD LOCKED
+
+This is the **current guidance**, superseding the historical Phase 2 activation wording below. The actual deployment-facing source in `cloudflare/independent_capture_wakeup.mjs` has `CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED = true`. Merely changing `CLOUDFLARE_DISPATCH_ENABLED` to `"true"` or providing a valid GitHub PAT **cannot** unlock recovery: the Worker rejects the request before any GitHub GET or POST. Do not remove the lock in this PR, and do not activate a second recovery scheduler while native GitHub/Render writers lack one independently reviewed cross-provider authority.
+
+The repo now has a **read-only, no-credentials observer preflight**. From the repository root run:
+
+```sh
+node --test tests/cloudflare_observer_preflight.test.mjs
+node scripts/preflight_cloudflare_observer.mjs
+```
+
+The script verifies the dedicated observer name, no public workers.dev route, exact single UTC Cron `*/5 22-23,0-13 * * *`, 100% Workers Logs sampling, no secrets/bindings or GitHub import/fetch path, and continued recovery lock + default OFF. It emits JSON containing `observer_preflight_pass`. A zero exit code is **static source/config eligibility only**, not Cloudflare login, live Cron, real CPU, recovery dispatch or authorization. PR-only CI also runs this gate alongside existing Node/Python/Workerd and the compiled observer no-network-code check.
+
+**Exact-head CI evidence:** [run #42615294867](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42615294867), commit `7f96a4868badcce6e2ba40fca05ee5060102471a`: 102 existing Node tests + 10 new preflight mutation tests + 96 existing Python tests + 15 Workerd + 11 isolated claim-lab Workerd all passed, plus three Wrangler dry-run builds and observer compiled-code gate. The write-capable watchdog was skipped on PR. **No Cloudflare account, secret, Worker deployment, actual Cron tick, Free CPU sample, real workflow dispatch or recovery was involved.**
+
+**First external step requires owner-controlled approval:** deploy only `cloudflare/wrangler.observer.toml` after a private Cloudflare account/quota review, then retain actual versioned Workers Logs and audit one full UTC day after propagation: 192 unique expected ticks, actual CPU <=10ms for every invocation, no sampled/duplicated/missing logs. Follow `docs/cloudflare-observer-telemetry-export-guide.md` and `docs/cloudflare-raw-logs-correlation-20261108.md`. The observer never sends GitHub requests; completed Phase 0 can **never** be called a recovered race. Real independent Cloudflare rescue proof: **0**. Keep PR Draft/unmerged, no main auto-merge, no Render or native workflow change.
+
+
 ## 2026-11-08: observer Worker contains **no GitHub dispatch code** (build verified)
 
 **Strengthened Phase 0:** The optional pilot `cloudflare/wrangler.observer.toml` now points to a **separate default-only** Worker entrypoint `cloudflare/independent_capture_observer.mjs`, which imports **only** the GitHub-free `cloudflare/independent_capture_slots.mjs` module. Both the observer and production recovery import this *same* pure slot/clock module (63 CLEAN and 56 four-mode daily slots); there is no duplicated schedule logic to drift. The GitHub-facing recovery API, history validation, token handling and `workflow_dispatch` stay exclusively in `cloudflare/independent_capture_policy.mjs` and the production entrypoint. The observer has no HTTP handler, no `fetch()` calls, no PAT binding and no recovery-code import. Even injecting both a string `CLOUDFLARE_DISPATCH_ENABLED="true"` and a **fake** token into the observer's scheduled handler cannot make it contact GitHub.
@@ -15,13 +33,13 @@ An earlier attempted bundle test correctly **failed** when the observer imported
 
 ## 2026-11-08 15時台 JST: two-phase **opt-in** activation — default is zero-network observation
 
-This Draft PR now ships **two distinct Wrangler configurations** for safe rollout. **Neither has been deployed; no account, PAT, GitHub dispatch, or billing was used.**
+This Draft PR now ships **two distinct Wrangler configurations** for safe rollout. **Neither has been deployed; no account, PAT, GitHub dispatch, or billing was used.** The Phase 2 row below is updated to reflect the 2026-11-09 source-level interlock.
 
 | Intended phase | Config | GitHub PAT needed to deploy? | GitHub GET/POST? |
 | --- | --- | --- | --- |
 | Phase 0: zero-credential monitoring | `cloudflare/wrangler.observer.toml` | **No** | **No; hard off by default** |
 | Phase 1: production-capable Worker, still gated off | `cloudflare/wrangler.toml` | **Yes**, required Secret | **No; hard off by default** |
-| Phase 2: owner-approved recovery | `cloudflare/wrangler.toml` **manually edited** to set `CLOUDFLARE_DISPATCH_ENABLED = "true"` and redeployed | Yes, least-privilege Secret | **Yes**, only within existing per-slot history/freshness/duplicate guards |
+| Phase 2: recovery (currently BLOCKED) | Requires a separate code review to remove the source-level cross-provider hard lock after native/Render publication-idempotency and independent live evidence | Not yet provisioned | **NO** until separately approved release |
 
 The Worker `scheduled()` handler checks the exact cron identity, then checks `CLOUDFLARE_DISPATCH_ENABLED === 'true'`. Every other value (unset, false, "TRUE", number, etc.) takes `observe()`, which checks the trigger clock and calculates the CLEAN/four-mode eligible slots **without reading GitHub, requiring a Secret, issuing a dispatch, or declaring a saved forecast**. The log key is `CLOUDFLARE_CAPTURE_OBSERVER_ONLY` and the result explicitly marks `github_history_checked=false`, `github_run_id_proven=false`, `new_forecast_saved_proven=false`, `formal=false`. A stale or foreign Cron still fails closed.
 
@@ -31,7 +49,7 @@ The Worker `scheduled()` handler checks the exact cron identity, then checks `CL
 npx wrangler@4.158.0 deploy --config cloudflare/wrangler.observer.toml
 ```
 
-This command would really **deploy** a Worker and register a Cron Trigger; it has **NOT been run** here. It needs Cloudflare account authentication but no GitHub token. Read the resulting local Cloudflare Cron logs and Worker CPU measurements during a new JST day. Once ready for production, the owner must configure a dedicated repository-scoped GitHub PAT as the `GITHUB_DISPATCH_TOKEN` **Secret** in the separate production Worker, review the recovery guardrails, manually update the production flag to literal `"true"`, and explicitly deploy that configuration. Disable the observer Cron when the production Cron begins; this avoids unnecessary Cron duplication and stays within Free-tier limits. Never activate a paid Render Cron and Cloudflare recovery simultaneously without an atomic cross-provider lock.
+This command would really **deploy** a Worker and register a Cron Trigger; it has **NOT been run** here. It needs Cloudflare account authentication but no GitHub token. Read the resulting local Cloudflare Cron logs and Worker CPU measurements during a new JST day. A future production rollout requires a separately reviewed cross-provider idempotency and publisher contract, live CPU/Cron proof, explicit owner authorization, and a separate code-level removal of `CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED = true`. **Do not merely set the dispatch flag and deploy.** No PAT is required for the Observer phase. Disable the observer Cron when the production Cron begins; this avoids unnecessary Cron duplication and stays within Free-tier limits. Never activate a paid Render Cron and Cloudflare recovery simultaneously without an atomic cross-provider lock.
 
 **Exact-head, deployment-free CI:** [#42456421210](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42456421210) completed **success**. Read-only PR policy test job: **39/39 Node tests PASS** (including zero-token observer entry, false/unset/invalid flag behavior, config separation, and true-only dispatch), production and observer Wrangler 4.158.0 `deploy --dry-run` both PASS. Isolated real Workerd integration job: **6/6 PASS**, including observer without PAT or network, real controlled fake-GitHub 4 GET + 2 POST positive simulation, active-run blocking, and API failure stop. Existing Python tests and scheduled-handler Local Explorer safety gates PASS. Operational `Actions:write` watchdog skipped for PR. These are **mock/local CI**, not live CPU10ms or deployment evidence.
 
