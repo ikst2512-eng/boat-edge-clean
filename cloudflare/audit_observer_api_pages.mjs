@@ -36,6 +36,41 @@ const exactScope = p => isObj(p) && Array.isArray(p.datasets) &&
 const sameWindow = (x, w) => isObj(x) && x.from===w.from && x.to===w.to;
 const presentId = id => typeof id==='string' && id.length>0;
 
+// Emit exact, secret-free ad-hoc queries; operators must independently retain
+// the real Cloudflare API responses. This code NEVER authenticates or fetches.
+export function buildObserverTelemetryQueries(utcDay) {
+  const timeframe=dayWindow(utcDay);
+  const parameters=view=>({
+    view, datasets:[DATASET],
+    filters:[{kind:'filter',key:'$metadata.service',value:OBSERVER_NAME,
+      type:'string',operation:'eq'}],
+    ...(view==='calculations' ? {calculations:[{operator:'count'}]} : {}),
+  });
+  return {
+    schema:'BOAT_EDGE_CLOUDFLARE_TELEMETRY_QUERY_REQUESTS_V1',
+    utc_day:utcDay,
+    events_request:{
+      queryId:'boat-edge-observer-events-'+utcDay,
+      timeframe:{...timeframe},limit:2000,parameters:parameters('events'),
+    },
+    sampling_request:{
+      queryId:'boat-edge-observer-sampling-'+utcDay,
+      timeframe:{...timeframe},chartType:'aggregate',
+      parameters:parameters('calculations'),
+    },
+    authenticated_to_cloudflare:false,
+    actually_executed:false,
+    account_evidence_proven:false,
+    recovery_approved:false,
+  };
+}
+const exactCount = p => Array.isArray(p?.calculations) &&
+  p.calculations.length===1 && p.calculations[0]?.operator==='count' &&
+  p.calculations[0]?.key===undefined;
+const unsampledQuery = statistics => statistics===undefined || statistics===null ||
+  (isObj(statistics) && (statistics.abr_level===undefined ||
+    statistics.abr_level===null || statistics.abr_level===1));
+
 export function auditTelemetryApiPages(input) {
   if(!isObj(input))throw Error('invalid_telemetry_api_export');
   const w=dayWindow(input.utc_day),issues=[];
@@ -64,10 +99,12 @@ export function auditTelemetryApiPages(input) {
     bad('api_observer_dataset_and_service_scope_invalid');
   if(!presentId(er?.queryId)||!presentId(cr?.queryId)||er.queryId===cr.queryId)
     bad('api_query_identity_invalid');
-  if(ep?.calculations!==undefined||!Array.isArray(cp?.calculations)||
-     cp.calculations.length!==1||cp.calculations[0]?.operator!=='count'||
-     cp.calculations[0]?.key!==undefined)
+  if(ep?.calculations!==undefined||!exactCount(cp))
     bad('api_aggregate_request_invalid');
+  // Reject comparison queries and dry results even when a correct-looking
+  // 384-row envelope was attached. These are not the unmodified raw-day pair.
+  if(er?.compare===true||cr?.compare===true||er?.dry===true||cr?.dry===true)
+    bad('api_request_compare_or_dry_not_allowed');
 
   const ee=e?.response,ss=s?.response;
   if(ee?.success!==true||ss?.success!==true||
@@ -79,6 +116,14 @@ export function auditTelemetryApiPages(input) {
   if(eRun?.status!=='COMPLETED'||sRun?.status!=='COMPLETED'||
      !sameWindow(eRun?.timeframe,w)||!sameWindow(sRun?.timeframe,w))
     bad('api_run_incomplete_or_wrong_window');
+  if(eRun?.dry===true||sRun?.dry===true)
+    bad('api_result_dry_run_not_accepted');
+  // ABR query sampling is different from head-sampling during ingestion.
+  // Cloudflare documents abr_level=1 if absent; any non-1 present value
+  // means the query's sample population is not a complete source of proof.
+  if(!unsampledQuery(eres?.statistics)||!unsampledQuery(sres?.statistics)||
+     !unsampledQuery(eRun?.statistics)||!unsampledQuery(sRun?.statistics))
+    bad('api_adaptive_query_sampling_not_exact');
   if(!presentId(eRun?.accountId)||eRun.accountId!==sRun?.accountId||
      !presentId(eRun?.id)||!presentId(sRun?.id)||eRun.id===sRun.id)
     bad('api_run_identity_or_account_mismatch');
@@ -90,6 +135,10 @@ export function auditTelemetryApiPages(input) {
      srp?.view!=='calculations'||canonical(erp?.filters)!==canonical(ep?.filters)||
      canonical(srp?.filters)!==canonical(cp?.filters))
     bad('api_effective_query_scope_or_view_mismatch');
+  // An in-scope query can still compute something other than the requested
+  // count. Its server-echoed effective calculation must itself be COUNT.
+  if(!exactCount(srp)||erp?.calculations!==undefined)
+    bad('api_effective_aggregate_not_count');
   const ev=eres?.events;
   if(!Array.isArray(ev?.events)||ev.count!==384||ev.events.length!==384)
     bad('api_count_not_exactly_384');
