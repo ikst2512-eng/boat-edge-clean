@@ -43,14 +43,17 @@ async function fetchBytes(url, releaseId) {
   }
   throw lastError;
 }
-async function verifyPublishedAssets() {
-  assert.equal(process.env.GITHUB_EVENT_NAME,'workflow_dispatch',
+function requireApprovedReleaseContext(env) {
+  assert.equal(env.GITHUB_EVENT_NAME,'workflow_dispatch',
     'Public release acceptance must be manually dispatched');
-  assert.equal(process.env.GITHUB_REF,'refs/heads/main',
+  assert.equal(env.GITHUB_REF,'refs/heads/main',
     'Public release acceptance must use default main branch, never a Draft ref');
-  const release=process.env.GITHUB_SHA;
-  assert.match(release||'',/^[a-f0-9]{40}$/,
+  assert.match(env.GITHUB_SHA||'',/^[a-f0-9]{40}$/,
     'Explicit checked-out 40-hex GitHub release SHA required');
+  return env.GITHUB_SHA;
+}
+async function verifyPublishedAssets() {
+  const release=requireApprovedReleaseContext(process.env);
   for(const asset of ASSETS){
     const expected=fs.readFileSync(asset.path);
     for(const url of asset.urls){
@@ -64,6 +67,19 @@ async function verifyPublishedAssets() {
   console.log('DO_NOT_INFER: Render_server_code_SHA, physical_iPhone, full_uptime, accuracy');
 }
 function selfTest() {
+  const valid={GITHUB_EVENT_NAME:'workflow_dispatch',GITHUB_REF:'refs/heads/main',GITHUB_SHA:'a'.repeat(40)};
+  assert.equal(requireApprovedReleaseContext(valid),valid.GITHUB_SHA);
+  assert.throws(()=>requireApprovedReleaseContext({...valid,GITHUB_REF:'refs/heads/integration-test'}),
+    /default main branch/);
+  assert.throws(()=>requireApprovedReleaseContext({...valid,GITHUB_EVENT_NAME:'pull_request'}),
+    /manually dispatched/);
+  assert.throws(()=>requireApprovedReleaseContext({...valid,GITHUB_SHA:'invalid'}),
+    /40-hex GitHub release SHA/);
+  assert.equal(ASSETS.length,2,'Must attest both public UI assets');
+  assert.ok(ASSETS.every(a=>a.urls.length===2 &&
+    a.urls.some(u=>new URL(u).hostname==='ikst2512-eng.github.io') &&
+    a.urls.some(u=>new URL(u).hostname==='boat-edge-clean.onrender.com')),
+    'Must attest both GitHub Pages and Render for each asset');
   const good=Buffer.from('candidate-asset');
   const same=Buffer.from('candidate-asset');
   const stale=Buffer.from('previous-asset');
@@ -72,7 +88,7 @@ function selfTest() {
     /public Pages bytes differ/);
   assert.throws(()=>assertEqualBytes('self-test',Buffer.alloc(0),same),
     /must not be empty/);
-  console.log('PUBLIC_PAGES_ASSET_GATE_SELF_TEST_PASS matching=accepted stale=rejected empty=rejected');
+  console.log('PUBLIC_PAGES_RENDER_GATE_SELF_TEST_PASS matching=accepted stale=rejected empty=rejected wrong_ref=rejected wrong_event=rejected missing_host=rejected');
 }
 if(process.argv.slice(2).includes('--self-test')){
   selfTest();
