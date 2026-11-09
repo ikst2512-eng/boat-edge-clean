@@ -32,10 +32,16 @@ probe() {
   if [[ "$rc" -eq 0 && "$result" == *'http=200 '* ]]; then health_http='pass'; else health_http='fail'; fi
  fi
  if [[ "$label" == archive-get ]]; then
-  if [[ "$rc" -eq 0 && "$result" == *'http=200 '* && "$cors" == 'https://ikst2512-eng.github.io' ]]; then
+  # Distinguish a real HTTP 200 with a missing/mismatched ACAO header from
+  # an unreachable endpoint. Never promote an incorrect CORS header to pass.
+  if [[ "$rc" -ne 0 || "$result" != *'http=200 '* ]]; then
+   archive_cors='http_not_200'
+  elif [[ "$cors" == 'https://ikst2512-eng.github.io' ]]; then
    archive_cors='pass'
+  elif [[ -z "$cors" ]]; then
+   archive_cors='missing'
   else
-   archive_cors='not_verified'
+   archive_cors='mismatch'
   fi
  fi
  echo "RENDER_DIAG_PROBE name=$label curl_exit=$rc $(printf '%s' "$result" | tr '\n' ' ') cors=$cors"
