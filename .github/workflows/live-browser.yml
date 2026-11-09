@@ -26,6 +26,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check JavaScript syntax before installing browsers
+        run: |
+          node --check tests/live-racecard-navigation.cjs
+          node --check tests/live-archived-forecast.cjs
+          node --check tests/webkit-history-regression.cjs
       - name: Capture Render connection timing (non-gating diagnostic)
         shell: bash
         run: |
