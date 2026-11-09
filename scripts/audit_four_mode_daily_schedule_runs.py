@@ -120,6 +120,20 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
         if row["created_at_jst"] > last_nominal_with_grace_jst)
     within_window_count = (
         after_first_nominal_count - len(after_final_window_run_ids))
+    # Staleness is a read-only observation diagnostic, not missed-Cron proof.
+    # Clamp the observation endpoint to the last nominal slot plus grace:
+    # tomorrow's report must not accumulate overnight silence after captures
+    # are no longer scheduled. An empty in-window history is unknown, never
+    # represented as zero minutes.
+    in_window_rows = [
+        row for row in matching
+        if first_nominal_jst <= row["created_at_jst"] <= last_nominal_with_grace_jst]
+    latest_in_window = max(
+        (row["created_at_jst"] for row in in_window_rows), default=None)
+    observation_end = min(audit_as_of_jst, last_nominal_with_grace_jst)
+    observation_silence_minutes = (
+        round((observation_end - latest_in_window).total_seconds() / 60, 2)
+        if latest_in_window is not None else None)
     # When a full page is all from this day, older scheduled runs may have
     # been truncated. A previous-day boundary (or short unpaginated listing)
     # is needed to certify full same-day metadata coverage.
@@ -143,6 +157,11 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "same_day_at_or_after_first_nominal_run_count": after_first_nominal_count,
             "same_day_after_final_nominal_grace_run_ids": after_final_window_run_ids,
             "same_day_within_nominal_window_run_count": within_window_count,
+            "latest_in_window_run_created_at_jst": (
+                latest_in_window.isoformat() if latest_in_window is not None
+                else None),
+            "minutes_since_latest_in_window_observation": observation_silence_minutes,
+            "in_window_silence_observation_end_jst": observation_end.isoformat(),
             "observed_within_window_below_nominal_due_by": max(
                 0, due_slots - within_window_count),
             "observed_after_first_runs_below_nominal_due_by": max(
@@ -162,8 +181,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
                      "in the raw same-day count. Runs after the final 20:52 "
                      "JST slot plus five minutes remain raw observations but "
                      "do not satisfy the daily window-presence gate. Future-"
-                     "dated API entries fail closed; no per-slot delivery or "
-                     "publication proof.")}
+                     "dated API entries fail closed. Last-run silence is "
+                     "bounded by the day's final nominal grace and is not "
+                     "proof of specific missing Cron slots, deadline-qualified "
+                     "collection, or forecast publication.")}
 
 
 def main():
