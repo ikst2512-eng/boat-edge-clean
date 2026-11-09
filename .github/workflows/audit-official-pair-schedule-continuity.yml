@@ -30,6 +30,8 @@ on:
       - tests/test_audit_t12_saved_three_original_replay.py
       - scripts/audit_t12_same_race_proof_chain.py
       - tests/test_audit_t12_same_race_proof_chain.py
+      - scripts/audit_t12_scheduled_source_topology.py
+      - tests/test_audit_t12_scheduled_source_topology.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -65,6 +67,18 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_scheduled_source_topology.py' -v
+      - name: Audit immutable main official-source collection topology (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Verify actual source file Git blob bytes at pinned main SHA.
+          # Does not modify the production workflow or enable T12 scoring.
+          python -m scripts.audit_t12_scheduled_source_topology \
+            --repo "$REPOSITORY" \
+            --main-commit 4bd080ad77778053575cf497c8a6b85b959ce173 \
+            --output reports/official_t12_scheduled_source_topology.json
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -264,5 +278,6 @@ jobs:
             reports/official_t12_nov09_remote_archive_time.json
             reports/official_t12_nov03_pinned_three_originals.json
             reports/official_t12_same_race_proof_chain.json
+            reports/official_t12_scheduled_source_topology.json
           if-no-files-found: error
           retention-days: 30
