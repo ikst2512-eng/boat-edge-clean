@@ -6,6 +6,9 @@ caller-supplied structural inputs, not authenticated current official data.
 Head shifts, second/third coefficients and scenario weights are explicit,
 UNCALIBRATED experiment hypotheses. No live prediction, result read or I/O.
 """
+import copy
+import hashlib
+import json
 import math
 import re
 
@@ -26,10 +29,23 @@ MISSING = frozenset({
 })
 BLOCKED = frozenset({"result", "finish_order", "winning_ticket",
                      "payout", "post_race_weather", "final_entry_course"})
+PROJECTION_KEYS = frozenset({
+    "schema", "race_code", "source_sha256", "normalized_source_sha256",
+    "exhibition_features_by_boat", "exhibition_features_sha256",
+    "structural_source_to_candidate_order", "structural_raw_semantic_replay_reported",
+    "missing_research_features", "feature_values_imputed",
+    "exhibition_is_actual_final_entry", "raw_http_origin_independently_attested",
+    "replay_callback_authenticity_independently_proven",
+    "candidate_first_remote_receipt_verified",
+    "model_consumed_these_features_verified",
+    "all_scenario_effect_coefficients_calibrated", "formal",
+    "accuracy_effect_proven", "promotion_allowed", "production_changed",
+})
 
 
 def _projected(projection):
     if (type(projection) is not dict
+            or set(projection) != PROJECTION_KEYS
             or projection.get("schema") != "SCENARIO_EXHIBITION_PROJECTION_RESEARCH_V1"
             or projection.get("formal") is not False
             or projection.get("production_changed") is not False
@@ -40,6 +56,9 @@ def _projected(projection):
             or projection.get("candidate_first_remote_receipt_verified") is not False
             or projection.get("model_consumed_these_features_verified") is not False
             or projection.get("feature_values_imputed") is not False
+            or projection.get("structural_source_to_candidate_order") is not True
+            or projection.get("all_scenario_effect_coefficients_calibrated") is not False
+            or projection.get("accuracy_effect_proven") is not False
             or projection.get("structural_raw_semantic_replay_reported") is not True
             or set(projection) & BLOCKED):
         raise ValueError("unsafe_or_unmatched_official_projection")
@@ -57,11 +76,20 @@ def _projected(projection):
             or not HEX.fullmatch(projection["normalized_source_sha256"])):
         raise ValueError("projection_missing_original_fingerprints")
     missing = projection.get("missing_research_features")
-    if type(missing) is not list or not MISSING.issubset(set(missing)):
+    if (type(missing) is not list
+            or any(type(value) is not str for value in missing)
+            or not MISSING.issubset(set(missing))):
         raise ValueError("missing_features_not_explicit")
     boats = projection.get("exhibition_features_by_boat")
     if type(boats) is not list or len(boats) != 6:
         raise ValueError("exact_six_exhibition_boats_required")
+    digest = hashlib.sha256(json.dumps(
+        boats, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")).hexdigest()
+    if (type(projection["exhibition_features_sha256"]) is not str
+            or not HEX.fullmatch(projection["exhibition_features_sha256"])
+            or digest != projection["exhibition_features_sha256"]):
+        raise ValueError("exhibition_projection_vector_digest_mismatch")
     by_boat = {}
     for row in boats:
         if (type(row) is not dict
@@ -179,7 +207,8 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
             if p["second"] != 0 or p["third"] != 0
         }
         conditioned = conditional_lab_callback(
-            first["ranked_board"], evidence, coeffs,
+            copy.deepcopy(first["ranked_board"]), copy.deepcopy(evidence),
+            copy.deepcopy(coeffs),
             study_id + "_PAIR_" + name.upper())
         boards[name] = _conditional_result(
             conditioned, first["ranked_board"], active)
