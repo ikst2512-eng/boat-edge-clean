@@ -391,6 +391,9 @@ def score(pre_result_rows, results, p):
                 c = scores[phase][mode][f"top{k}"]
                 n = matched[phase]
                 c["denominator_reference_only"] = n
+                c["requested_topn"] = k
+                c["effective_ticket_count"] = min(k, COUNTS[mode])
+                c["requested_topn_exceeds_mode_budget"] = k > COUNTS[mode]
                 if c["candidate"]-c["baseline"] != c["gained"]-c["lost"]:
                     raise ValueError("paired_score_mismatch")
                 both = c["baseline"] - c["lost"]
@@ -433,6 +436,42 @@ def score(pre_result_rows, results, p):
         }
     holm_reference = confirmation_holm_reference(
         scores, phase_progress, confirmed_dates_by_phase["confirmation"], p)
+    # Descriptive across-mode/TopN *regression visibility* is not a newly
+    # preregistered significance test, nor an alteration of Top10 primary.
+    # No rates or "no regression" claim when no valid outcomes exist.
+    regression_diagnostics = {}
+    for phase in ("pilot", "confirmation"):
+        n = matched[phase]
+        by_mode = {}
+        for mode in COUNTS:
+            diffs = {f"top{k}": (
+                scores[phase][mode][f"top{k}"]["gained"] -
+                scores[phase][mode][f"top{k}"]["lost"])
+                for k in TOPS}
+            by_mode[mode] = {
+                "evaluated_matched_results_reference_only": n,
+                "net_hit_changes_by_topn_reference_only": (
+                    diffs if n else None),
+                "topn_with_fewer_hits_reference_only": (
+                    [name for name, delta in diffs.items() if delta < 0]
+                    if n else None),
+                "any_topn_with_fewer_hits_reference_only": (
+                    any(delta < 0 for delta in diffs.values()) if n else None),
+                "top10_primary_net_change_reference_only": (
+                    diffs["top10"] if n else None),
+            }
+        regression_diagnostics[phase] = {
+            "status": ("descriptive_only_not_a_release_gate" if n
+                       else "unavailable_without_matched_results"),
+            "same_race_denominator_reference_only": n,
+            "modes": by_mode,
+            "any_mode_topn_with_fewer_hits_reference_only": (
+                any(v["any_topn_with_fewer_hits_reference_only"]
+                    for v in by_mode.values()) if n else None),
+            "warning": "A positive Top10 gain can coincide with worse "
+                       "Top1/3/5. These exploratory counts are not "
+                       "prespecified secondary significance tests.",
+        }
     return {"status":"reference_only_not_certified", "formal":False,
             "model_improvement_proven":False, "model_promotion_allowed":False,
             "independent_first_remote_receipt_verified":False,
@@ -440,6 +479,7 @@ def score(pre_result_rows, results, p):
             "eligible_roster_count":len(ordered), "matched_by_phase":dict(matched),
             "phase_progress":phase_progress,
             "confirmation_top10_holm_reference_only":holm_reference,
+            "topn_regression_diagnostics_reference_only":regression_diagnostics,
             "selected_pre_result_roster_sha256_reference_only":reference_roster_sha256,
             "valid_pre_result_candidate_records_reference_only":len(ordered_all),
             "candidate_records_after_fixed_600_not_scored":len(ordered_all)-len(ordered),
