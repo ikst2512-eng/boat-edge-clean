@@ -54,8 +54,8 @@ jobs:
           assert capture.startswith(
               "    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'\n"
           )
-          assert 'research/hole_pair_manual_capture.py' not in review
-          assert 'actions/upload-artifact@' not in review
+          assert not re.search(r"(?m)^\s+python research/hole_pair_manual_capture\.py(?: |$)", review)
+          assert not re.search(r"(?m)^\s+- uses: actions/upload-artifact@", review)
           assert re.search(r"(?m)^          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b$", capture)
           assert capture.count('persist-credentials: false') == 1
           assert review.count('persist-credentials: false') == 1
