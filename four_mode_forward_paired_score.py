@@ -221,8 +221,11 @@ def main():
     args=ap.parse_args()
     p=protocol_check(json.loads(PROTOCOL.read_text(encoding="utf-8")))
     if args.pre_result_roster is None or args.results is None:
-        print(json.dumps({"status":"protocol_valid_no_future_records_scored", "formal":False,
-                          "model_improvement_proven":False,"model_promotion_allowed":False}))
+        # The normal no-input CI path must expose explicit 0/300 + 0/300
+        # status instead of displaying only a generic valid-protocol flag.
+        report = score([], {}, p)
+        report["status"] = "protocol_valid_no_future_records_scored"
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
         return
     print(json.dumps(score(json.loads(args.pre_result_roster.read_text(encoding="utf-8")),
                            json.loads(args.results.read_text(encoding="utf-8")),p),ensure_ascii=False,sort_keys=True))
