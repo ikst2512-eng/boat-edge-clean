@@ -1,6 +1,6 @@
 # PROPOSAL ONLY. This workflow lives in a separate Draft PR, not on main.
 # NEVER merge/enable without explicit manual security+research review.
-# No schedule/PR/push trigger; no secrets; no Cloudflare; no production change.
+# No schedule or push; pull_request runs review tests only; no production change.
 name: Hole pair manual research gateway (NONFORMAL, review before enabling)
 on:
   pull_request:
@@ -146,6 +146,12 @@ jobs:
                       'capture_day_jst': '20261109',
                       'formal': False,
                       'independent_first_receipt_verified': False,
+                      'eligible_forecasts_examined': 0,
+                      'source_snapshot_coverage': {
+                          'source_snapshot_race_coverage_complete': True,
+                          'entire_day_or_official_schedule_complete_verified': False,
+                          'snapshot_forecasts_examined': 0,
+                      },
                   }
                   raw = json.dumps(synthetic, sort_keys=True).encode()
                   Path('research_candidate_freeze.json').write_bytes(raw)
@@ -173,12 +179,24 @@ jobs:
                   assert sidecar['manifest_sha256'] == hashlib.sha256(raw).hexdigest()
                   assert sidecar['manifest_bytes'] == len(raw)
                   assert sidecar['source_main_commit'] == main_sha
+                  assert sidecar['source_snapshot_forecasts_examined'] == 0
+                  assert sidecar['source_snapshot_race_census_reconciled_locally'] is True
+                  assert sidecar['entire_day_or_official_schedule_complete_verified'] is False
                   assert sidecar['github_run_id'] == 12345
                   assert sidecar['formal'] is False
                   assert sidecar['independent_first_receipt_verified'] is False
                   for bad_env, bad_raw in (
                       ({**fake_env, 'GITHUB_SHA': 'b' * 40}, raw),
                       (fake_env, json.dumps({**synthetic, 'formal': True}).encode()),
+                      (fake_env, json.dumps({
+                          **synthetic, 'source_snapshot_coverage': {
+                              **synthetic['source_snapshot_coverage'],
+                              'entire_day_or_official_schedule_complete_verified': True,
+                          },
+                      }).encode()),
+                      (fake_env, json.dumps({
+                          **synthetic, 'eligible_forecasts_examined': 1,
+                      }).encode()),
                   ):
                       try:
                           exercise(bad_env, bad_raw)
@@ -472,6 +490,12 @@ jobs:
           assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
           assert batch['formal'] is False and batch['independent_first_receipt_verified'] is False
           assert batch['capture_day_jst'] == os.environ['INPUT_CAPTURE_DAY_JST']
+          coverage = batch['source_snapshot_coverage']
+          assert coverage['source_snapshot_race_coverage_complete'] is True
+          assert coverage['entire_day_or_official_schedule_complete_verified'] is False
+          assert type(batch['eligible_forecasts_examined']) is int
+          assert batch['eligible_forecasts_examined'] >= 0
+          assert batch['eligible_forecasts_examined'] == coverage['snapshot_forecasts_examined']
           run_id = int(os.environ['GITHUB_RUN_ID'])
           attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
           assert run_id > 0 and attempt > 0
@@ -485,6 +509,9 @@ jobs:
               'source_main_commit': main_sha,
               'pinned_research_commit': research_sha,
               'capture_day_jst': batch['capture_day_jst'],
+              'source_snapshot_forecasts_examined': batch['eligible_forecasts_examined'],
+              'source_snapshot_race_census_reconciled_locally': True,
+              'entire_day_or_official_schedule_complete_verified': False,
               'manifest_file': src.name,
               'manifest_sha256': hashlib.sha256(raw).hexdigest(),
               'manifest_bytes': len(raw),
