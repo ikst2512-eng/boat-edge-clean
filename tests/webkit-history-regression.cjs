@@ -14,7 +14,7 @@ const assetTypes = {
   '/secondary_navigation.js': ['secondary_navigation.js', 'text/javascript; charset=utf-8']
 };
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const guarded = html.match(/if\(url\.href!==location\.href\)history\.replaceState\(null,'',url\);/g) || [];
+const guarded = html.match(/if\(url\.href!==location\.href&&!window\.__boatEdgeNavigationOwnsHistory\)history\.replaceState\(null,'',url\);/g) || [];
 if (guarded.length !== 2) {
   throw Error('DRAFT_URL_WRITES_MUST_BE_IDEMPOTENT: expected both render and setView guards');
 }
@@ -152,6 +152,30 @@ const server = http.createServer((request, response) => {
       views: ['card','exhibit','result','forecast'],
       beforeBack, afterForward
     }));
+    // Forty genuine changes are below WebKit's 100-history-writes limit only
+    // if a race change results in ONE pushState, not base replace + restore + push.
+    const stress = await page.evaluate(async () => {
+      const before = {...window.__historyMutationCounts};
+      const sequence = [];
+      for (let i=0; i<40; i++) {
+        const race=(i%2)+1;
+        s.race=race;
+        render();
+        await Promise.resolve();
+        if (history.state?.snapshot?.race !== race ||
+            Number(new URL(location.href).searchParams.get('race')) !== race)
+          throw Error('RAPID_RACE_HISTORY_STALE '+JSON.stringify({race,iteration:i,actual:history.state?.snapshot}));
+        sequence.push(race);
+      }
+      const after={...window.__historyMutationCounts};
+      if (after.replace !== before.replace || after.push-before.push !== 40)
+        throw Error('RACE_HISTORY_WRITE_AMPLIFICATION '+JSON.stringify({before,after}));
+      return {raceChanges:sequence.length, writesPerChange:1,
+        replaceWrites:after.replace-before.replace,
+        pushWrites:after.push-before.push,
+        finalRace:s.race};
+    });
+    console.log('PASS_DRAFT_WEBKIT_FORTY_RACE_CHANGES '+JSON.stringify(stress));
     console.log('UNASSESSED: published Pages, real Render transport, live CORS, predeadline exhibition, physical iPhone Safari');
   } catch (error) {
     console.error('FAIL_DRAFT_WEBKIT_IDEMPOTENT_HISTORY '+String(error));
