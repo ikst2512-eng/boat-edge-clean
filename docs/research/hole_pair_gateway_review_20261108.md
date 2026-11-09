@@ -30,3 +30,13 @@ Before any manual merge/run, a human reviewer must confirm:
 4. A separate independent first-acceptance witness, official-source completeness checker and cross-run missingness/chronology ledger are required *before* any formal metrics. No old Nov 6–8 samples may enter the Nov9+ confirmatory cohort.
 
 **Current status: main unchanged by this Draft, no dispatch, no artifacts, no cloud deploy, no formally certified candidates.**
+
+## November 9 review comparison: overlapping Draft gateway #1701 versus #1702
+
+**Do not merge both gateway PRs.** Both are unmerged drafts proposing default-branch manual workflow registration, but differ in their exact pinned driver:
+
+- [Gateway #1701](https://github.com/ikst2512-eng/boat-edge-clean/pull/1701) checks out research SHA `ec83d7254b8703a49a34ce10b343390e6da74f84`. Its actual `research/hole_pair_manual_capture.py` does **not** contain the subsequently added full original Git blob bytes check (`immutable_main_source_blob_content_mismatch`) or frozen source SHA check (`frozen_candidate_original_source_sha256_mismatch`).
+- [Gateway #1702](https://github.com/ikst2512-eng/boat-edge-clean/pull/1702) checks out later reviewed SHA `464d1641a5c7b981248ab17ba5bdc42b7bfa698b`, whose manual driver **does** contain both checks, plus an exact-ID universe reconciliation, manual authorization and original future date restrictions. This offers a stronger fixed input-provenance gate for the same research objective.
+- Added a **PR-only review job**, explicitly separate from the `workflow_dispatch` capture job. On [CI #42567225027](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42567225027), `review_only` passed and **`capture` was skipped**. Also added current-JST/day/typed-ack checks *before checkout*, a main-only dispatch job guard, and disabled persistence of checkout credentials. The repository is public, so this does not require a read-write GitHub token to fetch `origin/main`.
+
+**Manual recommendation, NOT permission to deploy:** review one isolated gateway (prefer #1702's more recent pinned source), mark #1701 superseded only with the reviewers' agreement, and keep both unmerged until the required operator/security decision. Future merging of a single manual dispatcher would still be a change to default main requiring explicit review; this chat has NOT merged, enabled, or executed a gateway. Every output stays nonformal, and real signed independent first receipt, official T−12 original six-boat/120-odds evidence, cross-run deduplication and pilot/confirmation eligibility remain separate blocked gates.
