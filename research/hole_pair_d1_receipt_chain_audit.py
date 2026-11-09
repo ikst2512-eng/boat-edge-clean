@@ -21,17 +21,28 @@ FIELDS = frozenset({
     "formal", "production_promotion_allowed", "warning",
 })
 TIMESTAMP_ORIGIN = "D1 SQLite server clock at successful immutable insertion"
-UTC_DATE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)\Z")
+# The Worker serializes both cutoff_utc and D1 SQLite's first clock as .mmmZ.
+# A textually different value may be a forged/reformatted receipt claim.
+D1_UTC_DATE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\Z")
+WORKER_WARNING = (
+    "D1 first-insert time is not an independently signed external witness "
+    "or official deadline certification."
+)
 
 
 def _utc(iso):
-    if type(iso) is not str or not UTC_DATE.fullmatch(iso):
+    if type(iso) is not str or not D1_UTC_DATE.fullmatch(iso):
         raise ValueError("invalid_claimed_utc_timestamp")
     try:
         dt = datetime.fromisoformat(iso)
     except ValueError as exc:
         raise ValueError("invalid_claimed_utc_timestamp") from exc
     if dt.utcoffset() != timedelta(0):
+        raise ValueError("invalid_claimed_utc_timestamp")
+    # Require a canonical D1/Worker representation, not just an equivalent
+    # offset or a Python-parseable but noncanonical timestamp.
+    canonical = dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
+    if iso != canonical:
         raise ValueError("invalid_claimed_utc_timestamp")
     return dt.astimezone(UTC)
 
@@ -65,8 +76,7 @@ def audit_one(record, d1_receipt=None):
             or d1_receipt["timestamp_origin"] != TIMESTAMP_ORIGIN
             or type(d1_receipt["already_recorded"]) is not bool
             or d1_receipt["independent_server_acceptance_observed"] is not True
-            or type(d1_receipt["warning"]) is not str
-            or not d1_receipt["warning"]
+            or d1_receipt["warning"] != WORKER_WARNING
             or any(d1_receipt[key] is not False for key in (
                 "independent_first_receipt_verified", "official_t12_complete_verified",
                 "formal", "production_promotion_allowed"))):
