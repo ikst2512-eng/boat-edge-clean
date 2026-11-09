@@ -376,7 +376,49 @@ def holdout_status():
                  "worker_pid": _HOLDOUT_PROCESS_ID,
                  "process_uptime_seconds": round(time.monotonic() - _HOLDOUT_PROCESS_BOOT, 1)}
 
+# A free single-instance server can look healthy in an isolated GET but
+# stall under overlapping browser and polling traffic. These counters are
+# diagnostics only: never throttle requests or change model/forecast data.
+_HTTP_IN_FLIGHT = 0
+_HTTP_PEAK_IN_FLIGHT = 0
+_HTTP_DIAGNOSTIC_LOCK = threading.Lock()
+
 class Handler(BaseHTTPRequestHandler):
+    def handle_one_request(self):
+        global _HTTP_IN_FLIGHT, _HTTP_PEAK_IN_FLIGHT
+        self._diagnostic_status = None
+        with _HTTP_DIAGNOSTIC_LOCK:
+            _HTTP_IN_FLIGHT += 1
+            active_at_start = _HTTP_IN_FLIGHT
+            _HTTP_PEAK_IN_FLIGHT = max(_HTTP_PEAK_IN_FLIGHT, _HTTP_IN_FLIGHT)
+        started = time.monotonic()
+        try:
+            return super().handle_one_request()
+        finally:
+            duration_ms = max(0, round((time.monotonic() - started) * 1000))
+            with _HTTP_DIAGNOSTIC_LOCK:
+                _HTTP_IN_FLIGHT -= 1
+                active_at_finish = _HTTP_IN_FLIGHT
+                peak_in_flight = _HTTP_PEAK_IN_FLIGHT
+            status = self._diagnostic_status
+            if duration_ms >= 5000 or (isinstance(status, int) and status >= 500):
+                # No query parameters, tokens, request body, source IP or user
+                # identifiers in new telemetry. Unexpected paths are redacted.
+                raw_path = getattr(self, "path", "")
+                route = raw_path.split("?", 1)[0].split("#", 1)[0]
+                if not re.fullmatch(r"/[A-Za-z0-9/_-]{0,80}", route):
+                    route = "other"
+                logging.warning(
+                    "slow_or_unavailable_http route=%s status=%s duration_ms=%d "
+                    "active_at_start=%d active_at_finish=%d peak_in_flight=%d",
+                    route, status, duration_ms, active_at_start,
+                    active_at_finish, peak_in_flight,
+                )
+
+    def send_response(self, code, message=None):
+        self._diagnostic_status = code
+        return super().send_response(code, message)
+
     def do_HEAD(self):
         # Health checks must not trigger predictions or upstream fetches.
         path = urlsplit(self.path).path.rstrip('/') or '/'
