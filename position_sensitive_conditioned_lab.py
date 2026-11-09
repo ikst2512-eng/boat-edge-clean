@@ -166,3 +166,32 @@ def experimental_conditional_board(baseline, evidence, coefficients, study_id):
         "promotion_allowed": False,
         "ranked_board": sorted(result.items(), key=lambda x: (-x[1], x[0])),
     }
+
+
+def inspect_feature_readiness(evidence):
+    """Classify structural per-race coverage without authenticating any source.
+
+    No unofficial, missing or invalid value is filled in. A feature shown as
+    available is NOT proved official, pre-T-12, or predictive.
+    """
+    _features(evidence, set())  # Reject bad roster and outcome-bearing schema first.
+    available = []
+    missing_or_invalid = {}
+    for field in FIELDS:
+        try:
+            _features(evidence, {field})
+        except ValueError as exc:
+            missing_or_invalid[field] = str(exc)
+        else:
+            available.append(field)
+    return {
+        "status": "structural_coverage_not_official_source_certification",
+        "structurally_present_features": sorted(available),
+        "missing_or_invalid_features": missing_or_invalid,
+        "feature_values_imputed": False,
+        "official_bytes_and_predeadline_receipts_verified": False,
+        "first_remote_receipt_verified": False,
+        "formal": False,
+        "model_improvement_proven": False,
+        "promotion_allowed": False,
+    }
