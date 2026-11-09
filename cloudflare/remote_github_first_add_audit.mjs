@@ -43,13 +43,13 @@ async function get(fetcher,url){
 }
 function bytesFromBase64(data,max){
   if(!isObj(data)||data.encoding!=='base64'||typeof data.content!=='string')throw Error('github_blob_payload_invalid');
-  const compact=data.content.replace(/\s+/g,'');
+  // GitHub base64 uses optional CR/LF line wrapping; arbitrary spaces or\n  // non-canonical encodings are not acceptable original byte evidence.\n  const compact=data.content.replace(/\r|\n/g,'');
   if(compact.length>Math.ceil(max/3)*4+8||!/^[A-Za-z0-9+/]*={0,2}$/.test(compact))
     throw Error('github_blob_base64_invalid');
   const buf=Buffer.from(compact,'base64');
-  if(!buf.length||buf.length>max||Buffer.from(buf.toString('base64'),'base64').compare(buf)!==0)
+  if(!buf.length||buf.length>max||buf.toString('base64')!==compact)
     throw Error('github_blob_size_invalid');
-  if(typeof data.size==='number'&&data.size!==buf.length)throw Error('github_blob_size_mismatch');
+  if(!Number.isSafeInteger(data.size)||data.size!==buf.length)throw Error('github_blob_size_mismatch');
   return buf;
 }
 function actualRecord(kind,code,buf,commitTime){
@@ -78,7 +78,7 @@ function actualRecord(kind,code,buf,commitTime){
        generated>=deadline-20*60000)throw Error('four_mode_archive_source_contract_invalid');
   }
   return {
-    code,deadline_jst:new Date(deadline).toISOString(),
+    // Expose the original +09:00 deadline, never label a UTC string as JST.\n    code,deadline_jst:kind==='clean'?rec.source_deadline_jst:rec.deadline_jst,
     generated_at_jst:kind==='clean'?rec.generated_at:rec.generated_at_jst,
     source_title_received_jst:rec.source_title_received_jst,
     source_cards_received_jst:rec.source_cards_received_jst,
@@ -115,8 +115,34 @@ export async function verifyRealGithubFirstAdd({publisher,raceCode,commitSha,fet
   const b=bytesFromBase64(blob,65536);
   if(!a.equals(b)||sha1GitBlob(a)!==gitBlobSha)
     throw Error('github_blob_bytes_mismatch');
-  // Absence in the immediate PARENT is supported by Github 404. Any other
-  // HTTP failure (401/403/429/500/503) is ambiguous and fails closed.
+  // A Contents API 404 alone is NOT sufficient: a permission/routing/5xx
+  // error could be mistaken for absence. Independently inspect actual Git
+  // parent -> root tree -> archive-directory subtree (nonrecursive). GitHub
+  // explicitly marks incomplete tree responses with truncated=true.
+  // Do not certify a negative fact from a truncated or malformed listing.
+  const parentCommit=await get(fetcher,API+'/git/commits/'+parent);
+  const rootSha=parentCommit?.tree?.sha;
+  if(parentCommit?.sha!==parent||!SHA.test(rootSha))
+    throw Error('github_parent_tree_identity_invalid');
+  const root=await get(fetcher,API+'/git/trees/'+rootSha);
+  if(root?.sha!==rootSha||root.truncated!==false||!Array.isArray(root.tree))
+    throw Error('github_parent_root_tree_incomplete');
+  const dirname=PATHS[publisher].slice(0,-1);
+  const dirs=root.tree.filter(row=>row?.path===dirname);
+  if(dirs.length>1||dirs.length===1&&
+      (dirs[0].type!=='tree'||dirs[0].mode!=='040000'||!SHA.test(dirs[0].sha)))
+    throw Error('github_parent_directory_invalid');
+  let parentDirectoryTreeSha=null;
+  if(dirs.length===1){
+    parentDirectoryTreeSha=dirs[0].sha;
+    const directory=await get(fetcher,API+'/git/trees/'+parentDirectoryTreeSha);
+    if(directory?.sha!==parentDirectoryTreeSha||directory.truncated!==false||
+       !Array.isArray(directory.tree))throw Error('github_parent_directory_tree_incomplete');
+    if(directory.tree.some(row=>row?.path===raceCode+'.json'))
+      throw Error('github_parent_tree_path_not_absent');
+  }
+  // Retain independent Contents 404 cross-check; other HTTP statuses are
+  // ambiguous. A valid 404 with an inconsistent tree still FAILS above.
   const response=await fetcher(API+'/contents/'+enc+'?ref='+parent,{
     method:'GET',headers:{Accept:'application/vnd.github+json',
       'X-GitHub-Api-Version':'2022-11-28',
@@ -134,6 +160,8 @@ export async function verifyRealGithubFirstAdd({publisher,raceCode,commitSha,fet
     exact_original_sha256:sha256(a),original_byte_length:a.length,
     commit_committer_utc:commit.commit.committer.date,
     source_blob_commit_consistency_pass:true, git_parent_addition_checked:true,
+    git_parent_tree_absence_checked:true, git_parent_tree_sha:rootSha,
+    git_parent_archive_directory_tree_sha:parentDirectoryTreeSha,
     current_main_ancestry_checked:true, record,
     // Github archive first-add != first time a Github HTTP server accepted it.
     github_remote_first_seen_timestamp_proven:false,
