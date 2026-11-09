@@ -18,6 +18,8 @@ on:
       - 'position_sensitive_candidate_delivery_gap.py'
       - 'position_sensitive_candidate_batch_export.py'
       - 'position_sensitive_schedule_run_inventory.py'
+      - 'position_sensitive_run_job_reconcile.py'
+      - 'test_position_sensitive_run_job_reconcile.py'
       - 'test_position_sensitive_schedule_run_inventory.py'
       - 'test_position_sensitive_candidate_batch_export.py'
       - 'test_position_sensitive_candidate_delivery_gap.py'
@@ -100,7 +102,7 @@ jobs:
           print("POSITION_SENSITIVE_PREREGISTRATION_BLOBS_VERIFIED")
           PY
       - name: Unit and negative regression tests
-        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory
+        run: python -m unittest -v test_four_mode_position_sensitive_shadow test_four_mode_position_sensitive_forward test_position_sensitive_topk_exposure_audit test_position_sensitive_paired_guard test_position_sensitive_paired_inference test_position_sensitive_feature_inventory test_position_sensitive_receipt_intake test_position_sensitive_t12_window_audit test_position_sensitive_append_only_research test_position_sensitive_ledger_history_audit test_position_sensitive_remote_observer test_position_sensitive_manual_publisher test_position_sensitive_manual_server_chronology test_position_sensitive_manual_ancestry test_position_sensitive_live_roster_audit test_position_sensitive_public_comment_witness test_position_sensitive_future_topk_exposure test_position_sensitive_candidate_delivery_gap test_position_sensitive_candidate_batch_export test_position_sensitive_schedule_run_inventory test_position_sensitive_run_job_reconcile
       - name: Confirm forward protocol has no eligible captures or certification
         run: python four_mode_position_sensitive_forward.py
       - name: Explicit zero-future-data paired guard is NOT certification
@@ -369,6 +371,48 @@ jobs:
               raise SystemExit("false_cron_gap_to_actual_failure_or_formal_proof")
           print("POSITION_SENSITIVE_SCHEDULE_READONLY_NOT_CLAIMING_MISSED_RUNS")
           PY
+      - name: Live read-only scheduled and manual Actions run plus job evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python position_sensitive_schedule_run_inventory.py --live --output position_schedule_run_live.json
+          python position_sensitive_run_job_reconcile.py --inventory position_schedule_run_live.json --live --output position_schedule_jobs_live.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("position_schedule_run_live.json").read_text())
+          b=json.loads(Path("position_schedule_jobs_live.json").read_text())
+          if (a.get("live_readonly_github_api_invoked") is not True
+                  or a.get("api_result_pagination_complete_for_supplied_window") is not True
+                  or a.get("expected_slots_for_full_day") != 56
+                  or a.get("manual_dispatch_api_checked") is not True
+                  or a.get("run_to_exact_cron_slot_attribution_verified") is not False
+                  or b.get("status") != "actions_jobs_read_only_confirmed_nonformal"
+                  or b.get("matching_schedule_runs") != a.get("observed_matching_four_mode_scheduled_runs")
+                  or b.get("matching_manual_dispatch_runs") != a.get("observed_matching_four_mode_manual_dispatch_runs")
+                  or b.get("individual_run_jobs_verified") !=
+                      (b.get("matching_schedule_runs",0)+b.get("matching_manual_dispatch_runs",0))
+                  or b.get("run_to_cron_slot_mapping_verified") is not False
+                  or b.get("complete_scheduled_and_rescue_run_inventory_verified") is not False
+                  or b.get("candidate_first_remote_receipts_independently_verified") != 0
+                  or b.get("formal") is not False
+                  or b.get("model_improvement_proven") is not False
+                  or b.get("promotion_allowed") is not False
+                  or b.get("production_changed") is not False):
+              raise SystemExit("live_cron_job_report_wrong_or_falsely_certified")
+          print("POSITION_SENSITIVE_LIVE_CRON_CREATED_RUNS=" +
+                str(a["observed_matching_four_mode_scheduled_runs"]))
+          print("POSITION_SENSITIVE_LIVE_MANUAL_CREATED_RUNS=" +
+                str(a["observed_matching_four_mode_manual_dispatch_runs"]))
+          print("POSITION_SENSITIVE_LIVE_CAPTURE_JOBS_SUCCESS_SCHEDULE=" +
+                str(b["matching_schedule_capture_jobs_success"]))
+          print("POSITION_SENSITIVE_LIVE_CAPTURE_JOBS_SUCCESS_MANUAL=" +
+                str(b["matching_manual_main_capture_jobs_success"]))
+          print("POSITION_SENSITIVE_LIVE_SCHEDULE_ELAPSED_SLOTS=" +
+                str(a["scheduled_slots_elapsed"]))
+          print("POSITION_SENSITIVE_LIVE_NO_FIRST_RECEIPT_CERTIFICATION")
+          PY
       - name: Manual research publisher defaults to disabled and no network
         run: |
           python position_sensitive_manual_publisher.py | tee position_manual_publisher_unstarted.json
@@ -512,6 +556,8 @@ jobs:
             position_future_paired_exposure.json
             position_candidate_delivery_gap.json
             position_schedule_inventory_unstarted.json
+            position_schedule_run_live.json
+            position_schedule_jobs_live.json
             position_candidate_batch_local.json
             position_shadow_t12_windows.json
           retention-days: 30
