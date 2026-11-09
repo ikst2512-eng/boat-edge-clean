@@ -9,6 +9,7 @@ on:
       - tests/live-racecard-navigation.cjs
       - tests/live-verified-payout.cjs
       - tests/live-archived-forecast.cjs
+      - tests/webkit-history-regression.cjs
       - tests/render-http-reachability.sh
       - .github/workflows/live-browser.yml
   schedule:
@@ -35,6 +36,9 @@ jobs:
           npm install --no-save playwright@1.58.2
           npx playwright install --with-deps --only-shell chromium
           npx playwright install --with-deps webkit
+      - name: Check Draft-only WebKit navigation history (offline, no Render calls)
+        shell: bash
+        run: node tests/webkit-history-regression.cjs
       - name: Test real published Pages and Render API
         shell: bash
         run: |
