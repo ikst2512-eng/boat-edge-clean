@@ -67,6 +67,41 @@ jobs:
           assert 're-run attempt rejected' in capture
           assert 'GITHUB_RUN_ATTEMPT' in capture
           assert 'invalid workflow run identity' in capture
+          # Execute the actual PRE-CHECKOUT shell guard with synthetic inputs.
+          # This never runs research code or reaches GitHub/Cloudflare APIs.
+          import os
+          import subprocess
+          from datetime import datetime, timezone, timedelta
+          preflight = capture.split(
+              '      - name: Verify deliberate current-day research capture BEFORE checkout\n', 1
+          )[1].split('      - name: Checkout exact reviewed research implementation', 1)[0]
+          preflight = preflight.split('        run: |\n', 1)[1]
+          bash_script = '\n'.join(line[10:] for line in preflight.splitlines()) + '\n'
+          env = dict(os.environ)
+          env.update({
+              'DAY': datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d'),
+              'ACK': 'CAPTURE_UNVERIFIED_RESEARCH',
+              'GITHUB_RUN_ID': '23456',
+              'GITHUB_RUN_ATTEMPT': '1',
+          })
+          def preflight_result(overrides):
+              return subprocess.run(
+                  ['bash', '-c', bash_script], env={**env, **overrides},
+                  capture_output=True, text=True, timeout=5,
+              )
+          assert preflight_result({}).returncode == 0
+          for overrides, expected_rc in (
+              ({'GITHUB_RUN_ATTEMPT': '2'}, 5),
+              ({'GITHUB_RUN_ATTEMPT': ''}, 5),
+              ({'GITHUB_RUN_ATTEMPT': '1x'}, 5),
+              ({'GITHUB_RUN_ID': '0'}, 5),
+              ({'GITHUB_RUN_ID': ''}, 5),
+              ({'ACK': 'INVALID_ACK'}, 2),
+              ({'DAY': '20261108'}, 2),
+          ):
+              result = preflight_result(overrides)
+              assert result.returncode == expected_rc, (overrides, result.returncode, result.stderr)
+          print('REVIEW_ONLY_GATE_PASS_synthetic_rerun_and_invalid_input_rejections')
           competitors = (
               '.github/workflows/hole-pair-manual-research-gateway.yml',
               '.github/workflows/hole-future-pair-precommit.yml',
