@@ -80,9 +80,11 @@ def review_snapshot(entries, day, commit):
             source_title = jst(archive["source_title_received_jst"])
             if not (source_cards <= generated and source_title <= generated):
                 raise ValueError("source_timestamp_after_forecast_generation")
-            if type(archive.get("source_sha256")) is not str or not re.fullmatch(
-                r"[0-9a-f]{64}", archive["source_sha256"]
-            ):
+            digests = archive.get("source_sha256")
+            if (type(digests) is not dict or
+                    set(digests) != {"race_cards", "title"} or
+                    any(type(v) is not str or re.fullmatch(r"[0-9a-f]{64}", v) is None
+                        for v in digests.values())):
                 raise ValueError("missing_input_source_digest")
             if type(archive.get("validated")) is not bool or archive["validated"] is not False:
                 raise ValueError("unfounded_archived_validation_flag")
