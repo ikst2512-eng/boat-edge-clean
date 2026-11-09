@@ -48,3 +48,19 @@ Each run of this read-only audit inspected the REST **commit-files list with `st
 5. **Cannot release cross-provider rescue:** Native CLEAN's pending queue can still be displaced by a new rescue `workflow_dispatch`, and Render does not share the Cloudflare-only research Durable Object. `CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED=true` stays in place. Cloudflare Free live CPU/Cron remain unmeasured and formally recognized recovery count remains **0**.
 
 **Owner handoff:** Independently fetch raw REST/HTTP responses with retained query timestamps and hashes, validate Git parent/tree/diff and original bytes for *each* target race, correlate the real native workflow run with the exact commit/first-add, then attach actual public/official source original receipts and GitHub-server observation evidence. Keep this current observation as a narrow but real provenance example, not a fabricated end-to-end forecast certification.
+
+
+## Repeatable read-only REST verifier (Draft research)
+
+The addition `cloudflare/remote_github_first_add_audit.mjs` and CLI `scripts/audit_github_real_first_add.mjs` can re-fetch this sample directly from **public GitHub REST**, using only GET requests (no PAT, POST, dispatch, git push, or workspace writes):
+
+```sh
+node scripts/audit_github_real_first_add.mjs clean 202611090203 a4e7168f8af26e989d45df76746ae24b3fa5b690
+node scripts/audit_github_real_first_add.mjs four_mode 202611090203 ebe9b8ee18c34acda480a6d498c930c6c3b8b8be
+```
+
+The verifier requests exact commit metadata; its `files[]` entry with `status:"added"` and matching blob SHA; raw content at the commit via the Contents API; the same object via Git Blob API; an **HTTP 404 for the exact same path at the immediate parent**; and ancestry from the target commit to current `main`. It calculates Git's SHA-1 over the *actual binary blob bytes* and the independent raw SHA-256, and validates the original record's race identity, source digests and local clock chronology. Every other GitHub API status, fabricated path or malformed blob fails closed. This is stronger than accepting a manually assembled JSON manifest.
+
+The test suite uses **intercepted mock GET responses** to prove these failure gates without relying on public API availability during CI. The original GitHub connector direct-read checks above, however, were performed on *real* GitHub data. No claim is made that this CLI was executed live inside GitHub Actions or that the raw HTTP receipts were cryptographically signed. The tool outputs `github_remote_first_seen_timestamp_proven:false`, `native_run_id_independently_proven:false`, `cloudflare_rescue_dispatch_proven:false`, and `official_t_minus_12_proven:false` regardless of success.
+
+The real observed commit-file lists for these two sample commits contained 107 and 104 entries respectively; no claim is made here about all paths being audited. Re-run with the network and current GitHub main available; if GitHub returns 403/rate limit or the sample is not an ancestor of main, the verifier refuses a passing result.
