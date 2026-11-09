@@ -327,6 +327,51 @@ jobs:
                   raise AssertionError('manual_history_fail_closed_case_missed')
           print('REVIEW_ONLY_GATE_PASS_bounded_visibility_retry_and_history_fail_closed')
           PY
+      - name: Audit exact default-main gateway path (read-only registration prerequisite)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fetch public main only; never write a repository ref or dispatch.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          python - <<'PY'
+          import json
+          import re
+          import subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          main = git('rev-parse', '--verify', 'refs/remotes/origin/main')
+          if not re.fullmatch('[0-9a-f]{40}', main):
+              raise SystemExit('invalid_immutable_default_main_sha')
+          tracked = git('ls-tree', '-r', '--name-only', main, '--', '.github/workflows/')
+          paths = set(tracked.splitlines())
+          preferred = '.github/workflows/hole-pair-manual-gateway.yml'
+          competitors = (
+              '.github/workflows/hole-pair-manual-research-gateway.yml',
+              '.github/workflows/hole-future-pair-precommit.yml',
+          )
+          other_paths = sorted(x for x in competitors if x in paths)
+          # A complete default-Git-tree path check is NOT an Actions REST
+          # registration/permission test or proof of any live dispatch.
+          report = {
+              'schema': 'HOLE_PAIR_EXACT_PATH_DEFAULT_MAIN_READINESS_V1',
+              'default_main_sha': main,
+              'exact_gateway_path': preferred,
+              'exact_gateway_file_in_default_git_tree': preferred in paths,
+              'competing_gateway_files_in_default_git_tree': other_paths,
+              'registration_prerequisite_path_satisfied': preferred in paths and not other_paths,
+              'github_actions_registration_or_manual_dispatch_verified': False,
+              'capture_job_executed': False,
+              'new_candidate_artifact_created': False,
+              'independent_first_remote_receipt_verified': False,
+              'official_t12_complete_verified': False,
+              'formal': False,
+              'production_promotion_allowed': False,
+              'main_modified': False,
+          }
+          print('EXACT_GATEWAY_DEFAULT_MAIN_READINESS', json.dumps(report, sort_keys=True))
+          if other_paths:
+              raise SystemExit('competing_default_main_gateway_present_hold')
+          PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
