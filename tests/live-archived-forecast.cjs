@@ -6,6 +6,26 @@ const {chromium,webkit}=require('playwright');
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
+  // Read-only observation on the *published* WebKit page. Do not suppress
+  // SecurityError: the existing E2E job must remain red until deployed code works.
+  if(browserEngine==='webkit'){
+   await page.addInitScript(()=>{
+    const evidence={pushState:0,replaceState:0,recent:[]};
+    Object.defineProperty(window,'__cleanPublicHistoryEvidence',{value:evidence});
+    for(const method of ['pushState','replaceState']){
+     const original=history[method].bind(history);
+     history[method]=function(...args){
+      evidence[method]++;
+      const row={method,atMs:Math.round(performance.now()),
+       destination:String(args[2]??'').slice(0,130),
+       site:(new Error().stack||'').split('\n').slice(2,5).join(' | ').slice(0,380)};
+      evidence.recent.push(row);
+      if(evidence.recent.length>16)evidence.recent.shift();
+      return original(...args);
+     };
+    }
+   });
+  }
   // Transient Render 429/5xx/transport failures must be visible in CI logs.
   // Retry only a bounded number of times; never accept error or altered data.
   async function getArchiveWithRetry(code){
@@ -514,5 +534,15 @@ const {chromium,webkit}=require('playwright');
   }
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
+ }catch(error){
+  if(browserEngine==='webkit'){
+   const evidence=await page.evaluate(()=>window.__cleanPublicHistoryEvidence||null)
+    .catch(e=>({diagnosticUnavailable:String(e).slice(0,200)}));
+   console.error('PUBLIC_WEBKIT_HISTORY_FAILURE_DIAGNOSTIC '+JSON.stringify({
+    error:String(error).slice(0,220),evidence,
+    source:'published Pages, not Draft HTML',failureUnchanged:true
+   }));
+  }
+  throw error;
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
