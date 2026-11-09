@@ -1,15 +1,17 @@
 'use strict';
-// Manual postdeploy gate: compare actual public GitHub Pages asset BYTES with
-// the checked-out release candidate. No browser hooks, proxying, or mocks.
-// This does not prove the deployed Render SHA, iPhone hardware or uptime.
+// Manual postdeploy gate: compare actual public Pages AND Render asset BYTES
+// with the checked-out release candidate. No browser hooks, proxying or mocks.
+// It proves served frontend parity, NOT deployed Render server.py commit SHA,
+// physical iPhone hardware or long-term uptime.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 
-const SITE = 'https://ikst2512-eng.github.io/boat-edge-clean/';
+const PAGES = 'https://ikst2512-eng.github.io/boat-edge-clean/';
+const RENDER = 'https://boat-edge-clean.onrender.com/';
 const ASSETS = [
-  {path:'index.html', url:SITE},
-  {path:'navigation.js',url:SITE+'navigation.js'},
+  {path:'index.html', urls:[PAGES,RENDER]},
+  {path:'navigation.js', urls:[PAGES+'navigation.js',RENDER+'navigation.js']},
 ];
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function assertEqualBytes(name, expected, actual) {
@@ -47,13 +49,15 @@ async function verifyPublishedAssets() {
     'Explicit checked-out 40-hex GitHub release SHA required');
   for(const asset of ASSETS){
     const expected=fs.readFileSync(asset.path);
-    const actual=await fetchBytes(asset.url,release);
-    const digest=assertEqualBytes(asset.path,expected,actual);
-    console.log('PUBLIC_PAGES_ASSET_BYTE_IDENTICAL path='+asset.path+
-      ' sha256='+digest+' checked_out_commit='+release);
+    for(const url of asset.urls){
+      const actual=await fetchBytes(url,release);
+      const digest=assertEqualBytes(asset.path+' '+new URL(url).hostname,expected,actual);
+      console.log('PUBLIC_FRONTEND_ASSET_BYTE_IDENTICAL host='+new URL(url).hostname+
+        ' path='+asset.path+' sha256='+digest+' checked_out_commit='+release);
+    }
   }
-  console.log('PUBLIC_PAGES_HTML_AND_NAV_ASSETS_VERIFIED');
-  console.log('DO_NOT_INFER: Render_deployed_sha, physical_iPhone, full_uptime, accuracy');
+  console.log('PUBLIC_PAGES_RENDER_FRONTEND_PARITY_VERIFIED');
+  console.log('DO_NOT_INFER: Render_server_code_SHA, physical_iPhone, full_uptime, accuracy');
 }
 function selfTest() {
   const good=Buffer.from('candidate-asset');
