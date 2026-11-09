@@ -1,0 +1,59 @@
+name: Isolated conditional 2nd-3rd feature lab (research only)
+on:
+  pull_request:
+    paths:
+      - 'position_sensitive_conditioned_lab.py'
+      - 'test_position_sensitive_conditioned_lab.py'
+      - 'docs/research/conditioned_second_third_feature_lab_20261109.md'
+      - '.github/workflows/position-sensitive-conditioned-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-conditional-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic only; no outcome, network or external runner dependencies
+        run: python -m unittest -v test_position_sensitive_conditioned_lab
+      - name: Ensure preregistered 300+300 model and baseline blobs unchanged
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=json.loads(Path('research/four_mode_position_sensitive_forward_protocol_20261108.json').read_text())
+          for field,path in {
+              'candidate_selector_git_blob_sha1':'four_mode_position_sensitive_shadow.py',
+              'original_model_git_blob_sha1':'research_model.py',
+              'mode_selector_git_blob_sha1':'clean_four_modes.py'
+          }.items():
+              data=Path(path).read_bytes()
+              observed=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+              if p[field] != observed:
+                  raise SystemExit('preregistered_frozen_blob_changed:'+path)
+          if p['promotion_allowed'] is not False or p['formal'] is not False:
+              raise SystemExit('promotion_guard_changed')
+          print('PREREGISTERED_FROZEN_BLOBS_UNCHANGED')
+          PY
+      - name: Reproduce saved Nov 8 original board without looking at results
+        run: |
+          python four_mode_position_sensitive_shadow.py --day 20261108 > input_only_replay.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('input_only_replay.json').read_text())
+          if (d.get('compared') != 116 or d.get('excluded') != 0
+                  or d.get('formal') is not False
+                  or d.get('model_improvement_proven') is not False):
+              raise SystemExit('116_original_replay_drift')
+          print('ORIGINAL_INPUT_ONLY_REPLAY_116_OF_116')
+          PY
