@@ -52,3 +52,23 @@ Tests cannot supply a real-native-event timestamp, on-time CPU reading, or immut
 **Current independent recovery formal successes: 0.** GitHub API history checks, SQLite reservation, `queue:max`, green CI, a mocked 200 run ID and manually normalized observer logs **must not be counted as real coverage**. The safer sequence is **Observer-only Cloudflare Free → full-day CPU/Cron evidence → publisher-owned concurrency/idempotency fixes on separate Drafts → replay tests → independently authorized recovery pilot → real first-add/T−12 audit**.
 
 This document is a *testable engineering handoff*; it does not represent a deployed or running backup.
+
+
+## 2026-11-09 — native capture-slot attribution gap: run ID != requested slot
+
+Read-only inspection of current repo source (no native workflow changes):
+
+- `.github/workflows/clean-prospective.yml` and `.github/workflows/four-mode-prospective-capture.yml` declare `workflow_dispatch:` **without any `inputs`**. Cloudflare's dispatch body is exactly `{"ref":"main","return_run_details":true}`—it does not name an original capture slot.
+- CLEAN executes `python collect_clean_prospective.py` with no `--date`; `collect(day=None)` selects today's JST date from `datetime.now(JST)`.
+- Four-mode executes `python clean_four_mode_capture.py`; `collect(...,now=None,...)` also resolves the JST date using the execution-time clock. It collects whatever live, cutoff-safe candidates exist when its runner actually executes, **not an immutable snapshot of the earlier Cloudflare recovery decision time**.
+- The Worker infers `slot_jst` from the Cron tick and GitHub histories. This is a **decision-time label**, not proof that the actual GitHub run carried that slot identifier to the publisher or that a given cutoff's original forecast was generated.
+
+The Draft recovery policy now always emits `github_execution_slot_bound_proven:false` beside each HTTP-200 `github_run_id_reported` in both the summary and immutable-safe receipt. No test, synthetic GitHub 200, successful SQLite DO reservation or server-created run ID may turn this true. Node tests directly assert both native YAML `workflow_dispatch` declarations and both collectors' use of live time; Workerd mocked API tests assert the receipt still carries `false`. If native owners modify these contracts, the static tests are intended to trigger review, **not silently reclassify an old HTTP 200 as proof**.
+
+**Why it matters:** GitHub `schedule` events can be delayed or dropped under high load; workflow-level `queue:single` may replace a pending CLEAN native capture, while `queue:max` can delay a four-mode job. A GitHub 200 response and run ID do not establish that the desired earlier slot was actually served before any per-race T−12 cutoff. Official source: [GitHub scheduled workflow delay/drop guidance](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) and [concurrency queue behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+**Publisher-owned options (not implemented in this PR):**
+1. Add a versioned optional `workflow_dispatch` input such as a validated `requested_slot_jst` and immutable source/cutoff provenance; explicitly separate it from the *actual execution time*. Native owner must decide whether a delayed run can legitimately capture **still-future eligible races**, rather than backdating source receipts or publishing an expired slot. This alone does not guarantee publication before T−12, prevent duplicate writes or coordinate with Render.
+2. Alternatively retain live-time collectors without a slot input, but independently reconcile **each real GitHub run ID → generated forecast path → server-confirmed first-add commit SHA → original source receipts/cutoff**. Only those per-race facts may prove an on-time saved forecast; no strict one-slot-to-one-run claim is made.
+
+Until such independent publication evidence exists, the operational state remains **NO-GO**, and `github_execution_slot_bound_proven:false` is mandatory. Research testing only; PR #1697 Draft/unmerged, observer-only first-stage, no Cloudflare deployment, no main/Render/native Actions modification, no real GitHub POST.
