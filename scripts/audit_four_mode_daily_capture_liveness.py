@@ -7,7 +7,10 @@ from missing forecast files.
 import argparse
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
+from scripts.audit_four_mode_daily_schedule_runs import (
+    NOMINAL_DAILY_CAPTURE_SLOTS, SCHEDULE_OBSERVATION_GRACE,
+)
 from pathlib import Path
 
 JST = timezone(timedelta(hours=9))
@@ -25,6 +28,12 @@ def report(day, inventory):
     if not isinstance(inventory, dict) or not isinstance(inventory.get("recent_capture_runs"), list):
         raise ValueError("invalid capture inventory")
     selected = []
+    in_window = []
+    outside_window_run_ids = {"pre_opening": [], "after_last_slot_grace": []}
+    first = datetime.combine(
+        datetime.strptime(day, "%Y%m%d").date(), time(7, 7), tzinfo=JST)
+    last = (first + timedelta(minutes=15 * (NOMINAL_DAILY_CAPTURE_SLOTS - 1))
+            + SCHEDULE_OBSERVATION_GRACE)
     seen_run_ids = set()
     for run in inventory["recent_capture_runs"]:
         if not isinstance(run, dict) or run.get("workflow") != CAPTURE or run.get("event") not in EVENTS:
@@ -41,8 +50,15 @@ def report(day, inventory):
             raise ValueError("invalid capture timestamp") from exc
         if instant.tzinfo is None:
             raise ValueError("capture timestamp has no timezone")
-        if instant.astimezone(JST).strftime("%Y%m%d") == day:
+        local = instant.astimezone(JST)
+        if local.strftime("%Y%m%d") == day:
             selected.append(run)
+            if local < first:
+                outside_window_run_ids["pre_opening"].append(run_id)
+            elif local > last:
+                outside_window_run_ids["after_last_slot_grace"].append(run_id)
+            else:
+                in_window.append(run)
     # GitHub can report completed with a null conclusion while the outcome is
     # still unsettled. Count such executions explicitly as unknown, not a
     # confirmed failure or a successful capture.
@@ -79,6 +95,15 @@ def report(day, inventory):
         "day_jst": day,
         "status": status,
         "same_day_run_ids": [r["id"] for r in selected],
+        "same_day_in_capture_window_run_ids": [r["id"] for r in in_window],
+        "same_day_outside_capture_window_run_ids": outside_window_run_ids,
+        "completed_success_in_capture_window_count": sum(
+            r.get("status") == "completed" and r.get("conclusion") == "success"
+            for r in in_window),
+        "capture_window_success_observed": any(
+            r.get("status") == "completed" and r.get("conclusion") == "success"
+            for r in in_window),
+        "per_nominal_slot_capture_delivery_verified": False,
         "capture_coverage_incomplete": capture_coverage_incomplete,
         "completed_success_count": sum(r.get("status") == "completed" and r.get("conclusion") == "success" for r in selected),
         "completed_failure_count": sum(r.get("status") == "completed" and r.get("conclusion") == "failure" for r in selected),
@@ -90,16 +115,21 @@ def report(day, inventory):
             and r.get("conclusion") not in ("success", None) for r in selected),
         "publication_verified": False,
         "predeadline_source_verified": False,
-        "note": "Workflow run presence or success alone does not prove Git archive publication.",
+        "note": ("Workflow run presence or success alone does not prove Git "
+                 "archive publication. A successful run created outside the "
+                 "07:07-20:57 JST capture window is not evidence of in-window "
+                 "capture execution or any individual scheduled slot."),
     }
 
 
 def should_fail(result, event, ref):
     return (event == "schedule" and ref == "refs/heads/main"
-            and result.get("status") in ("no_capture_runs_observed", "all_observed_captures_failed",
-                                        "capture_inventory_unavailable",
-                                        "capture_inventory_incomplete",
-                                        "capture_outcome_unknown"))
+            and (result.get("status") in (
+                "no_capture_runs_observed", "all_observed_captures_failed",
+                "capture_inventory_unavailable", "capture_inventory_incomplete",
+                "capture_outcome_unknown")
+                or (result.get("status") == "capture_success_observed"
+                    and result.get("capture_window_success_observed") is False)))
 
 
 def main():
@@ -119,6 +149,12 @@ def main():
             "status": "capture_inventory_unavailable",
             "error_type": type(exc).__name__,
             "same_day_run_ids": [],
+            "same_day_in_capture_window_run_ids": [],
+            "same_day_outside_capture_window_run_ids": {
+                "pre_opening": [], "after_last_slot_grace": []},
+            "completed_success_in_capture_window_count": 0,
+            "capture_window_success_observed": False,
+            "per_nominal_slot_capture_delivery_verified": False,
             "completed_success_count": 0,
             "completed_failure_count": 0,
             "pending_count": 0,
