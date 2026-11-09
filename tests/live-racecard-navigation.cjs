@@ -224,7 +224,26 @@ const {chromium}=require('playwright');
         previewStatus:document.getElementById('forecastPreviewStatus')?.textContent?.trim()?.slice(0,220)||''
        };
       }).catch(e=>({diagnosticError:String(e)}));
-      console.error('LIVE_EXHIBITION_DOM_TIMEOUT_NOT_A_PASS '+JSON.stringify({race:expected,dom,pageErrors:errors.slice(0,5),reason:String(error)}));
+      // A passing direct API response and a still-pending 12s UI are distinct
+      // failure modes. Observe again AFTER the UI's own 15s fetch timeout.
+      // The original 12s failure is still thrown below; never grant a pass.
+      const afterUiTimeout=await page.waitForTimeout(4000).then(()=>page.evaluate(()=>{
+       const entries=performance.getEntriesByType('resource')
+        .filter(entry=>entry.name.includes('/api/clean-racecard?')).slice(-6);
+       return {
+        raceKey:typeof sameRaceKey==='function'?sameRaceKey():'unavailable',
+        view:typeof activeView==='string'?activeView:'unavailable',
+        previewRows:document.getElementById('forecastPreviewRows')?.children.length??null,
+        previewStatus:document.getElementById('forecastPreviewStatus')?.textContent?.trim()?.slice(0,220)||'',
+        resourceTimings:entries.map(entry=>({
+         name:entry.name.slice(0,180),durationMs:Math.round(entry.duration),
+         responseEndMs:Math.round(entry.responseEnd),initiator:entry.initiatorType
+        }))
+       };
+      })).catch(e=>({diagnosticError:String(e)}));
+      console.error('LIVE_EXHIBITION_DOM_TIMEOUT_NOT_A_PASS '+JSON.stringify({
+       race:expected,dom,afterUiTimeout,pageErrors:errors.slice(0,5),reason:String(error)
+      }));
       throw error;
      }
      const displayed=await page.locator('#forecastPreviewRows .clean-race-lane').allInnerTexts();
