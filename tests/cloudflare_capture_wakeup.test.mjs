@@ -976,3 +976,81 @@ test('cross-provider counterexample summary keeps recovery NO-GO and no event ev
   assert.equal(x.cross_provider_safe,false);
   assert.equal(x.recovery_release_approved,false);
 });
+
+
+test('late native CLEAN schedule appears after four complete GETs but before Cloudflare POST: pending original can be displaced',async()=>{
+  // Real execute() uses four complete, self-consistent GitHub history pages.
+  // GitHub may create a delayed schedule run immediately AFTER those reads.
+  // This models the documented concurrency queue; it does NOT perform a real dispatch.
+  const now=tick(7,10),m=mock(),receipts=[];
+  let sawCleanPost=false;
+  const fetcher=async(url,options)=>{
+    if(options.method==='POST' && url.includes('/'+WORKFLOWS.clean+'/')){
+      sawCleanPost=true;
+      assert.equal(m.calls.filter(x=>x.method==='GET').length,4);
+      const q=simulateGitHubConcurrency({
+        queue:'single',running:'previous_clean_capture_still_running',
+        arrivals:['native_schedule_created_after_history_GET','cloudflare_POST_for_same_slot'],
+      });
+      assert.deepEqual(q.canceled,['native_schedule_created_after_history_GET']);
+      assert.deepEqual(q.pending,['cloudflare_POST_for_same_slot']);
+      assert.equal(q.production_dispatch_safe,false);
+    }
+    return m.fetcher(url,options);
+  };
+  const out=await execute({scheduledTime:now,now,token:'TEST_ONLY',fetcher,
+    onAccepted:r=>receipts.push(r)});
+  assert.equal(sawCleanPost,true);
+  assert.equal(m.calls.filter(x=>x.method==='GET').length,4);
+  assert.equal(m.calls.filter(x=>x.method==='POST').length,2);
+  assert.equal(receipts.length,2);
+  assert.equal(out.workflows.clean.github_run_id_reported,100101);
+  assert.equal(out.formal,false);
+  assert.equal(out.new_forecast_saved_proven,false);
+  // Green test is NEGATIVE architectural evidence, NOT successful recovery.
+});
+
+test('late native four-mode schedule after complete GET produces two pending runs, not one publication',async()=>{
+  const now=tick(7,10),m=mock();
+  let captured=false;
+  const fetcher=async(url,options)=>{
+    if(options.method==='POST' && url.includes('/'+WORKFLOWS.four_mode+'/')){
+      const q=simulateGitHubConcurrency({
+        queue:'max',running:'prior_four_mode_capture_running',
+        arrivals:['native_schedule_created_after_history_GET','cloudflare_POST_for_same_slot'],
+      });
+      assert.deepEqual(q.canceled,[]);
+      assert.equal(q.pending.length,2);
+      assert.equal(q.verified_cross_provider_idempotency,false);
+      captured=true;
+    }
+    return m.fetcher(url,options);
+  };
+  const out=await execute({scheduledTime:now,now,token:'TEST_ONLY',fetcher});
+  assert.equal(captured,true);
+  assert.equal(out.workflows.four_mode.github_run_id_reported,100102);
+  assert.equal(out.on_time_cron_proven,false);
+  assert.equal(out.new_forecast_saved_proven,false);
+  assert.equal(out.formal,false);
+});
+
+test('complete GitHub run history cannot be treated as a cross-provider lock after GET',async()=>{
+  const now=tick(7,10),calls=[],nativeAfterRead=[];
+  const mocker=mock();
+  const fetcher=async(url,options)=>{
+    calls.push(options.method);
+    if(options.method==='GET'){
+      const result=await mocker.fetcher(url,options);
+      if(calls.filter(x=>x==='GET').length===4){
+        nativeAfterRead.push('native_schedule_visible_only_after_GitHub_snapshot');
+      }
+      return result;
+    }
+    assert.equal(nativeAfterRead.length,1);
+    return mocker.fetcher(url,options);
+  };
+  await execute({scheduledTime:now,now,token:'TEST_ONLY',fetcher});
+  assert.deepEqual(calls,['GET','GET','GET','GET','POST','POST']);
+  // No amount of first-page pagination validation can detect a future event.
+  assert.equal(nativeAfterRead.length,1);
+});
