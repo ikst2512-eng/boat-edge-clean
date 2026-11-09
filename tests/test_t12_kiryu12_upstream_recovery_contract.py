@@ -54,6 +54,30 @@ class RetiredOneDateWorkflowReferences(unittest.TestCase):
         for name in self.RETIRED:
             self.assertFalse((folder / name).exists(), name)
 
+    def test_no_other_live_source_or_test_reads_removed_workflow_paths(self):
+        # Scan code and tests, not only workflow YAML. Ignore documentation and
+        # the frozen historical fixture; those may legitimately name old jobs.
+        root = Path(__file__).resolve().parents[1]
+        suffixes = {".py", ".js", ".cjs", ".mjs", ".yml", ".yaml"}
+        references = []
+        for folder in (root, root / "scripts", root / "tests", root / "cloudflare", root / "research"):
+            if folder == root:
+                files = (p for p in folder.iterdir() if p.is_file())
+            elif folder.exists():
+                files = folder.rglob("*")
+            else:
+                continue
+            for path in files:
+                if not path.is_file() or path.suffix not in suffixes or path == Path(__file__).resolve():
+                    continue
+                if "fixtures" in path.parts or "__pycache__" in path.parts:
+                    continue
+                source = path.read_text(encoding="utf-8")
+                for basename in self.RETIRED:
+                    if basename in source:
+                        references.append((str(path.relative_to(root)), basename))
+        self.assertEqual([], references, "source still hardcodes retired active workflow")
+
     def test_no_active_workflow_dispatches_or_triggers_retired_jobs(self):
         root = Path(__file__).resolve().parents[1]
         paths = sorted((root / ".github" / "workflows").glob("*.yml"))
