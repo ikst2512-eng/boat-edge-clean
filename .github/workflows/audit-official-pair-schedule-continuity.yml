@@ -24,6 +24,8 @@ on:
       - tests/test_audit_t12_nov09_real_pair_forecast_replay.py
       - scripts/audit_t12_cross_workflow_schedule.py
       - tests/test_audit_t12_cross_workflow_schedule.py
+      - scripts/audit_t12_remote_artifact_publication.py
+      - tests/test_audit_t12_remote_artifact_publication.py
       - .github/workflows/audit-official-pair-schedule-continuity.yml
   workflow_dispatch:
     inputs:
@@ -56,6 +58,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_multiday_schedule_trend.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_nov09_real_pair_forecast_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_cross_workflow_schedule.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
       - name: Replay actual official-pair run inventory (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -174,6 +177,17 @@ jobs:
             --repo "$REPOSITORY" \
             --extracted-root historical-artifacts/run-42567310743 \
             --output reports/official_t12_nov09_source_vs_forecast.json
+      - name: Check independent GitHub Actions archive upload timing for real Nov9 official pairs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # GitHub server-created/updated Actions artifact clocks, not model
+          # generation or first forecast Git remote receipt. Fail closed.
+          python -m scripts.audit_t12_remote_artifact_publication \
+            --repo "$REPOSITORY" \
+            --replay reports/official_t12_nov09_source_vs_forecast.json \
+            --output reports/official_t12_nov09_remote_archive_time.json
       - name: Inspect CURRENT JST racing day's collector and durable originals (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -207,5 +221,6 @@ jobs:
             reports/official_t12_live_day_blockers.json
             reports/official_t12_nov09_source_vs_forecast.json
             reports/t12_cross_workflow_schedule_controls.json
+            reports/official_t12_nov09_remote_archive_time.json
           if-no-files-found: error
           retention-days: 30
