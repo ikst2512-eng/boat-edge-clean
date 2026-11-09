@@ -1054,3 +1054,37 @@ test('complete GitHub run history cannot be treated as a cross-provider lock aft
   // No amount of first-page pagination validation can detect a future event.
   assert.equal(nativeAfterRead.length,1);
 });
+
+
+test('two possible CLEAN arrival orders cancel different pending runs under current single queue',()=>{
+  const orders=[
+    ['native_schedule_delayed','cloudflare_rescue'],
+    ['cloudflare_rescue','native_schedule_delayed'],
+  ];
+  for(const order of orders){
+    const q=simulateGitHubConcurrency({
+      queue:'single',running:'old_clean_capture_running',arrivals:order,
+    });
+    assert.deepEqual(q.canceled,[order[0]],'new arrival replaces the other pending capture');
+    assert.deepEqual(q.pending,[order[1]]);
+    assert.equal(q.actual_github_run_evidence,false);
+    assert.equal(q.production_dispatch_safe,false);
+  }
+});
+
+test('counterfactual CLEAN queue max preserves both pending jobs, but does NOT prevent duplicates or full-queue loss',()=>{
+  const both=simulateGitHubConcurrency({
+    queue:'max',running:'old_clean_capture_running',
+    arrivals:['native_schedule_delayed','cloudflare_rescue'],
+  });
+  assert.deepEqual(both.pending,['native_schedule_delayed','cloudflare_rescue']);
+  assert.deepEqual(both.canceled,[]);
+  assert.equal(both.verified_cross_provider_idempotency,false);
+  // The 101st new pending job is still canceled by GitHub's documented limit.
+  const saturated=simulateGitHubConcurrency({
+    queue:'max',running:'old_clean_capture_running',
+    arrivals:[...Array.from({length:100},(_,i)=>'unrelated_pending_'+i),'native_schedule_delayed'],
+  });
+  assert.deepEqual(saturated.canceled,['native_schedule_delayed']);
+  assert.equal(saturated.production_dispatch_safe,false);
+});
