@@ -139,6 +139,24 @@ jobs:
             --repo "$REPOSITORY" \
             --extracted-root historical-artifacts \
             --output reports/historical_real_source_forecast_replay.json
+      - name: Inspect CURRENT JST racing day's collector and durable originals (read only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # A UTC 00:00-12:55 cron slot is 09:00-21:55 on that SAME JST date.
+          # This additional live snapshot never replaces completed historical cohorts.
+          current_day="$(date -u +%Y%m%d)"
+          python -m scripts.audit_official_pair_schedule_continuity \
+            --repo "$REPOSITORY" --day-utc "$current_day" \
+            --output reports/official_pair_schedule_live_day.json
+          python -m scripts.audit_t12_external_archive_presence \
+            --repo "$REPOSITORY" --day-jst "$current_day" \
+            --output reports/official_three_archive_live_day.json
+          python -m scripts.audit_t12_blocker_join \
+            --schedule reports/official_pair_schedule_live_day.json \
+            --archive reports/official_three_archive_live_day.json \
+            --output reports/official_t12_live_day_blockers.json
       - name: Preserve read-only metadata report separately from original receipts
         uses: actions/upload-artifact@v4
         with:
@@ -149,5 +167,8 @@ jobs:
             reports/official_t12_same_day_blockers.json
             reports/official_t12_eight_day_schedule_trend.json
             reports/historical_real_source_forecast_replay.json
+            reports/official_pair_schedule_live_day.json
+            reports/official_three_archive_live_day.json
+            reports/official_t12_live_day_blockers.json
           if-no-files-found: error
           retention-days: 30
