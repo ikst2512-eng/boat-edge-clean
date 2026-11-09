@@ -1399,3 +1399,33 @@ test('four-mode local first-add evidence checks T-20 generation, research schema
     assert.equal(result.official_t_minus_12_proven,false);
   }
 });
+
+
+test('offline first-add CLI emits exact hash, accepts local CLEAN consistency and refuses forged blob',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-first-add-'));
+  const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_first_add_manifest.mjs',import.meta.url));
+  try{
+    const path=join(dir,'first-add-manifest.json');
+    const valid=syntheticLocalFirstAdd();
+    writeFileSync(path,JSON.stringify(valid),'utf8');
+    let result=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(result.status,0,result.stderr);
+    const passed=JSON.parse(result.stdout);
+    assert.equal(passed.local_content_consistency_pass,true);
+    assert.match(passed.input_sha256,/^[0-9a-f]{64}$/);
+    assert.equal(passed.git_first_add_parent_tree_independently_proven,false);
+    assert.equal(passed.remote_server_first_receipt_independently_proven,false);
+    assert.equal(passed.official_t_minus_12_proven,false);
+    valid.records[0].original_git_blob_utf8+='tampered';
+    writeFileSync(path,JSON.stringify(valid),'utf8');
+    result=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(result.status,1,result.stderr);
+    const failed=JSON.parse(result.stdout);
+    assert.equal(failed.local_content_consistency_pass,false);
+    assert.ok(failed.issue_count>0);
+    writeFileSync(path,'{bad json','utf8');
+    result=spawnSync(process.execPath,[cli,path],{encoding:'utf8',timeout:15000});
+    assert.equal(result.status,2);
+    assert.match(result.stderr,/FIRST_ADD_MANIFEST_REJECTED/);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+});
