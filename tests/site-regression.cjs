@@ -440,12 +440,17 @@ assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pag
 assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
 console.log('PASS: Pages project-path review navigation regression');
 
-// BOATERS-inspired single-page forecast must not regress to scattered panels.
+// Tickets stay on the prediction pane. Historical/statistical tables live
+// exclusively in the adjacent rates pane for the same selected race.
 const resultFirst=html.indexOf('id="forecastResultFirstStatus"');
-const prediction=html.indexOf('id="predictionRows"');
+const prediction=html.indexOf('id="fourModeForecastRows"');
+const statsPane=html.indexOf('<section class="forecast-stats-pane"');
 const leader=html.indexOf('id="forecastLeaderRows"');
 const evidence=html.indexOf('id="forecastEvidenceStatus"');
-assert.ok(resultFirst>=0&&resultFirst<prediction&&prediction<leader&&leader<evidence,'result, prediction, conditional stats and preview should share one ordered page');
+assert.ok(resultFirst>=0&&resultFirst<prediction&&prediction<statsPane&&statsPane<leader&&leader<evidence,'prediction and rates must be separate correctly ordered tabs');
+const predictionPane=html.slice(html.indexOf('<section class="forecast-combined-race"'),statsPane);
+for(const forbidden of ['id="forecastLeaderRows"','class="forecast-statistics"','id="entryScenarioPanel"','id="legacyTopnResearch"'])
+ assert.ok(!predictionPane.includes(forbidden),'forecast must show only prediction, not '+forbidden);
 for(let lane=1;lane<=6;lane++)assert.ok(html.includes('data-forecast-leader="'+lane+'"'),'missing leader '+lane);
 assert.ok(script.includes('function selectForecastLeader(leader)'),'leader selection must respond to interaction');
 assert.ok(script.includes('forecastEvidenceMirror.observe'),'verified predeadline preview must be mirrored without an extra fetch');
