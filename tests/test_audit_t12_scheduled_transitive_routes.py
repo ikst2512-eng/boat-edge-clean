@@ -153,7 +153,7 @@ jobs:
       - uses: actions/setup-python@v5
       - run: python -m scripts.entry
 """
-        result = report({"scripts/entry.py": b"pass\\n"}, {PREFIX+"setup.yml": workflow})
+        result = report({"scripts/entry.py": b"pass\n"}, {PREFIX+"setup.yml": workflow})
         row = result["rows"][0]
         self.assertTrue(row["only_external_action_unresolved"])
         self.assertEqual(result["scheduled_with_only_external_action_unknown"], 1)
@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: python -m scripts.entry
 """
-        result = report({"scripts/entry.py": b"pass\\n"}, {PREFIX+"custom.yml": workflow})
+        result = report({"scripts/entry.py": b"pass\n"}, {PREFIX+"custom.yml": workflow})
         row = result["rows"][0]
         self.assertEqual(row["external_other_action_refs"], ["third-party/capture@v1"])
         self.assertEqual(result["scheduled_with_other_external_action_refs"], 1)
@@ -192,7 +192,7 @@ jobs:
       - uses: actions/setup-python@v5
       - run: python -m scripts.entry
 """
-        entry = b"import importlib\\nimportlib.import_module(input())\\n"
+        entry = b"import importlib\nimportlib.import_module(input())\n"
         result = report({"scripts/entry.py": entry}, {PREFIX+"dynamic.yml": workflow})
         row = result["rows"][0]
         self.assertIn("dynamic_import", row["unresolved_non_external"])
@@ -216,7 +216,7 @@ jobs:
       - uses: vendor/custom@v2
       - run: python -m scripts.entry
 """
-        result = report({"scripts/entry.py": b"pass\\n"},
+        result = report({"scripts/entry.py": b"pass\n"},
                         {PREFIX+"start.yml": workflow, PREFIX+"helper.yml": helper})
         row = next(x for x in result["rows"] if x["workflow"] == PREFIX+"start.yml")
         self.assertIn("vendor/custom@v2", row["external_action_refs"])
