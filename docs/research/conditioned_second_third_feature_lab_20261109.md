@@ -88,3 +88,17 @@ and checks the reconstruction of all **120** tickets. For each of six first boat
 
 This decomposition is included alongside the four-mode Top1/3/5/10 rank/membership and leave-one-feature-out inspection. Equal boards yield zero conditional differences and no forced ranking diversity. It remains entirely outcome-blind, unregistered, synthetic/manual-input research. The head/second/third explanation is **not** used in production or UI, and must not be presented as a confirmed mechanism without official source receipts and future outcome validation.
 
+
+## Independent #1694 T−12 report compatibility — read-only blocker bridge
+
+The scope is now coordinated with [the shared all-four-mode acceptance Issue #1708](https://github.com/ikst2512-eng/boat-edge-clean/issues/1708), without taking over #1694's official source or first remote receipt auditing.
+
+`position_sensitive_cross_pr_t12_bridge.py` consumes, **when explicitly supplied**, the pre-existing #1694 schema `T12_SAME_RACE_INDEPENDENT_PROOF_CHAIN_V1`, plus an untrusted optional list of candidate race codes. It **does not implement a new collector, parser, source-origin verifier, remote receipt tool, or confidence scorer**; it only checks report/race identity and component consistency, keeps unreported races absent, and produces a per-race unresolved-blocker map. Supplying the original #1694 report as an ordinary caller JSON does not prove that it is the authenticated report emitted by #1694's real CI. It cannot graduate any candidate or create a formal cohort.
+
+**Existing real historical #1694 conclusion as of Nov 9** (source report documented in [official same-race proof-chain audit](https://github.com/ikst2512-eng/boat-edge-clean/blob/audit/t12-nov06-day-isolation-20261106/docs/audits/t12-independent-nov09-1936-same-race-proof-chain.md)):
+- `202611030112` (桐生12R, Nov 3): all three original filenames, but six-boat exhibition/ST/tilt absent; no qualifying same-race official source triad.
+- `202611091110` (びわこ10R) and `202611091710` (宮島10R): six-boat exhibition/odds pair before T−12, but no same-race racelist original in that artifact, and frozen CLEAN/V2 predictions were generated **before** the official sources. GitHub source ZIP remote publication before T−12 is not a forecast candidate's first remote publication.
+- Therefore among these three inspected races, fully qualified same-race triads **0/3**, official-input-consumption-certified forecasts **0**, formally qualified accuracy samples **0**. These three selected historical examples are not the forward study denominator and cannot be stitched across races. This new bridge does not make new independent verification of their original bytes.
+
+The bridge rejects mixed/duplicated race IDs, crossed days, inconsistent triad counts, future-result claims or forged `formal` flags and never substitutes an official component from another race to fill a missing component. All its per-race "present" entries are `self_reported_present_not_reauthenticated`; no external or first-remote proof is inferred. Even a hypothetical locally complete row is **blocked** pending independently authenticated source/candidate receipts. This is **a nonpromoting compatibility gate, not a new research model**. Existing frozen #1698 conditional selector, registered coefficients and 300+300 identity remain unchanged.
+
