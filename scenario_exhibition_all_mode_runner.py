@@ -20,7 +20,9 @@ from scenario_four_mode_bridge import (
 
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 ID = re.compile(r"EXPLORATORY_ONLY_[A-Z0-9_]{4,46}\Z")
-FIELDS = frozenset({"exhibition_st_s", "exhibition_time_s"})
+# #1698's frozen lab currently rejects actual 6-7s exhibition-time values.
+# Fail closed until its owner repairs the separate UNREGISTERED lab + tests.
+FIELDS = frozenset({"exhibition_st_s"})
 MISSING = frozenset({
     "actual_entry_course", "motor_2ren_pct", "wind_speed_mps",
     "wind_from_true_deg", "start_heading_true_deg",
@@ -191,7 +193,11 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
     if not callable(conditional_lab_callback):
         raise ValueError("existing_1698_conditional_lab_callback_required")
     base = probabilities(six_national_rates)  # unchanged main baseline
-    evidence = {"boats": boats, "context": {}}
+    # Only pass features the pinned #1698 lab accepts in true source units.
+    # Do not convert a measured ~6.7 second exhibition time to fake ~67s.
+    evidence = {"boats": [{"boat": b["boat"],
+                           "exhibition_st_s": b["exhibition_st_s"]}
+                          for b in boats], "context": {}}
     boards = {}
     for name in sorted(plans):
         plan = plans[name]
@@ -222,6 +228,10 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
         "projection_normalized_source_sha256": projection["normalized_source_sha256"],
         "mode_result": mixed,
         "feature_fields_passed_to_conditional_lab": sorted(FIELDS),
+        "projection_features_present_but_not_scored": [
+            "exhibition_time_s", "exhibition_tilt", "exhibition_course_only"
+        ],
+        "exhibition_time_s_status": "blocked_upstream_1698_wrong_seconds_range",
         "feature_values_from_projection_only": True,
         "national_rates_predeadline_original_independently_verified": False,
         "conditional_callback_module_identity_independently_verified": False,
