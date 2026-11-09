@@ -93,6 +93,7 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     expect(receipts.map(x => JSON.parse(x.split('=')[1]).workflow)).toEqual(['clean','four_mode']);
     expect(receipts.map(x => JSON.parse(x.split('=')[1]).github_run_id_reported)).toEqual([500001,500002]);
     expect(receipts.every(x => JSON.parse(x.split('=')[1]).github_run_id_proven === false)).toBe(true);
+    expect(receipts.every(x => JSON.parse(x.split('=')[1]).github_execution_slot_bound_proven === false)).toBe(true);
     expect(logs.join(' ')).not.toContain(TEST_TOKEN);
     const report = JSON.parse(logs.find(x => x.startsWith('CLOUDFLARE_CAPTURE_WAKEUP=' )).split('=')[1]);
     expect(report.new_forecast_saved_proven).toBe(false);
