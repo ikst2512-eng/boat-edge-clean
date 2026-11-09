@@ -307,6 +307,7 @@ jobs:
           import os
           import urllib.parse
           import urllib.request
+          import time
           from datetime import datetime, timedelta, timezone
 
           JST = timezone(timedelta(hours=9))
@@ -339,10 +340,24 @@ jobs:
               'User-Agent': 'boat-edge-nonformal-single-dispatch-review',
           })
           # Public repo, read-only API; HTTP/rate-limit/timeout errors fail closed.
-          with urllib.request.urlopen(req, timeout=12) as response:
-              data = json.load(response)
-          if type(data) is not dict:
-              raise SystemExit('untrusted_manual_run_history')
+          # Actions may briefly omit the newly queued current run. Re-read
+          # at most three times; never bypass a missing self or a prior run.
+          for history_attempt in range(3):
+              with urllib.request.urlopen(req, timeout=12) as response:
+                  data = json.load(response)
+              if type(data) is not dict:
+                  raise SystemExit('untrusted_manual_run_history')
+              pending_count, pending_runs = data.get('total_count'), data.get('workflow_runs')
+              if (type(pending_count) is not int or pending_count < 0
+                      or pending_count > 100 or type(pending_runs) is not list
+                      or len(pending_runs) != pending_count):
+                  raise SystemExit('incomplete_or_unbounded_manual_run_history')
+              if any(type(run) is dict and run.get('id') == current for run in pending_runs):
+                  break
+              if history_attempt < 2:
+                  time.sleep(2)
+          else:
+              raise SystemExit('current_manual_run_not_visible_after_bounded_retries')
           count, runs = data.get('total_count'), data.get('workflow_runs')
           if (type(count) is not int or not 1 <= count <= 100
                   or type(runs) is not list or len(runs) != count):
