@@ -4,9 +4,12 @@ from scripts.inventory_four_mode_watchdog_dispatch import inventory
 
 NOW = datetime(2026, 11, 3, 6, tzinfo=timezone.utc)
 
-def row(id, event, at, conclusion="success"):
+def row(id, event, at, conclusion="success", *, branch="main",
+        head_repo="example/project"):
     return {"id": id, "event": event, "created_at": at,
             "status": "completed", "conclusion": conclusion,
+            "head_branch": branch,
+            "head_repository": ({"full_name": head_repo} if head_repo else None),
             "html_url": f"https://github.com/example/project/actions/runs/{id}"}
 
 class WatchdogInventoryTest(unittest.TestCase):
@@ -40,6 +43,59 @@ class WatchdogInventoryTest(unittest.TestCase):
         result = inventory("example/project", "fake", fetch, NOW)
         self.assertEqual(len(result["recent_capture_runs"]), 30)
         self.assertEqual(result["recent_capture_runs"][-1]["id"], 30)
+
+    def test_feature_branch_success_cannot_mask_missing_main_capture(self):
+        # On a feature branch the workflow test job can pass while capture is
+        # skipped. A green workflow_dispatch is not main publication evidence.
+        def fetch(url, token):
+            if ("four-mode-prospective-capture.yml" in url
+                    and "event=workflow_dispatch" in url):
+                return {"workflow_runs": [
+                    row(901, "workflow_dispatch", "2026-11-03T05:30:00Z",
+                        branch="audit/feature-only")]}
+            return {"workflow_runs": []}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(result["capture_workflow_dispatch"]["returned"], 0)
+        self.assertEqual(result["capture_workflow_dispatch"]["success"], 0)
+        self.assertIsNone(result["latest_capture"])
+        scope = result["source_coverage"][
+            "four-mode-prospective-capture.yml:workflow_dispatch"]
+        self.assertEqual(scope["returned"], 1)
+        self.assertEqual(scope["main_verified_returned"], 0)
+        self.assertEqual(scope["excluded_nonmain_or_unverified_run_ids"], [901])
+        from scripts.audit_four_mode_daily_capture_liveness import report
+        self.assertEqual(report("20261103", result)["status"],
+                         "no_capture_runs_observed")
+
+    def test_missing_or_foreign_head_repo_fails_closed(self):
+        for owner in (None, "elsewhere/fork"):
+            with self.subTest(owner=owner):
+                def fetch(url, token):
+                    if ("four-mode-prospective-capture.yml" in url
+                            and "event=workflow_dispatch" in url):
+                        return {"workflow_runs": [
+                            row(902, "workflow_dispatch", "2026-11-03T05:30:00Z",
+                                head_repo=owner)]}
+                    return {"workflow_runs": []}
+                result = inventory("example/project", "fake", fetch, NOW)
+                self.assertEqual(result["capture_workflow_dispatch"]["success"], 0)
+                self.assertEqual(result["source_coverage"][
+                    "four-mode-prospective-capture.yml:workflow_dispatch"
+                ]["excluded_nonmain_or_unverified_run_ids"], [902])
+                self.assertFalse(result["forecast_saved_proven"])
+
+    def test_schedule_with_unknown_branch_cannot_claim_main_liveness(self):
+        def fetch(url, token):
+            if ("four-mode-prospective-capture.yml" in url
+                    and "event=schedule" in url):
+                return {"workflow_runs": [
+                    row(903, "schedule", "2026-11-03T02:00:00Z", branch=None)]}
+            return {"workflow_runs": []}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(result["capture_schedule"]["success"], 0)
+        self.assertEqual(result["source_coverage"][
+            "four-mode-prospective-capture.yml:schedule"
+        ]["excluded_nonmain_or_unverified_run_ids"], [903])
 
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
