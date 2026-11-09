@@ -1145,22 +1145,36 @@ import {auditTelemetryApiPages,API_SCHEMA} from '../cloudflare/audit_observer_ap
 function syntheticApiTelemetryDay() {
   const raw=syntheticRawWorkersDay(),start=Date.parse(raw.utc_day+'T00:00:00Z');
   const timeframe={from:start,to:start+86400000};
-  const filters={kind:'filter',key:'$metadata.service',value:OBSERVER_NAME,type:'string',operation:'eq'};
+  const filter={kind:'filter',key:'$metadata.service',value:OBSERVER_NAME,type:'string',operation:'eq'};
+  const makeParams=view=>({
+    view,datasets:['cloudflare-workers'],filters:[structuredClone(filter)],
+    ...(view==='calculations'?{calculations:[{operator:'count'}]}:{}),
+  });
+  const eventsRequest={queryId:'test-query-events',timeframe:{...timeframe},limit:2000,
+    parameters:makeParams('events')};
+  const samplingRequest={queryId:'test-query-sampling',timeframe:{...timeframe},
+    parameters:makeParams('calculations')};
+  const makeResponse=(id,request,data)=>({
+    success:true,errors:[],
+    result:{run:{id,accountId:'ACCOUNT-MOCK',status:'COMPLETED',
+        timeframe:{...timeframe},query:{parameters:structuredClone(request.parameters)}},
+      ...data},
+  });
   return {schema:API_SCHEMA,utc_day:raw.utc_day,worker:raw.worker,
     deployment_id:raw.deployment_id,
-    events_query:{
-      request:{view:'events',timeframe:{...timeframe},limit:2000,filters:structuredClone(filters)},
-      response:{status:'COMPLETED',timeframe:{...timeframe},
-        events:{count:raw.records.length,events:raw.records}}},
-    sampling_query:{
-      request:{view:'calculations',timeframe:{...timeframe},filters:structuredClone(filters)},
-      response:{status:'COMPLETED',timeframe:{...timeframe},
-        calculations:[{aggregates:[{count:raw.records.length,sampleInterval:1}]}]}},
+    events_query:{request:eventsRequest,response:makeResponse('RUN-EVENTS',eventsRequest,{
+      events:{count:raw.records.length,
+        events:raw.records.map(row=>({...row,dataset:'cloudflare-workers'}))},
+    })},
+    sampling_query:{request:samplingRequest,response:makeResponse('RUN-SAMPLING',samplingRequest,{
+      calculations:[{aggregates:[{count:raw.records.length,sampleInterval:1}]}],
+    })},
   };
 }
 
-test('Telemetry API wrapper derives complete 384 event / unsampled day from two real-shaped responses',()=>{
+test('Telemetry API V2 validates real query envelope with top-level limit 2000 and filter array',()=>{
   const report=auditTelemetryApiPages(syntheticApiTelemetryDay());
+  assert.equal(report.api_schema,API_SCHEMA);
   assert.equal(report.api_query_structure_pass,true);
   assert.equal(report.observer_day_pass,true);
   assert.equal(report.unique_observed_ticks,192);
@@ -1171,35 +1185,44 @@ test('Telemetry API wrapper derives complete 384 event / unsampled day from two 
   assert.equal(report.formal_t_minus_12_proven,false);
 });
 
-test('Telemetry API wrapper rejects truncation, event count mismatch and sampled metrics',()=>{
+test('Telemetry API V2 refuses empty/truncated/sampled event or calculation responses',()=>{
   for(const poison of [
-    x=>x.events_query.response.events.count=385,
-    x=>x.events_query.response.events.events.pop(),
-    x=>x.sampling_query.response.calculations[0].aggregates[0].sampleInterval=2,
-    x=>x.sampling_query.response.calculations[0].aggregates[0].count=383,
-    x=>x.sampling_query.response.calculations.push({aggregates:[{count:384,sampleInterval:1}]}),
-    x=>x.sampling_query.response.calculations[0].aggregates.push({count:384,sampleInterval:1}),
+    x=>x.events_query.response.result.events.count=385,
+    x=>x.events_query.response.result.events.events.pop(),
+    x=>x.sampling_query.response.result.calculations[0].aggregates[0].sampleInterval=2,
+    x=>x.sampling_query.response.result.calculations[0].aggregates[0].count=383,
+    x=>x.sampling_query.response.result.calculations.push({aggregates:[{count:384,sampleInterval:1}]}),
+    x=>x.sampling_query.response.result.calculations[0].aggregates.push({count:384,sampleInterval:1}),
+    x=>x.events_query.response.result.events.events[0].dataset='wrong-dataset',
   ]) {
     const input=syntheticApiTelemetryDay();poison(input);
-    const result=auditTelemetryApiPages(input);
-    assert.equal(result.observer_day_pass,false);
-    assert.equal(result.api_query_structure_pass,false);
-    assert.ok(result.api_issue_count>=1);
+    const out=auditTelemetryApiPages(input);
+    assert.equal(out.observer_day_pass,false);
+    assert.equal(out.api_query_structure_pass,false);
+    assert.ok(out.api_issue_count>=1);
   }
 });
 
-test('Telemetry API wrapper rejects unsafe timeframe, query view, filters and cursor',()=>{
+test('Telemetry API V2 rejects wrong request shape, cursor, effective query and response',()=>{
   for(const poison of [
     x=>x.events_query.request.timeframe.from+=60000,
-    x=>x.events_query.response.timeframe.to-=60000,
+    x=>x.events_query.response.result.run.timeframe.to-=60000,
     x=>x.sampling_query.request.timeframe.to+=60000,
-    x=>x.sampling_query.response.timeframe.from-=60000,
+    x=>x.sampling_query.response.result.run.timeframe.from-=60000,
     x=>x.events_query.request.limit=100,
+    x=>x.events_query.request.parameters.limit=2000,
     x=>x.events_query.request.offset='unreviewed-cursor',
-    x=>x.sampling_query.request.filters.value='different-worker',
-    x=>x.events_query.request.filters.kind='other-filter',
-    x=>x.events_query.response.status='STARTED',
-    x=>x.sampling_query.response.status='STARTED',
+    x=>x.sampling_query.request.parameters.filters[0].value='different-worker',
+    x=>x.events_query.request.parameters.filters[0].kind='group',
+    x=>x.events_query.response.result.run.status='STARTED',
+    x=>x.sampling_query.response.result.run.status='STARTED',
+    x=>x.events_query.response.success=false,
+    x=>x.sampling_query.response.errors.push({message:'error'}),
+    x=>x.events_query.response.result.run.query.parameters.filters[0].value='different-worker',
+    x=>x.events_query.response.result.run.query.parameters.view='calculations',
+    x=>x.sampling_query.response.result.run.accountId='OTHER-ACCOUNT',
+    x=>x.sampling_query.response.result.run.id='RUN-EVENTS',
+    x=>x.events_query.request.queryId='test-query-sampling',
   ]){
     const input=syntheticApiTelemetryDay();poison(input);
     const result=auditTelemetryApiPages(input);
@@ -1208,22 +1231,43 @@ test('Telemetry API wrapper rejects unsafe timeframe, query view, filters and cu
   }
 });
 
-test('Telemetry API must reject equally unscoped or wrong-Worker event/calculation filters',()=>{
+test('Telemetry API V2 rejects equally unscoped/foreign filters or datasets',()=>{
   for(const poison of [
-    x=>{x.events_query.request.filters={};x.sampling_query.request.filters={};},
-    x=>{x.events_query.request.filters.value='different-worker';x.sampling_query.request.filters.value='different-worker';},
-    x=>{x.events_query.request.filters.key='$metadata.message';x.sampling_query.request.filters.key='$metadata.message';},
-    x=>{x.events_query.request.filters.operation='includes';x.sampling_query.request.filters.operation='includes';},
-    x=>{x.events_query.request.filters.kind='group';x.sampling_query.request.filters.kind='group';},
-    x=>{x.events_query.request.filters.extra='poison';x.sampling_query.request.filters.extra='poison';},
+    x=>{x.events_query.request.parameters.filters=[];x.sampling_query.request.parameters.filters=[];},
+    x=>{x.events_query.request.parameters.filters[0].value='different-worker';
+      x.sampling_query.request.parameters.filters[0].value='different-worker';},
+    x=>{x.events_query.request.parameters.filters[0].key='$metadata.message';
+      x.sampling_query.request.parameters.filters[0].key='$metadata.message';},
+    x=>{x.events_query.request.parameters.filters[0].operation='includes';
+      x.sampling_query.request.parameters.filters[0].operation='includes';},
+    x=>{x.events_query.request.parameters.filters[0].kind='group';
+      x.sampling_query.request.parameters.filters[0].kind='group';},
+    x=>{x.events_query.request.parameters.filters.push({key:'unscoped',operation:'eq',
+      type:'string',value:'any'});x.sampling_query.request.parameters.filters.push(
+      {key:'unscoped',operation:'eq',type:'string',value:'any'});},
+    x=>{x.events_query.request.parameters.datasets=['other'];
+      x.sampling_query.request.parameters.datasets=['other'];},
+    x=>{x.events_query.request.parameters.filters={kind:'filter'};
+      x.sampling_query.request.parameters.filters={kind:'filter'};},
   ]){
     const input=syntheticApiTelemetryDay();poison(input);
     const out=auditTelemetryApiPages(input);
     assert.equal(out.observer_day_pass,false);
     assert.equal(out.api_query_structure_pass,false);
-    assert.ok(out.api_issues.includes('api_observer_service_scope_not_proven'),JSON.stringify(out.api_issues));
+    assert.ok(out.api_issues.includes('api_observer_dataset_and_service_scope_invalid'),JSON.stringify(out.api_issues));
     assert.equal(out.actual_cloudflare_api_authenticity_independently_proven,false);
   }
+});
+
+test('Telemetry API V2 explicitly refuses V1 pseudo-API envelope and schema',()=>{
+  const input=syntheticApiTelemetryDay();
+  input.schema='BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V1';
+  input.events_query.request={view:'events',timeframe:input.events_query.request.timeframe,
+    limit:2000,filters:{key:'$metadata.service',value:OBSERVER_NAME,operation:'eq'}};
+  const out=auditTelemetryApiPages(input);
+  assert.equal(out.observer_day_pass,false);
+  assert.ok(out.api_issues.includes('api_schema_invalid'));
+  assert.ok(out.api_issues.includes('api_queries_missing_or_malformed'));
 });
 
 test('Telemetry API wrapper CLI accepts exact response envelope but never certifies genuine account',()=>{
