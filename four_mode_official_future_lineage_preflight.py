@@ -69,6 +69,8 @@ def preflight(source_bundle, candidate):
         raise ValueError("missing_or_extra_official_original")
     if type(normalized) is not dict or normalized.get("race_code") != code:
         raise ValueError("missing_normalized_claim_or_race")
+    if BLOCKED.intersection(normalized):
+        raise ValueError("outcome_leak_in_normalized_claim")
     raw_digests = {}
     source_times = []
     for kind in KINDS:
@@ -108,10 +110,14 @@ def preflight(source_bundle, candidate):
     course = normalized.get("exhibition_courses")
     times = normalized.get("exhibition_times")
     st = normalized.get("exhibition_st")
+    tilts = normalized.get("exhibition_tilts")
     if (type(course) is not list or sorted(course) != [1,2,3,4,5,6]
             or any(type(x) is not int for x in course)
             or type(times) is not list or len(times) != 6
             or type(st) is not list or len(st) != 6
+            or type(tilts) is not list or len(tilts) != 6
+            or any(type(v) not in (float,int) or not math.isfinite(v)
+                   or not -5 <= v <= 5 for v in tilts)
             or any(type(v) not in (float,int) or not math.isfinite(v)
                    or not 0 < v < 20 for v in times)
             or any(type(v) not in (float,int) or not math.isfinite(v)
