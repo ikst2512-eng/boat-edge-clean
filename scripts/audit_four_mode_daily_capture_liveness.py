@@ -25,13 +25,16 @@ def report(day, inventory):
     if not isinstance(inventory, dict) or not isinstance(inventory.get("recent_capture_runs"), list):
         raise ValueError("invalid capture inventory")
     selected = []
+    seen_run_ids = set()
     for run in inventory["recent_capture_runs"]:
         if not isinstance(run, dict) or run.get("workflow") != CAPTURE or run.get("event") not in EVENTS:
             raise ValueError("unexpected capture run")
         run_id = run.get("id")
         stamp = run.get("created_at")
-        if type(run_id) is not int or run_id <= 0 or not isinstance(stamp, str):
-            raise ValueError("invalid run metadata")
+        if (type(run_id) is not int or run_id <= 0
+                or run_id in seen_run_ids or not isinstance(stamp, str)):
+            raise ValueError("invalid or duplicate run metadata")
+        seen_run_ids.add(run_id)
         try:
             instant = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
         except ValueError as exc:
@@ -40,11 +43,21 @@ def report(day, inventory):
             raise ValueError("capture timestamp has no timezone")
         if instant.astimezone(JST).strftime("%Y%m%d") == day:
             selected.append(run)
+    # GitHub can report completed with a null conclusion while the outcome is
+    # still unsettled. Count such executions explicitly as unknown, not a
+    # confirmed failure or a successful capture.
+    completed_unknown = [
+        r["id"] for r in selected
+        if r.get("status") == "completed" and r.get("conclusion") is None]
     # A full first page is not complete evidence: older same-day runs may
     # be hidden beyond the API page boundary. Do not assert absence/all failure.
     coverage = inventory.get("source_coverage", {})
     if not isinstance(coverage, dict):
         raise ValueError("invalid source coverage")
+    for event in EVENTS:
+        item = coverage.get(CAPTURE + ":" + event, {})
+        if not isinstance(item, dict):
+            raise ValueError("invalid capture coverage metadata")
     capture_coverage_incomplete = any(
         coverage.get(CAPTURE + ":" + event, {}).get("may_be_truncated") is True
         for event in EVENTS
@@ -58,6 +71,7 @@ def report(day, inventory):
         "no_capture_runs_observed" if not selected
         else "capture_success_observed" if any(x.get("conclusion") == "success" and x.get("status") == "completed" for x in selected)
         else "capture_pending" if any(x.get("status") != "completed" for x in selected)
+        else "capture_outcome_unknown" if completed_unknown
         else "all_observed_captures_failed"
     )
     return {
@@ -69,6 +83,11 @@ def report(day, inventory):
         "completed_success_count": sum(r.get("status") == "completed" and r.get("conclusion") == "success" for r in selected),
         "completed_failure_count": sum(r.get("status") == "completed" and r.get("conclusion") == "failure" for r in selected),
         "pending_count": sum(r.get("status") != "completed" for r in selected),
+        "completed_unknown_outcome_count": len(completed_unknown),
+        "completed_unknown_outcome_run_ids": completed_unknown,
+        "completed_non_success_count": sum(
+            r.get("status") == "completed"
+            and r.get("conclusion") not in ("success", None) for r in selected),
         "publication_verified": False,
         "predeadline_source_verified": False,
         "note": "Workflow run presence or success alone does not prove Git archive publication.",
@@ -79,7 +98,8 @@ def should_fail(result, event, ref):
     return (event == "schedule" and ref == "refs/heads/main"
             and result.get("status") in ("no_capture_runs_observed", "all_observed_captures_failed",
                                         "capture_inventory_unavailable",
-                                        "capture_inventory_incomplete"))
+                                        "capture_inventory_incomplete",
+                                        "capture_outcome_unknown"))
 
 
 def main():
@@ -102,6 +122,9 @@ def main():
             "completed_success_count": 0,
             "completed_failure_count": 0,
             "pending_count": 0,
+            "completed_unknown_outcome_count": 0,
+            "completed_unknown_outcome_run_ids": [],
+            "completed_non_success_count": 0,
             "publication_verified": False,
             "predeadline_source_verified": False,
             "note": "Capture run inventory could not be verified; counts are unknown, not zero.",
@@ -111,7 +134,8 @@ def main():
     path.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print("FOUR_MODE_DAILY_CAPTURE_LIVENESS=" + json.dumps(result, sort_keys=True))
     if should_fail(result, os.getenv("GITHUB_EVENT_NAME"), os.getenv("GITHUB_REF")):
-        print("::error::Daily V2 capture history is absent, failed, incomplete or unavailable")
+        print("::error::Daily V2 capture history is absent, failed, incomplete, "
+              "unknown or unavailable; unknown is NOT a confirmed failure")
         raise SystemExit(2)
     if result["status"] == "capture_pending":
         print("::warning::Daily V2 capture is pending; publication not yet proven")
