@@ -141,3 +141,49 @@ Unverified absolute wind FROM bearing or undocumented tide station
 relationship must be marked missing, not guessed and not reported as
 a verified effect. This feature-effect inspector cannot itself certify
 any remote official input, time-of-measurement or output publication.
+
+## 2026-11-09 continuation — actual official-parser integration seam (no parser copy)
+
+New `scenario_official_exhibition_projection.py` accepts the **exact
+existing** #1693 lineage bundle and candidate and an *injected*
+`four_mode_official_raw_semantic_replay.replay` callback. #1693 is still
+a separate Draft PR, so this research branch does not copy its official
+parsers, rewrite their tests, or silently treat them as deployed.
+
+- Requires same 12-digit race identity, 24 venues/12 rounds, JST deadline
+  and generation before T−12, all three claimed source raw bytes with
+  matching SHA-256 and source receipt clocks before generation/T−12.
+- Requires matching claimed normalized source hash, matching six unique
+  racer registrations, six complete exhibition times, start-exhibition ST,
+  tilts, six unique **exhibition** courses and exactly 120 finite positive
+  3連単 odds entries. Rejects result, payout and final entry keys.
+- Only after these **structural** checks, invokes the existing #1693 raw
+  semantic reparser. It demands the existing five actual-parser stage names
+  and its specifically nonformal result. Does **not** itself parse official
+  source content or prove authenticated HTTP origin/time.
+- Output: `exhibition_features_by_boat` + exact three source fingerprints
+  and normalized-claim fingerprint. These are **research input candidates**
+  only; **actual final race entry is not exhibition entry**, and it is
+  **not** renamed as such.
+- Output marks venue relative wind direction, wave, tide height/phase/station,
+  motor, wall/escape-assist and actual entry as missing. They are not
+  imputed from stadium articles or historical results.
+- Even a successful injected callback does **not** authorize
+  `formal=true`, live forecast, odds-based ROI, calibrated probability,
+  accepted first Git receipt, actual model use, or model promotion.
+- Synthetic unit fixtures use mock bytes and a callback stub; passing the
+  tests proves the interface/negative checks, **not** successful capture or
+  real official-source replay. Genuine #1693 raw parser can be wired
+  only after separately reviewing its changes and authenticating real
+  predeadline first-remote receipts via #1694.
+
+Extended PR-only CI:
+
+```bash
+python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection
+```
+
+This is a **read-only research adapter**, no changes to #1693/#1694/#1698
+frozen code, result collector, action schedule, historical forecasts,
+main, Render or UI. It should never be directly exposed to users as
+production predictions.
