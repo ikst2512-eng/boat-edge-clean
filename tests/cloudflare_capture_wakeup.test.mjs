@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {auditLocalFirstAddEvidence,computeLocalBlobHashes,FIRST_ADD_LAB_SCHEMA} from '../cloudflare/local_first_add_evidence_lab.mjs';
+import {verifyRealGithubFirstAdd,REMOTE_GITHUB_SCHEMA} from '../cloudflare/remote_github_first_add_audit.mjs';
 import {auditNativePublisherPair,auditNativePublisherPostPush} from '../cloudflare/native_publication_receipt_lab.mjs';
 import cloudflareWorker from '../cloudflare/independent_capture_wakeup.mjs';
 import observerWorker from '../cloudflare/independent_capture_observer.mjs';
@@ -1428,4 +1429,100 @@ test('offline first-add CLI emits exact hash, accepts local CLEAN consistency an
     assert.equal(result.status,2);
     assert.match(result.stderr,/FIRST_ADD_MANIFEST_REJECTED/);
   }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+
+function mockedRemoteGithubFirstAdd(kind='clean') {
+  const m=syntheticLocalFirstAdd(kind);
+  const row=m.records[0],path=row.path,commitSha=m.commit.sha,parent=m.commit.parent_sha;
+  const ghSha=row.claimed_git_blob_sha1,body=row.original_git_blob_utf8;
+  const root='https://api.github.com/repos/ikst2512-eng/boat-edge-clean/';
+  const normal={
+    [root+'commits/'+commitSha]:{
+      sha:commitSha,parents:[{sha:parent}],
+      files:[{filename:path,status:'added',sha:ghSha}],
+      commit:{committer:{date:'2026-11-09T11:30:00Z'}},
+    },
+    [root+'contents/'+path+'?ref='+commitSha]:{
+      sha:ghSha,path,size:Buffer.byteLength(body,'utf8'),
+      encoding:'base64',content:Buffer.from(body).toString('base64'),
+    },
+    [root+'git/blobs/'+ghSha]:{
+      sha:ghSha,size:Buffer.byteLength(body,'utf8'),
+      encoding:'base64',content:Buffer.from(body).toString('base64'),
+    },
+    [root+'compare/'+commitSha+'...main']:{
+      status:'ahead',behind_by:0,merge_base_commit:{sha:commitSha},
+    },
+  };
+  const parentUrl=root+'contents/'+path+'?ref='+parent;
+  const calls=[];
+  const fetcher=async(url,options)=>{
+    calls.push({url,method:options.method,headers:options.headers});
+    if(url===parentUrl)return {status:404};
+    if(!Object.hasOwn(normal,url))throw Error('unexpected_unmocked_network:'+url);
+    return {status:200,json:async()=>structuredClone(normal[url])};
+  };
+  return {manifest:m,normal,parentUrl,calls,fetcher,body,ghSha,commitSha};
+}
+
+test('real-GitHub read-only audit verifies added path, original blob, parent absence and main ancestry without formal T-12 claim',async()=>{
+  for(const publisher of ['clean','four_mode']){
+    const x=mockedRemoteGithubFirstAdd(publisher);
+    const res=await verifyRealGithubFirstAdd({
+      publisher,raceCode:'202611090101',commitSha:x.commitSha,fetcher:x.fetcher,
+    });
+    assert.equal(res.schema,REMOTE_GITHUB_SCHEMA);
+    assert.equal(res.source_blob_commit_consistency_pass,true);
+    assert.equal(res.git_parent_addition_checked,true);
+    assert.equal(res.current_main_ancestry_checked,true);
+    assert.equal(res.git_blob_sha1,x.ghSha);
+    assert.equal(res.record.code,'202611090101');
+    assert.equal(res.github_remote_first_seen_timestamp_proven,false);
+    assert.equal(res.cloudflare_rescue_dispatch_proven,false);
+    assert.equal(res.native_run_id_independently_proven,false);
+    assert.equal(res.official_t_minus_12_proven,false);
+    assert.equal(res.formal_recovery_proven,false);
+    assert.equal(x.calls.length,5);
+    assert.ok(x.calls.every(c=>c.method==='GET'&&!('Authorization' in c.headers)));
+  }
+});
+
+test('remote GitHub source audit fails closed on fake additions, missing parent, bad blob and invented ancestry',async()=>{
+  const scenarios=[
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/commits/'+x.commitSha].files[0].status='modified',
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/commits/'+x.commitSha].files[0].sha='f'.repeat(40),
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/commits/'+x.commitSha].parents[0].sha='not-a-sha',
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/git/blobs/'+x.ghSha].content=Buffer.from('tampered').toString('base64'),
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/compare/'+x.commitSha+'...main'].behind_by=1,
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/compare/'+x.commitSha+'...main'].merge_base_commit.sha='f'.repeat(40),
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/commits/'+x.commitSha].commit.committer.date='2026-11-09T12:00:00Z',
+    x=>x.normal['https://api.github.com/repos/ikst2512-eng/boat-edge-clean/contents/prospective_predictions/202611090101.json?ref='+x.commitSha].content=Buffer.from('{"fake":1}').toString('base64'),
+  ];
+  for(const [i,mutate] of scenarios.entries()){
+    const x=mockedRemoteGithubFirstAdd('clean');mutate(x);
+    await assert.rejects(()=>verifyRealGithubFirstAdd({publisher:'clean',raceCode:'202611090101',
+      commitSha:x.commitSha,fetcher:x.fetcher}),undefined,'scenario '+i);
+    assert.ok(x.calls.every(c=>c.method==='GET'));
+  }
+  for(const denied of [200,403,429,500]){
+    const x=mockedRemoteGithubFirstAdd();
+    const fetcher=async(url,options)=>url===x.parentUrl?{status:denied}:x.fetcher(url,options);
+    await assert.rejects(()=>verifyRealGithubFirstAdd({publisher:'clean',
+      raceCode:'202611090101',commitSha:x.commitSha,fetcher}),/github_parent_file_absence_unproven/);
+  }
+});
+
+test('real-GitHub source auditor rejects malformed race code and wrong publisher before any network',async()=>{
+  const x=mockedRemoteGithubFirstAdd();
+  for(const invalid of [
+    {publisher:'clean',raceCode:'202611090199',commitSha:x.commitSha},
+    {publisher:'clean',raceCode:'202611090125',commitSha:x.commitSha},
+    {publisher:'clean',raceCode:'202611090101',commitSha:'bad'},
+    {publisher:'other',raceCode:'202611090101',commitSha:x.commitSha},
+  ]){
+    await assert.rejects(()=>verifyRealGithubFirstAdd({...invalid,fetcher:x.fetcher}),
+      /invalid_remote_github_sample_request/);
+  }
+  assert.equal(x.calls.length,0);
 });
