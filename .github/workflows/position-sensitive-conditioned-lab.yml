@@ -4,6 +4,8 @@ on:
     paths:
       - 'position_sensitive_conditioned_lab.py'
       - 'test_position_sensitive_conditioned_lab.py'
+      - 'position_sensitive_source_packet_audit.py'
+      - 'test_position_sensitive_source_packet_audit.py'
       - 'docs/research/conditioned_second_third_feature_lab_20261109.md'
       - '.github/workflows/position-sensitive-conditioned-lab.yml'
   workflow_dispatch:
@@ -24,7 +26,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Synthetic only; no outcome, network or external runner dependencies
-        run: python -m unittest -v test_position_sensitive_conditioned_lab
+        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit
       - name: Ensure preregistered 300+300 model and baseline blobs unchanged
         run: |
           python - <<'PY'
