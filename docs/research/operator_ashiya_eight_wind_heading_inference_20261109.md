@@ -52,6 +52,12 @@ python scripts/research_operator_relative_wind_semantics.py --source docs/resear
 python -m unittest scripts.test_research_operator_relative_wind_semantics
 ```
 
+## 実行済みの独立チェック（2026-11-09）
+
+研究コード・テストコード・入力JSONの**3ファイルについて、GitHub上のGit blob SHAとローカルに展開したファイルのGit blob SHAが全件一致**することを別々に確認した。この同一ソース・同一台帳で隔離環境の `python -m unittest -q scripts.test_research_operator_relative_wind_semantics` を実行し、**9テスト／9成功**。
+
+テストで、8方位の完全性、東90°唯一8/8整合、左右横と斜め風の区別、偽ホストURL、風向矛盾、無風の誤分類、存在しない画像・HTML原本SHAやT−12資格を主張する入力の拒否を確認。**これはローカル単体テストであり、GitHub Actions CIの成功や公式水面図の一次バイト受領、予想改善を意味しない。**
+
 ## 公式水面図のPNG原本保存に残る障害
 今回の環境では[芦屋公式水面図PNG](https://www.boatrace.jp/static_extra/pc/images/img_water1_21.png)を**ページ画像として閲覧**できる一方、バイト単位でのコンテナへの直接取得は失敗した。バイト保存をしたと称するSHAや取得日時は記録しない。画像を閲覧できることと原画像バイトをSHA固定できたことは**別**。2026年の北方位・1マーク方位を公式の原本として認定するには、（1）元ファイルの独立取得とSHA256、（2）複数レビュアーによる図の読み取り、（3）同じ公式Kレースの運営者風向矢印原画像のFROM/TO確認が依然必要。
 
