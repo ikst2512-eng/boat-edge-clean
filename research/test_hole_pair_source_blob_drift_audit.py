@@ -120,10 +120,10 @@ class SourceBlobDriftTests(unittest.TestCase):
             calls.append(argv)
             if argv[1] == "merge-base":
                 return subprocess.CompletedProcess(argv, 0, "", "")
-            if argv[2] == INITIAL_SHA:
+            if argv[3] == INITIAL_SHA:
                 return subprocess.CompletedProcess(argv, 0,
                                                    tree({A: BLOB_A, B: BLOB_B}), "")
-            self.assertEqual(argv[2], LATER_SHA)
+            self.assertEqual(argv[3], LATER_SHA)
             return subprocess.CompletedProcess(argv, 0,
                                                tree({A: BLOB_CHANGED, B: BLOB_B, C: BLOB_C}), "")
         out = d.audit_git(batch(), LATER_SHA, run=fake)
@@ -146,7 +146,7 @@ class SourceBlobDriftTests(unittest.TestCase):
             def fake(argv, **kwargs):
                 if argv[1] == "merge-base":
                     return subprocess.CompletedProcess(argv, 0, "", "")
-                return subprocess.CompletedProcess(argv, 1 if argv[2] == failed_ref else 0,
+                return subprocess.CompletedProcess(argv, 1 if argv[3] == failed_ref else 0,
                                                    tree({A: BLOB_A, B: BLOB_B}), "")
             with self.subTest(ref=failed_ref), self.assertRaisesRegex(
                     ValueError, "unavailable_immutable_git_tree"):
