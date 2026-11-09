@@ -1,5 +1,5 @@
 {
-  "checked_at_jst": "2026-11-09T08:25:17.590046+09:00",
+  "checked_at_jst": "2026-11-09T10:39:11.582537+09:00",
   "days": [
     {
       "day": "20261108",
@@ -11,11 +11,11 @@
     },
     {
       "day": "20261109",
-      "http_status": 404,
-      "newly_saved": 0,
-      "source_races": 0,
-      "source_url": "https://boatracecsv.github.io/data/results/realtime/2026/11/09.csv",
-      "status": "waiting_for_published_source"
+      "http_status": null,
+      "newly_saved": 10,
+      "source_races": 10,
+      "source_url": null,
+      "status": "available"
     }
   ],
   "historical_retries": {
