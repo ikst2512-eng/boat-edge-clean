@@ -96,7 +96,7 @@ def board(normalized, original):
                        zip(COEFF["place_weights"],ticket))
         raw.append((ticket,p*math.exp(adjustment)))
     total=sum(v for _,v in raw)
-    if not 0<total and math.isfinite(total):
+    if not (0 < total and math.isfinite(total)):
         raise ValueError("invalid_noncalibrated_score_total")
     out=sorted(((ticket,value/total) for ticket,value in raw),
                key=lambda x:(-x[1],x[0]))
