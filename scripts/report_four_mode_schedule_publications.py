@@ -402,6 +402,41 @@ def report(history, downloader, limit=12):
     # workers preserve listing order and isolate downloads in separate dirs.
     with ThreadPoolExecutor(max_workers=min(4, len(selected) or 1)) as pool:
         rows = list(pool.map(inspect_one, selected))
+    # A twelve-run evidence window can span multiple JST days. Preserve the
+    # historical all-window totals for compatibility, but never present those
+    # totals as today's publication count. These are artifact-local claims
+    # with final-gate verdicts, NOT independent remote first-seen evidence.
+    by_run_day = {}
+    run_ids_without_day = []
+    for row in rows:
+        run_day = safe_run_day_jst(row)
+        if run_day is None:
+            run_ids_without_day.append(row["run_id"])
+            continue
+        grouped = by_run_day.setdefault(run_day, {
+            "runs_checked": 0,
+            "runs_claiming_push": 0,
+            "final_gate_published_run_count": 0,
+            "final_gate_published_forecast_count": 0,
+            "final_gate_no_new_run_count": 0,
+            "final_gate_failed_run_count": 0,
+            "final_gate_unknown_run_count": 0,
+        })
+        grouped["runs_checked"] += 1
+        grouped["runs_claiming_push"] += (
+            row["publication_outcome"] == "pushed_to_main")
+        grouped["final_gate_published_run_count"] += (
+            row["final_evidence_verdict_result"]
+            == "published_with_durable_early_observation")
+        grouped["final_gate_published_forecast_count"] += (
+            row["final_evidence_published_count"] or 0)
+        grouped["final_gate_no_new_run_count"] += (
+            row["final_evidence_verdict_result"] == "no_new_forecasts")
+        grouped["final_gate_failed_run_count"] += (
+            row["final_evidence_verdict_status"] == "failed")
+        grouped["final_gate_unknown_run_count"] += (
+            row["final_evidence_verdict_status"] != "failed"
+            and row["final_evidence_verdict_result"] is None)
     claimed = [r["claimed_added_forecasts"] for r in rows if r["claimed_added_forecasts"] is not None]
     # Failure count alone is misleading when prior artifacts do not contain
     # the new stage verdicts. Report coverage per research step explicitly.
@@ -428,6 +463,8 @@ def report(history, downloader, limit=12):
             "scheduled_runs_checked": len(rows),
             "history_runs_available": len(history["runs"]),
             "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
+            "publication_evidence_by_run_day_jst": dict(sorted(by_run_day.items())),
+            "run_ids_without_attributable_jst_day": run_ids_without_day,
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "final_gate_published_run_count": sum(
@@ -506,6 +543,8 @@ def main():
     print("FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE=" + json.dumps({
         "scheduled_runs_checked": result["scheduled_runs_checked"],
         "history_runs_omitted": result["history_runs_omitted"],
+        "publication_evidence_by_run_day_jst": result["publication_evidence_by_run_day_jst"],
+        "run_ids_without_attributable_jst_day": result["run_ids_without_attributable_jst_day"],
         "excluded_race_evidence": [
             {"run_id": row["run_id"],
              "excluded_race_count": row["excluded_race_count"],
