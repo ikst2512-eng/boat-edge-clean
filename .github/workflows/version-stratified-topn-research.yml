@@ -32,6 +32,8 @@ on:
       - test_four_mode_top1_bias_input_audit.py
       - four_mode_top1_capture_run_inventory.py
       - four_mode_candidate_ledger_readiness.py
+      - four_mode_main_shadow_deployment_audit.py
+      - test_four_mode_main_shadow_deployment_audit.py
       - test_four_mode_candidate_ledger_readiness.py
       - test_four_mode_top1_capture_run_inventory.py
       - docs/research/four_mode_forward_all_modes_20261106.md
@@ -228,6 +230,24 @@ jobs:
           PY
       - name: Test append-only GitHub candidate receipt and strict remote observation clock
         run: python -m unittest -v test_four_mode_all_shadow_durable_ledger
+      - name: Verify draft-only candidate workflow is not mistaken for main execution
+        run: |
+          set -euo pipefail
+          python -m unittest -v test_four_mode_main_shadow_deployment_audit
+          python four_mode_main_shadow_deployment_audit.py --output four_mode_main_candidate_stage_readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path("four_mode_main_candidate_stage_readiness.json").read_text())
+          if (v["main_candidate_stages_deployed_in_source"] is not False
+                  or v["draft_candidate_stages_available_for_manual_review"] is not True
+                  or v["live_candidate_step_execution_verified"] is not False
+                  or v["independent_first_remote_candidate_receipt_verified"] is not False
+                  or v["formal"] is not False
+                  or v["admitted_prospective_pairs"] != 0):
+              raise SystemExit("MAIN_VS_DRAFT_CAPTURE_DRIFT_OR_UNTRUSTED_PROOF")
+          print("MAIN_VS_DRAFT_CANDIDATE_STAGES:main=ABSENT:draft=PRESENT:formal=0")
+          PY
       - name: Unit-test fail-closed durable candidate ledger inventory
         run: python -m unittest -v test_four_mode_candidate_ledger_readiness
       - name: Read actual remote four-mode candidate branch without scoring
@@ -772,6 +792,7 @@ jobs:
             four_mode_nov05_08_reference.json
             four_mode_nov09_current_main_input_readiness.json
             four_mode_candidate_remote_readiness.json
+            four_mode_main_candidate_stage_readiness.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
