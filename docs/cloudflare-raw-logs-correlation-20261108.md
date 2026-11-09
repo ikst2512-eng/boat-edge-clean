@@ -1,5 +1,16 @@
 # Cloudflare Workers Logs: independent observer CPU/Cron correlation (offline)
 
+## 2026-11-09 audit tightening: version and time coherence are mandatory
+
+Cloudflare's Telemetry API schema makes `$workers.scriptVersion` **optional** in a log row. That optionality does not mean an operator can positively certify a single deployment from a row missing it. For this **strict internal audit only**, both the invocation (`cf-worker-event`) **and the matching console row** (`cf-worker-log`) must carry `$workers.scriptVersion.id`, and both must equal the recorded deployment version. A missing/mismatched custom-log version now produces `custom_version_missing`/`custom_version_mismatch`; a full 384-record synthetic fixture still fails if just one version is missing. No version is inferred from a shared request ID.
+
+The console row's platform `timestamp` must be no earlier than the corresponding scheduled Cron tick. The former ±10-second check against the custom `checked_at_jst` report alone would accept a row several seconds *before* its scheduled tick. It is now rejected as `cloudflare_event_clock_mismatch`, even if the remaining 191 invocations, all CPU values, request IDs and event counts are valid.
+
+**Evidence limit:** These are deliberate *fail-closed* acceptance conditions. Genuine platform records that omit a custom-log version cannot pass the strict gate until a separately reviewed, independently sourced alternative version-binding method exists. Do not populate missing version IDs, edit timestamps or synthesize Cloudflare records. The custom and invocation rows are still **operator-supplied JSON**, not API-authenticated data; successful consistency checks cannot establish live worker deployment, Cron execution, CPU <10ms, recovered GitHub run, original forecast first-add or official T−12 evidence.
+
+Source contract: https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/ .
+
+
 **Status: DRAFT / unverified against a real Cloudflare account.** This document is a reviewed mapping of Cloudflare's published telemetry schema to a no-network, no-credential audit program. It is not a live Cron/CPU measurement and it does not authorize recovery deployment or any GitHub workflow dispatch.
 
 ## Why raw Cloudflare log correlation matters
