@@ -64,6 +64,255 @@ jobs:
           assert 'CAPTURE_UNVERIFIED_RESEARCH' in capture
           assert 'cancel-in-progress: false' in header
           assert 'research_candidate_freeze.json' in capture
+          assert 'GITHUB_RUN_ATTEMPT" == "1"' in capture
+          assert 're-run attempt rejected' in capture
+          assert 'GITHUB_RUN_ID" =~ ^[1-9][0-9]*
+              '.github/workflows/hole-pair-manual-research-gateway.yml',
+              '.github/workflows/hole-future-pair-precommit.yml',
+          )
+          for competitor in competitors:
+              assert not Path(competitor).exists(), 'competing_gateway_present_in_merge_tree:' + competitor
+              assert competitor in capture, 'missing_live_competing_gateway_guard:' + competitor
+          assert 'git cat-file -e "origin/main:$competing"' in capture
+          assert 'test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)"' in capture
+          assert 'main changed since manual dispatch' in capture
+          assert "'manifest_sha256': hashlib.sha256(raw).hexdigest()" in capture
+          assert "'github_run_id': run_id" in capture
+          assert "assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']" in capture
+          assert 'test -s research_capture_provenance.json' in capture
+          assert 'research_capture_provenance.json' in capture
+          # Exercise the embedded provenance generator using synthetic bytes,
+          # not real race candidates, network, or workflow_dispatch.
+          import contextlib
+          import hashlib
+          import io
+          import json
+          import os
+          import tempfile
+          from unittest.mock import patch
+          marker = '      - name: Bind nonformal candidate manifest to exact workflow run and source commit\n'
+          snippet = capture.split(marker, 1)[1].split(
+              '      - name: Save both candidate manifest and local run provenance', 1
+          )[0]
+          snippet = snippet.split("          python - <<'PY'\n", 1)[1].split(
+              '\n          PY\n', 1
+          )[0]
+          script = '\n'.join(line[10:] for line in snippet.splitlines()) + '\n'
+          compiled = compile(script, '<nonformal-provenance>', 'exec')
+          saved_cwd = Path.cwd()
+          with tempfile.TemporaryDirectory() as tmp:
+              os.chdir(tmp)
+              try:
+                  main_sha = 'a' * 40
+                  research_sha = '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+                  synthetic = {
+                      'source_main_commit': main_sha,
+                      'capture_day_jst': '20261109',
+                      'formal': False,
+                      'independent_first_receipt_verified': False,
+                  }
+                  raw = json.dumps(synthetic, sort_keys=True).encode()
+                  Path('research_candidate_freeze.json').write_bytes(raw)
+                  fake_env = {
+                      'GITHUB_SHA': main_sha,
+                      'GITHUB_REF': 'refs/heads/main',
+                      'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                      'GITHUB_WORKFLOW_REF': 'test/repo/.github/workflows/hole-pair-manual-gateway.yml@refs/heads/main',
+                      'GITHUB_RUN_ID': '12345',
+                      'GITHUB_RUN_ATTEMPT': '1',
+                      'INPUT_CAPTURE_DAY_JST': '20261109',
+                  }
+                  def fake_git(argv, text=False):
+                      assert argv[:2] == ['git', 'rev-parse']
+                      return research_sha if argv[-1] == 'HEAD' else main_sha
+                  def exercise(env, batch):
+                      Path('research_candidate_freeze.json').write_bytes(batch)
+                      Path('research_capture_provenance.json').unlink(missing_ok=True)
+                      with patch.dict(os.environ, env), patch(
+                          'subprocess.check_output', side_effect=fake_git
+                      ), contextlib.redirect_stdout(io.StringIO()):
+                          exec(compiled, {'__name__': '__main__'})
+                  exercise(fake_env, raw)
+                  sidecar = json.loads(Path('research_capture_provenance.json').read_text())
+                  assert sidecar['manifest_sha256'] == hashlib.sha256(raw).hexdigest()
+                  assert sidecar['manifest_bytes'] == len(raw)
+                  assert sidecar['source_main_commit'] == main_sha
+                  assert sidecar['github_run_id'] == 12345
+                  assert sidecar['formal'] is False
+                  assert sidecar['independent_first_receipt_verified'] is False
+                  for bad_env, bad_raw in (
+                      ({**fake_env, 'GITHUB_SHA': 'b' * 40}, raw),
+                      (fake_env, json.dumps({**synthetic, 'formal': True}).encode()),
+                  ):
+                      try:
+                          exercise(bad_env, bad_raw)
+                      except AssertionError:
+                          assert not Path('research_capture_provenance.json').exists()
+                      else:
+                          raise AssertionError('provenance_fail_closed_negative_case_failed')
+              finally:
+                  os.chdir(saved_cwd)
+          print('REVIEW_ONLY_GATE_PASS_synthetic_provenance_positive_and_negative')
+          PY
+  capture:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Verify deliberate current-day research capture BEFORE checkout
+        shell: bash
+        env:
+          DAY: ${{ inputs.capture_day_jst }}
+          ACK: ${{ inputs.acknowledgement }}
+        run: |
+          set -euo pipefail
+          # A GitHub job rerun can replay the same candidate universe.
+          # Refuse every attempt after the first BEFORE source checkout.
+          [[ "$GITHUB_RUN_ATTEMPT" == "1" ]] || { echo "::error::re-run attempt rejected; use independent dedup review before any new dispatch"; exit 5; }
+          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "::error::missing or invalid workflow run identity"; exit 5; }
+          [[ "$ACK" == "CAPTURE_UNVERIFIED_RESEARCH" ]] || { echo "::error::explicit research acknowledgement required"; exit 2; }
+          [[ "$DAY" =~ ^20[0-9]{6}$ ]] || { echo "::error::invalid YYYYMMDD capture day"; exit 2; }
+          [[ "$DAY" == "$(TZ=Asia/Tokyo date +%Y%m%d)" && "$DAY" > "20261108" ]] || { echo "::error::only current JST day from Nov9; no backfill"; exit 2; }
+      - name: Checkout exact reviewed research implementation (never branch tip)
+        uses: actions/checkout@v4
+        with:
+          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Python for offline/research candidate freeze
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Current-day research freeze, never fetch settled results
+        shell: bash
+        env:
+          HOLE_RESEARCH_CAPTURE_DAY: ${{ inputs.capture_day_jst }}
+          HOLE_RESEARCH_MANUAL_ACK: ${{ inputs.acknowledgement }}
+          HOLE_RESEARCH_LOCKED_COMMIT: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$HOLE_RESEARCH_LOCKED_COMMIT"
+          # Temporary runtime token is read-only. Main is fetched, not edited.
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          # Dispatch was requested against one exact main commit. Never silently
+          # switch to a different main source if the branch changed in the queue.
+          test "$GITHUB_SHA" = "$(git rev-parse --verify refs/remotes/origin/main)" || {
+            echo "::error::main changed since manual dispatch; no research freeze"
+            exit 4
+          }
+          # Fail closed if a competing manual/legacy gateway reached main.
+          # This prevents THIS gateway from collecting alongside a second path;
+          # it cannot control executions initiated through the other workflow.
+          for competing in \
+            .github/workflows/hole-pair-manual-research-gateway.yml \
+            .github/workflows/hole-future-pair-precommit.yml; do
+            if git cat-file -e "origin/main:$competing" 2>/dev/null; then
+              echo "::error::competing research capture workflow on main: $competing; refuse this capture"
+              exit 3
+            fi
+          done
+          python research/hole_pair_manual_capture.py --capture-day "$HOLE_RESEARCH_CAPTURE_DAY" --output research_candidate_freeze.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research_candidate_freeze.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          assert obj['schema']=='HOLE_PAIR_FUTURE_ACTIONS_BATCH_V1'
+          assert obj['status']=='local_predeadline_freeze_not_formal'
+          assert obj['capture_day_jst']==__import__('os').environ['HOLE_RESEARCH_CAPTURE_DAY']
+          assert obj['source_snapshot_coverage']['source_snapshot_race_coverage_complete'] is True
+          assert obj['source_snapshot_coverage']['entire_day_or_official_schedule_complete_verified'] is False
+          assert obj['frozen_count']+sum(obj['excluded_by_reason'].values())==obj['eligible_forecasts_examined']
+          for key in ('formal','prospective_validation','independent_first_receipt_verified','production_forecast_changed'):
+              assert obj[key] is False
+          print('NONFORMAL_FROZEN_COUNT',obj['frozen_count'])
+          print('EXCLUSIONS',obj['excluded_by_reason'])
+          PY
+      - name: Bind nonformal candidate manifest to exact workflow run and source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          src = Path('research_candidate_freeze.json')
+          raw = src.read_bytes()
+          batch = json.loads(raw)
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          main_sha = git('rev-parse', '--verify', 'refs/remotes/origin/main')
+          research_sha = git('rev-parse', '--verify', 'HEAD')
+          assert main_sha == os.environ['GITHUB_SHA'] == batch['source_main_commit']
+          assert research_sha == '464d1641a5c7b981248ab17ba5bdc42b7bfa698b'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/main'
+          assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
+          assert batch['formal'] is False and batch['independent_first_receipt_verified'] is False
+          assert batch['capture_day_jst'] == os.environ['INPUT_CAPTURE_DAY_JST']
+          run_id = int(os.environ['GITHUB_RUN_ID'])
+          attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
+          assert run_id > 0 and attempt > 0
+          local_provenance = {
+              'schema': 'HOLE_PAIR_GATEWAY_LOCAL_PROVENANCE_V1',
+              'github_run_id': run_id,
+              'github_run_attempt': attempt,
+              'github_event_name': os.environ['GITHUB_EVENT_NAME'],
+              'github_workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'github_dispatch_main_sha': os.environ['GITHUB_SHA'],
+              'source_main_commit': main_sha,
+              'pinned_research_commit': research_sha,
+              'capture_day_jst': batch['capture_day_jst'],
+              'manifest_file': src.name,
+              'manifest_sha256': hashlib.sha256(raw).hexdigest(),
+              'manifest_bytes': len(raw),
+              'formal': False,
+              'independent_first_receipt_verified': False,
+              'official_t12_complete_verified': False,
+              'production_promotion_allowed': False,
+              'warning': 'Actions/local provenance only; NOT an independent first remote receipt.',
+          }
+          Path('research_capture_provenance.json').write_text(
+              json.dumps(local_provenance, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print('LOCAL_MANIFEST_SHA256', local_provenance['manifest_sha256'])
+          print('NONFORMAL_RUN_ID', run_id, 'ATTEMPT', attempt)
+          PY
+        env:
+          INPUT_CAPTURE_DAY_JST: ${{ inputs.capture_day_jst }}
+      - name: Save both candidate manifest and local run provenance (not first receipt)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s research_candidate_freeze.json
+          test -s research_capture_provenance.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-pair-manual-unverified-${{ inputs.capture_day_jst }}
+          path: |
+            research_candidate_freeze.json
+            research_capture_provenance.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Fail a zero-candidate run rather than announcing capture success
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('research_candidate_freeze.json').read_text())
+          if x['frozen_count'] == 0:
+              raise SystemExit('no_predeadline_candidates_frozen_nonformal; artifact saved for audit')
+          print('local_artifact_saved_only_NOT_independent_receipt_NOT_official_T12')
+          PY
+ in capture
           competitors = (
               '.github/workflows/hole-pair-manual-research-gateway.yml',
               '.github/workflows/hole-future-pair-precommit.yml',
@@ -166,6 +415,10 @@ jobs:
           ACK: ${{ inputs.acknowledgement }}
         run: |
           set -euo pipefail
+          # A GitHub job rerun can replay the same candidate universe.
+          # Refuse every attempt after the first BEFORE source checkout.
+          [[ "$GITHUB_RUN_ATTEMPT" == "1" ]] || { echo "::error::re-run attempt rejected; use independent dedup review before any new dispatch"; exit 5; }
+          [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "::error::missing or invalid workflow run identity"; exit 5; }
           [[ "$ACK" == "CAPTURE_UNVERIFIED_RESEARCH" ]] || { echo "::error::explicit research acknowledgement required"; exit 2; }
           [[ "$DAY" =~ ^20[0-9]{6}$ ]] || { echo "::error::invalid YYYYMMDD capture day"; exit 2; }
           [[ "$DAY" == "$(TZ=Asia/Tokyo date +%Y%m%d)" && "$DAY" > "20261108" ]] || { echo "::error::only current JST day from Nov9; no backfill"; exit 2; }
