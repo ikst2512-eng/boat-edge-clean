@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from four_mode_position_sensitive_forward import CODE, MODES, TOPS, _verify_snapshot, protocol
+from four_mode_position_sensitive_forward import CODE, DATE_START, DATE_END, MODES, TOPS, _verify_snapshot, protocol
 from position_sensitive_append_only_research import _no_duplicate_keys
 
 SCHEMA = "POSITION_SENSITIVE_FUTURE_PAIRED_TOPK_EXPOSURE_V1"
@@ -88,7 +88,8 @@ def audit_future_ledger(git, ledger_ref=LEDGER, original_ref=ORIGINAL):
         if not name.startswith(PREFIX) or not name.endswith(".json"):
             raise ValueError("unknown_future_candidate_path")
         code = name[len(PREFIX):-5]
-        if CODE.fullmatch(code) is None:
+        if (CODE.fullmatch(code) is None or
+                not DATE_START[:10].replace("-", "") <= code[:8] <= DATE_END[:10].replace("-", "")):
             raise ValueError("invalid_future_race_code")
     rows = []
     for name in names:
