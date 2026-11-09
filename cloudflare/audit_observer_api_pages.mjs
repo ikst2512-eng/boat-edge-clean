@@ -1,101 +1,123 @@
-// OFFLINE audit of actual-shaped Cloudflare Telemetry API query responses.
-// Does not make HTTP requests or authenticate Cloudflare-origin bytes.
-// To avoid unverifiable cursor pagination, require a single complete events
-// result (limit 2000, expected exactly 384 records) plus independent
-// calculations showing sampleInterval === 1 for the same filter/timeframe.
-// The normalized exporter in audit_observer_raw_logs never trusts operator-
-// asserted complete_export or sample_interval when this bridge is used.
+// OFFLINE acceptance of operator-retained, real-API-shaped Cloudflare
+// Workers Observability telemetry/query request+response pairs.
+// No account/network authentication and no deployment or GitHub dispatch.
+// V2 follows the documented POST body: top-level limit (max 2000), nested
+// parameters.view and parameters.filters ARRAY, result.run and result.events.
+// Older V1 pseudo-API envelopes are intentionally NOT accepted as V2.
 import {auditRawWorkersLogs, RAW_LOG_SCHEMA} from './audit_observer_raw_logs.mjs';
 import {OBSERVER_NAME} from './audit_observer_telemetry.mjs';
 
-export const API_SCHEMA='BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V1';
-const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
-
+export const API_SCHEMA='BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V2';
+const DATASET='cloudflare-workers';
+const isObj = x => x!==null && typeof x==='object' && !Array.isArray(x);
 function canonical(value) {
-  if (Array.isArray(value)) return '['+value.map(canonical).join(',')+']';
-  if (isObj(value)) return '{'+Object.keys(value).sort()
-    .map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}';
+  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
+  if(isObj(value))return '{'+Object.keys(value).sort()
+    .map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
   return JSON.stringify(value);
 }
-
 function dayWindow(day) {
-  if(typeof day!=='string'|| !/^\d{4}-\d\d-\d\d$/.test(day)) throw Error('invalid_utc_day');
+  if(typeof day!=='string'|| !/^\d{4}-\d\d-\d\d$/.test(day))throw Error('invalid_utc_day');
   const from=Date.parse(day+'T00:00:00.000Z');
   if(!Number.isFinite(from)||new Date(from).toISOString().slice(0,10)!==day)throw Error('invalid_utc_day');
   return {from,to:from+86_400_000};
 }
+const exactScope = p => isObj(p) && Array.isArray(p.datasets) &&
+  p.datasets.length===1 && p.datasets[0]===DATASET &&
+  Array.isArray(p.filters) && p.filters.length===1 &&
+  isObj(p.filters[0]) &&
+  Object.keys(p.filters[0]).every(k=>['kind','key','value','type','operation'].includes(k)) &&
+  (p.filters[0].kind===undefined||p.filters[0].kind==='filter') &&
+  p.filters[0].key==='$metadata.service' &&
+  p.filters[0].value===OBSERVER_NAME &&
+  p.filters[0].type==='string' && p.filters[0].operation==='eq' &&
+  (p.filterCombination===undefined || p.filterCombination==='and') &&
+  !('needle' in p) && !('groupBys' in p) && !('havings' in p);
+const sameWindow = (x, w) => isObj(x) && x.from===w.from && x.to===w.to;
+const presentId = id => typeof id==='string' && id.length>0;
 
-// Returns a bounded FAIL result if API metadata is inconsistent, not an
-// invented successful 192-tick audit. Only a fully verified envelope is
-// passed to the existing CPU/clock/requestId raw event correlation.
 export function auditTelemetryApiPages(input) {
-  if(!isObj(input)) throw Error('invalid_telemetry_api_export');
-  const {from,to}=dayWindow(input.utc_day);
-  const issues=[];
-  const bad = code => { if(issues.length<25)issues.push(code); };
+  if(!isObj(input))throw Error('invalid_telemetry_api_export');
+  const w=dayWindow(input.utc_day),issues=[];
+  const bad=x=>{if(issues.length<30)issues.push(x);};
   if(input.schema!==API_SCHEMA)bad('api_schema_invalid');
   if(input.worker!==OBSERVER_NAME)bad('api_worker_mismatch');
-  if(typeof input.deployment_id!=='string'||!input.deployment_id)bad('deployment_id_missing');
-  const e=input.events_query, s=input.sampling_query;
-  if(!isObj(e)||!isObj(s)||!isObj(e.request)||!isObj(s.request)||
-     !isObj(e.response)||!isObj(s.response))bad('api_queries_missing_or_malformed');
+  if(!presentId(input.deployment_id))bad('deployment_id_missing');
+  const e=input.events_query,s=input.sampling_query;
+  const er=e?.request,cr=s?.request;
+  const ep=er?.parameters,cp=cr?.parameters;
+  if(!isObj(e)||!isObj(s)||!isObj(er)||!isObj(cr)||
+     !isObj(ep)||!isObj(cp)||!isObj(e.response)||!isObj(s.response))
+    bad('api_queries_missing_or_malformed');
 
-  const evt=e?.response?.events;
-  const eventRows=evt?.events;
-  const metadata=e?.request, calc=s?.request;
-  const sameWindow = q => isObj(q?.timeframe)&&q.timeframe.from===from&&q.timeframe.to===to;
-  if(!sameWindow(metadata)||!sameWindow(calc) ||
-     !sameWindow(e?.response)||!sameWindow(s?.response))bad('api_window_not_complete_utc_day');
-  if(metadata?.view!=='events'||metadata?.limit!==2000 ||
-     (metadata.offset!==undefined && metadata.offset!==null && metadata.offset!==''))
-      bad('api_event_view_limit_or_cursor_invalid');
-  if(calc?.view!=='calculations')bad('api_sample_view_invalid');
-  // Both real request JSONs must be retained. A caller cannot use an
-  // unfiltered sampling query to attest a narrowly filtered event query.
-  if(!isObj(metadata?.filters)||!isObj(calc?.filters) ||
-     canonical(metadata.filters)!==canonical(calc.filters))bad('api_filter_provenance_mismatch');
-  // Equal filters are not necessarily the RIGHT filters. The former equality
-  // check would accept two equally unscoped queries, allowing a sampled
-  // calculation for a different Worker to stand in for this Observer.
-  // Require one explicit exact-service leaf; any group/OR/extra predicates
-  // require separate review rather than silently changing the audit scope.
-  const exactObserverFilter = f => isObj(f) &&
-    Object.keys(f).every(k=>['kind','key','value','type','operation'].includes(k)) &&
-    Object.keys(f).length===5 &&
-    f.kind==='filter' && f.key==='$metadata.service' &&
-    f.value===OBSERVER_NAME && f.type==='string' && f.operation==='eq';
-  if(!exactObserverFilter(metadata?.filters)||!exactObserverFilter(calc?.filters))
-    bad('api_observer_service_scope_not_proven');
-  if(e?.response?.status!=='COMPLETED'||s?.response?.status!=='COMPLETED')
-      bad('api_query_not_completed');
-  if(!Array.isArray(eventRows)||evt?.count!==384||eventRows?.length!==384)
-      bad('api_count_not_exactly_384');
-  const aggreg=s?.response?.calculations;
-  // We explicitly require exactly one aggregate for the identically
-  // scoped query: do not select a convenient '1' from multiple groups.
-  const aggregates=Array.isArray(aggreg)&&aggreg.length===1?aggreg[0]?.aggregates:null;
+  // Cloudflare's *top-level* limit allows up to 2000 event rows, so exactly
+  // 384 events can be captured in one query. parameters.limit is a DIFFERENT
+  // setting (max 100) and must not be used as the event page size.
+  if(er?.limit!==2000||er?.offset!==undefined||er?.offsetBy!==undefined||
+     er?.offsetDirection!==undefined||ep?.limit!==undefined)
+    bad('api_event_limit_or_cursor_invalid');
+  if(ep?.view!=='events'||cp?.view!=='calculations'||cp?.limit!==undefined)
+    bad('api_view_or_parameter_limit_invalid');
+  if(!sameWindow(er?.timeframe,w)||!sameWindow(cr?.timeframe,w))
+    bad('api_request_window_invalid');
+  if(!exactScope(ep)||!exactScope(cp))
+    bad('api_observer_dataset_and_service_scope_invalid');
+  if(!presentId(er?.queryId)||!presentId(cr?.queryId)||er.queryId===cr.queryId)
+    bad('api_query_identity_invalid');
+  if(ep?.calculations!==undefined||!Array.isArray(cp?.calculations)||
+     cp.calculations.length!==1||cp.calculations[0]?.operator!=='count'||
+     cp.calculations[0]?.key!==undefined)
+    bad('api_aggregate_request_invalid');
+
+  const ee=e?.response,ss=s?.response;
+  if(ee?.success!==true||ss?.success!==true||
+     !Array.isArray(ee?.errors)||ee.errors.length!==0||
+     !Array.isArray(ss?.errors)||ss.errors.length!==0)
+    bad('api_response_not_successful');
+  const eres=ee?.result,sres=ss?.result;
+  const eRun=eres?.run,sRun=sres?.run;
+  if(eRun?.status!=='COMPLETED'||sRun?.status!=='COMPLETED'||
+     !sameWindow(eRun?.timeframe,w)||!sameWindow(sRun?.timeframe,w))
+    bad('api_run_incomplete_or_wrong_window');
+  if(!presentId(eRun?.accountId)||eRun.accountId!==sRun?.accountId||
+     !presentId(eRun?.id)||!presentId(sRun?.id)||eRun.id===sRun.id)
+    bad('api_run_identity_or_account_mismatch');
+  // The run's server-echoed *effective* query must still be scoped to the
+  // Observer. Validating only the sent request would miss a saved queryId or
+  // changed effective parameters that actually queried another dataset.
+  const erp=eRun?.query?.parameters,srp=sRun?.query?.parameters;
+  if(!exactScope(erp)||!exactScope(srp)||erp?.view!=='events'||
+     srp?.view!=='calculations'||canonical(erp?.filters)!==canonical(ep?.filters)||
+     canonical(srp?.filters)!==canonical(cp?.filters))
+    bad('api_effective_query_scope_or_view_mismatch');
+  const ev=eres?.events;
+  if(!Array.isArray(ev?.events)||ev.count!==384||ev.events.length!==384)
+    bad('api_count_not_exactly_384');
+  const rows=Array.isArray(ev?.events)?ev.events:[];
+  if(rows.some(row=>!isObj(row)||row.dataset!==DATASET))
+    bad('api_event_dataset_mismatch');
+  const all=sres?.calculations;
+  const aggregates=Array.isArray(all)&&all.length===1?all[0]?.aggregates:null;
   if(!Array.isArray(aggregates)||aggregates.length!==1||
-     aggregates[0]?.sampleInterval!==1||
-     aggregates[0]?.count!==384)bad('api_sampling_not_proven_exact');
-  if(issues.length) return {
-    schema:'BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_AUDIT_RESULT_V1',
-    utc_day:input.utc_day, api_query_structure_pass:false,
-    observer_day_pass:false, api_issue_count:issues.length, api_issues:issues,
+     aggregates[0]?.count!==384||aggregates[0]?.sampleInterval!==1)
+    bad('api_sampling_not_proven_exact');
+
+  if(issues.length)return {
+    schema:'BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_AUDIT_RESULT_V2',
+    utc_day:input.utc_day,api_query_structure_pass:false,observer_day_pass:false,
+    api_issue_count:issues.length,api_issues:issues,
     actual_cloudflare_api_authenticity_independently_proven:false,
-    actual_github_dispatch_proven:false, immutable_forecast_first_add_proven:false,
-    formal_t_minus_12_proven:false
+    actual_github_dispatch_proven:false,immutable_forecast_first_add_proven:false,
+    formal_t_minus_12_proven:false,
   };
   const raw=auditRawWorkersLogs({
     schema:RAW_LOG_SCHEMA,utc_day:input.utc_day,worker:input.worker,
     deployment_id:input.deployment_id,complete_export:true,all_pages_fetched:true,
-    sample_interval:1,total_matched_events:384,records:eventRows,
+    sample_interval:1,total_matched_events:384,records:rows,
   });
-  return {
-    ...raw,api_schema:API_SCHEMA,api_query_structure_pass:true,
+  return {...raw,api_schema:API_SCHEMA,api_query_structure_pass:true,
     api_issue_count:0,api_issues:[],
     actual_cloudflare_api_authenticity_independently_proven:false,
-    actual_github_dispatch_proven:false,
-    immutable_forecast_first_add_proven:false,
-    formal_t_minus_12_proven:false
-  };
+    actual_github_dispatch_proven:false,immutable_forecast_first_add_proven:false,
+    formal_t_minus_12_proven:false};
 }
