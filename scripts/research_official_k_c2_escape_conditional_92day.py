@@ -13,7 +13,10 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
-from research_official_k_one_day_compare import RACE, parse_k, unpack_lha
+if __package__:
+    from .research_official_k_one_day_compare import RACE, parse_k, unpack_lha
+else:
+    from research_official_k_one_day_compare import RACE, parse_k, unpack_lha
 
 EXCLUDED = {"F", "S0", "S1", "S2"}
 BANDS = ("0-2m", "3-4m", "5m+")
