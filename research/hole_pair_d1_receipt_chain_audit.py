@@ -28,6 +28,47 @@ WORKER_WARNING = (
     "D1 first-insert time is not an independently signed external witness "
     "or official deadline certification."
 )
+WORKER_REQUIRED_CANDIDATE_KEYS = frozenset({
+    "schema", "method", "status", "race_code", "model_version",
+    "deadline_jst", "t_minus_12_jst", "local_start_jst", "local_finish_jst",
+    "source_sha256", "source_git_blob_sha1", "locked_selector_git_blobs",
+    "method_source_sha256", "candidates", "candidates_sha256",
+    "formal", "prospective_validation", "independent_first_receipt_verified",
+    "production_forecast_changed",
+})
+WORKER_MODEL_VERSION = "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED"
+WORKER_LOCKED_SELECTOR_BLOBS = {
+    "hole_third_choice_research.py": "579edc1ae846489d447307fbf03b35fc7d4c09b9",
+    "hole_pair_diversification_research.py": "56f06c10f6d07e03b2e37624ecf57dc6de7d8748",
+    "hole_top5_safe_bundle_research.py": "a43f53d898ac73829e7f2b24f81624d69d26d74a",
+    "hole_pair_third_bundle_research.py": "88c4ed506588a24bb593d104b5d0f59c7502d73a",
+}
+WORKER_FROZEN_WARNING = (
+    "Candidate frozen by a local clock only. No independently verified "
+    "first receipt; cannot report formal accuracy."
+)
+GIT_BLOB_SHA1 = re.compile(r"[0-9a-f]{40}\Z")
+
+
+def _enforce_worker_candidate_contract(record):
+    """Reject records that the exact pinned Worker could not have accepted.
+
+    This validates *claims and shape*, not actual Git source authenticity.
+    """
+    if type(record) is not dict or not (
+            set(record) == WORKER_REQUIRED_CANDIDATE_KEYS or
+            set(record) == WORKER_REQUIRED_CANDIDATE_KEYS | {"warning"}):
+        raise ValueError("candidate_not_accepted_by_worker_contract")
+    blob = record["source_git_blob_sha1"]
+    if (type(blob) is not str or not GIT_BLOB_SHA1.fullmatch(blob)
+            or record["model_version"] != WORKER_MODEL_VERSION
+            or type(record["locked_selector_git_blobs"]) is not dict
+            or record["locked_selector_git_blobs"] != WORKER_LOCKED_SELECTOR_BLOBS
+            or ("warning" in record and
+                record["warning"] != WORKER_FROZEN_WARNING)):
+        raise ValueError("candidate_not_accepted_by_worker_contract")
+
+
 
 
 def _utc(iso):
@@ -50,6 +91,7 @@ def _utc(iso):
 def audit_one(record, d1_receipt=None):
     """Validate claimed immutable bytes and chronology, never authentication."""
     code, cutoff = _validate_frozen(record)
+    _enforce_worker_candidate_contract(record)
     digest = sha256(canonical_bytes(record)).hexdigest()
     response = {
         "schema": "HOLE_PAIR_D1_RECEIPT_CHAIN_AUDIT_V1",
