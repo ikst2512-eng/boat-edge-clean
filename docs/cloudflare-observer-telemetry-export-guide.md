@@ -1,5 +1,24 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-09: Cloudflare Telemetry query V2 uses the documented API contract
+
+**Correction to the historical V1 synthetic examples below:** The real Cloudflare POST /accounts/{account_id}/workers/observability/telemetry/query body uses top-level queryId, timeframe and limit, but **nested parameters.view, parameters.datasets and parameters.filters (an array)**. It returns result.run.status, result.run.timeframe and result.run.query.parameters, plus result.events or result.calculations. The old mock-only V1 wrapper incorrectly placed view and filters at the root and collapsed the raw response. V1 is superseded; do not manufacture missing fields from an old JSON example.
+
+Cloudflare publishes two different limits: the request's top-level limit allows up to **2000 events**, enough for the expected 384 records in one response; parameters.limit is a separate option limited to **100**. The suggestion that a 384-event retrieval necessarily needs four pages was incorrect and is superseded.
+
+The direct API path now accepts only **BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V2**. Offline CLI: node scripts/audit_cloudflare_observer_telemetry.mjs <actual-api-evidence.json>. This file retains the exact request and API JSON response under events_query.request / events_query.response and sampling_query.request / sampling_query.response. The synthetic fixture in tests/cloudflare_capture_wakeup.test.mjs (syntheticApiTelemetryDay) illustrates required structure; it is NOT Cloudflare evidence.
+
+Strict V2 acceptance:
+- Both original POST request bodies have distinct nonempty queryId, the exact full UTC-day timeframe, datasets ["cloudflare-workers"], and exactly one array service filter: [{"kind":"filter","key":"$metadata.service","value":"boat-edge-clean-independent-observer","type":"string","operation":"eq"}].
+- Event query: top-level limit 2000, no cursor, nested parameters.view "events". Sampling query: nested parameters.view "calculations" with exactly one count calculation and the identical Worker/dataset filter.
+- Responses: success true, errors [], result.run.status "COMPLETED", matching run.timeframe and server-echoed run.query.parameters service filter and view; same nonempty accountId on two different run IDs.
+- Exactly 384 stored events (192 invocations and 192 custom log records), each dataset "cloudflare-workers", and one matched aggregate with count 384 and sampleInterval 1. Downstream raw correlation also requires CPU, Worker version, request IDs, timestamps and no duplicates.
+
+**Proof limit:** This is an offline consistency check of operator-supplied JSON, not independent Cloudflare origin authentication, successful deployment, actual Cron/CPU or any rescue. No token or Authorization header should ever be included in evidence sent to this audit or a PR. A V2 synthetic PASS never approves GitHub dispatch. The historical V1 mock examples remain research artifacts but are **not a supported production evidence format**.
+
+Cloudflare API documentation: https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/
+
+
 ## 2026-11-09: observer logs and query-scope acceptance update (Draft only)
 
 The dedicated zero-credential `cloudflare/wrangler.observer.toml` uses the documented Workers Logs layout: `[observability]` with `enabled = true`, and `[observability.logs]` with `invocation_logs = true` and `head_sampling_rate = 1`. The PR-only source preflight now rejects missing invocation logs, a non-one sampling rate, unexpected tables/keys and altered Cron identity. Wrangler `deploy --dry-run` and synthetic/local Workerd checks **do not prove** live logging has started.
