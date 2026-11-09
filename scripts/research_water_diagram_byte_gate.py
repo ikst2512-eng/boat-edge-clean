@@ -19,6 +19,8 @@ from pathlib import Path
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 MAX_BYTES = 5_000_000
 MAX_CHUNKS = 4096
+MAX_PIXELS = 20_000_000
+MAX_DECODED_BYTES = 80_000_000
 JCD = frozenset(f"{i:02d}" for i in range(1, 25))
 SCHEMA = "BOAT_EDGE_OFFICIAL_WATER_DIAGRAM_BYTE_RECEIPT_V1"
 
@@ -35,12 +37,54 @@ def check_source_url(jcd: str, url: str) -> None:
         raise ValueError("noncanonical_or_unproven_source_url")
 
 
+def _decode_png_rows(encoded: bytes, width: int, height: int, depth: int,
+                     color: int, interlace: int) -> None:
+    """Fail closed on malformed/zlib-bomb IDAT and invalid scanline filters.
+
+    This proves local raster decodability, NOT image origin, geometry, or
+    official wind semantics. Decode only up to an explicit resource budget.
+    """
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color]
+    passes = [(0, 0, 1, 1)] if interlace == 0 else [
+        (0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4),
+        (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2)]
+    expected = 0
+    shapes = []
+    for ox, oy, sx, sy in passes:
+        pw = (width - ox + sx - 1) // sx if width > ox else 0
+        ph = (height - oy + sy - 1) // sy if height > oy else 0
+        if not pw or not ph:
+            continue
+        stride = 1 + (pw * channels * depth + 7) // 8
+        expected += stride * ph
+        shapes.append((stride, ph))
+    if not encoded or not expected or expected > MAX_DECODED_BYTES:
+        raise ValueError("png_empty_or_oversized_decoded_image")
+    try:
+        decoder = zlib.decompressobj()
+        data = decoder.decompress(encoded, expected + 1)
+    except zlib.error as exc:
+        raise ValueError("png_invalid_zlib_stream") from exc
+    if (not decoder.eof or decoder.unused_data or decoder.unconsumed_tail
+            or len(data) != expected):
+        raise ValueError("png_invalid_or_truncated_raster_size")
+    offset = 0
+    for stride, ph in shapes:
+        for _ in range(ph):
+            if data[offset] not in (0, 1, 2, 3, 4):
+                raise ValueError("png_invalid_scanline_filter")
+            offset += stride
+
+
 def png_dimensions(data: bytes) -> tuple[int, int]:
     """Reject mislabeled HTML, corruption, extra bytes and unbounded chunks."""
     if not isinstance(data, bytes) or len(data) < 60 or len(data) > MAX_BYTES or not data.startswith(PNG_SIG):
         raise ValueError("not_sized_png_bytes")
     offset, chunks, seen_ihdr, seen_idat, seen_iend = 8, 0, False, False, False
-    width = height = 0
+    width = height = depth = color = interlace = 0
+    idat_chunks = []
+    seen_plte = False
+    idat_ended = False
     while offset < len(data):
         chunks += 1
         if chunks > MAX_CHUNKS or offset + 12 > len(data):
@@ -60,21 +104,36 @@ def png_dimensions(data: bytes) -> tuple[int, int]:
             if kind != b"IHDR" or size != 13:
                 raise ValueError("png_missing_first_ihdr")
             width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", body)
-            if not 1 <= width <= 12000 or not 1 <= height <= 12000 or depth not in (1, 2, 4, 8, 16) or color not in (0, 2, 3, 4, 6) or compression != 0 or filtering != 0 or interlace not in (0, 1):
+            if (not 1 <= width <= 12000 or not 1 <= height <= 12000
+                    or width * height > MAX_PIXELS
+                    or depth not in {0: (1, 2, 4, 8, 16), 2: (8, 16),
+                                     3: (1, 2, 4, 8), 4: (8, 16),
+                                     6: (8, 16)}.get(color, ())
+                    or compression != 0 or filtering != 0 or interlace not in (0, 1)):
                 raise ValueError("invalid_png_ihdr")
             seen_ihdr = True
         elif kind == b"IHDR":
             raise ValueError("duplicate_ihdr")
+        elif kind == b"PLTE":
+            if seen_idat or seen_plte or size == 0 or size % 3 != 0 or size > 768:
+                raise ValueError("invalid_png_palette")
+            seen_plte = True
         elif kind == b"IDAT":
+            if idat_ended or (color == 3 and not seen_plte):
+                raise ValueError("nonconsecutive_idat_or_missing_palette")
             seen_idat = True
+            idat_chunks.append(body)
         elif kind == b"IEND":
             if size != 0 or end != len(data):
                 raise ValueError("invalid_png_iend_or_trailing_data")
             seen_iend = True
             break
+        if seen_idat and kind not in (b"IDAT", b"IEND"):
+            idat_ended = True
         offset = end
     if not (seen_ihdr and seen_idat and seen_iend):
         raise ValueError("png_missing_required_chunks")
+    _decode_png_rows(b"".join(idat_chunks), width, height, depth, color, interlace)
     return width, height
 
 
