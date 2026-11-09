@@ -410,6 +410,10 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
                         main()
             self.assertEqual(raised.exception.code, 2)
             self.assertIn("post-window late runs", stdout.getvalue())
+            self.assertIn(
+                "In-window schedule observations below nominal due by 56",
+                stdout.getvalue())
+            self.assertIn("numerical shortfall ONLY", stdout.getvalue())
             self.assertEqual(
                 json.loads(output.read_text(encoding="utf-8"))[
                     "same_day_within_nominal_window_run_count"], 0)
