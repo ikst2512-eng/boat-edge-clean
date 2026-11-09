@@ -1,5 +1,22 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-09: operator-ready request generator and independent ABR gate (Draft-only)
+
+Run from the repository root, without any Cloudflare or GitHub credentials:
+
+```sh
+node scripts/print_cloudflare_observer_telemetry_queries.mjs 2026-11-10
+```
+
+The command prints exactly two deterministic, secret-free **request bodies** for the same complete UTC day: a 2,000-limit event query and a separate unsampled COUNT calculation query. Both are scoped to the dedicated Observer service and the `cloudflare-workers` dataset. The generator **does not authenticate, send HTTP, create a Cron, deploy a Worker or assert that the query ran**. Supply the JSON request bodies through an **owner-controlled authenticated Cloudflare API client** only after actual deployment and account approval. Keep Cloudflare API credentials outside GitHub, ChatGPT and exported evidence. The published telemetry query endpoint currently lists the **Workers Observability Write** API-token permission; use the narrowest account-scoped token available and avoid global API keys. A Cloudflare API token for reading logs is separate from any GitHub dispatch PAT and must not be added to the Worker.
+
+The V2 auditor also now examines **query-time Adaptive Bit Rate sampling** (`result.statistics.abr_level` and `result.run.statistics.abr_level`), *separately* from the stored-event ingestion `sampleInterval`. The Cloudflare API documentation states an omitted ABR level means 1. Any present non-1 value causes `api_adaptive_query_sampling_not_exact`, even if 384 rows and a synthetic `sampleInterval:1` aggregate appear. Dry/compare queries are rejected, and the **server-returned effective** COUNT calculation must be COUNT—not a different calculation hidden behind an accepted request.
+
+A positive V2 audit still means **only the operator-supplied JSON is internally consistent**. It does not authenticate API responses, prove real Cloudflare deployment/CPU <=10ms or allow GitHub rescue. Actual 192/192 invocations and raw logs are still missing. The previous V1 samples remain for historical research only, not acceptance.
+
+Official reference: https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/
+
+
 ## 2026-11-09: Cloudflare Telemetry query V2 uses the documented API contract
 
 **Correction to the historical V1 synthetic examples below:** The real Cloudflare POST /accounts/{account_id}/workers/observability/telemetry/query body uses top-level queryId, timeframe and limit, but **nested parameters.view, parameters.datasets and parameters.filters (an array)**. It returns result.run.status, result.run.timeframe and result.run.query.parameters, plus result.events or result.calculations. The old mock-only V1 wrapper incorrectly placed view and filters at the root and collapsed the raw response. V1 is superseded; do not manufacture missing fields from an old JSON example.
