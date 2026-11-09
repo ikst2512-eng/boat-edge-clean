@@ -10,9 +10,9 @@
     "previous_historical_primary_text_explicit": 11,
     "previous_historical_primary_text_partial": 7,
     "previous_no_primary_text": 6,
-    "official_diagram_images_visually_rendered": 6,
-    "tool_fetch_errors_not_http_status_proofs": 4,
-    "not_attempted": 14,
+    "official_diagram_images_visually_rendered": 10,
+    "tool_fetch_errors_not_http_status_proofs": 14,
+    "not_attempted": 0,
     "primary_image_bytes_archived_with_sha": 0,
     "second_reader_confirmed": 0,
     "same_race_official_arrow_original_saved": 0,
@@ -23,7 +23,8 @@
     "official_Ashiya": "Viewed central official BOAT RACE diagram and operator diagram with compass N approximately above and 1-turn mark to the diagram right; provisional E is consistent with separate operator race-level 'east headwind' testimony. No original image SHA or independent second review: cannot certify.",
     "official_Karatsu": "Operator says pit position changed December 2025. Water map version img-s25-map.png?v=20251208 observed; relevant 2026-08...10 data must use applicable layout version; map text does not certify 8-way start-to-1st mark heading.",
     "official_Amagasaki": "Both BOAT RACE primary diagram and local organizer diagram rendered, but stand facing cannot automatically be interpreted as head/tail.",
-    "same_race_live_attempt": "2026-11-09 芦屋8R BOAT RACE beforeinfo direct open returned cache miss from browsing tool. This is not proof of upstream HTTP 403/404 or a predeadline receipt."
+    "same_race_live_attempt": "2026-11-09 芦屋8R BOAT RACE beforeinfo direct open returned cache miss from browsing tool. This is not proof of upstream HTTP 403/404 or a predeadline receipt.",
+    "20261109_full_24_stadium_image_round": "All 24 diagram URLs attempted through web image display. Newly rendered 06/07/11/24, overall 10 rendered; remaining 14 encountered tool fetch failures, not observed original HTTP statuses. Primary publication edition date: 06/07/24 2023-01-01, 11 2025-12-08. Original image bytes and SHA, independent two-reader orientation, same-race wind arrow receipts, and fully certified head/tail remain zero."
   },
   "same_race_beforeinfo_attempt": {
     "jcd": "21",
@@ -48,7 +49,7 @@
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
       "diagram_fetch_stage": "web_image_fetch_failed",
-      "diagram_fetch_failure_reason": "web_image_fetch_timeout",
+      "diagram_fetch_failure_reason": "web_tool_timeout_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -56,7 +57,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "02",
@@ -77,7 +81,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "03",
@@ -90,7 +97,7 @@
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
       "diagram_fetch_stage": "web_image_fetch_failed",
-      "diagram_fetch_failure_reason": "web_image_fetch_internal_error",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -98,7 +105,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "04",
@@ -110,8 +120,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=04",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -119,7 +129,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "05",
@@ -140,7 +153,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "06",
@@ -150,18 +166,21 @@
       "prior_secondary_B_heading_deg": 270,
       "prior_secondary_hypotheses_disagree": true,
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=06",
-      "primary_diagram_image_url": null,
+      "primary_diagram_image_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_06.png",
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
+      "diagram_fetch_stage": "official_diagram_rendered",
       "diagram_fetch_failure_reason": null,
-      "provisional_visual_orientation": "unknown",
+      "provisional_visual_orientation": "unknown_pending_independent_read",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
       "diagram_compass_first_mark_two_reviewer_validated": false,
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": "2023-01-01",
+      "diagram_display_confirmed_this_turn": true
     },
     {
       "jcd": "07",
@@ -171,18 +190,21 @@
       "prior_secondary_B_heading_deg": 270,
       "prior_secondary_hypotheses_disagree": true,
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=07",
-      "primary_diagram_image_url": null,
+      "primary_diagram_image_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_07.png",
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
+      "diagram_fetch_stage": "official_diagram_rendered",
       "diagram_fetch_failure_reason": null,
-      "provisional_visual_orientation": "unknown",
+      "provisional_visual_orientation": "unknown_pending_independent_read",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
       "diagram_compass_first_mark_two_reviewer_validated": false,
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": "2023-01-01",
+      "diagram_display_confirmed_this_turn": true
     },
     {
       "jcd": "08",
@@ -195,7 +217,7 @@
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
       "diagram_fetch_stage": "web_image_fetch_failed",
-      "diagram_fetch_failure_reason": "web_image_fetch_internal_error",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -203,7 +225,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "09",
@@ -215,8 +240,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=09",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -224,7 +249,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "10",
@@ -236,8 +264,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=10",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -245,7 +273,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "11",
@@ -255,18 +286,21 @@
       "prior_secondary_B_heading_deg": 180,
       "prior_secondary_hypotheses_disagree": false,
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=11",
-      "primary_diagram_image_url": null,
+      "primary_diagram_image_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_11.png",
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
+      "diagram_fetch_stage": "official_diagram_rendered",
       "diagram_fetch_failure_reason": null,
-      "provisional_visual_orientation": "unknown",
+      "provisional_visual_orientation": "unknown_pending_independent_read",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
       "diagram_compass_first_mark_two_reviewer_validated": false,
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": "2025-12-08",
+      "diagram_display_confirmed_this_turn": true
     },
     {
       "jcd": "12",
@@ -279,7 +313,7 @@
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
       "diagram_fetch_stage": "web_image_fetch_failed",
-      "diagram_fetch_failure_reason": "web_image_fetch_internal_error",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -287,7 +321,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "13",
@@ -308,7 +345,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "14",
@@ -320,8 +360,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=14",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -329,7 +369,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "15",
@@ -341,8 +384,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=15",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -350,7 +393,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "16",
@@ -362,8 +408,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=16",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -371,7 +417,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "17",
@@ -383,8 +432,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=17",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -392,7 +441,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "18",
@@ -404,8 +456,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=18",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -413,7 +465,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "19",
@@ -425,8 +480,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=19",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -434,7 +489,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "20",
@@ -455,7 +513,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "21",
@@ -476,7 +537,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "22",
@@ -488,8 +552,8 @@
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=22",
       "primary_diagram_image_url": null,
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
-      "diagram_fetch_failure_reason": null,
+      "diagram_fetch_stage": "web_image_fetch_failed",
+      "diagram_fetch_failure_reason": "web_tool_internal_error_or_url_unavailable_not_official_HTTP_failure",
       "provisional_visual_orientation": "unknown",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
@@ -497,7 +561,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_display_confirmed_this_turn": false,
+      "diagram_edition_text_from_official_stadium_page": null
     },
     {
       "jcd": "23",
@@ -518,7 +585,10 @@
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": null,
+      "diagram_display_confirmed_this_turn": false
     },
     {
       "jcd": "24",
@@ -528,21 +598,32 @@
       "prior_secondary_B_heading_deg": 180,
       "prior_secondary_hypotheses_disagree": true,
       "primary_official_venue_page": "https://www.boatrace.jp/owpc/pc/data/stadium?jcd=24",
-      "primary_diagram_image_url": null,
+      "primary_diagram_image_url": "https://www.boatrace.jp/static_extra/pc/images/img_water1_24.png",
       "primary_operator_diagram_image_url": null,
-      "diagram_fetch_stage": "not_attempted",
+      "diagram_fetch_stage": "official_diagram_rendered",
       "diagram_fetch_failure_reason": null,
-      "provisional_visual_orientation": "unknown",
+      "provisional_visual_orientation": "unknown_pending_independent_read",
       "primary_image_bytes_received_and_archived": false,
       "primary_image_sha256": null,
       "diagram_compass_first_mark_two_reviewer_validated": false,
       "operator_same_race_wind_arrow_original_sha256": null,
       "from_to_arrow_semantics_verified": false,
       "pre_t12_official_beforeinfo_first_remote_receipt": false,
-      "relative_wind_formally_certified": false
+      "relative_wind_formally_certified": false,
+      "diagram_web_display_attempted_20261109": true,
+      "diagram_edition_text_from_official_stadium_page": "2023-01-01",
+      "diagram_display_confirmed_this_turn": true
     }
   ],
   "risk": "Result K (postrace), official historical editorial text, water diagram, same-race wind arrow, and beforeinfo-before-T−12 are independent evidence classes; do not promote from one to another.",
   "all_headwind_tailwind_model_features_blocked": true,
-  "main_and_production_untouched": true
+  "main_and_production_untouched": true,
+  "last_image_display_round_jst": "2026-11-09",
+  "newly_rendered_venue_codes": [
+    "06",
+    "07",
+    "11",
+    "24"
+  ],
+  "full_round_result_classification": "web_image_display_only_not_origin_raw_HTTP_receipt"
 }
