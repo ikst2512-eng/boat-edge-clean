@@ -102,3 +102,26 @@ The scope is now coordinated with [the shared all-four-mode acceptance Issue #17
 
 The bridge rejects mixed/duplicated race IDs, crossed days, inconsistent triad counts, future-result claims or forged `formal` flags and never substitutes an official component from another race to fill a missing component. All its per-race "present" entries are `self_reported_present_not_reauthenticated`; no external or first-remote proof is inferred. Even a hypothetical locally complete row is **blocked** pending independently authenticated source/candidate receipts. This is **a nonpromoting compatibility gate, not a new research model**. Existing frozen #1698 conditional selector, registered coefficients and 300+300 identity remain unchanged.
 
+
+## 2026-11-09 real ledger-to-#1694 historical-source race-code intersection
+
+Real connected GitHub CI logs, not a synthetic mock: [#1698 research CI run #42620562720](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42620562720) emitted `POSITION_SENSITIVE_WHOLE_LEDGER_ROWS_NONFORMAL` for exactly **16** saved candidate race codes:
+
+- `202611090708` to `202611090712` (5)
+- `202611091207` to `202611091212` (6)
+- `202611091908` to `202611091912` (5)
+
+All 16 logged `status=deadline_cutoff_elapsed_no_new_observation_attempt` and `observed_at_utc=null`; independent first remote receipt certification remains **0/16**, consistent with the ledger provenance auditor. This status reflects this run's observation method and cannot prove remote files never existed or were never observed by a different trusted system.
+
+The independently audited **three** historical same-race examples in [#1694's verified historical source report](https://github.com/ikst2512-eng/boat-edge-clean/blob/audit/t12-nov06-day-isolation-20261106/docs/audits/t12-independent-nov09-1936-same-race-proof-chain.md) are `202611030112`, `202611091110`, `202611091710`. **Exact race-code intersection: 0/16** among current candidate ledger records and those three specifically inspected sources. This is NOT evidence that the other 13 November 9 source races were never collected; it means this bounded set of upstream historical witnesses supplies no same-race triad for the 16 candidates. Cross-race stitching is forbidden, and the historical official pair races cannot be relabeled as post-source candidate forecasts.
+
+This demonstrates two distinct remaining bottlenecks:
+1. **Same-race source coverage/chronology:** #1694/collector owner must obtain independently replayed racelist, fully populated six exhibition/ST, and 120 odds together for a *future same race*, and publish the model-suitable source snapshot before T−12.
+2. **Prediction-independent publication:** #1698 needs a separately authorized create-once frozen candidate strictly after actual input receipt and before T−12 with independently witnessed first remote acceptance, full scheduled/manual/rescue run roster, no snapshot substitution. A supplied GitHub Contents GET or local timestamp is not initial receipt evidence.
+
+The new bridge's **offline handoff CLI**, without networking or publication, is:
+
+`python position_sensitive_cross_pr_t12_bridge.py --t12-report /path/to/independently-obtained-1694-report.json --candidate-codes /path/to/1698-race-code-array.json`
+
+Both paths are caller-controlled and treated as untrusted. Validate and pin the source report independently **outside the bridge**, because JSON fields and source-code comments are not provenance. Output remains `formal=false` and no result files are opened; it lists matched/unmatched race codes and nonexclusive missing evidence per race. Historical replay and real source-row identity must be independently confirmed by #1694; this tool cannot upgrade any candidate to a 300+300 slot by itself. No main/UI/Render/collector/forecast file changed.
+
