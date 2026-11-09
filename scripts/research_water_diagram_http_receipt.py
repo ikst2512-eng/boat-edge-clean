@@ -95,6 +95,13 @@ def write_bundle(output_root: Path, raw: bytes, receipt: dict) -> Path:
         raise ValueError("untrusted_receipt_schema")
     if hashlib.sha256(raw).hexdigest() != receipt.get("png_sha256"):
         raise ValueError("receipt_not_matching_raw_file")
+    # A self-consistent digest is not proof that the bytes are a PNG. The
+    # public write_bundle helper must repeat all essential source checks.
+    dimensions = png_dimensions(raw)
+    if receipt.get("png_bytes") != len(raw) or receipt.get("png_dimensions") != list(dimensions):
+        raise ValueError("receipt_length_or_png_dimensions_inconsistent")
+    if receipt.get("content_type") != "image/png" or receipt.get("content_encoding") != "identity":
+        raise ValueError("receipt_content_type_or_encoding_inconsistent")
     check_source_url(receipt.get("jcd"), receipt.get("final_url"))
     forbidden_true = (
         "source_attested_by_independent_service", "diagram_bearing_independently_verified",
