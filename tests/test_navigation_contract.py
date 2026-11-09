@@ -67,8 +67,33 @@ class NavigationContractTest(unittest.TestCase):
             self.assertIn("['" + {"forecast": "予想", "card": "出走表",
                                    "exhibit": "展示・直前", "result": "結果"}[view]
                           + "','" + view + "']", self.nav)
+        self.assertIn("['連対率','stats']", self.nav)
+        self.assertIn("view==='stats'&&typeof setForecastPane==='function'", self.nav)
         self.assertIn("async function loadPredictions", self.index)
         self.assertIn("function openCleanListTab", self.index)
+
+    def test_forecast_shows_only_prediction_and_stats_have_separate_pane(self):
+        """Ticket view does not expose rates, entry simulation, or reference research."""
+        start = self.index.index('<section class="forecast-combined-race"')
+        end = self.index.index('<section class="forecast-stats-pane"', start)
+        prediction = self.index[start:end]
+        data_start = end
+        data_end = self.index('<section class="forecast-result-tab"', data_start)
+        stats = self.index[data_start:data_end]
+        self.assertIn('id="fourModeForecastRows"', prediction)
+        for forbidden in ('forecast-statistics', 'forecastLeaderRows',
+                          'entryScenarioPanel', 'legacyTopnResearch',
+                          'forecast-inline-evidence'):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, prediction)
+        for required in ('forecast-statistics', 'forecastLeaderRows',
+                         'entryScenarioPanel', 'legacyTopnResearch',
+                         'forecast-inline-evidence'):
+            with self.subTest(required=required):
+                self.assertIn(required, stats)
+        self.assertIn('aria-label="連対率と選手データ" hidden', stats)
+        self.assertIn("stats:root.querySelector('.forecast-stats-pane')", self.index)
+        self.assertIn("setForecastPane(v.pane==='stats'?'stats':'prediction')", self.nav)
 
     def test_prediction_shortcut_resets_nested_forecast_tab(self):
         self.assertIn("view==='forecast'&&typeof setForecastPane==='function'", self.nav)
