@@ -191,6 +191,26 @@ describe('actual Workerd scheduled handler with intercepted GitHub API', () => {
     expect(errors.join(' ')).not.toContain(TEST_TOKEN);
   });
 
+  it('16 parallel deployment-facing scheduled handlers remain locked with zero GET and POST',async()=>{
+    vi.spyOn(Date,'now').mockReturnValue(TEST_NOW);
+    const {calls}=mockGitHub();
+    const errors=[];
+    vi.spyOn(console,'error').mockImplementation(message=>errors.push(String(message)));
+    const outcomes=await Promise.allSettled(Array.from({length:16},()=>invoke(CRON,{
+      CLOUDFLARE_DISPATCH_ENABLED:'true',GITHUB_DISPATCH_TOKEN:TEST_TOKEN,
+    })));
+    expect(outcomes).toHaveLength(16);
+    expect(outcomes.every(x=>x.status==='rejected' &&
+      x.reason instanceof Error &&
+      x.reason.message==='cross_provider_recovery_hard_locked')).toBe(true);
+    expect(calls).toHaveLength(0);
+    expect(errors).toHaveLength(16);
+    expect(errors.every(x=>x.includes('cross_provider_recovery_hard_locked') &&
+      !x.includes(TEST_TOKEN) && !x.includes('Bearer '))).toBe(true);
+    // Do NOT confuse this with dormant execute() research: two unlocked
+    // concurrent invocations still reproduce 4 POSTs across two workflows.
+  });
+
   it('default observer mode runs in Workerd without PAT or GitHub network, even in active window', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TEST_NOW);
     const {calls} = mockGitHub();
