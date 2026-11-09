@@ -1,9 +1,12 @@
 """Synthetic only: never equate another race's evidence to a candidate."""
 import copy
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
 from position_sensitive_cross_pr_t12_bridge import (
-    assess_cross_pr_blockers, COMPONENTS, SCHEMA,
+    assess_cross_pr_blockers, COMPONENTS, SCHEMA, _read_json_file,
 )
 
 
@@ -145,6 +148,32 @@ class CrossPrSourceBridgeTests(unittest.TestCase):
         r["schema"] = "SOME_OTHER_REPORT"
         with self.assertRaisesRegex(ValueError, "upstream_report_overclaims"):
             assess_cross_pr_blockers(r, ["202611091110"])
+
+
+    def test_readonly_json_inputs_and_reject_duplicate_keys(self):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "source.json"
+            roster = Path(td) / "candidate.json"
+            source.write_text(json.dumps(report()), encoding="utf-8")
+            roster.write_text(json.dumps(["202611091110"]), encoding="utf-8")
+            d = assess_cross_pr_blockers(_read_json_file(source, 250000),
+                                         _read_json_file(roster, 30000))
+            self.assertEqual(d["matched_upstream_race_codes"], 1)
+            self.assertFalse(d["formal"])
+            source.write_text('{"a":1,"a":2}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate_json_key"):
+                _read_json_file(source, 250000)
+
+    def test_readonly_json_refuses_symlink_and_oversize(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "oversize.json"
+            p.write_text(json.dumps(report()), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unsafe_json_report_path"):
+                _read_json_file(p, 5)
+            link = Path(td) / "link.json"
+            link.symlink_to(p)
+            with self.assertRaisesRegex(ValueError, "unsafe_json_report_path"):
+                _read_json_file(link, 250000)
 
 
 if __name__ == "__main__":
