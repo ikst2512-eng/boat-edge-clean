@@ -106,3 +106,12 @@ test('runtime compatibility date is pinned to tested Workerd version', () => {
     'compatibility_date = "2026-11-09"'),
     'observer_runtime_compatibility_date_invalid');
 });
+
+test('nested Workers Logs settings require invocation logs and exact full sampling', () => {
+  rejects(mutate('observerConfig','invocation_logs = true',
+    'invocation_logs = false'),'observer_logs_not_full_sample');
+  rejects(mutate('observerConfig','[observability.logs]',
+    '[not_the_log_table]'),'observer_unexpected_or_missing_toml_section');
+  rejects(mutate('observerConfig','head_sampling_rate = 1',
+    'head_sampling_rate = 0.5'),'observer_logs_not_full_sample');
+});
