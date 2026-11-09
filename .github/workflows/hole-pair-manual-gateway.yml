@@ -210,6 +210,78 @@ jobs:
           [[ "$ACK" == "CAPTURE_UNVERIFIED_RESEARCH" ]] || { echo "::error::explicit research acknowledgement required"; exit 2; }
           [[ "$DAY" =~ ^20[0-9]{6}$ ]] || { echo "::error::invalid YYYYMMDD capture day"; exit 2; }
           [[ "$DAY" == "$(TZ=Asia/Tokyo date +%Y%m%d)" && "$DAY" > "20261108" ]] || { echo "::error::only current JST day from Nov9; no backfill"; exit 2; }
+      - name: Refuse later independent manual dispatch on the same JST day (research-only)
+        shell: bash
+        env:
+          INPUT_CAPTURE_DAY_JST: ${{ inputs.capture_day_jst }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          JST = timezone(timedelta(hours=9))
+          day = os.environ['INPUT_CAPTURE_DAY_JST']
+          if (os.environ['GITHUB_REPOSITORY'] != 'ikst2512-eng/boat-edge-clean'
+                  or os.environ['GITHUB_EVENT_NAME'] != 'workflow_dispatch'
+                  or os.environ['GITHUB_REF'] != 'refs/heads/main'
+                  or os.environ['GITHUB_RUN_ATTEMPT'] != '1'
+                  or len(day) != 8 or not day.isascii() or not day.isdecimal()):
+              raise SystemExit('invalid_manual_gateway_run_identity')
+          current = int(os.environ['GITHUB_RUN_ID'])
+          if current <= 0:
+              raise SystemExit('invalid_manual_gateway_run_id')
+          start = datetime.strptime(day, '%Y%m%d').replace(tzinfo=JST)
+          if start.date() != datetime.now(JST).date():
+              raise SystemExit('cross_day_manual_run_not_allowed')
+          end = start + timedelta(days=1)
+          first = start.astimezone(timezone.utc)
+          last = (end - timedelta(seconds=1)).astimezone(timezone.utc)
+          interval = (first.strftime('%Y-%m-%dT%H:%M:%SZ') + '..'
+                      + last.strftime('%Y-%m-%dT%H:%M:%SZ'))
+          params = urllib.parse.urlencode({
+              'event': 'workflow_dispatch', 'branch': 'main',
+              'created': interval, 'per_page': 100, 'page': 1,
+          })
+          url = ('https://api.github.com/repos/ikst2512-eng/boat-edge-clean'
+                 '/actions/workflows/hole-pair-manual-gateway.yml/runs?' + params)
+          req = urllib.request.Request(url, headers={
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'boat-edge-nonformal-single-dispatch-review',
+          })
+          # Public repo, read-only API; HTTP/rate-limit/timeout errors fail closed.
+          with urllib.request.urlopen(req, timeout=12) as response:
+              data = json.load(response)
+          if type(data) is not dict:
+              raise SystemExit('untrusted_manual_run_history')
+          count, runs = data.get('total_count'), data.get('workflow_runs')
+          if (type(count) is not int or not 1 <= count <= 100
+                  or type(runs) is not list or len(runs) != count):
+              raise SystemExit('incomplete_or_unbounded_manual_run_history')
+          ids = []
+          for run in runs:
+              if type(run) is not dict:
+                  raise SystemExit('untrusted_manual_run_record')
+              rid = run.get('id')
+              timestamp = run.get('created_at')
+              if (type(rid) is not int or rid <= 0
+                      or type(timestamp) is not str
+                      or run.get('event') != 'workflow_dispatch'
+                      or run.get('head_branch') != 'main'):
+                  raise SystemExit('untrusted_manual_run_record')
+              dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+              if dt.tzinfo is None or not first <= dt.astimezone(timezone.utc) <= last:
+                  raise SystemExit('out_of_day_manual_run_history')
+              ids.append(rid)
+          if len(set(ids)) != count or current not in ids:
+              raise SystemExit('incomplete_self_or_duplicate_run_history')
+          if min(ids) != current:
+              raise SystemExit('earlier_manual_dispatch_exists_today_refuse_second_run')
+          print('FIRST_LISTED_MANUAL_DISPATCH_ONLY_NONFORMAL', current)
+          PY
       - name: Checkout exact reviewed research implementation (never branch tip)
         uses: actions/checkout@v4
         with:
