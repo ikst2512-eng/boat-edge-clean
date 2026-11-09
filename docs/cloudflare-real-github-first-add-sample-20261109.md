@@ -1,0 +1,50 @@
+# BOAT EDGE CLEAN — real GitHub native first-add sample (2026-11-09 JST)
+
+**Evidence class: actual GitHub READ-ONLY connector observations, not mock data.**
+**Scope: single same-race example `202611090203`. NOT a Cloudflare rescue / official T−12 certification.**
+The evidence was read from GitHub's actual REST commit, contents/blob and comparison endpoints on 2026-11-09 JST. This document preserves the inspected object IDs and limits, not the raw original API response bytes or an authenticated Cloudflare event. PR #1697 remains Draft/unmerged; no main/Render/native Actions/Cloudflare deployment was modified.
+
+## Same-race GitHub evidence
+
+| Observed property | CLEAN | Four-mode |
+|---|---|---|
+| Native capture commit | `a4e7168f8af26e989d45df76746ae24b3fa5b690` | `ebe9b8ee18c34acda480a6d498c930c6c3b8b8be` |
+| Git commit parent | `f657ff36ae27173a50adcab508f514eef15c18a6` | `a4e7168f8af26e989d45df76746ae24b3fa5b690` |
+| Git commit committer time | `2026-11-09T01:31:49Z` (10:31:49 JST) | `2026-11-09T01:38:10Z` (10:38:10 JST) |
+| Exact new path | `prospective_predictions/202611090203.json` | `four_mode_forecasts/202611090203.json` |
+| GitHub commit-files status | `added` | `added` |
+| Git blob SHA-1 (commit and contents API) | `506b4e24695bd31d7ddd7041f36bc37759d52888` | `41b367537e575f2dda48acc921c7831f2aed57ac` |
+| Contents vs Git blob API bytes | identical (1,219 UTF-8 chars) | identical (5,627 UTF-8 chars) |
+| Same path at immediate parent commit | HTTP 404 (not found) | HTTP 404 (not found) |
+| Main ancestry | comparison `status:ahead`, `behind_by:0` | comparison `status:ahead`, `behind_by:0` |
+| Immutable research state | `prospective_candidate`, `formal:false`, `validated:false` | `provisional`, `validated:false`, `formal` absent |
+| Generated JST | `2026-11-09T10:31:48.770953+09:00` | `2026-11-09T10:38:07.270079+09:00` |
+| Title received JST | `2026-11-09T10:31:48.645228+09:00` | `2026-11-09T10:38:06.908106+09:00` |
+| Cards received JST | `2026-11-09T10:31:48.747225+09:00` | `2026-11-09T10:38:07.253625+09:00` |
+| Source voting deadline JST | `2026-11-09T11:39:00+09:00` | `2026-11-09T11:39:00+09:00` |
+| Derived T−12 JST | `2026-11-09T11:27:00+09:00` | `2026-11-09T11:27:00+09:00` |
+
+Both records explicitly contain the same *reported* public pre-race input SHA-256 pair:
+- `title`: `78849ddaa37cffd1c7f6744f1360201fd9d400958603a0ed6f7a730e062e89d7`
+- `race_cards`: `b39627877a005fd5f3ecfe13040fc9c583454cc9ee207eba3195739a0bfd5e49`
+
+This equality is **original JSON field consistency** and does not independently authenticate external public-source CSV bytes. Four-mode's original `beforeinfo` field reads `optional_not_in_snapshot`; neither original alone proves the required official beforeinfo/exhibition 6 boats or all 120 odds combinations.
+
+### GitHub source links / reproducibility
+
+- [CLEAN original addition](https://github.com/ikst2512-eng/boat-edge-clean/commit/a4e7168f8af26e989d45df76746ae24b3fa5b690)
+- [Four-mode original addition](https://github.com/ikst2512-eng/boat-edge-clean/commit/ebe9b8ee18c34acda480a6d498c930c6c3b8b8be)
+- [CLEAN exact original blob](https://github.com/ikst2512-eng/boat-edge-clean/blob/a4e7168f8af26e989d45df76746ae24b3fa5b690/prospective_predictions/202611090203.json)
+- [Four-mode exact original blob](https://github.com/ikst2512-eng/boat-edge-clean/blob/ebe9b8ee18c34acda480a6d498c930c6c3b8b8be/four_mode_forecasts/202611090203.json)
+
+Each run of this read-only audit inspected the REST **commit-files list with `status:added` and Git blob SHA**, the exact file content at that commit SHA, the same immutable blob by Git object SHA, the absence of that filename in the immediate parent, and `compare/<commit>...main` showing it as an ancestor of current main (at observation time). This is materially stronger than a synthetic manifest or a green capture CI alone, but only for the sampled archived paths.
+
+### Formal evidence boundaries — all still NO-GO
+
+1. **Not a Cloudflare rescue:** Neither commit is independently tied to a Cloudflare `workflow_dispatch` receipt, run ID or live Worker. These are existing native publisher archive additions.
+2. **Commit time is NOT GitHub's first HTTP receipt time:** The time `commit.committer.date` is Git object metadata. This sample does not preserve a GitHub server-observed earliest arrival or authenticated transport proof. T−12 on-time server acceptance is **not formally established** even though source/commit metadata precedes 11:27.
+3. **Not authoritative official source:** Public title and racer-card digests are present in both files; official pre-T−12 beforeinfo, 6 exhibitions, 120 odds and their independent receipts have not been read here.
+4. **One sampled race ≠ all saved races:** Commit additions have many paths, but this document validates the exact pair above only. Duplicate/race-specific remote first-add across other files is not established by this sample.
+5. **Cannot release cross-provider rescue:** Native CLEAN's pending queue can still be displaced by a new rescue `workflow_dispatch`, and Render does not share the Cloudflare-only research Durable Object. `CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED=true` stays in place. Cloudflare Free live CPU/Cron remain unmeasured and formally recognized recovery count remains **0**.
+
+**Owner handoff:** Independently fetch raw REST/HTTP responses with retained query timestamps and hashes, validate Git parent/tree/diff and original bytes for *each* target race, correlate the real native workflow run with the exact commit/first-add, then attach actual public/official source original receipts and GitHub-server observation evidence. Keep this current observation as a narrow but real provenance example, not a fabricated end-to-end forecast certification.
