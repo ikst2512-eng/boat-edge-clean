@@ -40,3 +40,8 @@ The numeric scales merely express engineering units and do **not** determine fea
 - `formal=false`, `model_improvement_proven=false`, `promotion_allowed=false`. All code paths are research-only, with no results imported.
 
 **Division of work:** #1693 whole-model accuracy; #1692 venue/wind original evidence; #1685/#1688 hole-specific research; #1707 display only; #1698 conditional 2nd/3rd ranking evidence and hypotheses. No auto-merge.
+
+## Structural evidence availability diagnostic
+
+`inspect_feature_readiness(evidence)` separates `structurally_present_features` from `missing_or_invalid_features` with a failure reason per field. It checks six distinct boats and rejects any result/payout-bearing schema. A partially missing exhibition/ST feature and missing north-referenced start bearing are marked absent, not imputed; independently present motor/local-strength fields remain visible. This is only **syntactic per-race readiness**, not official authenticity, T−12 receipt, predictive usefulness or a validated coefficient. The model itself fails closed when an actively weighted field is missing.
+
