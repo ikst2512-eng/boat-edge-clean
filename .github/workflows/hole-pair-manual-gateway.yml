@@ -38,22 +38,33 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import re
           from pathlib import Path
-          s=Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
-          header=s.split("\njobs:\n",1)[0]
-          capture=s.split("\n  capture:\n",1)[1]
-          assert "if: github.event_name == 'pull_request'" in s
-          assert "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'" in capture
-          assert "ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b" in capture
+          s = Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
+          header, jobs_text = s.split("\njobs:\n", 1)
+          triggers = header.split("\non:\n", 1)[1].split("\npermissions:\n", 1)[0]
+          event_names = re.findall(r"(?m)^  ([a-z_]+):$", triggers)
+          assert event_names == ['pull_request', 'workflow_dispatch'], event_names
+          parts = re.split(r"(?m)^  ([a-z_]+):\n", jobs_text)
+          assert parts[0] == ''
+          jobs = dict(zip(parts[1::2], parts[2::2]))
+          assert list(jobs) == ['review_only', 'capture'], list(jobs)
+          review, capture = jobs['review_only'], jobs['capture']
+          assert review.startswith("    if: github.event_name == 'pull_request'\n")
+          assert capture.startswith(
+              "    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'\n"
+          )
+          assert 'research/hole_pair_manual_capture.py' not in review
+          assert 'actions/upload-artifact@' not in review
+          assert re.search(r"(?m)^          ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b$", capture)
           assert capture.count('persist-credentials: false') == 1
+          assert review.count('persist-credentials: false') == 1
           assert 'contents: read' in header and 'contents: write' not in header
           assert 'contents: write' not in capture
           assert 'CAPTURE_UNVERIFIED_RESEARCH' in capture
           assert 'cancel-in-progress: false' in header
           assert 'research_candidate_freeze.json' in capture
-          assert '\n  schedule:' not in header and '\n  repository_dispatch:' not in header
-          assert '\n  pull_request_target:' not in header
-          print('REVIEW_ONLY_GATE_PASS_no_pr_candidate_capture_no_main_write')
+          print('REVIEW_ONLY_GATE_PASS_exact_triggers_job_guards_no_pr_capture')
           PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
