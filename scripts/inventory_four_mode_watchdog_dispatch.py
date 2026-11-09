@@ -22,16 +22,30 @@ def api_json(url, token):
 def check_runs(payload, event):
     if not isinstance(payload, dict) or not isinstance(payload.get("workflow_runs"), list):
         raise ValueError("invalid workflow run response")
+    items = payload["workflow_runs"]
+    total = payload.get("total_count")
+    if (len(items) > 100 or (total is not None and (
+            type(total) is not int or total < len(items)))):
+        raise ValueError("invalid workflow run history coverage")
     rows = []
-    for r in payload["workflow_runs"]:
-        if not isinstance(r, dict) or r.get("event") != event or type(r.get("id")) is not int:
-            raise ValueError("unexpected workflow run")
+    seen = set()
+    for r in items:
+        if (not isinstance(r, dict) or r.get("event") != event
+                or type(r.get("id")) is not int or r["id"] <= 0
+                or r["id"] in seen):
+            raise ValueError("unexpected or duplicate workflow run")
+        seen.add(r["id"])
         try:
             moment = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))
         except (KeyError, AttributeError, ValueError, TypeError) as exc:
             raise ValueError("invalid run time") from exc
         if moment.utcoffset() is None:
             raise ValueError("timezone required")
+        # GitHub cannot certify a run concluded successfully before it
+        # completed. Treat contradictory status/conclusion as corrupt
+        # evidence, not a positive capture.
+        if r.get("status") != "completed" and r.get("conclusion") is not None:
+            raise ValueError("noncompleted_run_has_conclusion")
         rows.append({"id": r["id"], "event": event, "created_at": moment.isoformat(),
                      "status": r.get("status"), "conclusion": r.get("conclusion"),
                      "html_url": r.get("html_url")})
@@ -46,16 +60,25 @@ def inventory(repo, token, fetch=api_json, now=None):
         raise ValueError("timezone required")
     all_rows = []
     coverage = {}
+    global_seen_ids = set()
     for workflow, events in ((CAPTURE, ("schedule", "workflow_dispatch")),
                              (WATCHDOG, ("schedule", "push"))):
         for event in events:
             url = (f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}"
                    f"/runs?event={event}&per_page=100")
-            rows = check_runs(fetch(url, token), event)
+            payload = fetch(url, token)
+            rows = check_runs(payload, event)
+            total = payload.get("total_count")
             coverage[workflow + ":" + event] = {
                 "returned": len(rows), "first_page_only": True,
-                "may_be_truncated": len(rows) == 100}
+                "total_count_reported": total,
+                "may_be_truncated": (
+                    len(rows) == 100 or
+                    (type(total) is int and total > len(rows)))}
             for r in rows:
+                if r["id"] in global_seen_ids:
+                    raise ValueError("same_run_id_in_multiple_event_listings")
+                global_seen_ids.add(r["id"])
                 r["workflow"] = workflow
             all_rows.extend(rows)
     all_rows.sort(key=lambda r: r["created_at"], reverse=True)
@@ -69,9 +92,20 @@ def inventory(repo, token, fetch=api_json, now=None):
     def count(rows, event):
         selected = [r for r in rows if r["event"] == event]
         return {"returned": len(selected),
-                "success": sum(r["conclusion"] == "success" for r in selected),
-                "failed": sum(r["conclusion"] == "failure" for r in selected),
-                "pending": sum(r["status"] != "completed" for r in selected)}
+                "success": sum(
+                    r["status"] == "completed" and r["conclusion"] == "success"
+                    for r in selected),
+                "failed": sum(
+                    r["status"] == "completed" and r["conclusion"] == "failure"
+                    for r in selected),
+                "pending": sum(r["status"] != "completed" for r in selected),
+                "completed_unknown_outcome": sum(
+                    r["status"] == "completed" and r["conclusion"] is None
+                    for r in selected),
+                "completed_other_non_success": sum(
+                    r["status"] == "completed"
+                    and r["conclusion"] not in ("success", "failure", None)
+                    for r in selected)}
     return {"schema": "FOUR_MODE_WATCHDOG_DISPATCH_COVERAGE_V1",
             "as_of_utc": now.isoformat(),
             "capture_schedule": count(captures, "schedule"),
@@ -83,7 +117,11 @@ def inventory(repo, token, fetch=api_json, now=None):
             "source_coverage": coverage,
             "dispatch_accepted_proven": False,
             "forecast_saved_proven": False,
-            "note": "Run listings are first-page metadata only. They do not prove dispatch cause or main publication.",
+            "note": ("Run listings are bounded first-page metadata only. "
+                     "Pending, completed with no conclusion, and other "
+                     "non-success outcomes are separate. A successful job "
+                     "does not prove dispatch cause, main publication, or "
+                     "individual Cron slot delivery."),
             "recent_capture_runs": captures,
             "recent_watchdog_runs": watchdogs[:40]}
 
