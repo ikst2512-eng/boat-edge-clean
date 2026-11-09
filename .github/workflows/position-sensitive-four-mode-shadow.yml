@@ -304,6 +304,9 @@ jobs:
               raise SystemExit("false_candidate_delivery_to_formal_promotion")
           n=d["eligible_original_exact_replays"]
           c=d["candidate_exact_original_replays"]
+          print("POSITION_SENSITIVE_NOV09_DELIVERY_STATUSES="+json.dumps(d["status_counts"],sort_keys=True))
+          print("POSITION_SENSITIVE_NOV09_OPEN_MISSING_CODES="+json.dumps(d["open_missing_race_examples"]))
+          print("POSITION_SENSITIVE_NOV09_INVALID_ORIGINALS="+str(len(d["invalid_original_files"])))
           print(f"POSITION_SENSITIVE_NOV09_ORIGINAL_TO_CANDIDATE_DELIVERY:{c}/{n};NOT_FORMAL")
           PY
       - name: Manual research publisher defaults to disabled and no network
