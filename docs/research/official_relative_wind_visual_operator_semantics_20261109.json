@@ -18,7 +18,9 @@
     "triangulated": 4,
     "operator_observations": 5,
     "coarse_consistent": 5,
-    "strict_exact_match": 2
+    "strict_exact_match": 2,
+    "operator_nonoblique_geometry_coarse_category_matches": 3,
+    "operator_exact_unqualified_raw_term_matches": 2
   },
   "manual_visual_review_method": "Rendered original-looking official static images viewed via external browsing (not byte-preserving downloads); examine compass N marker and left 2-mark / right 1-mark placement. Qualitative rough orientation only. Without raw image bytes, separate human second-reader verification, site history and same-race arrow, this cannot certify any field.",
   "operator_semantics": "Operator labels are broad head/cross/tail sectors. Compare A strict five-sector geometric classification only after collapsing oblique_head to head and oblique_tail to tail; this does not establish real official exact sector limits or cardinal conversion for other venues.",
@@ -471,7 +473,10 @@
       "geometry_coarse_from_5bin": "追い風",
       "operator_coarse_group": "追い風",
       "coarse_consistent_with_A": true,
-      "exact_label_equal_5bin": false
+      "exact_label_equal_5bin": false,
+      "operator_label_is_unqualified_basic_term": true,
+      "is_non_oblique_geometry": false,
+      "basic_term_category_match_without_right_left": false
     },
     {
       "jcd": "21",
@@ -487,7 +492,10 @@
       "geometry_coarse_from_5bin": "向い風",
       "operator_coarse_group": "向い風",
       "coarse_consistent_with_A": true,
-      "exact_label_equal_5bin": true
+      "exact_label_equal_5bin": true,
+      "operator_label_is_unqualified_basic_term": true,
+      "is_non_oblique_geometry": true,
+      "basic_term_category_match_without_right_left": true
     },
     {
       "jcd": "21",
@@ -503,7 +511,10 @@
       "geometry_coarse_from_5bin": "向い風",
       "operator_coarse_group": "向い風",
       "coarse_consistent_with_A": true,
-      "exact_label_equal_5bin": true
+      "exact_label_equal_5bin": true,
+      "operator_label_is_unqualified_basic_term": true,
+      "is_non_oblique_geometry": true,
+      "basic_term_category_match_without_right_left": true
     },
     {
       "jcd": "21",
@@ -519,7 +530,10 @@
       "geometry_coarse_from_5bin": "横風",
       "operator_coarse_group": "横風",
       "coarse_consistent_with_A": true,
-      "exact_label_equal_5bin": false
+      "exact_label_equal_5bin": false,
+      "operator_label_is_unqualified_basic_term": false,
+      "is_non_oblique_geometry": true,
+      "basic_term_category_match_without_right_left": true
     },
     {
       "jcd": "21",
@@ -535,7 +549,10 @@
       "geometry_coarse_from_5bin": "向い風",
       "operator_coarse_group": "向い風",
       "coarse_consistent_with_A": true,
-      "exact_label_equal_5bin": false
+      "exact_label_equal_5bin": false,
+      "operator_label_is_unqualified_basic_term": true,
+      "is_non_oblique_geometry": false,
+      "basic_term_category_match_without_right_left": false
     }
   ],
   "cautions": [
