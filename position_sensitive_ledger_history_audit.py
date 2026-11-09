@@ -165,7 +165,11 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--branch-ref", default=None)
+    parser.add_argument("--original-ref", default=None,
+                        help="Read-only exact V2 replay from origin/main; no results")
     args = parser.parse_args()
+    if args.original_ref is not None and args.original_ref != "refs/remotes/origin/main":
+        raise SystemExit("only_read_only_origin_main_original_ref_allowed")
     if args.branch_ref is None:
         print(json.dumps({
             "schema": SCHEMA,
@@ -175,5 +179,18 @@ if __name__ == "__main__":
             "production_changed": False,
         }, sort_keys=True))
     else:
-        print(json.dumps(audit_ledger(Path("."), args.branch_ref),
-                         sort_keys=True))
+        def read_original(code):
+            if CODE.fullmatch(code) is None:
+                raise ValueError("unsafe_original_race_code")
+            try:
+                return _run(Path("."), "show",
+                            args.original_ref + ":four_mode_forecasts/" + code + ".json")
+            except (subprocess.CalledProcessError, OSError) as exc:
+                raise ValueError("original_main_git_bytes_missing") from exc
+        evidence = audit_ledger(
+            Path("."), args.branch_ref,
+            original_read=(read_original if args.original_ref else None))
+        if args.original_ref is not None and (
+                evidence["candidate_original_exact_replays"] != evidence["candidate_files"]):
+            raise ValueError("not_all_candidates_reproduced_from_original_main")
+        print(json.dumps(evidence, sort_keys=True))
