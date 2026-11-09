@@ -10,6 +10,11 @@ workers_dev = false
 # Workers Logs are part of Workers observability; do not use paid Tail Workers.
 [observability]
 enabled = true
+
+# Explicit invocation logging + unsampled event capture per current
+# Workers Logs documentation. The standalone Observer has no GitHub network.
+[observability.logs]
+invocation_logs = true
 head_sampling_rate = 1
 
 [vars]
