@@ -372,5 +372,88 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
         self.assertFalse(report["forecast_publication_verified"])
 
 
+    def test_late_only_night_run_cannot_satisfy_day_window_gate(self):
+        # Reproduces the actual Nov 8 22:14 delayed successful run:
+        # an execution is observable but cannot fill a daytime capture gap.
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(40, "2026-11-08T22:14:34+09:00"),
+            self.make_run(39, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 9, 3, 3, tzinfo=jst))
+        self.assertEqual(report["same_day_scheduled_run_count"], 1)
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 1)
+        self.assertEqual(report["same_day_within_nominal_window_run_count"], 0)
+        self.assertEqual(report["same_day_after_final_nominal_grace_run_ids"], [40])
+        self.assertEqual(report["observed_within_window_below_nominal_due_by"], 56)
+        self.assertFalse(report["per_slot_schedule_delivery_verified"])
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "daily.json"
+            with (patch("scripts.audit_four_mode_daily_schedule_runs.audit_day",
+                        return_value=report),
+                  patch.dict(os.environ, {
+                      "GITHUB_TOKEN": "synthetic-token",
+                      "GITHUB_EVENT_NAME": "schedule",
+                      "GITHUB_REF": "refs/heads/main",
+                  }),
+                  patch("sys.argv", [
+                      "audit", "--repo", "owner/repo",
+                      "--output", str(output), "--day-jst", "20261108",
+                  ])):
+                from scripts.audit_four_mode_daily_schedule_runs import main
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as raised:
+                        main()
+            self.assertEqual(raised.exception.code, 2)
+            self.assertIn("post-window late runs", stdout.getvalue())
+            self.assertEqual(
+                json.loads(output.read_text(encoding="utf-8"))[
+                    "same_day_within_nominal_window_run_count"], 0)
+
+    def test_final_slot_grace_boundary_and_one_second_late(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(13, "2026-11-08T20:57:01+09:00"),
+            self.make_run(12, "2026-11-08T20:57:00+09:00"),
+            self.make_run(11, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": 3, "workflow_runs": rows},
+            as_of=datetime(2026, 11, 8, 21, 10, tzinfo=jst))
+        self.assertEqual(report["same_day_scheduled_run_count"], 2)
+        self.assertEqual(report["same_day_within_nominal_window_run_count"], 1)
+        self.assertEqual(report["same_day_after_final_nominal_grace_run_ids"], [13])
+        self.assertEqual(report["observed_within_window_below_nominal_due_by"], 55)
+        self.assertFalse(report["per_slot_schedule_delivery_verified"])
+
+    def test_preopening_and_late_runs_preserved_without_daytime_inflation(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(16, "2026-11-08T22:14:34+09:00"),
+            self.make_run(15, "2026-11-08T10:22:00+09:00"),
+            self.make_run(14, "2026-11-08T03:03:00+09:00"),
+            self.make_run(13, "2026-11-07T20:52:00+09:00"),
+        ]
+        report = audit_day(
+            "owner/repo", "20261108", "token",
+            lambda _: {"total_count": 4, "workflow_runs": rows},
+            as_of=datetime(2026, 11, 9, 3, 3, tzinfo=jst))
+        self.assertEqual(report["same_day_scheduled_run_count"], 3)
+        self.assertEqual(report["same_day_pre_first_nominal_run_ids"], [14])
+        self.assertEqual(report["same_day_at_or_after_first_nominal_run_count"], 2)
+        self.assertEqual(report["same_day_after_final_nominal_grace_run_ids"], [16])
+        self.assertEqual(report["same_day_within_nominal_window_run_count"], 1)
+        self.assertEqual(report["observed_runs_below_nominal_due_by"], 53)
+        self.assertEqual(report["observed_after_first_runs_below_nominal_due_by"], 54)
+        self.assertEqual(report["observed_within_window_below_nominal_due_by"], 55)
+        self.assertFalse(report["full_calendar_day_schedule_delivery_verified"])
+        self.assertFalse(report["forecast_publication_verified"])
+
+
 if __name__ == "__main__":
     unittest.main()
