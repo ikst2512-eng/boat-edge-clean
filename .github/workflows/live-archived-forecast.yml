@@ -41,6 +41,19 @@ jobs:
           name: clean-archive-reachability-${{ github.run_id }}
           path: render-reachability.log
           if-no-files-found: warn
+      # This checks the UNSIMULATED live response. A PR-only browser route
+      # fulfilling a fake ACAO header can never satisfy production readiness.
+      # Intentionally remains red until a separately approved live deployment.
+      - name: Gate actual public archive CORS independently of browser simulation
+        if: always()
+        shell: bash
+        run: |
+          if ! grep -Eq '^RENDER_DIAG_RELEASE_GATES .*live_archive_cors=pass([[:space:]]|$)' render-reachability.log; then
+            echo '::error::Public archive CORS not verified on actual Render response. A PR-simulated ACAO header is not production evidence.'
+            grep -E '^RENDER_DIAG_(PROBE name=archive-get|RELEASE_GATES )' render-reachability.log || true
+            exit 1
+          fi
+          echo 'PASS_UNSIMULATED_LIVE_ARCHIVE_CORS_ONLY: actual Pages Origin header returned by Render.'
       # A later data-driven redeploy may make browser tests green after a genuine cold-wake outage.
       # Preserve all logs first, then fail this job if the initial live /healthz probe failed.
       - name: Gate HTTP transport independently of late browser recovery
