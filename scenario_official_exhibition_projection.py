@@ -194,6 +194,10 @@ def project_exhibition_research(source_bundle, candidate, replay_callback):
         "source_sha256": dict(hashes),
         "normalized_source_sha256": fingerprint,
         "exhibition_features_by_boat": boats,
+        "exhibition_features_sha256": hashlib.sha256(
+            json.dumps(boats, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=False).encode("utf-8")
+        ).hexdigest(),
         "structural_source_to_candidate_order": True,
         "structural_raw_semantic_replay_reported": True,
         "missing_research_features": [
