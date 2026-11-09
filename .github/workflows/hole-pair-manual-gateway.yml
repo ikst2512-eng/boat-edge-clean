@@ -3,6 +3,10 @@
 # No schedule/PR/push trigger; no secrets; no Cloudflare; no production change.
 name: Hole pair manual research gateway (NONFORMAL, review before enabling)
 on:
+  pull_request:
+    paths:
+      - .github/workflows/hole-pair-manual-gateway.yml
+      - docs/research/hole_pair_gateway_review_20261108.md
   workflow_dispatch:
     inputs:
       capture_day_jst:
@@ -19,6 +23,35 @@ concurrency:
   group: hole-pair-manual-research-${{ inputs.capture_day_jst }}
   cancel-in-progress: false
 jobs:
+  review_only:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject unattended capture and unpinned research execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('.github/workflows/hole-pair-manual-gateway.yml').read_text()
+          assert "if: github.event_name == 'pull_request'" in s
+          assert "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'" in s
+          assert "ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b" in s
+          assert s.count('persist-credentials: false') >= 2
+          assert 'contents: read' in s and 'contents: write' not in s
+          assert 'CAPTURE_UNVERIFIED_RESEARCH' in s
+          assert 'cancel-in-progress: false' in s
+          assert 'research_candidate_freeze.json' in s
+          assert 'schedule:' not in s and 'repository_dispatch:' not in s
+          assert 'pull_request_target:' not in s
+          print('REVIEW_ONLY_GATE_PASS_no_pr_candidate_capture_no_main_write')
+          PY
   capture:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -26,11 +59,22 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Verify deliberate current-day research capture BEFORE checkout
+        shell: bash
+        env:
+          DAY: ${{ inputs.capture_day_jst }}
+          ACK: ${{ inputs.acknowledgement }}
+        run: |
+          set -euo pipefail
+          [[ "$ACK" == "CAPTURE_UNVERIFIED_RESEARCH" ]] || { echo "::error::explicit research acknowledgement required"; exit 2; }
+          [[ "$DAY" =~ ^20[0-9]{6}$ ]] || { echo "::error::invalid YYYYMMDD capture day"; exit 2; }
+          [[ "$DAY" == "$(TZ=Asia/Tokyo date +%Y%m%d)" && "$DAY" > "20261108" ]] || { echo "::error::only current JST day from Nov9; no backfill"; exit 2; }
       - name: Checkout exact reviewed research implementation (never branch tip)
         uses: actions/checkout@v4
         with:
           ref: 464d1641a5c7b981248ab17ba5bdc42b7bfa698b
           fetch-depth: 1
+          persist-credentials: false
       - name: Python for offline/research candidate freeze
         uses: actions/setup-python@v5
         with:
