@@ -5,7 +5,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime, timedelta
-from math import comb
+from math import comb, isfinite
 from pathlib import Path
 
 from collect_clean_results import BASE as CONFIRMED_RESULT_SOURCE_BASE
@@ -50,6 +50,11 @@ def freeze(row, p):
     if not isinstance(row, dict) or any(k in row for k in
        ("result", "finish_order", "winning_ticket", "confirmed_at_jst", "payout")):
         raise ValueError("outcome_leak_in_pre_result_roster")
+    # A future scenario-conditional model is a DISTINCT unregistered study.
+    # Its presence must never silently consume the 2026-11-06 frozen 600 slots.
+    if ("scenario_bridge" in row or "scenario_candidate_study_id" in row
+            or "unregistered_scenario_model" in row):
+        raise ValueError("scenario_candidate_requires_separate_future_registration")
     code = row.get("race_code")
     if not isinstance(code, str) or not CODE.fullmatch(code):
         raise ValueError("invalid_race_code")
@@ -184,6 +189,92 @@ def confirmation_holm_reference(scores, phase_progress, dates, policy):
         for mode in COUNTS
     }
     return answer
+
+
+def preflight_unregistered_scenario_bridge(baseline, bridge):
+    """Result-blind INTERFACE ONLY for separate #1710 all-mode scenario Draft.
+
+    This does not run the scenario model, parse official sources, read outcomes,
+    preregister a method, or add ANY race to the locked #1693 cohort.
+    """
+    if type(baseline) is not dict or set(baseline) != set(COUNTS):
+        raise ValueError("missing_four_mode_original")
+    if (type(bridge) is not dict or
+            bridge.get("schema") != "ALL_MODE_SCENARIO_BRIDGE_EXPLORATORY_V1" or
+            type(bridge.get("mixed_120_board_sha256")) is not str or
+            not SHA.fullmatch(bridge["mixed_120_board_sha256"]) or
+            bridge.get("mode_ticket_budgets") != COUNTS):
+        raise ValueError("invalid_unregistered_scenario_bridge_identity")
+    must_be_false = (
+        "source_feature_provenance_independently_verified",
+        "verified_official_six_exhibition_and_120_odds",
+        "first_remote_receipt_verified",
+        "scenario_weights_calibrated",
+        "probabilities_calibrated",
+        "confirmed_results_read",
+        "formal",
+        "forecast_usable",
+        "betting_recommendation",
+        "production_changed",
+        "model_improvement_proven",
+        "promotion_allowed",
+    )
+    if (any(bridge.get(field) is not False for field in must_be_false)
+            or any(field in bridge for field in (
+                "finish_order", "confirmed_result", "winning_ticket", "payout"))):
+        raise ValueError("outcome_or_forged_scenario_certification")
+    modes = bridge.get("existing_four_mode_selector_on_mixture")
+    if type(modes) is not dict or set(modes) != set(COUNTS):
+        raise ValueError("missing_scenario_four_mode_tickets")
+    contrast = {}
+    for mode, size in COUNTS.items():
+        old = validate_tickets(baseline[mode], size)
+        new = modes[mode].get("tickets") if type(modes[mode]) is dict else None
+        if type(new) is not list or len(new) != size:
+            raise ValueError("invalid_scenario_mode_rows")
+        candidate = []
+        for item in new:
+            if (type(item) is not dict or
+                    type(item.get("combo")) is not str or
+                    type(item.get("p")) not in (int, float) or
+                    not isfinite(item["p"]) or not 0 <= item["p"] <= 100):
+                raise ValueError("invalid_scenario_mode_ticket")
+            candidate.append(item["combo"])
+        validate_tickets(candidate, size)
+        top = {}
+        for k in TOPS:
+            old_top, new_top = set(old[:k]), set(candidate[:k])
+            top[f"top{k}"] = {
+                "original_ticket_count": len(old_top),
+                "scenario_ticket_count": len(new_top),
+                "unchanged_ticket_count": len(old_top & new_top),
+                "new_tickets_not_hits": len(new_top - old_top),
+                "removed_tickets_not_losses": len(old_top - new_top),
+                "membership_changed": old_top != new_top,
+            }
+        contrast[mode] = {
+            "top1_exact_combo_changed": old[0] != candidate[0],
+            "top1_first_boat_changed": old[0][0] != candidate[0][0],
+            "topn_exposure_result_blind": top,
+        }
+    return {
+        "status": "unregistered_scenario_bridge_exposure_only",
+        "source_namespace": "separate_draft_1710",
+        "self_reported_mixed_120_board_sha256": bridge["mixed_120_board_sha256"],
+        "comparison": contrast,
+        "confirmed_results_read": False,
+        "winning_hit_gain_or_loss_computed": False,
+        "candidate_eligible_for_1693_registered_600": False,
+        "requires_new_future_only_preregistration": True,
+        "official_source_lineage_independently_verified": False,
+        "independent_first_remote_receipt_verified": False,
+        "formal": False,
+        "model_improvement_proven": False,
+        "model_promotion_allowed": False,
+        "warning": "Only ticket-set exposure from caller supplied, unregistered "
+                   "scenario output. No inferred weather/entry/tide validity, "
+                   "TopN outcome accuracy or candidate lineage.",
+    }
 
 
 def score(pre_result_rows, results, p):
