@@ -25,6 +25,8 @@ on:
       - test_four_mode_top1_forward_reference.py
       - four_mode_top1_bias_input_audit.py
       - four_mode_nov09_main_original_input_readiness.py
+      - four_mode_official_feature_sensitivity_audit.py
+      - test_four_mode_official_feature_sensitivity_audit.py
       - test_four_mode_nov09_main_original_input_readiness.py
       - four_mode_top1_head_prior_shadow.py
       - test_four_mode_top1_head_prior_shadow.py
@@ -326,6 +328,37 @@ jobs:
               raise SystemExit("NOV09_T12_GENERATION_ONLY_DENOMINATOR_INVALID")
           print("NOV09_PINNED_MAIN_INPUT_REPLAY_PASS:"+str(row["valid_v2_original_inputs"])+
                 ":official_T12=UNVERIFIED:first_remote_candidate=UNVERIFIED:formal=0")
+          PY
+      - name: Test official-feature negative-control against frozen four-mode candidate
+        run: python -m unittest -v test_four_mode_official_feature_sensitivity_audit
+      - name: Verify Nov9 source-input consumption gap on pinned main originals
+        run: |
+          set -euo pipefail
+          python four_mode_official_feature_sensitivity_audit.py --day 20261109 --output four_mode_official_feature_negative_control.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("four_mode_official_feature_negative_control.json").read_text())
+          base=json.loads(Path("four_mode_nov09_current_main_input_readiness.json").read_text())
+          if (r["pinned_main_commit"] != base["pinned_main_commit"]
+                  or r["real_saved_origins_verified"] != base["valid_v2_original_inputs"]
+                  or r["real_saved_origins_verified"] < 104
+                  or r["mode_candidate_insensitive_to_synthetic_official_fields"]
+                      != r["real_saved_origins_verified"]
+                  or r["real_official_source_data_read"] is not False
+                  or r["confirmed_results_read"] is not False
+                  or r["candidate_files_generated_or_written"] is not False
+                  or r["official_three_source_model_consumption_verified"] is not False
+                  or r["candidate_first_remote_receipt_verified"] is not False
+                  or r["formal"] is not False
+                  or r["admitted_prospective_pairs"] != 0
+                  or r["model_improvement_proven"] is not False
+                  or r["model_promotion_allowed"] is not False):
+              raise SystemExit("NOV09_CANDIDATE_OFFICIAL_FEATURE_DEPENDENCY_GATE_INVALID")
+          print("NOV09_OFFICIAL_FEATURE_NEGATIVE_CONTROL:"
+                +str(r["mode_candidate_insensitive_to_synthetic_official_fields"])
+                +"/"+str(r["real_saved_origins_verified"])
+                +":OFFICIAL_MODEL_CONSUMPTION_UNVERIFIED:FORMAL=0")
           PY
       - name: Audit available archived Nov8 V2 input concentration, without results
         run: python four_mode_top1_bias_input_audit.py --day 20261108
@@ -831,6 +864,7 @@ jobs:
             version_stratified_topn_report.log
             four_mode_nov05_08_reference.json
             four_mode_nov09_current_main_input_readiness.json
+            four_mode_official_feature_negative_control.json
             four_mode_candidate_remote_readiness.json
             four_mode_main_candidate_stage_readiness.json
             four_mode_nov09_observed_job_attempts.json
