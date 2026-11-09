@@ -2,8 +2,9 @@ const {chromium,webkit}=require('playwright');
 (async()=>{
  const browserEngine=process.env.BROWSER_ENGINE==='webkit'?'webkit':'chromium';
  const browser=await (browserEngine==='webkit'?webkit:chromium).launch({headless:true});
+ let page;
  try{
-  const page=await browser.newPage({viewport:{width:390,height:844}});
+  page=await browser.newPage({viewport:{width:390,height:844}});
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   // Read-only observation on the *published* WebKit page. Do not suppress
@@ -535,7 +536,7 @@ const {chromium,webkit}=require('playwright');
   if(errors.length)throw Error('PAGE_JS_ERRORS '+errors.join('|'));
   console.log('PASS: Published 20261030 01 1R research forecast shows ten exact saved tickets; no reconstructed forecast.');
  }catch(error){
-  if(browserEngine==='webkit'){
+  if(browserEngine==='webkit'&&page){
    const evidence=await page.evaluate(()=>window.__cleanPublicHistoryEvidence||null)
     .catch(e=>({diagnosticUnavailable:String(e).slice(0,200)}));
    console.error('PUBLIC_WEBKIT_HISTORY_FAILURE_DIAGNOSTIC '+JSON.stringify({
