@@ -721,7 +721,9 @@ jobs:
                   for(const [k,v] of [['date','2026-10-28'],['venue','01'],['race','1'],['view','exhibit']])url.searchParams.set(k,v);
                   const res=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
                   assert.equal(res.status(),200);
-                  await page.evaluate(()=>setView('exhibit'));
+                  // Opening the tab alone does not load its racecard: render the
+                  // explicitly selected historical race, as the official replay does.
+                  await page.evaluate(()=>{s.date='2026-10-28';s.venue=0;s.race=1;setView('exhibit');render()});
                   try{await page.waitForFunction(state=>document.querySelector('#originalExhibitionStatus')?.dataset.originalState===state,sample.name,{timeout:17000});}
                   catch(e){
                     const state=await page.evaluate(()=>({key:sameRaceKey(),status:document.querySelector('#originalExhibitionStatus')?.textContent,kind:document.querySelector('#originalExhibitionStatus')?.dataset.originalState,boatCount:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length}));
