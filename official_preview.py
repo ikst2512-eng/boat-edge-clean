@@ -78,7 +78,7 @@ def preview(code, deadline, racers, fetch=None, clock=None):
             raise ValueError("invalid_exhibition_measurement")
         starts = [{"lane": int(r["teino"]), "course": int(r["cs"]), "st": r["st"].strip()}
                   for r in main["sttenjiinfolist"]]
-        if any(re.fullmatch(r"(?:F\.?\d{1,2}|\d?\.\d{1,2})", r["st"]) is None for r in starts):
+        if any(re.fullmatch(r"(?:F|L)?\.\d{1,2}|\d?\.\d{1,2}", r["st"]) is None for r in starts):
             raise ValueError("unsupported_start_measurement")
         digest = hashlib.sha256(raw).hexdigest()
         audit.update(status="ok", source="BOAT RACE official beforeinfo JSON", source_url=url,
