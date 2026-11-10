@@ -969,6 +969,43 @@ jobs:
                   console.log('PUBLISHED_OFFICIAL_GAP_DIAGNOSTIC_PASS',JSON.stringify({scenario:scenario.name,lanes:6,withheld:24,intercepted,source:'archived racecard with synthetic missing-field audit; published browser renderer only'}));
                 }finally{await page.close()}
               }
+              // Confirm that the actual public frontend distinguishes unavailable
+              // racecards from transient API failures without creating six boats.
+              for(const sample of [
+                {name:'render_503',status:503,expected:'公開APIに一時的に接続できません'},
+                {name:'not_published_404',status:404,expected:'このレースの事前出走表は未配信です'}
+              ]){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  let served=0;
+                  await page.route('https://boat-edge-clean.onrender.com/api/clean-racecard?**',route=>{
+                    const u=new URL(route.request().url());
+                    if(u.searchParams.get('hd')==='20261028'&&Number(u.searchParams.get('jcd'))===1&&Number(u.searchParams.get('rno'))===1){
+                      served++;
+                      return route.fulfill({status:sample.status,contentType:'application/json',body:JSON.stringify({ok:false,error:'diagnostic_only'})});
+                    }
+                    return route.continue();
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-10-28'],['venue','01'],['race','1'],['view','card']])url.searchParams.set(k,v);
+                  const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(response.status(),200,'real public Pages HTTP');
+                  await page.evaluate(()=>{s.date='2026-10-28';s.venue=0;s.race=1;datePinned=true;venueSpecified=true;setView('card');render()});
+                  await page.waitForFunction(expected=>
+                    (document.querySelector('#raceDataStatus')?.textContent||'').includes(expected),
+                    sample.expected,{timeout:27000});
+                  const shown=await page.evaluate(()=>({
+                    key:sameRaceKey(),message:document.querySelector('#raceDataStatus')?.textContent,
+                    racerRows:document.querySelectorAll('#raceDataRows tr').length,
+                    exhibitionBoats:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length
+                  }));
+                  assert.ok(served>=1,'must exercise selected live API request');
+                  assert.equal(shown.key,'20261028-01-01');
+                  assert.equal(shown.racerRows,0,'do not invent six racer rows on HTTP failure');
+                  assert.equal(shown.exhibitionBoats,0,'do not display unverified exhibition boats');
+                  console.log('PUBLISHED_RACECARD_API_STATE_PASS',JSON.stringify({case:sample.name,http:sample.status,served,rows:shown.racerRows}));
+                }finally{await page.close()}
+              }
               console.log('PUBLIC_EXHIBITION_EMPTY_STATES_PASS',cases.length);
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
