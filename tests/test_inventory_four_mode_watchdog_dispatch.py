@@ -20,6 +20,7 @@ class WatchdogInventoryTest(unittest.TestCase):
             ("four-mode-capture-watchdog.yml", "schedule"): [],
             ("four-mode-capture-watchdog.yml", "push"): [row(3, "push", "2026-11-03T05:25:00Z")],
             ("four-mode-capture-watchdog.yml", "workflow_run"): [],
+            ("clean-prospective.yml", "schedule"): [row(4, "schedule", "2026-11-03T04:34:00Z")],
             ("clean-prospective.yml", "workflow_dispatch"): []}
         def fetch(url, token):
             for (workflow, event), vals in events.items():
@@ -30,6 +31,10 @@ class WatchdogInventoryTest(unittest.TestCase):
         self.assertEqual(d["capture_schedule"]["returned"], 1)
         self.assertEqual(d["capture_workflow_dispatch"]["success"], 1)
         self.assertEqual(d["watchdog_push"]["returned"], 1)
+        self.assertEqual(d["clean_schedule"]["success"], 1)
+        self.assertEqual(d["clean_workflow_dispatch"]["returned"], 0)
+        self.assertEqual([x["id"] for x in d["recent_clean_schedule_runs"]], [4])
+        self.assertEqual(d["recent_clean_dispatch_runs"], [])
         self.assertEqual(d["minutes_since_latest_capture"], 30)
         self.assertEqual(d["latest_capture"]["id"], 2)
         self.assertFalse(d["dispatch_accepted_proven"])
@@ -175,11 +180,41 @@ class WatchdogInventoryTest(unittest.TestCase):
             return {"workflow_runs": []}
         data = inventory("example/project", "fake", fetch, NOW)
         self.assertEqual(data["clean_workflow_dispatch"]["success"], 1)
+        self.assertEqual(data["clean_schedule"]["returned"], 0)
         self.assertEqual([r["id"] for r in data["recent_clean_dispatch_runs"]], [906])
         self.assertEqual([r["id"] for r in data["recent_successful_watchdog_workflow_run"]], [905])
         self.assertEqual([r["id"] for r in data["recent_watchdog_workflow_run"]], [904, 905])
         self.assertEqual(data["capture_workflow_dispatch"]["success"], 0)
         self.assertFalse(data["forecast_saved_proven"])
+
+    def test_clean_scheduled_runs_do_not_masquerade_as_dispatch_recovery(self):
+        # A real CLEAN schedule and a successful manual rescue must remain
+        # separate event classes and never double-count in webhook matching.
+        def fetch(url, token):
+            if "clean-prospective.yml" in url:
+                if "event=schedule" in url:
+                    return {"workflow_runs": [
+                        row(920, "schedule", "2026-11-03T05:40:00Z"),
+                        row(921, "schedule", "2026-11-03T05:41:00Z",
+                            branch="feature/untrusted")],
+                        "total_count": 2}
+                if "event=workflow_dispatch" in url:
+                    return {"workflow_runs": [
+                        row(922, "workflow_dispatch", "2026-11-03T05:42:00Z")],
+                        "total_count": 1}
+            return {"workflow_runs": [], "total_count": 0}
+        result = inventory("example/project", "fake", fetch, NOW)
+        self.assertEqual(result["clean_schedule"]["returned"], 1)
+        self.assertEqual(result["clean_schedule"]["success"], 1)
+        self.assertEqual(result["clean_workflow_dispatch"]["success"], 1)
+        self.assertEqual([x["id"] for x in
+                          result["recent_clean_schedule_runs"]], [920])
+        self.assertEqual([x["id"] for x in
+                          result["recent_clean_dispatch_runs"]], [922])
+        self.assertEqual(result["source_coverage"][
+            "clean-prospective.yml:schedule"
+        ]["excluded_nonmain_or_unverified_run_ids"], [921])
+        self.assertFalse(result["forecast_saved_proven"])
 
     def test_clean_foreign_branch_is_not_published_main_dispatch(self):
         def fetch(url, token):
