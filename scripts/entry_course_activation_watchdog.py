@@ -30,14 +30,17 @@ def _timestamp(value):
     return stamp
 
 
-def dispatch_decision(now, runs):
+def dispatch_decision(now, runs, *, kind="t2"):
     """No API or timer side effects; a failed attempt has a bounded cooldown."""
     if not isinstance(now,datetime) or now.utcoffset() is None:
         raise ValueError("entry_watchdog_clock_invalid")
     if not isinstance(runs,list):
         raise ValueError("entry_watchdog_runs_invalid")
+    if kind not in TARGETS:
+        raise ValueError("entry_watchdog_target_invalid")
     local=now.astimezone(JST)
-    if not 9<=local.hour<=22:
+    first_hour=8 if kind=="t12" else 9
+    if not first_hour<=local.hour<=22:
         return "outside_research_hours"
     eligible=[]
     for run in runs:
@@ -104,7 +107,7 @@ def run_once(*, now, fetch_runs, dispatch):
             if not isinstance(items,list):
                 raise ValueError("entry_watchdog_api_runs_invalid")
             runs.extend(items)
-        decision=dispatch_decision(now,runs)
+        decision=dispatch_decision(now,runs,kind=kind)
         record={"decision":decision,
                 "observed_schedule_runs":sum(r.get("event")=="schedule" for r in runs),
                 "observed_dispatch_runs":sum(r.get("event")=="workflow_dispatch" for r in runs),
