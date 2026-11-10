@@ -5,6 +5,12 @@ on:
       - 'scripts/evaluate_previous_day_late_artifacts.py'
       - 'tests/test_evaluate_previous_day_late_artifacts.py'
       - '.github/workflows/research-previous-day-late.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/evaluate_previous_day_late_artifacts.py'
+      - 'tests/test_evaluate_previous_day_late_artifacts.py'
+      - '.github/workflows/research-previous-day-late.yml'
   schedule:
     - cron: '15 0 * * *' # 09:15 JST: previous day
     - cron: '15 3 * * *' # 12:15 JST: recheck 2 days prior after delayed results
