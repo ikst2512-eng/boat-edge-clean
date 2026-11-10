@@ -1,3 +1,10 @@
+## 2026-11-10 夜｜公式展示LIVE 24値の誤認定防止・監査出力強化（既存Workflow）
+- **main `8daf1e2c08ddda8e658af852f224d14a161d82ff`**：既存 `.github/workflows/verify-real-beforeinfo.yml` のみ修正。元の `19:35 JST` schedule、既存 `workflow_dispatch`、比較範囲（公式beforeinfo JSON→Render API→実Pagesブラウザ6艇×4測定値）、締切前PASS条件は維持。新PR・Cron・予想原本・結果・払戻・保存ソースの変更なし。
+- **見つかった監査穴**：旧式 `Date.parse(source_audit.beforeinfo.fetched_at)>=deadline` は、日時空欄・不正値で `NaN` となっても条件が偽になるため、`status=ok` など他の条件が揃えば不正な受領時刻を通してしまう。タイムゾーン付きISO 8601で日時が実際に解釈でき、締切より前である場合だけ認める `validPredeadlineReceipt` を追加。空・文字列不正・時刻帯欠落・締切同時刻を拒否し、締切1秒前の小数秒付き正例を許す回帰チェックを既存JSに内包。
+- **合格時の再監査性**：`LIVE_OFFICIAL_PAGES_E2E_EVIDENCE` に対象レース、日程締切、公式HTTP受信時刻、Render HTTP受信時刻、Renderの公式ソース受信時刻とSHA256、Pages比較時刻、6艇の登録番号および公式／Render／Pagesそれぞれの展示タイム・チルト・展示ST・進入コースを出力。成功判定 `LIVE_OFFICIAL_PAGES_E2E_PASS` は従来どおり24値全一致かつ締切前のみ。ソース／ブラウザ時刻とGitHubへの予想原本初回保存は別証拠であり、T−12正式認定とは混同しない。
+- **その場の確認と未完了**：修正した埋込みJSの構文確認と5種の不正受領時刻・1種の正常受領時刻の回帰判定PASS、GitHubのmainへ反映された同一blobを再取得して確認。関連する既存push監視Actionsは成功したが、`verify-real-beforeinfo.yml` の**修正後・開催中・実レースLIVE E2E実測PASSはまだ0件**。既往の #1727 PR検証 `42820455202` は夜のレース終了後で `NO_STILL_OPEN_RACE_WITHIN_60_MIN` の診断、正式LIVE合格ではない。
+- **次の単一判定**：2026-11-11 19:35 JSTの既存schedule実行と20:15 JSTの登録済み監査で、実際のrun event・source/Render/Pages受信時刻・`LIVE_OFFICIAL_PAGES_E2E_EVIDENCE` の全24値、公開SHAを確認。実行なし・対象なし・締切不一致・不完全ソース・API/DOMミスマッチは理由ごとに未認定。実機Safari・正式T−12・予想精度は別課題。
+
 ## 2026-11-10 夜｜Pages再実行時の実公開停止を修復・2回目の本番再現に成功
 - **発生した本番障害**：[Pages Action #42814644627](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42814644627) の再実行（`run_attempt=2`）が、同じrun ID配下の `github-pages` 成果物二重登録により `actions/deploy-pages@v4` で失敗。公開後ブラウザ検査は全スキップされた。これはGitHub Pagesの再実行設計不備であり、展示や予想の数値不一致と混同しない。
 - **最小修正・公開**：`55c67dcfe97d64be5a8f597d4670f5a2cc8f4dfa` で既存 `deploy-pages.yml` の upload `name` と deploy `artifact_name` を同じ `github-pages-${{ github.run_attempt }}` に指定。再実行でも同名競合しない。`1f2f32ec1347c0b3b1cbf2df4de9eefb9cd1e4bb` で共有Pages同時実行 `cancel-in-progress: false` に変更し、データ更新が公開後検査をキャンセルしないようにした。GitHubはアクティブ実行中も最大1つの最新待機実行を扱う。新PR・Cron・予想/データ変更なし。
