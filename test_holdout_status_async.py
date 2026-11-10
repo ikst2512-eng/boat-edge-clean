@@ -129,6 +129,9 @@ class HoldoutAsyncTests(unittest.TestCase):
         report.assert_called_once_with(["20261030", "20261101"])
         self.assertEqual(status["later_holdout_days"], 2)
         self.assertEqual(status["evaluated_holdout_races"], 4)
+        self.assertFalse(status["first_add_probes"]["202610301306"]["ok"])
+        self.assertEqual(status["first_add_probes"]["202610301306"]["reason_detail"],
+                         "unambiguous first addition not found")
         self.assertFalse(status["independently_validated"])
 
     def test_holdout_outcomes_are_separate_from_validated_evaluation(self):
