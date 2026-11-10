@@ -1,0 +1,91 @@
+name: Research 4-mode actual official beforeinfo injection (one shot)
+on:
+  push:
+    branches:
+      - research/scenario-all-modes-1708-20261109
+    paths:
+      - .github/workflows/scenario-official-pair-real-inject-once.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: scenario-actual-official-pair-once
+  cancel-in-progress: false
+jobs:
+  exact-primary-real-input-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail-closed source-contract tests (no fake racelist)
+        run: |
+          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py
+          python -m unittest -v test_scenario_official_pair_research_input
+      - name: Fetch exactly pinned existing position-sensitive #1698 model
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin e152b57033f825e02343b004a9c013a8998f9954
+          mkdir -p "$RUNNER_TEMP/position1698"
+          git show e152b57033f825e02343b004a9c013a8998f9954:position_sensitive_conditioned_lab.py > "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py"
+          test "$(git hash-object "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py")" = "0019978a4e27a1235d0b466c11f514bd7105f261"
+      - name: Download original Nov9 Nov10 source artifacts (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13652131213/zip" \
+            --output "$RUNNER_TEMP/nov9-source-original.zip"
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13740574410/zip" \
+            --output "$RUNNER_TEMP/nov10-source-original.zip"
+          echo "99f02ff306307dd945f27c225e18ff8341be2832232b7dd0f2751e1d8935f451  $RUNNER_TEMP/nov9-source-original.zip" | sha256sum --check --status
+          echo "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd  $RUNNER_TEMP/nov10-source-original.zip" | sha256sum --check --status
+      - name: Consume real 3 complete exhibitions in real #1710 x #1698 research math
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python scenario_actual_pair_four_mode_replay.py \
+            --nov9-zip "$RUNNER_TEMP/nov9-source-original.zip" \
+            --nov10-zip "$RUNNER_TEMP/nov10-source-original.zip" \
+            --out "$RUNNER_TEMP/research-actual-4mode-two-source.json"
+      - name: Verify all 4-mode research boards ST effects and reject incomplete source
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          a=json.loads((Path(os.environ["RUNNER_TEMP"])/"research-actual-4mode-two-source.json").read_text())
+          assert a["counts"] == {
+              "races":4,"research_math_run_from_official_exhibition":3,
+              "missing_exhibition_rejected":1,"four_mode_study_reports_generated":3,
+              "formal_forecasts":0,"production_changes":0}
+          assert a["source_original_racelist_missing_all_races"]
+          assert not a["real_official_T12_input_certified"]
+          assert not a["formal_accuracy_improvement_proven"]
+          assert not a["live_forecasts_changed"]
+          for r in a["results"]:
+              if r["research_four_modes_computed"]:
+                  assert r["mode_ticket_budget"] == {"narrow":5,"hit":10,"balance":16,"hole":22}
+                  assert all(r["model_ST_ablation_digest_changes"].values())
+                  assert r["no_racelist_original"]
+                  assert not r["forecast_usable"]
+                  assert not r["wind_and_wave_consumed_in_scenario_probability"]
+                  assert r["official_source_witness"]["source_archive_sha256"] in a["original_primary_zip_sha256"]
+              else:
+                  assert r["race_code"]=="202611102211"
+                  assert r["status"]=="EXHIBITION_MISSING_REJECTED"
+          print("PRIMARY OFFICIAL 3/4 exhibitions consumed in all 4 research model modes; 1 missing rejected; formal=0")
+          PY
+      - name: Retain ONLY derived hypothetical rankings / evidence status
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-real-official-pair-fourmode-math-not-forecasts
+          path: ${{ runner.temp }}/research-actual-4mode-two-source.json
+          retention-days: 7
+          if-no-files-found: error
