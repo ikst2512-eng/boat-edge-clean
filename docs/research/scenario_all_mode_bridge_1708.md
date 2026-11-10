@@ -606,3 +606,20 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - 保存規約には固定11/10研究manifest blob `bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7`・事前Git commit `947f9d6f...`、候補パス、同一公式3原文/ST6艇/全国勝率の同race制約、create-only/no-upsert、候補初回受領/first-add系譜/全attemptの独立監査必須、Top1主評価と絞りTop10=N/A、本番昇格禁止、**当該運用規約は正式母集団に算入しない**を明記。
 - 本番環境のPages/Render/旧main予想モデル/公式原本/結果/既存Cron/予想候補履歴に変更なし。実Git操作を実行したのは**研究用専用branch**だけで、本番に反映したと報告しない。
 - #1710で実装済みの`scenario_future_github_research_adapter.py`はまだ**本物の将来レースに対して起動していない**。同CLIで`--publish`するには、③/#1713収集による同一将来レースのT−12前公式3原本と6艇ST、生成処理と独立予想候補保存時計、GitHub内容書き込み可能な権限付き実行環境が必要。リモート自動保存の本番検証済みとは主張しない。正式0/600件。
+
+
+## 2026-11-10 ②担当：将来候補のGitHub read-only first-add・締切前存在監査（独立first receiptは未証明）
+
+**前回** [研究専用Ledger](https://github.com/ikst2512-eng/boat-edge-clean/tree/scenario-four-mode-triple-source-evidence-ledger) を実作成し、[規約のみの初回追加commit `8443570d`](https://github.com/ikst2512-eng/boat-edge-clean/commit/8443570d4a642c97bc700c9691ff7e8e4c5c314d) のリモート読戻しと原本差分を検証した。**今回は将来の予想候補向け**に、研究Draft #1710の既存`scenario_future_github_research_adapter.py`に`inspect_candidate_observed_first_add`を追加。研究用CLIへ**明示`--observe-first-add`**を追加。通常の何もしないローカル確認・明示`--publish`とは排他的で、観測モードは**GitHub GETのみ**。新Cron・新PR・本番モデル反映なし。
+
+**実際に検査する項目**：
+1. 前登録protocol原本Git blob、予想計算コード10原文SHA、source→4モード→完全候補bytesが、既存`prepare_local_candidate`で改めて同一であること。結果や新旧600採点は読まない。
+2. GitHub branch `scenario-four-mode-triple-source-evidence-ledger` をGETし、SHAを固定した時点の候補 `scenario_four_mode_research/{race}.json` を別GET。公開GitHub RESTのuncached`Date`をUTCとして確認し、**締切12分前T−12より厳密に早い時点で同一候補が存在したか**を判定。JSON base64、blob SHA1、候補完全bytes/SHA256が一致しなければ拒否。サーバ応答の`Age`ヘッダー・時間逆転・締切超過は拒否。
+3. GitHub `commits?sha=<branch sha>&path=<candidate path>&per_page=100` で現在のbranchの候補パス変更コミットが**1件だけ**（Paginationがあれば拒否）、そのcommitの`files[].status=added`、親commit直前の該当パス404を検査。過去更新があった/親にも存在した/候補SHAが変わった場合はfail-closed。
+4. GitHub `compare/<ledger bootstrap SHA>...<観測HEAD>` のahead・behind=0・通過commit全件（200件以下）を検査して、first-add commitと親が現在の実branch系譜に含まれることを確認する。分岐・長すぎる/ページ不足の履歴を成功としない。
+5. 戻り値は**`candidate_existed_before_T12_at_observation=true` / `unique_candidate_path_add_in_current_history=true`でも、`first_remote_candidate_receipt_verified=false`、`remote_branch_force_push_history_excluded=false`、`eligible_for_300_plus_300=false`、`formal=false`、本番未変更**。GitHubの`Date`は後からの存在観測であり「最初の書込みをGitHubが受領した時刻」を意味しない。事前のforce pushや全Actions retry/schedule/dispatchの欠落も単独では除外できない。
+
+**テストとリグレッション**：
+- [CI #42824726703](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824726703) で独立first-add関数のモックGitHub REST 6 GET・前締切観測・parent404・直系compare・書き換え/時間切れ/キャッシュの拒否をPASS。
+- CLI`--observe-first-add`の専用新テストでは [CI #42824989439](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824989439) が**test fixture末尾の`\\n`二重エスケープ**でfailure。原因はテストJSON不正であり、研究係数/保存原本の変更なし。test fixture 2箇所を修正し、[CI #42825163072](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42825163072) は**completed/success**：単体**102本（1skip）**＋固定#1698条件付き演算**34本PASS**。モックの候補存在とCLI排他動作を確認し、失敗runも監査履歴に保持。
+- この監査は**GitHubの実候補をまだ1件も観測していない**。研究専用Ledgerの`scenario_four_mode_research/` は前回HTTP404、今回のCIは全件人工原本/模擬HTTP。現在候補初回remote保存0、正式600中0、#1710はDraft/未統合。11月11日以降に③の公式3原本/ST6艇/T−12前候補本当に成立した場合に限り、この監査を用いて結果LASTの別研究へ接続。既存#1693/#1698、Pages/Render/main/Cron/保存済み予想と結果は変更しない。
