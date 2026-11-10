@@ -60,7 +60,18 @@ jobs:
           assert not j["official_racelist_T12_evidence_complete"]
           assert not j["forecast_improvement_formally_proven"]
           assert not j["production_feature_approved"]
-          print("92/92 official K bytes independently re-parsed; 13,815 cohort, 4,574 October holdout, T12=false")
+          import csv
+          frozen=list(csv.DictReader(Path("docs/research/official_K_boat_number_vs_actual_course_24venue_20261110.csv").open(encoding="utf-8")))
+          assert len(frozen)==24
+          for row in frozen:
+              v=j["per_venue_course_identity_mismatch"][row["jcd"]]
+              assert v["eligible"]==int(row["eligible_original_K_1C2C_cohort"])
+              assert v["boat1_mismatch_count"]==int(row["boat1_not_actual_course1_count"])
+              assert v["boat2_mismatch_count"]==int(row["boat2_not_actual_course2_count"])
+              assert row["actual_entry_available_before_T12"]=="false"
+              assert row["model_approved"]=="false"
+          assert len(j["per_venue_course_identity_mismatch"])==24
+          print("92/92 official K days re-parsed; 24/24 venue CSV reconciled; 13,815 cohort, T12=false")
           PY
       - name: Upload only aggregate research metrics (not raw race or athlete data)
         uses: actions/upload-artifact@v4
