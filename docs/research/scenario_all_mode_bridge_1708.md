@@ -485,3 +485,25 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - [修正後のPR Actions #42808817155](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42808817155) **completed/success**、通常単体テスト82本（固定#1698依存1本skip）＋**固定#1698の実コードで4モード生成を含む34本成功**。synthetic未来レースの同一入力/時刻→同じ候補bytes SHA、重み変更・後付けレース・欠損/違法/重複券・結果漏えい・時計逸脱・遠隔受領偽装の拒否を確認。**これは人工原本であり正式予想ではない**。
 
 **残る依存**：③/#1713の同一将来レース公式3原本T−12全項目の実初回受領が先。次に②候補を**create-onlyの研究専用Git受領先**へ、コードSHA/時刻/衝突規則を保ったまま受け渡す（既存#1698の保存方法を再利用、二重Cron・本番保存への書込みをしない）。別系統の認証済みGitHub API初回受領と全Actions run台帳を独立監査しなければ、formal0/600、評価や本番採用なし。今の候補生成機能は出力規則の**準備・synthetic検証のみ**であり、実際の原本から新候補0件。
+
+
+## 2026-11-10 ②実原本6レースのT−12公開タイミング監査（研究単発Actionsで検証）
+
+【ユーザーの「進めて」対応。新Cron・新PR・新データ取得器・予想原本や結果の変更なし】前回の未完備公式3原本を補完して採点したのではない。**実際の3つの既存GitHub Actions ZIPを別runでSHA固定再取得**し、beforeinfo+3連単120オッズ（6件）、racelist（うち2件）の元原文・manifestで締切とsource受領JST、展示ST6艇件数を再計算した。
+
+- [検査実行GitHub Actions #42810300028](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810300028)：`completed/success`、head `de396ccd585c47eaf39673ded607f6cb3819516b`。
+- [検証ZIP artifact #13761308309](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810300028/artifacts/13761308309)、ZIP SHA256 `53739a4a35c365e19984a0bc4058f8c25f6565c96e48d82a2d99d982b1319fea`。GitHub広告digestと独立ダウンロードが一致、ZIP全CRC正常。内4つのJSON成果物を全てstrict `json.loads` に通した。新規 `research-real-six-source-T12-timing.json` に6レース×締切／T−12／beforeinfo受領自己申告／オッズ受領自己申告／展示6件／第三原本有無が揃う。
+- 原ソース ZIPとSHA：11/9 `13652131213` / `99f02ff3…`、11/10前半 `13740574410` / `cdfdeae5…`、11/10後半 `13749433042` / `7eddf470…`。元source SHAを新しいforecastや結果と称して再保存しない。
+
+| 実レース | beforeinfo受領がT−12より何分早いか | ST6艇 | 同一ZIPにracelist原文 |
+| --- | ---: | --- | --- |
+| `202611091110` びわこ10R | 3.16分 | **6/6** | × |
+| `202611091710` 宮島10R | 1.45分 | **6/6** | × |
+| `202611101202` 住之江2R | 2.09分 | **6/6** | × |
+| `202611102211` 福岡11R | 7.75分 | **0/6** | × |
+| `202611101207` 住之江7R | 2.94分 | **0/6** | ○ |
+| `202611100708` 蒲郡8R | 12.44分 | **0/6** | ○ |
+
+**観測**：T−12基準の4分以内に受領した4例は3/4が展示ST6艇、7分以上早い2例は0/2。同じ2.94分前でも欠測があり、事例は偏りがあるため「4分以内なら必ず揃う」や「早期受領が欠測の唯一原因」と断定しない。展示STの実公開がその時点で未完了の場合は、T−12前の候補へ補間・後付けすることを禁止。6件中**公式racelist+beforeinfo ST6艇+odds120が同一受信セットで全部揃ったレース=0**（前半は出走表原本なし、後半はSTなし）。出走表・オッズだけの正式結果採点なし。これは研究の入力可用性診断で、**independent FIRST Git receipt 0、formal=0/600、production=不変更**。
+
+**③への短期是正点**：既存の**単一T−12収集ワークフロー**で、締切時刻に対してbeforeinfoがどの時刻に6件揃ったかを、collector-run ID・原文SHA・受領時刻・T−12 marginで記録する。出走表は古い時刻でも良いかを公式源/選手番号更新の性質で吟味する一方、展示STは実公開時刻が必要。早い段階で取得した0/6を同レースのT−12完備と誤認しない。「予想生成13:21 JSTの旧原本を20時台にGit初追加した事実」をT−12の新規直前情報取得と混同しない。完全例が出るまでは既存#1710の`scenario_future_three_original_gateway`がfail closedのまま。翌11/11 08時台の実Cronと初回Git受領はまだ監査未完了であり、完了の先取りをしない。
