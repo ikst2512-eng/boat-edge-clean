@@ -1,0 +1,28 @@
+name: Research first-place diversity rerank
+on:
+  pull_request:
+    paths:
+      - four_mode_first_diversity_experiment.py
+      - test_four_mode_first_diversity_experiment.py
+      - .github/workflows/first-place-diversity-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regression tests
+        run: python -m unittest -v test_four_mode_first_diversity_experiment
+      - name: Historical paired rerank
+        run: python four_mode_first_diversity_experiment.py | tee diversity_research.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: first-diversity-research-${{ github.run_id }}
+          path: diversity_research.log
+          retention-days: 30
