@@ -29,7 +29,7 @@ jobs:
            github.event.workflow_run.conclusion == 'success' &&
            github.event.workflow_run.head_branch == 'main' &&
            github.event.workflow_run.head_repository.full_name == github.repository &&
-           contains(fromJSON('["schedule","workflow_dispatch","workflow_run"]'),
+           contains(fromJSON('["schedule","workflow_dispatch","workflow_run","push"]'),
                     github.event.workflow_run.event)) ||
           (github.ref == 'refs/heads/main' &&
            contains(fromJSON('["schedule","workflow_dispatch","push"]'),
@@ -38,6 +38,10 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A trusted result writer may commit after its triggering SHA; read
+          # the latest archived results before cross-checking payouts.
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
