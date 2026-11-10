@@ -1505,13 +1505,16 @@ async function loadOriginalExhibition(key,token,grid,expectedDeadline=''){
    if(!Number.isInteger(position)||position>=row.length)throw Error('ORIGINAL_COLUMN_MISSING');
    const value=row[position];
    if(typeof value!=='string'||value.length>64)throw Error('ORIGINAL_VALUE_INVALID');
-   return {label,value:value.trim()||'—'};
+   const missing=value.trim()==='';
+   return {label,value:missing?'—':value.trim(),missing};
   }));
+  const missingValues=dataByLane.flat().filter(item=>item.missing).length;
   if(!current())return;
   for(let lane=1;lane<=6;lane++){
    const holder=holders[lane-1];holder.replaceChildren();
    for(const item of dataByLane[lane-1]){
     const metric=document.createElement('div');metric.className='exhibition-original-metric';
+    metric.dataset.sourceValueState=item.missing?'missing':'present';
     const name=document.createElement('span');name.textContent=item.label;
     const value=document.createElement('strong');value.textContent=item.value;
     metric.append(name,value);holder.append(metric);
@@ -1521,9 +1524,10 @@ async function loadOriginalExhibition(key,token,grid,expectedDeadline=''){
   const observedText=typeof observed==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+09:00$/.test(observed)?'｜CSV記載取得時刻 '+observed.slice(0,19).replace('T',' ')+' JST':'';
   const csvDeadline=Number.isInteger(index['締切時刻'])?row[index['締切時刻']]:'';
   const deadlineMismatch=/^\d{2}:\d{2}$/.test(expectedDeadline)&&/^\d{2}:\d{2}$/.test(csvDeadline)&&csvDeadline!==expectedDeadline;
-  status.dataset.originalState=deadlineMismatch?'deadline_mismatch':'verified';
+  status.dataset.originalState=missingValues?(deadlineMismatch?'partial_deadline_mismatch':'partial_missing'):(deadlineMismatch?'deadline_mismatch':'verified');
   const deadlineNote=deadlineMismatch?'｜締切時刻不一致：保存日程 '+expectedDeadline+' / CSV '+csvDeadline+'（原本時刻を優先・予想には使用しません）':'';
-  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示'+observedText+deadlineNote+'｜締切前の初回保存証明は未検証（予想に混入させません）';
+  const missingNote=missingValues?'｜一部欠測：'+missingValues+'/'+(count*6)+'項目が元CSVで空欄（各艇に「—」表示・推測補完なし）':'';
+  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示'+observedText+missingNote+deadlineNote+'｜締切前の初回保存証明は未検証（予想に混入させません）';
  }catch(error){
   const code=String(error?.message||'');
   if(/^ORIGINAL_SOURCE_HTTP_[0-9]{3}$/.test(code))unavailable('オリ展：配信元HTTP通信失敗（'+code.split('_').pop()+'）','オリ展：取得失敗','transport_failed');

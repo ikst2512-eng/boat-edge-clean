@@ -735,6 +735,24 @@ void (async()=>{
  assert.equal(shifted.status.dataset.originalState,'deadline_mismatch','saved schedule and source cutoff differences must be visible');
  assert.match(shifted.status.textContent,/保存日程 20:02 \/ CSV 20:03/);
  assert.equal(shifted.holders[0].children.length,2,'a warning must not erase independently observed original values');
+ // Real CSV archives include genuinely blank per-boat cells: preserve each
+ // remaining lane and expose missingness without treating the whole row as complete.
+ const sparseData=[...data];
+ sparseData[head.indexOf('艇3_値1')]='';
+ response={ok:true,status:200,text:async()=>head.join(',')+'\n'+sparseData.join(',')+'\n'};
+ const sparse=makeGrid();await load(state.key,state.token,sparse.grid,'20:03');
+ assert.equal(sparse.status.dataset.originalState,'partial_missing');
+ assert.match(sparse.status.textContent,/一部欠測：1\/12項目/);
+ assert.equal(sparse.holders[2].children[0].children[1].textContent,'—','missing source value must not be invented');
+ assert.equal(sparse.holders[2].children[0].dataset.sourceValueState,'missing');
+ assert.equal(sparse.holders[0].children[0].children[1].textContent,'11','other boats must stay intact');
+ assert.equal(sparse.holders[0].children[0].dataset.sourceValueState,'present');
+ const sparseDrift=makeGrid();await load(state.key,state.token,sparseDrift.grid,'20:02');
+ assert.equal(sparseDrift.status.dataset.originalState,'partial_deadline_mismatch');
+ assert.match(sparseDrift.status.textContent,/一部欠測/);
+ assert.match(sparseDrift.status.textContent,/締切時刻不一致/);
+ response={ok:true,status:200,text:async()=>fixture};
+
  ok.holders.forEach((holder,i)=>{
   assert.equal(holder.children.length,2,'must display two original source metrics for boat '+(i+1));
   assert.equal(holder.children[0].children[0].textContent,'1周');
