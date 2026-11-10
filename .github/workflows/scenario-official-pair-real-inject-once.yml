@@ -206,7 +206,10 @@ jobs:
               "production_changed":False,
           }
           (tmp/"research-real-triple-negative-evidence.json").write_text(
-              json.dumps(report,indent=2,ensure_ascii=False)+"\\n",encoding="utf-8")
+              json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          # Uploaded evidence MUST parse as strict JSON, not only pass a log assertion.
+          check=json.loads((tmp/"research-real-triple-negative-evidence.json").read_text(encoding="utf-8"))
+          assert check == report
           print(json.dumps(report,ensure_ascii=False))
           PY
       - name: Retain ONLY derived hypothetical rankings / evidence status
