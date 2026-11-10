@@ -1,3 +1,9 @@
+## 2026-11-10 21:12 JST サイト担当：実公開Pages×WebKit 6艇欠測再現PASS
+- 新PR/Cronを増やさず、既存 `scripts/smoke_four_mode_mobile.cjs` のWebKit側へ公開GitHub Pagesの実CSVデータ試験を追加。main `1c723a81e5e2a2201e515214fc1da62815c67711`。[Actions #42813366511](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42813366511) SUCCESS、ログ `LIVE_PUBLIC_WEBKIT_SPARSE_EXHIBITION_PASS`。
+- 実例 `202611101106`（びわこ6R）：公開Pagesに標準WebKit 390×844・deviceScaleFactor 3でアクセスし、オリ展原本18項目中6空欄→6艇内の「—」6件、値あり12件は保持、`一部欠測：6/18項目`、横はみ出し0pxを確認。APIやCSVのレスポンスをブラウザ上で偽装していない。別にChromium/WebKitで保存4モード・レース切替・オッズ保留/再試行もSUCCESS。
+- 既存 #1719 により公式展示JSON→Render API→公開Pagesの締切前ライブ24値照合は実装済みだが、成功した**本当のライブ実レース**は現時点で0件。`verify-real-beforeinfo.yml` の19:35 JST定期診断を2026-11-11夜に実行・調査する作業をこの会話のタスクへ登録。成功ログがなければLIVE実測PASS扱いにしない。
+- Renderは上記テスト変更の `1c723a81` がLIVEになったことを確認。その後は別担当の独立研究監査更新でmainとデプロイが進むため、各トークは必ず最新SHAを再取得すること。ソフトウェアWebKit実測は物理iPhone Safariの代替にはならず、正式T−12原本・実測的中率とも別。
+
 ## 2026-11-10 21:02 JST 公開スマホ：びわこ6R実CSVの部分欠測表示を独立照合
 - **コード修正と公開**：既存 `index.html` の6艇統合オリ展に元CSVの空欄件数を表示し、該当艇の値を `—`、`data-source-value-state=missing` とする（`40f93b55`）。CSV未配信・取得失敗・締切時刻差異とは区別し、欠測＋締切差異は両警告を保持。予想/結果/払戻/CSV原本は未変更。新PR・新Cronなし。
 - **公開Pages実証**：[Actions #42811670005](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811670005) 全ステップsuccess。`202611101106`（びわこ6R）について独立BoatraceCSV 2026/11/10原本の6艇×3項目中6件空欄を実確認。公開390px Chromiumで6艇18欄、空欄6つが `—`、値あり12欄はそのまま、`一部欠測：6/18項目`、横はみ出し0を一対一照合。既存4レース72値、2026-11-10予定156件/CSV156件一致、公式展示過去原本再現24値、欠落4分類、4主タブも同じrunでsuccess。
