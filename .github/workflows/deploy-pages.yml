@@ -582,7 +582,7 @@ jobs:
                   for(const [k,v] of [['date',day],['venue',venue],['race',String(race)],['view','exhibit']])url.searchParams.set(k,v);
                   const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
                   if(response?.status()!==200)throw Error('PAGE_HTTP_'+response?.status());
-                  await page.evaluate(()=>setView('exhibit'));
+                  await page.evaluate(()=>{setView('exhibit');render()});
                   await page.waitForFunction(()=>document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6,null,{timeout:20000});
                   await page.waitForFunction(()=>/6艇分|元データを取得・検証できません|未配信/.test(document.querySelector('#originalExhibitionStatus')?.textContent||''),null,{timeout:20000});
                   const got=await page.evaluate(()=>({
