@@ -4,7 +4,7 @@
 // endpoint. NO Worker deployment, GitHub traffic, capture, dispatch or retries.
 // Secrets are never added to the JSON artifact or printed to stdout/stderr.
 import {writeFileSync,realpathSync} from 'node:fs';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {resolve,dirname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildObserverTelemetryQueries, API_SCHEMA, auditTelemetryApiPages}
@@ -40,6 +40,13 @@ export async function collectObserverTelemetry({
   fetcher=fetch,
 }){
   const planned=buildObserverTelemetryQueries(utcDay);
+  // The offline request printer stays deterministic, but a *real owner*
+  // acquisition must be distinguishable from other queries for the same day.
+  // Cloudflare accepts arbitrary IDs when ad-hoc parameters are supplied.
+  // A fresh execution ID is not secret and does not authenticate the data.
+  const executionId=randomUUID();
+  planned.events_request.queryId+='-'+executionId;
+  planned.sampling_request.queryId+='-'+executionId;
   if(!ID.test(accountId??''))throw Error('invalid_cloudflare_account_id');
   if(typeof token!=='string'||token.length<16||/\s/.test(token))
     throw Error('cloudflare_observability_token_required');
