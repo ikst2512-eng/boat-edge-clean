@@ -8,7 +8,8 @@ from pathlib import Path
 
 from scenario_archived_rates_ablation import (
     ARCHIVED_BLOBS, MAIN_PIN, git_blob_sha,
-    validate_original_rates, load_original_rates,
+    validate_original_rates, load_original_rates, read_archived_mode_tickets,
+    compare_original_to_experiment,
 )
 
 CODE = "202611101202"
@@ -98,6 +99,81 @@ class ArchivedOriginalRateGuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not_on_pinned_original_roster"):
                 load_original_rates("202601010101", temp)
 
+
+
+class RealSavedTicketExposureContract(unittest.TestCase):
+    @staticmethod
+    def modes():
+        from itertools import permutations
+        combos=["-".join(map(str,p)) for p in permutations(range(1,7),3)]
+        return {
+            mode: {"tickets": [{"combo":x,"p":float(100/120)}
+                               for x in combos[:count]]}
+            for mode,count in (("narrow",5),("hit",10),("balance",16),("hole",22))
+        }
+
+    def test_original_has_four_modes_and_exact_budgets(self):
+        x=record()
+        x["modes"]=self.modes()
+        ranked=read_archived_mode_tickets(encode(x), CODE)
+        self.assertEqual({k:len(v) for k,v in ranked.items()},
+                         {"narrow":5,"hit":10,"balance":16,"hole":22})
+        self.assertEqual(ranked["hit"][:5], ranked["narrow"])
+
+    def test_topn_membership_counts_without_result(self):
+        original=["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2"]
+        changed=["1-2-4","1-2-3","1-2-5","1-4-2","1-3-2"]
+        result=compare_original_to_experiment(
+            original, {"top1":changed[0],
+                       "tickets":[{"combo":x} for x in changed]})
+        self.assertTrue(result["top1_exact_ticket_changed"])
+        self.assertFalse(result["top1_first_boat_changed"])
+        self.assertTrue(result["by_topn"]["top1"]["membership_changed"])
+        self.assertFalse(result["by_topn"]["top3"]["membership_changed"])
+        self.assertTrue(result["by_topn"]["top5"]["membership_changed"])
+        self.assertEqual(result["by_topn"]["top5"]["shared_ticket_count"],4)
+        self.assertFalse(result["by_topn"]["top10"]["applicable"])
+        self.assertFalse(result["gain_or_loss_in_actual_hit_rate_computed"])
+        self.assertFalse(result["confirmed_result_read"])
+
+    def test_same_original_tickets_not_forced_to_change(self):
+        original=["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2"]
+        result=compare_original_to_experiment(original,{
+            "top1":original[0],"tickets":[{"combo":x} for x in original]})
+        self.assertFalse(result["top1_exact_ticket_changed"])
+        self.assertFalse(result["by_topn"]["top5"]["membership_changed"])
+
+    def test_original_mode_invalid_is_rejected(self):
+        clean=self.modes()
+        cases=[]
+        x=record();x["modes"]=dict(clean)
+        x["modes"].pop("hole");cases.append(x)
+        x=record();x["modes"]=self.modes()
+        x["modes"]["narrow"]["tickets"].pop();cases.append(x)
+        x=record();x["modes"]=self.modes()
+        x["modes"]["narrow"]["tickets"][1]["combo"]=x["modes"]["narrow"]["tickets"][0]["combo"]
+        cases.append(x)
+        x=record();x["modes"]=self.modes()
+        x["modes"]["hit"]["tickets"][0]["combo"]="1-1-2";cases.append(x)
+        x=record();x["modes"]=self.modes()
+        x["modes"]["balance"]["tickets"][0]["p"]=float("nan");cases.append(x)
+        for item in cases:
+            with self.subTest(item=str(item["modes"])[:85]), self.assertRaises(ValueError):
+                read_archived_mode_tickets(encode(item), CODE)
+
+    def test_no_results_and_invalid_research_tickets(self):
+        original=["1-2-3","1-2-4","1-2-5","1-2-6","1-3-2"]
+        for bad in (["1-2-3"]*5,
+                    ["1-2-3","1-2-4","1-2-5","1-2-6","1-1-2"],
+                    ["1-2-3","1-2-4","1-2-5"]):
+            with self.subTest(bad=bad),self.assertRaises(ValueError):
+                compare_original_to_experiment(
+                    original,{"top1":bad[0],
+                              "tickets":[{"combo":x} for x in bad]})
+        with self.assertRaisesRegex(ValueError,"changed_mode_budget_or_order"):
+            compare_original_to_experiment(
+                original,{"top1":"6-5-4",
+                          "tickets":[{"combo":x} for x in original]})
 
 if __name__ == "__main__":
     unittest.main()
