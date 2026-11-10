@@ -1,5 +1,14 @@
 # BOAT EDGE CLEAN — Cross-provider recovery release handoff (2026-11-09 JST)
 
+## 2026-11-10: source input declaration is not evidence of an executed capture slot
+
+The offline release audit `scripts/audit_cloudflare_recovery_no_go.mjs` originally removed its `DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN` warning when mock YAML `workflow_dispatch.inputs.capture_slot` declarations and a mock POST payload containing a hard-coded slot were inserted. This was an **incorrect narrowing of a critical evidence blocker**: a declared field does **not** establish that a real GitHub Actions run consumed that field, passed it unchanged to the collector, or committed the intended immutable per-race forecast.
+
+**Corrected acceptance:** The report now distinguishes optional **source declarations** (`native_*_workflow_has_slot_input`, `recovery_dispatch_has_no_slot_input`) from the separate, mandatory and currently **unproven** end-to-end binding (`native_run_capture_slot_binding_proven:false`). The blocker `DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN` remains until independent runtime and archive evidence is obtained in another appropriately reviewed workflow. The static checker cannot issue that proof; users must never manually delete the blocker or relabel a synthetic run as successful.
+
+A missing or empty collector source now triggers `NATIVE_CAPTURE_COLLECTOR_SOURCE_UNVERIFIABLE`, rather than silently indicating that an execution-time clock was not found. The report also explicitly leaves `current_main_native_source_equality_independently_proven:false`; a local PR checkout alone cannot attest what is running on `main`. These are **conservative output contracts**, not changes to the native capture workflows or a new release pathway. The new regression cases verify that apparent input/clock fixes, deleted collectors and fabricated proof flags all remain NO-GO.
+
+
 **STATUS: NO-GO. This is an offline, independently testable Draft #1697 research handoff, not production authorization.** No main merge, native capture workflow edit, Render change, Cloudflare deployment, PAT provisioning, Cron activation or real dispatch is made by this document or its tests.
 
 ## Exact observed code contracts
