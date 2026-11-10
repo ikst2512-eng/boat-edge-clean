@@ -1,3 +1,9 @@
+## 2026-11-10 20:58 JST 研究Cron/救済起動の分離監査を本番実行
+- **実装main**：`f6c16123ee38ddbb2ee517e6a011b4f8f2834695`。既存`scripts/audit_preview_scheduled_runs.py`に、`research-live-preview-evidence.yml`をJST日付で全ページ確認する*独立*集計を追加。既存`late-preview-capture.yml`の日次監査は保持。研究対象の`schedule`と`workflow_dispatch`を分離し、mainブランチ、実行ID、JST受信日、APIの`total_count`を検査。途中ページ欠落は監査を成功扱いにしない。
+- **実行証拠**：[Actions #42811862768](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811862768) SUCCESS／12ユニットテスト合格。2026-11-10 JST 20:58時点の設定上の5分Cron枠144、観測した`schedule`起動**1件**、`workflow_dispatch`起動**3件**。計画枠との差143件。workflow_dispatchには人手とwatchdog救済が混在し、GitHubイベントだけで帰属を決定しない。毎日全時間が経過すれば予定156枠。Cronの予定は実行保証ではなくGitHub側の未起動原因は未断定。
+- **夜間の監視**：既存1日1回`audit-preview-scheduled-runs.yml`を再利用。定期起動の観測数が予定枠の半分未満なら、`RESEARCH_PREVIEW_CRON_SEVERELY_SPARSE`で診断NG（`push`/PRによるテストは警報を上げず、観測件数を出力）。T−12原本や正式認定・的中率を一切生成しない。
+- **次の判断**：11/11朝08時台のT−12実行・保存・初回Git証拠監査を優先。直前研究はCron実行数、救済run数、出典別取得件数、締切前原本保存数を別指標で記録。保存0を精度0%と解釈しない。
+
 ## 2026-11-10 夜・研究直前データの実起動不足を補う既存watchdog改修
 - **現況**：GitHubの独立研究元`research-live-preview-evidence.yml`はCronが5分ごとでもJST11/09にschedule実行2件、11/10 20:41まで1件。起動が不足している事実と、GitHubスケジューラー内部原因の断定を区別。
 - **mainに修正済み**：`e9684c3a1f9d70f56d6dccc5205db8ac817068eb`で既存10分watchdogのT−12/T−2救済を維持しつつ、独立研究元も必要時にworkflow_dispatch。追加プレビュー側のAPI障害がT−12/T−2の先行救済を阻害しない。プレビュー側に同一refの同時ジョブ抑止を設定。既存Cronは増やしていない。
