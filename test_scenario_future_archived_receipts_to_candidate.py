@@ -121,7 +121,7 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
     def test_missing_start_ST6_is_not_imputed(self):
         def parser(raw,code):
             obj=self.parse_before_fake(raw,code)
-            obj["exhibition_st"].pop()
+            obj["exhibition_st"]=obj["exhibition_st"][:-1]
             return obj
         with self.assertRaises(ValueError):
             # An independent official parser must reject incomplete ST6; the
