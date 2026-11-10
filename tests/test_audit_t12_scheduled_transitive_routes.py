@@ -93,13 +93,13 @@ jobs:
     def test_dynamic_trailing_args_still_trace_pinned_python_module(self):
         result = report({
             "scripts/entry.py": (
-                b"import subprocess\\n"
-                b"flags=input()\\n"
+                b"import subprocess\n"
+                b"flags=input()\n"
                 b"subprocess.run(['python3', '-m', "
-                b"'scripts.intermediate', flags])\\n"),
+                b"'scripts.intermediate', flags])\n"),
             "scripts/intermediate.py":
-                b"from scripts.capture_official_racelist_receipt import capture\\n",
-            "scripts/capture_official_racelist_receipt.py": b"pass\\n",
+                b"from scripts.capture_official_racelist_receipt import capture\n",
+            "scripts/capture_official_racelist_receipt.py": b"pass\n",
         })
         row = result["rows"][0]
         self.assertIn("dynamic_subprocess", row["unresolved"])
@@ -110,14 +110,14 @@ jobs:
     def test_dynamic_argv_tail_concatenation_traces_only_literal_prefix(self):
         paths = {"scripts/real.py": b"pass", "scripts/decoy.py": b"pass"}
         links, unresolved = python_links(
-            "import subprocess\\n"
-            "subprocess.run(['python', 'scripts/real.py'] + options)\\n",
+            "import subprocess\n"
+            "subprocess.run(['python', 'scripts/real.py'] + options)\n",
             paths)
         self.assertEqual(links, {"scripts/real.py"})
         self.assertIn("dynamic_subprocess", unresolved)
         links, unresolved = python_links(
-            "import subprocess\\n"
-            "subprocess.run(options + ['python', 'scripts/decoy.py'])\\n",
+            "import subprocess\n"
+            "subprocess.run(options + ['python', 'scripts/decoy.py'])\n",
             paths)
         self.assertEqual(links, set())
         self.assertIn("dynamic_subprocess", unresolved)
@@ -132,20 +132,20 @@ jobs:
                 "subprocess.run(['git', 'python', 'scripts/decoy.py', unknown])"):
             with self.subTest(command=command):
                 links, unresolved = python_links(
-                    "import subprocess\\n" + command, paths)
+                    "import subprocess\n" + command, paths)
                 self.assertFalse(links)
                 self.assertIn("dynamic_subprocess", unresolved)
 
     def test_bash_literal_prefix_with_dynamic_args_remains_unresolved(self):
-        paths = {"scripts/step.sh": b"python -m scripts.source", 
+        paths = {"scripts/step.sh": b"python -m scripts.source",
                  "scripts/source.py": b"pass"}
         links, missing = python_links(
-            "import subprocess\\nsubprocess.Popen(['bash', 'scripts/step.sh', options])",
+            "import subprocess\nsubprocess.Popen(['bash', 'scripts/step.sh', options])",
             paths)
         self.assertEqual(links, {"scripts/step.sh"})
         self.assertIn("dynamic_subprocess", missing)
         links, missing = python_links(
-            "import subprocess\\nsubprocess.Popen(['bash', options, 'scripts/step.sh'])",
+            "import subprocess\nsubprocess.Popen(['bash', options, 'scripts/step.sh'])",
             paths)
         self.assertEqual(links, set())
         self.assertIn("dynamic_subprocess", missing)
