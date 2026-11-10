@@ -41,6 +41,9 @@ class Tests(unittest.TestCase):
   self.assertIn("group: clean-payout-evidence-writer",config)
   self.assertIn("git diff --cached --name-only --diff-filter=CDMRTUX",config)
   self.assertIn("git rebase origin/main",config)
+  self.assertIn("for attempt in 1 2 3 4 5; do",config)
+  self.assertIn("if git push origin HEAD:main; then",config)
+  self.assertIn("payout append retries exhausted",config)
   self.assertIn("github.event_name != 'pull_request'",config)
 
 if __name__=="__main__":unittest.main()
