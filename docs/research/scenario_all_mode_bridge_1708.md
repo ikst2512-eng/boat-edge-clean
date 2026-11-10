@@ -551,3 +551,18 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - びわこ10Rの1-2-5、住之江2Rの1-2-6は、保存済み旧V2の**本命Top10に含まれた**が、未校正のhead3.5候補本命Top10からは外れた。穴の宮島10Rの3-4-2は逆に未校正head3.5の穴Top10で拾えた。現行3レースでは**モード間に勝ち/負け混在し、本命・バランスの既存V2に対する非悪化要件を満たしたとは言えない**。
 - **最重要の制約**：#1710の新仮説は事後的に構想・計算した研究であり、これら3レースの締切前に新モデルをGitHubへ発行したわけではない。全国勝率は当時保存済V2由来で、同レース公式racelistの真正原文がそろっていない。統計のn=3は極小で選択した古い事例に過ぎず、一般化可能な的中率の推定、確率校正、原因の確定、利益/ROI、採用判定には使えない。**本物の独立将来600件のうち認定0件**、`formal=false`、`promotion_allowed=false`、本番main/予想原本/結果/cronを不変更。
 - 次は**研究条件を後付け変更せず**、#1713/#1694から将来の公式T−12/展示ST6が完備した実レースと独立候補first remote証拠を受け、別研究IDの300+独立300を準備。今回の歴史的3Rは将来確認母集団へ一切入れない。別のT−2展示後予想はさらに別ID・情報時点で前登録するまで比較しない。
+
+
+## 2026-11-10 ②担当：事前登録protocolと実行コードの共謀差替え拒否＋絞りTop10不適用の固定
+
+**調査で見つけた実装上の欠陥**：将来研究の`scenario_future_local_candidate_handoff.prepare_local_candidate`は、呼出者が`registered_protocol`内の`scenario_hypotheses`と一緒に`gateway.hypothesis_signature_sha256`を計算し直せば一致検査を通過できた。メソッドSHAの値もリスト長10と16進形式しか見ておらず、実ファイル内容と改ざんされたSHAを直接照合していなかった。これは**結果を見てから係数・モデルコードを変えても研究と誤って受理される危険性**がある。実際に偽証された予想が遠隔保存された証拠はない。
+
+### 対策（既存Draft #1710内。事前登録済み研究条件そのものは変更禁止）
+1. 凍結済み研究manifest `research/four_mode_triple_source_forward_protocol_20261110.json`の**事前Git blob SHA1 `bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7`**を実行時に直接再計算。任意の呼出し辞書は実原本のJSONと完全一致させ、改ざん/NaN/重複key/別ファイルを拒否。
+2. 研究コード10ファイルの実バイトからGit blob SHA1をその場で計算し、原本manifestの各記録SHAと完全一致しなければ**候補をローカル生成しない**。試験ではprotocolとgatewayのハッシュを共謀差し替えしたケース、保存manifestを置き換えたケース、実行コード1ファイルだけを変更したケースを隔離temp checkoutで再現して拒否。モデルのhead3.5/世界重み/登録年月日や候補原本は**一切調整・上書きしない**。
+3. 別研究の`scientific_protocol.primary_endpoint`を`paired_top1_exact_trifecta_by_mode_with_multiplicity_correction`として照合。絞り5票のTop10は**厳密にN/A（不適用）**と結果ブラインドのcandidate payloadへ記録。#1693既存スコアラーがTop10を予算点数に切り詰めて表示するのは当時の旧数理参考実装であり、新研究の10券Top10へ**誤って読み替えない**。hit/balance/holeのTop10のみ適用、Top5/Top10非悪化は将来の同一レース比較でしか判定しない。
+
+### 実行済みの安全検証
+- [GitHub CI #42816571420](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42816571420)：protocol/モデルハッシュ実照合＋共謀差替え等の**追加回帰成功**（head `a9d50b4d247bd22ff6526f4401eb4638256d7af4`）。
+- [GitHub CI #42816963410](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42816963410)：head `1ac82df5095cdc380288a4042cf700d03d730fd2`。研究単体テスト**85本（依存1skip）**、固定#1698条件付き数理を動かした統合テスト**34本すべてPASS**。絞りTop10 N/A/本研究Top1 primaryを出力契約とテストに固定。
+- 本件の`local_handoff`は**未接続の研究専用create-only受け渡し準備**。候補初回GitHub遠隔保存、公式T−12三原本/ST6艇同時完備、Git初回受付時刻の独立受信、全attempt観測、300＋独立300件の成立を偽証・代用しない。**formal=0/600、model改善未実証**。未校正head3.5が過去3Rで本命Top10 旧V2 2/3→研究0/3となった事実は消さず、見た後で係数を変更しない。#1710 Draftのみ、main/Render/Pages/旧#1693 600/既存#1698候補/公式原本・確定結果は不変更。
