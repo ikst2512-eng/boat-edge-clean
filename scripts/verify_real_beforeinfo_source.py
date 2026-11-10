@@ -44,7 +44,7 @@ def verify_current_adapter(day, now=None, schedule_fetch=None, card_fetch=None):
                     and observed.utcoffset() is not None and observed < deadline and six
                     and sorted(r["lane"] for r in starts) == list(range(1,7))
                     and sorted(r["course"] for r in starts) == list(range(1,7))
-                    and all(re.fullmatch(r"(?:[+-]?(?:\d+(?:\.\d+)?|\.\d+)|F\.?\d{1,2})", str(r.get("st", ""))) for r in starts)):
+                    and all(re.fullmatch(r"(?:F|L)?\.\d{1,2}|\d?\.\d{1,2}", str(r.get("st", "")).strip()) for r in starts)):
                 return [{"race_code": race["race_code"], "source_audit": audit,
                          "exhibition_times": 6, "start_exhibition": 6,
                          "formal_t12_certified": False}]
