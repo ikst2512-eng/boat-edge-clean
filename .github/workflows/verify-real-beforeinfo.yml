@@ -93,11 +93,14 @@ jobs:
             }
             return values;
           };
-          const verifyOfficialRenderAgreement=(d,exp,date,venue,rno,deadlineText,cutoff)=>{
+          const verifyOfficialRenderAgreement=(d,exp,date,venue,rno,deadlineText,cutoff,apiReceivedMs)=>{
             if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==deadlineText||
               d.race_key!==date+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
               d.source_audit?.beforeinfo?.status!=='ok'||
               !validPredeadlineReceipt(d.source_audit.beforeinfo.fetched_at,cutoff)||
+              !Number.isFinite(apiReceivedMs)||apiReceivedMs>=cutoff||
+              Date.parse(d.source_audit.beforeinfo.fetched_at)>apiReceivedMs||
+              !/^[a-f0-9]{64}$/.test(d.source_audit.beforeinfo.sha256||'')||
               !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||
               !valid6(d.beforeinfo?.start_exhibition))
               throw Error('public_api_missing_verified_six');
@@ -116,28 +119,31 @@ jobs:
             const recorded=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
             const api=JSON.parse(recorded.raw_response_utf8);
             const cutoff=Date.parse('2026-11-04T20:03:00+09:00'), date='20261104';
+            const archiveApiReceived=Date.parse(recorded.response_received_jst);
             const clone=v=>JSON.parse(JSON.stringify(v));
             const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
-            if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff)!==24)
+            if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff,archiveApiReceived)!==24)
               throw Error('archived_positive_24_contract_failed');
             const negative=[
               ['official_wrong_race',()=>verifiedOfficialValues(official.maindata,date,1,12,'20:03'),/official_identity/],
               ['official_wrong_deadline',()=>verifiedOfficialValues(official.maindata,date,1,11,'20:04'),/official_identity/],
-              ['render_wrong_race',()=>{const x=clone(api);x.race_key='20261104-01-12';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
-              ['render_wrong_racer',()=>{const x=clone(api);x.racers[0].registration_no='9999';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
-              ['render_wrong_tilt',()=>{const x=clone(api);x.beforeinfo.racers[0].tilt=0;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
-              ['render_wrong_st',()=>{const x=clone(api);x.beforeinfo.start_exhibition[1].st='.99';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_2/],
-              ['render_wrong_course',()=>{const x=clone(api);x.beforeinfo.start_exhibition[0].course=6;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
-              ['render_duplicate_lanes',()=>{const x=clone(api);x.beforeinfo.racers[1].lane=1;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
-              ['render_unproven_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='invalid';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
-              ['render_late_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='2026-11-04T20:03:00+09:00';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/]
+              ['render_wrong_race',()=>{const x=clone(api);x.race_key='20261104-01-12';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_wrong_racer',()=>{const x=clone(api);x.racers[0].registration_no='9999';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_tilt',()=>{const x=clone(api);x.beforeinfo.racers[0].tilt=0;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_st',()=>{const x=clone(api);x.beforeinfo.start_exhibition[1].st='.99';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_2/],
+              ['render_wrong_course',()=>{const x=clone(api);x.beforeinfo.start_exhibition[0].course=6;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_source_mismatch_lane_1/],
+              ['render_duplicate_lanes',()=>{const x=clone(api);x.beforeinfo.racers[1].lane=1;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_unproven_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='invalid';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_late_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='2026-11-04T20:03:00+09:00';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_missing_source_hash',()=>{const x=clone(api);x.source_audit.beforeinfo.sha256='';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/],
+              ['render_future_claimed_source_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at=new Date(archiveApiReceived+1000).toISOString();return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff,archiveApiReceived)},/public_api_missing/]
             ];
             for(const [name,fn,pattern] of negative){
               let reason='';
               try{fn()}catch(e){reason=String(e.message)}
               if(!pattern.test(reason))throw Error('ARCHIVED_CONTRACT_NEGATIVE_FAILED '+name+' '+reason);
             }
-            console.log('ARCHIVED_OFFICIAL_RENDER_24_CONTRACT_PASS 202611040111 | 6 boats / 24 metrics | 10 negative guards | saved historical original only; NOT real-time E2E');
+            console.log('ARCHIVED_OFFICIAL_RENDER_24_CONTRACT_PASS 202611040111 | 6 boats / 24 metrics | 12 negative guards | saved historical original only; NOT real-time E2E');
             process.exit(0);
           }
           (async()=>{
@@ -166,7 +172,7 @@ jobs:
                   const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
                   const api=await get(ctx,apiUrl),d=api.data;
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
-                  verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline);
+                  verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline,api.received);
                   const page=await ctx.newPage();
                   try{
                     const target=new URL(pages);for(const [k,v] of [['date',day],['venue',String(venue)],['race',String(rno)],['view','exhibit']])target.searchParams.set(k,v);
