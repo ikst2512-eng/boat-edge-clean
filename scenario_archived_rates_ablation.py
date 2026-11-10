@@ -91,6 +91,79 @@ def load_original_rates(code, directory):
     return rates, generated_at
 
 
+
+def read_archived_mode_tickets(raw, code):
+    """Inspect only immutable prior V2 tickets. No outcome or current model re-rank."""
+    validate_original_rates(raw, code)
+    record = json.loads(raw)
+    modes = record.get("modes")
+    if type(modes) is not dict or set(modes) != set(BUDGETS):
+        raise ValueError("archived_four_mode_budget_contract_invalid")
+    from itertools import permutations
+    valid = {"-".join(map(str, x)) for x in permutations(range(1, 7), 3)}
+    answer = {}
+    for mode, count in BUDGETS.items():
+        row = modes.get(mode)
+        tickets = row.get("tickets") if type(row) is dict else None
+        if type(tickets) is not list or len(tickets) != count:
+            raise ValueError("archived_mode_ticket_count_invalid")
+        combos = []
+        for item in tickets:
+            if (type(item) is not dict or type(item.get("combo")) is not str
+                    or item["combo"] not in valid
+                    or type(item.get("p")) not in (int, float)
+                    or not math.isfinite(item["p"])
+                    or not 0 <= item["p"] <= 100):
+                raise ValueError("archived_ticket_invalid")
+            combos.append(item["combo"])
+        if len(set(combos)) != count:
+            raise ValueError("archived_mode_duplicate_ticket")
+        answer[mode] = combos
+    return answer
+
+
+def compare_original_to_experiment(original, experimental):
+    """Same-race input-only ticket exposure, NOT achieved Top-N accuracy."""
+    if (type(original) is not list or type(experimental) is not dict
+            or type(experimental.get("tickets")) is not list
+            or type(experimental.get("top1")) is not str
+            or not original):
+        raise ValueError("invalid_archived_vs_experimental_comparison")
+    research = [x.get("combo") if type(x) is dict else None
+                for x in experimental["tickets"]]
+    if (len(research) != len(original) or len(set(research)) != len(research)
+            or not all(type(x) is str for x in research)
+            or research[0] != experimental["top1"]):
+        raise ValueError("changed_mode_budget_or_order")
+    from itertools import permutations
+    valid = {"-".join(map(str, x)) for x in permutations(range(1, 7), 3)}
+    if not (set(research) <= valid and set(original) <= valid):
+        raise ValueError("illegal_ticket_in_comparison")
+    top = {}
+    for k in (1, 3, 5, 10):
+        key = f"top{k}"
+        if k > len(original):
+            top[key] = {"applicable": False, "reason": "mode_budget_below_topn"}
+        else:
+            a, b = set(original[:k]), set(research[:k])
+            top[key] = {
+                "applicable": True,
+                "membership_changed": a != b,
+                "shared_ticket_count": len(a & b),
+                "candidate_only_not_actual_new_hits": len(b - a),
+                "original_only_not_actual_lost_hits": len(a - b),
+            }
+    return {
+        "original_top1": original[0],
+        "hypothetical_top1": research[0],
+        "top1_exact_ticket_changed": original[0] != research[0],
+        "top1_first_boat_changed": original[0][0] != research[0][0],
+        "by_topn": top,
+        "confirmed_result_read": False,
+        "gain_or_loss_in_actual_hit_rate_computed": False,
+    }
+
+
 def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
     if not callable(conditional_callback):
         raise ValueError("pinned_1698_callback_required")
@@ -98,6 +171,9 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
     rows = []
     for code in REGRESSION_CODES:
         rates, generated = load_original_rates(code, originals_dir)
+        # load_original_rates verified this file's exact immutable Git blob.
+        original_tickets = read_archived_mode_tickets(
+            (Path(originals_dir) / (code + ".json")).read_bytes(), code)
         try:
             projection, witness = official_partial_from_zip(zip_by_day[code[:8]], code)
         except ValueError as exc:
@@ -133,6 +209,7 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
         without_head = evaluate(rates, no_head)
         per_mode = {}
         head_effect = {}
+        archived_vs_scenario = {}
         for mode in MODES:
             a = neutral["four_mode_research_tickets"][mode]
             b = archived["four_mode_research_tickets"][mode]
@@ -152,6 +229,12 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
             }
             h = without_head["four_mode_research_tickets"][mode]
             ht = {x["combo"] for x in h["tickets"]}
+            archived_vs_scenario[mode] = {
+                "with_uncalibrated_head_shift": compare_original_to_experiment(
+                    original_tickets[mode], b),
+                "without_uncalibrated_head_shift": compare_original_to_experiment(
+                    original_tickets[mode], h),
+            }
             head_effect[mode] = {
                 "uncalibrated_head_shift_changes_120_board":
                     b["distinct_120_mixture_digest"] != h["distinct_120_mixture_digest"],
@@ -174,6 +257,9 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
             "model_uses_actual_final_entry": False,
             "mode_input_ablation": per_mode,
             "mode_uncalibrated_head_shift_ablation": head_effect,
+            "archived_V2_vs_research_topn_exposure_result_blind": archived_vs_scenario,
+            "future_candidate_first_remote_receipt_verified": False,
+            "admitted_to_1693_registered_cohort": False,
             "head_shift_ablation_kept_real_rates_exhibition_and_position_features": True,
             "head_shift_assumptions_validated_against_results": False,
             "formal": False, "results_read": False,
