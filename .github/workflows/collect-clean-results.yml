@@ -42,8 +42,10 @@ jobs:
     # Only same-repository main schedule or fallback-dispatch completions can trigger
     # this writer; reject PR/foreign-repository workflow_run events.
     if: >-
-      ${{ github.event_name != 'workflow_run' ||
-          (contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event.workflow_run.event) &&
+      ${{ github.event_name == 'pull_request' ||
+          (github.event_name != 'workflow_run' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_run' &&
+           contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event.workflow_run.event) &&
            github.event.workflow_run.head_branch == 'main' &&
            github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
@@ -52,6 +54,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          # Scheduled/dispatch re-runs may point to a SHA before existing immutable
+          # results were archived. Writers must start from current main; PR tests
+          # still use their precise synthetic merge commit and NEVER write.
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
