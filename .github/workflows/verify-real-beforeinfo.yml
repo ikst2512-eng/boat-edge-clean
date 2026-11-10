@@ -71,6 +71,75 @@ jobs:
           const regressionCutoff=Date.parse('2026-11-11T19:35:00+09:00');
           for(const receipt of ['', 'invalid', '2026-11-11T10:35:00Z', '2026-11-11T19:34:59', '2026-11-11T19:35:00+09:00'])if(validPredeadlineReceipt(receipt,regressionCutoff))throw Error('INVALID_RECEIPT_ACCEPTED '+receipt);
           if(!validPredeadlineReceipt('2026-11-11T19:34:59.123456+09:00',regressionCutoff))throw Error('VALID_RECEIPT_REJECTED');
+          // The same pure validators run for genuine scheduled E2E and a frozen
+          // historical official/Render source pair. Historical replay is NOT a
+          // live predeadline source observation or a formal T-12 receipt.
+          const byLane=(arr,l)=>arr.find(x=>Number(x?.teino??x?.lane)===l);
+          const verifiedOfficialValues=(main,date,venue,rno,deadlineText)=>{
+            if(!main||String(main.hd)!==date||Number(main.jcd)!==venue||
+              Number(main.rno)!==rno||String(main.deadline)!==deadlineText||
+              !valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))
+              throw Error('official_identity_deadline_or_six_missing');
+            const courses=main.sttenjiinfolist.map(x=>Number(x.cs)).sort((a,b)=>a-b);
+            if(courses.join(',')!=='1,2,3,4,5,6')throw Error('official_courses_invalid');
+            const values={};
+            for(let l=1;l<=6;l++){
+              const x=byLane(main.teiinfolist,l),st=byLane(main.sttenjiinfolist,l);
+              const time=Number(x.extime),tilt=Number(x.tilt);
+              if(!finiteReading(x.extime)||!finiteReading(x.tilt)||
+                time<5||time>9||tilt< -1||tilt>3||!validSt(st.st))
+                throw Error('official_measurements_incomplete');
+              values[l]={registration:String(x.racerno),time,tilt,st:st.st.trim(),course:Number(st.cs)};
+            }
+            return values;
+          };
+          const verifyOfficialRenderAgreement=(d,exp,date,venue,rno,deadlineText,cutoff)=>{
+            if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==deadlineText||
+              d.race_key!==date+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
+              d.source_audit?.beforeinfo?.status!=='ok'||
+              !validPredeadlineReceipt(d.source_audit.beforeinfo.fetched_at,cutoff)||
+              !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||
+              !valid6(d.beforeinfo?.start_exhibition))
+              throw Error('public_api_missing_verified_six');
+            for(let l=1;l<=6;l++){
+              const racer=byLane(d.racers,l),ex=byLane(d.beforeinfo.racers,l);
+              const st=byLane(d.beforeinfo.start_exhibition,l),v=exp[l];
+              if(String(racer.registration_no)!==v.registration||
+                Number(ex.exhibition_time)!==v.time||Number(ex.tilt)!==v.tilt||
+                String(st.st)!==v.st||Number(st.course)!==v.course)
+                throw Error('public_api_source_mismatch_lane_'+l);
+            }
+            return 24;
+          };
+          if(process.argv.includes('--historical-contract-test')){
+            const official=JSON.parse(fs.readFileSync('tests/fixtures/official_preview_202611040111.json','utf8'));
+            const recorded=JSON.parse(fs.readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
+            const api=JSON.parse(recorded.raw_response_utf8);
+            const cutoff=Date.parse('2026-11-04T20:03:00+09:00'), date='20261104';
+            const clone=v=>JSON.parse(JSON.stringify(v));
+            const exp=verifiedOfficialValues(official.maindata,date,1,11,'20:03');
+            if(verifyOfficialRenderAgreement(api,exp,date,1,11,'20:03',cutoff)!==24)
+              throw Error('archived_positive_24_contract_failed');
+            const negative=[
+              ['official_wrong_race',()=>verifiedOfficialValues(official.maindata,date,1,12,'20:03'),/official_identity/],
+              ['official_wrong_deadline',()=>verifiedOfficialValues(official.maindata,date,1,11,'20:04'),/official_identity/],
+              ['render_wrong_race',()=>{const x=clone(api);x.race_key='20261104-01-12';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
+              ['render_wrong_racer',()=>{const x=clone(api);x.racers[0].registration_no='9999';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_tilt',()=>{const x=clone(api);x.beforeinfo.racers[0].tilt=0;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
+              ['render_wrong_st',()=>{const x=clone(api);x.beforeinfo.start_exhibition[1].st='.99';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_2/],
+              ['render_wrong_course',()=>{const x=clone(api);x.beforeinfo.start_exhibition[0].course=6;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_source_mismatch_lane_1/],
+              ['render_duplicate_lanes',()=>{const x=clone(api);x.beforeinfo.racers[1].lane=1;return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
+              ['render_unproven_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='invalid';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/],
+              ['render_late_receipt',()=>{const x=clone(api);x.source_audit.beforeinfo.fetched_at='2026-11-04T20:03:00+09:00';return verifyOfficialRenderAgreement(x,exp,date,1,11,'20:03',cutoff)},/public_api_missing/]
+            ];
+            for(const [name,fn,pattern] of negative){
+              let reason='';
+              try{fn()}catch(e){reason=String(e.message)}
+              if(!pattern.test(reason))throw Error('ARCHIVED_CONTRACT_NEGATIVE_FAILED '+name+' '+reason);
+            }
+            console.log('ARCHIVED_OFFICIAL_RENDER_24_CONTRACT_PASS 202611040111 | 6 boats / 24 metrics | 10 negative guards | saved historical original only; NOT real-time E2E');
+            process.exit(0);
+          }
           (async()=>{
             const browser=await chromium.launch({headless:true});
             const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -93,29 +162,11 @@ jobs:
                   const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
                   if(src.url!==officialUrl)throw Error('official_redirect');
                   const main=src.data.maindata;
-                  if(!main||String(main.hd)!==hd||Number(main.jcd)!==venue||Number(main.rno)!==rno||String(main.deadline)!==race.deadline_jst.slice(11,16)||!valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))throw Error('official_identity_deadline_or_six_missing');
-                  const byLane=(arr,l)=>arr.find(x=>Number(x.teino??x.lane)===l);
-                  const courses=main.sttenjiinfolist.map(x=>Number(x.cs)).sort((a,b)=>a-b);
-                  if(courses.join(',')!=='1,2,3,4,5,6')throw Error('official_courses_invalid');
-                  const exp={};
-                  for(let l=1;l<=6;l++){
-                    const x=byLane(main.teiinfolist,l),st=byLane(main.sttenjiinfolist,l);
-                    const time=Number(x.extime),tilt=Number(x.tilt);
-                    if(!finiteReading(x.extime)||!finiteReading(x.tilt)||time<5||time>9||tilt< -1||tilt>3||!validSt(st.st))throw Error('official_measurements_incomplete');
-                    exp[l]={registration:String(x.racerno),time,tilt,st:st.st.trim(),course:Number(st.cs)};
-                  }
+                  const exp=verifiedOfficialValues(main,hd,venue,rno,race.deadline_jst.slice(11,16));
                   const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
                   const api=await get(ctx,apiUrl),d=api.data;
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
-                  if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==main.deadline||
-          d.race_key!==hd+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
-                    d.source_audit?.beforeinfo?.status!=='ok'||!validPredeadlineReceipt(d.source_audit.beforeinfo.fetched_at,deadline)||
-                    !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||!valid6(d.beforeinfo?.start_exhibition))throw Error('public_api_missing_verified_six');
-                  for(let l=1;l<=6;l++){
-                    const racer=d.racers.find(x=>x.lane===l),ex=d.beforeinfo.racers.find(x=>x.lane===l),st=d.beforeinfo.start_exhibition.find(x=>x.lane===l);
-                    const v=exp[l];
-                    if(String(racer.registration_no)!==v.registration||Number(ex.exhibition_time)!==v.time||Number(ex.tilt)!==v.tilt||String(st.st)!==v.st||Number(st.course)!==v.course)throw Error('public_api_source_mismatch_lane_'+l);
-                  }
+                  verifyOfficialRenderAgreement(d,exp,hd,venue,rno,main.deadline,deadline);
                   const page=await ctx.newPage();
                   try{
                     const target=new URL(pages);for(const [k,v] of [['date',day],['venue',String(venue)],['race',String(rno)],['view','exhibit']])target.searchParams.set(k,v);
@@ -164,4 +215,5 @@ jobs:
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
           node --check .clean-live-official-pages.cjs
+          node .clean-live-official-pages.cjs --historical-contract-test
           node .clean-live-official-pages.cjs
