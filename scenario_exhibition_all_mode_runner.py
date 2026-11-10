@@ -182,14 +182,9 @@ def _conditional_result(response, prior, active):
     return sorted(values.items(), key=lambda item: (-item[1], item[0]))
 
 
-def run_exhibition_scenario_lab(projection, six_national_rates, plans,
-                                conditional_lab_callback, *, study_id):
-    """Compute one isolated complete four-mode scenario hypothesis.
-
-    Pass #1698's experimental_conditional_board as callback only after
-    separately reviewing that Draft. This module never imports its file.
-    Rates and candidate source clocks are not independently authenticated.
-    """
+def _compute_exhibition_scenario_boards(projection, six_national_rates, plans,
+                                        conditional_lab_callback, *, study_id):
+    """Validate once, compute each distinct scenario board once; no mode-specific weights here."""
     boats = _projected(projection)
     _config(plans, study_id)
     if not callable(conditional_lab_callback):
@@ -225,6 +220,20 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
             study_id + "_PAIR_" + name.upper())
         boards[name] = _conditional_result(
             conditioned, first["ranked_board"], active)
+    return boards, activated_by_scenario
+
+
+def run_exhibition_scenario_lab(projection, six_national_rates, plans,
+                                conditional_lab_callback, *, study_id):
+    """Compute one isolated complete four-mode scenario hypothesis.
+
+    Pass #1698's experimental_conditional_board as callback only after
+    separately reviewing that Draft. This module never imports its file.
+    Rates and candidate source clocks are not independently authenticated.
+    """
+    boards, activated_by_scenario = _compute_exhibition_scenario_boards(
+        projection, six_national_rates, plans, conditional_lab_callback,
+        study_id=study_id)
     mixed = compose_scenario_research(
         boards, {name: plans[name]["weight"] for name in plans})
     return {
