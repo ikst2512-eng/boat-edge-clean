@@ -1455,8 +1455,6 @@ function explainOfficialPreviewGap(audit){
   return '直前データ：公式側の対象レース・締切時刻が一致せず、展示値の表示を保留しています。';
  if(reason==='receipt_not_before_deadline'||reason==='deadline_passed')
   return '直前データ：締切前の取得完了を確認できないため、展示値の表示を保留しています。';
- if(audit?.status==='not_verified_historical')
-  return '直前データ：過去レースは締切前取得の証拠がないため、展示値を未検証として表示しません。';
  return '直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';
 }
 function mergeVerifiedRaceSnapshots(previous,raw){
