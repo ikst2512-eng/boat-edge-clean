@@ -49,7 +49,7 @@ class OfficialSixWinRatesTests(unittest.TestCase):
         for x in (raw.replace(b'</th><th>',b'</th><th>',1).replace(
                         '全国'.encode(),'全國'.encode()),
                   raw.replace('全国'.encode(),'当地'.encode(),1),
-                  raw.replace(b'</body>', b'<th>\xe5\x85\xa8\xe5\x9b\xbd</th></body>')):
+                  raw.replace(b'</table>', b'<tr><th>\xe5\x85\xa8\xe5\x9b\xbd</th><th>\xe5\xbd\x93\xe5\x9c\xb0</th><th>\xe3\x83\xa2\xe3\x83\xbc\xe3\x82\xbf\xe3\x83\xbc</th><th>\xe3\x83\x9c\xe3\x83\xbc\xe3\x83\x88</th></tr></table>')):
             with self.subTest(example=x[:40]), self.assertRaisesRegex(ValueError,"column_headers"):
                 extract_six_official_racelist_rates(x)
 
