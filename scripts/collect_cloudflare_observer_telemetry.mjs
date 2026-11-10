@@ -63,8 +63,41 @@ export async function collectObserverTelemetry({
       });
     }catch{throw Error('cloudflare_query_network_or_timeout_failure')}
     if(!response||response.status!==200)throw Error('cloudflare_query_non_200');
+    // A post-read length check is NOT a memory limit: Response.text() could
+    // allocate an arbitrarily large body first. Limit streamed bytes before
+    // buffering, and reject announced over-limit bodies without reading.
+    const declared=response.headers?.get?.('content-length');
+    if(declared!==undefined&&declared!==null){
+      if(!/^\d+$/.test(declared)||Number(declared)>MAX_RESPONSE_BYTES)
+        throw Error('cloudflare_query_response_oversize');
+    }
     let raw;
-    try{raw=await response.text()}catch{throw Error('cloudflare_query_body_unreadable')}
+    if(typeof response.body?.getReader==='function'){
+      const reader=response.body.getReader(),parts=[];
+      let size=0;
+      try {
+        for(;;){
+          const packet=await reader.read();
+          if(packet.done)break;
+          if(!(packet.value instanceof Uint8Array))
+            throw Error('cloudflare_query_body_unreadable');
+          size+=packet.value.byteLength;
+          if(size>MAX_RESPONSE_BYTES)
+            throw Error('cloudflare_query_response_oversize');
+          parts.push(Buffer.from(packet.value));
+        }
+      } catch(error){
+        try {await reader.cancel()}catch {}
+        if(error?.message==='cloudflare_query_response_oversize')throw error;
+        throw Error('cloudflare_query_body_unreadable');
+      }finally{
+        try {reader.releaseLock()}catch {}
+      }
+      raw=Buffer.concat(parts,size).toString('utf8');
+    }else{
+      // Test fakes expose text(); actual Fetch Response uses body.getReader().
+      try{raw=await response.text()}catch{throw Error('cloudflare_query_body_unreadable')}
+    }
     if(typeof raw!=='string'||Buffer.byteLength(raw,'utf8')>MAX_RESPONSE_BYTES)
       throw Error('cloudflare_query_response_oversize');
     // A compromised or unexpected endpoint must not echo credentials into a
