@@ -1,15 +1,18 @@
 """Mocked GitHub HTTP contract tests; no Internet write, no forecast claims."""
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 import hashlib
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from urllib.parse import parse_qs, urlsplit
 
 from scenario_future_github_research_adapter import (
     API, GitHubOnlyCreateWire, REPO, _remote_path,
-    run_from_gateway_file,
+    run_from_gateway_file, inspect_candidate_observed_first_add,
+    LEDGER_BOOTSTRAP_HEAD_SHA,
 )
 from scenario_future_local_candidate_handoff import (
     RESEARCH_ONLY_LEDGER_BRANCH, _git_blob_sha1,
@@ -166,6 +169,136 @@ class ActualWireWithOnlyFakeTransportTests(unittest.TestCase):
             self.assertFalse(result["first_remote_candidate_receipt_verified"])
             self.assertEqual(self.h.puts,0)
             self.assertEqual(self.h.reads,0)
+
+
+class SyntheticFirstAddGitHubWitnessHTTP:
+    """No real GitHub traffic. Freeze SHA, head, history, parent, compare."""
+    FIRST="b"*40
+    PARENT="8443570d4a642c97bc700c9691ff7e8e4c5c314d"
+    PATH="scenario_four_mode_research/202611111710.json"
+
+    def __init__(self, exact_bytes):
+        self.raw=exact_bytes
+        self.requests=[]
+        self.diff_mode=None
+        self.utc=datetime(2026,11,11,6,9,0,tzinfo=timezone.utc)
+
+    def __call__(self,request):
+        assert request.get_method()=="GET", "witness must NEVER make PUT"
+        assert request.full_url.startswith(API+"/")
+        url=urlsplit(request.full_url)
+        p=url.path.split("/repos/ikst2512-eng/boat-edge-clean",1)[-1]
+        params=parse_qs(url.query)
+        self.requests.append((p,params))
+        utc=self.utc+timedelta(seconds=len(self.requests)-1)
+        if self.diff_mode=="late_existence" and len(self.requests)==2:
+            utc=datetime(2026,11,11,6,18,2,tzinfo=timezone.utc)
+        headers={"Date":format_datetime(utc,usegmt=True)}
+        if self.diff_mode=="cached" and len(self.requests)==2:
+            headers["Age"]="60"
+        if self.diff_mode=="missing_date" and len(self.requests)==1:
+            del headers["Date"]
+        if p=="/git/ref/heads/"+RESEARCH_ONLY_LEDGER_BRANCH:
+            obj={"ref":"refs/heads/"+RESEARCH_ONLY_LEDGER_BRANCH,
+                 "object":{"sha":self.FIRST,"type":"commit"}}
+        elif p=="/contents/"+self.PATH:
+            if params=={"ref":[self.FIRST]}:
+                candidate=self.raw
+                if self.diff_mode=="tampered_content":
+                    candidate+=b"x"
+                obj={"type":"file","path":self.PATH,
+                     "encoding":"base64",
+                     "sha":_git_blob_sha1(self.raw),
+                     "content":base64.b64encode(candidate).decode()}
+            elif params=={"ref":[self.PARENT]}:
+                if self.diff_mode=="parent_still_exists":
+                    return 200,headers,json.dumps({"type":"file"}).encode()
+                return 404,headers,b'{"message":"Not Found"}'
+            else:
+                raise AssertionError("unrecognized pinned candidate sha")
+        elif p=="/commits":
+            assert params=={"sha":[self.FIRST],"path":[self.PATH],"per_page":["100"]}
+            obj=[{"sha":self.FIRST}]
+            if self.diff_mode=="modified_second_commit":
+                obj.append({"sha":"a"*40})
+            if self.diff_mode=="history_paginated":
+                headers["Link"]='<https://api.github.com/next>; rel="next"'
+        elif p=="/commits/"+self.FIRST:
+            obj={"sha":self.FIRST,"parents":[{"sha":self.PARENT}],
+                 "files":[{"filename":self.PATH,"status":"added",
+                           "sha":_git_blob_sha1(self.raw)}]}
+            if self.diff_mode=="not_added":
+                obj["files"][0]["status"]="modified"
+        elif p=="/compare/"+LEDGER_BOOTSTRAP_HEAD_SHA+"..."+self.FIRST:
+            obj={"status":"ahead","behind_by":0,"ahead_by":2,
+                 "total_commits":2,
+                 "base_commit":{"sha":LEDGER_BOOTSTRAP_HEAD_SHA},
+                 "commits":[{"sha":self.PARENT},{"sha":self.FIRST}]}
+            if self.diff_mode=="nonlinear_branch":
+                obj["behind_by"]=1
+        else:
+            raise AssertionError("unexpected GitHub endpoint:"+p)
+        return 200,headers,json.dumps(obj).encode()
+
+
+class FrozenFutureWitnessOnlySyntheticTests(unittest.TestCase):
+    def setUp(self):
+        self.p=read_protocol()
+        self.g=fake_gateway(self.p)
+        self.prepared=prepare_local_candidate(self.g,self.p,GENERATED,FROZEN)
+        self.fake=SyntheticFirstAddGitHubWitnessHTTP(self.prepared["bytes"])
+
+    def witness(self):
+        return inspect_candidate_observed_first_add(
+            self.prepared,self.g,self.p,GENERATED,FROZEN,
+            send=self.fake,
+        )
+
+    def test_unique_first_add_pre_t12_existence_never_promotes(self):
+        result=self.witness()
+        self.assertEqual(len(self.fake.requests),6)
+        self.assertEqual(result["observed_first_add_commit_sha"],self.fake.FIRST)
+        self.assertEqual(result["observed_first_add_parent_sha"],self.fake.PARENT)
+        self.assertTrue(result["candidate_existed_before_T12_at_observation"])
+        self.assertTrue(result["unique_candidate_path_add_in_current_history"])
+        self.assertTrue(result["observed_branch_ancestry_from_bootstrap"])
+        self.assertEqual(result["candidate_sha256"],self.prepared["sha256"])
+        for key in (
+            "first_remote_candidate_receipt_verified",
+            "github_network_responses_independently_authenticated",
+            "remote_branch_force_push_history_excluded",
+            "upstream_first_source_receipts_authenticated",
+            "complete_capture_and_rescue_run_inventory_verified",
+            "eligible_for_300_plus_300", "formal",
+            "model_improvement_proven","promotion_allowed","production_changed",
+        ):
+            self.assertIs(result[key],False,key)
+
+    def test_late_existence_or_untrusted_headers_rejected(self):
+        for failure in ("late_existence","cached","missing_date",
+                        "tampered_content","history_paginated"):
+            self.fake=SyntheticFirstAddGitHubWitnessHTTP(self.prepared["bytes"])
+            self.fake.diff_mode=failure
+            with self.subTest(failure=failure),self.assertRaises(ValueError):
+                self.witness()
+
+    def test_path_was_modified_parent_already_had_it_or_diverged_branch(self):
+        for failure in (
+            "modified_second_commit","not_added","parent_still_exists",
+            "nonlinear_branch",
+        ):
+            self.fake=SyntheticFirstAddGitHubWitnessHTTP(self.prepared["bytes"])
+            self.fake.diff_mode=failure
+            with self.subTest(failure=failure),self.assertRaises(ValueError):
+                self.witness()
+
+    def test_unregistered_prepared_candidate_rejected_before_remote_request(self):
+        changed=dict(self.prepared)
+        changed["sha256"]="0"*64
+        with self.assertRaisesRegex(ValueError,"not_exact_frozen_bytes"):
+            inspect_candidate_observed_first_add(
+                changed,self.g,self.p,GENERATED,FROZEN,send=self.fake)
+        self.assertEqual(self.fake.requests,[])
 
 if __name__=="__main__":
     unittest.main()
