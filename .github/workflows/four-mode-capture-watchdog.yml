@@ -47,6 +47,28 @@ on:
       - 'test_render_four_mode_dispatch.py'
       - 'scripts/render_capture_wakeup.py'
       - 'test_render_capture_wakeup.py'
+      - 'cloudflare/independent_capture_wakeup.mjs'
+      - 'cloudflare/independent_capture_policy.mjs'
+      - 'cloudflare/independent_capture_observer.mjs'
+      - 'cloudflare/independent_capture_slots.mjs'
+      - 'cloudflare/audit_observer_api_pages.mjs'
+      - 'cloudflare/audit_observer_raw_logs.mjs'
+      - 'cloudflare/audit_observer_telemetry.mjs'
+      - 'scripts/audit_cloudflare_observer_telemetry.mjs'
+      - 'scripts/print_cloudflare_observer_telemetry_queries.mjs'
+      - 'scripts/collect_cloudflare_observer_telemetry.mjs'
+      - 'tests/cloudflare_observer_owner_export.test.mjs'
+      - 'cloudflare/wrangler.toml'
+      - 'cloudflare/wrangler.observer.toml'
+      - 'cloudflare/package.json'
+      - 'cloudflare/vitest.config.mjs'
+      - 'cloudflare/test/worker_runtime.test.mjs'
+      - 'tests/cloudflare_capture_wakeup.test.mjs'
+      - 'tests/cloudflare_observer_preflight.test.mjs'
+      - 'scripts/preflight_cloudflare_observer.mjs'
+      - 'scripts/audit_cloudflare_recovery_no_go.mjs'
+      - 'tests/cloudflare_recovery_no_go.test.mjs'
+      - 'cloudflare/native_publication_receipt_lab.mjs'
 permissions:
   actions: read
   contents: read
@@ -58,8 +80,177 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  cloudflare-workerd-integration:
+    # Keep runtime installation unprivileged; this PR code must never inherit
+    # the production watchdog's Actions:write token.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install test-only Workers runtime dependencies (no Cloudflare authentication)
+        working-directory: cloudflare
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Test positive scheduled() inside Workerd with blocked network
+        working-directory: cloudflare
+        run: npm run test:workerd
+      - name: Test isolated SQLite claim lab in Workerd (PR only; no Cron or PAT)
+        working-directory: cloudflare
+        run: npm run test:claim-lab
+  pr-policy-tests:
+    # PR source files are untrusted: do not run them with Actions:write.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test dispatch policy
+        id: policy_tests
+        run: python -m unittest -v test_four_mode_watchdog_policy test_render_four_mode_dispatch tests.test_watchdog_decision_artifact test_v2_nightly_watchdog_policy test_clean_prospective_watchdog test_live_odds_slot_rescue test_render_capture_wakeup
+      - name: Setup Node for Cloudflare offline tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Cloudflare external wakeup safety tests (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          node --test tests/cloudflare_capture_wakeup.test.mjs
+          node --test tests/cloudflare_observer_preflight.test.mjs
+          node --test tests/cloudflare_recovery_no_go.test.mjs
+          node --test tests/cloudflare_observer_owner_export.test.mjs
+          node scripts/preflight_cloudflare_observer.mjs
+      - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle
+      - name: Validate secret-free observer Worker bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.observer.toml --outdir /tmp/boat-edge-observer-bundle
+      - name: Validate isolated SQLite claim-lab bundle (PR dry run; no deployment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: npx --yes wrangler@4.158.0 deploy --dry-run --config cloudflare/wrangler.claim-lab.toml --outdir /tmp/boat-edge-claim-lab-bundle
+      - name: Reject GitHub dispatch code in observer Worker bundle
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,readdirSync,statSync} from 'node:fs';
+          import {join} from 'node:path';
+          const root='/tmp/boat-edge-observer-bundle';
+          const js=[];
+          function visit(path) {
+            for(const name of readdirSync(path)) {
+              const file=join(path,name);
+              if(statSync(file).isDirectory()) visit(file);
+              else if(/\.m?js$/.test(name)) js.push(file);
+            }
+          }
+          visit(root);
+          if(js.length===0)throw Error('observer_bundle_not_found');
+          for(const file of js) {
+            const text=readFileSync(file,'utf8');
+            for(const forbidden of ['api.github.com','GITHUB_DISPATCH_TOKEN','/dispatches','Authorization']) {
+              if(text.includes(forbidden))throw Error('observer_bundle_contains_forbidden_network_code:'+forbidden);
+            }
+          }
+          console.log('OBSERVER_BUNDLE_NO_GITHUB_NETWORK_CODE_PASS files='+js.length);
+          NODE
+      - name: Exercise local Workerd scheduled() via supported Local Explorer (PR no secret)
+        if: ${{ github.event_name == 'pull_request' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          # Wrangler 4.139+ supports the Local Explorer scheduled API.
+          # An ad-hoc FOREIGN cron is used so the Worker rejects the invocation
+          # before GitHub API access. No GitHub PAT or Cloudflare credentials.
+          npx --yes wrangler@4.158.0 dev --local --config cloudflare/wrangler.toml --ip 127.0.0.1 --port 8787 --log-level log > /tmp/boat-edge-cloudflare-workerd.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          explorer_ready=0
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --max-time 2 --output /tmp/boat-edge-explorer-api.json http://127.0.0.1:8787/cdn-cgi/local/explorer/api; then
+              explorer_ready=1
+              break
+            fi
+            if grep -Eq 'runtime failed to start|Incorrect type for map entry|Worker requires compatibility date' /tmp/boat-edge-cloudflare-workerd.log; then
+              echo "WORKERD_STARTUP_FAILED"
+              tail -30 /tmp/boat-edge-cloudflare-workerd.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$explorer_ready" -ne 1 ]; then
+            echo "LOCAL_EXPLORER_API_UNAVAILABLE"
+            tail -40 /tmp/boat-edge-cloudflare-workerd.log
+            exit 1
+          fi
+          echo "LOCAL_EXPLORER_API_READY"
+          response_status=$(curl --silent --show-error --max-time 15 --output /tmp/boat-edge-cron-response.json --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"cron":"* * * * *"}' \
+            'http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup')
+          echo "LOCAL_EXPLORER_SCHEDULED_HTTP_STATUS=$response_status"
+          seen=0
+          for attempt in $(seq 1 12); do
+            if grep -q 'unexpected_cron_trigger' /tmp/boat-edge-cloudflare-workerd.log; then
+              seen=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$seen" -ne 1 ]; then
+            echo "SCHEDULED_HANDLER_NOT_REACHED_OR_NOT_REJECTED"
+            tail -45 /tmp/boat-edge-cloudflare-workerd.log
+            head -c 800 /tmp/boat-edge-cron-response.json
+            exit 1
+          fi
+          if grep -q 'GITHUB_DISPATCH_TOKEN_required' /tmp/boat-edge-cloudflare-workerd.log; then
+            echo "UNEXPECTED_SCHEDULED_ADMISSION_AFTER_FOREIGN_CRON"
+            exit 1
+          fi
+          echo "LOCAL_WORKERD_FOREIGN_CRON_FAIL_CLOSED_PASS"
+          # Exercise the configured (allowed) Cron too, but force an ancient
+          # scheduled_time. It must enter scheduled() and fail the freshness
+          # gate before checking credentials or contacting GitHub.
+          valid_status=$(curl --silent --show-error --max-time 15 \
+            --output /tmp/boat-edge-allowed-cron-response.json --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"cron":"*/5 22-23,0-13 * * *","scheduled_time":1700000000000}' \
+            'http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=boat-edge-clean-independent-wakeup')
+          echo "LOCAL_ALLOWED_CRON_EXPIRED_TIME_HTTP_STATUS=$valid_status"
+          observed=0
+          for attempt in $(seq 1 12); do
+            if grep -q 'late_or_future_cron_trigger' /tmp/boat-edge-cloudflare-workerd.log; then
+              observed=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$observed" -ne 1 ]; then
+            echo "ALLOWED_CRON_EXPIRED_CLOCK_NOT_REJECTED"
+            tail -45 /tmp/boat-edge-cloudflare-workerd.log
+            head -c 800 /tmp/boat-edge-allowed-cron-response.json
+            exit 1
+          fi
+          if grep -q 'GITHUB_DISPATCH_TOKEN_required' /tmp/boat-edge-cloudflare-workerd.log; then
+            echo "GITHUB_SECRET_CHECK_REACHED_FOR_EXPIRED_TRIGGER"
+            exit 1
+          fi
+          echo "LOCAL_WORKERD_ALLOWED_CRON_EXPIRED_CLOCK_FAIL_CLOSED_PASS"
   watchdog:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:

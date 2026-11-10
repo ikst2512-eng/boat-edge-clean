@@ -1,0 +1,16 @@
+name = "boat-edge-clean-independent-wakeup"
+main = "independent_capture_wakeup.mjs"
+compatibility_date = "2026-06-24"
+workers_dev = false
+
+[vars]
+# Dormant research-only recovery config. The Worker has a source-level
+# cross-provider NO-GO lock; setting this var to 'true' will FAIL CLOSED,
+# even with a valid GitHub Secret. Owner-reviewed source change required.
+CLOUDFLARE_DISPATCH_ENABLED = "false"
+
+[triggers]
+crons = ["*/5 22-23,0-13 * * *"]
+
+[secrets]
+required = ["GITHUB_DISPATCH_TOKEN"]

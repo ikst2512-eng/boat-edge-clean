@@ -1,0 +1,15 @@
+{
+  "name": "boat-edge-clean-cloudflare-runtime-ci",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:workerd": "vitest run --config vitest.config.mjs",
+    "test:claim-lab": "vitest run --config vitest.claim-lab.config.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.3.0",
+    "vitest": "4.1.10",
+    "wrangler": "4.158.0"
+  }
+}

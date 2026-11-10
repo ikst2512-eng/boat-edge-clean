@@ -1,3 +1,73 @@
+## 2026-11-08 17時台 JST｜Cloudflare Free Draft #1697：監視Workerから復旧通信コードを完全分離
+- Draft PR #1697のCloudflare監視専用Workerを、復旧実行コードと共用する入口から**独立入口**`cloudflare/independent_capture_observer.mjs`へ変更。純粋な時刻/枠計算`cloudflare/independent_capture_slots.mjs`を新設し、監視Workerと既存復旧ポリシーの双方が同じ63 CLEAN・56 four_mode枠定義を参照する。GitHub API URL、Bearer認証、HTTP GET/POST、`workflow_dispatch`は復旧専用ポリシー側にのみ残す。
+- 初回監視専用入口は動作上GitHub通信0だったが、旧共通モジュールの影響でバンドル内に`api.github.com`文字列が残ることを**新しいバンドル検査CIが検出し失敗**した。純粋スロットmoduleへ分離して解消し、以降はWrangler実バンドルに`api.github.com`/`GITHUB_DISPATCH_TOKEN`/`/dispatches`/`Authorization`があればCI失敗に固定。コメントを誤判定したテストも修正済み。
+- GitHub [Actions #42460963433](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42460963433) **completed/success**。既存Pythonポリシー成功、Node**42/42 PASS**、実Workerd Vitest**7/7 PASS**、復旧版dry-run**11.16 KiB/gzip 3.57 KiB**、監視専用dry-run**4.45 KiB/gzip 1.65 KiB**。コンパイル結果`OBSERVER_BUNDLE_NO_GITHUB_NETWORK_CODE_PASS`、Local Explorer異常Cron/期限外Cron拒否テストも成功。実Cloudflare Workerは**未配備**。
+- GitHub main/Render本番・既存Render Python・予想原本/4モード/公式収集cronに変更なし。今後も**Draft PR・main自動統合禁止**。CPU10ms、Cloudflareの実Cron、実GitHub run ID、Git初回原本保存/T−12適合は未実測。復旧正式認定0件。実運用前に管理者がCloudflare Freeへ**秘密情報なし監視Workerだけ**を手動配備し、Cron/CPUログを独立検証する。
+
+## 2026-11-08 15時台 JST｜Cloudflare Free Draft #1697：初期監視モード・PAT不要パイロット追加
+- Cloudflare Workersの安全な段階導入として、**初期値を復旧実行OFF**に固定。実Worker入口の`CLOUDFLARE_DISPATCH_ENABLED === "true"`に厳密一致した場合のみ既存のAPI履歴照合・GitHub dispatchを許可。未設定、false、大小文字違い、数値true等は純粋`observe()`でslotと時刻だけ記録し**GitHub通信0/POST0/Secret不要**。期限外・不正Cronはこれまでどおり安全側に拒否。監視ログは`CLOUDFLARE_CAPTURE_OBSERVER_ONLY`、GitHub確認／原本保存の証拠フラグはfalse。
+- `cloudflare/wrangler.toml`は本番候補用の`[vars] CLOUDFLARE_DISPATCH_ENABLED="false"`を出荷し、復旧本番用`[secrets] required=["GITHUB_DISPATCH_TOKEN"]`を維持。さらに**新しい別名Worker**`cloudflare/wrangler.observer.toml`を追加し、Secretを一切設定しない無料パイロットとしてコード/CPU/Cronだけを後日実測可能にした。両configともGitHub dispatchは初期OFF。デプロイは**未実施**。
+- 実Workerd模擬GitHub正常経路は`true`を明示的にセットしたテストだけで検証。PR read-only CI [#42456421210](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42456421210) **completed/success**：既存Python policy PASS、Node**39/39 PASS**、Workerd Vitest**6/6 PASS**、Wrangler 4.158.0本番候補・PAT不要observer両方`deploy --dry-run` PASS、Local Explorer不正Cron・期限切れCron拒否PASS。本番`watchdog`（Actions:write）はPRでskipped。
+- 実GitHub接続・実Cloudflareアカウント/Secret/Worker/Cron配備・10ms CPU実測・原本Git first-add/T−12適合・正式復旧実績は**すべて0/未実証**。既存Render Free Web・Render Pythonとmainを不変更、**Draft未統合・main自動統合禁止**を維持。段階導入手順は`docs/cloudflare-independent-capture-wakeup-readiness.md`に更新。
+- 管理者の次の実作業はCloudflare無料アカウントで`wrangler.observer.toml`を選択して秘密情報なしで監視のみ手動配備し、Cron/CPUを実測。その後、同意と個別レビューがある場合のみ別Workerに最小権限PAT Secretを配置し、設定を文字列`"true"`にした新バージョンを明示的にデプロイする。
+
+## 2026-11-08 12時台 JST｜Cloudflare Draft #1697 正規Cron→模擬GitHub復旧のWorkerd統合テスト合格
+- 従来は不正cron・期限切れcronの拒否をWorkerdで実証済み。今回さらにCloudflare公式`@cloudflare/vitest-plugin`で**正規Cronイベント→GitHub模擬API履歴GET→復旧POSTの正常経路**を本物のローカルWorkerd内で検証した。実GitHub/Cloudflareに一切通信せず、本物の秘密トークンも利用しない。
+- 新規`cloudflare/test/worker_runtime.test.mjs`の**4/4 PASS**：①07:10 JSTの有効枠ではGitHub模擬4GET完了後に模擬2POST（HTTP204）、正式認定フラグfalse ②両元cron成功済みでは4GET・POST0 ③3回目のGETが503なら両方POST0、受理ログ0 ④誤cronでは通信0。既存Node**32/32 PASS**・Python policy成功・Wrangler dry-run成功・Local Explorer実cron拒否テスト成功も維持。
+- GitHub Actions [#42443452124](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42443452124)でwatchdogと**別の読み取り専用PRジョブcloudflare-workerd-integration**の両方`completed/success`。専用ジョブは`contents:read`、checkout`persist-credentials:false`で本番watchdogの`actions:write`権限を引き継がない。テスト依存にVitest4.1.10/Workers Plugin1.3.0/Wrangler4.158.0、Node24を使用。
+- 初回CIのnpm10`edgesOut`障害はnpmのpeer依存解決であり、Node24・Vitest版更新・実行ディレクトリ固定で解消。失敗試行は負例として保持。依存のtransitive lockfileは未作成、運用前に再現性検討が必要。
+- **未証明**：Cloudflare本番Free Worker/Cron/Secret、CPU10ms適合、実GitHub workflow_dispatch/run ID、予想Git初回保存・T−12公式原本。模擬HTTP204を本番復旧と混同せず、正式認定0件。PRはDraftでmain自動統合禁止、既存Render Free本番・Render Python・GitHub原本収集cron・4モード予想への変更なし。
+
+## 2026-11-08 12時台 JST｜Cloudflare Free 独立Cronの実Workerdローカル検証成功（Draft #1697）
+- 先に失敗したLocal Explorer経由のCronテストの実原因は、`wrangler@4.102.0`がLocal Explorer Cron実行に未対応だったため。Cloudflare公式仕様ではWrangler**4.139.0以上**が必須。PR専用CIのバージョンを`4.158.0`へ更新し、`scheduled()`をLocal Explorer APIから実際に呼び出した。既存Render Python/Web、main、予想原本に変更なし。
+- 新版Workerd上で2種類の実イベントを検証。①不正cron `* * * * *`は`unexpected_cron_trigger`でGitHub通信前に拒否。②設定どおりのcronだが過去の`scheduled_time=1700000000000`は`late_or_future_cron_trigger`でSecret確認／GitHub通信前に拒否。両者ともローカルAPI HTTP200でありGitHubの204ではなく、実復旧・原本保存の証明に採用しない。
+- CI [#42441409092](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42441409092)は**completed/success**。既存Python成功、Node**32/32 PASS**、Wrangler 4.158.0 dry-run成功（10.09KiB/gzip3.38KiB）、実Workerd起動とLocal Explorer scheduledイベント2件のfail-closed確認に成功。実Cloudflare Worker配備・Cron登録・Secret/PAT・CPU10ms・GitHub run ID・初回Git原本保存/T−12の証明は**すべて未実施**。
+- Draft PR #1697を維持、**main自動統合禁止**。本番導入にはCloudflare Freeアカウントへの接続、専用GitHub Actions権限のPATをCloudflare Secretとして設定、実CPU・実Cron・GitHub実dispatch・T−12原本初回保存の独立監査が必要。既存Render有料CronのHTTP402回避目的であり、2社の外部Cronを同時稼働させない。
+
+## 2026-11-08 JST｜Cloudflare Free独立バックアップ Draft #1697：実Workerd起動監査（本番未導入）
+- main統合禁止・既存Render Free Web/Render用Python変更禁止を維持。同じDraft PR #1697で初めてローカルWorkerdの実起動テストを追加し、従来のNode/ビルドdry-runでは見つからなかった**2つの本番起動ブロッカー**を検出した。
+- ① `wrangler@4.102.0 dev --local`のWorkerdは設定compatibility_date `2026-11-01`を未対応と返した（実サーバ上限`2026-06-24`）。`cloudflare/wrangler.toml`を実対応日付`2026-06-24`へ固定。②次回試験でWorkerdがWorker入口の名前付き定数export `REPO`を拒否（`Incorrect type for map entry`）。ロジックを`cloudflare/independent_capture_policy.mjs`へ分割し、Worker入口`independent_capture_wakeup.mjs`は`export default { scheduled() }`だけに変更。新規policy名付きexportはWorker入口から公開しない。
+- CLI Local Explorer経由でCronイベントを模擬送信する試行は、当該runnerでは`scheduled()`ではなくHTTP handler不足へ到達したため**Cron実行証明として不採用**。CIを手直しし、無credential・local限定でWorkerdが起動し、公開`fetch()`を持たないことをテストする**起動smoke**へ限定した。失敗runは負例として保持。
+- 最新コードhead `e27fc2da0d101aa58a95defff5753add3477eba9` の[GitHub Actions #42391568966](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42391568966)、job 128460072567が**completed/success**。既存Python成功、Node **32/32 PASS/0 fail**、Wrangler 4.102.0 `deploy --dry-run` PASS（10.09 KiB/gzip 3.38 KiB）、`WORKERD_SCHEDULED_ONLY_BOOT_NO_FETCH_HANDLER_PASS`を原ログから確認。
+- Worker本番配備、Cloudflare Secret/PAT、CPU10ms、無人Cron実発火、GitHub workflow_dispatch実run、初回Git原本保存、公式T−12は**全て未実証・正式認定0件**。dispatch受理の模擬と実保存を混同しない。
+- 次の必須ゲートはCloudflare Freeアカウントでの専用Secret投入、オーナーレビュー、実CronとCPU・GitHub実runの観測。mainとRenderを変更せずDraft継続。
+
+## 2026-11-08 JST｜Cloudflare無料バックアップ Draft #1697：scheduled入口実検証
+- Cloudflare公式Scheduled Handler仕様（`controller.cron`は設定したcron式と完全一致する文字列）を確認。元のWorkerは予定時刻のみ照合していたため、`controller.cron === "*/5 22-23,0-13 * * *"`を厳密に確認し、それ以外はAPIアクセス前に`unexpected_cron_trigger`で失敗させる処理を同じDraft PRに追加。
+- `tests/cloudflare_capture_wakeup.test.mjs`で3件のdirect `scheduled()`入口テストを追加：不正・欠落cron式では通信0件/秘密漏えい0件、正規cron式のモックAPI4GET→2POSTと個別記録、Secret欠損時の通信0件/安全ログ。従来28件と合わせ**31件**。
+- PR exact-head CI [#42390394745](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42390394745)、job 128456552012：既存Pythonポリシー成功、Node**31/31 PASS・失敗0**、Wrangler 4.102.0 dry-run成功。ビルド生成10.13 KiB（gzip 3.40 KiB）、`--dry-run: exiting now.`を実ログで確認。Cloudflare本番へのWorkerアップロード・Cron登録・token配置・GitHub実dispatchはゼロ。
+- Cloudflareアカウント連携なし、CPU10ms実測なし、Cronの無人起動/実Run ID/原本Git初回保存/T−12適合は未証明。既存Render方式/予想原本/4モード/サイトを不変更、main統合禁止。実運用前にCloudflare Freeアカウント、専用GitHub PATをSecretへ直接配置し、管理者レビューと実環境計測を要する。Cron文字列はWrangler設定と一致し、設定変更時に安全側停止する。
+
+## 2026-11-08 01時台 JST｜Cloudflare無料バックアップ Draft #1697：実Wrangler dry-run合格
+- PR #1697はDraft・本番未統合を維持。最新main `53b822dc0d398454e1b428abe6651c8b0a1884d0` には別担当の11月7日確定結果・払戻・検証保存の追加6コミットがあり、PRの変更対象7ファイルとの重複0件をcompareで確認。既存Render Free webサービス1件・Render Cron0件で変更なし。
+- 無料枠の実行準備確認を一段進め、**既存** `.github/workflows/four-mode-capture-watchdog.yml`の`pull_request`イベント限定で`npx --yes wrangler@4.102.0 deploy --dry-run --config cloudflare/wrangler.toml --outdir /tmp/boat-edge-wakeup-bundle`を追加。新workflow・新cron・本番配備・GitHub外部dispatchは実行しない。
+- GitHub Actions [#42389742715](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42389742715)、job `128454618800` は`completed/success`。既存Python policy成功、Cloudflare Node 28/28 PASS、Wrangler dry-runコンパイル成功。実ログ`wrangler 4.102.0`、`Total Upload: 9.95 KiB / gzip: 3.33 KiB`、`--dry-run: exiting now.`。**アップロード・Cloudflareへのデプロイは0件**。ローカルPCのWranglerやCloudflareの認証情報を要求せずGitHub PR環境で実検証。
+- Cloudflare Workers Freeの10ms CPU制限、50 subrequests/実行、Cron5個/アカウントは公式資料で再確認。コードの通信最大6件/実行は通信上限内だがCPU10msとCron実発火・first-add/T−12は未証明。Cloudflare接続・専用PAT Secret設定は未実施、実行／正式復旧認定0件のまま。
+- 既存Render Python、GitHub原スケジュール、モデル、予想原本・採点・旧サイトを不変更。次は最新docs-only PR head CIで同様の成功を確認後にDraftで固定。mainへの自動統合禁止を維持。
+
+## 2026-11-07 19時台 JST｜Cloudflare Draft #1697部分成功監査の改善
+- 現行Workerは2つのworkflow_dispatchを順にPOSTするため、1件目がHTTP204受理→2件目がHTTP403等で失敗すると、元の最終レポートは例外で出ず、受理済み1件の証拠がCloudflareログに残らない問題を確認（静的監査による予防的修正。実障害発生は未証明）。
+- **同じDraft PR #1697のみに修正**：HTTP204受理直後、次のPOSTより先に`CLOUDFLARE_DISPATCH_RECEIPT`を個別出力。記録はworkflow・復旧対象slot・POST開始時刻・`github_run_id_proven=false`・`new_forecast_saved_proven=false`・`formal=false`の最小限で、認証トークン・買い目・予想原本・個人情報は出力しない。POST開始時刻を受理時刻と偽って表示しない。
+- 追加4件の回帰で、2件204の記録、初回204後の2件目403による部分成功、GET失敗時ログ0件、不正ロガー拒否を固定。GitHub Actions PR exact-head実行[ #42364767503](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42364767503)で既存Pythonポリシーテスト成功＋追加Nodeテスト**28/28件PASS、失敗0件**。
+- 依然としてDraft未統合、本番Cloudflare Worker/secret/Cron/CPU10ms実測なし、GitHub実run ID・Git初回保存時刻・T−12公式原本は未実証。Cloudflare無料制限は公式ドキュメント照合済み。既存Renderコード・Free web、GitHub本番main/予想原本の変更なし。main自動統合禁止を維持。
+- 次：最新PR headと上記CIを一致照合、Cloudflare Freeアカウントと専用PAT Secretの運用者セットアップ後、実Cronログと実CPUを観測。204を保存・正式認定と混同しない。
+
+## 2026-11-07 JST｜Cloudflare Draft #1697の期限越え起動防止・Free枠修正（main未統合）
+- 後続のコード監査で2点を検出：GitHub履歴が未来時刻でも`now+2分`までは許容され、未開始runが重複抑止から外れ得た。外部GET処理が遅延した場合、起動時点のみのslot検査では22:33 JSTの最終期限を越えたworkflow_dispatch送信を防げなかった。いずれも実事故は未確認で、**コード上の安全性欠陥**。
+- Draft PR #1697の**同一ブランチのみ**修正：未来のGitHub履歴はAPI時系列異常として停止。POST直前に現在時刻で元slot適格性を再確認し、期限切れを拒否。GitHub履歴のper_page=100→30でCPU負荷低減、30件目までの2時間内のページング曖昧性は引き続きfail closed。Cloudflare Workers FreeのCron CPU制約10msを実機で測定するまで稼働認定はしない。
+- `cloudflare/wrangler.toml`に`[secrets] required = ["GITHUB_DISPATCH_TOKEN"]`を追加してトークン未設定の誤デプロイ防止。`cloudflare/.gitignore`でローカルsecretとWrangler内部状態を保護。Render Python・Render Free本番・GitHub元収集cron/モデル/予想原本/旧サイトを変更しない。
+- ローカルNode22で`node --check cloudflare/independent_capture_wakeup.mjs`成功、更新テスト**24/24 PASS**。GitHubへ更新したWorker/Test/Wrangler/.gitignoreのblob SHAとローカル原本のSHA一致を確認。最新PR exact-head CIとmain非統合は別途照合する。
+- 未実施：Cloudflareアカウント接続、実Worker配備、private PAT登録、実Cron起動、Cloudflare CPU10ms実測、GitHub run IDと予想初回Git追加/T−12照合。正式認定0、PRはDraftのまま。秘密値は絶対にチャット・Git・ログへ出さない。
+
+## 2026-11-07 JST｜独立Cloudflare Freeバックアップ（研究用 Draft PR #1697、未デプロイ）
+- 利用者指定：Render有料CronはHTTP 402で繰り返し作成不可のため、Cloudflare Workers Free案に切替。ただし既存Renderエントリポイント `scripts/render_capture_wakeup.py` とRender Free Web本番は一切変更・削除しない。
+- 専用ブランチ `feat/cloudflare-free-independent-capture-wakeup-20261107` をmain `48859136a24222e77bae111ddcc7b73738a1de63` から作成し、Draft PR [#1697](https://github.com/ikst2512-eng/boat-edge-clean/pull/1697) まで作成。**mainへ未統合・自動統合禁止**。
+- 追加 `cloudflare/independent_capture_wakeup.mjs` と `cloudflare/wrangler.toml`。UTC `*/5 22-23,0-13 * * *` の1 Cron、CLEAN63枠＋4モード56枠=119枠に各1救済tick。GitHub実行履歴のschedule/manual分離、成功・実行中・手動起動抑制、API不全・不正履歴・100行ページング不明のfail-closed、両収集のGET照合終了後にだけworkflow_dispatchのHTTP204を要求。終盤CLEAN22:28→22:30救済。元のGitHub cron、watchdog、予想原本、T−12/90秒ゲート、モデルは不変。
+- ローカルNode 22: `node --check cloudflare/independent_capture_wakeup.mjs`成功、`node --test tests/cloudflare_capture_wakeup.test.mjs` **20/20 PASS**。ローカルテストファイルのGit blob SHAはPR上のアップロード版と一致。既存watchdogワークフローにPR限定Node安全テストを追加（既存4 Cronは不変）。
+- 未証明：GitHub PR exact-head CI、Cloudflare本番の10ms CPU制限適合、アカウント/Workerデプロイ、secret `GITHUB_DISPATCH_TOKEN`、実Cron発火、GitHub workflow_dispatch run ID、実Git first-addと原本のT−12証明。**正式認定0**。dispatch受理を原本保存・精度証明に転換しない。
+- Cloudflareシークレットは利用者のダッシュボードに直接配置し、Git/PR/ログ/チャットに貼らない。同時にRender版とCloudflare版の2外部Cronを稼働させず、二重dispatch競合を防止。運用・ロールバック手順は `docs/cloudflare-independent-capture-wakeup-readiness.md`。
+- 次：Draft PR exact-head CIを照合して修正必要時のみ同PRで対応、手動レビュー。本番運用はアカウント接続と秘密情報登録後に限り、実Cronと新規Git初回保存の独立監査で完了判定。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。

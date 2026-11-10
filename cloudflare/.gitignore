@@ -1,0 +1,7 @@
+# Never commit local Worker credentials or Wrangler state.
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+.wrangler/
+node_modules/
