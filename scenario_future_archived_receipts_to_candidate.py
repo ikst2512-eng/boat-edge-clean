@@ -191,6 +191,41 @@ def _pinned_imports(folder1693,folder1698,protocol):
             loaded["position_sensitive_conditioned_lab"].experimental_conditional_board)
 
 
+def _require_actual_pinned_publish_parsers(
+    raw_replay_callback, raw_before_parser, conditional_callback,
+    auditor, card_parser, odds_parser, protocol,
+):
+    """Allow real research PUT only from the exact independently reviewed code.
+
+    Synthetic or injected parser callbacks are useful for tests, but their
+    result must NEVER be written into the immutable future-race ledger.
+    """
+    if (auditor is not audit_three_originals
+            or card_parser is not inspect_six_registrations
+            or odds_parser is not parse_official_odds_table):
+        raise ValueError("publish_requires_real_official_auditor_and_parsers")
+    pins=(
+        (raw_replay_callback,"four_mode_official_raw_semantic_replay",
+         "replay",protocol["pinned_external_code"]["1693_semantic_replay_code_blob_sha1"]),
+        (raw_before_parser,"four_mode_official_raw_semantic_replay",
+         "_beforeinfo_features",protocol["pinned_external_code"]["1693_semantic_replay_code_blob_sha1"]),
+        (conditional_callback,"position_sensitive_conditioned_lab",
+         "experimental_conditional_board",
+         protocol["pinned_external_code"]["1698_conditional_code_blob_sha1"]),
+    )
+    for func,mod,name,sha in pins:
+        if (getattr(func,"__module__",None)!=mod
+                or getattr(func,"__name__",None)!=name
+                or not hasattr(func,"__code__")):
+            raise ValueError("publish_requires_exact_pinned_math_and_raw_parser")
+        file=Path(func.__code__.co_filename)
+        if (file.is_symlink() or not file.is_file()
+                or not 0<file.stat().st_size<=100_000
+                or _git_blob_sha1(file.read_bytes())!=sha):
+            raise ValueError("publish_pinned_external_blob_changed:"+name)
+    return True
+
+
 def run_observed_archives(
     card_dir,before_dir,odds_dir, clock,
     raw_replay_callback, raw_before_parser, conditional_callback,
@@ -210,6 +245,10 @@ def run_observed_archives(
     protocol=json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"),
                         object_pairs_hook=_json_unique)
     require_registered_study_and_unchanged_model(protocol)
+    if publish:
+        _require_actual_pinned_publish_parsers(
+            raw_replay_callback,raw_before_parser,conditional_callback,
+            auditor,card_parser,odds_parser,protocol)
     generated=_jst(clock()).isoformat()
     audit,source,candidate=build_archive_bundle(
         card_dir,before_dir,odds_dir,generated,
