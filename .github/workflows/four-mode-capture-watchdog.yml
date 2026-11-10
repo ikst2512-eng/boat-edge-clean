@@ -56,6 +56,8 @@ on:
       - 'cloudflare/audit_observer_telemetry.mjs'
       - 'scripts/audit_cloudflare_observer_telemetry.mjs'
       - 'scripts/print_cloudflare_observer_telemetry_queries.mjs'
+      - 'scripts/collect_cloudflare_observer_telemetry.mjs'
+      - 'tests/cloudflare_observer_owner_export.test.mjs'
       - 'cloudflare/wrangler.toml'
       - 'cloudflare/wrangler.observer.toml'
       - 'cloudflare/package.json'
@@ -127,6 +129,7 @@ jobs:
           node --test tests/cloudflare_capture_wakeup.test.mjs
           node --test tests/cloudflare_observer_preflight.test.mjs
           node --test tests/cloudflare_recovery_no_go.test.mjs
+          node --test tests/cloudflare_observer_owner_export.test.mjs
           node scripts/preflight_cloudflare_observer.mjs
       - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
