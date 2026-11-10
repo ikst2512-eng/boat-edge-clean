@@ -279,6 +279,146 @@ def preflight_unregistered_scenario_bridge(baseline, bridge):
     }
 
 
+def review_upstream_t12_source_pair_handoff(report):
+    """Consume an already-replayed #1694 T12 source/forecast join; NO admission.
+
+    Distinct from #1694's independent ZIP, raw HTTP, Git blob auditors:
+    this is only a read-only, result-blind ④ handoff of *blockers*. The
+    supplied report is not independently authenticated by this function.
+    """
+    if (type(report) is not dict or
+            report.get("schema") != "T12_PINNED_SCHEDULED_PAIR_FROZEN_REPLAY_V1" or
+            report.get("formal") is not False or
+            report.get("t12_eligible") is not False or
+            report.get("accuracy_scoring_allowed") is not False or
+            report.get("new_formal_certifications") != 0 or
+            report.get("formal_accuracy_denominator") is not None or
+            report.get("same_race_complete_official_three_originals") != 0 or
+            report.get("verified_model_original_byte_consumption") != 0 or
+            report.get("verified_first_forecast_remote_acceptances") != 0 or
+            report.get("source_originals_individually_replayed") is not True):
+        raise ValueError("invalid_or_overclaimed_upstream_t12_report")
+    day = report.get("day_jst")
+    codes = report.get("race_rows")
+    if (type(day) is not str or not re.fullmatch(r"20[0-9]{6}", day)
+            or type(codes) is not list or len(codes) == 0
+            or type(report.get("original_source_candidate_races")) is not int
+            or len(codes) != report["original_source_candidate_races"]):
+        raise ValueError("invalid_upstream_t12_roster")
+    seen = set()
+    per_race = []
+    counts = Counter()
+    pair_count = 0
+    after_count = 0
+    for row in codes:
+        if type(row) is not dict or has_embedded_outcome(row):
+            raise ValueError("unsafe_upstream_t12_race_metadata")
+        code = row.get("race_code")
+        if (type(code) is not str or not CODE.fullmatch(code)
+                or code[:8] != day or code in seen
+                or row.get("formal") is not False
+                or row.get("official_racelist_original_replayed") is not False
+                or row.get("model_consumption_proven") is not False
+                or row.get("first_forecast_git_remote_acceptance_proven") is not False):
+            raise ValueError("invalid_upstream_same_race_provenance")
+        seen.add(code)
+        pair = row.get("source_pair_complete_by_t12")
+        if type(pair) is not bool or type(row.get("official_odds_120_verified")) is not bool:
+            raise ValueError("invalid_upstream_two_source_status")
+        if (pair and (row.get("official_odds_120_verified") is not True or
+                      row.get("exhibition_time_observed_boats") != 6)):
+            raise ValueError("contradictory_upstream_two_source_status")
+        last = clock(row.get("last_original_source_received_jst"))
+        cutoff = clock(row.get("official_t12_cutoff_jst"))
+        if (last.date().strftime("%Y%m%d") != day
+                or cutoff.date().strftime("%Y%m%d") != day
+                or (pair and not last <= cutoff)
+                or type(row.get("independent_source_zip_published_by_t12")) is not bool):
+            raise ValueError("upstream_t12_source_clocks_conflict")
+        forecasts = row.get("frozen_forecasts")
+        if type(forecasts) is not dict or set(forecasts) != {"clean", "v2_four_mode"}:
+            raise ValueError("missing_clean_and_v2_forecast_lineage")
+        forecast_summary = {}
+        for kind in ("clean", "v2_four_mode"):
+            data = forecasts[kind]
+            if (type(data) is not dict or data.get("formal") is not False
+                    or data.get("first_forecast_git_remote_acceptance_verified") is not False
+                    or data.get("actual_model_official_original_bytes_consumption_verified") is not False):
+                raise ValueError("unverified_upstream_forecast_claim")
+            generated = clock(data.get("generated_at_jst"))
+            claimed_after = data.get("generated_after_pair_sources")
+            claimed_cutoff = data.get("generated_before_t12")
+            if (type(claimed_after) is not bool or
+                    claimed_after != (generated > last) or
+                    type(claimed_cutoff) is not bool or
+                    claimed_cutoff != (generated <= cutoff)):
+                raise ValueError("upstream_model_clock_claim_inconsistent")
+            after_count += int(claimed_after)
+            forecast_summary[kind] = {
+                "generated_at_jst": generated.isoformat(),
+                "generated_after_official_pair_sources": claimed_after,
+                "generated_before_t12": claimed_cutoff,
+                "official_source_byte_consumption_independently_verified": False,
+                "first_forecast_remote_receipt_independently_verified": False,
+            }
+        pair_count += int(pair)
+        blockers = []
+        if not pair:
+            blockers.append("beforeinfo_exhibition_six_or_odds120_or_cutoff_incomplete")
+        if row["official_racelist_original_replayed"] is False:
+            blockers.append("same_race_official_racelist_original_missing")
+        if not forecast_summary["v2_four_mode"]["generated_after_official_pair_sources"]:
+            blockers.append("v2_original_generated_before_official_pair")
+        if not forecast_summary["v2_four_mode"]["generated_before_t12"]:
+            blockers.append("v2_original_not_generated_before_t12")
+        blockers.extend((
+            "new_candidate_official_original_bytes_consumption_unverified",
+            "new_candidate_independent_first_remote_receipt_unverified",
+            "complete_capture_run_attempt_inventory_unverified",
+            "new_future_preregistered_candidate_missing",
+        ))
+        for name in blockers:
+            counts[name] += 1
+        per_race.append({
+            "race_code": code,
+            "official_two_source_pair_complete_by_t12_reference_only": pair,
+            "official_source_zip_published_by_t12_reference_only":
+                row["independent_source_zip_published_by_t12"],
+            "official_racelist_original_replayed_reference_only": False,
+            "replayed_prior_forecasts": forecast_summary,
+            "blocking_gates": blockers,
+            "candidate_admitted_to_registered_600": False,
+            "formal": False,
+        })
+    if (pair_count != report.get("complete_two_original_races") or
+            2 * len(codes) != report.get("matched_immutable_forecasts") or
+            after_count != report.get("forecasts_generated_after_originals")):
+        raise ValueError("upstream_handoff_totals_disagree")
+    return {
+        "schema": "FOUR_MODE_OFFICIAL_T12_UPSTREAM_HANDOFF_BLOCKERS_V1",
+        "status": "upstream_source_pair_replay_blockers_only",
+        "upstream_auditor": "Draft_1694",
+        "upstream_race_count": len(codes),
+        "upstream_source_run_id": report.get("source_run_id"),
+        "upstream_source_artifact_id": report.get("source_artifact_id"),
+        "upstream_report_identity_independently_authenticated_here": False,
+        "race_rows": per_race,
+        "blocking_gate_counts": dict(sorted(counts.items())),
+        "formal_candidate_pairs_added": 0,
+        "pilot_added": 0,
+        "confirmation_added": 0,
+        "official_source_or_model_consumption_certified_here": False,
+        "first_remote_receipt_certified_here": False,
+        "formal": False,
+        "model_improvement_proven": False,
+        "model_promotion_allowed": False,
+        "warning": "Upstream #1694 raw-source replay is not independently "
+                   "repeated here. A complete beforeinfo+odds PAIR is never "
+                   "a same-race official three-source proof, nor a new "
+                   "post-source candidate's first remote acceptance.",
+    }
+
+
 def score(pre_result_rows, results, p):
     protocol_check(p)
     if not isinstance(pre_result_rows,list) or not isinstance(results,dict):
@@ -494,8 +634,20 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--pre-result-roster",type=Path)
     ap.add_argument("--results",type=Path)
+    ap.add_argument("--upstream-t12-report",type=Path,
+                    help="Read-only #1694 T12 same-race blocker handoff; no result scoring")
     args=ap.parse_args()
     p=protocol_check(json.loads(PROTOCOL.read_text(encoding="utf-8")))
+    if args.upstream_t12_report is not None:
+        if args.pre_result_roster is not None or args.results is not None:
+            raise ValueError("upstream_t12_handoff_must_not_mix_with_result_scoring")
+        target = args.upstream_t12_report
+        if target.is_symlink() or not target.is_file() or target.stat().st_size > 2_000_000:
+            raise ValueError("invalid_upstream_t12_report_file")
+        print(json.dumps(review_upstream_t12_source_pair_handoff(
+            json.loads(target.read_text(encoding="utf-8"))),
+            ensure_ascii=False, sort_keys=True))
+        return
     if args.pre_result_roster is None or args.results is None:
         # The normal no-input CI path must expose explicit 0/300 + 0/300
         # status instead of displaying only a generic valid-protocol flag.
