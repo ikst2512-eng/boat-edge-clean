@@ -644,3 +644,19 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 
 ### ③への具体的依存
 ③の既存Cron/collectorが翌11/11以降の**同一レースT−12前・真正な公式3原本+ST6艇**を全て保存し、原本・run ID・Git初回遠隔受領時計を保護することが先。STが未公開/欠損なら遅い情報をT−12に補填せず、`MISSING_ST6`として全attempt台帳に残す。②の単発CLIは**自動起動を設定していない**ため、将来研究候補の自動収集を保証せず、まず1件の完全source実測と非本番publishの明示運用を検討する。
+
+
+## 2026-11-10 ②担当：実GitHub新規保存の201サーバー日時・commit SHAを候補と固定し、締切過ぎを拒否
+
+**今回の実装上の不足**：GitHub研究用`PUT 201`応答には`Date`と新規コミットSHAがあるが、従来の`scenario_future_github_research_adapter.GitHubOnlyCreateWire`は成功時にこの2つを捨てていた。また、GitHub Contents GETが`404`を返した時は`Age`ヘッダーを確認する前に「未保存」と即断していた。**今回から**両方を修正した。新Cron・PR・本番モデル・main更新はしない。
+
+- **実データの初回remote受領はまだ0件**。今回の検証の陽性保存はすべて合成原本＋HTTP模擬応答だけで、実GitHub保存済みは研究Ledgerの規約原本のみ。
+- `GET 404`でも`Age`を調べ、古いキャッシュの「存在しない」応答ならGitHub PUT前に拒否する。HTTP409/422や不一致再保存を成功としない従来の安全基準は不変。
+- `PUT 201`の**GitHub HTTP Date**を必須化。UTF-8 JSONやGitHubのcontent.blob SHA/commit SHAを検証し、Dateヘッダーの欠落・重複・UTC不一致・キャッシュを拒否。検証後に`FOUR_MODE_RESEARCH_GITHUB_CREATE_201_RESPONSE_OBSERVATION_V1`として**候補SHA256+Git blob SHA1+研究branch/path+GitHub作成commit SHA+HTTP応答Date UTC**を同一レポートに紐付ける。実保存操作の最後に戻す`create_response_observation`、#1710の3原本単発runnerも`github_create_response_observation_unattested`として保持。秘密トークン・公式原本本文・結果はレポートへ出さない。
+- **サーバー日時自体が凍結時刻より前、あるいはT−12と同時・以後なら成功扱いせず拒否**。これによりGitHub APIサーバーとローカルPCの時計がずれたときに、PC時計だけで締切前保存と誤認することを防止。ただしPUT処理は先に行われているため、201応答の検査で拒否されても**遠隔ファイルが作成済みの可能性がある**；自動削除・上書き・原本差替えは実行しない。
+- **重要な証拠区別**：201時刻は「新規作成応答に記録されたサーバー日時」であり、独立の初回遠隔受付時計そのものではない。GitHubのfirst-add履歴・親ファイル不存在・sourceの初回HTTP取得と独立受領・Cron/dispatch/watchdog全実行・正式600の評価はそれぞれ別。今回の返値でも`first_remote_candidate_receipt_verified=false`、`unique_first_add_git_history_verified=false`、`eligible_for_300_plus_300=false`、`formal=false`を強制。
+- [安全CI #42830946894](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42830946894) SUCCESS：GET404キャッシュ拒否、201 Date+commit+candidate SHAの記録、201にDateがない/重複するケースの拒否をモックで検証。
+- [同一パイプラインを通す統合CI #42831221815](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42831221815) SUCCESS：③互換の**合成**3原本→固定#1698条件付き数学→研究候補SHA→模擬GitHub GET404/PUT201/GET200を一本のテストで確認、保存応答と最終候補SHA一致、正式採点ゼロ。
+- [最新CI #42831523176](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42831523176) **completed/success**、頭 `763b68e11d9973a71a33ba8a75d9be9c83cd97d7`。通常**114件（4skip）**＋固定#1698数学を含む統合**43件全てPASS**。201サーバーDateのT−12境界（期限時刻ちょうど/期限後/凍結前）3ケースを意図的に失敗させるテストを追加。旧研究の頭係数3.5/配分/先行研究原本/成績は一切後付け変更していない。
+
+**現時点の計数**：正式将来pilot **0/300**・独立confirmation **0/300**、実レース研究candidateのfirst Git remote保存 **0**、合成E2Eと研究規約1ファイルのGitHub実書込成功を混同しない。次は③収集ジョブの11/11 08時台実原本/締切T−12/サーバ応答が成立した**同じ未来レース**だけ、既存の③から単発②研究へ渡す。なお単発CLIは現状**自動連携ではない**ため、11/11に自然にモデル候補が書かれると先取りして主張しない。本番main/Render/Pages予想は不変更。
