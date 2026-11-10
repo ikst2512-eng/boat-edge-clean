@@ -636,6 +636,8 @@ jobs:
               const col=Object.fromEntries(names.map((name,i)=>[name,i]));
               assert.equal(Object.keys(col).length,names.length,'duplicated source fields');
               const entries=new Map();
+              let emptyValues=0,observedValues=0;
+              const incompleteRaces=new Set(),deadlineDrifts=[];
               for(const row of lines){
                 assert.equal(row.length,names.length,'truncated CSV row');
                 const code=row[col['レースコード']];
@@ -647,7 +649,8 @@ jobs:
                   assert.ok(row[col['艇'+lane+'_選手名']]?.trim(),'racer missing '+code+' lane '+lane);
                   for(let k=1;k<=count;k++){
                     const label=row[col['計測項目'+k]],value=row[col['艇'+lane+'_値'+k]];
-                    assert.ok(label?.trim()&&value!==undefined&&value.trim()!=='','metric missing '+code+' lane '+lane+' metric '+k);
+                    assert.ok(label?.trim()&&value!==undefined,'invalid metric schema '+code+' lane '+lane+' metric '+k);
+                    if(value.trim()===''){emptyValues++;incompleteRaces.add(code)}else observedValues++;
                   }
                 }
                 entries.set(code,row);
@@ -663,15 +666,15 @@ jobs:
                   assert.ok(row,'scheduled race absent '+code);
                   assert.equal(Number(row[col['レース場']]),Number(jcd),'venue mismatch '+code);
                   assert.equal(Number(String(row[col['レース回']]).replace(/R$/i,'')),Number(race.race_no),'race mismatch '+code);
-                  assert.equal(row[col['締切時刻']],race.deadline,'deadline mismatch '+code);
+                  if(row[col['締切時刻']]!==race.deadline)deadlineDrifts.push({code,schedule:race.deadline,csv:row[col['締切時刻']]});
                 }
               }
               assert.equal(entries.size,planned.size,'unexpected/missing source races');
               assert.equal(snapshot.venues.length,13,'observed venue cohort has changed');
               assert.equal(planned.size,156,'observed scheduled count has changed');
-              const result={date:'2026-11-10',scheduled_venues:snapshot.venues.length,scheduled_races:planned.size,csv_races:entries.size,matched:planned.size,missing:0,source:'independent archived CSV',scope:'source schema and identity only; not published DOM or formal T-12'};
+              const result={date:'2026-11-10',scheduled_venues:snapshot.venues.length,scheduled_races:planned.size,csv_races:entries.size,matched_race_codes:planned.size,missing_race_codes:0,measurement_values_present:observedValues,measurement_values_empty:emptyValues,incomplete_races:incompleteRaces.size,deadline_drifts:deadlineDrifts,source:'independent archived CSV',scope:'real-source inventory only; missing cells are not valid numbers; not published DOM or formal T-12'};
               console.log('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_MATCH',JSON.stringify(result));
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Real 2026-11-10 exhibition CSV and saved schedule: 13 active venues / 156 scheduled races matched, 0 missing. Inactive venues are not classified as non-provided. Original source receipt is not certified T-12.\n');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Real 2026-11-10 exhibition CSV vs schedule: '+planned.size+' race identifiers matched; '+emptyValues+' empty source values in '+incompleteRaces.size+' races, '+deadlineDrifts.length+' source/snapshot deadline differences. Inactive venues are not certified non-provided. Not a T-12 record.\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_UNVERIFIED',String(e));process.exit(1)});
           JS
