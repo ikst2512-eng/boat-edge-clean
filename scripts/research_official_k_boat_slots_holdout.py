@@ -49,6 +49,38 @@ def analyze(path: Path) -> dict:
     }
     if counts != EXPECTED_COUNTS:
         raise ValueError("pinned_cohort_or_course_entry_mismatch:" + str(counts))
+    # Venue-specific course-change risk. Denominator is the *same fixed cohort*,
+    # not all races or all beforeinfo snapshots. No per-race or athlete disclosure.
+    venue_mismatch = {
+        f"{venue:02d}": {
+            "eligible": 0,
+            "boat1_mismatch_count": 0,
+            "boat2_mismatch_count": 0,
+            "both_mismatch_count": 0,
+        } for venue in range(1,25)
+    }
+    for row in rows:
+        stat = venue_mismatch[row["venue"]]
+        n1 = row["boat1_registration"] != row["c1_registration"]
+        n2 = row["boat2_registration"] != row["c2_registration"]
+        stat["eligible"] += 1
+        stat["boat1_mismatch_count"] += int(n1)
+        stat["boat2_mismatch_count"] += int(n2)
+        stat["both_mismatch_count"] += int(n1 and n2)
+    if any(v["eligible"] <= 0 for v in venue_mismatch.values()):
+        raise ValueError("venue_not_covered")
+    if sum(v["eligible"] for v in venue_mismatch.values()) != counts["eligible"]:
+        raise ValueError("per_venue_denominator_drift")
+    if (sum(v["boat1_mismatch_count"] for v in venue_mismatch.values())
+            != counts["boat1_vs_actual_c1_mismatch"]
+            or sum(v["boat2_mismatch_count"] for v in venue_mismatch.values())
+            != counts["boat2_vs_actual_c2_mismatch"]):
+        raise ValueError("per_venue_mismatch_count_drift")
+    for stat in venue_mismatch.values():
+        stat["boat1_mismatch_percent"] = round(
+            100 * stat["boat1_mismatch_count"] / stat["eligible"], 4)
+        stat["boat2_mismatch_percent"] = round(
+            100 * stat["boat2_mismatch_count"] / stat["eligible"], 4)
     results = {}
     for target in FIELDS:
         actual = losses_for_target(train, test, target, identity_role="actual_course")
@@ -87,6 +119,7 @@ def analyze(path: Path) -> dict:
         "source_original_ZIP_sha256": sha,
         "source_daily_K_hashes_checked": len(daily_sha),
         "counts": counts,
+        "per_venue_course_identity_mismatch": venue_mismatch,
         "design": {
             "actual_course_registrations_are_result_known": True,
             "boat_number_registrations_are_pre_race_observable_in_principle": True,
