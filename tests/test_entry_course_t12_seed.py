@@ -268,6 +268,64 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
                          lambda p,d:self.fail("write"),clock=lambda:NOW)
+    def test_default_t12_path_generates_fresh_without_mutating_cached_research(self):
+        import research_model as model
+        from unittest.mock import patch
+
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return NOW if tz is None else NOW.astimezone(tz)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            older=Path(tmp)/"research_snapshots"
+            older.mkdir()
+            cached=base()
+            cached["generated_at"]=(NOW-timedelta(hours=2)).isoformat()
+            cached["source_title_received_jst"]=cached["generated_at"]
+            cached["source_cards_received_jst"]=cached["generated_at"]
+            cached_bytes=json.dumps(cached,ensure_ascii=False).encode()
+            cached_path=older/(CODE+".json")
+            cached_path.write_bytes(cached_bytes)
+            archive={}
+            calls=[]
+
+            def source(url):
+                calls.append(url)
+                if "/title/" in url:
+                    return ([{"レースコード":CODE,
+                              "電話投票締切予定":"18:33"}],NOW,"a"*64)
+                if "/race_cards/" in url:
+                    return ([dict({"レースコード":CODE},
+                         **{f"艇{i}_全国勝率":str(5+i/10)
+                            for i in range(1,7)})],NOW,"b"*64)
+                self.fail("unrelated source")
+
+            provenance={"model_git_sha":"f"*40,
+                        "model_source_sha256":"d"*64,
+                        "model_dependency_scope":"research_model.py_only_not_complete_environment"}
+            with patch.object(model,"STORE",older), \
+                 patch.object(model,"datetime",FrozenDatetime), \
+                 patch.object(model,"read_rows",side_effect=source), \
+                 patch.object(model,"model_provenance",return_value=provenance):
+                report=seed_once(now=lambda:NOW,
+                    fetch_title=lambda url:title(),
+                    ledger_ops=(archive.get,lambda k,v:archive.setdefault(k,v)))
+                self.assertEqual(model.STORE,older)
+
+            self.assertEqual(report["eligible_count"],1)
+            self.assertEqual(report["newly_stored_count"],1)
+            self.assertEqual(report["failed_count"],0)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(cached_path.read_bytes(),cached_bytes)
+            stored=json.loads(archive[f"t12_baselines/20261103/{CODE}.json"])
+            self.assertEqual(stored["generated_at"],NOW.isoformat())
+            self.assertEqual(stored["source_title_received_jst"],NOW.isoformat())
+            self.assertEqual(stored["source_cards_received_jst"],NOW.isoformat())
+            self.assertEqual(stored["input_source_kind"],"public_pre_race_csv")
+            self.assertNotEqual(stored["generated_at"],cached["generated_at"])
+            self.assertEqual(stored["model_source_sha256"],"d"*64)
+
     def test_hours_old_local_prediction_is_never_reclassified_as_t12(self):
         stale=base()
         early=(NOW-timedelta(hours=2)).isoformat()
