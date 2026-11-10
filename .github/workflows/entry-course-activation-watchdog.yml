@@ -6,6 +6,11 @@ on:
   # on the 2026-11-10 schedule; a Cron event is NOT guaranteed to start.
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - scripts/entry_course_activation_watchdog.py
+      - tests/test_entry_course_activation_watchdog.py
+      - .github/workflows/entry-course-activation-watchdog.yml
   schedule:
     - cron: '3,13,23,33,43,53 23,0-13 * * *'
   workflow_run:
@@ -25,11 +30,13 @@ jobs:
     # Only same-repo main/schedule parent events may wake this fallback.
     if: >-
       github.repository == 'ikst2512-eng/boat-edge-clean' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.event == 'schedule' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository))
+      ((github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+       (github.ref == 'refs/heads/main' &&
+        (github.event_name != 'workflow_run' ||
+         (github.event.workflow_run.event == 'schedule' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository))))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
@@ -42,11 +49,12 @@ jobs:
       - name: Validate fallback dispatch policy
         run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
       - name: Dispatch missing T12/T2 plus independent preview research (not scheduled proof)
+        if: github.event_name != 'pull_request'
         run: python scripts/entry_course_activation_watchdog.py
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Retain fallback decision independently of research capture
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: entry-course-activation-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
