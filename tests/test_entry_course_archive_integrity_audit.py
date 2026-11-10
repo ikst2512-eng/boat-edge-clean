@@ -74,7 +74,7 @@ class ArchiveIntegrityTests(unittest.TestCase):
         stale["generated_at"]="2026-11-03T18:00:00+09:00"
         stale["source_title_received_jst"]=stale["generated_at"]
         stale["source_cards_received_jst"]=stale["generated_at"]
-        raw_stale=(json.dumps(stale,ensure_ascii=False,sort_keys=True)+"\\n").encode()
+        raw_stale=(json.dumps(stale,ensure_ascii=False,sort_keys=True)+"\n").encode()
         pair=blob(raw_stale,f"t12_baselines/{DAY}/{CODE}.json")
         result=audit_archive_bytes(DAY,[pair[0]],
             fake_fetch({pair[0]["sha"]:pair[1]}),repository=REPO)
