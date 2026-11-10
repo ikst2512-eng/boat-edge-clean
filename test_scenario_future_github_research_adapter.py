@@ -295,7 +295,7 @@ class FrozenFutureWitnessOnlySyntheticTests(unittest.TestCase):
     def test_cli_readonly_witness_mode_uses_only_six_github_gets(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/"synthetic-gateway.json"
-            path.write_text(json.dumps(self.g)+"\\n",encoding="utf-8")
+            path.write_text(json.dumps(self.g)+"\n",encoding="utf-8")
             report=run_from_gateway_file(
                 path,GENERATED,FROZEN,
                 observe_first_add=True,send=self.fake)
@@ -308,7 +308,7 @@ class FrozenFutureWitnessOnlySyntheticTests(unittest.TestCase):
     def test_cli_mutual_exclusion_cannot_accidentally_write_during_readonly_audit(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/"synthetic-gateway.json"
-            path.write_text(json.dumps(self.g)+"\\n",encoding="utf-8")
+            path.write_text(json.dumps(self.g)+"\n",encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"cannot_publish_and_observe"):
                 run_from_gateway_file(
                     path,GENERATED,FROZEN,
