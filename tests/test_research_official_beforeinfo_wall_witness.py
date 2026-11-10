@@ -24,8 +24,8 @@ class TestBeforeInfoWallWitness(unittest.TestCase):
     def test_exhibition_course_and_st_complete(self):
         o=summarize_exhibition(sample())
         self.assertTrue(o["complete_six_course_ST"])
-        self.assertEqual(o["c2_minus_c3_ST_seconds"],"-.14")
-        self.assertEqual(o["c2_minus_c4_ST_seconds"],".01")
+        self.assertEqual(o["c2_minus_c3_ST_seconds"],"-0.14")
+        self.assertEqual(o["c2_minus_c4_ST_seconds"],"0.01")
         self.assertFalse(o["wall_performance_proven"])
 
     def test_course_change_not_equate_boat_to_course(self):
