@@ -68,6 +68,74 @@ class DailyScheduleRunMetadataTest(unittest.TestCase):
                            lambda _: {"total_count": 101, "workflow_runs": rows})
         self.assertFalse(result["full_day_metadata_coverage"])
 
+    def test_nov10_sparse_success_not_treated_as_cron_delivery_proof(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [
+            self.make_run(106, "2026-11-10T16:07:48+09:00"),
+            self.make_run(105, "2026-11-10T13:35:40+09:00"),
+            self.make_run(104, "2026-11-10T13:03:19+09:00"),
+            self.make_run(103, "2026-11-10T01:39:26+09:00"),
+            self.make_run(102, "2026-11-09T20:52:00+09:00"),
+        ]
+        result = audit_day(
+            "owner/repo", "20261110", "token",
+            lambda _: {"total_count": len(rows), "workflow_runs": rows},
+            as_of=datetime(2026, 11, 10, 17, 17, tzinfo=jst))
+        self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], 41)
+        self.assertEqual(result["same_day_scheduled_run_count"], 4)
+        self.assertEqual(result["same_day_pre_first_nominal_run_ids"], [103])
+        self.assertEqual(result["same_day_within_nominal_window_run_count"], 3)
+        self.assertEqual(result["in_window_completed_success_count"], 3)
+        self.assertEqual(result["in_window_completed_success_run_ids"],
+                         [104, 105, 106])
+        self.assertEqual(result["observed_in_window_pct_of_nominal_due"], 7.32)
+        self.assertEqual(result["schedule_observation_state"],
+                         "severely_below_nominal_observation")
+        self.assertFalse(result["per_slot_schedule_delivery_verified"])
+        self.assertFalse(result["forecast_publication_verified"])
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "audit.json"
+            with (patch("scripts.audit_four_mode_daily_schedule_runs.audit_day",
+                        return_value=result),
+                  patch.dict(os.environ, {
+                      "GITHUB_TOKEN": "synthetic",
+                      "GITHUB_EVENT_NAME": "schedule",
+                      "GITHUB_REF": "refs/heads/main",
+                  }),
+                  patch("sys.argv", ["audit", "--repo", "owner/repo",
+                                     "--output", str(output),
+                                     "--day-jst", "20261110"])):
+                from scripts.audit_four_mode_daily_schedule_runs import main
+                stream = io.StringIO()
+                with contextlib.redirect_stdout(stream):
+                    main()
+            self.assertIn("SEVERE observed scheduled-run scarcity", stream.getvalue())
+            self.assertIn("NOT certified missing Cron deliveries", stream.getvalue())
+
+    def test_observation_state_not_a_false_preopening_alert(self):
+        jst = timezone(timedelta(hours=9))
+        result = audit_day(
+            "owner/repo", "20261110", "token",
+            lambda _: {"total_count": 0, "workflow_runs": []},
+            as_of=datetime(2026, 11, 10, 6, 10, tzinfo=jst))
+        self.assertEqual(result["nominal_schedule_slots_due_as_of_audit"], 0)
+        self.assertIsNone(result["observed_in_window_pct_of_nominal_due"])
+        self.assertEqual(result["schedule_observation_state"],
+                         "no_nominal_slots_due")
+
+    def test_observation_state_preserves_incomplete_api_coverage(self):
+        jst = timezone(timedelta(hours=9))
+        rows = [self.make_run(500-i, "2026-11-10T07:07:00+09:00")
+                for i in range(100)]
+        result = audit_day(
+            "owner/repo", "20261110", "token",
+            lambda _: {"total_count": 101, "workflow_runs": rows},
+            as_of=datetime(2026, 11, 10, 17, 17, tzinfo=jst))
+        self.assertFalse(result["full_day_metadata_coverage"])
+        self.assertEqual(result["schedule_observation_state"],
+                         "api_coverage_unverified")
+        self.assertFalse(result["per_slot_schedule_delivery_verified"])
+
     def test_pending_and_prior_day_not_misclassified_as_failure(self):
         rows = [self.make_run(5, "2026-11-03T15:07:00Z", "in_progress", None),
                 self.make_run(4, "2026-11-03T14:52:00Z", "completed", "failure")]
