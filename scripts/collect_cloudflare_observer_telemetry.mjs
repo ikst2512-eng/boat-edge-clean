@@ -79,6 +79,9 @@ export async function collectObserverTelemetry({
   return {
     schema:API_SCHEMA,
     utc_day:utcDay,
+    // Original API target account, independently compared with BOTH returned
+    // run.accountId values by the offline V2 audit. Not a credential.
+    account_id:accountId,
     worker:OBSERVER_NAME,
     // Explicit independent dashboard/version input, NOT inferred from rows.
     deployment_id:deploymentId,
