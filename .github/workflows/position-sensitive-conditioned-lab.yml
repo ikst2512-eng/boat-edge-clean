@@ -153,7 +153,7 @@ jobs:
               "warning":"Only stored V2 original rates and rank turnover. A generated timestamp is self-reported, not Git remote first acceptance. No actual 6/120 source or prospective 300+300 certification."
           }
           Path("nov10-main-input-only-topk.json").write_text(
-              json.dumps(summary, ensure_ascii=False, sort_keys=True, indent=2)+"\\n",
+              json.dumps(summary, ensure_ascii=False, sort_keys=True, indent=2)+"\n",
               encoding="utf-8")
           compact={
               "main_sha":source_sha,"records":n,
