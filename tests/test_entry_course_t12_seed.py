@@ -285,6 +285,7 @@ class T12SeedTests(unittest.TestCase):
             local=Path(tmp)/"original_snapshots"
             local.mkdir()
             prior=base()
+            prior.update({"ok":True,"message":"既存の研究予想（未検証）"})
             prior["generated_at"]=(NOW-timedelta(hours=2)).isoformat()
             prior["source_title_received_jst"]=prior["generated_at"]
             prior["source_cards_received_jst"]=prior["generated_at"]
