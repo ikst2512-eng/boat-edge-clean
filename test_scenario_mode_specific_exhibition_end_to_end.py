@@ -11,6 +11,7 @@ import os
 import unittest
 
 from scenario_official_exhibition_projection import project_exhibition_research
+from scenario_exhibition_all_mode_runner import run_exhibition_scenario_lab
 from scenario_mode_specific_exhibition_end_to_end import (
     evaluate_exhibition_mode_lenses, MODES, BUDGETS,
 )
@@ -117,6 +118,38 @@ class PinnedModeExhibitionIntegrationTests(unittest.TestCase):
         self.assertFalse(r["outcomes_read_by_adapter"])
         self.assertEqual(r["new_formal_pilot_races"], 0)
         self.assertEqual(r["new_formal_confirmation_races"], 0)
+
+    def test_remove_duplicate_conditional_work_without_changing_any_mode_ticket(self):
+        calls = []
+        def count_calls(*args):
+            calls.append(args[3])
+            return self.callback(*args)
+        optimized = self.run_experiment(callback=count_calls)
+        self.assertEqual(len(calls), len(hypotheses()))
+        self.assertEqual(optimized["scenario_conditional_computations"], 4)
+        self.assertEqual(optimized["redundant_conditional_recomputations_removed"], 12)
+        self.assertEqual(len(set(calls)), 4)
+
+        # Reference output exactly reproduces the prior four-call implementation
+        # using the unmodified runner on the SAME pinned #1698 callback.
+        for mode in MODES:
+            plans = {
+                key: {**copy.deepcopy(value), "weight": weights()[mode][key]}
+                for key, value in hypotheses().items()
+            }
+            legacy = run_exhibition_scenario_lab(
+                copy.deepcopy(self.projection), copy.deepcopy(RATES),
+                plans, self.callback, study_id=STUDY)
+            expected = legacy["mode_result"]
+            self.assertEqual(
+                optimized["four_mode_research_tickets"][mode]["tickets"],
+                expected["existing_four_mode_selector_on_mixture"][mode]["tickets"])
+            self.assertEqual(
+                optimized["four_mode_research_tickets"][mode]["distinct_120_mixture_digest"],
+                expected["mixed_120_board_sha256"])
+            self.assertEqual(
+                optimized["scenario_board_sha256"],
+                expected["scenario_board_sha256"])
 
     def test_identical_weights_keeps_overlap_legitimately(self):
         common = weights()["narrow"]
