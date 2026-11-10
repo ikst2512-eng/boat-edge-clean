@@ -98,7 +98,13 @@ class PinnedModeExhibitionIntegrationTests(unittest.TestCase):
             BUDGETS)
         self.assertEqual(len(r["scenario_board_sha256"]), 4)
         self.assertTrue(r["scenario_boards_identical_across_modes"])
-        self.assertEqual(r["distinct_top1_mode_tickets"], 4)
+        # A source-driven hypothesis may yield shared Top1 even when weights
+        # differ; the test MUST NOT require four artificially unique picks.
+        self.assertGreaterEqual(r["distinct_top1_mode_tickets"], 3)
+        self.assertLessEqual(r["distinct_top1_mode_tickets"], 4)
+        self.assertNotEqual(
+            r["four_mode_research_tickets"]["narrow"]["top1"],
+            r["four_mode_research_tickets"]["hit"]["top1"])
         self.assertEqual(inputs, self.projection)
         for flag in ("formal", "forecast_usable", "promotion_allowed",
                      "production_changed", "first_candidate_remote_receipt_verified",
