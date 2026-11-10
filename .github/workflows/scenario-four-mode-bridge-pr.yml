@@ -44,7 +44,26 @@ jobs:
   scenario-bridge:
     runs-on: ubuntu-latest
     steps:
+      # This Nov10 preregistered study pins TEN source Git blobs.
+      # Default pull_request checkout tests GitHub's synthetic merge commit,
+      # which now includes production/main T12 fixes to research_model.py.
+      # Testing that merge would silently substitute a different model and
+      # fail the study's immutable-method guard. Checkout the exact PR head.
+      # This CI therefore verifies the FROZEN research only, not compatibility
+      # with the latest production main (assess separately before any merge).
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Confirm exact registered research head and model blob
+        env:
+          EXPECTED_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_PR_HEAD"
+          test "$(git hash-object research_model.py)" = "19137116f8ec79d467f73c57c537a9a95f50110d"
+          echo "FROZEN_RESEARCH_PR_HEAD=$EXPECTED_PR_HEAD"
+          echo "COMPATIBILITY_WITH_UPDATED_MAIN_NOT_CERTIFIED"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
