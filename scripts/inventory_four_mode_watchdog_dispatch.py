@@ -72,7 +72,7 @@ def inventory(repo, token, fetch=api_json, now=None):
     global_seen_ids = set()
     for workflow, events in ((CAPTURE, ("schedule", "workflow_dispatch")),
                              (WATCHDOG, ("schedule", "push", "workflow_run")),
-                             (CLEAN, ("workflow_dispatch",))):
+                             (CLEAN, ("schedule", "workflow_dispatch"))):
         for event in events:
             url = (f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}"
                    f"/runs?event={event}&per_page=100")
@@ -109,7 +109,8 @@ def inventory(repo, token, fetch=api_json, now=None):
     all_rows.sort(key=lambda r: r["created_at"], reverse=True)
     captures = [r for r in all_rows if r["workflow"] == CAPTURE]
     watchdogs = [r for r in all_rows if r["workflow"] == WATCHDOG]
-    clean_dispatches = [r for r in all_rows if r["workflow"] == CLEAN]
+    clean_schedules = [r for r in all_rows if r["workflow"] == CLEAN and r["event"] == "schedule"]
+    clean_dispatches = [r for r in all_rows if r["workflow"] == CLEAN and r["event"] == "workflow_dispatch"]
     # Keep legacy direct-trigger watchdog artifact consumers stable. The
     # high-volume workflow_run hook is a distinct source and a completed
     # skipped job is *not* a successful recovery. Its API page is bounded.
@@ -148,6 +149,7 @@ def inventory(repo, token, fetch=api_json, now=None):
             "watchdog_schedule": count(watchdogs, "schedule"),
             "watchdog_push": count(watchdogs, "push"),
             "watchdog_workflow_run": count(watchdogs, "workflow_run"),
+            "clean_schedule": count(clean_schedules, "schedule"),
             "clean_workflow_dispatch": count(clean_dispatches, "workflow_dispatch"),
             "latest_capture": latest_capture, "minutes_since_latest_capture": gap,
             # Preserve latest direct-trigger watchdog semantics for existing
@@ -180,6 +182,7 @@ def inventory(repo, token, fetch=api_json, now=None):
             "recent_successful_watchdog_workflow_run": [
                 r for r in webhook_watchdogs
                 if r["status"] == "completed" and r["conclusion"] == "success"][:12],
+            "recent_clean_schedule_runs": clean_schedules[:100],
             "recent_clean_dispatch_runs": clean_dispatches[:100]}
 
 
@@ -199,6 +202,7 @@ def main():
         "watchdog_schedule": data["watchdog_schedule"],
         "watchdog_push": data["watchdog_push"],
         "watchdog_workflow_run": data["watchdog_workflow_run"],
+        "clean_schedule": data["clean_schedule"],
         "clean_workflow_dispatch": data["clean_workflow_dispatch"],
         "latest_watchdog_workflow_run": data["latest_watchdog_workflow_run"],
         "latest_capture": data["latest_capture"],
