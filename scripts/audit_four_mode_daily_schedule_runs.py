@@ -145,6 +145,29 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
     pending = sorted(row["run_id"] for row in matching
                      if row["status"] != "completed"
                      or row["conclusion"] is None)
+    in_window_success_run_ids = sorted(
+        row["run_id"] for row in in_window_rows
+        if row["status"] == "completed" and row["conclusion"] == "success")
+    # This is an *observation-count* ratio, NOT a percentage of proven Cron
+    # deliveries: the Actions API does not identify the nominal cron slot.
+    # A repeated/delayed run can inflate the numerator, so do not cap at 100.
+    observed_ratio = (
+        round(100 * within_window_count / due_slots, 2)
+        if due_slots > 0 else None)
+    if due_slots == 0:
+        observation_state = "no_nominal_slots_due"
+    elif not complete:
+        observation_state = "api_coverage_unverified"
+    elif within_window_count == 0:
+        observation_state = "no_in_window_schedule_observation"
+    elif due_slots >= 12 and within_window_count * 4 < due_slots:
+        # Read-only 25% triage marker after at least ~3 hours nominally due;
+        # never assert which individual Cron slots failed delivery.
+        observation_state = "severely_below_nominal_observation"
+    elif within_window_count < due_slots:
+        observation_state = "below_nominal_observation"
+    else:
+        observation_state = "nominal_count_met_not_slot_proof"
     return {"schema": "FOUR_MODE_DAILY_SCHEDULE_RUN_METADATA_V1",
             "day_jst": day, "total_history_runs_available": result["total_count"],
             "history_rows_inspected": len(rows), "full_day_metadata_coverage": complete,
@@ -157,6 +180,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
             "same_day_at_or_after_first_nominal_run_count": after_first_nominal_count,
             "same_day_after_final_nominal_grace_run_ids": after_final_window_run_ids,
             "same_day_within_nominal_window_run_count": within_window_count,
+            "in_window_completed_success_run_ids": in_window_success_run_ids,
+            "in_window_completed_success_count": len(in_window_success_run_ids),
+            "observed_in_window_pct_of_nominal_due": observed_ratio,
+            "schedule_observation_state": observation_state,
             "latest_in_window_run_created_at_jst": (
                 latest_in_window.isoformat() if latest_in_window is not None
                 else None),
@@ -181,7 +208,10 @@ def audit_day(repo, day, token, fetch=None, *, as_of=None):
                      "in the raw same-day count. Runs after the final 20:52 "
                      "JST slot plus five minutes remain raw observations but "
                      "do not satisfy the daily window-presence gate. Future-"
-                     "dated API entries fail closed. Last-run silence is "
+                     "dated API entries fail closed. Observation ratio and "
+                     "25-percent triage state compare run-start counts to "
+                     "nominal due only, not attributable Cron deliveries or "
+                     "independently first-seen publication. Last-run silence is "
                      "bounded by the day's final nominal grace and is not "
                      "proof of specific missing Cron slots, deadline-qualified "
                      "collection, or forecast publication.")}
@@ -200,6 +230,15 @@ def main():
     output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
                       encoding="utf-8")
     print("FOUR_MODE_DAILY_SCHEDULE_METADATA=" + json.dumps(result, sort_keys=True))
+    if (result["schedule_observation_state"] == "severely_below_nominal_observation"
+            and os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"):
+        print("::warning::SEVERE observed scheduled-run scarcity: "
+              f"{result['same_day_within_nominal_window_run_count']} "
+              f"starts across {result['nominal_schedule_slots_due_as_of_audit']} "
+              f"nominal due slots "
+              f"({result['observed_in_window_pct_of_nominal_due']}%). "
+              "This is a risk marker, NOT certified missing Cron deliveries.")
     if (result["observed_within_window_below_nominal_due_by"] > 0
             and os.environ.get("GITHUB_EVENT_NAME") == "schedule"
             and os.environ.get("GITHUB_REF") == "refs/heads/main"):
