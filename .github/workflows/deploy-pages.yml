@@ -507,7 +507,10 @@ jobs:
                     ticketText:c.querySelectorAll('p.notes')[1]?.textContent?.trim()?.slice(0,150)}))};
               });
               if(evidence.count>6)throw Error('candidate_limit_exceeded_'+evidence.count);
-              if(evidence.count&&!evidence.status.includes(evidence.count+'レース表示'))
+              // Status text is now '保存研究予想 Nレース（70%...）'; count only
+              // the explicit leading research-race total, not its subtotals.
+              const reported=evidence.status.match(/保存(?:済み)?研究(?:予想|候補)\s*(\d+)\s*レース(?:表示)?/);
+              if(evidence.count&&Number(reported?.[1])!==evidence.count)
                 throw Error('candidate_status_count_disagrees_'+JSON.stringify(evidence));
               if(evidence.items.some(c=>!c.title||!c.ticketText?.includes('保存済み3連単')||
                   !c.provenance?.includes('研究予想')||!c.provenance?.includes('検証')))
