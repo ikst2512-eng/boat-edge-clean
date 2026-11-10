@@ -20,9 +20,12 @@ permissions:
   pages: write
   id-token: write
 
+# Continuous result/schedule pushes must not abort a deployment halfway
+# through public-browser verification. GitHub keeps one latest pending run;
+# the active publish is allowed to finish before the pending one proceeds.
 concurrency:
   group: boat-edge-clean-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
