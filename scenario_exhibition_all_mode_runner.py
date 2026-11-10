@@ -31,6 +31,14 @@ MISSING = frozenset({
 })
 BLOCKED = frozenset({"result", "finish_order", "winning_ticket",
                      "payout", "post_race_weather", "final_entry_course"})
+PAIR_SCHEMA = "SCENARIO_OBSERVED_BEFOREINFO_ODDS_PAIR_RESEARCH_V1"
+PAIR_EXTRA_KEYS = frozenset({
+    "source_original_zip_sha256",
+    "racelist_original_missing",
+    "source_pair_only_no_new_forecast_receipt",
+    "weather_observation_clock_unverified",
+})
+
 PROJECTION_KEYS = frozenset({
     "schema", "race_code", "source_sha256", "normalized_source_sha256",
     "exhibition_features_by_boat", "exhibition_features_sha256",
@@ -46,9 +54,15 @@ PROJECTION_KEYS = frozenset({
 
 
 def _projected(projection):
+    # The two-source original is an EXPLICITLY SEPARATE research-only input:
+    # no invented racelist SHA, no pretended three-source replay/forecast.
+    pair_only = type(projection) is dict and projection.get("schema") == PAIR_SCHEMA
+    expected_keys = PROJECTION_KEYS | PAIR_EXTRA_KEYS if pair_only else PROJECTION_KEYS
     if (type(projection) is not dict
-            or set(projection) != PROJECTION_KEYS
-            or projection.get("schema") != "SCENARIO_EXHIBITION_PROJECTION_RESEARCH_V1"
+            or set(projection) != expected_keys
+            or projection.get("schema") not in (
+                PAIR_SCHEMA if pair_only else "SCENARIO_EXHIBITION_PROJECTION_RESEARCH_V1",
+            )
             or projection.get("formal") is not False
             or projection.get("production_changed") is not False
             or projection.get("promotion_allowed") is not False
@@ -58,10 +72,10 @@ def _projected(projection):
             or projection.get("candidate_first_remote_receipt_verified") is not False
             or projection.get("model_consumed_these_features_verified") is not False
             or projection.get("feature_values_imputed") is not False
-            or projection.get("structural_source_to_candidate_order") is not True
+            or projection.get("structural_source_to_candidate_order") is not (not pair_only)
             or projection.get("all_scenario_effect_coefficients_calibrated") is not False
             or projection.get("accuracy_effect_proven") is not False
-            or projection.get("structural_raw_semantic_replay_reported") is not True
+            or projection.get("structural_raw_semantic_replay_reported") is not (not pair_only)
             or set(projection) & BLOCKED):
         raise ValueError("unsafe_or_unmatched_official_projection")
     code = projection.get("race_code")
@@ -70,13 +84,24 @@ def _projected(projection):
             or not 1 <= int(code[10:12]) <= 12):
         raise ValueError("invalid_race_identity")
     digests = projection.get("source_sha256")
-    if (type(digests) is not dict or set(digests) !=
-            {"racelist", "beforeinfo", "odds120"}
+    required_digest_keys = (
+        {"beforeinfo", "odds120"} if pair_only else
+        {"racelist", "beforeinfo", "odds120"}
+    )
+    if (type(digests) is not dict or set(digests) != required_digest_keys
             or any(type(x) is not str or not HEX.fullmatch(x)
                    for x in digests.values())
             or type(projection.get("normalized_source_sha256")) is not str
             or not HEX.fullmatch(projection["normalized_source_sha256"])):
         raise ValueError("projection_missing_original_fingerprints")
+    if pair_only and (
+        type(projection.get("source_original_zip_sha256")) is not str
+        or not HEX.fullmatch(projection["source_original_zip_sha256"])
+        or projection.get("racelist_original_missing") is not True
+        or projection.get("source_pair_only_no_new_forecast_receipt") is not True
+        or projection.get("weather_observation_clock_unverified") is not True
+    ):
+        raise ValueError("partial_official_source_must_fail_closed_without_racelist")
     missing = projection.get("missing_research_features")
     if (type(missing) is not list
             or any(type(value) is not str for value in missing)
