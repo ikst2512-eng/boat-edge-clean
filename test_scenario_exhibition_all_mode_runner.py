@@ -36,6 +36,7 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
                 "head_log_shifts": [1.4, 0, 0, 0, 0, 0],
                 "position_coefficients": {
                     "exhibition_st_s": {"second": .30, "third": .15},
+                    "exhibition_time_s": {"second": .20, "third": .10},
                 },
             },
             "third_attack": {
@@ -43,6 +44,7 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
                 "head_log_shifts": [-.4, 0, 1.8, 0, 0, 0],
                 "position_coefficients": {
                     "exhibition_st_s": {"second": .55, "third": .28},
+                    "exhibition_time_s": {"second": .30, "third": .15},
                 },
             },
             "outer_benefit": {
@@ -50,6 +52,7 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
                 "head_log_shifts": [0, 0, 0, 0, 1.2, .8],
                 "position_coefficients": {
                     "exhibition_st_s": {"second": .25, "third": .20},
+                    "exhibition_time_s": {"second": .15, "third": .10},
                 },
             },
         }
@@ -101,7 +104,7 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
         # A self-recalculated synthetic SHA is NOT a primary source receipt.
         self.assertFalse(after["actual_official_exhibition_consumption_independently_replayed"])
 
-    def test_unscored_exhibition_time_cannot_silently_affect_board(self):
+    def test_real_second_exhibition_time_changes_board_when_enabled(self):
         original = self.run_lab()
         changed = copy.deepcopy(self.projection)
         changed["exhibition_features_by_boat"][0]["exhibition_time_s"] = 7.05
@@ -111,9 +114,26 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
                        ).encode("utf-8")
         ).hexdigest()
         after = self.run_lab(projection=changed)
+        self.assertNotEqual(original["mode_result"]["mixed_120_board_sha256"],
+                            after["mode_result"]["mixed_120_board_sha256"])
+        self.assertFalse(after["actual_official_exhibition_consumption_independently_replayed"])
+
+    def test_exhibition_time_when_coefficients_zero_does_not_change_board(self):
+        plans = copy.deepcopy(self.plans)
+        for plan in plans.values():
+            plan["position_coefficients"]["exhibition_time_s"] = {
+                "second": 0.0, "third": 0.0}
+        original = self.run_lab(plans=plans)
+        changed = copy.deepcopy(self.projection)
+        changed["exhibition_features_by_boat"][0]["exhibition_time_s"] = 7.05
+        changed["exhibition_features_sha256"] = hashlib.sha256(
+            json.dumps(changed["exhibition_features_by_boat"], sort_keys=True,
+                       separators=(",", ":"), ensure_ascii=False
+                      ).encode("utf-8")
+        ).hexdigest()
+        after = self.run_lab(projection=changed, plans=plans)
         self.assertEqual(original["mode_result"]["mixed_120_board_sha256"],
                          after["mode_result"]["mixed_120_board_sha256"])
-        self.assertFalse(after["actual_official_exhibition_consumption_independently_replayed"])
 
     def test_weight_hypotheses_change_mixture_without_forced_variation(self):
         first = self.run_lab()
@@ -127,8 +147,7 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
 
     def test_weather_tide_and_actual_entry_cannot_be_forged(self):
         for field in ("tide_height_cm", "wind_speed_mps",
-                      "actual_entry_course", "two_course_wall_rate",
-                      "exhibition_time_s"):
+                      "actual_entry_course", "two_course_wall_rate"):
             plans = copy.deepcopy(self.plans)
             plans["third_attack"]["position_coefficients"][field] = {
                 "second": .8, "third": .2}
@@ -186,10 +205,10 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
         self.assertFalse(out["mode_result"]["separate_scenario_hole_research"]["official_odds_used"])
         self.assertFalse(out["mode_result"]["separate_scenario_hole_research"]["expected_value_claim"])
         self.assertEqual(out["feature_fields_passed_to_conditional_lab"],
-                         ["exhibition_st_s"])
-        self.assertIn("exhibition_time_s", out["projection_features_present_but_not_scored"])
+                         ["exhibition_st_s", "exhibition_time_s"])
+        self.assertNotIn("exhibition_time_s", out["projection_features_present_but_not_scored"])
         self.assertEqual(out["exhibition_time_s_status"],
-                         "blocked_upstream_1698_wrong_seconds_range")
+                         "available_for_explicit_hypothesis_only")
 
     def test_scenario_weights_must_be_explicit_and_sum_to_one(self):
         plans = copy.deepcopy(self.plans)
