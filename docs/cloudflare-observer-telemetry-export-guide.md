@@ -1,5 +1,16 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-10: unique per-acquisition query IDs and response identity checks
+
+The read-only `print_cloudflare_observer_telemetry_queries.mjs` preview still emits deterministic, **non-executed** example request bodies. In contrast, the explicitly owner-executed `collect_cloudflare_observer_telemetry.mjs --execute` now uses a fresh locally generated UUID for **each pair** of same-day Cloudflare Telemetry queries; the event and count queries share this acquisition UUID but each has a different full `queryId`. It makes only two sequential scoped API POST queries and does **not** deploy a Worker, send a GitHub dispatch or retry a failed external request.
+
+The V2 offline auditor now requires the returned `events_query.response.result.run.query.id` to exactly equal its saved `events_query.request.queryId`, and the returned sampling query's `result.run.query.id` to equal its own original `sampling_query.request.queryId`. A missing ID, mismatched returned query identity, or a returned saved-query designation `query.adhoc:false` causes a **NO-PASS**. The event request may not specify an alternative chart shape, and an explicitly supplied sampling `chartType` must be `aggregate` (the documented default also remains accepted for archival inputs). These requirements prevent a cross-request or stale-query identity mixup from being mistaken for a valid complete-day audit.
+
+Cloudflare's API reference says an arbitrary ad-hoc `queryId` may be supplied when query parameters are included. The above identity gate is a **conservative, strict local evidence contract**, not a claim that a real Cloudflare account or API response has been inspected. If Cloudflare provides a different server-generated query ID in a real response, retain that unmodified original evidence, report the strict audit failure and investigate against the live API schema; never rewrite its ID to make a fixture pass.
+
+Official reference: https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/
+
+
 ## 2026-11-10: API response size is bounded while streaming
 
 The owner-operated collector now enforces a **12 MiB per-query response limit during stream consumption** rather than calling `Response.text()` before checking the size. Oversized announced `Content-Length` values are rejected before reading; a stream exceeding the cap is cancelled before a second query is issued. A valid Fetch `ReadableStream` response still retains its exact JSON response fields in the private evidence envelope. This protects the operator's machine against unbounded in-memory buffering and leaves the production Cloudflare Worker/Render/GitHub schedules untouched. An HTTP error, oversized response or incomplete response set does not authorize any retry of recovery dispatch.
