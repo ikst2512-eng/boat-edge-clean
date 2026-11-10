@@ -1,0 +1,197 @@
+{
+  "schema": "FOUR_MODE_TRIPLE_SOURCE_PROSPECTIVE_RESEARCH_PROTOCOL_V1",
+  "study_id": "EXPLORATORY_ONLY_FUTURE_TRIPLE_SCENARIO_RESEARCH",
+  "registered_on_date_jst": "2026-11-10",
+  "status": "committed_research_protocol_not_active_no_confirmed_future_candidate",
+  "old_registered_1693_600_unchanged": true,
+  "discovery_dates_excluded_through": "2026-11-10",
+  "eligible_deadline_start_jst": "2026-11-11T00:00:00+09:00",
+  "eligible_deadline_end_jst": "2026-12-31T23:59:59+09:00",
+  "baseline": "CLEAN_FOUR_MODES_V2_PROVISIONAL_UNCALIBRATED_saved_first_remote_pinned_only",
+  "hypothesis": "Fixed explicit scenario head log shifts of 3.5 compared with a zero-head-shift negative control; four separate mode weights may change ticket ordering but are not calibrated",
+  "primary_arm_id": "FIXED_SCENARIO_HEAD35_4MODES_V1",
+  "negative_control_arm_id": "FIXED_SCENARIO_HEAD0_4MODES_V1",
+  "scenario_hypotheses": {
+    "escape_wall": {
+      "head_log_shifts": [
+        3.5,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "two_sashi": {
+      "head_log_shifts": [
+        0,
+        3.5,
+        0,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "third_attack": {
+      "head_log_shifts": [
+        0,
+        0,
+        3.5,
+        0,
+        0,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    },
+    "outer_benefit": {
+      "head_log_shifts": [
+        0,
+        0,
+        0,
+        0,
+        3.5,
+        0
+      ],
+      "position_coefficients": {
+        "exhibition_st_s": {
+          "second": 0.3,
+          "third": 0.15
+        },
+        "exhibition_time_s": {
+          "second": 0.15,
+          "third": 0.08
+        }
+      }
+    }
+  },
+  "mode_weights": {
+    "narrow": {
+      "escape_wall": 1,
+      "two_sashi": 0,
+      "third_attack": 0,
+      "outer_benefit": 0
+    },
+    "hit": {
+      "escape_wall": 0,
+      "two_sashi": 1,
+      "third_attack": 0,
+      "outer_benefit": 0
+    },
+    "balance": {
+      "escape_wall": 0.5,
+      "two_sashi": 0,
+      "third_attack": 0.5,
+      "outer_benefit": 0
+    },
+    "hole": {
+      "escape_wall": 0,
+      "two_sashi": 0,
+      "third_attack": 0.5,
+      "outer_benefit": 0.5
+    }
+  },
+  "mode_ticket_budgets": {
+    "narrow": 5,
+    "hit": 10,
+    "balance": 16,
+    "hole": 22
+  },
+  "method_git_blob_sha1": {
+    "research_model.py": "19137116f8ec79d467f73c57c537a9a95f50110d",
+    "clean_four_modes.py": "c143b836e6e833ff1ff6ee0d8f13dca6a8408c7d",
+    "scenario_exhibition_all_mode_runner.py": "70de2a5f6169787d4ee412f689977446384d6182",
+    "scenario_mode_specific_exhibition_end_to_end.py": "e41c6c9dab8bf99fbb7e7caf456bfc5c4dd14eec",
+    "scenario_official_exhibition_projection.py": "215114fe906ed8a3d6b2fc96649d8c6cf8cbe7d0",
+    "scenario_first_head_research.py": "e82f34fedb44c4b6096b37dff6281f50b92387b0",
+    "scenario_four_mode_bridge.py": "2e2bb135d3f72dbf27339f9f7f2cd2de78f54eff",
+    "scenario_future_three_original_gateway.py": "8acfdadc4bff791cc01c1ede16f0e14ae97a8002",
+    "scenario_official_racelist_rates.py": "6120a8a5e9e99c476432b3ff7f8b4b30f2918ce6",
+    "scripts/audit_three_official_t12_originals.py": "fb9d98e7329c0d8423c58d94f9618380eb3ad876"
+  },
+  "pinned_external_code": {
+    "1698_conditional_repo_commit": "e152b57033f825e02343b004a9c013a8998f9954",
+    "1698_conditional_code_blob_sha1": "0019978a4e27a1235d0b466c11f514bd7105f261",
+    "1693_semantic_replay_repo_commit": "d93349e4855d6dc1026dfad1795a99632d7e9a35",
+    "1693_semantic_replay_code_blob_sha1": "2f5af32201e3060c57b5a999f0389ce67c3046cb"
+  },
+  "scientific_protocol": {
+    "pilot_eligible_races": 300,
+    "confirmation_independent_eligible_races": 300,
+    "allocation": "first_600_valid_independent_prospective_same_race_paired_samples_in_deadline_then_race_code_order_do_not_replace_missing",
+    "primary_endpoint": "paired_top1_exact_trifecta_by_mode_with_multiplicity_correction",
+    "secondary_endpoints": [
+      "top3",
+      "top5",
+      "top10_if_mode_budget_at_least_ten",
+      "first_boat_top1",
+      "paired_gain_loss_on_same_race",
+      "first_head_Brier_if_recalculated_120_probabilities_authenticated",
+      "ROI_only_if_predeadline_odds_and_verified_payout"
+    ],
+    "non_inferiority_guardrails": [
+      "top5_by_mode_not_worse_than_same_cohort_baseline",
+      "top10_by_eligible_mode_not_worse_than_same_cohort_baseline"
+    ],
+    "scoring": "existing_1693_result_LAST_paired_score_only_no_duplicate_new_scorer",
+    "comparisons": "fixed_head35_vs_baseline_primary;fixed_head0_vs_head35_secondary_sensitivity_only"
+  },
+  "admission_conditions": [
+    "independently_replayed_official_racelist_beforeinfo_odds120_originals_of_same_future_race",
+    "official_six_registration_IDs_and_exhibition_six_course_time_ST_tilt",
+    "all_three_originals_received_before_race_T_minus_12",
+    "candidate_generated_after_all_sources_and_before_T_minus_12",
+    "same_official_racelist_six_national_win_rates_consumed",
+    "method_and_hypothesis_content_identical_to_this_preregistered_manifest",
+    "independent_first_remote_git_receipt_of_candidate_before_T_minus_12_and_result",
+    "complete_scheduled_dispatch_rescue_run_inventory",
+    "post_result_verified_outcome_loaded_only_by_existing_evaluator",
+    "no_retrospective_candidate_reconstruction_or_replacement"
+  ],
+  "unverified_inputs": [
+    "actual_final_entry",
+    "motor_rate_predeadline_evidence",
+    "weather_wind_direction_speed_heading",
+    "wave",
+    "tide",
+    "two_course_escape_assist_wall_rate",
+    "independent_official_HTTP_first_receipt",
+    "independent_candidate_first_remote_Git_receipt"
+  ],
+  "no_production_merge_or_live_selector_change": true,
+  "no_candidate_remote_write_performed": true,
+  "preregistration_independently_attested": false,
+  "formal": false,
+  "new_pilot_admitted": 0,
+  "new_confirmation_admitted": 0,
+  "improvement_proven": false,
+  "promotion_allowed": false
+}
