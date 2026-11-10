@@ -52,6 +52,10 @@ class DualSelectionTests(unittest.TestCase):
   self.assertIn('70%条件の検証</a>',page)
   self.assertIn('3連単の的中率70%ではありません',page)
   self.assertIn('id="savedPredictionHistory"',page)
+  from research_model import WIN
+  self.assertIn('const winners='+str(WIN).replace(' ','')+',avg=',page)
+  self.assertIn('const mass=savedHeadMass(pred)',page)
+  self.assertIn("mass>=70?'研究条件70%以上'",page)
   self.assertNotIn('<h2>2つを同時に検証</h2>',page)
   self.assertNotIn('<h1>購入候補・並行検証</h1>',page)
   self.assertIn('id="raceAudit"',page)
