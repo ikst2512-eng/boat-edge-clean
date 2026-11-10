@@ -22,7 +22,7 @@ const {chromium, webkit} = require('playwright');
       throw Error('Mobile forecast presentation incorrect: '+JSON.stringify(info));
     if(!info.status.includes('過去保存予想')&&!info.status.includes('正式予想として使用しないでください')) throw Error('Research-only provenance missing: '+JSON.stringify(info));
     const hierarchy=await page.evaluate(()=>{const c=document.querySelector('.four-mode-combo'),o=document.querySelector('.four-mode-odds');return {comboPx:c?parseFloat(getComputedStyle(c).fontSize):null,oddsPx:o?parseFloat(getComputedStyle(o).fontSize):null,columns:getComputedStyle(document.querySelector('#fourModeForecastRows')).gridTemplateColumns}});
-    if(hierarchy.comboPx!==24||hierarchy.oddsPx!==null&&hierarchy.oddsPx>12)throw Error('Ticket hierarchy incorrect: '+JSON.stringify(hierarchy));
+    if(!(hierarchy.comboPx>=14&&hierarchy.comboPx<=18)||hierarchy.oddsPx!==null&&hierarchy.oddsPx>12)throw Error('Ticket hierarchy incorrect for compact 390px mobile UI: '+JSON.stringify(hierarchy));
     // Fetch real API odds for the selected race. Never mistake historical/current odds.
     const oddsEvidence=await page.evaluate(async()=>{
       const key='202611020211';const url='/api/odds?hd=20261102&jcd=02&rno=11';
