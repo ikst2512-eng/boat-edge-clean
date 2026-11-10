@@ -632,7 +632,7 @@ jobs:
               const response=await page.request.get(url,{timeout:25000});
               assert.equal(response.status(),200,'independent CSV unavailable');
               const lines=(await response.text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(csv);
-              const names=lines.shift();assert.ok(names.length>=36,'original lane columns');
+              const names=lines.shift();assert.equal(names.length,34,'source schema: 10 metadata columns plus six sets of four boat fields');
               const col=Object.fromEntries(names.map((name,i)=>[name,i]));
               assert.equal(Object.keys(col).length,names.length,'duplicated source fields');
               const entries=new Map();
