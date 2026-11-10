@@ -277,7 +277,17 @@ jobs:
                       complete=(type(exhibition) is list and len(exhibition)==6
                                 and bm["start_exhibition_six_valid_rows"] is True)
                       margin=round((cutoff-received[0]).total_seconds()/60,4)
+                      # Classification is about archived source bytes only.
+                      # Zero exhibition rows DOES NOT prove BOATRACE had not
+                      # published them at another clock or in another request.
+                      missing_kind=(
+                          "MISSING_RACELIST_AND_ST6" if not has_card and not complete else
+                          "MISSING_RACELIST" if not has_card else
+                          "MISSING_ST6" if not complete else "COMPLETE_3_ORIGINALS"
+                      )
                       rows.append({
+                          "source_snapshot_completeness":missing_kind,
+                          "official_ST_publication_time_independently_verified":False,
                           "race_code":code,"official_deadline_jst":deadline.isoformat(),
                           "T_minus_12_cutoff_jst":cutoff.isoformat(),
                           "beforeinfo_received_jst_source_claim":received[0].isoformat(),
@@ -297,12 +307,25 @@ jobs:
           assert sum(r["start_exhibition_six_complete"] for r in near)==3
           assert sum(r["start_exhibition_six_complete"] for r in early)==0
           assert sum(r["complete_three_originals"] for r in rows)==0
+          by_missing={name:sum(r["source_snapshot_completeness"]==name for r in rows)
+                      for name in ("MISSING_RACELIST","MISSING_ST6",
+                                   "MISSING_RACELIST_AND_ST6","COMPLETE_3_ORIGINALS")}
+          assert by_missing=={
+              "MISSING_RACELIST":3,"MISSING_ST6":2,
+              "MISSING_RACELIST_AND_ST6":1,"COMPLETE_3_ORIGINALS":0}
+          assert sum(by_missing.values())==len(rows)
           result={
               "schema":"RESEARCH_REAL_SIX_SOURCE_TIMING_V1",
               "source_artifact_ids":[13652131213,13740574410,13749433042],
               "under_four_minutes_before_T12":{"races":len(near),"ST6_complete":3},
               "at_least_seven_minutes_before_T12":{"races":len(early),"ST6_complete":0},
               "simultaneous_three_originals_and_ST6":0,
+              "total_source_snapshots_inspected":len(rows),
+              "completeness_by_reason":by_missing,
+              "all_attempts_inspected_for_this_fixed_archive_manifest":True,
+              "upstream_ST_actual_publication_clock_unknown":True,
+              "missing_source_does_not_prove_upstream_unpublished":True,
+              "source_snapshot_completeness_not_model_accuracy":True,
               "collector_clock_self_report_not_independent_first_remote":True,
               "results_read":False,"new_forecast_published":False,"formal":False,
               "warning":"Selective six-source retrospective observation: not a timing optimum, causal test or prospective accuracy proof.",
@@ -315,6 +338,7 @@ jobs:
               "under_4m":result["under_four_minutes_before_T12"],
               "at_least_7m":result["at_least_seven_minutes_before_T12"],
               "complete_triples":result["simultaneous_three_originals_and_ST6"],
+              "completeness_by_reason":result["completeness_by_reason"],
               "formal":False,
           },sort_keys=True))
           PY
