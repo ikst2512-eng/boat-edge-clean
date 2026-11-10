@@ -4,6 +4,7 @@ on:
     paths:
       - hole_strict_temporal_holdout.py
       - test_hole_strict_temporal_holdout.py
+      - test_hole_result_blind_chronology.py
       - .github/workflows/hole-strict-temporal-holdout.yml
   workflow_dispatch:
 jobs:
@@ -17,6 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest -v test_hole_strict_temporal_holdout.py
+      - run: python -m unittest -v test_hole_result_blind_chronology.py
       - run: python hole_strict_temporal_holdout.py > hole_strict_temporal_holdout.json
       - name: Check audit flags and output
         run: |
