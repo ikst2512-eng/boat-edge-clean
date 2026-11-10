@@ -67,7 +67,7 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium webkit
-      - name: Exercise five race tabs and isolated forecast data on mobile
+      - name: Exercise four race tabs and racecard-only stats on mobile
         run: |
           node - <<'JS'
           const {chromium,webkit}=require('playwright');
@@ -86,20 +86,24 @@ jobs:
               if(await page.locator('#venues button').count()!==24)throw Error('24 venues missing');
               if(await page.locator('#races button').count()!==12)throw Error('12 races missing');
               const tabs=page.locator('.race-detail-shortcuts button');
-              if(await tabs.count()!==5)throw Error('Five race shortcuts missing');
+              if(await tabs.count()!==4)throw Error('Four race shortcuts missing');
               await page.locator('#venues button').first().click();
               for(const view of ['forecast','card','exhibit','result']){
                 await page.locator('.race-detail-shortcuts button[data-race-view="'+view+'"]').click();
                 if(await page.evaluate(()=>activeView)!==view)throw Error('Shortcut failed: '+view);
                 if(await page.locator('[data-home-only]:visible').count())throw Error('Home controls leak into '+view);
               }
-              await page.locator('.race-detail-shortcuts button[data-race-view="stats"]').click();
-              if(await page.evaluate(()=>activeView)!=='forecast')throw Error('Rates must use read-only forecast context');
-              if(await page.locator('#forecast>.forecast-stats-pane:visible').count()!==1)throw Error('Rates tab not visible');
-              if(await page.locator('#forecast>.forecast-combined-race:visible').count())throw Error('Prediction tickets visible inside rates');
-              if(await page.locator('#forecast .forecast-statistics:visible').count()!==1)throw Error('Course and rates data missing');
+              await page.locator('.race-detail-shortcuts button[data-race-view="card"]').click();
+              if(await page.locator('#raceCardSubtabs:visible').count()!==1)throw Error('Racecard subtabs missing');
+              await page.locator('[data-race-card-pane="rates"]').click();
+              if(await page.evaluate(()=>activeView)!=='card')throw Error('Rates must live under racecard');
+              if(await page.locator('#raceCardStatistics:visible').count()!==1)throw Error('Card rates pane not visible');
+              if(await page.locator('#raceCardCore:visible').count())throw Error('Base racecard leaks into rates');
+              if(await page.locator('#forecast>.forecast-combined-race:visible').count())throw Error('Prediction visible on racecard');
+              await page.locator('[data-race-card-pane="card"]').click();
+              if(await page.locator('#raceCardCore:visible').count()!==1)throw Error('Base racecard did not return');
+              if(await page.locator('#raceCardStatistics:visible').count())throw Error('Rates leaked into base racecard');
               await page.locator('.race-detail-shortcuts button[data-race-view="forecast"]').click();
-              if(await page.locator('#forecast>.forecast-stats-pane:visible').count())throw Error('Rates leaked into prediction');
               if(await page.locator('#forecast>.forecast-combined-race:visible').count()!==1)throw Error('Prediction tickets not visible');
               if(await page.locator('#forecast .forecast-statistics:visible').count())throw Error('Statistics visible in prediction');
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count())throw Error('Duplicate forecast tabs');
