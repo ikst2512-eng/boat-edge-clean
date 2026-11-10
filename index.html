@@ -633,15 +633,39 @@ document.getElementById('retryPrediction').addEventListener('click',()=>{loadHel
 const routes={'/forecast':'forecast','/exhibition':'exhibit','/card':'card','/results':'result','/review':'review'};let activeView=routes[location.pathname]||'home';
 
 let topnResearchRequest=0;
+let holdoutResearchRequest=0;
 async function loadHoldoutResearch(){
+ const seq=++holdoutResearchRequest;
  const status=document.getElementById('holdoutResearchStatus');
- try{
-  const response=await fetchTimed('/api/signal70-holdout-status',{cache:'no-store'});
-  if(!response.ok)throw Error('holdout unavailable');
-  const data=await response.json();
-  if(data.schema!=='CLEAN_SIGNAL70_HOLDOUT_STATUS_V1'||!Number.isInteger(data.later_holdout_days)||!Number.isInteger(data.evaluated_holdout_races))throw Error('invalid holdout');
-  status.textContent='10/29の探索結果とは別に検証：将来 '+data.later_holdout_days+'日分／確定結果 '+data.evaluated_holdout_races+'レース｜70%指標の再現性は未確定';
- }catch(_){status.textContent='将来の独立検証状況を取得できません。実証済みとは扱いません。';}
+ const current=()=>seq===holdoutResearchRequest&&activeView==='review';
+ status.textContent='将来の研究候補を監査中…｜結果が揃うまで的中率は認定しません。';
+ const url='https://boat-edge-clean.onrender.com/api/signal70-holdout-status';
+ const delays=[5000,8000,12000,16000,20000,25000,30000];
+ for(let attempt=0;attempt<=delays.length;attempt++){
+  if(!current())return;
+  try{
+   const response=await fetchTimed(url,{cache:'no-store'});
+   if(!current())return;
+   const data=await response.json();
+   if(response.status===503&&data?.error==='HOLDOUT_PENDING'&&data?.running===true){
+    status.textContent='独立監査の集計処理中（Render起動後の確認待ち）｜未取得を的中扱いしません。';
+   }else{
+    if(!response.ok||data.schema!=='CLEAN_SIGNAL70_HOLDOUT_STATUS_V1'||
+       data.independently_validated!==false||
+       !['later_holdout_days','evaluated_holdout_races','archived_candidates','audit_rejected_races','awaiting_result_races'].every(k=>Number.isInteger(data[k])&&data[k]>=0)||
+       data.archived_candidates!==data.evaluated_holdout_races+data.audit_rejected_races+data.awaiting_result_races)throw Error('invalid holdout');
+    status.textContent='参考研究：保存 '+data.archived_candidates+'件／参考評価 '+data.evaluated_holdout_races+'件／結果待ち '+data.awaiting_result_races+'件／監査不合格 '+data.audit_rejected_races+'件（10/29探索後 '+data.later_holdout_days+'日）｜70%指標の将来実測精度は未立証';
+    return;
+   }
+  }catch(_){
+   if(current())status.textContent='独立監査の結果を取得・検証できません。実証済みとは扱いません。';
+   return;
+  }
+  if(attempt<delays.length){
+   await new Promise(resolve=>setTimeout(resolve,delays[attempt]));
+  }
+ }
+ if(current())status.textContent='独立監査は処理待ちです。後ほど検証画面を再表示してください（的中率は未認定）。';
 }
 async function loadTopNResearch(){
  const seq=++topnResearchRequest;
