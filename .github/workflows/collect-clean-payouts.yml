@@ -74,6 +74,17 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'data: archive result-matched payout evidence'
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+          # The result collector and site publisher also advance main.
+          # Retry a non-fast-forward race without modifying an existing payout.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "main advanced concurrently; payout append retries exhausted" >&2
+              exit 1
+            fi
+            sleep "$attempt"
+          done
