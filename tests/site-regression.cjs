@@ -130,6 +130,24 @@ assert.match(explainGap({official_fallback:{reason:'incomplete_official_exhibiti
  missing_official_fields:['exhibition_time']}}),/未取得／公開待ち／取得記録の検証待ち/);
 assert.match(explainGap({status:'not_verified_historical'}),/未取得／公開待ち／取得記録の検証待ち/);
 assert.ok(script.includes('explainOfficialPreviewGap(raw.source_audit?.beforeinfo)'),'exhibition tab must use audited missing-data diagnosis');
+// Real published racecard failure states must not conflate a transient Render
+// failure with a missing race or source-validation mismatch.
+const errorStart=script.indexOf('function racecardFailureMessage(');
+const errorEnd=script.indexOf('async function loadRaceData(',errorStart);
+assert.ok(errorStart>=0&&errorEnd>errorStart,'published racecard failure formatter missing');
+const failureText=vm.runInNewContext(script.slice(errorStart,errorEnd)+';racecardFailureMessage');
+for(const code of ['HTTP_429','HTTP_500','HTTP_502','HTTP_503','HTTP_504','TimeoutError','RACECARD_TRANSPORT_UNAVAILABLE']){
+ assert.match(failureText(code),/公開APIに一時的に接続できません/,code);
+ assert.match(failureText(code),/未取得の6艇情報は表示しません/,code);
+}
+assert.match(failureText('HTTP_404'),/未配信/);
+assert.doesNotMatch(failureText('HTTP_404'),/一時的に接続できません/);
+assert.match(failureText('HTTP_422'),/締切済み/);
+for(const reason of ['PRE_RACE_SOURCE_NOT_VERIFIED','INCOMPLETE_OR_DUPLICATE_RACE_CARD','INCOMPLETE_RACE_CARD'])
+ assert.match(failureText(reason),/検証に失敗/,reason);
+assert.match(failureText('CARD_EVIDENCE_INVALID'),/取得時刻や締切情報/);
+assert.match(failureText('something unexpected'),/内容または通信を検証できません/);
+assert.ok(script.includes('status.textContent=racecardFailureMessage('),'display must use tested failure mapping');
 assert.ok(script.includes('cardAt>Date.now()+300000'),'race-card timestamp in the future must be rejected');
 assert.ok(script.includes('previewAt<=Date.now()+300000'),'future exhibition data must not be treated as verified');
 assert.ok(html.includes('id="mobileRaceCards"'),'mobile six-lane comparison exists');
