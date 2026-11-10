@@ -258,6 +258,19 @@ def run_ablation(nov9_zip, nov10_zip, originals_dir, conditional_callback):
             "mode_input_ablation": per_mode,
             "mode_uncalibrated_head_shift_ablation": head_effect,
             "archived_V2_vs_research_topn_exposure_result_blind": archived_vs_scenario,
+            # Full ranked lists are only exported as an OUTCOME-FREE bridge.
+            # The historical confirmed result is NEVER loaded by this model
+            # computation. A separate final CI step may read results AFTER
+            # these candidate lists and digests are already written.
+            "unregistered_retrospective_ranked_lists_before_result_read": {
+                mode: {
+                    "archived_V2": original_tickets[mode],
+                    "scenario_head35": [
+                        x["combo"] for x in archived["four_mode_research_tickets"][mode]["tickets"]],
+                    "scenario_head0_control": [
+                        x["combo"] for x in without_head["four_mode_research_tickets"][mode]["tickets"]],
+                } for mode in MODES
+            },
             "future_candidate_first_remote_receipt_verified": False,
             "admitted_to_1693_registered_cohort": False,
             "head_shift_ablation_kept_real_rates_exhibition_and_position_features": True,
