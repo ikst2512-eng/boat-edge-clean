@@ -623,3 +623,24 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - [CI #42824726703](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824726703) で独立first-add関数のモックGitHub REST 6 GET・前締切観測・parent404・直系compare・書き換え/時間切れ/キャッシュの拒否をPASS。
 - CLI`--observe-first-add`の専用新テストでは [CI #42824989439](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824989439) が**test fixture末尾の`\\n`二重エスケープ**でfailure。原因はテストJSON不正であり、研究係数/保存原本の変更なし。test fixture 2箇所を修正し、[CI #42825163072](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42825163072) は**completed/success**：単体**102本（1skip）**＋固定#1698条件付き演算**34本PASS**。モックの候補存在とCLI排他動作を確認し、失敗runも監査履歴に保持。
 - この監査は**GitHubの実候補をまだ1件も観測していない**。研究専用Ledgerの`scenario_four_mode_research/` は前回HTTP404、今回のCIは全件人工原本/模擬HTTP。現在候補初回remote保存0、正式600中0、#1710はDraft/未統合。11月11日以降に③の公式3原本/ST6艇/T−12前候補本当に成立した場合に限り、この監査を用いて結果LASTの別研究へ接続。既存#1693/#1698、Pages/Render/main/Cron/保存済み予想と結果は変更しない。
+
+
+## 2026-11-10 ②担当：実原本ディレクトリ→固定4モード候補→研究Git create-onlyの単発接続
+
+**今回追加した実務上の欠落経路**：従来③の`scripts.capture_joint_preview_batch`による公式3原本保存と、②の`scenario_future_github_research_adapter.py`が要求する`gateway.json`には、実ファイルを候補に組み立てる接続がなかった。今回既存 **Draft PR #1710 のみ**に`scenario_future_archived_receipts_to_candidate.py`を追加して、研究用の**手動一回だけ**の3原本→4モード計算→ローカル固定候補→任意`--publish` Git Contents create-only処理を接続。新Cron・collector・PRは作成していない。本番main/Pages/Render/登録済み#1693旧600/既存予想原本・着順不変更。
+
+1. ③の**既存の実保存形式**を使用する。出走表ディレクトリに`racelist.html`+manifest、直前に`beforeinfo.json`+manifest、3連単に`original.html`+manifest。まず既存`scripts.audit_three_official_t12_originals.audit_three_originals`で同一レース/登録番号6艇/公式締切/T−12受領/展示ST6艇/タイム6艇/オッズ120/各原文SHAを**全件**確認する。1項目でも欠けたら以後のモデル呼出しもGit保存も拒否。
+2. 監査を通過した場合だけ、凍結済み#1693のraw semantic parser `four_mode_official_raw_semantic_replay.py`と`four_mode_official_future_lineage_preflight.py`、#1698の`position_sensitive_conditioned_lab.py`を利用する。Git blob SHAをimport前に固定値で確認：#1693 parser `2f5af32201e3060c57b5a999f0389ce67c3046cb`、preflight `88caa6ee3b324df58e60397d74055a075a8de6a9`、#1698 conditional `0019978a4e27a1235d0b466c11f514bd7105f261`。事前登録manifest`bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7`と研究モデル10ファイルblob検査は既存と同じ。**簡易parser・古いV2全国勝率・欠測ST補間は禁止**。
+3. 各原文から6艇公式登録番号・展示タイム/ST/チルト・コース・120 oddsを元parserで再組立てし、原文SHAと受信JST/生成時刻を持つ`source_bundle`を作る。公式racecardから6艇の全国勝率を別途再パースし、`run_future_triple_experiment`で凍結した4世界の係数と#1698の条件付き数理を計算。生成直後、同一プロトコルの`prepare_local_candidate`で順位・点数・原文ハッシュ・Git blob SHAを完全固定する。
+4. **デフォルトは必ずローカル研究結果のみ**。`--publish`を明示し`GH_TOKEN`/書込権限がある場合に限り、研究branch`scenario-four-mode-triple-source-evidence-ledger`へ新規作成+readbackする。候補の初回Git受領時計・原本HTTP真正性・全Actions起動監査はこの処理では独立に証明しないので、どんな結果でも`formal=false, eligible_for_300_plus_300=false`。結果・払戻は読まない。
+5. CLI一回実行例（事前に固定Git commitから3つの外部.pyを**Git blob確認付き**でそれぞれ`$PIN1693`/`$PIN1698`ディレクトリへ配置する）：
+   `python scenario_future_archived_receipts_to_candidate.py --card-dir "$CARD" --before-dir "$BEFORE" --odds-dir "$ODDS" --pinned-1693-dir "$PIN1693" --pinned-1698-dir "$PIN1698" --report "$NEW_REPORT.json"`
+   **観測専用ではなく、候補保存を実行する時だけ**明示`--publish`を追加。実行は公式3原本が揃った将来レース・T−12がまだ開いている場合のみ。実保存前のレースでは通常運用として呼ばない。GitHub Actionsへのdispatch /Cron /ブランチ書込権限の追加は**していない**。既存③収集jobがこのCLIを**自動で呼び出すものではない**点に注意。
+
+### 実行済みの検証
+- [PR CI #42827952404](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42827952404) SUCCESS：**合成**3原本→型/受領/完全6艇→全4mode候補のhashの橋渡しをテスト。通常110テスト（3skip）＋#1698 pinned math・#1693 pinned parser追加を含む統合42テスト成功。未公開のコードも既存仕様からの差分確認済み。
+- [PR CI #42828415833](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42828415833) SUCCESS：**実際の**公式3原本ZIP artifact `13749433042` を固定SHA256 `7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354`で再取得し、`202611101207`と`202611100708`を新`build_archive_bundle`で入力。**ST6艇欠落のため2/2を候補生成前に拒否**し、後段parserへの呼出0、生成0、remote保存0をCI実ログで確認。合成成功を実race成功に見せかけない。
+- ここまでの検証は「完全な将来3原本が来れば既存モデルへ機械的に渡せる構造」「欠測実原本では保存を止める構造」。**実レースの完全入力からの候補発行や初回遠隔受領は0件**。GitHub Ledgerには運用規約1ファイルのみ、現時点formal pilot0/300+confirmation0/300。歴史的3Rの本命Top10旧V2 2/3→研究head3.5 0/3の悪化実測はそのまま記録、係数の後付け調整なし。
+
+### ③への具体的依存
+③の既存Cron/collectorが翌11/11以降の**同一レースT−12前・真正な公式3原本+ST6艇**を全て保存し、原本・run ID・Git初回遠隔受領時計を保護することが先。STが未公開/欠損なら遅い情報をT−12に補填せず、`MISSING_ST6`として全attempt台帳に残す。②の単発CLIは**自動起動を設定していない**ため、将来研究候補の自動収集を保証せず、まず1件の完全source実測と非本番publishの明示運用を検討する。
