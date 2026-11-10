@@ -170,7 +170,7 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
         if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
             self.skipTest("needs pinned #1698 conditional code in CI")
         import position_sensitive_conditioned_lab
-        from test_scenario_official_exhibition_projection import replay_stub
+        import four_mode_official_raw_semantic_replay as semantics
         from scenario_future_github_research_adapter import GitHubOnlyCreateWire
         from test_scenario_future_github_research_adapter import GitHubMockAPI
         remote=GitHubMockAPI()
@@ -183,13 +183,13 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
         ))
         def clock():
             return datetime.fromisoformat(next(stamps))
+        self._write_official_shaped_synthetic_raw_and_manifests()
+        dirs=tuple(self.dirs[k] for k in ("racelist","beforeinfo","odds120"))
         result=run_observed_archives(
-            *self.dirs.values(),clock,
-            replay_stub,self.parse_before_fake,
+            *dirs,clock,
+            semantics.replay,semantics._beforeinfo_features,
             position_sensitive_conditioned_lab.experimental_conditional_board,
-            publish=True,wire=writer,
-            auditor=self.audit_fake,card_parser=self.parse_card_fake,
-            odds_parser=self.parse_odds_fake)
+            publish=True,wire=writer)
         self.assertEqual(result["race_code"],"202611111710")
         self.assertEqual(result["status"],"create_only_storage_call_returned_unattested")
         self.assertTrue(result["github_create_attempted"])
@@ -212,6 +212,27 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
                     "unique_first_add_git_history_verified",
                     "eligible_for_300_plus_300","formal","promotion_allowed"):
             self.assertFalse(obs[key])
+
+    def test_no_unsafe_stub_callback_can_publish_synthetic_claims(self):
+        if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
+            self.skipTest("requires pinned #1698 external module in CI")
+        import position_sensitive_conditioned_lab as conditional
+        from test_scenario_official_exhibition_projection import replay_stub
+        from scenario_future_github_research_adapter import GitHubOnlyCreateWire
+        from test_scenario_future_github_research_adapter import GitHubMockAPI
+        wire_http=GitHubMockAPI()
+        wire=GitHubOnlyCreateWire("fake-unit-token",send=wire_http)
+        with self.assertRaisesRegex(
+                ValueError,"publish_requires_real_official_auditor_and_parsers"):
+            run_observed_archives(
+                *self.dirs.values(),lambda:self.clock_times[0],
+                replay_stub,self.parse_before_fake,
+                conditional.experimental_conditional_board,
+                publish=True,wire=wire,
+                auditor=self.audit_fake,card_parser=self.parse_card_fake,
+                odds_parser=self.parse_odds_fake)
+        self.assertEqual(wire_http.puts,0)
+        self.assertEqual(wire_http.reads,0)
 
     def _write_official_shaped_synthetic_raw_and_manifests(self):
         """Materialize synthetic official-shaped originals, never a live race.
