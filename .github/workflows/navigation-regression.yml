@@ -126,6 +126,64 @@ jobs:
               });
               if(!(fourModeLayout.combo>fourModeLayout.prob&&fourModeLayout.prob>fourModeLayout.odds&&fourModeLayout.wrap&&!fourModeLayout.clipped))
                 throw Error('Four-mode mobile layout broken '+JSON.stringify(fourModeLayout));
+              // Render the actual production exhibition builder with source-shaped
+              // six-boat fixtures; this is UI-only and never a published result.
+              await page.evaluate(async()=>{
+                const key=sameRaceKey(),raceDate=s.date;
+                const racers=Array.from({length:6},(_,i)=>({
+                  lane:i+1,name:'比較選手'+(i+1),class:'A1',registration_no:String(4001+i),
+                  avg_st:0.12+i/100, F:0,L:0,
+                  national:{win_rate:5.2,quinella_rate:40,trio_rate:60},
+                  local:{win_rate:5.4,quinella_rate:42,trio_rate:62},
+                  motor:{no:i+1,quinella_rate:31,trio_rate:48},
+                  boat:{no:i+1,quinella_rate:33,trio_rate:50}
+                }));
+                const preview=racers.map(r=>({lane:r.lane,exhibition_time:6.50+r.lane/100,tilt:-0.5}));
+                const starts=racers.map(r=>({lane:r.lane,st:'.0'+r.lane,course:r.lane}));
+                const auditTime=raceDate+'T10:00:00+09:00';
+                verifiedRaceCache.set(key,{
+                  race_key:key,meta:{date:raceDate,deadline:'23:59',phase:'PRE_RESULT'},
+                  racers,beforeinfo:{racers:preview,start_exhibition:starts},
+                  source_audit:{race_card:{status:'ok',fetched_at:auditTime},beforeinfo:{status:'ok',fetched_at:auditTime}},
+                  verifiedPreview:true,actual_entry:[]
+                });
+                const headers=['レースコード','計測数','計測項目1','計測項目2','計測項目3'];
+                const values=[key.replaceAll('-',''),'3','1周','まわり足','直線'];
+                for(let lane=1;lane<=6;lane++)for(let k=1;k<=3;k++){
+                  headers.push('艇'+lane+'_値'+k);
+                  values.push(String(lane*10+k));
+                }
+                const csv=headers.join(',')+'\\n'+values.join(',')+'\\n';
+                const previousFetch=fetchTimed;
+                fetchTimed=async (url,...args)=>String(url).includes('/original_exhibition/')
+                  ?new Response(csv,{status:200,headers:{'access-control-allow-origin':'*'}})
+                  :previousFetch(url,...args);
+                setView('exhibit');
+                await loadRaceData();
+              });
+              await page.waitForFunction(()=>document.getElementById('originalExhibitionStatus')?.textContent.includes('6艇分'),{timeout:5000});
+              const exhibitionLayout=await page.evaluate(()=>{
+                const cards=[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')];
+                return {
+                  boats:cards.length,
+                  official:cards.map(c=>c.querySelectorAll('.exhibition-metric').length),
+                  original:cards.map(c=>c.querySelectorAll('.exhibition-original-metric').length),
+                  firstValues:[...cards[0]?.querySelectorAll('.exhibition-original-metric strong')||[]].map(x=>x.textContent),
+                  lastValues:[...cards[5]?.querySelectorAll('.exhibition-original-metric strong')||[]].map(x=>x.textContent),
+                  courses:cards.map(c=>[...c.querySelectorAll('.exhibition-metric')]
+                    .find(x=>x.querySelector('span')?.textContent==='展示進入')?.querySelector('strong')?.textContent),
+                  overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth
+                };
+              });
+              if(exhibitionLayout.boats!==6
+                ||exhibitionLayout.official.some(x=>x!==5)
+                ||exhibitionLayout.original.some(x=>x!==3)
+                ||exhibitionLayout.firstValues.join(',')!=='11,12,13'
+                ||exhibitionLayout.lastValues.join(',')!=='61,62,63'
+                ||exhibitionLayout.courses.join(',')!=='1C,2C,3C,4C,5C,6C'
+                ||exhibitionLayout.overflow>1)
+                throw Error('Unified six-boat exhibition UI broken '+JSON.stringify(exhibitionLayout));
+              console.log('CLEAN_SIX_BOAT_COMPACT_EXHIBITION_PASS',engine,JSON.stringify(exhibitionLayout));
               const cutoffLabel=await page.evaluate(()=>{
                 const original=todayVenueRaces;
                 try{
