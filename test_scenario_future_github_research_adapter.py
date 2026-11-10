@@ -292,6 +292,30 @@ class FrozenFutureWitnessOnlySyntheticTests(unittest.TestCase):
             with self.subTest(failure=failure),self.assertRaises(ValueError):
                 self.witness()
 
+    def test_cli_readonly_witness_mode_uses_only_six_github_gets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/"synthetic-gateway.json"
+            path.write_text(json.dumps(self.g)+"\\n",encoding="utf-8")
+            report=run_from_gateway_file(
+                path,GENERATED,FROZEN,
+                observe_first_add=True,send=self.fake)
+            self.assertEqual(report["status"],
+                             "pinned_branch_unique_add_and_existence_preT12_unattested_first_receipt")
+            self.assertEqual(len(self.fake.requests),6)
+            self.assertIs(report["first_remote_candidate_receipt_verified"],False)
+            self.assertIs(report["formal"],False)
+
+    def test_cli_mutual_exclusion_cannot_accidentally_write_during_readonly_audit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/"synthetic-gateway.json"
+            path.write_text(json.dumps(self.g)+"\\n",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"cannot_publish_and_observe"):
+                run_from_gateway_file(
+                    path,GENERATED,FROZEN,
+                    publish=True,observe_first_add=True,
+                    token="fake-unit-token",send=self.fake)
+            self.assertEqual(self.fake.requests,[])
+
     def test_unregistered_prepared_candidate_rejected_before_remote_request(self):
         changed=dict(self.prepared)
         changed["sha256"]="0"*64
