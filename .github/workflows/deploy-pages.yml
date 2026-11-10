@@ -691,6 +691,59 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error('PUBLISHED_OFFICIAL_REPLAY_UNVERIFIED',String(e));process.exit(1)});
           JS
+      - name: Check published exhibition missing-data states in browser (diagnostic)
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node - <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const cases=[
+              {name:'date_not_published',status:404,body:'',label:'オリ展：未公開'},
+              {name:'transport_failed',status:503,body:'',label:'オリ展：取得失敗'},
+              {name:'race_unlisted',status:200,body:'レースコード,計測数\n202610280102,3\n',label:'オリ展：未収録'},
+              {name:'invalid_source',status:200,body:'not,a,valid,original,source\n',label:'オリ展：検証不可'}
+            ];
+            try{
+              for(const sample of cases){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  let intercepted=0;
+                  await page.route('https://boatracecsv.github.io/data/previews/original_exhibition/**',route=>{
+                    intercepted++;
+                    return route.fulfill({status:sample.status,contentType:'text/csv',body:sample.body});
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-10-28'],['venue','01'],['race','1'],['view','exhibit']])url.searchParams.set(k,v);
+                  const res=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(res.status(),200);
+                  await page.evaluate(()=>setView('exhibit'));
+                  try{await page.waitForFunction(state=>document.querySelector('#originalExhibitionStatus')?.dataset.originalState===state,sample.name,{timeout:17000});}
+                  catch(e){
+                    const state=await page.evaluate(()=>({key:sameRaceKey(),status:document.querySelector('#originalExhibitionStatus')?.textContent,kind:document.querySelector('#originalExhibitionStatus')?.dataset.originalState,boatCount:document.querySelectorAll('#exhibitionGrid .exhibition-boat').length}));
+                    throw Error('PUBLIC_EXHIBITION_MISSING_STATE_'+sample.name+' '+JSON.stringify(state));
+                  }
+                  const got=await page.evaluate(()=>({
+                    labels:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat [data-original-exhibition-lane]')].map(el=>el.querySelector('.exhibition-original-pending')?.textContent||''),
+                    officialCount:document.querySelectorAll('#exhibitionGrid .exhibition-boat .exhibition-metric').length,
+                    measurements:document.querySelectorAll('#exhibitionGrid .exhibition-original-metric').length
+                  }));
+                  assert.ok(intercepted>=1,'mocked upstream was not requested');
+                  assert.equal(got.labels.length,6);
+                  assert.ok(got.labels.every(x=>x===sample.label),sample.name+' wrong six-lane missing labels');
+                  assert.equal(got.measurements,0,'must not invent missing original values');
+                  assert.equal(got.officialCount,30,'independent official measurement columns must remain');
+                  console.log('PUBLIC_EXHIBITION_EMPTY_STATE_MATCH',JSON.stringify({state:sample.name,boatCount:6,intercepted}));
+                }finally{await page.close()}
+              }
+              console.log('PUBLIC_EXHIBITION_EMPTY_STATES_PASS',cases.length);
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
       - name: Browser-check deployed page
         timeout-minutes: 2
         env:
