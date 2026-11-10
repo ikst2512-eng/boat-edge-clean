@@ -5,11 +5,38 @@ Only whitelisted candidate JSON paths are extracted. Never manufacture predictio
 import io, json, os, re, sys, zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from research_model import JST
 
 CODE=re.compile(r"^[0-9]{12}\.json$")
+
+class _DiscardCrossHostAuth(HTTPRedirectHandler):
+    """GitHub's artifact ZIP redirects to an HTTPS blob host with its own signed URL."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected=super().redirect_request(req,fp,code,msg,headers,newurl)
+        if redirected is not None:
+            origin=urlsplit(req.full_url)
+            destination=urlsplit(redirected.full_url)
+            if destination.scheme!="https":
+                raise ValueError("insecure_github_artifact_redirect")
+            if (origin.scheme,origin.netloc)!=(destination.scheme,destination.netloc):
+                # Do not leak GitHub's bearer token to the signed blob URL.
+                redirected.remove_header("Authorization")
+                redirected.remove_header("X-GitHub-Api-Version")
+        return redirected
+
+
+def _github_fetch(url,token):
+    parsed=urlsplit(url)
+    if parsed.scheme!="https" or parsed.hostname!="api.github.com" or parsed.port is not None:
+        raise ValueError("untrusted_github_api_url")
+    request=Request(url,headers={
+        "Authorization":"Bearer "+token,"Accept":"application/vnd.github+json",
+        "X-GitHub-Api-Version":"2022-11-28","User-Agent":"BOAT-EDGE-CLEAN-research"})
+    with build_opener(_DiscardCrossHostAuth()).open(request,timeout=20) as response:
+        return response.read()
 
 def extract_candidates(blob, day, destination, present=None):
     count=0
@@ -44,9 +71,7 @@ def extract_candidates(blob, day, destination, present=None):
 def retrieve(day, root, repository, token, fetch=None):
     if not re.fullmatch(r"[0-9]{8}",day) or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",repository):
         raise ValueError("invalid date or repository")
-    fetch=fetch or (lambda url: urlopen(Request(url,headers={
-        "Authorization":"Bearer "+token,"Accept":"application/vnd.github+json",
-        "X-GitHub-Api-Version":"2022-11-28","User-Agent":"BOAT-EDGE-CLEAN-research"}),timeout=20).read())
+    fetch=fetch or (lambda url:_github_fetch(url,token))
     scanned=0
     recovered=0
     dated_archives=0
@@ -58,9 +83,15 @@ def retrieve(day, root, repository, token, fetch=None):
         for item in artifacts:
             if (not item.get("expired") and item.get("name","").startswith("independent-late-preview-")
                     and item.get("archive_download_url")):
+                # Metadata is not a URL authority: only fetch this repository's
+                # canonical GitHub artifact-download endpoint with the API token.
+                artifact_url=item["archive_download_url"]
+                expected=r"https://api\.github\.com/repos/"+re.escape(repository)+r"/actions/artifacts/[0-9]+/zip"
+                if not re.fullmatch(expected,artifact_url):
+                    raise ValueError("untrusted_artifact_archive_url")
                 scanned+=1
                 contained=set()
-                recovered+=extract_candidates(fetch(item["archive_download_url"]),day,root,contained)
+                recovered+=extract_candidates(fetch(artifact_url),day,root,contained)
                 dated_archives+=int(bool(contained))
         if len(artifacts)<100:
             break

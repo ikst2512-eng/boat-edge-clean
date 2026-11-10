@@ -1,6 +1,7 @@
 import io, json, tempfile, unittest, zipfile, subprocess, sys
+from urllib.request import Request
 from pathlib import Path
-from scripts.evaluate_previous_day_late_artifacts import extract_candidates, retrieve
+from scripts.evaluate_previous_day_late_artifacts import extract_candidates, retrieve, _DiscardCrossHostAuth
 
 
 def archive(entries):
@@ -39,6 +40,33 @@ class PriorArtifactTest(unittest.TestCase):
                 extract_candidates(altered,day,root)
             self.assertEqual(json.loads(path.read_text())["predictions"],["1-2-3"])
 
+    def test_cross_host_artifact_redirect_drops_bearer_credentials(self):
+        handler=_DiscardCrossHostAuth()
+        request=Request("https://api.github.com/repos/example/repo/actions/artifacts/3/zip",
+                        headers={"Authorization":"Bearer SECRET","X-GitHub-Api-Version":"2022-11-28"})
+        redirected=handler.redirect_request(request,None,302,"Found",{},
+                "https://objects.githubusercontent.com/artifact/archive.zip?sig=opaque")
+        self.assertIsNone(redirected.get_header("Authorization"))
+        self.assertIsNone(redirected.get_header("X-GitHub-Api-Version"))
+        self.assertEqual(redirected.full_url.split("?")[0],
+                "https://objects.githubusercontent.com/artifact/archive.zip")
+        same_origin=handler.redirect_request(request,None,302,"Found",{},
+                "https://api.github.com/repos/example/repo/actions/artifacts/3/zip?redirect=1")
+        self.assertEqual(same_origin.get_header("Authorization"),"Bearer SECRET")
+        with self.assertRaisesRegex(ValueError,"insecure_github_artifact_redirect"):
+            handler.redirect_request(request,None,302,"Found",{},
+                    "http://objects.githubusercontent.com/artifact/archive.zip")
+
+    def test_untrusted_artifact_metadata_cannot_receive_github_token(self):
+        def fetch(url):
+            if "page=1" in url:
+                return json.dumps({"artifacts":[{"name":"independent-late-preview-1",
+                     "expired":False,"archive_download_url":"https://other.invalid/leak"}]}).encode()
+            self.fail("Untrusted artifact URL was fetched")
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError,"untrusted_artifact_archive_url"):
+                retrieve("20261031",tmp,"example/repo","mock-token",fetch)
+
     def test_scan_continues_past_five_pages(self):
         day="20261031"
         calls=[]
@@ -62,8 +90,8 @@ class PriorArtifactTest(unittest.TestCase):
         def fetch(url):
             if "page=1" in url:
                 return json.dumps({"artifacts":[
-                    {"name":"independent-late-preview-1","expired":False,"archive_download_url":"https://example.test/a"},
-                    {"name":"independent-late-preview-2","expired":False,"archive_download_url":"https://example.test/b"}]}).encode()
+                    {"name":"independent-late-preview-1","expired":False,"archive_download_url":"https://api.github.com/repos/example/repo/actions/artifacts/1/zip"},
+                    {"name":"independent-late-preview-2","expired":False,"archive_download_url":"https://api.github.com/repos/example/repo/actions/artifacts/2/zip"}]}).encode()
             return blob
         with tempfile.TemporaryDirectory() as tmp:
             result=retrieve(day,tmp,"example/repo","mock",fetch)
@@ -78,7 +106,7 @@ class PriorArtifactTest(unittest.TestCase):
         def fetch(url):
             if "page=1" in url:
                 return json.dumps({"artifacts":[{"name":"independent-late-preview-123",
-                     "expired":False,"archive_download_url":"https://example.test/artifact"}]}).encode()
+                     "expired":False,"archive_download_url":"https://api.github.com/repos/example/repo/actions/artifacts/3/zip"}]}).encode()
             return blob
         with tempfile.TemporaryDirectory() as tmp:
             result=retrieve(day,tmp,"example/repo","mock",fetch)
