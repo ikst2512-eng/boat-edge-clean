@@ -466,6 +466,12 @@ const historyPage=fs.readFileSync('selection.html','utf8');
 assert.ok(historyPage.includes('id="savedPredictionHistory"')&&historyPage.includes('four_mode_forecasts/'),'saved pre-race tickets must remain inspectable after results');
 assert.ok(historyPage.includes('history-10000.json')&&historyPage.includes('id="savedHistoryDate"'),'history should allow date selection and immutable result reconciliation');
 assert.ok(historyPage.includes('3連単の的中率70%ではありません'),'70% winner-head research score must not be called a trifecta hit rate');
+const historyScript=historyPage.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(historyScript,'saved history page must contain one inline script');
+new vm.Script(historyScript,{filename:'selection.html'});
+assert.ok(historyScript.includes('Date.parse(a.generated_at_jst)>=Date.parse(a.deadline_jst)'),'saved pre-race forecasts must predate cutoff');
+assert.ok(historyScript.includes('a.race_code!==r.race_code'),'result and forecast must be same race');
+
 console.log('PASS: four race tabs, card-level rates, and stored forecast/result history');
 
 assert.ok(script.includes("bar.setAttribute('aria-label',r.lane+'号艇の実コース別3連対率')"),'course three-place rate progress bar must be accessible');
