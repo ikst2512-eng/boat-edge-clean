@@ -163,6 +163,56 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
                     "model_improvement_proven","production_changed"):
             self.assertIs(summary[key],False)
 
+    def test_synthetic_full_path_to_mocked_github_201_with_no_formal_credit(self):
+        # End-to-end wiring of the EXACT archived-receipt interface through
+        # pinned #1698 math into the real GitHub API adapter HTTP contract,
+        # but with SYNTHETIC raw sources and NO actual network or race publish.
+        if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
+            self.skipTest("needs pinned #1698 conditional code in CI")
+        import position_sensitive_conditioned_lab
+        from test_scenario_official_exhibition_projection import replay_stub
+        from scenario_future_github_research_adapter import GitHubOnlyCreateWire
+        from test_scenario_future_github_research_adapter import GitHubMockAPI
+        remote=GitHubMockAPI()
+        writer=GitHubOnlyCreateWire("fake-unit-token",send=remote)
+        stamps=iter((
+            "2026-11-11T15:07:00+09:00",
+            "2026-11-11T15:08:00+09:00",
+            "2026-11-11T15:09:00+09:00",
+            "2026-11-11T15:09:05+09:00",
+        ))
+        def clock():
+            return datetime.fromisoformat(next(stamps))
+        result=run_observed_archives(
+            *self.dirs.values(),clock,
+            replay_stub,self.parse_before_fake,
+            position_sensitive_conditioned_lab.experimental_conditional_board,
+            publish=True,wire=writer,
+            auditor=self.audit_fake,card_parser=self.parse_card_fake,
+            odds_parser=self.parse_odds_fake)
+        self.assertEqual(result["race_code"],"202611111710")
+        self.assertEqual(result["status"],"create_only_storage_call_returned_unattested")
+        self.assertTrue(result["github_create_attempted"])
+        self.assertTrue(result["local_pre_T12_readback_observed"])
+        self.assertEqual(remote.puts,1)
+        self.assertEqual(remote.reads,2)
+        self.assertEqual(len(remote.files),1)
+        obs=result["github_create_response_observation_unattested"]
+        self.assertEqual(obs["candidate_sha256"],result["candidate_sha256"])
+        self.assertEqual(obs["candidate_git_blob_sha1"],result["candidate_git_blob_sha1"])
+        self.assertEqual(obs["create_response_commit_sha"],"1"*40)
+        self.assertEqual(obs["github_create_response_date_utc"],
+                         "2026-11-11T06:09:01+00:00")
+        for key in ("candidate_first_remote_receipt_verified",
+                    "official_source_first_remote_receipts_independently_verified",
+                    "formal","eligible_for_300_plus_300",
+                    "model_improvement_proven","promotion_allowed","production_changed"):
+            self.assertFalse(result[key])
+        for key in ("first_remote_candidate_receipt_verified",
+                    "unique_first_add_git_history_verified",
+                    "eligible_for_300_plus_300","formal","promotion_allowed"):
+            self.assertFalse(obs[key])
+
     def test_external_parser_import_requires_exact_source_blobs(self):
         if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
             self.skipTest("requires both pinned #1693 and #1698 fetched in CI")
