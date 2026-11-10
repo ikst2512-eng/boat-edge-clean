@@ -20,6 +20,8 @@
 詳細な受入要件・日別責任・削除基準は [AGENTS.md §6](./AGENTS.md#6-30日完成期限と公開工程ユーザー指定2026-11-10) を正本とする。
 
 ## 最新の引継ぎ：本番の実態／次にやること
+**2026-11-10 20:46 JST 自動起動の実測アップデート（以前の記録に追加）**：研究元 `research-live-preview-evidence.yml` は5分ごとのCron設定だが11/09 JSTのschedule実行は2回、11/10 JST 20:41まで1回。実行不足は事実だが、GitHub側の遅延/失効など単一原因は未断定。既存の`entry-course-activation-watchdog.yml`（10分fallback、push／既存workflow_run入力）へ**独立した研究用プレビュー収集の二次起動**を追加し、新しいCron/PRなしでmainへ反映（`e9684c3a1f9d70f56d6dccc5205db8ac817068eb`）。[監視 #42810131813](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810131813)は20テストPASS、研究用`workflow_dispatch`発行成功、[受信 #42810162379](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810162379)は実行SUCCESS。次の[監視 #42810195733](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810195733)は起動直後を検知して重複発行を抑制。研究用のCSV収集ワークフローに同一refの同時実行抑止を追加。11/10 20:46の救済runは新規候補**保存0**、独立T−12証拠0。11/10 15:37頃の既存schedule収集では研究候補**1件保存**（レースコード`202611100702`、[実行 #42769768447](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42769768447)）。成功したActionsを保存数や正式精度と混同しない。**11/11朝08 JSTの自動T−12初回保存は引き続き未検証。**
+
 
 **2026-11-10 夜の追加実測（以前のアーティファクト「20ページ打切り」記載より優先）**：11月9日の後追い研究候補検索を、[実行 #42807166116](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42807166116) で修正・検証。研究収集元ワークフローをJST対象日＋翌日まで走査し、**対象main実行4、保存アーティファクト4、11/09候補取り込み0、検索打切りなし**、9ユニット試験SUCCESS。これは「対象収集元の原本に該当候補が見つからない」という結論であり、研究用Cronの実行率が十分・的中率0%という意味ではない。4実行/48時間は5分設定に比べ著しく少なく、起動漏れ監査が残る。変更は研究用読み取りのみ（\`810208ea\`）、保存済み予想を作成・上書きしていない。
 

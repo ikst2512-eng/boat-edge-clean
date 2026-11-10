@@ -1,3 +1,10 @@
+## 2026-11-10 夜・研究直前データの実起動不足を補う既存watchdog改修
+- **現況**：GitHubの独立研究元`research-live-preview-evidence.yml`はCronが5分ごとでもJST11/09にschedule実行2件、11/10 20:41まで1件。起動が不足している事実と、GitHubスケジューラー内部原因の断定を区別。
+- **mainに修正済み**：`e9684c3a1f9d70f56d6dccc5205db8ac817068eb`で既存10分watchdogのT−12/T−2救済を維持しつつ、独立研究元も必要時にworkflow_dispatch。追加プレビュー側のAPI障害がT−12/T−2の先行救済を阻害しない。プレビュー側に同一refの同時ジョブ抑止を設定。既存Cronは増やしていない。
+- **実行証拠**：[watchdog #42810131813](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810131813) 20ユニットテストPASS/研究用dispatch発行、[研究元 #42810162379](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810162379) 実行SUCCESS、[次watchdog #42810195733](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810195733) は`research_run_recently_started`で重複発行を抑制。
+- **原本の実数**：新しい20:46救済実行は`upstream_candidate_count=0`/`saved_count=0`、T−12独立証拠0。11/10 15:37頃のschedule [#42769768447](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42769768447) は研究候補`202611100702`を1件保存、当該runの完全なT−12事前6艇ペアは0。ジョブSUCCESSは保存やT−12正式認定ではない。
+- **次の実測ゲート**：2026-11-11 08時台のT−12自動Cron/dispatcherの実行有無、対象レースの締切と受領時刻、Git初回保存を別々に確認。Cron未実行ならmissed、dispatchのみならfallback、原本のfirst-addとソースが欠ける場合は未認定とする。研究収集の丸一日実行数/保存数を日別に集計し、12月10日のV1公開を優先。
+
 ## 2026-11-10 20:48 JST サイト本番：13開催場156レースのオリ展原本監査・締切差異表示
 - [公開Pagesブラウザ Actions #42810195670](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810195670) は成功。既存公開ワークフロー内で、2026-11-10の保存日程 `schedule_snapshots/20261110.json` と独立BoatraceCSVの日付CSVを全件照合。予定13開催場・156レースとCSV156行がレースコード一致、欠落レース0。
 - これは157件以上の展示値の存在を意味しない。CSV測定対象2,736項目のうち2,638項目は非空欄、98項目は空欄、17レースに欠測。空欄は11場30項目／12場2項目／17場66項目。開催予定にない11場を「非提供」と判定しない。CSV内選手名・レースコード・場番号の一致と値の欠測は別。
