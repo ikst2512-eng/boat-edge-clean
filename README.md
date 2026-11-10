@@ -20,21 +20,22 @@
 詳細な受入要件・日別責任・削除基準は [AGENTS.md §6](./AGENTS.md#6-30日完成期限と公開工程ユーザー指定2026-11-10) を正本とする。
 
 ## 最新の引継ぎ：本番の実態／次にやること
-**現時点の証拠スナップショット：2026-11-10 18:33 JST。これは静的記録であり、着手前には必ず最新main／PR head／Actions／公開Pages・Renderを再取得すること。** 最新の理想設計・優先順位・不要機能整理ルールは [AGENTS.md](./AGENTS.md) を唯一の規範とする。
+**証拠スナップショット：2026-11-10 夜。ここにある記録は固定であり、作業開始時はmain/PR/Actions/Pages/Renderの最新版を必ず再取得する。** 理想UI・安全要件は [AGENTS.md](./AGENTS.md) が正本。
 
-| 作業 | 本番で使える状態 | 最新状態・再確認先 |
-|---|---|---|
-| CORS＋WebKit＋4モード履歴表示 | **公開ブラウザで限定範囲の実測PASS** | [統合 #1706](https://github.com/ikst2512-eng/boat-edge-clean/pull/1706)、[公開Chromium/WebKit・CORS試験 #42786138054](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786138054)。実機iPhone Safari/Render継続稼働は未証明 |
-| 予想を買い目中心、出走表内「連対率・展開」分離 | **未公開** | [Draft #1707](https://github.com/ikst2512-eng/boat-edge-clean/pull/1707)。2026-11-10 18:32時点のhead `bd0fa69b` でWebKit history CI失敗・一部CI進行中。head更新や全検証の再照合が必要 |
-| 締切後も候補・予想・確定結果を日付別に全件参照 | **未公開** | [Draft #1703](https://github.com/ikst2512-eng/boat-edge-clean/pull/1703)。過去原本はあるが旧画面は「締切前限定/最大6件」で隠す。#1707の簡易履歴と差分を整理し、履歴の独占機能のみ統合・公開する |
-| 公式展示＋スタート展示＋オリ展の同一6艇比較 | **完成未証明** | 画面と収集原本の出典・時間・配備状況を照合して一体表示。BOATERS [オリ展ガイド](https://boaters-boatrace.com/guide/original-exhibition-data) によれば提供場・公開時刻には差がある |
-| 候補の「70%」と4モード精度改善 | **将来の実測的中率70%以上は未立証** | 現行は上位2艇の1着確率合計という別指標。必ず定義・将来検証の対象数・締切前保存証拠と結果照合を提示。研究用 [#1708](https://github.com/ikst2512-eng/boat-edge-clean/issues/1708)、[#1693](https://github.com/ikst2512-eng/boat-edge-clean/pull/1693) は本番UI復旧を妨げない |
+| 作業 | 実際の本番状態・証拠 |
+|---|---|
+| CORS＋WebKit/ブラウザ履歴 | **公開確認済み**。[#1706](https://github.com/ikst2512-eng/boat-edge-clean/pull/1706) と [独立公開試験](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786138054)。実機Safariは未実施 |
+| 4主タブ・出走表内連対率・買い目中心・小さめの文字 | **#1707 統合・本番確認済み**。[統合PR](https://github.com/ikst2512-eng/boat-edge-clean/pull/1707)／[公開ブラウザ試験](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42797423327) |
+| 全件の候補・予想・結果の履歴 | **#1703 統合・本番確認済み**。[統合PR](https://github.com/ikst2512-eng/boat-edge-clean/pull/1703)／[公開検証](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42800540502)。14日・1,698件の静的候補データ生成、11/08の117件を公開ブラウザで表示。これらは正式予測精度の立証ではない |
+| 通常展示＋進入＋オリ展の6艇同一表示 | **公開済み、過去実レース4件の配信元CSVと6艇×3計測値を実照合して一致**。[公開照合](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42802645236)。江戸川（03）は配信元のオリ展非提供と区別して表示。全レース/全場の配信充足・締切前保存の認定は未了 |
+| 研究候補70%と将来の的中率 | **未立証**。70%は上位2艇のモデル1着確率の合計で、3連単的中率ではない。2026-11-10本番監査例：保存候補1,486、評価対象590、結果待ち23、不合格873（研究監査であり独立精度実証ではない）。[本番監視成功](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42799136527) |
+| 朝8時台のT−12原本保存 | **修正未公開**。従来Cronは08 JST対象を含まず、11/10に保存済み証拠の欠落が発生。[既存Draft #1714](https://github.com/ikst2512-eng/boat-edge-clean/pull/1714) が単一Cronの時刻・watchdogと同時対象数を修正中。PR/CI成功のみで未来レースの実保存を認定せず、過去の欠落を後付けしない |
 
-**次の最短公開順**：①#1707のWebKit失敗を同じPRで修正→mainとの競合/公開試験を通してリリース、②#1703の候補全件履歴を重複させず取り込み→公開試験、③6艇統合展示の本物の原本連携を確認して不足だけ補修、④候補70%・4モードの厳密な将来検証。不要な新ページ・新PR・新Cronは原則作らない。
+**次の最短公開順**：①#1714の最新差分とCI・保存証拠を収集担当と照合し、既存PRの安全な本番統合を判断、②当日開催13場/156Rと公式直前・オリ展の実際の取得率/欠落理由を時間帯ごとに検査、③締切前の正式原本と結果照合の証拠を増やす、④独立期間の4モード精度検証。**BoatraceCSVのオリ展は締切約5分前のスナップショットであり、T−12保存の証拠ではない。**
 
-**削除・統合の実施と残件**：公開済み #1706 の重複修正だった [#1704](https://github.com/ikst2512-eng/boat-edge-clean/pull/1704) と [#1705](https://github.com/ikst2512-eng/boat-edge-clean/pull/1705) は **2026-11-10にSupersededとしてクローズ済み**（ブランチ・差分・CI・証拠は保持、旧修正の二重本番投入を防止）。次の整理候補は大型重複UI #1679、#1707/#1703の重複履歴、期限切れ一日限定Workflow #1709。**実際の参照・固有機能を確認してから**削除やPR終了。旧レース原本、結果、監査証拠、稼働中のワークフローは消さない。
+**重複整理**：#1704/#1705は統合済み#1706と重複するためSupersededで閉鎖済み。#1707/#1703は本番統合済みであり再PR化しない。#1679の旧UI差分、#1709の期限切れWorkflow等は参照を監査した後に整理し、保存原本・監査証拠は削除しない。
 
-**次の開発トークへの引継ぎルール**：最初に「`ikst2512-eng/boat-edge-clean` のmainのREADME.mdとAGENTS.md、最新PR/Actions/公開URLを確認して、本番未反映の最優先修正から続行」と指示する。別トークがこれらのファイルを開けば同じ方針を参照できるが、会話自体を自動同期するものではない。
+**別開発トークへの引継ぎ**：開始時に「`ikst2512-eng/boat-edge-clean` のmain README.mdとAGENTS.md、最新PR/Actions/実際のPages・Renderを確認して、未反映の優先修正から続行」と依頼する。これはGitHubを参照したときの共有手順であり、チャット内容そのものを自動転送する仕組みではない。
 
 ## 最初に読む：全開発トーク共通の正本
 
