@@ -113,6 +113,105 @@ jobs:
         run: python -m unittest -v test_four_mode_version_topn_audit
       - name: Check frozen future-only four-mode study policy and leakage refusal
         run: python -m unittest -v test_four_mode_forward_paired_score
+      # Bounded REAL Nov10 #1694 audit report, not model/forecast evidence.
+      # Reuse its immutable upstream zip+report SHA rather than reimplement
+      # the official HTTP/racelist parser in this evaluation-only owner.
+      - name: Cross-check actual pinned official T12 audit artifact and four-mode blockers (read-only)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import io
+          import json
+          import os
+          import pathlib
+          import zipfile
+          from urllib.request import Request, urlopen
+
+          repo = "ikst2512-eng/boat-edge-clean"
+          run_id = 42777088623
+          artifact_id = 13743674560
+          zip_sha = "7a5a22c43108a889429d673b9a83d935d1152b543d7d83e225eccf2740080329"
+          member_name = "official_t12_nov10_pair_frozen.json"
+          member_sha = "9e243d93c62886ed6a6d3a1f31a5a1c309a3dd25d4308f2d29bc7c78f5854742"
+          api = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}"
+          token = os.environ["GH_TOKEN"]
+
+          def get(url):
+              request = Request(url, headers={
+                  "Authorization": "Bearer " + token,
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "four-mode-research-readonly-audit",
+              })
+              with urlopen(request, timeout=45) as reply:
+                  result = reply.read(2_000_001)
+              if len(result) > 2_000_000:
+                  raise SystemExit("bounded_upstream_t12_artifact_too_large")
+              return result
+
+          meta = json.loads(get(api))
+          if (meta.get("id") != artifact_id
+                  or meta.get("name") != f"official-pair-schedule-audit-{run_id}"
+                  or meta.get("digest") != "sha256:" + zip_sha
+                  or meta.get("expired") is not False
+                  or (meta.get("workflow_run") or {}).get("id") != run_id):
+              raise SystemExit("unverified_or_expired_independent_audit_artifact")
+          raw_zip = get(api + "/zip")
+          if hashlib.sha256(raw_zip).hexdigest() != zip_sha:
+              raise SystemExit("source_audit_zip_digest_drift")
+          with zipfile.ZipFile(io.BytesIO(raw_zip)) as z:
+              names = z.namelist()
+              if names.count(member_name) != 1 or len(names) != len(set(names)):
+                  raise SystemExit("source_audit_zip_member_missing_or_duplicate")
+              for item in z.infolist():
+                  if (item.file_size > 2_000_000
+                          or ".." in pathlib.PurePosixPath(item.filename).parts
+                          or item.filename.startswith("/")):
+                      raise SystemExit("unsafe_source_audit_zip_member")
+              if z.testzip() is not None:
+                  raise SystemExit("source_audit_zip_crc_failed")
+              report_bytes = z.read(member_name)
+          if hashlib.sha256(report_bytes).hexdigest() != member_sha:
+              raise SystemExit("source_audit_report_member_digest_drift")
+          report = json.loads(report_bytes)
+          if (report.get("schema") != "T12_PINNED_SCHEDULED_PAIR_FROZEN_REPLAY_V1"
+                  or report.get("source_run_id") != 42769768447
+                  or report.get("source_artifact_id") != 13740574410
+                  or report.get("day_jst") != "20261110"
+                  or report.get("formal") is not False):
+              raise SystemExit("unexpected_pinned_upstream_audit_report")
+          pathlib.Path("four_mode_upstream_t12_20261110.json").write_bytes(report_bytes)
+          print("NOV10_UPSTREAM_AUDIT_ZIP_SHA256_VERIFIED:" + zip_sha)
+          print("NOV10_UPSTREAM_AUDIT_JSON_SHA256_VERIFIED:" + member_sha)
+          PY
+          python four_mode_forward_paired_score.py --upstream-t12-report four_mode_upstream_t12_20261110.json > four_mode_t12_blockers_20261110.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("four_mode_t12_blockers_20261110.json").read_text(encoding="utf-8"))
+          rows = {r["race_code"]: r for r in report["race_rows"]}
+          if (report.get("schema") != "FOUR_MODE_OFFICIAL_T12_UPSTREAM_HANDOFF_BLOCKERS_V1"
+                  or set(rows) != {"202611101202", "202611102211"}
+                  or report.get("upstream_race_count") != 2
+                  or report.get("formal_candidate_pairs_added") != 0
+                  or report.get("pilot_added") != 0
+                  or report.get("confirmation_added") != 0
+                  or report.get("formal") is not False
+                  or report.get("model_promotion_allowed") is not False):
+              raise SystemExit("unsafe_or_incomplete_real_nov10_handoff")
+          if (rows["202611101202"]["official_two_source_pair_complete_by_t12_reference_only"] is not True
+                  or rows["202611102211"]["official_two_source_pair_complete_by_t12_reference_only"] is not False
+                  or not all("same_race_official_racelist_original_missing" in r["blocking_gates"]
+                             for r in rows.values())
+                  or any(r.get("candidate_admitted_to_registered_600") is not False
+                         for r in rows.values())):
+              raise SystemExit("real_nov10_official_blockers_hidden_or_reclassified")
+          print("NOV10_REAL_PINNED_SOURCE_TO_FOUR_MODE_BLOCKERS_PASS:2:FORMAL=0")
+          PY
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
       - name: Test standalone HIT-head prior proposal without any outcomes
@@ -880,6 +979,8 @@ jobs:
             four_mode_candidate_remote_readiness.json
             four_mode_main_candidate_stage_readiness.json
             four_mode_nov09_observed_job_attempts.json
+            four_mode_upstream_t12_20261110.json
+            four_mode_t12_blockers_20261110.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
