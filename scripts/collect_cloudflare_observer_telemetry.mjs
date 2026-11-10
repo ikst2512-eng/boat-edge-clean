@@ -11,7 +11,7 @@ import {buildObserverTelemetryQueries, API_SCHEMA, auditTelemetryApiPages}
   from '../cloudflare/audit_observer_api_pages.mjs';
 import {OBSERVER_NAME} from '../cloudflare/audit_observer_telemetry.mjs';
 
-const REPO_ROOT=fileURLToPath(new URL('../',import.meta.url));
+const REPO_ROOT=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const ID=/^[a-f0-9]{32}$/i;
 const VERSION=/^[A-Za-z0-9_.:-]{6,128}$/;
 const MAX_RESPONSE_BYTES=12*1024*1024;
