@@ -1,5 +1,22 @@
 # Cloudflare Workers Free independent backup — operational acceptance audit (2026-11-08 JST)
 
+## 2026-11-10 CURRENT RELEASE OVERRIDE — mandatory NO-GO before live dispatch
+
+This is the current safe release direction. Historical Phase 2 activation/receipt passages lower in this 2026-11-08 document describe an earlier research state, **not** deployable instructions. The current recovery source has an explicit `CROSS_PROVIDER_DISPATCH_RELEASE_LOCKED=true` source-code gate. Merely setting `CLOUDFLARE_DISPATCH_ENABLED="true"`, deploying or adding a GitHub PAT cannot authorize a POST. A 204 without run details is **ambiguous acceptance** (not a known completed run), and a 200 with `return_run_details:true` proves only that GitHub reported a run ID, not that a named original slot or a prospective race was saved.
+
+**Source-only, zero-network operator command** (run from checkout root):
+
+```sh
+node scripts/audit_cloudflare_recovery_no_go.mjs
+```
+
+The command intentionally exits **1** for NO-GO, outputs only bounded nonsecret blocker codes/booleans, and has no approval option. New regression tests cover falsified operator success indicators, removal of the source-level lock, synthetic capture-slot input additions and malformed native publisher YAML. It **reuses** `cloudflare/native_publication_receipt_lab.mjs` and `scripts/preflight_cloudflare_observer.mjs`; it does not replace either existing audit.
+
+Read-only review of the actual main and Draft HEAD on Nov 10 found identical source for both native capture workflows/collectors. CLEAN still lacks a post-push remote-main commit/ancestry receipt contract; four-mode has static checks but **no independently verified live recovery receipt**. Both native workflows expose `workflow_dispatch` **without per-slot inputs**; the Cloudflare policy dispatch request contains no original capture slot, and the collectors derive their JST day from the execution-time clock. A GitHub run ID cannot establish the intended race/slot. Additionally, native schedules and Render **do not coordinate through a provider-wide atomic claim**; source gates and Cloudflare-only Durable Object experiments cannot prove at-most-once cross-provider publication.
+
+**Keep NO-GO** until a separate native publisher owner independently proves stable slot-bound and immutable first-add semantics under native/Render/Cloudflare concurrency, and actual Cloudflare deployment/192-tick Cron/CPU <=10ms logs and on-time original T−12 evidence exist. The offline release checker by design can NEVER certify actual Cloudflare deployment or live recovery. Do not mark it GREEN to enable recovery; require separate reviewed live evidence and formal release authorization. `main` auto-merge forbidden; keep Render and native schedules unchanged.
+
+
 **Status: NO-GO for production recovery; Draft PR #1697 only.** Do not merge to `main`, enable auto-merge, deploy from CI, disable native GitHub schedules, or change the existing Render service/fallback. This document is a test/acceptance record, **not** a deployment instruction or proof of Cloudflare account access.
 
 ## Evidence independently verified before this document
