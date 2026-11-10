@@ -744,11 +744,11 @@ void (async()=>{
   data.push(String(lane*10+k));
  }
  const fixture=head.join(',')+'\n'+data.join(',')+'\n';
- let response={ok:true,status:200,text:async()=>fixture};
+ let response={ok:true,status:200,text:async()=>fixture},blocked=false,finishRequest=null;
  const win={get raceDataRequestId(){return state.token}};
  const load=vm.runInNewContext(csvFn+'\n'+script.slice(begin,finish)+'\nloadOriginalExhibition',{
    document,window:win,sameRaceKey:()=>state.key,activeView:'exhibit',
-   fetchTimed:async()=>response,Error,Number,Set,Array,String
+   fetchTimed:async()=>blocked?new Promise(resolve=>{finishRequest=resolve}):response,Error,Number,Set,Array,String
  });
  const ok=makeGrid();await load(state.key,state.token,ok.grid);
  assert.match(ok.status.textContent,/6艇分/);
@@ -767,12 +767,11 @@ void (async()=>{
  const incomplete=makeGrid();await load(state.key,state.token,incomplete.grid);
  assert.match(incomplete.status.textContent,/検証できません/);
  assert.ok(incomplete.holders.every(h=>h.children[0].textContent==='オリ展：未取得'),'missing lane column must reject whole source');
- let resolve;
- response={ok:true,status:200,text:()=>new Promise(done=>{resolve=done})};
+ blocked=true;
  const stale=makeGrid();const request=load(state.key,state.token,stale.grid);
- await Promise.resolve();await Promise.resolve();
+ assert.equal(typeof finishRequest,'function','the stale request must be pending at the network boundary');
  state.token++;
- if(resolve)resolve(fixture);
+ finishRequest({ok:true,status:200,text:async()=>fixture});
  await request;
  assert.equal(stale.status.textContent,'読込中','stale race request must not overwrite new race cards');
  assert.ok(stale.holders.every(h=>h.children.length===0),'stale request must not add measurements');
