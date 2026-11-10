@@ -13,6 +13,8 @@ import os
 import unittest
 
 from scenario_official_exhibition_projection import project_exhibition_research
+from scenario_future_local_candidate_handoff import prepare_local_candidate
+from test_scenario_future_protocol_freeze import read_protocol
 from scenario_future_three_original_gateway import (
     CHECKS, STUDY, MIN_DAY, validate_audited_source_pairing,
     run_future_triple_experiment,
@@ -248,6 +250,25 @@ class Pinned1698FutureGatewayIntegrationTests(unittest.TestCase):
         self.assertRegex(output["four_mode_ranked_output_content_sha256_research_only"],
                          r"^[0-9a-f]{64}$")
         self.assertFalse(output["source_to_candidate_remote_receipt_proven"])
+        local_handoff = prepare_local_candidate(
+            output, read_protocol(), candidate["generated_at_jst"],
+            "2026-11-11T15:08:00+09:00")
+        self.assertEqual(local_handoff["race_code"],"202611111710")
+        self.assertTrue(local_handoff["no_remote_write_performed"])
+        self.assertFalse(local_handoff["candidate_first_remote_receipt_verified"])
+        self.assertFalse(local_handoff["formal"])
+        replay_handoff=prepare_local_candidate(
+            output,read_protocol(),candidate["generated_at_jst"],
+            "2026-11-11T15:08:00+09:00")
+        self.assertEqual(local_handoff["bytes"],replay_handoff["bytes"])
+        import json
+        payload=json.loads(local_handoff["bytes"])
+        self.assertEqual(
+            payload["model_input_content_sha256"],
+            output["model_input_content_sha256_research_only"])
+        self.assertEqual(
+            payload["four_mode_ranked_output_content_sha256"],
+            output["four_mode_ranked_output_content_sha256_research_only"])
         repeated=run_future_triple_experiment(
             triple_fixture(source),source,candidate,replay_stub,
             list(RATES),hypotheses(),weights(),cb)
