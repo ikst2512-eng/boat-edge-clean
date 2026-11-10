@@ -1154,11 +1154,12 @@ function syntheticApiTelemetryDay() {
   const eventsRequest={queryId:'test-query-events',timeframe:{...timeframe},limit:2000,
     parameters:makeParams('events')};
   const samplingRequest={queryId:'test-query-sampling',timeframe:{...timeframe},
-    parameters:makeParams('calculations')};
+    chartType:'aggregate',parameters:makeParams('calculations')};
   const makeResponse=(id,request,data)=>({
     success:true,errors:[],
     result:{run:{id,accountId,status:'COMPLETED',
-        timeframe:{...timeframe},query:{parameters:structuredClone(request.parameters)}},
+        timeframe:{...timeframe},query:{id:request.queryId,adhoc:true,
+          parameters:structuredClone(request.parameters)}},
       ...data},
   });
   return {schema:API_SCHEMA,utc_day:raw.utc_day,worker:raw.worker,
@@ -1317,8 +1318,10 @@ test('read-only API request generator outputs exact V2 scope without tokens or n
   witness.sampling_query.request=gen.sampling_request;
   witness.events_query.response.result.run.query.parameters=
     structuredClone(gen.events_request.parameters);
+  witness.events_query.response.result.run.query.id=gen.events_request.queryId;
   witness.sampling_query.response.result.run.query.parameters=
     structuredClone(gen.sampling_request.parameters);
+  witness.sampling_query.response.result.run.query.id=gen.sampling_request.queryId;
   assert.equal(auditTelemetryApiPages(witness).observer_day_pass,true);
   assert.throws(()=>buildObserverTelemetryQueries('2026-11-31'),/invalid_utc_day/);
   const script=fileURLToPath(new URL('../scripts/print_cloudflare_observer_telemetry_queries.mjs',import.meta.url));
@@ -1351,6 +1354,27 @@ test('Telemetry API V2 account scope must match the explicitly queried account, 
       'api_run_account_not_requested_account',
     ].includes(x)),JSON.stringify(report.api_issues));
     assert.equal(report.actual_cloudflare_api_authenticity_independently_proven,false);
+  }
+});
+
+test('Telemetry API V2 rejects replayed/missing query IDs and a non-aggregate sampling result',()=>{
+  for(const poison of [
+    x=>x.events_query.response.result.run.query.id='REPLAY-FOREIGN-QUERY',
+    x=>x.sampling_query.response.result.run.query.id='REPLAY-FOREIGN-QUERY',
+    x=>delete x.events_query.response.result.run.query.id,
+    x=>delete x.sampling_query.response.result.run.query.id,
+    x=>x.events_query.response.result.run.query.adhoc=false,
+    x=>x.sampling_query.response.result.run.query.adhoc=false,
+    x=>x.events_query.request.chartType='distribution',
+    x=>x.sampling_query.request.chartType='distribution',
+    x=>x.sampling_query.request.chartType='timeseries',
+  ]) {
+    const input=syntheticApiTelemetryDay();poison(input);
+    const out=auditTelemetryApiPages(input);
+    assert.equal(out.observer_day_pass,false);
+    assert.equal(out.api_query_structure_pass,false);
+    assert.ok(out.api_issues.some(x=>x==='api_response_query_id_or_adhoc_mismatch'||
+      x==='api_query_chart_shape_invalid'),JSON.stringify(out.api_issues));
   }
 });
 
