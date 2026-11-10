@@ -1455,9 +1455,10 @@ async function loadOriginalExhibition(key,token,grid){
  const holders=Array.from({length:6},(_,i)=>grid.querySelector('[data-original-exhibition-lane="'+(i+1)+'"]'));
  if(!status||holders.some(node=>!node))return;
  const current=()=>token===window.raceDataRequestId&&key===sameRaceKey()&&activeView==='exhibit'&&grid.isConnected&&holders.every(node=>node.isConnected);
- const unavailable=(message,emptyLabel='オリ展：未取得')=>{
+ const unavailable=(message,emptyLabel='オリ展：未取得',state='unverified')=>{
   if(!current())return;
   status.textContent=message;
+  status.dataset.originalState=state;
   for(const holder of holders){
    holder.replaceChildren();
    const p=document.createElement('p');p.className='exhibition-original-pending';p.textContent=emptyLabel;holder.append(p);
@@ -1466,14 +1467,14 @@ async function loadOriginalExhibition(key,token,grid){
  // The documented source has no original-exhibition records for Edogawa (03).
  // Do not describe a structurally absent feed as a temporary HTTP failure.
  if(key.slice(9,11)==='03'){
-  unavailable('オリ展：江戸川は配信元の計測対象外（通常展示は別途表示）','オリ展：非提供');
+  unavailable('オリ展：江戸川は配信元の計測対象外（通常展示は別途表示）','オリ展：非提供','non_provided');
   return;
  }
  try{
   const url='https://boatracecsv.github.io/data/previews/original_exhibition/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
   const response=await fetchTimed(url,{cache:'no-store'});
   if(!response.ok){
-   if(response.status===404){unavailable('オリ展：未配信・公開待ち（通常展示はそのまま表示）');return}
+   if(response.status===404){unavailable('オリ展：日付CSV未配信（HTTP404・非提供と断定しません）','オリ展：未公開','date_not_published');return}
    throw Error('ORIGINAL_SOURCE_HTTP_'+response.status);
   }
   const data=await response.text();if(data.length>2000000)throw Error('ORIGINAL_TOO_LARGE');
@@ -1482,9 +1483,14 @@ async function loadOriginalExhibition(key,token,grid){
   const index=Object.fromEntries(headers.map((h,i)=>[h,i]));
   const records=rows.filter(row=>row[index['レースコード']]===key.replaceAll('-',''));
   if(!current())return;
-  if(records.length===0){unavailable('オリ展：対象レース未配信・公開待ち（通常展示は別途表示中）');return}
+  if(records.length===0){unavailable('オリ展：日付CSVに対象レースの行がありません（未収録・提供有無未確認）','オリ展：未収録','race_unlisted');return}
   if(records.length!==1)throw Error('ORIGINAL_DUPLICATE_RACE');
   const row=records[0],count=Number(row[index['計測数']]);
+  // The race code must agree with auxiliary date/venue/race fields when supplied.
+  // Never render six plausible numbers from an internally inconsistent source row.
+  if((Number.isInteger(index['レース日'])&&row[index['レース日']]!==key.slice(0,4)+'-'+key.slice(4,6)+'-'+key.slice(6,8))||
+     (Number.isInteger(index['レース場'])&&Number(row[index['レース場']])!==Number(key.slice(9,11)))||
+     (Number.isInteger(index['レース回'])&&Number(String(row[index['レース回']]).replace(/R$/i,''))!==Number(key.slice(12,14))))throw Error('ORIGINAL_RACE_METADATA_MISMATCH');
   if(!Number.isInteger(count)||count<1||count>3)throw Error('ORIGINAL_COUNT');
   const labels=[];
   for(let k=1;k<=count;k++){
@@ -1511,8 +1517,16 @@ async function loadOriginalExhibition(key,token,grid){
     metric.append(name,value);holder.append(metric);
    }
   }
-  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示｜CSVの締切前保存時刻は未検証（予想に混入させません）';
- }catch(_){unavailable('オリ展：元データを取得・検証できません（通常展示はそのまま表示）')}
+  const observed=Number.isInteger(index['取得日時'])?row[index['取得日時']]:'';
+  const observedText=typeof observed==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+09:00$/.test(observed)?'｜CSV記載取得時刻 '+observed.slice(0,19).replace('T',' ')+' JST':'';
+  status.dataset.originalState='verified';
+  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示'+observedText+'｜締切前の初回保存証明は未検証（予想に混入させません）';
+ }catch(error){
+  const code=String(error?.message||'');
+  if(/^ORIGINAL_SOURCE_HTTP_[0-9]{3}$/.test(code))unavailable('オリ展：配信元HTTP通信失敗（'+code.split('_').pop()+'）','オリ展：取得失敗','transport_failed');
+  else if(['TypeError','AbortError','TimeoutError'].includes(error?.name))unavailable('オリ展：通信失敗・タイムアウト（公式展示は別途表示）','オリ展：取得失敗','transport_failed');
+  else unavailable('オリ展：元データを検証できません（6艇すべて非表示）','オリ展：検証不可','invalid_source');
+ }
 }
 let displayedRaceKey='';
 let forecastPreviewRequestId=0;
