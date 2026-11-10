@@ -755,3 +755,48 @@ void (async()=>{
  assert.ok(stale.holders.every(h=>h.children.length===0),'stale request must not add measurements');
  console.log('PASS: original exhibition merged by exact boat number, independent data checks and stale-request protection');
 })().catch(error=>{console.error('FAIL: per-boat exhibition integration',error);process.exitCode=1});
+
+
+// Public review uses the Render-origin read-only holdout source on both Pages
+// and Render. A cold-start HTTP 503 means "pending", never an empty cohort.
+assert.ok(script.includes("const url='https://boat-edge-clean.onrender.com/api/signal70-holdout-status'"));
+const holdoutStart=script.indexOf('let holdoutResearchRequest=0;');
+const holdoutEnd=script.indexOf('async function loadTopNResearch(){',holdoutStart);
+assert.ok(holdoutStart>=0&&holdoutEnd>holdoutStart,'production holdout review must be extractable');
+void (async()=>{
+ const source=script.slice(holdoutStart,holdoutEnd);
+ const ready={
+  schema:'CLEAN_SIGNAL70_HOLDOUT_STATUS_V1',independently_validated:false,
+  later_holdout_days:12,archived_candidates:1486,evaluated_holdout_races:590,
+  awaiting_result_races:23,audit_rejected_races:873
+ };
+ const exercise=async(responses,onTimeout)=>{
+  const status={textContent:''};
+  let count=0;
+  const context={document:{getElementById:id=>id==='holdoutResearchStatus'?status:null},
+   activeView:'review',fetchTimed:async url=>{
+    assert.equal(url,'https://boat-edge-clean.onrender.com/api/signal70-holdout-status');
+    const response=responses[Math.min(count++,responses.length-1)];
+    return {status:response.code,ok:response.code===200,json:async()=>response.data};
+   },setTimeout:callback=>{onTimeout?.(context);callback()}};
+  const fn=vm.runInNewContext(source+'\nloadHoldoutResearch',context);
+  await fn();
+  return {status:status.textContent,count};
+ };
+ const pending={code:503,data:{error:'HOLDOUT_PENDING',running:true}};
+ const ok={code:200,data:ready};
+ const valid=await exercise([pending,ok]);
+ assert.equal(valid.count,2);
+ for(const expected of ['保存 1486件','参考評価 590件','結果待ち 23件','監査不合格 873件','未立証'])
+  assert.ok(valid.status.includes(expected),'holdout public label '+expected);
+ const neverReady=await exercise([pending]);
+ assert.equal(neverReady.count,8,'research retry must be bounded');
+ assert.match(neverReady.status,/処理待ち/,'pending must not become a fake 0% or HTTP error');
+ const invalid=await exercise([{code:200,data:{...ready,audit_rejected_races:872}}]);
+ assert.match(invalid.status,/取得・検証できません/,'invalid accounting cannot appear verified');
+ const unavailable=await exercise([{code:503,data:{error:'HOLDOUT_UNAVAILABLE',running:false}}]);
+ assert.equal(unavailable.count,1,'persistent backend fault must not trigger an unbounded spin');
+ const canceled=await exercise([pending,ok],ctx=>{ctx.activeView='card'});
+ assert.equal(canceled.count,1,'navigation away must suppress subsequent background fetches');
+ console.log('PASS: public review holdout cold-start retry, origin, accounting and stale-view protection');
+})().catch(error=>{console.error('FAIL: holdout review public regression',error);process.exitCode=1});
