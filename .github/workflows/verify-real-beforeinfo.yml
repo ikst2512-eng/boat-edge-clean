@@ -49,8 +49,14 @@ jobs:
           const hd=day.replace(/-/g,'');
           const report=[];
           const out=s=>{console.log(s);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,s+'\n')};
-          const get=async(ctx,url)=>{const r=await ctx.request.get(url,{timeout:20000});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
+          const get=async(ctx,url,opts={})=>{const r=await ctx.request.get(url,{timeout:20000,...opts});if(r.status()!==200)throw Error('HTTP_'+r.status()+' '+new URL(url).pathname);return {data:await r.json(),received:Date.now(),url:r.url()}};
           const valid6=a=>Array.isArray(a)&&a.length===6&&[1,2,3,4,5,6].every(x=>a.filter(y=>Number(y?.lane??y?.teino)===x).length===1);
+          const finiteReading=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number.isFinite(Number(v));
+          // Match the production official inspector's accepted real start format.
+          const validSt=s=>typeof s==='string'&&/^(?:(?:F|L)?\.\d{1,2}|\d?\.\d{1,2})$/.test(s.trim());
+          for(const st of ['F.01','L.02','.08','0.08'])if(!validSt(st))throw Error('ST_PARSER_POSITIVE_REGRESSION '+st);
+          for(const st of ['','--','F.01x','6.999'])if(validSt(st))throw Error('ST_PARSER_NEGATIVE_REGRESSION '+st);
+          if(!finiteReading(0)||finiteReading('')||finiteReading(false))throw Error('NUMERIC_READING_REGRESSION');
           (async()=>{
             const browser=await chromium.launch({headless:true});
             const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -70,7 +76,7 @@ jobs:
                 const code=hd+String(venue).padStart(2,'0')+String(rno).padStart(2,'0');
                 try{
                   const officialUrl='https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&hd='+hd+'&jcd='+String(venue).padStart(2,'0')+'&rno='+rno;
-                  const src=await get(ctx,officialUrl);
+                  const src=await get(ctx,officialUrl,{headers:{'User-Agent':'BOAT-EDGE-CLEAN/1.0','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
                   if(src.url!==officialUrl)throw Error('official_redirect');
                   const main=src.data.maindata;
                   if(!main||String(main.hd)!==hd||Number(main.jcd)!==venue||Number(main.rno)!==rno||String(main.deadline)!==race.deadline_jst.slice(11,16)||!valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))throw Error('official_identity_deadline_or_six_missing');
@@ -81,8 +87,8 @@ jobs:
                   for(let l=1;l<=6;l++){
                     const x=byLane(main.teiinfolist,l),st=byLane(main.sttenjiinfolist,l);
                     const time=Number(x.extime),tilt=Number(x.tilt);
-                    if(!x.extime||!x.tilt||!Number.isFinite(time)||time<5||time>9||!Number.isFinite(tilt)||tilt< -1||tilt>3||!/^(?:F|L)?\.\d{1,2}$/.test(String(st.st||'')))throw Error('official_measurements_incomplete');
-                    exp[l]={registration:String(x.racerno),time,tilt,st:String(st.st),course:Number(st.cs)};
+                    if(!finiteReading(x.extime)||!finiteReading(x.tilt)||time<5||time>9||tilt< -1||tilt>3||!validSt(st.st))throw Error('official_measurements_incomplete');
+                    exp[l]={registration:String(x.racerno),time,tilt,st:st.st.trim(),course:Number(st.cs)};
                   }
                   const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
                   const api=await get(ctx,apiUrl),d=api.data;
