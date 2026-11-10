@@ -15,6 +15,8 @@ on:
       - 'test_scenario_exhibition_all_mode_runner.py'
       - 'scenario_mode_specific_lens_research.py'
       - 'test_scenario_mode_specific_lens_research.py'
+      - 'scenario_mode_specific_exhibition_end_to_end.py'
+      - 'test_scenario_mode_specific_exhibition_end_to_end.py'
       - 'docs/research/scenario_all_mode_bridge_1708.md'
       - '.github/workflows/scenario-four-mode-bridge-pr.yml'
 
@@ -41,4 +43,4 @@ jobs:
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
-        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner
+        run: PYTHONPATH="$RUNNER_TEMP/position1698:$PWD" python -m unittest -v test_scenario_exhibition_all_mode_runner test_scenario_mode_specific_exhibition_end_to_end
