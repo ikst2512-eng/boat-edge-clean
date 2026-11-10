@@ -1,0 +1,182 @@
+"""Synthetic-only tests for frozen local research candidate handoff.
+
+No official source, real race result, remote Git write, or independent
+first receipt is claimed. The pinned #1698 integration case lives in the
+existing future-three-original-gateway test suite.
+"""
+import copy
+import hashlib
+import json
+import unittest
+from itertools import permutations
+
+from scenario_future_local_candidate_handoff import (
+    prepare_local_candidate, SCHEMA, MIN_REMAINING_SECONDS,
+)
+from test_scenario_future_protocol_freeze import read_protocol
+
+CODE="202611111710"
+GENERATED="2026-11-11T15:07:00+09:00"
+FROZEN="2026-11-11T15:08:00+09:00"
+MODES={"narrow":5,"hit":10,"balance":16,"hole":22}
+ALL=["-".join(map(str,x)) for x in permutations(range(1,7),3)]
+
+
+def fake_gateway(p):
+    signature=hashlib.sha256(json.dumps({
+        "scenarios":p["scenario_hypotheses"],
+        "weights":p["mode_weights"],
+    },sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()).hexdigest()
+    source={key:ch*64 for key,ch in [
+        ("racelist","a"),("beforeinfo","b"),("odds120","c")]}
+    modes={}
+    for name,count in MODES.items():
+        modes[name]={
+            "top1":ALL[0],
+            "research_board_sha256":"f"*64,
+            "tickets":[{"combo":combo,"p":1.0} for combo in ALL[:count]],
+        }
+    return {
+        "schema":"FUTURE_THREE_ORIGINAL_FOUR_MODE_RESEARCH_GATEWAY_V1",
+        "study_id":p["study_id"],
+        "race_code":CODE,
+        "source_lineage_preflight":{
+            "race_code":CODE,
+            "cutoff_jst":"2026-11-11T15:18:00+09:00",
+            "latest_three_original_receipt_claim_jst":"2026-11-11T15:03:00+09:00",
+            "auditor_component_count":12,
+            "registrations_matched_six":True,
+            "exhibition_entry_permutation_matched":True,
+            "initial_remote_candidate_receipt_verified":False,
+            "source_sha256_claims":source,
+            "formal":False,
+        },
+        "six_national_win_rates_from_same_original_html":[5.3,5.9,6.1,4.6,6.0,5.1],
+        "model_input_content_sha256_research_only":"d"*64,
+        "four_mode_ranked_output_content_sha256_research_only":"e"*64,
+        "hypothesis_signature_sha256":signature,
+        "research_mode_tickets":modes,
+        "official_triple_source_auditor_reported_complete":True,
+        "candidate_source_consumption_structurally_replayed":True,
+        "national_win_rate_from_official_original_structurally_verified":True,
+        **{key:False for key in (
+            "formal","forecast_usable","calibrated_probabilities",
+            "accuracy_improvement_proven","production_changed",
+            "promotion_allowed","results_read",
+            "candidate_remote_first_receipt_verified",
+            "eligible_for_existing_1693_600_races",
+            "eligible_for_new_300_plus_300_races",
+            "hypotheses_frozen_in_prospective_registration",
+            "official_data_real_or_independently_authenticated",
+            "official_racelist_HTTP_authenticity_independently_verified",
+            "source_to_candidate_remote_receipt_proven",
+        )}
+    }
+
+
+class FutureLocalCandidateHandoffTests(unittest.TestCase):
+    def setUp(self):
+        self.p=read_protocol()
+        self.g=fake_gateway(self.p)
+
+    def prepared(self,g=None,p=None,generated=GENERATED,frozen=FROZEN):
+        return prepare_local_candidate(
+            self.g if g is None else g,self.p if p is None else p,
+            generated,frozen)
+
+    def test_synthetic_bytes_exact_stable_without_remote_claim(self):
+        first,second=self.prepared(),self.prepared()
+        self.assertEqual(first,second)
+        self.assertEqual(first["path"],f"scenario_four_mode_research/{CODE}.json")
+        self.assertEqual(len(first["sha256"]),64)
+        self.assertEqual(len(first["git_blob_sha1"]),40)
+        self.assertEqual(first["sha256"],hashlib.sha256(first["bytes"]).hexdigest())
+        self.assertEqual(first["git_blob_sha1"],hashlib.sha1(
+            b"blob "+str(len(first["bytes"])).encode()+b"\0"+first["bytes"]).hexdigest())
+        row=json.loads(first["bytes"])
+        self.assertEqual(row["schema"],SCHEMA)
+        self.assertEqual([len(row["ranked_mode_tickets"][name]["tickets"])
+                          for name in MODES],[5,10,16,22])
+        self.assertTrue(first["no_remote_write_performed"])
+        for flag in ("formal","promotion_allowed","candidate_first_remote_receipt_verified"):
+            self.assertFalse(first[flag])
+        self.assertFalse(row["first_remote_candidate_receipt_verified"])
+        self.assertFalse(row["eligible_for_300_plus_300"])
+
+    def test_hypothesis_or_method_or_blob_drift_is_rejected(self):
+        g=copy.deepcopy(self.g)
+        g["hypothesis_signature_sha256"]="0"*64
+        with self.assertRaisesRegex(ValueError,"coefficients"):
+            self.prepared(g=g)
+        p=copy.deepcopy(self.p)
+        p["scenario_hypotheses"]["escape_wall"]["head_log_shifts"][0]=3.6
+        with self.assertRaisesRegex(ValueError,"coefficients"):
+            self.prepared(p=p)
+        p=copy.deepcopy(self.p)
+        del p["method_git_blob_sha1"]["research_model.py"]
+        with self.assertRaisesRegex(ValueError,"unfrozen_model"):
+            self.prepared(p=p)
+
+    def test_candidate_freeze_clock_strict_boundaries(self):
+        for frozen in (
+            "2026-11-11T15:06:59+09:00",
+            "2026-11-11T15:17:00+09:00",
+            "2026-11-11T15:17:59+09:00",
+            "2026-11-11T15:19:00+09:00",
+            "2026-11-11T15:08:00+00:00"):
+            with self.subTest(frozen=frozen),self.assertRaises(ValueError):
+                self.prepared(frozen=frozen)
+        with self.assertRaises(ValueError):
+            self.prepared(generated="2026-11-11T15:01:00+09:00")
+        with self.assertRaises(ValueError):
+            self.prepared(generated="2026-11-11T15:18:00+09:00")
+        self.assertGreaterEqual(MIN_REMAINING_SECONDS,60)
+
+    def test_outcome_nested_in_source_or_protocol_is_rejected(self):
+        g=copy.deepcopy(self.g)
+        g["source_lineage_preflight"]["aux"]=[{"winner":"1-2-3"}]
+        with self.assertRaisesRegex(ValueError,"postresult"):
+            self.prepared(g=g)
+        p=copy.deepcopy(self.p)
+        p["confirmed_result"]={"finish":[1,2,3]}
+        with self.assertRaisesRegex(ValueError,"postresult"):
+            self.prepared(p=p)
+
+    def test_old_race_and_wrong_mode_budgets_are_rejected(self):
+        g=copy.deepcopy(self.g)
+        g["race_code"]="202611091710"
+        g["source_lineage_preflight"]["race_code"]="202611091710"
+        with self.assertRaisesRegex(ValueError,"source_lineage"):
+            self.prepared(g=g)
+        for mutation in ("one_missing","duplicate","top1_other","bad_combo","nan"):
+            g=copy.deepcopy(self.g)
+            tickets=g["research_mode_tickets"]["narrow"]["tickets"]
+            if mutation=="one_missing":
+                tickets.pop()
+            elif mutation=="duplicate":
+                tickets[1]["combo"]=tickets[0]["combo"]
+            elif mutation=="top1_other":
+                g["research_mode_tickets"]["narrow"]["top1"]="6-5-4"
+            elif mutation=="bad_combo":
+                tickets[0]["combo"]="1-1-2"
+            else:
+                tickets[0]["p"]=float("nan")
+            with self.subTest(mutation=mutation),self.assertRaises(ValueError):
+                self.prepared(g=g)
+
+    def test_fake_formal_or_remote_proof_blocks_export(self):
+        for field in ("formal","results_read","production_changed",
+                      "candidate_remote_first_receipt_verified",
+                      "eligible_for_new_300_plus_300_races"):
+            g=copy.deepcopy(self.g)
+            g[field]=True
+            with self.subTest(field=field),self.assertRaisesRegex(ValueError,"promotion"):
+                self.prepared(g=g)
+        g=copy.deepcopy(self.g)
+        g["source_lineage_preflight"]["source_sha256_claims"]["racelist"]="garbled"
+        with self.assertRaisesRegex(ValueError,"digest"):
+            self.prepared(g=g)
+
+
+if __name__=="__main__":
+    unittest.main()
