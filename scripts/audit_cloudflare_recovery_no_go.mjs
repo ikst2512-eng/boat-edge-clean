@@ -54,12 +54,24 @@ export function auditRecoveryReleaseNoGo(snapshot) {
   }catch {
     blockers.add('NATIVE_PUBLISHER_SOURCE_UNVERIFIABLE');
   }
-  if(!workflowDispatchHasSlotInput(files.cleanWorkflow)||
-     !workflowDispatchHasSlotInput(files.fourWorkflow)||
-     recoveryNoImplicitInputs(files.recoveryPolicy))
-    blockers.add('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN');
+  const cleanInputDeclared=workflowDispatchHasSlotInput(files.cleanWorkflow);
+  const fourInputDeclared=workflowDispatchHasSlotInput(files.fourWorkflow);
+  const recoveryUnboundPayload=recoveryNoImplicitInputs(files.recoveryPolicy);
+  const collectorAvailable=typeof files.cleanCollector==='string'&&
+    files.cleanCollector.trim().length>0&&
+    typeof files.fourCollector==='string'&&files.fourCollector.trim().length>0;
+  if(!cleanInputDeclared||!fourInputDeclared)
+    blockers.add('NATIVE_CAPTURE_SLOT_INPUT_DECLARATION_MISSING');
+  if(recoveryUnboundPayload)
+    blockers.add('RECOVERY_DISPATCH_HAS_NO_CAPTURE_SLOT_INPUT');
+  if(!collectorAvailable)
+    blockers.add('NATIVE_CAPTURE_COLLECTOR_SOURCE_UNVERIFIABLE');
   if(currentClock(files.cleanCollector)||currentClock(files.fourCollector))
     blockers.add('NATIVE_CAPTURE_DEPENDS_ON_EXECUTION_TIME');
+  // Source declaration and any syntactically added dispatch input do NOT
+  // prove that a real GitHub run consumed the intended slot or published its
+  // immutable first-add. Never drop this blocker from source-only evidence.
+  blockers.add('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN');
   // A source-level lock is a safety property, NOT a release qualification.
   if(!lockPresent(safety.recoverySource))
     blockers.add('SOURCE_RELEASE_HARD_LOCK_MISSING');
@@ -79,9 +91,15 @@ export function auditRecoveryReleaseNoGo(snapshot) {
     native_receipt_source_contracts_present:publishers?.both_source_contracts_present??false,
     native_clean_receipt_source_present:publishers?.clean?.source_level_receipt_contract_present??false,
     native_four_mode_receipt_source_present:publishers?.four_mode?.source_level_receipt_contract_present??false,
-    native_clean_workflow_has_slot_input:workflowDispatchHasSlotInput(files.cleanWorkflow),
-    native_four_workflow_has_slot_input:workflowDispatchHasSlotInput(files.fourWorkflow),
-    recovery_dispatch_has_no_slot_input:recoveryNoImplicitInputs(files.recoveryPolicy),
+    // These three fields describe *source declarations*, not a completed
+    // source-to-run-to-race evidence chain. In particular, adding an input
+    // field to YAML cannot raise a release proof flag in this offline tool.
+    native_clean_workflow_has_slot_input:cleanInputDeclared,
+    native_four_workflow_has_slot_input:fourInputDeclared,
+    recovery_dispatch_has_no_slot_input:recoveryUnboundPayload,
+    native_collectors_source_available:collectorAvailable,
+    native_run_capture_slot_binding_proven:false,
+    current_main_native_source_equality_independently_proven:false,
     recovery_source_hard_lock_present:lockPresent(safety.recoverySource),
     blockers:[...blockers].sort(),blocker_count:blockers.size,
     actual_cloudflare_worker_deployed_proven:false,
