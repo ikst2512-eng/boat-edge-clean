@@ -1448,7 +1448,7 @@ function mergeVerifiedRaceSnapshots(previous,raw){
 }
 
 function csvFields(line){const out=[];let value='',quoted=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++}else quoted=!quoted;}else if(c===','&&!quoted){out.push(value);value='';}else value+=c;}out.push(value);return out;}
-async function loadOriginalExhibition(key,token,grid){
+async function loadOriginalExhibition(key,token,grid,expectedDeadline=''){
  // Keep the original-exhibition CSV independent of official beforeinfo.
  // Map all measurements by explicit lane, not CSV row order or venue guesswork.
  const status=grid.querySelector('#originalExhibitionStatus');
@@ -1519,8 +1519,11 @@ async function loadOriginalExhibition(key,token,grid){
   }
   const observed=Number.isInteger(index['取得日時'])?row[index['取得日時']]:'';
   const observedText=typeof observed==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+09:00$/.test(observed)?'｜CSV記載取得時刻 '+observed.slice(0,19).replace('T',' ')+' JST':'';
-  status.dataset.originalState='verified';
-  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示'+observedText+'｜締切前の初回保存証明は未検証（予想に混入させません）';
+  const csvDeadline=Number.isInteger(index['締切時刻'])?row[index['締切時刻']]:'';
+  const deadlineMismatch=/^\d{2}:\d{2}$/.test(expectedDeadline)&&/^\d{2}:\d{2}$/.test(csvDeadline)&&csvDeadline!==expectedDeadline;
+  status.dataset.originalState=deadlineMismatch?'deadline_mismatch':'verified';
+  const deadlineNote=deadlineMismatch?'｜締切時刻不一致：保存日程 '+expectedDeadline+' / CSV '+csvDeadline+'（原本時刻を優先・予想には使用しません）':'';
+  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示'+observedText+deadlineNote+'｜締切前の初回保存証明は未検証（予想に混入させません）';
  }catch(error){
   const code=String(error?.message||'');
   if(/^ORIGINAL_SOURCE_HTTP_[0-9]{3}$/.test(code))unavailable('オリ展：配信元HTTP通信失敗（'+code.split('_').pop()+'）','オリ展：取得失敗','transport_failed');
@@ -1740,7 +1743,7 @@ async function loadRaceData(force=false){
    exhibitGrid.append(card);
   }
   // All six official exhibition cards exist before independent CSV is merged.
-  if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);
+  if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid,raw.meta.deadline);
   const stamp=raw.source_audit.race_card.fetched_at;
   displayedRaceKey=key;
   source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';

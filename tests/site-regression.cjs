@@ -690,12 +690,12 @@ console.log('PASS: compact two-column forecasts, 6-boat exhibition rows and orig
 // This catches shifted-lane values, duplicate rows, incomplete source schemas,
 // network absence and stale requests without changing forecast/scoring logic.
 assert.ok(script.includes("metrics.dataset.originalExhibitionLane=String(lane)"),'each boat needs its own original exhibition host');
-assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'load original only after six boat cards');
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid,raw.meta.deadline);"),'load original only after six boat cards and pass saved deadline');
 assert.ok(!script.includes('originalExhibitionDetails'),'original exhibition cannot create a separate detached section');
 assert.ok(html.includes('.exhibition-original-values'),'original measurements must share the six-boat card styling');
 void (async()=>{
  const csvFn=script.split('\n').find(x=>x.startsWith('function csvFields('));
- const begin=script.indexOf('async function loadOriginalExhibition(key,token,grid){');
+ const begin=script.indexOf("async function loadOriginalExhibition(key,token,grid,expectedDeadline=''){");
  const finish=script.indexOf("\nlet displayedRaceKey='';",begin);
  assert.ok(csvFn&&begin>=0&&finish>begin,'production original exhibition loader must be isolated');
  class FakeNode {
@@ -715,8 +715,8 @@ void (async()=>{
     return match?holders[Number(match[1])-1]:null;
    }}};
  };
- const head=['レースコード','計測数','計測項目1','計測項目2'];
- const data=['202611040111','2','1周','まわり足'];
+ const head=['レースコード','計測数','計測項目1','計測項目2','締切時刻'];
+ const data=['202611040111','2','1周','まわり足','20:03'];
  for(let lane=1;lane<=6;lane++)for(let k=1;k<=2;k++){
   head.push('艇'+lane+'_値'+k);
   data.push(String(lane*10+k));
@@ -731,6 +731,10 @@ void (async()=>{
  const ok=makeGrid();await load(state.key,state.token,ok.grid);
  assert.match(ok.status.textContent,/6艇分/);
  assert.equal(ok.status.dataset.originalState,'verified','success must expose source state');
+ const shifted=makeGrid();await load(state.key,state.token,shifted.grid,'20:02');
+ assert.equal(shifted.status.dataset.originalState,'deadline_mismatch','saved schedule and source cutoff differences must be visible');
+ assert.match(shifted.status.textContent,/保存日程 20:02 \/ CSV 20:03/);
+ assert.equal(shifted.holders[0].children.length,2,'a warning must not erase independently observed original values');
  ok.holders.forEach((holder,i)=>{
   assert.equal(holder.children.length,2,'must display two original source metrics for boat '+(i+1));
   assert.equal(holder.children[0].children[0].textContent,'1周');
