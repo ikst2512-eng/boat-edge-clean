@@ -594,3 +594,15 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - 通信先は`ikst2512-eng/boat-edge-clean`の研究専用branchと`scenario_four_mode_research/{12桁race_code}.json`のみに固定。GitHub Contents API `PUT`に**既存SHAを送らず新規作成だけ**。GETで既存が同一バイトならPUTを再実行しない。異なる既存内容は停止。HTTP 409/422や不明ステータス、壊れたbase64、Git SHA不一致、GitHubの応答でSHAが候補と異なる場合、キャッシュ`Age`ヘッダー、readback不一致、deadline超過を失敗扱い。GitHub Contents側のackコミットSHAを入力として使用しない（時刻独立証拠なし）。
 - **実 CI [#42821466292](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42821466292) success**、head `b2ae396661dd590a8eb559cfe818083a5a118aa5`。通常96件（1skip）＋**旧#1698固定実数理34件**がPASS。模擬GitHub HTTP上で`GET404→PUT201→GET200`、同一再実行PUT0、409/422競合、誤ブランチ/パス・キャッシュ・SHA・JSON・Base64損傷・デフォルトdry-runの無通信などを検証。模擬HTTPだけの陽性ケースは**公式の将来候補や独立Git受信の証拠ではない**。
 - 残りゲートは③による将来同一レースの公式racelist+beforeinfo(ST6/展示6)+odds120のT−12前原本完備と、その独立取得証明。その後に、②でsource→4-mode条件付き数学→新候補を**真の実レース1件だけ**この既存research branchへcreate-onlyで投稿し、独立のGit server `Date`・branch first-add履歴・全Actions run台帳・結果LASTを別途検査。今回の実候補publish count=0、first-remote独立証明0、formal0/600、model採用0、main/Render/Pages/既存予想原本・結果不変更。未校正head=3.5と古い3R本命悪化を事後修正しない。
+
+
+## 2026-11-10 ②担当：実GitHub研究Ledgerの規約原本を初回追加・遠隔読み戻し・履歴照合
+
+**模擬GitHub HTTP保存から、GitHub connectorによる本物のブランチ書き込みと原本読み戻しまでを実行**。但し今回保存したものはあくまで*研究保存先の運用規約*であり、**レース予想ではない**。T−12候補初回保存・独立HTTP初回受領・正式精度600件とは別。
+
+- 研究専用branch [`scenario-four-mode-triple-source-evidence-ledger`](https://github.com/ikst2512-eng/boat-edge-clean/tree/scenario-four-mode-triple-source-evidence-ledger) に [`RESEARCH_LEDGER_POLICY_20261110.md`](https://github.com/ikst2512-eng/boat-edge-clean/blob/scenario-four-mode-triple-source-evidence-ledger/RESEARCH_LEDGER_POLICY_20261110.md) をGitHub `create_file` **一回のみ**で保存した。研究候補用`scenario_four_mode_research/`フォルダには一切書き込んでいない。
+- 初回追加commit [`8443570d4a642c97bc700c9691ff7e8e4c5c314d`](https://github.com/ikst2512-eng/boat-edge-clean/commit/8443570d4a642c97bc700c9691ff7e8e4c5c314d)、GitHub commit署名側timestamp `2026-11-10T13:19:04Z`（JST22:19:04）。commit file listは`RESEARCH_LEDGER_POLICY_20261110.md` **added 1ファイル**、blob SHA1 `ff33a2a5b54cd874273f72cfc07e23f8c801c4e6`、23追加行・削除0。前commit `72e1b3da1b71e75c8b3901d301ed69fca590694d`ではこのファイルは404（初回追加前に不在）。branch ref GETで当該commit SHAと完全一致、branch fetch_fileで保存文書2334バイトと同じblob SHA1を照合。
+- GitHub REST `compare/72e1b3da...8443570d`結果は **status=ahead, ahead_by=1, behind_by=0, merge_base=72e1b3da**。履歴は初期branchからこの1コミット分の直系前進、非同期で他の変更を取り込んだ証拠はない。研究候補`scenario_four_mode_research/`は再確認時HTTP404、**予想候補の実リモート保存件数0**。初回規約追加のGitコミット時刻を将来レースのT−12独立受信時刻に転用しない。
+- 保存規約には固定11/10研究manifest blob `bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7`・事前Git commit `947f9d6f...`、候補パス、同一公式3原文/ST6艇/全国勝率の同race制約、create-only/no-upsert、候補初回受領/first-add系譜/全attemptの独立監査必須、Top1主評価と絞りTop10=N/A、本番昇格禁止、**当該運用規約は正式母集団に算入しない**を明記。
+- 本番環境のPages/Render/旧main予想モデル/公式原本/結果/既存Cron/予想候補履歴に変更なし。実Git操作を実行したのは**研究用専用branch**だけで、本番に反映したと報告しない。
+- #1710で実装済みの`scenario_future_github_research_adapter.py`はまだ**本物の将来レースに対して起動していない**。同CLIで`--publish`するには、③/#1713収集による同一将来レースのT−12前公式3原本と6艇ST、生成処理と独立予想候補保存時計、GitHub内容書き込み可能な権限付き実行環境が必要。リモート自動保存の本番検証済みとは主張しない。正式0/600件。
