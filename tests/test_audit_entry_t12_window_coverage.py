@@ -98,7 +98,7 @@ class EntryT12WindowAuditTests(unittest.TestCase):
             lambda p: p["races"].append(copy.deepcopy(p["races"][0])),
             lambda p: p["races"][0].update(source_deadline_jst="2026-11-10T13:09:00"),
             lambda p: p["runs"][0].update(created_at="2026-11-11T00:00:00+09:00"),
-            lambda p: p.update(ledger_present_race_codes=["202611109999"]),
+            lambda p: p.update(ledger_present_race_codes=["20261110999"]),
         ):
             with self.subTest(modify=modify):
                 payload = snapshot()
