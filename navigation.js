@@ -37,6 +37,8 @@ if(typeof s==='undefined'||typeof activeView==='undefined')return;
 const back=document.getElementById('raceViewBack');
 const originalSetView=typeof setView==='function'?setView:null;
 const originalRender=typeof render==='function'?render:null;
+// Preserve the WebKit history ownership guard merged in #1706.
+if(originalSetView&&originalRender)window.__boatEdgeNavigationOwnsHistory=true;
 let restoring=false;
 let syncScheduled=false;
 const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;queueMicrotask(()=>{syncScheduled=false;sync();});};
@@ -53,7 +55,7 @@ const initial=snapshot();
 const existing=history.state&&history.state.boatEdgeNav?history.state:null;
 let position=existing?existing.position:0;
 let current=existing?existing.snapshot:initial;
-history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
+if(!existing)history.replaceState({boatEdgeNav:true,position,snapshot:current},'',location.href);
 const sync=()=>{
  if(restoring)return;
  const next=snapshot();if(key(next)===key(current))return;
