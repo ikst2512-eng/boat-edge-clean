@@ -87,6 +87,98 @@ jobs:
           }, sort_keys=True))
           PY
 
+      - name: Compare 2026-11-10 exact main V2 originals vs frozen selector, input only
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse --verify refs/remotes/origin/main^{commit})"
+          mkdir -p "$RUNNER_TEMP/position1698-original-main"
+          git worktree add --detach "$RUNNER_TEMP/position1698-original-main" "$main_sha"
+          export PINNED_MAIN_SNAPSHOT="$RUNNER_TEMP/position1698-original-main"
+          export PINNED_MAIN_SHA="$main_sha"
+          python - <<'PY'
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          import json
+          import os
+          from four_mode_position_sensitive_shadow import audit_day
+          from position_sensitive_feature_inventory import audit_feature_day
+          from position_sensitive_topk_exposure_audit import audit_topk_day
+
+          root=Path(os.environ["PINNED_MAIN_SNAPSHOT"])
+          source_sha=os.environ["PINNED_MAIN_SHA"]
+          day="20261110"
+          feature=audit_feature_day(day, root=root)
+          replay=audit_day(day, root=root)
+          turnover=audit_topk_day(day, root=root)
+          n=feature["archived_files"]
+          if (n < 1 or any(x["compared"] != n or x["excluded"] != 0
+                           or x.get("formal") is not False
+                           or x.get("model_improvement_proven") is not False
+                           for x in (feature, replay, turnover))):
+              raise SystemExit("nov10_main_baseline_replay_or_coverage_incomplete")
+          paths=sorted((root/"four_mode_forecasts").glob(day+"[0-9][0-9][0-9][0-9].json"))
+          recorded_before_t12=0
+          recorded_after_or_at_t12=0
+          for file in paths:
+              d=json.loads(file.read_bytes())
+              generated=datetime.fromisoformat(d["generated_at_jst"])
+              deadline=datetime.fromisoformat(d["deadline_jst"])
+              if (generated.utcoffset()!=timedelta(hours=9)
+                      or deadline.utcoffset()!=timedelta(hours=9)):
+                  raise SystemExit("invalid_nov10_original_jst_clock")
+              if generated < deadline-timedelta(minutes=12):
+                  recorded_before_t12+=1
+              else:
+                  recorded_after_or_at_t12+=1
+          summary={
+              "schema":"POSITION_SENSITIVE_NOV10_MAIN_INPUT_ONLY_PAIRED_AUDIT_V1",
+              "status":"read_only_original_rates_and_position_ranking_no_outcomes",
+              "source_repo_main_git_sha_at_ci_snapshot":source_sha,
+              "day_jst":day,
+              "original_records":n,
+              "exact_v2_replays":replay["compared"],
+              "self_recorded_generated_before_t12":recorded_before_t12,
+              "self_recorded_generated_at_or_after_t12":recorded_after_or_at_t12,
+              "features_recorded_in_original_json":feature["recorded_top_level_feature_counts"],
+              "by_mode_rank_exposure":turnover["by_mode"],
+              "by_mode_top1_diversity":replay["by_mode"],
+              "official_pre_t12_originals_independently_verified":False,
+              "initial_forecast_git_remote_receipt_verified":False,
+              "candidate_feature_model_included":False,
+              "confirmed_finish_or_payout_read":False,
+              "topk_hit_rate_measured":False,
+              "formal":False,
+              "promotion_allowed":False,
+              "production_changed":False,
+              "warning":"Only stored V2 original rates and rank turnover. A generated timestamp is self-reported, not Git remote first acceptance. No actual 6/120 source or prospective 300+300 certification."
+          }
+          Path("nov10-main-input-only-topk.json").write_text(
+              json.dumps(summary, ensure_ascii=False, sort_keys=True, indent=2)+"\\n",
+              encoding="utf-8")
+          compact={
+              "main_sha":source_sha,"records":n,
+              "stored_before_t12":recorded_before_t12,
+              "stored_at_or_after_t12":recorded_after_or_at_t12,
+              "top1_changes_by_mode":{
+                  m:x["top1_changed"] for m,x in turnover["by_mode"].items()},
+              "top5_membership_changes_by_mode":{
+                  m:x["topn"]["5"]["membership_changed_races"]
+                  for m,x in turnover["by_mode"].items()},
+              "top10_membership_changes_by_mode":{
+                  m:(x["topn"]["10"]["membership_changed_races"]
+                     if x["topn"]["10"]["applicable"] else None)
+                  for m,x in turnover["by_mode"].items()},
+              "formal":False,
+          }
+          print("NOV10_MAIN_INPUT_ONLY_POSITION_RANKING="+json.dumps(compact, sort_keys=True))
+          PY
+      - name: Preserve Nov10 pinned main rate-only turnover audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: position-sensitive-nov10-main-input-only-${{ github.run_id }}
+          path: nov10-main-input-only-topk.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Download EXACT pinned successful #1694 read-only audit artifact
         uses: actions/download-artifact@v4
         with:
