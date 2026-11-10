@@ -326,3 +326,35 @@ and raw prediction archives remain untouched; do not auto-merge main.
 
 **CRITICAL**: No authenticated source-derived, race-by-race mode-specific scenario weights are yet available or statistically calibrated; therefore this is deliberately an **unregistered, synthetic-only design proof** with no live display, forecast production, source publishing, hit-rate/ROI proof or approval for betting. Do not hand-set a per-mode weight just to move tickets. Before deployment, the collector/replay owner must supply **same-race, pre-T−12 raw official racelist, exhibition/ST six, odds120, verified entry/conditional wall/weather when available**, independent first source and forecast remote receipts; #1692/#1694/#1693 must preregister and prospectively demonstrate each hypothesized weight and Top1/3/5/10 no-degradation. Results must be reserved out of coefficient fitting. No main auto-merge, no UI or production modification, no manual live selector override.
 
+
+## 2026-11-10: Exhibition-course proxy to existing #1698 conditional 2nd/3rd lab
+
+The complete six-boat **exhibition** course permutation already survives the
+#1693-compatible raw feature projection (by boat / racer identity), but
+#1710's runner previously passed only exhibition ST and time. This update
+passes each boat's `exhibition_course_only` to the **existing pinned**
+#1698 `experimental_conditional_board` as `entry_course`, available
+for explicitly nonzero *research* coefficients. No #1698 model is copied or
+changed. `actual_entry_course` and `two_course_wall_rate` remain missing,
+not inferred from boat numbers. Race-time final entry must never be treated
+as a legitimate pre-T12 input, and boat 2 is not inherently the entrant in
+course 2 (see #1692 official K event-entry discrepancy).
+
+The runner records `feature_fields_actually_activated_by_scenario`, separates
+nonzero coefficient consumption from merely supplied data, marks
+`entry_course_input_semantics=synthetic_projection_exhibition_only_not_final_actual_entry`,
+and explicitly reports
+`two_course_wall_feature_or_final_entry_used=false`. Zero course
+coefficients leave the probability board invariant under an exhibition-course
+swap; explicit nonzero coefficients can alter conditional 2nd/3rd ordering.
+Invalid duplicate courses, altered source-vector SHA and false provenance
+are rejected. Any such numeric sensitivity is *not* empirical evidence
+that the course proxy improves forecast hit rates.
+
+All inputs in tests are synthetic; the pipeline still requires authenticated,
+pre-T12 three-original source receipts, correct official source matching,
+independent first-remote forecast receipt, calibrated coefficient estimates,
+separate preregistration and 300+300 forward paired evaluation. Present
+status remains `formal=false`, `forecast_usable=false`,
+`promotion_allowed=false`; no new live picks, archive rewrites, main merge,
+Render/GitHub Pages change, collection job, or forecast scoring.
