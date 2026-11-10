@@ -424,3 +424,27 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 4. シナリオ重みの条件を現行の「モードごとの手指定」から「そのレースで事前に得た実データによる推定」へ移行するには、**独立登録の別研究**が必要。今回の3レースに合わせて係数や重みを調整してから同じ結果で有利と主張しない。
 
 **結論：シナリオ数理が保存V2原本と異なる候補を生成することは検証済み。的中率・校正・購入推奨・正式T−12/候補初回remote証明は0。** `formal=false`、`accuracy_improvement_proven=false`、`promotion_allowed=false`。main/Render/Pages/予想原本・結果・既存Cron/既存#1698 0.50/0.25登録・#1693登録母集団は変更なし。
+
+
+## 2026-11-10 ②担当：既存#1713公式3原本監査→#1710四モードの将来レース受入ゲート
+
+**実装場所**：既存Draft PR #1710の `scenario_future_three_original_gateway.py` + `test_scenario_future_three_original_gateway.py`。新PR/収集者/Cron/採点器を作らず、既存 #1713 `scripts.audit_three_official_t12_originals.audit_three_originals`、既存 #1693 `scenario_official_exhibition_projection.project_exhibition_research` の raw-byte semantic replay callback、固定 #1698 `experimental_conditional_board`、既存 #1710 `evaluate_exhibition_mode_lenses` を連結。**取得済み元原本は不変更、候補のGit遠隔保存・定期起動は未実装**。このゲートは候補の正式証明そのものではない。
+
+### 検証対象とfail closed条件
+- 研究対象は**2026-11-11 JST以降に締切を迎える将来レース**に限定。11/9・10の既存研究3レースを登録済み独立600件へ誤算入しない。
+- 公式3原本監査器がチェックする**12 component checksすべてTrue**、同一レースの出走表6人とbeforeinfo6人の登録番号一致、展示進入コース→艇番1対1、展示タイム6艇・ST6艇、公式3連単オッズ120、原本SHA、3原本すべてT−12より前に受信、公式締切・cutoff・各受信時刻・余裕秒数の完全一致を検査。元原本にある自己申告受信時刻と研究側raw sourceの受信時刻を相互照合する。候補自己申告生成が原本3つの受信より後かつT−12前であることも検査。
+- 要求inputの実際の`source_bundle.originals`3つと、`project_exhibition_research`が既存raw意味再パースと一致させた `source_sha256` を検査し、レース・艇番・登録番号・展示進入が4モード計算へ渡すprojectionと一致しなければ拒否。架空の2コース逃がし率/風向/水面/最終本番進入/モーター率は補完しない。
+- synthetic fixture陽性でも `formal=false`, `forecast_usable=false`, `promotion_allowed=false`, `eligible_for_existing_1693_600_races=false`, `eligible_for_new_300_plus_300_races=false`を固定。監査器の独立コードSHA、HTTP真正性、実候補初回遠隔Git受領、シナリオ係数/モード重みの別ID事前凍結は**未達**。発行時刻・結果・出力の偽証を許可しない。合成正例は原本を捏造した成功実測ではない。
+
+### 実原本を再取得して独立リプレイした負例
+- [実元ZIP #13749433042（#1713のPR event）](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786724704/artifacts/13749433042) を別runで再ダウンロードし、SHA256 `7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354` / 28件全CRC一致を確認。既存 `audit_three_originals` を**ZIP内の出走表・beforeinfo・オッズ120の原本そのもの**へ再実行。
+- **住之江7R `202611101207` と蒲郡8R `202611100708`**：いずれも公式原本SHA・6選手登録照合・オッズ120はOK。しかし `exhibition_six_courses`, `exhibition_times_six`, `start_exhibition_six` が不足。入力完全性は0/2で、今回の`validate_audited_source_pairing`は**2/2厳格拒否**。買い目生成・正式600枠算入は0。
+- [修正済み実際のGitHub Actions #42802543098](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42802543098) `completed/success`、コードhead `af0138f9704ea6f067907536289dbec55f8d2867`。[同一head PR安全性CI #42802256345](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42802256345) は先行ゲート実装に対してsuccess（後続docs/headでは再確認）。実run成果物 [#13756018727](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42802543098/artifacts/13756018727) ZIP SHA256 `a19b0c52dd99d4f2b4dfc1fabba49eebb3a974f1057c53537df5a079ae6eb04f`、3件のJSONファイル全てを別途厳格に再parseして正常、ZIP全CRC正常。監査原本に偽のpositivesはなし。
+- 最初の実run #42802245137ではモデル・拒否処理は成功したが、新しい負例レポートの末尾を文字列`\\n`として出力したため、ZIP検査時にJSONデコード不備を検出。**GitHubにその結果を成功実績として採用せず**、既存workflowのwrite_textを修正し、書き出したJSONを即再parseするCIチェックを追加。上記 #42802543098 が修正後の成果物。
+
+### 次の担当横断の単一依存
+1. ③/#1713・#1694が将来レースの正式な3原本を**同じジョブ**で完全に採り、T−12前の全6艇展示とオッズ120及び実原本SHA/受信時刻/保存runの独立証拠を残す。既存Cron/collectorで行い、今回の②gatewayへ raw bundle + 既存 auditor report を渡す。
+2. ②は新候補の既存#1698 exact code SHAと研究シナリオ仮説・モード重みを**別IDで事前凍結**し、source SHA→計算した120ボードSHA→全4モードチケットSHA→初回独立Git遠隔受領を順次監査する。今回のgatewayは source→数理の**研究用構造照合**のみであり、First remote証明/候補発行者の権限確認は未実装。
+3. ④/#1693の登録済み独立600枠へ混入しない。別研究として次の将来300+300件を**結果LAST**で採点し、Top1/3/5/10、gain/loss、頭の的中/欠落、Brier/logloss、場別・実進入の欠損、オッズ/ROI可用性を事前に決めて比較。未証明/欠損は外れにも成功にも算入しない。正式0/600、未検証係数の本番利用なし。
+
+**本変更も Draft #1710 のみ。#1713/#1694/#1693/#1698の実装、main/Render/Pages/既存予想・結果原本、本番稼働ジョブ、保存された確定結果を変更していない。**
