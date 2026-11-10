@@ -875,6 +875,70 @@ jobs:
                   console.log('PUBLIC_EXHIBITION_EMPTY_STATE_MATCH',JSON.stringify({state:sample.name,boatCount:6,intercepted}));
                 }finally{await page.close()}
               }
+              // Replay a real saved racecard with a diagnostic-only official adapter
+              // audit showing partial fields; do not invent source measurements or
+              // claim this is an independently observed live official race.
+              const originalResponse=JSON.parse(require('node:fs').readFileSync('docs/observations/official_preview_production_202611040111.json','utf8'));
+              const archivedCard=JSON.parse(originalResponse.raw_response_utf8);
+              for(const scenario of [
+                {name:'partial',expected:'公式展示の取得不足｜展示タイム 5/6艇｜チルト 6/6艇｜スタート展示 未検証（6/6行受信）',
+                  fallback:{reason:'incomplete_official_exhibition',
+                    official_measurement_counts:{racers:6,exhibition_time:5,tilt:6,start_rows:6,start_valid_six:false},
+                    missing_official_fields:['exhibition_time','start_exhibition']}},
+                {name:'deadline_mismatch',expected:'公式側の対象レース・締切時刻が一致せず',
+                  fallback:{reason:'official_race_or_deadline_mismatch'}}
+              ]){
+                const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+                try{
+                  const fixed=Date.parse('2026-11-04T19:59:00+09:00');
+                  await page.addInitScript(now=>{
+                    const NativeDate=Date;
+                    globalThis.Date=class extends NativeDate{
+                      constructor(...args){super(...(args.length?args:[now]))}
+                      static now(){return now}
+                    };
+                  },fixed);
+                  const card=JSON.parse(JSON.stringify(archivedCard));
+                  card.beforeinfo=null;
+                  card.source_audit.beforeinfo={status:'not_published_or_unavailable',formal_t12_certified:false,official_fallback:scenario.fallback};
+                  let intercepted=0;
+                  await page.route('https://boat-edge-clean.onrender.com/api/clean-racecard?**',route=>{
+                    const u=new URL(route.request().url());
+                    if(u.searchParams.get('hd')==='20261104'&&Number(u.searchParams.get('jcd'))===1&&Number(u.searchParams.get('rno'))===11){
+                      intercepted++;
+                      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(card)});
+                    }
+                    return route.continue();
+                  });
+                  const url=new URL(process.env.PAGE_URL);
+                  for(const [k,v] of [['date','2026-11-04'],['venue','01'],['race','11'],['view','exhibit']])url.searchParams.set(k,v);
+                  const response=await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000});
+                  assert.equal(response.status(),200,'actual published Pages must load');
+                  await page.evaluate(()=>{s.date='2026-11-04';s.venue=0;s.race=11;setView('exhibit');render()});
+                  await page.waitForFunction(expected=>
+                    document.querySelector('#exhibitionGrid .muted')?.textContent?.includes(expected) &&
+                    document.querySelectorAll('#exhibitionGrid .exhibition-boat').length===6,
+                    scenario.expected,{timeout:25000});
+                  const shown=await page.evaluate(()=>({
+                    key:sameRaceKey(),
+                    note:document.querySelector('#exhibitionGrid .muted')?.textContent||'',
+                    boats:[...document.querySelectorAll('#exhibitionGrid .exhibition-boat')].map(el=>({
+                      lane:Number(el.querySelector('.lane-badge')?.textContent),
+                      fields:Object.fromEntries([...el.querySelectorAll('.exhibition-metric')].map(m=>[m.querySelector('span')?.textContent,m.querySelector('strong')?.textContent]))
+                    }))
+                  }));
+                  assert.ok(intercepted>0,'public app must consume the scenario-specific API response');
+                  assert.equal(shown.key,'20261104-01-11');
+                  assert.ok(shown.note.includes(scenario.expected));
+                  assert.equal(shown.boats.length,6);
+                  for(let i=0;i<6;i++){
+                    assert.equal(shown.boats[i].lane,i+1);
+                    for(const metric of ['展示タイム','チルト','展示ST','展示進入'])
+                      assert.equal(shown.boats[i].fields[metric],'—','unverified official '+metric+' must not be fabricated');
+                  }
+                  console.log('PUBLISHED_OFFICIAL_GAP_DIAGNOSTIC_PASS',JSON.stringify({scenario:scenario.name,lanes:6,withheld:24,intercepted,source:'archived racecard with synthetic missing-field audit; published browser renderer only'}));
+                }finally{await page.close()}
+              }
               console.log('PUBLIC_EXHIBITION_EMPTY_STATES_PASS',cases.length);
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
