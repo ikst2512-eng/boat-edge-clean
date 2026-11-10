@@ -7,7 +7,7 @@ import unittest
 from itertools import permutations
 
 from four_mode_official_future_lineage_preflight import (
-    SCHEMA, preflight, _canonical, SIZES,
+    SCHEMA, preflight, _canonical, SIZES, has_embedded_outcome,
 )
 
 
@@ -203,6 +203,38 @@ class FutureLineagePreflightTests(unittest.TestCase):
         s["originals"]["beforeinfo"]["source_url"]="https://example.org/not_official"
         with self.assertRaisesRegex(ValueError,"missing_original_raw"):
             preflight(s,c)
+
+    def test_nested_postrace_payload_never_passes_official_lineage(self):
+        for location in ("source_original", "candidate_meta", "normalized_meta"):
+            with self.subTest(location=location):
+                source, candidate = fixture()
+                if location == "source_original":
+                    source["originals"]["beforeinfo"]["metadata"] = {
+                        "audit": [{"official_result": [1, 2, 3]}}
+                elif location == "candidate_meta":
+                    candidate["metadata"] = [{"environment": {
+                        "post_race_weather": {"wind_mps": 8.0}}}]
+                else:
+                    source["normalized_source_claim"]["aux"] = {
+                        "prior": {"finish_order": [1, 2, 3]}}
+                with self.assertRaisesRegex(
+                        ValueError,
+                        "outcome_leak_in_normalized_claim"
+                        if location == "normalized_meta" else
+                        "outcome_or_forged_formal_in_pre_result_input"):
+                    preflight(source, candidate)
+
+    def test_embedded_outcome_guard_allows_pre_result_data_and_handles_cycles(self):
+        source, candidate = fixture()
+        self.assertFalse(has_embedded_outcome(source))
+        self.assertFalse(has_embedded_outcome(candidate))
+        self.assertFalse(has_embedded_outcome({
+            "result_based_features_used": False, "exhibition_st": [0.12, 0.13]}))
+        nested = {"audit": [{"inputs": {"payout": 12345}}]}
+        self.assertTrue(has_embedded_outcome(nested))
+        cycle = {"metadata": []}
+        cycle["metadata"].append(cycle)
+        self.assertFalse(has_embedded_outcome(cycle))
 
 
 if __name__=="__main__":
