@@ -1455,14 +1455,20 @@ async function loadOriginalExhibition(key,token,grid){
  const holders=Array.from({length:6},(_,i)=>grid.querySelector('[data-original-exhibition-lane="'+(i+1)+'"]'));
  if(!status||holders.some(node=>!node))return;
  const current=()=>token===window.raceDataRequestId&&key===sameRaceKey()&&activeView==='exhibit'&&grid.isConnected&&holders.every(node=>node.isConnected);
- const unavailable=(message)=>{
+ const unavailable=(message,emptyLabel='オリ展：未取得')=>{
   if(!current())return;
   status.textContent=message;
   for(const holder of holders){
    holder.replaceChildren();
-   const p=document.createElement('p');p.className='exhibition-original-pending';p.textContent='オリ展：未取得';holder.append(p);
+   const p=document.createElement('p');p.className='exhibition-original-pending';p.textContent=emptyLabel;holder.append(p);
   }
  };
+ // The documented source has no original-exhibition records for Edogawa (03).
+ // Do not describe a structurally absent feed as a temporary HTTP failure.
+ if(key.slice(9,11)==='03'){
+  unavailable('オリ展：江戸川は配信元の計測対象外（通常展示は別途表示）','オリ展：非提供');
+  return;
+ }
  try{
   const url='https://boatracecsv.github.io/data/previews/original_exhibition/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
   const response=await fetchTimed(url,{cache:'no-store'});

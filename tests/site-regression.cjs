@@ -722,11 +722,11 @@ void (async()=>{
   data.push(String(lane*10+k));
  }
  const fixture=head.join(',')+'\n'+data.join(',')+'\n';
- let response={ok:true,status:200,text:async()=>fixture},blocked=false,finishRequest=null;
+ let response={ok:true,status:200,text:async()=>fixture},blocked=false,finishRequest=null,fetchCalls=0;
  const win={get raceDataRequestId(){return state.token}};
  const load=vm.runInNewContext(csvFn+'\n'+script.slice(begin,finish)+'\nloadOriginalExhibition',{
    document,window:win,sameRaceKey:()=>state.key,activeView:'exhibit',
-   fetchTimed:async()=>blocked?new Promise(resolve=>{finishRequest=resolve}):response,Error,Number,Set,Array,String
+   fetchTimed:async()=>{fetchCalls++;return blocked?new Promise(resolve=>{finishRequest=resolve}):response},Error,Number,Set,Array,String
  });
  const ok=makeGrid();await load(state.key,state.token,ok.grid);
  assert.match(ok.status.textContent,/6艇分/);
@@ -741,6 +741,13 @@ void (async()=>{
  const pending=makeGrid();await load(state.key,state.token,pending.grid);
  assert.match(pending.status.textContent,/未配信/);
  assert.ok(pending.holders.every(h=>h.children.length===1&&h.children[0].textContent==='オリ展：未取得'),'404 must not invent original values');
+ const callsBeforeEdogawa=fetchCalls;
+ state.key='20261104-03-11';
+ const nonProvided=makeGrid();await load(state.key,state.token,nonProvided.grid);
+ assert.match(nonProvided.status.textContent,/江戸川.*対象外/);
+ assert.equal(fetchCalls,callsBeforeEdogawa,'non-providing venue must not trigger original feed request');
+ assert.ok(nonProvided.holders.every(h=>h.children[0]?.textContent==='オリ展：非提供'),'Edogawa must be explicitly non-providing, not pending');
+ state.key='20261104-01-11';
  response={ok:true,status:200,text:async()=>head.slice(0,-1).join(',')+'\n'+data.slice(0,-1).join(',')};
  const incomplete=makeGrid();await load(state.key,state.token,incomplete.grid);
  assert.match(incomplete.status.textContent,/検証できません/);
