@@ -222,9 +222,75 @@ def run_observed_archives(
         mode:{name:float(weight) for name,weight in values.items()}
         for mode,values in protocol["mode_weights"].items()
     }
+    # #1693's full raw semantic replay expects candidate_tickets and
+    # candidate_method_sha256 to ALREADY exist. These are actual model outputs,
+    # unavailable before the #1710 four-mode calculation. Never manufacture
+    # dummy tickets just to satisfy the old preflight. Instead pre-model stage
+    # reaudits the same original bytes through the real auditor and parsers,
+    # and runs the full pinned #1693 replay AFTER genuine rankings exist.
+    def source_only_verified_replay(source_bundle, source_candidate):
+        second_audit, second_source, second_candidate=build_archive_bundle(
+            card_dir,before_dir,odds_dir,generated,
+            auditor=auditor,before_parser=raw_before_parser,
+            card_parser=card_parser,odds_parser=odds_parser)
+        if (second_audit!=audit or second_source!=source_bundle
+                or second_candidate!=source_candidate):
+            raise ValueError("pre_model_source_reaudit_drift")
+        return {
+            "schema":"FOUR_MODE_OFFICIAL_RAW_SEMANTIC_REPLAY_V1",
+            "race_code":source_bundle["race_code"],
+            "status":"raw_bytes_semantically_reparsed_and_declared_features_match_RESEARCH_ONLY",
+            "verified_stages":[
+                "preflight_raw_byte_sha_and_clock_structure",
+                "official_racelist_six_registration_parser",
+                "official_beforeinfo_six_exhibition_start_parser",
+                "official_120_odds_html_parser",
+                "declared_normalized_features_match_raw_reparse",
+            ],
+            "formal":False,"model_promotion_allowed":False,
+            "raw_official_provenance_independently_attested":False,
+            "actual_model_output_independently_replayed":False,
+            "first_remote_candidate_acceptance_independently_verified":False,
+        }
     gateway=run_future_triple_experiment(
-        audit,source,candidate,raw_replay_callback,rates,
+        audit,source,candidate,source_only_verified_replay,rates,
         protocol["scenario_hypotheses"],mode_weights,conditional_callback)
+    # Bind the full #1693 provenance replay to the ACTUAL #1710 generated
+    # ranked tickets and the preregistered on-disk Git model source identity.
+    # A model-derived candidate cannot be supplied before that model runs.
+    actual_candidate=dict(candidate)
+    actual_candidate["candidate_tickets"]={
+        mode:[ticket["combo"] for ticket in
+              gateway["research_mode_tickets"][mode]["tickets"]]
+        for mode in ("narrow","hit","balance","hole")
+    }
+    actual_candidate["candidate_method_sha256"]=hashlib.sha256(
+        json.dumps({
+            "method_git_blob_sha1":protocol["method_git_blob_sha1"],
+            "pinned_external_code":protocol["pinned_external_code"],
+        },sort_keys=True,separators=(",",":"),ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    full_replay=raw_replay_callback(source,actual_candidate)
+    required_stages={
+        "preflight_raw_byte_sha_and_clock_structure",
+        "official_racelist_six_registration_parser",
+        "official_beforeinfo_six_exhibition_start_parser",
+        "official_120_odds_html_parser",
+        "declared_normalized_features_match_raw_reparse",
+    }
+    if (type(full_replay) is not dict
+            or full_replay.get("schema")!="FOUR_MODE_OFFICIAL_RAW_SEMANTIC_REPLAY_V1"
+            or full_replay.get("race_code")!=audit["race_code"]
+            or full_replay.get("status")!=
+                "raw_bytes_semantically_reparsed_and_declared_features_match_RESEARCH_ONLY"
+            or type(full_replay.get("verified_stages")) is not list
+            or not required_stages.issubset(full_replay["verified_stages"])
+            or full_replay.get("formal") is not False
+            or full_replay.get("model_promotion_allowed") is not False
+            or full_replay.get("actual_model_output_independently_replayed") is not False
+            or full_replay.get("raw_official_provenance_independently_attested") is not False
+            or full_replay.get("first_remote_candidate_acceptance_independently_verified") is not False):
+        raise ValueError("pinned_complete_postmodel_semantic_replay_not_verified")
     frozen=_jst(clock()).isoformat()
     prepared=prepare_local_candidate(gateway,protocol,generated,frozen)
     outcome={
@@ -238,6 +304,10 @@ def run_observed_archives(
         "candidate_git_blob_sha1":prepared["git_blob_sha1"],
         "source_sha256_claims":gateway["source_lineage_preflight"]["source_sha256_claims"],
         "four_mode_ticket_budgets":protocol["mode_ticket_budgets"],
+        "post_model_replay_verified_stages":list(sorted(required_stages)),
+        "candidate_method_sha256_derived_from_preregistered_blobs":
+            actual_candidate["candidate_method_sha256"],
+        "postmodel_tickets_derived_from_calculation_not_fabricated":True,
         "github_create_attempted":False,
         "official_source_first_remote_receipts_independently_verified":False,
         "candidate_first_remote_receipt_verified":False,
