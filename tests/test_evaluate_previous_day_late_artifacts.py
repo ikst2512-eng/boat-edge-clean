@@ -79,7 +79,7 @@ class PriorArtifactTest(unittest.TestCase):
         def fetch(url):
             calls.append(url)
             if "/actions/workflows/" in url:
-                page=int(url.split("page=")[1].split("&")[0])
+                page=int(__import__("urllib.parse",fromlist=["parse_qs"]).parse_qs(__import__("urllib.parse",fromlist=["urlsplit"]).urlsplit(url).query)["page"][0])
                 runs=[] if page==6 else [self.source_run(page*100+i,event="pull_request") for i in range(100)]
                 return json.dumps({"workflow_runs":runs}).encode()
             self.fail("PR runs must not be treated as saved research candidates")
