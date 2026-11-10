@@ -129,7 +129,8 @@ jobs:
           import os
           import pathlib
           import zipfile
-          from urllib.request import Request, urlopen
+          from urllib.parse import urlsplit
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
 
           repo = "ikst2512-eng/boat-edge-clean"
           run_id = 42777088623
@@ -140,6 +141,25 @@ jobs:
           api = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}"
           token = os.environ["GH_TOKEN"]
 
+          class DropAuthOnCrossHostRedirect(HTTPRedirectHandler):
+              def redirect_request(self, request, fp, code, msg, headers, newurl):
+                  redirected = super().redirect_request(
+                      request, fp, code, msg, headers, newurl)
+                  if redirected is None:
+                      return None
+                  if (urlsplit(redirected.full_url).scheme != "https"
+                          or urlsplit(redirected.full_url).hostname is None):
+                      raise SystemExit("unsafe_github_artifact_redirect")
+                  # GitHub API may redirect to a time-limited signed artifact
+                  # URL. Do not forward the GitHub bearer token to that host.
+                  if (urlsplit(redirected.full_url).hostname !=
+                          urlsplit(request.full_url).hostname):
+                      return Request(redirected.full_url, headers={
+                          "User-Agent": "four-mode-research-readonly-audit"})
+                  return redirected
+
+          opener = build_opener(DropAuthOnCrossHostRedirect())
+
           def get(url):
               request = Request(url, headers={
                   "Authorization": "Bearer " + token,
@@ -147,7 +167,7 @@ jobs:
                   "X-GitHub-Api-Version": "2022-11-28",
                   "User-Agent": "four-mode-research-readonly-audit",
               })
-              with urlopen(request, timeout=45) as reply:
+              with opener.open(request, timeout=45) as reply:
                   result = reply.read(2_000_001)
               if len(result) > 2_000_000:
                   raise SystemExit("bounded_upstream_t12_artifact_too_large")
