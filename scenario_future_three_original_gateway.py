@@ -9,6 +9,8 @@ Even a self-consistent three-source *report* does not independently prove
 the HTTP origin, source-to-model execution, first Git remote receipt, or
 prospective accuracy. Output is a RESEARCH CONTRAST ONLY.
 """
+import base64
+import binascii
 import hashlib
 import json
 import math
@@ -16,6 +18,7 @@ import re
 from datetime import datetime, timedelta
 
 from scenario_official_exhibition_projection import project_exhibition_research
+from scenario_official_racelist_rates import extract_six_official_racelist_rates
 from scenario_mode_specific_exhibition_end_to_end import (
     evaluate_exhibition_mode_lenses, MODES, BUDGETS,
 )
@@ -180,8 +183,24 @@ def run_future_triple_experiment(audit, source_bundle, candidate,
         source_bundle, candidate, raw_replay_callback)
     source_check = validate_audited_source_pairing(
         audit, source_bundle, candidate, projection)
+    # The six win rates MUST be parsed from the same archived racelist HTML,
+    # not silently accepted from an old V2 CSV, caller guess or a neutral
+    # fallback. Projection has already checked this raw source SHA via the
+    # injected #1693 semantic replayer and all three source/cutoff claims.
+    original = source_bundle["originals"]["racelist"]
+    try:
+        html = base64.b64decode(original["raw_base64"], validate=True)
+    except (ValueError, binascii.Error, KeyError, TypeError) as exc:
+        raise ValueError("unreadable_official_racelist_original") from exc
+    if hashlib.sha256(html).hexdigest() != source_check["source_sha256_claims"]["racelist"]:
+        raise ValueError("national_rate_source_not_same_official_original")
+    rate_audit = extract_six_official_racelist_rates(html)
+    if (rate_audit["national_rates"] != rates
+            or [row["registration_id"] for row in rate_audit["boats"]] !=
+            [row["registration_id"] for row in projection["exhibition_features_by_boat"]]):
+        raise ValueError("six_national_win_rates_or_registration_not_from_official_racelist")
     math_out = evaluate_exhibition_mode_lenses(
-        projection, rates, scenarios, mode_weights,
+        projection, rate_audit["national_rates"], scenarios, mode_weights,
         conditional_callback, study_id=STUDY)
     if (math_out["race_code"] != source_check["race_code"]
             or math_out["formal"] is not False
@@ -208,6 +227,11 @@ def run_future_triple_experiment(audit, source_bundle, candidate,
         "study_id": STUDY,
         "race_code": source_check["race_code"],
         "source_lineage_preflight": source_check,
+        "six_national_win_rates_from_same_original_html": rate_audit["national_rates"],
+        "six_local_win_rates_from_same_original_html": rate_audit["local_rates"],
+        "six_average_ST_from_same_original_html_not_scored": rate_audit["average_st"],
+        "national_win_rate_from_official_original_structurally_verified": True,
+        "official_racelist_HTTP_authenticity_independently_verified": False,
         "hypothesis_signature_sha256": hashlib.sha256(json.dumps(
             {"scenarios":scenarios, "weights":mode_weights},
             sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest(),
