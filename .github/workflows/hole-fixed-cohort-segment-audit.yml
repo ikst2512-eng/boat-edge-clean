@@ -1,0 +1,134 @@
+name: Hole fixed 120 stratification and result-blind comparison
+on:
+  pull_request:
+    paths:
+      - hole_fixed_cohort_segment_audit.py
+      - test_hole_fixed_cohort_segment_audit.py
+      - hole_nov04_disjoint_research.py
+      - test_hole_nov04_disjoint_research.py
+      - hole_nov05_frozen_observation_audit.py
+      - test_hole_nov05_frozen_observation_audit.py
+      - .github/workflows/hole-fixed-cohort-segment-audit.yml
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify fixed cohort and result-access ordering
+        run: python -m unittest -v test_hole_fixed_cohort_segment_audit.py
+      - name: Recompute all 120 paired archived races
+        run: python hole_fixed_cohort_segment_audit.py > hole_fixed_cohort_segment_report.json
+      - name: Check reconciliation and report stratified summary
+        run: |
+          python - <<'PY'
+          import json
+          r = json.load(open('hole_fixed_cohort_segment_report.json'))
+          assert r["cohort_count"] == 120 and r["formal"] is False
+          assert r["cohort_overlap"] == {"shared":86,"original_only":34,"current_only":34}
+          assert r["historical_original_120"]["matches_20261102_archived_report"]
+          assert not r["independent_first_receipt_verified"]
+          assert r["overall"]["policies"]["baseline"]["hits"]["top10"] == 14
+          assert r["overall"]["policies"]["same_pair"]["hits"]["top10"] == 17
+          assert r["overall"]["policies"]["two_pairs"]["hits"]["top10"] == 17
+          for key in ["by_model_version","by_date","by_race_round_band","by_venue"]:
+              assert sum(g["n"] for g in r[key].values()) == 120
+          for group in [r["overall"], *r["by_model_version"].values(), *r["by_race_round_band"].values()]:
+              for name, item in group["policies"].items():
+                  for k in (1,3,5,10):
+                      key=f"top{k}"
+                      assert (item["hits"][key]-group["policies"]["baseline"]["hits"][key]
+                              ==item["gain"][key]-item["loss"][key])
+          print(json.dumps({
+              "cohort_count":r["cohort_count"],
+              "historical_original_120":r["historical_original_120"],
+              "cohort_overlap":r["cohort_overlap"],
+              "overall":r["overall"],
+              "by_model_version":r["by_model_version"],
+              "by_race_round_band":r["by_race_round_band"],
+              "warnings":r["warning"]
+          }, ensure_ascii=False, sort_keys=True))
+          PY
+      - name: Test disjoint Nov4 retrospective selection
+        run: python -m unittest -v test_hole_nov04_disjoint_research.py
+      - name: Compare disjoint Nov4 races without result-aided selection
+        run: python hole_nov04_disjoint_research.py > hole_nov04_disjoint_research.json
+      - name: Validate disjoint Nov4 denominators
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open("hole_nov04_disjoint_research.json"))
+          assert d["comparable"] == 93
+          assert d["file_counts"]["paired_available"] == 110
+          assert d["file_counts"]["already_in_prior_cohort"] == 17
+          assert d["formal"] is False and d["prospective_validation"] is False
+          assert d["independent_first_receipt_verified"] is False
+          base = d["overall"]["policies"]["baseline"]
+          for name in ("same_pair","two_pairs"):
+              tested = d["overall"]["policies"][name]
+              for top in ("top1","top3","top5"):
+                  assert tested["hits"][top] == base["hits"][top]
+              for top in ("top1","top3","top5","top10"):
+                  assert tested["hits"][top]-base["hits"][top] == (
+                      tested["gain"][top]-tested["loss"][top])
+          print(json.dumps({"comparable":d["comparable"],"file_counts":d["file_counts"],
+                            "overall":d["overall"],"by_model_version":d["by_model_version"],
+                            "by_race_round_band":d["by_race_round_band"]},
+                           ensure_ascii=False,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-nov04-disjoint-retrospective
+          path: hole_nov04_disjoint_research.json
+      - name: Test Nov5 frozen observed evidence gate
+        run: python -m unittest -v test_hole_nov05_frozen_observation_audit.py
+      - name: Fetch immutable Nov5 source job evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p nov05_original_capture
+          gh run download 41953950959 --repo "${GITHUB_REPOSITORY}" --name "four-mode-capture-41953950959" --dir nov05_original_capture
+          test -s nov05_original_capture/four-mode-evidence/hole-shadow.json
+          test -s nov05_original_capture/four-mode-evidence/github-server-observation.json
+      - name: Match Nov5 frozen tickets against official stored results
+        run: |
+          python hole_nov05_frozen_observation_audit.py \
+            --root . \
+            --shadow nov05_original_capture/four-mode-evidence/hole-shadow.json \
+            --observed nov05_original_capture/four-mode-evidence/github-server-observation.json \
+            > hole_nov05_frozen_observation_comparison.json
+          python - <<'PY'
+          import json
+          d=json.load(open("hole_nov05_frozen_observation_comparison.json"))
+          assert d["formal"] is False and d["prospective_validation"] is False
+          assert d["independent_first_receipt_verified"] is False
+          assert d["production_forecast_changed"] is False
+          assert d["observed_pre_t12"] == 106
+          assert d["frozen_selector_replay_eligible"] == 106
+          assert 0 <= d["paired_confirmed"] <= 106
+          assert d["not_yet_comparable"] == 106-d["paired_confirmed"]
+          assert set(d["replayed_pair_policies"]) == {"baseline","same_pair","two_pairs"}
+          print("NOV05_FROZEN_SUMMARY",json.dumps({
+              k:d[k] for k in ("status","observed_pre_t12",
+                "frozen_selector_replay_eligible","paired_confirmed",
+                "not_yet_comparable","frozen_policies","frozen_delta",
+                "replayed_pair_policies","replayed_pair_delta",
+                "replayed_existing_top10_rank_worse","excluded_by_reason")
+          },ensure_ascii=False,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hole-nov05-frozen-server-observed-research
+          path: hole_nov05_frozen_observation_comparison.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hole-fixed120-segment-audit
+          path: hole_fixed_cohort_segment_report.json
