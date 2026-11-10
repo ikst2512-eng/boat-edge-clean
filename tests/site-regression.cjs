@@ -705,3 +705,76 @@ assert.equal(guardedCandidate({...safeCandidate,source_cards_received_jst:'2026-
 assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:23:00+09:00'},nowAfterGeneration),false,'generation exactly at T-12 is rejected');
 assert.equal(guardedCandidate({...safeCandidate,source_deadline_jst:'2026-11-04T16:36:00+09:00'},nowAfterGeneration),false,'mismatching source race deadline is rejected');
 assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:20:00+09:00'},Date.parse('2026-11-04T16:00:00+09:00')),false,'future-dated generation is rejected');
+
+
+// Integrated exhibition: use the exact production CSV parser and async
+// original-exhibition renderer against a deterministic DOM stub (no live data).
+// This catches shifted-lane values, duplicate rows, incomplete source schemas,
+// network absence and stale requests without changing forecast/scoring logic.
+assert.ok(script.includes("metrics.dataset.originalExhibitionLane=String(lane)"),'each boat needs its own original exhibition host');
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'load original only after six boat cards');
+assert.ok(!script.includes('originalExhibitionDetails'),'original exhibition cannot create a separate detached section');
+assert.ok(html.includes('.exhibition-original-values'),'original measurements must share the six-boat card styling');
+void (async()=>{
+ const csvFn=script.split('\n').find(x=>x.startsWith('function csvFields('));
+ const begin=script.indexOf('async function loadOriginalExhibition(key,token,grid){');
+ const finish=script.indexOf("\nlet displayedRaceKey='';",begin);
+ assert.ok(csvFn&&begin>=0&&finish>begin,'production original exhibition loader must be isolated');
+ class FakeNode {
+  constructor(tag='div'){this.tag=tag;this.children=[];this.textContent='';this.className='';this.isConnected=true;this.dataset={};}
+  replaceChildren(...items){this.children=[...items]}
+  append(...items){this.children.push(...items)}
+ }
+ const state={key:'20261104-01-11',token:1};
+ const document={createElement:tag=>new FakeNode(tag)};
+ const makeGrid=()=>{
+  const status=new FakeNode('p'),holders=Array.from({length:6},()=>new FakeNode());
+  status.textContent='読込中';
+  return {status,holders,grid:{isConnected:true,
+   querySelector(selector){
+    if(selector==='#originalExhibitionStatus')return status;
+    const match=selector.match(/^\[data-original-exhibition-lane="([1-6])"\]$/);
+    return match?holders[Number(match[1])-1]:null;
+   }}};
+ };
+ const head=['レースコード','計測数','計測項目1','計測項目2'];
+ const data=['202611040111','2','1周','まわり足'];
+ for(let lane=1;lane<=6;lane++)for(let k=1;k<=2;k++){
+  head.push('艇'+lane+'_値'+k);
+  data.push(String(lane*10+k));
+ }
+ const fixture=head.join(',')+'\n'+data.join(',')+'\n';
+ let response={ok:true,status:200,text:async()=>fixture};
+ const win={get raceDataRequestId(){return state.token}};
+ const load=vm.runInNewContext(csvFn+'\n'+script.slice(begin,finish)+'\nloadOriginalExhibition',{
+   document,window:win,sameRaceKey:()=>state.key,activeView:'exhibit',
+   fetchTimed:async()=>response,Error,Number,Set,Array,String
+ });
+ const ok=makeGrid();await load(state.key,state.token,ok.grid);
+ assert.match(ok.status.textContent,/6艇分/);
+ ok.holders.forEach((holder,i)=>{
+  assert.equal(holder.children.length,2,'must display two original source metrics for boat '+(i+1));
+  assert.equal(holder.children[0].children[0].textContent,'1周');
+  assert.equal(holder.children[0].children[1].textContent,String((i+1)*10+1),'no boat-to-boat shift');
+  assert.equal(holder.children[1].children[0].textContent,'まわり足');
+  assert.equal(holder.children[1].children[1].textContent,String((i+1)*10+2));
+ });
+ response={ok:false,status:404};
+ const pending=makeGrid();await load(state.key,state.token,pending.grid);
+ assert.match(pending.status.textContent,/未配信/);
+ assert.ok(pending.holders.every(h=>h.children.length===1&&h.children[0].textContent==='オリ展：未取得'),'404 must not invent original values');
+ response={ok:true,status:200,text:async()=>head.slice(0,-1).join(',')+'\n'+data.slice(0,-1).join(',')};
+ const incomplete=makeGrid();await load(state.key,state.token,incomplete.grid);
+ assert.match(incomplete.status.textContent,/検証できません/);
+ assert.ok(incomplete.holders.every(h=>h.children[0].textContent==='オリ展：未取得'),'missing lane column must reject whole source');
+ let resolve;
+ response={ok:true,status:200,text:()=>new Promise(done=>{resolve=done})};
+ const stale=makeGrid();const request=load(state.key,state.token,stale.grid);
+ await Promise.resolve();await Promise.resolve();
+ state.token++;
+ if(resolve)resolve(fixture);
+ await request;
+ assert.equal(stale.status.textContent,'読込中','stale race request must not overwrite new race cards');
+ assert.ok(stale.holders.every(h=>h.children.length===0),'stale request must not add measurements');
+ console.log('PASS: original exhibition merged by exact boat number, independent data checks and stale-request protection');
+})().catch(error=>{console.error('FAIL: per-boat exhibition integration',error);process.exitCode=1});
