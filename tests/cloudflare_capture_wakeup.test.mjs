@@ -1144,6 +1144,7 @@ import {auditTelemetryApiPages,API_SCHEMA,buildObserverTelemetryQueries} from '.
 
 function syntheticApiTelemetryDay() {
   const raw=syntheticRawWorkersDay(),start=Date.parse(raw.utc_day+'T00:00:00Z');
+  const accountId='a'.repeat(32);
   const timeframe={from:start,to:start+86400000};
   const filter={kind:'filter',key:'$metadata.service',value:OBSERVER_NAME,type:'string',operation:'eq'};
   const makeParams=view=>({
@@ -1156,12 +1157,12 @@ function syntheticApiTelemetryDay() {
     parameters:makeParams('calculations')};
   const makeResponse=(id,request,data)=>({
     success:true,errors:[],
-    result:{run:{id,accountId:'ACCOUNT-MOCK',status:'COMPLETED',
+    result:{run:{id,accountId,status:'COMPLETED',
         timeframe:{...timeframe},query:{parameters:structuredClone(request.parameters)}},
       ...data},
   });
   return {schema:API_SCHEMA,utc_day:raw.utc_day,worker:raw.worker,
-    deployment_id:raw.deployment_id,
+    account_id:accountId,deployment_id:raw.deployment_id,
     events_query:{request:eventsRequest,response:makeResponse('RUN-EVENTS',eventsRequest,{
       events:{count:raw.records.length,
         events:raw.records.map(row=>({...row,dataset:'cloudflare-workers'}))},
@@ -1328,6 +1329,29 @@ test('read-only API request generator outputs exact V2 scope without tokens or n
   assert.doesNotMatch(child.stdout,/Authorization|Bearer|GITHUB_DISPATCH_TOKEN/);
   const invalid=spawnSync(process.execPath,[script,'invalid-date'],{encoding:'utf8',timeout:15000});
   assert.equal(invalid.status,2);
+});
+
+test('Telemetry API V2 account scope must match the explicitly queried account, not just both answers',()=>{
+  const foreign='b'.repeat(32);
+  for(const poison of [
+    x=>delete x.account_id,
+    x=>x.account_id='NOT-A-VALID-ACCOUNT-ID',
+    x=>x.account_id=foreign,
+    x=>{x.events_query.response.result.run.accountId=foreign;
+      x.sampling_query.response.result.run.accountId=foreign;},
+    x=>x.events_query.response.result.run.accountId=foreign,
+    x=>x.sampling_query.response.result.run.accountId=foreign,
+  ]){
+    const input=syntheticApiTelemetryDay();poison(input);
+    const report=auditTelemetryApiPages(input);
+    assert.equal(report.observer_day_pass,false);
+    assert.equal(report.api_query_structure_pass,false);
+    assert.ok(report.api_issues.some(x=>[
+      'api_requested_account_id_missing_or_invalid',
+      'api_run_account_not_requested_account',
+    ].includes(x)),JSON.stringify(report.api_issues));
+    assert.equal(report.actual_cloudflare_api_authenticity_independently_proven,false);
+  }
 });
 
 test('Telemetry API V2 explicitly refuses V1 pseudo-API envelope and schema',()=>{
