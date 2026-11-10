@@ -31,6 +31,8 @@ on:
       - research/test_hole_pair_real_main_snapshot_gate.py
       - research/hole_pair_t12_polling_cadence_simulator.py
       - research/test_hole_pair_t12_polling_cadence_simulator.py
+      - research/hole_pair_official_event_veto_audit.py
+      - research/test_hole_pair_official_event_veto_audit.py
       - docs/research/hole_pair_t12_polling_cadence_sensitivity_20261110.md
       - docs/research/hole_pair_nov10_150_original_source_readiness_20261110.md
       - research/hole_pair_manual_capture.py
@@ -85,6 +87,8 @@ jobs:
         run: python -m unittest -v research/test_hole_pair_real_main_snapshot_gate.py
       - name: Test hypothetical per-race T-12 polling windows (offline, never dispatch)
         run: python -m unittest -v research/test_hole_pair_t12_polling_cadence_simulator.py
+      - name: Validate same-race official-event handoff veto (synthetic, result-blind)
+        run: python -m unittest -v research/test_hole_pair_official_event_veto_audit.py
       - name: Test manual-only research capture driver (no real dispatch)
         run: python -m unittest -v research/test_hole_pair_manual_capture.py
       - name: Audit default-branch manual-dispatch registration (read-only)
@@ -137,6 +141,37 @@ jobs:
                     'declared_t12_still_future_at_reference',
                     'optional_beforeinfo_absent_from_forecast')
           })
+          PY
+      - name: Veto all 150 real source rows absent independently authenticated official events
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m research.hole_pair_official_event_veto_audit \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --output research_20261110_official_event_handoff_veto_nonformal.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research_20261110_official_event_handoff_veto_nonformal.json')
+          d=json.loads(p.read_text())
+          assert d['original_source_races_examined'] == 150
+          assert len(d['rows']) == 150
+          assert d['official_handoff_claim_missing'] == 150
+          assert d['source_handoff_claims_supplied_unverified'] == 0
+          assert d['source_forecast_missing_beforeinfo'] == 150
+          assert d['declared_t12_window_elapsed_at_reference'] == 125
+          assert d['declared_t12_window_open_at_reference'] == 25
+          assert d['authorized_dispatch_events'] == 0
+          assert d['independent_official_source_originals_verified'] == 0
+          assert d['independent_first_candidate_receipts_verified'] == 0
+          assert d['prospective_pilot_formally_eligible'] == 0
+          assert d['prospective_confirmation_formally_eligible'] == 0
+          assert d['results_opened'] is False
+          assert d['formal'] is False
+          assert d['production_promotion_allowed'] is False
+          print('OFFICIAL_EVENT_VETO_150_REAL_ORIGINALS', {
+              k:v for k,v in d.items() if k not in ('rows','warning')})
           PY
       - name: Counterfactual cadence versus 150 REAL original cutoffs (no live polling)
         if: github.event_name == 'pull_request'
@@ -204,6 +239,7 @@ jobs:
             research_20261110_lead120_phase0_nonformal.json
             research_20261110_lead60_phase0_nonformal.json
             research_20261110_lead60_phase45_nonformal.json
+            research_20261110_official_event_handoff_veto_nonformal.json
           if-no-files-found: error
           retention-days: 30
       - name: Prove Nov 5 is excluded before opening any forecast
