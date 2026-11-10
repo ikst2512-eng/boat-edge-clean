@@ -173,6 +173,24 @@ jobs:
                   raise SystemExit("bounded_upstream_t12_artifact_too_large")
               return result
 
+          # A same-named artifact from a different workflow/branch must not
+          # borrow the identity of the audited #1694 immutable CI run.
+          upstream_run = json.loads(get(
+              f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"))
+          if (upstream_run.get("id") != run_id
+                  or upstream_run.get("workflow_id") != 410481101
+                  or upstream_run.get("name") !=
+                  "Audit official-pair schedule continuity (read only)"
+                  or upstream_run.get("event") != "pull_request"
+                  or upstream_run.get("status") != "completed"
+                  or upstream_run.get("conclusion") != "success"
+                  or upstream_run.get("head_branch") !=
+                  "audit/t12-nov06-day-isolation-20261106"
+                  or upstream_run.get("head_sha") !=
+                  "50073744ca927b728e0eb766a4d392e97a7436da"
+                  or (upstream_run.get("head_repository") or {}).get(
+                      "full_name") != repo):
+              raise SystemExit("untrusted_upstream_t12_ci_workflow_run")
           meta = json.loads(get(api))
           if (meta.get("id") != artifact_id
                   or meta.get("name") != f"official-pair-schedule-audit-{run_id}"
@@ -201,10 +219,17 @@ jobs:
           if (report.get("schema") != "T12_PINNED_SCHEDULED_PAIR_FROZEN_REPLAY_V1"
                   or report.get("source_run_id") != 42769768447
                   or report.get("source_artifact_id") != 13740574410
+                  or report.get("source_original_zip_sha256_from_metadata") !=
+                  "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd"
+                  or report.get("pinned_forecast_ref") !=
+                  "c4d39245cbc96b6c680585a68c3b9adf6ddeb921"
+                  or report.get("github_server_source_archive_published_at_utc") !=
+                  "2026-11-10T06:38:25+00:00"
                   or report.get("day_jst") != "20261110"
                   or report.get("formal") is not False):
               raise SystemExit("unexpected_pinned_upstream_audit_report")
           pathlib.Path("four_mode_upstream_t12_20261110.json").write_bytes(report_bytes)
+          print("NOV10_UPSTREAM_AUDIT_RUN_PIN_VERIFIED:" + str(run_id))
           print("NOV10_UPSTREAM_AUDIT_ZIP_SHA256_VERIFIED:" + zip_sha)
           print("NOV10_UPSTREAM_AUDIT_JSON_SHA256_VERIFIED:" + member_sha)
           PY
