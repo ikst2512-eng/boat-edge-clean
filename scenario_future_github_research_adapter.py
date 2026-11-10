@@ -85,6 +85,8 @@ class GitHubOnlyCreateWire:
             raise ValueError("explicit_token_required_for_research_writer")
         self._token = token.strip()
         self._send = _wire_transport if send is None else send
+        self.create_ack_observation = None
+        self._last_put_server_date_utc = None
         if not callable(self._send):
             raise ValueError("invalid_github_transport")
 
@@ -94,6 +96,11 @@ class GitHubOnlyCreateWire:
             raise ValueError("research_only_ledger_branch_required")
         if method not in ("GET", "PUT"):
             raise ValueError("github_method_not_allowed")
+        if method == "PUT":
+            # Each create attempt has its own response evidence. Never reuse
+            # the previous call's Date/commit if the next HTTP request fails.
+            self.create_ack_observation = None
+            self._last_put_server_date_utc = None
         url=API+"/contents/"+path
         if method=="GET":
             url+="?"+urllib.parse.urlencode({"ref":branch})
@@ -126,6 +133,11 @@ class GitHubOnlyCreateWire:
                 or len(output[2]) > MAX_HTTP_BYTES):
             raise ValueError("github_transport_invalid_return")
         code, hs, payload=output
+        # HTTP 404 can be a cached absence. Check cache headers first even
+        # when the path is not found, otherwise an old 404 could misdirect a
+        # create attempt and conceal a changed concurrent branch.
+        if any(k.lower()=="age" for k in hs):
+            raise ValueError("github_cached_response_forbidden")
         # GitHub REST 404 may mean a missing file (for an existing branch);
         # 401/403/409/422 are always hard failures, never file-missing.
         if method=="GET" and code==404:
@@ -133,8 +145,18 @@ class GitHubOnlyCreateWire:
         if (method=="GET" and code!=200 or
                 method=="PUT" and code!=201):
             raise ValueError("github_research_create_or_read_http_"+str(code))
-        if any(k.lower()=="age" for k in hs):
-            raise ValueError("github_cached_response_forbidden")
+        if method == "PUT":
+            # GitHub's HTTP response Date is an upper-bound observation of
+            # remote acceptance, NOT an independent first-remote timestamp.
+            # Fail closed on missing, ambiguous or cached server clock.
+            text = _single_header(hs, "Date")
+            try:
+                server = parsedate_to_datetime(text)
+            except (ValueError, TypeError, IndexError) as exc:
+                raise ValueError("github_create_ack_invalid_server_date") from exc
+            if server.tzinfo is None or server.utcoffset()!=timedelta(0):
+                raise ValueError("github_create_ack_date_must_be_UTC")
+            self._last_put_server_date_utc=server.isoformat()
         return _json(payload)
 
     def read(self, branch, path):
@@ -172,8 +194,29 @@ class GitHubOnlyCreateWire:
                 or type(commit.get("sha")) is not str
                 or not SHA40.fullmatch(commit["sha"])):
             raise ValueError("github_create_ack_not_matching_candidate")
-        # Return is intentionally ignored by publisher; alone it's NOT
-        # independent server first-add clock or branch history proof.
+        if self._last_put_server_date_utc is None:
+            raise ValueError("github_create_ack_server_date_missing")
+        self.create_ack_observation={
+            "schema":"FOUR_MODE_RESEARCH_GITHUB_CREATE_201_RESPONSE_OBSERVATION_V1",
+            "repository":REPO,
+            "branch":branch,
+            "candidate_path":path,
+            "candidate_git_blob_sha1":expected,
+            "candidate_sha256":hashlib.sha256(raw).hexdigest(),
+            "create_response_commit_sha":commit["sha"],
+            "github_create_response_date_utc":self._last_put_server_date_utc,
+            "create_only_put_received_http_201":True,
+            "first_remote_candidate_receipt_verified":False,
+            "unique_first_add_git_history_verified":False,
+            "official_source_first_remote_receipts_verified":False,
+            "complete_attempt_inventory_verified":False,
+            "eligible_for_300_plus_300":False,
+            "formal":False,
+            "promotion_allowed":False,
+            "warning":"GitHub Date on the 201 creation response is an observed "
+                      "server response time, NOT independent first-remote "
+                      "acceptance or first-add ancestry proof.",
+        }
         return None
 
 
@@ -220,8 +263,12 @@ def run_from_gateway_file(path, generated_at_jst, frozen_at_jst,
         prepared,gateway,protocol,generated_at_jst,frozen_at_jst,
         RESEARCH_ONLY_LEDGER_BRANCH,wire.read,wire.create,
         lambda:datetime.now(JST))
+    observed=wire.create_ack_observation
+    if state["status"].startswith("create_only") and type(observed) is not dict:
+        raise ValueError("github_create_ack_missing_after_new_write")
     return dict(base,status=state["status"],
                 github_create_attempted=True,
+                create_response_observation=observed,
                 local_pre_T12_readback_observed=state["local_pre_T12_readback_observed"])
 
 
