@@ -8,6 +8,19 @@ async function showTodayCandidates(){
  const api='https://boat-edge-clean.onrender.com';
  const pad=x=>String(x).padStart(2,'0');
  const cleanText=x=>String(x??'').slice(0,120);
+ // Same first-place head weight model as selection_dual.py/research_model.py.
+ // This is NOT a calibrated probability of a 3連単 ticket winning.
+ const savedHeadMass=archive=>{
+  if(archive?.model_version!=='clean-prospective-national-beta0.4-v1')return null;
+  const rates=archive.national_win_rates;
+  if(!Array.isArray(rates)||rates.length!==6||!rates.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>0&&n<20))return null;
+  const winners=[536,136,124,106,68,30],avg=rates.reduce((a,b)=>a+b,0)/6;
+  const weights=winners.map((v,i)=>(v+12)*Math.exp(0.4*(rates[i]-avg)));
+  const total=weights.reduce((a,b)=>a+b,0);
+  if(!Number.isFinite(total)||total<=0)return null;
+  const sorted=[...weights].sort((a,b)=>b-a);
+  return 100*(sorted[0]+sorted[1])/total;
+ };
  const names=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','唐津','大村'];
  const timed=async url=>fetch(url,{cache:'no-store',signal:AbortSignal.timeout(15000)});
  try{
@@ -26,7 +39,7 @@ async function showTodayCandidates(){
   if(!upcoming.length){status.textContent='本日の締切前レースはありません。開催場一覧から別の日付を確認できます。';return}
   // Probe all upcoming race keys in bounded parallel batches: a valid saved
   // candidate may sit beyond the first 18 races. Never infer picks from results.
-  let checked=0,available=0,fetchFailures=0;
+  let checked=0,available=0,fetchFailures=0,passes70=0,below70=0,unknown70=0;
   for(let start=0;start<upcoming.length&&available<6;start+=12){
    const batch=upcoming.slice(start,start+12);
    const records=await Promise.all(batch.map(async race=>{
@@ -64,15 +77,21 @@ async function showTodayCandidates(){
      titleReceived<=generated&&cardsReceived<=generated&&generated<cutoff&&generated<=Date.now();
    if(!structurallyValid)continue;
    available++;
+   const mass=savedHeadMass(pred);
+   if(mass===null)unknown70++;else if(mass>=70)passes70++;else below70++;
    const card=document.createElement('article');card.className='card';
    const title=document.createElement('strong');title.textContent=names[race.venue-1]+' '+race.race+'R｜締切 '+race.deadline;card.append(title);
+   const confidence=document.createElement('p');confidence.className='metric';
+   confidence.textContent=mass===null?'研究70%条件：判定不能（モデル形式・勝率データ未確認）':
+      '1着上位2艇の予測確率合計 '+mass.toFixed(2)+'%｜'+(mass>=70?'研究条件70%以上':'70%未満・研究上見送り')+'（3連単の的中確率ではありません）';
+   card.append(confidence);
    const provenance=document.createElement('p');provenance.className='notes';provenance.textContent='研究予想・入力時刻の順序のみ検証（Git初回登録・遠隔初見・予測精度は未検証、購入判断に使用しないでください）';card.append(provenance);
    const all=document.createElement('p');all.className='notes';all.textContent='保存済み3連単 '+tickets.length+'点：'+tickets.join(' ／ ');card.append(all);
    const link=document.createElement('a');link.href=api+'/forecast?date='+date+'&venue='+race.venue+'&race='+race.race;link.textContent='このレースの予想・出走表・展示を見る';card.append(link);
    root.append(card);
    }
   }
-  status.textContent=available?'締切前に保存された研究予想 '+available+'レース表示（候補の的中率順位・購入推奨ではありません）'+(fetchFailures?'／通信未確認 '+fetchFailures+'件':''):
+  status.textContent=available?'締切前の保存研究予想 '+available+'レース（70%研究条件通過 '+passes70+'／未満 '+below70+'／判定不可 '+unknown70+'｜実測的中率とは別）'+(fetchFailures?'／通信未確認 '+fetchFailures+'件':''):
    fetchFailures?'締切前の開催レース '+upcoming.length+'件を探索しましたが、通信未確認が'+fetchFailures+'件あります。候補なしとは断定できません。':
    '締切前の開催レース '+upcoming.length+'件を確認しましたが、安全に表示できる保存済み研究予想はありません。';
  }catch(error){status.textContent='本日の候補を取得できません：'+cleanText(error?.message||'通信エラー')+'。開催場一覧からレースを直接選択できます。'}
