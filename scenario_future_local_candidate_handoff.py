@@ -19,6 +19,8 @@ import re
 SCHEMA = "FOUR_MODE_TRIPLE_SOURCE_LOCAL_FROZEN_CANDIDATE_V1"
 STUDY = "EXPLORATORY_ONLY_FUTURE_TRIPLE_SCENARIO_RESEARCH"
 PATH_PREFIX = "scenario_four_mode_research/"
+# Research-only path/branch; no live collector is installed by this draft.
+RESEARCH_ONLY_LEDGER_BRANCH = "scenario-four-mode-triple-source-evidence-ledger"
 BUDGETS = {"narrow":5, "hit":10, "balance":16, "hole":22}
 ALL_COMBOS = {"-".join(map(str,x)) for x in permutations(range(1,7),3)}
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
@@ -329,4 +331,90 @@ def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, froz
         "no_remote_write_performed":True,
         "formal":False,
         "promotion_allowed":False,
+    }
+
+def publish_local_candidate_write_once(
+    prepared, gateway, registered_protocol, generated_at_jst, frozen_at_jst,
+    branch, remote_read, remote_create, clock,
+):
+    """Optional create-only research-branch adapter, following existing #1698.
+
+    Dependencies are supplied by an external approved runner. This function
+    DOES NOT install a cron, create a branch, authenticate GitHub, inspect a
+    first-add commit history, or prove a remote FIRST receipt. Real adapters:
+      remote_read(branch, path) -> exact bytes or None;
+      remote_create(branch, path, bytes) -> create-only, no SHA/upsert;
+      clock() -> aware JST datetime.
+    Callbacks must never silently update an existing path. A mocked callback
+    only verifies this contract in a synthetic test environment.
+    """
+    # Re-run the entire pin/protocol/condition check BEFORE any remote read
+    # or write. Never trust a handoff file without the original source gateway.
+    recalculated = prepare_local_candidate(
+        gateway, registered_protocol, generated_at_jst, frozen_at_jst)
+    if (type(prepared) is not dict or prepared != recalculated
+            or branch != RESEARCH_ONLY_LEDGER_BRANCH
+            or not callable(remote_read) or not callable(remote_create)
+            or not callable(clock)):
+        raise ValueError("research_only_branch_or_exact_prepared_bytes_not_approved")
+    raw = recalculated["bytes"]
+    path = recalculated["path"]
+    if (type(raw) is not bytes or not 0 < len(raw) <= 100_000
+            or type(path) is not str
+            or path != PATH_PREFIX + recalculated["race_code"] + ".json"
+            or hashlib.sha256(raw).hexdigest() != recalculated["sha256"]
+            or _git_blob_sha1(raw) != recalculated["git_blob_sha1"]):
+        raise ValueError("research_candidate_bytes_sha_or_path_drift")
+    cutoff = _jst(json.loads(raw)["T_minus_12_cutoff_jst"])
+    frozen = _jst(frozen_at_jst)
+    now = clock()
+    if (type(now) is not datetime or now.utcoffset() != timedelta(hours=9)
+            or not frozen < now < cutoff - timedelta(seconds=30)):
+        raise ValueError("research_remote_attempt_local_T12_margin_missing")
+    # Same path may only be created once. A retry with identical bytes
+    # reads through; a different candidate can NEVER overwrite the prior one.
+    prior = remote_read(branch, path)
+    if prior is None:
+        remote_create(branch, path, raw)
+        state = "create_only_storage_call_returned"
+    elif type(prior) is bytes and prior == raw:
+        state = "identical_candidate_already_present"
+    else:
+        raise ValueError("research_immutable_candidate_collision")
+    observed = remote_read(branch, path)
+    if type(observed) is not bytes or observed != raw:
+        raise ValueError("research_remote_readback_mismatch")
+    final_clock = clock()
+    if (type(final_clock) is not datetime
+            or final_clock.utcoffset() != timedelta(hours=9)
+            or final_clock < now or final_clock >= cutoff):
+        raise ValueError("research_remote_readback_missed_T12_cutoff")
+    # This is ONLY the caller-supplied remote adapter's return status.
+    # A separate witness must inspect real GitHub HTTP server Date, first
+    # addition ancestry, complete run roster and source receipt provenance.
+    return {
+        "schema": "FOUR_MODE_TRIPLE_SOURCE_CREATE_ONLY_UNATTESTED_RETURN_V1",
+        "status": state + "_unattested",
+        "research_branch": branch,
+        "path": path,
+        "race_code": recalculated["race_code"],
+        "candidate_sha256": recalculated["sha256"],
+        "candidate_git_blob_sha1": recalculated["git_blob_sha1"],
+        "local_pre_T12_readback_observed": True,
+        "remote_adapters_independently_authenticated": False,
+        "first_remote_candidate_receipt_verified": False,
+        "remote_branch_first_add_history_verified": False,
+        "official_HTTP_origin_independently_verified": False,
+        "capture_and_rescue_run_inventory_complete": False,
+        "eligible_for_300_plus_300": False,
+        "result_read": False,
+        "formal": False,
+        "model_improvement_proven": False,
+        "promotion_allowed": False,
+        "production_changed": False,
+        "warning": (
+            "Injected adapter create/readback is NOT independent proof of "
+            "GitHub first remote receipt. Review server Date, immutable "
+            "first-add ancestry and full source/capture run roster separately."
+        ),
     }
