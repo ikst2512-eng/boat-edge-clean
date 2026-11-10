@@ -195,7 +195,7 @@ class PinnedModeExhibitionIntegrationTests(unittest.TestCase):
             self.run_experiment(mode_weights=w)
         w = weights()
         w["hit"]["two_sashi"] = .2
-        with self.assertRaisesRegex(ValueError, "scenario_weights_not_normalized"):
+        with self.assertRaisesRegex(ValueError, "scenario_weights_must_sum_one"):
             self.run_experiment(mode_weights=w)
 
     def test_mode_specific_scenario_fraud_cannot_be_injected(self):
