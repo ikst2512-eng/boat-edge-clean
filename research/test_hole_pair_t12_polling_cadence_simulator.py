@@ -162,5 +162,30 @@ class T12CounterfactualTests(unittest.TestCase):
         self.assertFalse(r["production_promotion_allowed"])
 
 
+    def test_one_minute_phase_can_miss_one_minute_pre_cutoff_source_release(self):
+        # Two deadlines at exact minute boundaries; arrivals hypothesized only
+        # 60s before cutoff, processing reserve 30s. Aligned minute polls fit,
+        # but a 45-second phase offset misses both. Do not infer 1m guarantee.
+        aligned = plan(assumed_source_ready_lead_seconds=60,
+                       assumed_processing_reserve_seconds=30,
+                       cadence_minutes=(1,))
+        jittered = plan(assumed_source_ready_lead_seconds=60,
+                        assumed_processing_reserve_seconds=30,
+                        cadence_minutes=(1,), poll_phase_offset_seconds=45)
+        self.assertEqual(
+            aligned["scenarios"][0]["clock_only_races_with_at_least_one_hypothetical_slot"], 2)
+        self.assertEqual(
+            jittered["scenarios"][0]["clock_only_races_with_at_least_one_hypothetical_slot"], 0)
+        self.assertEqual(jittered["hypothetical_poll_phase_offset_seconds"], 45)
+        self.assertFalse(jittered["first_independent_receipt_verified"])
+        self.assertFalse(jittered["formal"])
+
+    def test_polling_phase_range_rejects_malformed_and_synthetic_promotion(self):
+        for phase in (-1, 60, True, "30", 1.5, None):
+            with self.subTest(phase=phase), self.assertRaisesRegex(
+                    ValueError, "invalid_untrusted_synthetic_poll_phase"):
+                plan(poll_phase_offset_seconds=phase)
+
+
 if __name__ == "__main__":
     unittest.main()
