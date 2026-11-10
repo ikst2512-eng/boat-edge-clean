@@ -529,3 +529,25 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - [既存本番の独立予想証拠監査 #42808744551](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42808744551) は失敗扱いで正しい。既存V2原本724件のうち613件はローカル証跡チェック通過、111件は`first_commit_same_second_unverified`で拒否、**全件の独立 Git first remote 受領は別未証明**。この613件を#1710の新研究600へ加算しない。
 
 **結論**：GitHub上の今回の改善は「全6件の実ソース欠落の排他的分類と正式採点拒否の証拠を保存」したもので、公式3原本の新取得/候補の初回Git遠隔保存/実測精度改善は依然0。#1710 Draft、既存モデル・原本・main/Pages/Render・所有者③のCronは変更していない。
+
+
+## 2026-11-10 ②担当：実着順を結果LASTで読んだ3レースの探索的TopN比較（本命モードの後退）
+
+### 何を本当に実行したか
+- **同じ既存Draft #1710の単発ワークフロー内**で、歴史的V2の各モード5/10/16/22票と既存#1710未校正head log-shift=3.5／head=0対照のフル順位を、**一切結果を読まずに**`research-archived-rates-vs-neutral.json`として先に生成。数理`scenario_mode_specific_exhibition_end_to_end.py`・固定#1698`experimental_conditional_board`・11/10事前登録manifestの3.5/モード重み等の数値は**変更しない**。
+- すべての研究盤面と券を生成した**後の別LAST STEPだけ**で、凍結main `8a674590d645a693dbd9f6fe7f79e8829b878452`から3件の実確定着順ファイルを`git show`・Git blob SHA一致を確認して取得し、同じ3レース/同じ点数のTop1/3/5/10包含の**参考記述統計**を作成。古い研究を意図的に正式prospectiveとして採点せず、結果は`research-historical-three-race-result-last-DESCRIPTIVE.json`へ隔離。候補ソースに着順を与えず、結果で仮説/重みを学習・変更しない。
+- [実GitHub Actions #42813358925](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42813358925) `completed/success`、head `44b1f91dd3c80e22204c66e2f4103056c68a5ce2`。結果 [artifact #13763551778](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42813358925/artifacts/13763551778) ZIP SHA256 `284b46ab4371036969d32fa55d5e6d36449169d4780ff391729b3e3bc5983ab8`、GitHub digestと独立ダウンロードSHA一致、全CRC正常、**5 JSON全件strict parse成功**。3件は`202611091110` 着順1-2-5、`202611091710` 着順3-4-2、`202611101202` 着順1-2-6。実際の結果原本は`confirmed_results/`の公開済みBoatraceCSV取得データで、公式による裁定時刻の証明とは異なる。
+
+### 歴史的3Rの参考TopN実測（各モードで3件が分母）
+| Mode | 比較TopN | 旧V2保存票 | 未校正head log-shift 3.5 | head shift 0対照 |
+| --- | --- | ---: | ---: | ---: |
+| 絞り 5票 | Top5 | **1/3** | 1/3 | 1/3 |
+| 本命 10票 | Top5 | **1/3** | **0/3** | 1/3 |
+| 本命 10票 | Top10 | **2/3** | **0/3** | 1/3 |
+| バランス 16票 | Top10 | **2/3** | 1/3 | 1/3 |
+| 穴 22票 | Top10 | 0/3 | **1/3** | 0/3 |
+
+- 4モードともTop1とTop3は、旧V2/head3.5/head0の**全3R×各モードで的中0**。絞り5票のTop10は**対象外**であり5票を「Top10的中」と表現しない。
+- びわこ10Rの1-2-5、住之江2Rの1-2-6は、保存済み旧V2の**本命Top10に含まれた**が、未校正のhead3.5候補本命Top10からは外れた。穴の宮島10Rの3-4-2は逆に未校正head3.5の穴Top10で拾えた。現行3レースでは**モード間に勝ち/負け混在し、本命・バランスの既存V2に対する非悪化要件を満たしたとは言えない**。
+- **最重要の制約**：#1710の新仮説は事後的に構想・計算した研究であり、これら3レースの締切前に新モデルをGitHubへ発行したわけではない。全国勝率は当時保存済V2由来で、同レース公式racelistの真正原文がそろっていない。統計のn=3は極小で選択した古い事例に過ぎず、一般化可能な的中率の推定、確率校正、原因の確定、利益/ROI、採用判定には使えない。**本物の独立将来600件のうち認定0件**、`formal=false`、`promotion_allowed=false`、本番main/予想原本/結果/cronを不変更。
+- 次は**研究条件を後付け変更せず**、#1713/#1694から将来の公式T−12/展示ST6が完備した実レースと独立候補first remote証拠を受け、別研究IDの300+独立300を準備。今回の歴史的3Rは将来確認母集団へ一切入れない。別のT−2展示後予想はさらに別ID・情報時点で前登録するまで比較しない。
