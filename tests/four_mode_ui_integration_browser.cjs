@@ -13,6 +13,8 @@ const FIXTURES = [
   {code:'202611061006',date:'2026-11-06',venue:10,race:6},
   {code:'202611071006',date:'2026-11-07',venue:10,race:6},
 ];
+// Latest main data after the original PR base; checked by synthetic-merge CI.
+const RECENT = {code:'202611100401',date:'2026-11-10',venue:4,race:1};
 const MODES = [['narrow','絞り'],['hit','本命'],['balance','バランス'],['hole','穴']];
 const key = r=>r.code.slice(0,8)+'-'+r.code.slice(8,10)+'-'+r.code.slice(10);
 
@@ -81,6 +83,11 @@ async function verify(page,r){
   return {race:r.code,counts:data.cards.map(card=>card.tickets.length)};
 }
 (async()=>{
+  const recentSource='four_mode_forecasts/'+RECENT.code+'.json';
+  const hasRecent=fs.existsSync(recentSource);
+  if(process.env.GITHUB_EVENT_NAME==='pull_request')
+    assert.ok(hasRecent,'PR synthetic-merge CI must contain latest main archive '+recentSource);
+  if(!hasRecent)console.log('DIRECT_DRAFT_CHECKOUT_RECENT_MAIN_ARCHIVE_ABSENT '+RECENT.code);
   const {child,port}=await localHandler();
   try{
     // Verify the exact production Handler static routes which will be
@@ -201,6 +208,19 @@ async function verify(page,r){
         console.log('DRAFT_INTEGRATED_FOUR_MODE_STALE_HTTP_'+name.toUpperCase()+'_PASS '+
           JSON.stringify({held:first.code,visible:second.code,sourceUnmodified:true}));
 
+        if(hasRecent){
+          await page.evaluate(r=>{
+            datePinned=true;venueTouched=true;
+            s.date=r.date;s.venue=r.venue-1;s.race=r.race;render();
+          },RECENT);
+          const newest=await verify(page,RECENT);
+          await page.evaluate(()=>history.back());
+          await page.waitForFunction(previous=>sameRaceKey()===previous,
+            key(second),{timeout:15000});
+          await verify(page,second);
+          console.log('DRAFT_INTEGRATED_NEW_MAIN_ARCHIVE_'+name.toUpperCase()+'_PASS '+
+            JSON.stringify({newest,restored:second.code,mainSourceUnmodified:true}));
+        }
         console.log('DRAFT_INTEGRATED_FOUR_MODE_UI_'+name.toUpperCase()+'_PASS '+
           JSON.stringify({original:initial,switched,restored,
             realLocalHandler:true,sourceFilesUnchanged:true,
