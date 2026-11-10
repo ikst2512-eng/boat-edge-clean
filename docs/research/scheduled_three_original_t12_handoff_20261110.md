@@ -20,15 +20,20 @@ The official racecard collector and three-original independent auditor
    of two races (selection is a convenience, never an official deadline).
 2. Capture and audit the original `beforeinfo` and `odds3t` pair, retaining
    all original statuses, error handling and immutable source filenames.
-3. **Only if** the two-source audit is complete and the official `beforeinfo`
-   deadline still leaves at least 25 seconds ahead of T−12, call the existing
-   `capture_official_racelist_receipt.capture` function. It uses a bounded
-   18-second HTTP timeout and does not overwrite previous receipts.
-4. If the original racelist is received by official T−12, call the existing
-   `audit_three_official_t12_originals.audit_three_originals` on the **same**
-   three local receipt directories. This auditor checks original hashes,
-   race identity, six registrations, 120 odds, exhibition/entry distinction
-   and per-source T−12 timestamps. Report counts and race-specific reasons.
+3. **If** the official `beforeinfo` deadline still leaves at least
+   25 seconds ahead of T−12, call the existing
+   `capture_official_racelist_receipt.capture` function, **even when the
+   exhibition/odds pair is incomplete**. The official racecard may be
+   published earlier than the exhibition. Save this original independently;
+   the 18-second HTTP timeout is bounded and immutable names are preserved.
+4. Only when the already-checked exhibition/odds pair is complete **and**
+   the original racelist was received before the T−12 cutoff, call
+   `audit_three_official_t12_originals.audit_three_originals` on the
+   **same** three receipt directories. This existing auditor checks original
+   hashes, race identity, six registrations, 120 odds,
+   exhibition/entry distinction and per-source T−12 timestamps.
+   An early racelist + incomplete exhibition is reported as
+   `racelist_saved_pair_incomplete`, never a verified triplet.
 5. Any timeout, incomplete exhibition, invalid HTML/registration IDs,
    inconsistent source digest, or expired T−12 cutoff is reported separately.
    An official two-source success is **never** relabelled as failed or as a
@@ -63,8 +68,10 @@ actually sufficient; this change does not repair missed scheduled triggers.
 
 Also run the pre-existing three-original audit and observation tests.
 Negative controls cover too-late racelist receipt, insufficient time
-to start, source failure, corrupt or mismatched audit flags and
-no unintended third-source request when disabled or pair incomplete.
+to start, source failure, corrupt or mismatched audit flags,
+and no unintended third-source request when disabled. Separate checks
+prove an early racelist can be saved despite incomplete official exhibition
+without invoking the three-source completion auditor.
 No simulated success can count as an actual official HTTP observation.
 
 Owner handoff: #1694 authoritative source audit; #1693 forward 300+300
