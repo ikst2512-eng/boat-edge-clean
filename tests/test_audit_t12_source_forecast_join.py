@@ -155,7 +155,7 @@ class TimelySourceIsNotSourceConsumingForecast(unittest.TestCase):
             item, meta = frozen(path)
             item = dict(item)
             if path.startswith("prospective_predictions/"):
-                item["generated_at"] = "2026-11-10T15:38:10+09:00"
+                item["generated_at"] = "2026-11-10T15:38:30+09:00"
             return item, meta
         report = verify(get=after)
         self.assertEqual(report["forecasts_generated_after_originals"], 2)
