@@ -152,7 +152,7 @@ def checked_rows(report):
 def simulate(report, *, assumed_source_ready_lead_seconds=180,
              assumed_processing_reserve_seconds=30,
              first_git_source_sighting_hint_jst=None,
-             cadence_minutes=CADENCES):
+             cadence_minutes=CADENCES, poll_phase_offset_seconds=0):
     """Counterfactual dispatch opportunities ONLY; never produces tickets."""
     day, reference, rows = checked_rows(report)
     if (type(assumed_source_ready_lead_seconds) is not int
@@ -165,10 +165,14 @@ def simulate(report, *, assumed_source_ready_lead_seconds=180,
             or any(type(n) is not int or not 1 <= n <= 120 for n in cadence_minutes)
             or list(cadence_minutes) != sorted(set(cadence_minutes))):
         raise ValueError("invalid_simulation_cadence_grid")
+    if (type(poll_phase_offset_seconds) is not int
+            or not 0 <= poll_phase_offset_seconds < 60):
+        raise ValueError("invalid_untrusted_synthetic_poll_phase")
     if first_git_source_sighting_hint_jst is None:
         raise ValueError("missing_untrusted_initial_git_sighting_hint")
     hint = _clock(first_git_source_sighting_hint_jst, day)
-    start = datetime.combine(reference.date(), time(0, 0), JST)
+    start = (datetime.combine(reference.date(), time(0, 0), JST)
+             + timedelta(seconds=poll_phase_offset_seconds))
     scenarios = []
     for minutes in cadence_minutes:
         period = minutes * 60
@@ -202,6 +206,7 @@ def simulate(report, *, assumed_source_ready_lead_seconds=180,
         "schema": "HOLE_PAIR_T12_POLLING_CADENCE_COUNTERFACTUAL_V1",
         "method": "midnight_JST_aligned_hypothetical_polling",
         "source_commit": report["immutable_source_commit"],
+        "hypothetical_poll_phase_offset_seconds": poll_phase_offset_seconds,
         "day_jst": day,
         "original_races_from_verified_git_snapshot": len(rows),
         "original_report_reference_jst": reference.isoformat(),
@@ -235,6 +240,7 @@ def main():
     p.add_argument("--original-report", required=True)
     p.add_argument("--source-lead-seconds", type=int, default=180)
     p.add_argument("--processing-reserve-seconds", type=int, default=30)
+    p.add_argument("--poll-phase-offset-seconds", type=int, default=0)
     p.add_argument("--first-git-source-sighting-hint-jst", required=True)
     p.add_argument("--output", required=True)
     args = p.parse_args()
@@ -246,6 +252,7 @@ def main():
         report,
         assumed_source_ready_lead_seconds=args.source_lead_seconds,
         assumed_processing_reserve_seconds=args.processing_reserve_seconds,
+        poll_phase_offset_seconds=args.poll_phase_offset_seconds,
         first_git_source_sighting_hint_jst=args.first_git_source_sighting_hint_jst,
     )
     dest = Path(args.output)
