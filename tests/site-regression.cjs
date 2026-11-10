@@ -440,23 +440,33 @@ assert.ok(navigation.includes("target.searchParams.set('screen','review')"),'Pag
 assert.ok(navigation.includes("location.pathname.startsWith('/boat-edge-clean/')"),'Pages must restore review screen under project path');
 console.log('PASS: Pages project-path review navigation regression');
 
-// Tickets stay on the prediction pane. Historical/statistical tables live
-// exclusively in the adjacent rates pane for the same selected race.
+// Forecast stays ticket-only; rates and conditional comparisons belong inside
+// the race card, which has accessible basic/rates nested tabs.
+const cardStart=html.indexOf('<section class="box" id="raceDataSection"');
+const statsPane=html.indexOf('<section class="race-card-stats-pane"');
+const forecastStart=html.indexOf('<section class="box" id="forecast"');
 const resultFirst=html.indexOf('id="forecastResultFirstStatus"');
 const prediction=html.indexOf('id="fourModeForecastRows"');
-const statsPane=html.indexOf('<section class="forecast-stats-pane"');
 const leader=html.indexOf('id="forecastLeaderRows"');
 const evidence=html.indexOf('id="forecastEvidenceStatus"');
-assert.ok(resultFirst>=0&&resultFirst<prediction&&prediction<statsPane&&statsPane<leader&&leader<evidence,'prediction and rates must be separate correctly ordered tabs');
-const predictionPane=html.slice(html.indexOf('<section class="forecast-combined-race"'),statsPane);
+assert.ok(cardStart>=0&&cardStart<statsPane&&statsPane<leader&&leader<evidence&&evidence<forecastStart&&forecastStart<resultFirst&&resultFirst<prediction,'card rates must be before forecast tickets in DOM');
+const predictionPane=html.slice(forecastStart);
 for(const forbidden of ['id="forecastLeaderRows"','class="forecast-statistics"','id="entryScenarioPanel"','id="legacyTopnResearch"'])
  assert.ok(!predictionPane.includes(forbidden),'forecast must show only prediction, not '+forbidden);
+assert.ok(html.includes('id="raceCardCore"')&&html.includes('id="raceCardStatistics"'),'nested card tabs must exist');
+assert.ok(html.includes('data-race-card-pane="rates"'),'rates subtab must be clickable');
+assert.ok(navigation.includes("['出走表','card']")&&!navigation.includes("['連対率','stats']"),'four main race tabs only');
+assert.ok(script.includes('function setRaceCardPane(pane)'),'rates tab selection must be functional');
 for(let lane=1;lane<=6;lane++)assert.ok(html.includes('data-forecast-leader="'+lane+'"'),'missing leader '+lane);
 assert.ok(script.includes('function selectForecastLeader(leader)'),'leader selection must respond to interaction');
 assert.ok(script.includes('forecastEvidenceMirror.observe'),'verified predeadline preview must be mirrored without an extra fetch');
 assert.ok(script.includes('forecastResultMirror.observe'),'validated confirmed result must be mirrored without an extra fetch');
 assert.ok(html.includes('先頭艇として選択中')&&html.includes('未取得'),'missing stats must not be fabricated as 0%');
-console.log('PASS: one-page forecast layout and source-safe comparison controls');
+const historyPage=fs.readFileSync('selection.html','utf8');
+assert.ok(historyPage.includes('id="savedPredictionHistory"')&&historyPage.includes('four_mode_forecasts/'),'saved pre-race tickets must remain inspectable after results');
+assert.ok(historyPage.includes('history-10000.json')&&historyPage.includes('id="savedHistoryDate"'),'history should allow date selection and immutable result reconciliation');
+assert.ok(historyPage.includes('3連単の的中率70%ではありません'),'70% winner-head research score must not be called a trifecta hit rate');
+console.log('PASS: four race tabs, card-level rates, and stored forecast/result history');
 
 assert.ok(script.includes("bar.setAttribute('aria-label',r.lane+'号艇の実コース別3連対率')"),'course three-place rate progress bar must be accessible');
 assert.ok(script.includes('bar.max=100;bar.value=three'),'three-place rate bar must use verified percentage');
@@ -493,7 +503,7 @@ assert.ok(html.includes('id="forecastPriorResultRows"'),'prior confirmed empiric
 assert.ok(script.includes('Array.from({length:race-1}'),'only earlier races may be inspected');
 assert.ok(script.includes("item.race_code!==code||item.status!=='confirmed'"),'unverified result not eligible for conditional rate');
 assert.ok(script.includes('renderForecastPriorResults(leader)'),'leader switch must refresh historical real data');
-assert.ok(script.includes('loadForecastPriorResults()}else if(activeView'),'selected-race changes must refresh prior results');
+assert.ok(script.includes('loadForecastPriorResults();loadForecastPreview()}}else if(activeView'),'card-rate race changes must refresh prior results');
 
 assert.ok(script.includes('取得不足のため当日傾向として扱わない'),'partial earlier-race collection must warn of incomplete daily coverage');
 
