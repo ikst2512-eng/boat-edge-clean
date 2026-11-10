@@ -268,6 +268,26 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
                          lambda p,d:self.fail("write"),clock=lambda:NOW)
+    def test_nov11_first_real_archived_race_is_eligible_in_0825_0830_slots(self):
+        # Uses the independently frozen Nov 11 racecard's *scheduled* time;
+        # this is a clock-selection regression, NOT a real schedule run or
+        # proof that the upstream source will be available at 08:25.
+        path=Path(__file__).resolve().parents[1]/"four_mode_forecasts"/"202611111001.json"
+        record=json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(record["race_code"],"202611111001")
+        self.assertEqual(record["deadline_jst"],"2026-11-11T08:47:00+09:00")
+        row={"レースコード":record["race_code"],
+             "電話投票締切予定":"08:47"}
+        day="20261111"
+        for hhmm in ("08:21:00","08:25:00","08:30:00","08:33:00"):
+            with self.subTest(eligible=hhmm):
+                at=datetime.fromisoformat("2026-11-11T"+hhmm+"+09:00")
+                self.assertEqual(near_t12([row],day,now=at),[record["race_code"]])
+        for hhmm in ("08:20:59","08:33:01","08:35:00","08:47:00"):
+            with self.subTest(ineligible=hhmm):
+                at=datetime.fromisoformat("2026-11-11T"+hhmm+"+09:00")
+                self.assertEqual(near_t12([row],day,now=at),[])
+
     def test_new_t12_uses_isolated_fresh_source_without_rewriting_old_snapshot(self):
         import research_model
         from unittest.mock import patch
