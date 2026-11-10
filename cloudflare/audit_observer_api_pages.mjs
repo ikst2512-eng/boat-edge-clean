@@ -100,6 +100,10 @@ export function auditTelemetryApiPages(input) {
     bad('api_event_limit_or_cursor_invalid');
   if(ep?.view!=='events'||cp?.view!=='calculations'||cp?.limit!==undefined)
     bad('api_view_or_parameter_limit_invalid');
+  // A count-only proof must come from an aggregate calculation request,
+  // not a distribution or time-series variant with a copied count field.
+  if(er?.chartType!==undefined || cr?.chartType!==undefined && cr.chartType!=='aggregate')
+    bad('api_query_chart_shape_invalid');
   if(!sameWindow(er?.timeframe,w)||!sameWindow(cr?.timeframe,w))
     bad('api_request_window_invalid');
   if(!exactScope(ep)||!exactScope(cp))
@@ -138,6 +142,13 @@ export function auditTelemetryApiPages(input) {
      (eRun?.accountId!==input.account_id ||
       sRun?.accountId!==input.account_id))
     bad('api_run_account_not_requested_account');
+  // Cloudflare's response includes run.query.id for its effective query.
+  // A valid account, view and filter alone do not bind this response to
+  // the exact request captured in the original operator evidence.
+  if(eRun?.query?.id!==er?.queryId || sRun?.query?.id!==cr?.queryId ||
+     !presentId(eRun?.query?.id) || !presentId(sRun?.query?.id) ||
+     eRun?.query?.adhoc===false || sRun?.query?.adhoc===false)
+    bad('api_response_query_id_or_adhoc_mismatch');
   // The run's server-echoed *effective* query must still be scoped to the
   // Observer. Validating only the sent request would miss a saved queryId or
   // changed effective parameters that actually queried another dataset.
