@@ -1,0 +1,64 @@
+name: Four-mode archive CORS hotfix regression
+
+on:
+  # Run manually from default branch ONLY after the reviewed hotfix is deployed.
+  # PR checks exercise local fixed code; they must not claim production is fixed.
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - server.py
+      - index.html
+      - navigation.js
+      - 'four_mode_forecasts/**'
+      - tests/test_four_mode_archive_cors_hotfix.py
+      - tests/four_mode_archive_cors_browser.cjs
+      - tests/live_four_mode_archive_cors_postdeploy.cjs
+      - tests/live_four_mode_display_postdeploy.cjs
+      - tests/live_pages_assets_postdeploy.cjs
+      - tests/four_mode_ui_integration_browser.cjs
+      - .github/workflows/four-mode-archive-cors-hotfix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  actual-http-cors:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact allow-origin headers from real local HTTP
+        run: python -m unittest discover -s tests -p 'test_four_mode_archive_cors_hotfix.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify published HTML and JS match checked-out release (manual only)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_pages_assets_postdeploy.cjs
+      - name: Install browser engines for isolated cross-origin CORS check
+        timeout-minutes: 10
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Verify browser-enforced CORS with unmodified local Handler headers
+        run: node tests/four_mode_archive_cors_browser.cjs
+      - name: Verify actual saved four-mode UI through real local Handler in Chromium and WebKit
+        run: node tests/four_mode_ui_integration_browser.cjs
+      - name: Syntax-check postdeploy public-origin gates (PR-only)
+        run: |
+          node --check tests/live_four_mode_archive_cors_postdeploy.cjs
+          node --check tests/live_four_mode_display_postdeploy.cjs
+          node --check tests/four_mode_ui_integration_browser.cjs
+          node --check tests/live_pages_assets_postdeploy.cjs
+          node tests/live_pages_assets_postdeploy.cjs --self-test
+      - name: Verify REAL published Pages to Render CORS (manual AFTER deployment)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_four_mode_archive_cors_postdeploy.cjs
+      - name: Verify REAL saved four-mode tickets, probabilities and switching (manual AFTER deployment)
+        if: github.event_name == 'workflow_dispatch'
+        run: node tests/live_four_mode_display_postdeploy.cjs
