@@ -32,8 +32,12 @@ The official racecard collector and three-original independent auditor
    **same** three receipt directories. This existing auditor checks original
    hashes, race identity, six registrations, 120 odds,
    exhibition/entry distinction and per-source T−12 timestamps.
-   An early racelist + incomplete exhibition is reported as
-   `racelist_saved_pair_incomplete`, never a verified triplet.
+   The existing independent `audit_racelist_with_official_deadline`
+   verifies stored racelist SHA, 6 distinct registration IDs, 6/6 agreement
+   with the official beforeinfo original and receipt times **even if the
+   exhibition is incomplete**. A validated early racelist + incomplete
+   exhibition is reported as `racelist_verified_pair_incomplete`, never
+   a verified triplet. Missing or mismatched IDs are rejected.
 5. Any timeout, incomplete exhibition, invalid HTML/registration IDs,
    inconsistent source digest, or expired T−12 cutoff is reported separately.
    An official two-source success is **never** relabelled as failed or as a
@@ -44,6 +48,27 @@ The CLI's existing scheduled entrypoint opts into the third-original step.
 The Python helper's default remains two-source-only for legacy callers.
 No new workflow, cron schedule, dispatch, site, Render, GitHub publication,
 or forecast data writes are introduced.
+
+## Actual research validation on 2026-11-10 JST
+
+[Live PR CI #42787319015](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42787319015)
+ran the existing source code, including the independent registration parser,
+and succeeded. The run collected **2 official racelist HTML originals and
+2 official beforeinfo+odds120 pairs** for `202611100708` (Gamagori 8R)
+and `202611101908` (Shimonoseki 8R). Independent audits verified **2/2
+same-race six-registration matches before T−12**. However both beforeinfo
+originals still had incomplete exhibition data and **zero** valid official
+pair/triple source completions. In that run the report correctly showed
+`verified_racelist_six_registration_matches=2` and
+`complete_three_originals_before_t12=0`.
+
+Earlier [PR CI #42786724704](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786724704)
+was independently replayed from its downloaded original ZIP (artifact
+#13749433042); all three file manifests matched the raw bytes for
+Suminoe 7R and Gamagori 8R and the six racer identities matched. The
+raw ZIP SHA and precise clocks are preserved in
+`official_three_source_20261110_live_replay.md`. These are successful
+**source-read-only PR experiments**, not repeated scheduled production runs.
 
 ## What it does **not** prove
 
