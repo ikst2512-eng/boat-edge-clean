@@ -103,13 +103,26 @@ def _call(route, token, *, method="GET", fields=None):
 
 
 def run_once(*, now, fetch_runs, dispatch):
+    if not isinstance(now,datetime) or now.utcoffset() is None:
+        raise ValueError("entry_watchdog_clock_invalid")
     report={"schema":"entry-course-unattended-fallback-v1",
             "observed_at":now.isoformat(),"research_only":True,
             "formal":False,"forecast_record":False,
             "unattended_scheduled_capture_verified":False,
             "independent_first_seen_verified":False,
             "targets":{}}
+    local_hour=now.astimezone(JST).hour
     for kind,file in TARGETS.items():
+        first_hour=8 if kind=="t12" else 9
+        if not first_hour<=local_hour<=22:
+            # Do not allow an inactive T2 API error to block the critical
+            # 08 JST T12 fallback. Zero counts here mean not queried.
+            report["targets"][kind]={
+                "decision":"outside_research_hours",
+                "observed_schedule_runs":0,"observed_dispatch_runs":0,
+                "lookup_skipped_outside_hours":True,
+                "trigger_is_schedule":False,"dispatch_requested":False}
+            continue
         # Each event type is queried separately so heavy unrelated runs
         # cannot displace either the cron or fallback records.
         runs=[]
@@ -120,6 +133,7 @@ def run_once(*, now, fetch_runs, dispatch):
             runs.extend(items)
         decision=dispatch_decision(now,runs,kind=kind)
         record={"decision":decision,
+                "lookup_skipped_outside_hours":False,
                 "observed_schedule_runs":sum(r.get("event")=="schedule" for r in runs),
                 "observed_dispatch_runs":sum(r.get("event")=="workflow_dispatch" for r in runs),
                 "trigger_is_schedule":False}
