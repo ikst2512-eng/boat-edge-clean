@@ -64,6 +64,9 @@ on:
       - 'tests/cloudflare_capture_wakeup.test.mjs'
       - 'tests/cloudflare_observer_preflight.test.mjs'
       - 'scripts/preflight_cloudflare_observer.mjs'
+      - 'scripts/audit_cloudflare_recovery_no_go.mjs'
+      - 'tests/cloudflare_recovery_no_go.test.mjs'
+      - 'cloudflare/native_publication_receipt_lab.mjs'
 permissions:
   actions: read
   contents: read
@@ -123,6 +126,7 @@ jobs:
         run: |
           node --test tests/cloudflare_capture_wakeup.test.mjs
           node --test tests/cloudflare_observer_preflight.test.mjs
+          node --test tests/cloudflare_recovery_no_go.test.mjs
           node scripts/preflight_cloudflare_observer.mjs
       - name: Validate Cloudflare Worker bundle (PR dry run; no deployment)
         if: ${{ github.event_name == 'pull_request' }}
