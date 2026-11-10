@@ -105,13 +105,19 @@ jobs:
       # rate-limit previously blocked artifact upload before deployment began.
       # Upload/deploy retain the existing github-pages environment and
       # pages:write + id-token:write permissions; no bypass of deploy checks.
+      # A rerun retains artifacts from earlier attempts under the same run ID.
+      # Give each attempt its own name or deploy-pages rejects duplicate
+      # "github-pages" artifacts and skips all postdeployment checks.
       - name: Upload public site
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: public
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
       - name: Record deployed revision
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
