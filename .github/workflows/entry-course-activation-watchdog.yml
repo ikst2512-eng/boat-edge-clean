@@ -1,7 +1,7 @@
 name: Entry course missed-cron activation watchdog
 on:
   # Separate schedule events for the original jobs remain the primary path.
-  # Push and a completed four-mode scheduled run give a second event source.
+  # Push and completed independent four-mode/CLEAN scheduled runs provide extra wakes.
   # Ten-minute fallback ticks fit every 12-minute T-12 selection window
   # on the 2026-11-10 schedule; a Cron event is NOT guaranteed to start.
   push:
@@ -9,7 +9,9 @@ on:
   schedule:
     - cron: '3,13,23,33,43,53 23,0-13 * * *'
   workflow_run:
-    workflows: ["Four-mode prospective capture (research only)"]
+    workflows:
+      - "Four-mode prospective capture (research only)"
+      - "CLEAN prospective pre-cutoff capture"
     types: [completed]
   workflow_dispatch:
 permissions:
@@ -20,13 +22,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   recover-missing-schedule:
-    # Never let a PR/dispatch-triggered four-mode run masquerade as a cron.
+    # Only same-repo main/schedule parent events may wake this fallback.
     if: >-
       github.repository == 'ikst2512-eng/boat-edge-clean' &&
       github.ref == 'refs/heads/main' &&
       (github.event_name != 'workflow_run' ||
        (github.event.workflow_run.event == 'schedule' &&
-        github.event.workflow_run.head_branch == 'main'))
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
