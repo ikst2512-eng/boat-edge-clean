@@ -679,7 +679,7 @@ for(const expected of [
 ]){
  assert.ok(compactStyle.includes(expected),'compact six-boat layout missing '+expected);
 }
-assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'compact rows must keep original feed per exact boat');
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid,raw.meta.deadline);"),'compact rows must keep original feed per exact boat');
 assert.ok(script.includes("['展示進入',courseLabel]"),'exhibition course must appear alongside each boat, not only as a global note');
 assert.ok(script.includes("Number.isInteger(startCourse)&&startCourse>=1&&startCourse<=6?startCourse+'C':'—'"),'unverified or invalid exhibition course must not be synthesized');
 assert.ok(!compactStyle.includes('display:none!important}\n#raceDataSection[data-view="exhibit"] .exhibition-boat'),'six-boat comparison must remain visible');
