@@ -332,6 +332,29 @@ def run_observed_archives(
         raise ValueError("pinned_complete_postmodel_semantic_replay_not_verified")
     frozen=_jst(clock()).isoformat()
     prepared=prepare_local_candidate(gateway,protocol,generated,frozen)
+    # Report the *actual age of each archived source* at the local
+    # generation clock, not just a boolean "before T-12" flag. Past evidence
+    # proved a several-hour-old afternoon source could be added to a Git
+    # ledger in the evening. This is diagnostic only: the 2026-11-10 frozen
+    # study admission conditions and model scores are NOT changed here.
+    generated_clock=datetime.fromisoformat(generated)
+    cutoff_clock=datetime.fromisoformat(audit["cutoff_jst"])
+    receipt_by_kind={
+        "racelist":audit["racelist_received_jst"],
+        "beforeinfo":audit["beforeinfo_received_jst"],
+        "odds120":audit["odds_received_jst"],
+    }
+    source_age_at_generation_seconds={}
+    source_age_before_t12_seconds={}
+    for kind,stamp in receipt_by_kind.items():
+        observed=datetime.fromisoformat(stamp)
+        if (observed.utcoffset()!=timedelta(hours=9)
+                or observed>generated_clock or observed>=cutoff_clock):
+            raise ValueError("source_receipt_drift_or_after_T12")
+        source_age_at_generation_seconds[kind]=round(
+            (generated_clock-observed).total_seconds(),3)
+        source_age_before_t12_seconds[kind]=round(
+            (cutoff_clock-observed).total_seconds(),3)
     outcome={
         "schema":"FOUR_MODE_TRIPLE_SOURCE_ARCHIVED_RECEIPT_TO_LEDGER_V1",
         "status":"complete_source_model_handoff_local_only",
@@ -342,6 +365,11 @@ def run_observed_archives(
         "candidate_sha256":prepared["sha256"],
         "candidate_git_blob_sha1":prepared["git_blob_sha1"],
         "source_sha256_claims":gateway["source_lineage_preflight"]["source_sha256_claims"],
+        "source_age_at_generation_seconds_from_manifest_claims":
+            source_age_at_generation_seconds,
+        "source_age_before_T12_seconds_from_manifest_claims":
+            source_age_before_t12_seconds,
+        "source_ages_independently_authenticated":False,
         "four_mode_ticket_budgets":protocol["mode_ticket_budgets"],
         "post_model_replay_verified_stages":list(sorted(required_stages)),
         "candidate_method_sha256_derived_from_preregistered_blobs":
