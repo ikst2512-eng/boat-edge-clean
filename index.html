@@ -1437,6 +1437,28 @@ async function loadHeldVenues(force=false){
   else{todayVenueRaces=null;updateRacePickerLabels();[...vb.children].forEach((button,i)=>{button.disabled=false;button.classList.remove('held');button.removeAttribute('data-held');button.querySelector('.venue-next').textContent='取得失敗';button.setAttribute('aria-label',names[i]+'（開催情報取得失敗）')});clearDeadlines('締切情報の取得に失敗しました');status.textContent='開催情報を取得できません（全24場から選択可能）';}
  }
 }
+function explainOfficialPreviewGap(audit){
+ // Only the adapter's audited counts may explain a missing official measurement.
+ // Do not fill any missing exhibition value from a guess or a different race.
+ const fallback=audit?.official_fallback,reason=fallback?.reason;
+ const counts=fallback?.official_measurement_counts;
+ if(reason==='incomplete_official_exhibition'&&counts&&
+    [counts.exhibition_time,counts.tilt,counts.start_rows].every(v=>Number.isInteger(v)&&v>=0&&v<=6)&&
+    typeof counts.start_valid_six==='boolean'&&
+    Array.isArray(fallback.missing_official_fields)&&fallback.missing_official_fields.length){
+   const start=counts.start_valid_six?'6/6艇':'未検証（'+counts.start_rows+'/6行受信）';
+   return '直前データ：公式展示の取得不足｜展示タイム '+counts.exhibition_time+'/6艇｜チルト '+counts.tilt+'/6艇｜スタート展示 '+start+'。6艇分が揃うまで推測値は表示しません。';
+ }
+ if(reason==='official_racer_or_absence_mismatch')
+  return '直前データ：公式の登録番号または欠場情報が出走表と一致せず、展示値の表示を保留しています。';
+ if(reason==='official_race_or_deadline_mismatch')
+  return '直前データ：公式側の対象レース・締切時刻が一致せず、展示値の表示を保留しています。';
+ if(reason==='receipt_not_before_deadline'||reason==='deadline_passed')
+  return '直前データ：締切前の取得完了を確認できないため、展示値の表示を保留しています。';
+ if(audit?.status==='not_verified_historical')
+  return '直前データ：過去レースは締切前取得の証拠がないため、展示値を未検証として表示しません。';
+ return '直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';
+}
 function mergeVerifiedRaceSnapshots(previous,raw){
  if(!previous)return raw;
  const cardNew=Date.parse(raw.source_audit?.race_card?.fetched_at),cardOld=Date.parse(previous.source_audit?.race_card?.fetched_at);
@@ -1697,7 +1719,7 @@ async function loadRaceData(force=false){
   const numericTime=lane=>{const ex=byLane(preview,lane),v=Number(ex.exhibition_time);return ex.exhibition_time!==null&&ex.exhibition_time!==undefined&&Number.isFinite(v)&&v>0?v:null};
   const measured=Array.from({length:6},(_,i)=>({lane:i+1,time:numericTime(i+1)})).filter(x=>x.time!==null).sort((a,b)=>a.time-b.time);
   const fastest=measured.length?measured[0].time:null;
-  const dataState=document.createElement('p');dataState.className='muted';dataState.textContent=safePreview?'直前データ：取得記録は締切前・Git初回登録未照合':'直前データ：未取得／公開待ち／取得記録の検証待ち。出走表・予想の表示は継続します。';exhibitGrid.append(dataState);
+  const dataState=document.createElement('p');dataState.className='muted';dataState.textContent=safePreview?'直前データ：取得記録は締切前・Git初回登録未照合':explainOfficialPreviewGap(raw.source_audit?.beforeinfo);exhibitGrid.append(dataState);
   const summary=document.createElement('div');summary.className='exhibition-summary';
   summary.textContent=safePreview?'展示タイム比較　取得 '+measured.length+'/6艇'+(fastest!==null?'｜最速 '+fastest.toFixed(2)+'秒':''):'展示データ未検証｜未取得項目は「—」';
   exhibitGrid.append(summary);
