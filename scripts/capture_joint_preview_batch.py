@@ -1,4 +1,8 @@
-"""Bounded current-day official source pairs, isolated from all forecasts."""
+"""Bounded current-day official source receipts, isolated from forecasts.
+
+The optional third-original step uses existing racelist capture/audit helpers.
+It does not authorize any production forecast or backfill past predictions.
+"""
 import json
 import os
 import re
@@ -9,7 +13,9 @@ from research_model import JST
 from clean_schedule import clean_schedule
 from scripts.capture_official_beforeinfo_json import capture as capture_before
 from scripts.capture_official_odds_receipt import capture as capture_odds
+from scripts.capture_official_racelist_receipt import capture as capture_racelist
 from scripts.audit_joint_official_receipts import audit_pair
+from scripts.audit_three_official_t12_originals import audit_three_originals
 from scripts.joint_t12_decision import decision
 
 
@@ -37,7 +43,10 @@ def candidates(schedule, now):
 
 
 def collect(root, identifier, *, clock=None, schedule_fetch=None,
-            before=None, odds=None, auditor=None, event=None):
+            before=None, odds=None, auditor=None, event=None,
+            include_racelist=False, card=None, triple_auditor=None):
+    if type(include_racelist) is not bool:
+        raise ValueError('include_racelist must be boolean')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,31}', identifier):
         raise ValueError('invalid observation identifier')
     clock = clock or (lambda: datetime.now(JST))
@@ -55,7 +64,11 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
               'checked_at_jst': now.isoformat(), 'date': now.strftime('%Y%m%d'),
               'formal': False, 'forecast_usable': False, 'full_t12_source_certified': False,
               'eligible_candidates': 0, 'beforeinfo_originals_saved': 0,
-              'official_odds_originals_saved': 0, 'complete_pairs_before_t12': 0, 'observations': []}
+              'official_odds_originals_saved': 0, 'complete_pairs_before_t12': 0,
+              'official_racelist_originals_saved': 0,
+              'complete_three_originals_before_t12': 0,
+              'three_originals_not_forecast_certification': True,
+              'observations': []}
     try:
         status, schedule = (schedule_fetch or clean_schedule)(report['date'])
         if status != 200:
@@ -92,6 +105,50 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                 item['joint_audit'] = result
                 item['status'] = 'pair_complete' if result.get('both_complete_before_t12') is True else 'pair_not_ready'
                 report['complete_pairs_before_t12'] += item['status'] == 'pair_complete'
+                if not include_racelist:
+                    continue
+                # Preserve the two-original audit regardless of the optional
+                # third source's availability; never reclassify a good pair.
+                if item['status'] != 'pair_complete':
+                    item['three_source_status'] = 'pair_not_complete'
+                    continue
+                cutoff = datetime.fromisoformat(deadline) - timedelta(minutes=12)
+                # Upstream beforeinfo provides the official deadline. The
+                # racelist request has an 18-second timeout; reserve 25s.
+                if clock() + timedelta(seconds=25) >= cutoff:
+                    item['three_source_status'] = 'racelist_preflight_too_late'
+                    continue
+                card_id = 'card_'+identifier
+                try:
+                    c = (card or capture_racelist)(code, root, card_id)
+                    item['racelist'] = c
+                    if c.get('status') != 'official_racelist_html_observed_research_only':
+                        item['three_source_status'] = 'racelist_capture_failed'
+                        continue
+                    report['official_racelist_originals_saved'] += 1
+                    receipt = datetime.fromisoformat(c['received_at_jst'])
+                    if receipt.utcoffset() != timedelta(hours=9) or receipt > cutoff:
+                        item['three_source_status'] = 'racelist_after_t12'
+                        continue
+                    joined = (triple_auditor or audit_three_originals)(
+                        root/'observations'/card_id/code[:8]/code,
+                        root/'observations'/before_id/code[:8]/code,
+                        root/'observations'/odds_id/code[:8]/code)
+                    item['three_source_audit'] = joined
+                    complete = (
+                        joined.get('race_code') == code
+                        and joined.get('three_originals_hash_verified') is True
+                        and joined.get('all_research_components_observed_by_t12') is True
+                        and joined.get('full_t12_source_certified') is False
+                        and joined.get('forecast_usable') is False
+                        and joined.get('final_race_entry_verified') is False)
+                    item['three_source_status'] = (
+                        'three_originals_research_complete' if complete
+                        else 'three_originals_incomplete')
+                    report['complete_three_originals_before_t12'] += int(complete)
+                except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+                    item['three_source_status'] = 'racelist_or_join_failed'
+                    item['three_source_error_type'] = type(exc).__name__
             except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
                 item.update(status='capture_or_audit_failed',error_type=type(exc).__name__)
         # A saved beforeinfo body is not proof the odds request succeeded.
@@ -114,7 +171,7 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
 
 if __name__ == '__main__':
     identifier = 'run'+os.environ['GITHUB_RUN_ID'] if os.environ.get('GITHUB_RUN_ID') else datetime.now(JST).strftime('local_%Y%m%d_%H%M%S_%f')
-    report = collect('official_joint_evidence',identifier)
+    report = collect('official_joint_evidence',identifier,include_racelist=True)
     print('OFFICIAL_JOINT_BATCH '+json.dumps(report,ensure_ascii=False),flush=True)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
