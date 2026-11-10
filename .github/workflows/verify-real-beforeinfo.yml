@@ -54,9 +54,14 @@ jobs:
           const finiteReading=v=>(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number.isFinite(Number(v));
           // Match the production official inspector's accepted real start format.
           const validSt=s=>typeof s==='string'&&/^(?:(?:F|L)?\.\d{1,2}|\d?\.\d{1,2})$/.test(s.trim());
+          // Reject missing, malformed or timezone-less HTTP receipt evidence (NaN < deadline is not proof).
+          const validPredeadlineReceipt=(v,cutoff)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(v)&&Number.isFinite(Date.parse(v))&&Date.parse(v)<cutoff;
           for(const st of ['F.01','L.02','.08','0.08'])if(!validSt(st))throw Error('ST_PARSER_POSITIVE_REGRESSION '+st);
           for(const st of ['','--','F.01x','6.999'])if(validSt(st))throw Error('ST_PARSER_NEGATIVE_REGRESSION '+st);
           if(!finiteReading(0)||finiteReading('')||finiteReading(false))throw Error('NUMERIC_READING_REGRESSION');
+          const regressionCutoff=Date.parse('2026-11-11T19:35:00+09:00');
+          for(const receipt of ['', 'invalid', '2026-11-11T10:35:00Z', '2026-11-11T19:34:59', '2026-11-11T19:35:00+09:00'])if(validPredeadlineReceipt(receipt,regressionCutoff))throw Error('INVALID_RECEIPT_ACCEPTED '+receipt);
+          if(!validPredeadlineReceipt('2026-11-11T19:34:59.123456+09:00',regressionCutoff))throw Error('VALID_RECEIPT_REJECTED');
           (async()=>{
             const browser=await chromium.launch({headless:true});
             const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -95,7 +100,7 @@ jobs:
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
                   if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==main.deadline||
           d.race_key!==hd+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
-                    d.source_audit?.beforeinfo?.status!=='ok'||Date.parse(d.source_audit.beforeinfo.fetched_at)>=deadline||
+                    d.source_audit?.beforeinfo?.status!=='ok'||!validPredeadlineReceipt(d.source_audit.beforeinfo.fetched_at,deadline)||
                     !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||!valid6(d.beforeinfo?.start_exhibition))throw Error('public_api_missing_verified_six');
                   for(let l=1;l<=6;l++){
                     const racer=d.racers.find(x=>x.lane===l),ex=d.beforeinfo.racers.find(x=>x.lane===l),st=d.beforeinfo.start_exhibition.find(x=>x.lane===l);
@@ -121,6 +126,23 @@ jobs:
                       if(m['展示タイム']!==String(v.time)||m['チルト']!==String(v.tilt)||m['展示ST']!==v.st||m['展示進入']!==v.course+'C')throw Error('pages_official_mismatch_lane_'+l);
                     }
                     if(Date.now()>=deadline)throw Error('pages_completed_after_cutoff');
+                    // Source/API/visible DOM evidence is read-only and race/lane specific.
+                    // The API source SHA is its own observation, not proof of independent remote first receipt.
+                    const proof=[1,2,3,4,5,6].map(l=>{
+                      const ex=d.beforeinfo.racers.find(x=>x.lane===l),st=d.beforeinfo.start_exhibition.find(x=>x.lane===l),m=shown[l-1].entries;
+                      return {lane:l,registration:exp[l].registration,
+                        official:{time:exp[l].time,tilt:exp[l].tilt,st:exp[l].st,course:exp[l].course},
+                        render:{time:ex.exhibition_time,tilt:ex.tilt,st:st.st,course:st.course},
+                        pages:{time:m['展示タイム'],tilt:m['チルト'],st:m['展示ST'],course:m['展示進入']}};
+                    });
+                    out('LIVE_OFFICIAL_PAGES_E2E_EVIDENCE '+JSON.stringify({
+                      race_code:code,deadline_jst:race.deadline_jst,
+                      official_http_received_utc:new Date(src.received).toISOString(),
+                      render_http_received_utc:new Date(api.received).toISOString(),
+                      render_source_fetched_at:d.source_audit.beforeinfo.fetched_at,
+                      render_source_sha256:d.source_audit.beforeinfo.sha256||null,
+                      pages_compared_utc:new Date().toISOString(),matched_metrics:24,
+                      lanes:proof,formal_t12_certified:false}));
                     matched++;
                     out('LIVE_OFFICIAL_PAGES_E2E_PASS '+code+' | official JSON -> Render API -> actual Pages browser | 6 lanes x 4 metrics = 24 exact values | before cutoff | not T-12');
                     break;
