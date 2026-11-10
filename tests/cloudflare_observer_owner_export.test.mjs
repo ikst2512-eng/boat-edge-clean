@@ -54,6 +54,7 @@ test('explicit owner query collector makes exactly two scoped non-dispatch Cloud
   assert.equal(calls[1].request.parameters.view,'calculations');
   assert.equal(calls[1].request.parameters.calculations[0].operator,'count');
   assert.equal(out.schema,API_SCHEMA);
+  assert.equal(out.account_id,ACCOUNT);
   assert.equal(out.deployment_id,DEPLOYMENT);
   assert.equal(out.events_query.response.result.run.status,'STARTED');
   assert.doesNotMatch(JSON.stringify(out),new RegExp(TOKEN));
