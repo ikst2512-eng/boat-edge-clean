@@ -12,7 +12,7 @@ FIELDS = {
     "local_win_rate": (1.0, 1, 0.0, 20.0),
     "average_st_s": (0.05, -1, 0.0, 1.0),
     "exhibition_st_s": (0.05, -1, -0.5, 1.0),
-    "exhibition_time_s": (0.1, -1, 40.0, 90.0),
+    "exhibition_time_s": (0.1, -1, 5.0, 10.0),
     "motor_2ren_pct": (15.0, 1, 0.0, 100.0),
     "entry_course": (1.0, -1, 1.0, 6.0),
     # Interactions require an independently grounded true-north course bearing.
