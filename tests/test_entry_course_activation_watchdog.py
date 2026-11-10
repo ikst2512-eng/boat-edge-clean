@@ -366,6 +366,39 @@ class ActivationTests(unittest.TestCase):
         self.assertTrue(result["dispatch_requested"])
         self.assertEqual(requested,[OFFICIAL_PROBE_WORKFLOW])
 
+    def test_official_probe_retry_once_only_after_definite_primary_failure(self):
+        base=datetime(2026,11,11,19,53,tzinfo=JST)
+        def run(event,minute,conclusion,status="completed"):
+            return {"event":event,"created_at":base.replace(minute=minute).isoformat(),
+                    "head_branch":"main","status":status,"conclusion":conclusion}
+        primary=run("schedule",35,"failure")
+        requested=[]
+        def rows_for(scheduled,dispatched=None):
+            return lambda _,event: (scheduled if event=="schedule" else (dispatched or []))
+        report=official_live_probe_fallback(base,rows_for([primary]),
+            lambda file:requested.append(file))
+        self.assertEqual(requested,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(report["decision"],"requested_retry_after_failed_official_probe")
+        self.assertEqual(report["observed_failed_schedule_runs"],1)
+        self.assertFalse(report["live_24_values_verified"])
+        self.assertFalse(report["formal_t12_certified"])
+
+        # Never retry early, or after success, unknown result, an active run,
+        # an earlier dispatch (even a failed one), or multiple schedule runs.
+        for label,at,scheduled,dispatched in [
+            ("too_early",base.replace(minute=43),[primary],[]),
+            ("success",base,[run("schedule",35,"success")],[]),
+            ("unknown",base,[run("schedule",35,None)],[]),
+            ("active",base,[run("schedule",35,None,"in_progress")],[]),
+            ("dispatch_exists",base,[primary],[run("workflow_dispatch",45,"failure")]),
+            ("two_schedules",base,[primary,run("schedule",44,"failure")],[]),
+        ]:
+            with self.subTest(case=label):
+                record=official_live_probe_fallback(at,rows_for(scheduled,dispatched),
+                    lambda *_:self.fail("duplicate or unverified retry"))
+                self.assertEqual(record["decision"],"official_probe_started_already")
+                self.assertFalse(record["dispatch_requested"])
+
     def test_official_probe_malformed_run_fails_closed(self):
         at=datetime(2026,11,11,19,43,tzinfo=JST)
         base={"event":"schedule","head_branch":"main",
