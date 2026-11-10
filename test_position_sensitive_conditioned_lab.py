@@ -20,7 +20,7 @@ def evidence():
              "entry_course": i, "local_win_rate": 5 + i / 4,
              "average_st_s": .10 + i / 100,
              "exhibition_st_s": .05 + i / 100,
-             "exhibition_time_s": 47 + i / 10}
+             "exhibition_time_s": 6.7 + i / 100}
             for i in range(1, 7)
         ],
         "context": {"wind_speed_mps": 3, "wind_from_true_deg": 60,
@@ -69,6 +69,18 @@ class ConditionalLabTests(unittest.TestCase):
         second = dict(self.run_lab(features=changed, params=params)["ranked_board"])
         self.assertGreater(first[(1,2,3)], first[(1,3,2)])
         self.assertLess(second[(1,2,3)], second[(1,3,2)])
+
+    def test_real_exhibition_seconds_accepted_but_fabricated_47_seconds_rejected(self):
+        good = self.run_lab(params={"exhibition_time_s": {"second": .3, "third": .15}})
+        self.assertIn("exhibition_time_s", good["active_features"])
+        self.assertEqual(len(good["ranked_board"]), 120)
+        data = evidence()
+        data["boats"][0]["exhibition_time_s"] = 47.1
+        with self.assertRaisesRegex(ValueError, "invalid_exhibition_time_s"):
+            self.run_lab(features=data, params={
+                "exhibition_time_s": {"second": .3, "third": .15}})
+        self.assertFalse(good["formal"])
+        self.assertFalse(good["model_improvement_proven"])
 
     def test_zero_weight_does_not_impute_missing_inputs(self):
         blank = {"boats": [{"boat": i} for i in range(1, 7)], "context": {}}
