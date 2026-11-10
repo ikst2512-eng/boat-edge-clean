@@ -607,6 +607,32 @@ class FourModeForwardTests(unittest.TestCase):
         self.assertEqual(x["scenario_ticket_count"], 5)
         self.assertFalse(result["candidate_eligible_for_1693_registered_600"])
 
+    def test_hidden_postrace_metadata_cannot_enter_locked_600(self):
+        for payload in (
+            {"research_note": {"result": [1, 2, 3]}},
+            {"captured": [{"status": {"confirmed_at_jst": "2026-11-07T08:52:00+09:00"}}]},
+            {"environment": {"post_race_weather": {"wave_cm": 15}}},
+        ):
+            with self.subTest(payload=payload):
+                row = self.row()
+                row["optional_metadata"] = payload
+                report = score([row], {}, self.policy)
+                self.assertEqual(report["eligible_roster_count"], 0)
+                self.assertIn("outcome_leak_in_pre_result_roster",
+                              report["excluded_before_result_read"])
+                self.assertEqual(
+                    report["phase_progress"]["pilot"]["formally_certified_pairs"], 0)
+                self.assertFalse(report["model_promotion_allowed"])
+
+    def test_scenario_bridge_nested_result_data_rejected_before_exposure(self):
+        bridge = self.scenario_bridge()
+        bridge["research_attribution"] = [
+            {"extra": {"winning_combo": "1-2-3"}}]
+        with self.assertRaisesRegex(
+                ValueError, "outcome_or_forged_scenario_certification"):
+            preflight_unregistered_scenario_bridge(
+                self.row()["baseline"], bridge)
+
 
 if __name__ == "__main__":
     unittest.main()
