@@ -566,3 +566,19 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - [GitHub CI #42816571420](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42816571420)：protocol/モデルハッシュ実照合＋共謀差替え等の**追加回帰成功**（head `a9d50b4d247bd22ff6526f4401eb4638256d7af4`）。
 - [GitHub CI #42816963410](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42816963410)：head `1ac82df5095cdc380288a4042cf700d03d730fd2`。研究単体テスト**85本（依存1skip）**、固定#1698条件付き数理を動かした統合テスト**34本すべてPASS**。絞りTop10 N/A/本研究Top1 primaryを出力契約とテストに固定。
 - 本件の`local_handoff`は**未接続の研究専用create-only受け渡し準備**。候補初回GitHub遠隔保存、公式T−12三原本/ST6艇同時完備、Git初回受付時刻の独立受信、全attempt観測、300＋独立300件の成立を偽証・代用しない。**formal=0/600、model改善未実証**。未校正head3.5が過去3Rで本命Top10 旧V2 2/3→研究0/3となった事実は消さず、見た後で係数を変更しない。#1710 Draftのみ、main/Render/Pages/旧#1693 600/既存#1698候補/公式原本・確定結果は不変更。
+
+
+## 2026-11-10 ②担当：旧#1698 create-only研究候補の受け渡しを#1710へ接続（模擬遠隔のみ）
+
+**ユーザー継続指示で行った具体的な実装**：既存Draft PR #1710 の`scenario_future_local_candidate_handoff.py`に`publish_local_candidate_write_once`を追加。旧#1698 `position_sensitive_append_only_research.publish_write_once`の**既存の安全な実行契約**（受け渡し元とbyte単位一致・create-only・同一原本再利用・競合時書換え拒否・読み戻し一致・遅延は失敗・結果read無し）を、別研究#1710の凍結候補へ適用した。元の#1698と#1693の研究用コード/母集団は**一切変更なし**、新規Cron/collector/本番アダプタは作らず、研究用副作用は呼出側が明示注入した処理のみ。作成した新しいGitHubブランチは**0**で、候補実リモート保存も**0**。
+
+- 追加した固定 branch `scenario-four-mode-triple-source-evidence-ledger` は**今後の別途審査用の名称指定だけであり、GitHub上で作成済みと主張しない**。既存main、master、旧#1698の`position-sensitive-forward-evidence-ledger`、その他ブランチへ誤保存しようとすれば、**最初のremote callbackを呼ぶ前**に拒否。
+- 実行時、11/10事前登録Git blob SHA原文＋研究用モデル10 blob SHAの検査、および将来公式3原本→6登録番号→全国6勝率→展示ST6艇→固定4モード票の計算済み`gateway`から、候補の**完全な同一JSONバイト**を再生成して`prepared`の内容一致を検証。偽のローカル候補・終了後の改変を弾く。
+- `clock()`は明示注入のaware JST。研究候補生成後で、T−12の30秒以上前の時刻でなければremote read/createを**開始しない**。研究専用`remote_read(branch,path)`→（未保存なら）`remote_create(branch,path,exact_bytes)`→`remote_read`を要求。同じバイトの再試行は新規writeしないが、異なる既存候補は`research_immutable_candidate_collision`で拒否。readbackのバイト不一致、readback後のT−12超過も拒否し、成功と誤記しない。
+- 成功戻り値の`status`は`create_only_storage_call_returned_unattested`あるいは`identical_candidate_already_present_unattested`で、**independent first remote Git receipt、書込アダプタ真正性、Git first-add履歴、公式原本HTTP真正性、全Actions起動、正式600算入、精度改善・本番採用をすべてfalse**とする。注入callbackが偽の場合は**ローカルテストしか保証しない**。
+- [GitHub Actions PR回帰 #42819481249](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42819481249) **completed/success**、commit `db9a4fbd8b204995dad0d8681c2b4b58ee397ccf`。既存テスト群＋新たに`test_scenario_future_local_candidate_handoff.py`で模擬メモリ遠隔を使い、正常初回保存・同一再実行でwrite数1・main/別研究ブランチ拒否・候補バイト改変拒否・早すぎる/遅い時計拒否・異なる原本の上書き拒否・readback破損・並行create時競合・readback後cutoff超過を再現。テストは成功するが、**本物のGitHubへの保存・独立受領証明ではない**。
+
+### 同日夜の最新収集実測（モデルの保存成功とは別）
+- 2026-11-10 21:52 JSTの[既存プレビューschedule run #42819433184](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42819433184)は成功。[成果物 #13765184593](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42819433184/artifacts/13765184593) のZIP SHA256 `a8e94fa23d9af82114b18463b01622724cb6f7ae977413c8116822880e021b68`はGitHub digestと独立再ダウンロードSHA一致・CRC正常・内部2 JSON parse成功。既存CSVの全日`156`行には**後から**stt 155/156、tkz 154/156に6艇項目が揃っている一方、**取得時刻21:52に当日156レースすべて締切済み**であり、T−2/T−12前として**新規保存0件・valid paired0件**。これは`STが後から揃う`ことの参考証拠にはなり得るが、**締切前に保存できた証拠には絶対にしない**。同日現在の他runの証拠を先取りしない。
+
+**次の明確な実行依存**：③/#1713・#1694の研究用単一収集経路が、同一将来レースについて公式racelist/beforeinfo ST6/odds120をT−12前に保存して初回遠隔受領を出したら、②の研究用入力を#1710 `run_future_triple_experiment`→`prepare_local_candidate`→本create-onlyアダプタへ渡す。ただしCIの固定model10 SHAが実コードと一致し、実際のGitHub**初回受信サーバ時計**、Git first-add系譜、完全Actions attempt台帳を別途独立検証しない限り**研究の正式0/600・モデル未採用は変えない**。本番予想への研究Draft強制統合、過去原本の後付け上書きなし。
