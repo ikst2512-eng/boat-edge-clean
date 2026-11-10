@@ -239,6 +239,27 @@ def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, froz
     budgets=registered_protocol.get("mode_ticket_budgets")
     if type(data) is not dict or set(data)!=set(BUDGETS) or budgets!=BUDGETS:
         raise ValueError("wrong_four_mode_budget_contract")
+    # Existing #1693 numerical scorer treats narrow Top10 as its complete
+    # five tickets. That is NOT a ten-ticket Top10 endpoint. In the distinct
+    # #1710 study the primary endpoint is Top1 and Top10 is only applicable
+    # to modes with at least ten tickets. Keep this contract in the immutable
+    # candidate so later assessors cannot silently substitute Top10=Top5.
+    scientific = registered_protocol.get("scientific_protocol")
+    if (type(scientific) is not dict
+            or scientific.get("primary_endpoint") !=
+               "paired_top1_exact_trifecta_by_mode_with_multiplicity_correction"
+            or "top10_if_mode_budget_at_least_ten" not in
+               scientific.get("secondary_endpoints", [])
+            or set(scientific.get("non_inferiority_guardrails", [])) != {
+                "top5_by_mode_not_worse_than_same_cohort_baseline",
+                "top10_by_eligible_mode_not_worse_than_same_cohort_baseline",
+            }):
+        raise ValueError("incorrect_distinct_future_study_metric_policy")
+    metric_applicability = {
+        mode:{f"top{n}": n <= count for n in (1, 3, 5, 10)}
+        for mode,count in BUDGETS.items()
+    }
+    assert metric_applicability["narrow"]["top10"] is False
     snapshots={}
     for mode,count in BUDGETS.items():
         info=data[mode]
@@ -279,6 +300,9 @@ def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, froz
         "scenario_hypothesis_sha256":expected_signature,
         "research_method_blob_pins":dict(sorted(method_pins.items())),
         "ranked_mode_tickets":snapshots,
+        "prospective_metric_applicability_not_results":metric_applicability,
+        "distinct_new_study_primary_metric":"paired_top1_exact_trifecta_by_mode",
+        "top10_for_narrow_must_never_mean_top5":True,
         "first_remote_candidate_receipt_verified":False,
         "candidate_publication_attempted":False,
         "original_first_remote_receipt_verified":False,
