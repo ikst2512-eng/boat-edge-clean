@@ -48,6 +48,26 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(output["independent_first_seen_verified"])
         self.assertFalse(output["unattended_scheduled_capture_verified"])
 
+    def test_08_t12_rescue_does_not_depend_on_inactive_t2_api(self):
+        early=NOW.replace(hour=8,minute=12)
+        calls=[]
+        dispatched=[]
+        def fetch(file,event_name):
+            calls.append((file,event_name))
+            if file==TARGETS["t2"]:
+                self.fail("08 JST must not query inactive T2")
+            return []
+        output=run_once(now=early,fetch_runs=fetch,
+                        dispatch=lambda file:dispatched.append(file))
+        self.assertEqual(calls,[(TARGETS["t12"],"schedule"),
+                                (TARGETS["t12"],"workflow_dispatch")])
+        self.assertEqual(dispatched,[TARGETS["t12"]])
+        self.assertTrue(output["targets"]["t2"]["lookup_skipped_outside_hours"])
+        self.assertEqual(output["targets"]["t2"]["decision"],
+                         "outside_research_hours")
+        self.assertFalse(output["targets"]["t2"]["dispatch_requested"])
+        self.assertFalse(output["independent_first_seen_verified"])
+
     def test_early_t12_respects_recent_run_and_active_guard(self):
         early=NOW.replace(hour=8,minute=12)
         recent={"event":"workflow_dispatch","created_at":
