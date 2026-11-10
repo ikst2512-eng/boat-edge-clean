@@ -25,7 +25,7 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(out["forecast_record"])
         self.assertFalse(out["independent_first_seen_verified"])
     def test_outside_research_hours_never_dispatch(self):
-        for hour in (0,8,23):
+        for hour in (0,7,23):
             with self.subTest(hour=hour):
                 out=run_once(now=NOW.replace(hour=hour),
                     fetch_runs=lambda f,e:[],
