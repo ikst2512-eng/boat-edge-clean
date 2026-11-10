@@ -7,7 +7,8 @@ from four_mode_forward_paired_score import (COUNTS, PROTOCOL, protocol_check, sc
                                        exact_mcnemar_two_sided_reference,
                                        confirmation_holm_reference,
                                        preflight_unregistered_scenario_bridge,
-                                       review_upstream_t12_source_pair_handoff)
+                                       review_upstream_t12_source_pair_handoff,
+                                       review_upstream_pre_source_remote_existence)
 
 
 class FourModeForwardTests(unittest.TestCase):
@@ -832,6 +833,134 @@ class FourModeForwardTests(unittest.TestCase):
         report["attached"] = {"confirmed_result": "1-2-3"}
         with self.assertRaises(ValueError):
             review_upstream_t12_source_pair_handoff(report)
+
+    def nov10_added_blob_witness_reference_shape(self):
+        rows = []
+        for race in ("202611101202", "202611102211"):
+            modes = {}
+            for mode, commit, run_id, folder, upper in (
+                ("clean", "d5ec88ccd7bfec3b8c6844bbc0a3b47e61375eda",
+                 42714563095, "prospective_predictions",
+                 "2026-11-09T22:44:34+00:00"),
+                ("v2_four_mode", "e79a99e5180892330fd3ce0b745893d3c6515ab8",
+                 42657194420, "four_mode_forecasts",
+                 "2026-11-09T16:40:45+00:00"),
+            ):
+                modes[mode] = {
+                    "added_path": f"{folder}/{race}.json",
+                    "added_git_commit": commit,
+                    "exact_file_git_blob_sha1_matched": True,
+                    "independent_github_run_id": run_id,
+                    "github_remote_existed_no_later_utc": upper,
+                    "existing_blob_predates_official_source": True,
+                    "first_remote_acceptance_instant_proven": False,
+                    "actual_original_byte_model_consumption_proven": False,
+                    "formal": False,
+                }
+            upstream = self.nov10_official_pair_report_reference_shape()
+            source = next(x for x in upstream["race_rows"]
+                          if x["race_code"] == race)
+            rows.append({
+                "race_code": race,
+                "official_t12_cutoff_jst": source["official_t12_cutoff_jst"],
+                "last_source_received_jst":
+                    source["last_original_source_received_jst"],
+                "forecasts": modes,
+                "formal": False,
+            })
+        return {
+            "schema": "T12_NOV10_REMOTE_ADDED_BLOB_WITNESS_V1",
+            "source_races": 2,
+            "immutable_forecast_blobs_witnessed": 4,
+            "remote_commit_existed_before_official_sources": 4,
+            "exact_first_remote_git_acceptance_instants_verified": 0,
+            "forecasts_proven_to_consume_official_originals": 0,
+            "full_three_source_forecasts_verified": 0,
+            "new_formal_certifications": 0,
+            "formal_accuracy_denominator": None,
+            "race_rows": rows,
+            "formal": False,
+            "accuracy_scoring_allowed": False,
+        }
+
+    def test_real_nov10_prior_github_remote_existence_not_first_receipt(self):
+        source = self.nov10_official_pair_report_reference_shape()
+        witness = self.nov10_added_blob_witness_reference_shape()
+        x = review_upstream_pre_source_remote_existence(source, witness)
+        self.assertEqual(x["old_forecast_commit_existence_upper_bounds"], 4)
+        self.assertEqual(x["first_remote_git_acceptance_instants_proven"], 0)
+        self.assertEqual(x["new_source_consuming_candidate_forecasts"], 0)
+        self.assertEqual(x["pilot_added"], 0)
+        self.assertEqual(x["confirmation_added"], 0)
+        self.assertEqual(x["formal_candidate_pairs_added"], 0)
+        self.assertFalse(x["upstream_witness_archive_independently_authenticated_here"])
+        self.assertFalse(x["model_promotion_allowed"])
+        self.assertEqual({r["race_code"] for r in x["race_rows"]},
+                         {"202611101202", "202611102211"})
+        self.assertTrue(all(
+            r["existing_forecast_disqualified_from_post_source_study"]
+            for r in x["race_rows"]))
+        self.assertFalse(x["formal"])
+
+    def test_upstream_remote_witness_same_race_and_commit_integrity(self):
+        for change in ("cross_race", "duplicate", "mixed_mode_commit",
+                       "wrong_added_path", "missing_mode", "forged_sha_match",
+                       "wrong_run", "wrong_count", "changed_official_clock"):
+            with self.subTest(change=change):
+                source = self.nov10_official_pair_report_reference_shape()
+                witness = self.nov10_added_blob_witness_reference_shape()
+                row = witness["race_rows"][1]
+                second = row["forecasts"]["v2_four_mode"]
+                if change == "cross_race":
+                    row["race_code"] = "202611100701"
+                elif change == "duplicate":
+                    row["race_code"] = witness["race_rows"][0]["race_code"]
+                elif change == "mixed_mode_commit":
+                    second["added_git_commit"] = "0"*40
+                elif change == "wrong_added_path":
+                    second["added_path"] = "four_mode_forecasts/202611101202.json"
+                elif change == "missing_mode":
+                    del row["forecasts"]["clean"]
+                elif change == "forged_sha_match":
+                    second["exact_file_git_blob_sha1_matched"] = False
+                elif change == "wrong_run":
+                    second["independent_github_run_id"] = 0
+                elif change == "wrong_count":
+                    witness["immutable_forecast_blobs_witnessed"] = 3
+                else:
+                    row["last_source_received_jst"] = "2026-11-10T14:01:00+09:00"
+                with self.assertRaises(ValueError):
+                    review_upstream_pre_source_remote_existence(source, witness)
+
+    def test_upstream_remote_existence_not_first_or_post_source(self):
+        for change in ("first_claim", "later_remote", "timezone",
+                       "after_model_generation_but_after_source", "model_claim",
+                       "false_pre_source", "forged_formal", "payout_leak"):
+            with self.subTest(change=change):
+                source = self.nov10_official_pair_report_reference_shape()
+                witness = self.nov10_added_blob_witness_reference_shape()
+                mode = witness["race_rows"][0]["forecasts"]["v2_four_mode"]
+                if change == "first_claim":
+                    mode["first_remote_acceptance_instant_proven"] = True
+                elif change == "later_remote":
+                    mode["github_remote_existed_no_later_utc"] = (
+                        "2026-11-10T07:00:00+00:00")
+                elif change == "timezone":
+                    mode["github_remote_existed_no_later_utc"] = (
+                        "2026-11-10T01:40:45+09:00")
+                elif change == "after_model_generation_but_after_source":
+                    mode["github_remote_existed_no_later_utc"] = (
+                        "2026-11-10T06:39:00+00:00")
+                elif change == "model_claim":
+                    mode["actual_original_byte_model_consumption_proven"] = True
+                elif change == "false_pre_source":
+                    mode["existing_blob_predates_official_source"] = False
+                elif change == "forged_formal":
+                    witness["new_formal_certifications"] = 1
+                else:
+                    witness["metadata"] = [{"payout": 1234}]
+                with self.assertRaises(ValueError):
+                    review_upstream_pre_source_remote_existence(source, witness)
 
 
 if __name__ == "__main__":
