@@ -21,13 +21,14 @@ COOLDOWN=timedelta(minutes=5)
 ACTIVE_PROTECTION=timedelta(minutes=30)
 PREVIEW_WORKFLOW="research-live-preview-evidence.yml"
 PREVIEW_WATCHDOG_MARK="entry-course-activation-watchdog"
+OFFICIAL_PROBE_WORKFLOW="verify-real-beforeinfo.yml"
 
 
 def dispatch_payload(file):
     """Tag only the optional independent preview rescue, never T12/T2."""
     if file==PREVIEW_WORKFLOW:
         return {"ref":"main","inputs":{"rescue_origin":PREVIEW_WATCHDOG_MARK}}
-    if file in TARGETS.values():
+    if file in TARGETS.values() or file==OFFICIAL_PROBE_WORKFLOW:
         return {"ref":"main"}
     raise ValueError("entry_watchdog_dispatch_target_unknown")
 
@@ -181,6 +182,54 @@ def preview_fallback(now, fetch_runs, dispatch):
     return record
 
 
+def official_live_probe_fallback(now, fetch_runs, dispatch):
+    """One-daytime-window fallback for the existing 19:35 JST official E2E.
+
+    Dispatch is explicitly NOT a schedule event or evidence of any matched
+    real-time official measurements, and cannot certify T-12 first receipt.
+    Uses the already-running watchdog only; no new cron or collector.
+    """
+    if not isinstance(now, datetime) or now.utcoffset() is None:
+        raise ValueError("official_probe_watchdog_clock_invalid")
+    local=now.astimezone(JST)
+    report={"workflow":OFFICIAL_PROBE_WORKFLOW,
+            "decision":"outside_official_probe_window",
+            "observed_schedule_runs":0,"observed_dispatch_runs":0,
+            "dispatch_requested":False,"trigger_is_schedule":False,
+            "live_24_values_verified":False,"formal_t12_certified":False}
+    # The 19:35 primary Cron gets five minutes to start, and later failures
+    # never warrant inventing post-deadline evidence.
+    if local.hour!=19 or not 40<=local.minute<60:
+        return report
+    observed=[]
+    for event in ("schedule","workflow_dispatch"):
+        rows=fetch_runs(OFFICIAL_PROBE_WORKFLOW,event)
+        if not isinstance(rows,list):
+            raise ValueError("official_probe_watchdog_runs_invalid")
+        for row in rows:
+            if not isinstance(row,dict):
+                raise ValueError("official_probe_watchdog_run_invalid")
+            if row.get("event")!=event or row.get("head_branch")!="main":
+                continue
+            if row.get("status") not in ("queued","in_progress","waiting",
+                                          "pending","requested","completed"):
+                raise ValueError("official_probe_watchdog_run_status_invalid")
+            at=_timestamp(row.get("created_at")).astimezone(JST)
+            if at>local+timedelta(minutes=1):
+                raise ValueError("official_probe_watchdog_future_run")
+            if at.date()==local.date() and (at.hour>19 or (at.hour==19 and at.minute>=15)):
+                observed.append((event,at))
+    report["observed_schedule_runs"]=sum(event=="schedule" for event,_ in observed)
+    report["observed_dispatch_runs"]=sum(event=="workflow_dispatch" for event,_ in observed)
+    if observed:
+        report["decision"]="official_probe_started_already"
+        return report
+    dispatch(OFFICIAL_PROBE_WORKFLOW)
+    report["dispatch_requested"]=True
+    report["decision"]="requested_missing_official_probe"
+    return report
+
+
 def main():
     repo=os.environ.get("GITHUB_REPOSITORY")
     if repo!=REPO:
@@ -211,6 +260,19 @@ def main():
                 "decision":"unverified_preview_fallback_failure",
                 "error_type":type(exc).__name__,"dispatch_requested":False,
                 "trigger_is_schedule":False,"saved_forecast_verified":False}
+    # Independent fallback: never fail or block T12/T2/preview recovery.
+    # Its own API outage is reported explicitly, not construed as a live PASS.
+    try:
+        report["independent_official_live_probe"]=official_live_probe_fallback(
+            now,fetch_runs,dispatch)
+    except Exception as exc:
+        report["independent_official_live_probe"]={
+            "workflow":OFFICIAL_PROBE_WORKFLOW,
+            "decision":"unverified_official_probe_fallback_error",
+            "error_type":type(exc).__name__,
+            "dispatch_requested":False,
+            "trigger_is_schedule":False,
+            "live_24_values_verified":False,"formal_t12_certified":False}
     path=Path("entry-course-evidence/activation-watchdog.json")
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(report,sort_keys=True,ensure_ascii=False)+"\n",
