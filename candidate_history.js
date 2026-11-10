@@ -76,6 +76,7 @@ function showRace(race){
  const deadline=typeof race.deadline_jst==='string'?race.deadline_jst.slice(11,16):'未確認';
  const confirmed=race.result_status==='confirmed_archive'&&/^[1-6]-[1-6]-[1-6]$/.test(race.finish||'');
  const resultText=confirmed?'確定 '+race.finish:race.result_status==='unverified'?'結果原本の検証待ち':'結果未保存';
+ const verifiedPayout=confirmed&&race.payout_status==='verified_independent'&&Number.isInteger(race.payout_yen_per_100)&&race.payout_yen_per_100>=100;
  const summary=text('summary',name+'｜締切 '+deadline+'｜'+resultText);
  node.append(summary);
  const detail=document.createElement('div');detail.className='candidate-detail';
@@ -88,7 +89,10 @@ function showRace(race){
    detail.append(text('p',rank>=0?'確定 '+race.finish+'｜保存済み研究予想の'+(rank+1)+'番目と一致（参考照合）':'確定 '+race.finish+'｜保存済み研究予想には該当なし（参考照合）','candidate-finish'));
   }
  }
- if(!confirmed)detail.append(text('p',race.result_status==='unverified'?'結果ファイルが未検証のため判定保留。':'確定結果の保存・反映待ち。後から予想を生成しません。','notes'));
+ if(confirmed){
+  detail.append(text('p',verifiedPayout?'3連単払戻：'+race.payout_yen_per_100.toLocaleString('ja-JP')+'円（100円あたり・独立保存原本照合済み）':'3連単払戻：未確認（推定値は表示しません）',verifiedPayout?'candidate-finish':'notes'));
+ }else detail.append(text('p',race.result_status==='unverified'?'結果ファイルが未検証のため判定保留。':'確定結果の保存・反映待ち。後から予想を生成しません。','notes'));
+
  detail.append(text('p','この一覧は保存済み原本の参照です。Git初回登録・正式T−12認定・実際の的中率は証明していません。','notes'));
  const links=document.createElement('nav');links.className='candidate-links';
  for(const [label,screen] of [['予想画面へ','forecast'],['結果画面へ','result']]){
@@ -116,12 +120,16 @@ async function loadDay(){
   const seen=new Set();
   for(const row of d.races){
    if(!/^20\d{10}$/.test(row.race_code||'')||!row.race_code.startsWith(day)||seen.has(row.race_code)||!Number.isInteger(row.venue)||row.venue<1||row.venue>24||!Number.isInteger(row.race)||row.race<1||row.race>12)throw Error('候補レースの一意性を検証できません');
+   if(row.payout_status==='verified_independent'){
+    if(row.result_status!=='confirmed_archive'||!Number.isInteger(row.payout_yen_per_100)||row.payout_yen_per_100<100)throw Error('保存払戻の証拠が不一致');
+   }else if(row.payout_yen_per_100!==null&&row.payout_yen_per_100!==undefined)throw Error('未検証払戻値を拒否しました');
    seen.add(row.race_code);
   }
+  if(Number.isInteger(d.payout_verified_count)&&d.payout_verified_count!==d.races.filter(x=>x.payout_status==='verified_independent').length)throw Error('払戻原本の件数が不一致');
   const fragment=document.createDocumentFragment();
   for(const race of d.races)fragment.append(showRace(race));
   root.replaceChildren(fragment);
-  status.textContent=d.races.length?'保存候補 '+d.candidate_count+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件（配備済みのGit原本）':'この日付の候補原本はまだ保存されていません。';
+  status.textContent=d.races.length?'保存候補 '+d.candidate_count+'件｜研究予想あり '+d.research_forecast_count+'件｜確定結果あり '+d.confirmed_result_count+'件｜払戻照合済み '+(Number.isInteger(d.payout_verified_count)?d.payout_verified_count:'未集計')+'件（配備済みのGit原本）':'この日付の候補原本はまだ保存されていません。';
  }catch(err){
   if(token!==requestId)return;
   status.textContent='候補履歴を読み込めません（'+String(err?.message||'通信エラー').slice(0,80)+'）。通信障害を候補0件と扱いません。';
