@@ -718,12 +718,14 @@ for(const expected of [
  '#raceDataSection[data-view="exhibit"] .exhibition-values{',
  '#raceDataSection[data-view="exhibit"] .exhibition-original-values{',
  '#raceDataSection[data-view="exhibit"] .exhibition-boat{',
- 'grid-template-columns:repeat(4,minmax(0,1fr))',
+ 'grid-template-columns:repeat(5,minmax(0,1fr))',
  'grid-template-columns:repeat(3,minmax(0,1fr))'
 ]){
  assert.ok(compactStyle.includes(expected),'compact six-boat layout missing '+expected);
 }
 assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'compact rows must keep original feed per exact boat');
+assert.ok(script.includes("['展示進入',courseLabel]"),'exhibition course must appear alongside each boat, not only as a global note');
+assert.ok(script.includes("Number.isInteger(startCourse)&&startCourse>=1&&startCourse<=6?startCourse+'C':'—'"),'unverified or invalid exhibition course must not be synthesized');
 assert.ok(!compactStyle.includes('display:none!important}\n#raceDataSection[data-view="exhibit"] .exhibition-boat'),'six-boat comparison must remain visible');
 console.log('PASS: compact two-column forecasts, 6-boat exhibition rows and original measurements');
 
