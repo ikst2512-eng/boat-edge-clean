@@ -276,18 +276,12 @@ def run_from_gateway_file(path, generated_at_jst, frozen_at_jst,
     if publish is False:
         return dict(base,status="validated_local_only_no_github_write",
                     github_create_attempted=False)
-    wire=GitHubOnlyCreateWire(token,send)
-    state=publish_local_candidate_write_once(
-        prepared,gateway,protocol,generated_at_jst,frozen_at_jst,
-        RESEARCH_ONLY_LEDGER_BRANCH,wire.read,wire.create,
-        lambda:datetime.now(JST))
-    observed=wire.create_ack_observation
-    if state["status"].startswith("create_only") and type(observed) is not dict:
-        raise ValueError("github_create_ack_missing_after_new_write")
-    return dict(base,status=state["status"],
-                github_create_attempted=True,
-                create_response_observation=observed,
-                local_pre_T12_readback_observed=state["local_pre_T12_readback_observed"])
+    # This gateway JSON alone is a self-reported model output. It does NOT
+    # include authenticated official HTTP source originals. Even a synthetic
+    # gateway can satisfy the local structural signature checks, so direct
+    # publishing here is unsafe. Keep read-only witness/dryrun, and require
+    # the archived-three-original CLI (real pinned parsers) for every PUT.
+    raise ValueError("gateway_only_publish_forbidden_use_archived_originals_runner")
 
 
 def main():
