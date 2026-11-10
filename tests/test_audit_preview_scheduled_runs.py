@@ -1,6 +1,6 @@
 import unittest
-from datetime import datetime, timezone, date
-from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health
+from datetime import datetime, timezone, date, timedelta
+from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, research_day_health, RESEARCH_PLANNED_DAILY_SLOTS
 
 NOW = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
 
@@ -61,6 +61,48 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
     def test_invalid_timestamps_not_recent(self):
         result = summarize([{"event":"schedule", "created_at":"invalid"}], now=NOW)
         self.assertEqual(result["scheduled_last_24h"], 0)
+
+
+    def test_research_separate_cron_and_dispatch_counts(self):
+        now=datetime(2026,11,10,23,17,tzinfo=timezone(timedelta(hours=9)))
+        def item(id,event,at):
+            return {"id":id,"event":event,"created_at":at,
+                    "head_branch":"main","status":"completed","conclusion":"success"}
+        source=[item(1,"schedule","2026-11-10T06:37:36Z")]
+        rescue=[item(2,"workflow_dispatch","2026-11-10T11:46:14Z"),
+                item(3,"workflow_dispatch","2026-11-10T11:52:21Z")]
+        output=research_day_health(source,rescue,day=date(2026,11,10),observed_at=now)
+        self.assertEqual(output["expected_five_minute_slots_due"],RESEARCH_PLANNED_DAILY_SLOTS)
+        self.assertEqual(output["observed_schedule_runs"],1)
+        self.assertEqual(output["observed_workflow_dispatch_runs"],2)
+        self.assertEqual(output["cron_health"],"severely_sparse_cron_observation")
+        self.assertEqual(output["saved_races"],"unverified_from_run_status")
+
+    def test_manual_dispatch_never_masks_missing_schedule(self):
+        now=datetime(2026,11,10,23,17,tzinfo=timezone(timedelta(hours=9)))
+        dispatched=[{"id":10,"event":"workflow_dispatch",
+                     "head_branch":"main","created_at":"2026-11-10T11:46:14Z"}]
+        output=research_day_health([],dispatched,day=date(2026,11,10),observed_at=now)
+        self.assertEqual(output["observed_schedule_runs"],0)
+        self.assertEqual(output["observed_workflow_dispatch_runs"],1)
+        self.assertEqual(output["cron_health"],"no_cron_run_observed")
+
+    def test_research_day_uses_jst_and_partial_window(self):
+        now=datetime(2026,11,10,9,12,tzinfo=timezone(timedelta(hours=9)))
+        output=research_day_health([],[],day=date(2026,11,10),observed_at=now)
+        self.assertEqual(output["expected_five_minute_slots_due"],3)
+        earlier=research_day_health([],[],day=date(2026,11,11),observed_at=now)
+        self.assertEqual(earlier["expected_five_minute_slots_due"],0)
+        self.assertEqual(earlier["cron_health"],"no_planned_ticks_yet")
+
+    def test_research_day_rejects_duplicated_and_wrong_event_inventory(self):
+        now=datetime(2026,11,10,23,17,tzinfo=timezone(timedelta(hours=9)))
+        run={"id":1,"event":"schedule","head_branch":"main",
+             "created_at":"2026-11-10T06:37:36Z"}
+        with self.assertRaisesRegex(ValueError,"invalid_or_duplicate_id"):
+            research_day_health([run,run],[],day=date(2026,11,10),observed_at=now)
+        with self.assertRaisesRegex(ValueError,"invalid_run_type"):
+            research_day_health([], [run],day=date(2026,11,10),observed_at=now)
 
 if __name__ == "__main__":
     unittest.main()
