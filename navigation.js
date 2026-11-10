@@ -40,13 +40,13 @@ const originalRender=typeof render==='function'?render:null;
 let restoring=false;
 let syncScheduled=false;
 const scheduleSync=()=>{if(syncScheduled||restoring)return;syncScheduled=true;queueMicrotask(()=>{syncScheduled=false;sync();});};
-const focusedPane=()=>activeView==='forecast'&&!document.querySelector('#forecast>.forecast-stats-pane')?.hidden?'stats':'prediction';
-const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView,pane:activeView==='forecast'?focusedPane():null});
+const focusedPane=()=>activeView==='card'&&typeof raceCardPane!=='undefined'?raceCardPane:null;
+const snapshot=()=>({date:s.date,venue:s.venue,race:s.race,view:activeView,pane:activeView==='card'?focusedPane():null});
 const key=p=>[p.date,p.venue,p.race,p.view,p.pane||''].join('|');
 const requestedScreen=new URL(location.href).searchParams.get('screen');
 if((location.pathname==='/'||location.pathname.startsWith('/boat-edge-clean/'))&&['forecast','card','exhibit','result','review'].includes(requestedScreen)&&originalSetView&&originalRender){
  originalSetView(requestedScreen);
- if(requestedScreen==='forecast'&&new URL(location.href).searchParams.get('pane')==='stats'&&typeof setForecastPane==='function')setForecastPane('stats');
+ if(requestedScreen==='card'&&new URL(location.href).searchParams.get('pane')==='rates'&&typeof setRaceCardPane==='function')setRaceCardPane('rates');
  originalRender();
 }
 const initial=snapshot();
@@ -63,15 +63,20 @@ const sync=()=>{
  u.searchParams.set('venue',String(next.venue+1));
  u.searchParams.set('race',String(next.race));
  u.searchParams.set('screen',next.view);
- if(next.pane==='stats')u.searchParams.set('pane','stats');else u.searchParams.delete('pane');
+ if(next.view==='card'&&next.pane==='rates')u.searchParams.set('pane','rates');else u.searchParams.delete('pane');
  history.pushState({boatEdgeNav:true,position,snapshot:next},'',u);
 
 };
+const restoreNavigationLocation=(url,state)=>{
+ const after=history.state;
+ if(location.href!==url||(after!==state&&JSON.stringify(after)!==JSON.stringify(state)))
+  history.replaceState(state,'',url);
+};
 if(originalSetView){
- setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);history.replaceState(state,'',url);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
+ setView=function(view){const url=location.href,state=history.state;const result=originalSetView(view);restoreNavigationLocation(url,state);scheduleSync();queueMicrotask(()=>{if(typeof updateDetails==='function')updateDetails();});return result;};
 }
 if(originalRender){
- render=function(){const url=location.href,state=history.state;const result=originalRender();history.replaceState(state,'',url);scheduleSync();return result;};
+ render=function(){const url=location.href,state=history.state;const result=originalRender();restoreNavigationLocation(url,state);scheduleSync();return result;};
 }
 window.addEventListener('popstate',event=>{
  const state=event.state;
@@ -81,7 +86,8 @@ window.addEventListener('popstate',event=>{
  const v=current;
  s.date=v.date;s.venue=v.venue;s.race=v.race;
  if(originalSetView)originalSetView(v.view);
- if(v.view==='forecast'&&typeof setForecastPane==='function')setForecastPane(v.pane==='stats'?'stats':'prediction');
+ if(v.view==='card'&&typeof setRaceCardPane==='function')setRaceCardPane(v.pane==='rates'?'rates':'card');
+  if(v.view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
  if(originalRender)originalRender();
  history.replaceState(state,'',location.href);
  restoring=false;
@@ -93,15 +99,15 @@ back?.addEventListener('click',event=>{
 document.querySelectorAll('.race-detail-shortcuts').forEach(node=>node.remove());
 const details=document.createElement('nav');details.className='race-detail-shortcuts';
 details.setAttribute('aria-label','選択レースの情報');
-for(const [label,view] of [['予想','forecast'],['連対率','stats'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
+for(const [label,view] of [['予想','forecast'],['出走表','card'],['展示・直前','exhibit'],['結果','result']]){
  const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.raceView=view;
  b.addEventListener('click',()=>{
   if(typeof setView!=='function'||typeof render!=='function')return;
   if(view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
-  if(view==='stats'&&typeof setForecastPane==='function')setForecastPane('stats');
-  setView(view==='stats'?'forecast':view);
+  if(view==='card'&&typeof setRaceCardPane==='function')setRaceCardPane('card');
+  setView(view);
   render();
-  document.querySelector(view==='forecast'||view==='stats'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});
+  document.querySelector(view==='forecast'?'#forecast':view==='result'?'#resultSection':'#raceDataSection')?.scrollIntoView({block:'start'});
  });
  details.append(b);
 }
@@ -115,13 +121,10 @@ const updateDetails=()=>{
  if(strip)strip.hidden=!showRaceControls;
  details.hidden=!showRaceControls;
  details.querySelectorAll('button').forEach(b=>{
-  const view=b.dataset.raceView;
-  const selected=activeView==='forecast'
-    ?(view==='stats'?focusedPane()==='stats':view==='forecast'&&focusedPane()==='prediction')
-    :view===activeView;
-  b.setAttribute('aria-current',String(selected));
-  b.classList.toggle('on',selected);
- });
+   const selected=b.dataset.raceView===activeView;
+   b.setAttribute('aria-current',String(selected));
+   b.classList.toggle('on',selected);
+  });
 };
 updateDetails();
 const raceHome=document.querySelector('[data-home-only]');
