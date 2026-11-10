@@ -1,5 +1,36 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-10: optional owner-executed live telemetry export (no deployment / no GitHub)
+
+The repository now contains **scripts/collect_cloudflare_observer_telemetry.mjs**, an owner-operated alternative to copying two Cloudflare Telemetry Query API responses by hand. It calls only
+`POST https://api.cloudflare.com/client/v4/accounts/<account-id>/workers/observability/telemetry/query`
+**twice**, with the already-reviewed V2 event and count request bodies. It has **no GitHub API, Worker deployment, capture, secret provisioning, dispatch, or retries**. This script is *not* called by CI or by the Worker; the CI tests supply only a fake fetcher and fake token. Its existence is not an account connection or evidence that the Worker has been deployed.
+
+**Do not run this before independently approving the no-GitHub-token Observer-only pilot.** After a complete UTC day *following* an actual deployment (allowing at least 15 minutes past day end), obtain the exact Worker deployment version ID from the owner's Cloudflare dashboard and set a **separate, account-scoped Cloudflare Workers Observability Write token in the operator's local shell only**. NEVER paste the token into ChatGPT, GitHub, PR comments, evidence JSON, files or deployed Worker configuration. The following is an example for an **already completed** day; replace the date, deployment version and private absolute path. The export path MUST be outside the Git checkout:
+
+```sh
+# Set your account ID in your own local shell, not in repository files.
+export CLOUDFLARE_ACCOUNT_ID="your-32-character-account-id"
+# Type a token in your private terminal (no echo); never put it in a command history.
+read -r -s -p "Cloudflare observability token: " CLOUDFLARE_OBSERVABILITY_TOKEN
+echo
+export CLOUDFLARE_OBSERVABILITY_TOKEN
+umask 077
+
+node scripts/collect_cloudflare_observer_telemetry.mjs --execute \
+  2026-11-09 ACTUAL_DEPLOYMENT_VERSION_ID \
+  /absolute/private-folder/observer-2026-11-09.json
+
+unset CLOUDFLARE_OBSERVABILITY_TOKEN
+node scripts/audit_cloudflare_observer_telemetry.mjs \
+  /absolute/private-folder/observer-2026-11-09.json
+```
+
+The CLI refuses absent `--execute`, incomplete UTC days, missing/invalid credentials or deployment identity, non-absolute paths, and any output inside the checkout. It writes a new **0600** JSON file with `wx` (no overwrite), retaining the *original responses*, **without** headers/token, and prints a small SHA256 receipt and local audit status; the parent directory must also be private. Even on an API response that is syntactically valid but incomplete, the evidence remains available for investigation while the command exits nonzero. If either HTTP request fails, it fails without retrying or emitting the response body. Do not upload the potentially sensitive raw logs to a public issue/PR.
+
+The script reports `independently_authenticated_origin:false` and `cloudflare_deployment_independently_proven:false` because merely running the owner-controlled client does not provide an independent cryptographic attestation, nor a live platform CPU/cron proof on its own. **Local audit PASS and a saved 384-event envelope are not evidence of a recovered GitHub workflow or an on-time first-add.** The existing recovery release interlock stays hard-locked, and main/Render/native schedules remain untouched.
+
+
 ## 2026-11-09: operator-ready request generator and independent ABR gate (Draft-only)
 
 Run from the repository root, without any Cloudflare or GitHub credentials:
