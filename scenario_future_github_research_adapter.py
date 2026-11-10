@@ -10,6 +10,7 @@ independent FIRST remote receipt or first-add ancestry. Never credit 300+300.
 import argparse
 import base64
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 import hashlib
 import json
 import os
@@ -32,6 +33,7 @@ MAX_SOURCE_BYTES = 160_000
 SHA40 = re.compile(r"[a-f0-9]{40}\Z")
 CODE = re.compile(r"20\d{10}\Z")
 JST = timezone(timedelta(hours=9))
+LEDGER_BOOTSTRAP_HEAD_SHA = "72e1b3da1b71e75c8b3901d301ed69fca590694d"
 
 
 def _json_no_duplicate_keys(pairs):
@@ -233,3 +235,198 @@ def main():
 
 if __name__=="__main__":
     main()
+
+
+def _single_header(headers, name):
+    if type(headers) is not dict:
+        raise ValueError("github_witness_headers_invalid")
+    values=[str(v) for k,v in headers.items() if k.lower()==name.lower()]
+    if len(values)!=1:
+        raise ValueError("github_witness_missing_or_duplicate_header:"+name)
+    return values[0]
+
+
+def _witness_get(send, path, expected_status=200):
+    """One real REST GET (or a mock) with uncached GitHub server Date."""
+    if (not callable(send) or type(path) is not str
+            or not path.startswith("/")
+            or "//" in path
+            or "\r" in path or "\n" in path
+            or type(expected_status) is not int):
+        raise ValueError("invalid_readonly_witness_request")
+    request=urllib.request.Request(
+        API+path,
+        headers={
+            "Accept":"application/vnd.github+json",
+            "X-GitHub-Api-Version":"2022-11-28",
+            "Cache-Control":"no-cache",
+            "User-Agent":"boat-edge-triple-research-readonly-witness",
+        },
+        method="GET",
+    )
+    result=send(request)
+    if (type(result) is not tuple or len(result)!=3
+            or type(result[0]) is not int
+            or type(result[1]) is not dict
+            or type(result[2]) is not bytes
+            or len(result[2])>MAX_HTTP_BYTES):
+        raise ValueError("invalid_github_witness_transport")
+    status,headers,raw=result
+    if any(k.lower()=="age" for k in headers):
+        raise ValueError("github_witness_cached_response")
+    when=_single_header(headers,"Date")
+    try:
+        server=parsedate_to_datetime(when)
+    except (ValueError,TypeError,IndexError) as exc:
+        raise ValueError("invalid_github_witness_server_date") from exc
+    if server.tzinfo is None or server.utcoffset()!=timedelta(0):
+        raise ValueError("github_witness_date_must_be_UTC")
+    if status!=expected_status:
+        raise ValueError("github_witness_HTTP_"+str(status))
+    if expected_status==404:
+        return server,None,headers
+    return server,_json(raw),headers
+
+
+def inspect_candidate_observed_first_add(
+    prepared, gateway, registered_protocol, generated_at_jst, frozen_at_jst,
+    send=None,
+):
+    """Read-only current-branch first-add and before-cutoff existence witness.
+
+    To observe with *real* TLS responses omit send. Injected send means MOCK
+    tests only. GitHub Date proves existence before cutoff when a real GET
+    happens; it cannot independently establish the FIRST remote acceptance
+    time or rule out earlier force-pushed history, so formal=False always.
+
+    A complete result-last researcher must also attest initial source HTTP
+    receipt, authenticated first remote delivery, the full run/dispatch
+    inventory and an append-only branch policy separately.
+    """
+    recalculated=prepare_local_candidate(
+        gateway,registered_protocol,generated_at_jst,frozen_at_jst)
+    if type(prepared) is not dict or recalculated!=prepared:
+        raise ValueError("github_witness_candidate_not_exact_frozen_bytes")
+    path=_remote_path(recalculated["path"])
+    raw=recalculated["bytes"]
+    item=_json(raw)
+    if (item.get("schema")!="FOUR_MODE_TRIPLE_SOURCE_LOCAL_FROZEN_CANDIDATE_V1"
+            or item.get("first_remote_candidate_receipt_verified") is not False
+            or item.get("formal") is not False):
+        raise ValueError("github_witness_unexpected_frozen_candidate")
+    cutoff=datetime.fromisoformat(item["T_minus_12_cutoff_jst"])
+    frozen=datetime.fromisoformat(frozen_at_jst)
+    if cutoff.utcoffset()!=timedelta(hours=9) or frozen.utcoffset()!=timedelta(hours=9):
+        raise ValueError("github_witness_clock_invalid")
+    send_fn=_wire_transport if send is None else send
+    if not callable(send_fn):
+        raise ValueError("github_witness_send_not_callable")
+    ref_path="/git/ref/heads/"+RESEARCH_ONLY_LEDGER_BRANCH
+    ref_when,reference,_=_witness_get(send_fn,ref_path)
+    ref_obj=reference.get("object") if type(reference) is dict else None
+    head=ref_obj.get("sha") if type(ref_obj) is dict else None
+    if (reference.get("ref")!="refs/heads/"+RESEARCH_ONLY_LEDGER_BRANCH
+            or ref_obj.get("type")!="commit"
+            or type(head) is not str or not SHA40.fullmatch(head)):
+        raise ValueError("github_witness_untrusted_branch_head")
+    content_when,contents,_=_witness_get(
+        send_fn,"/contents/"+path+"?"+urllib.parse.urlencode({"ref":head}))
+    if (type(contents) is not dict
+            or contents.get("path")!=path or contents.get("type")!="file"
+            or contents.get("encoding")!="base64"
+            or type(contents.get("content")) is not str
+            or contents.get("sha")!=recalculated["git_blob_sha1"]):
+        raise ValueError("github_witness_wrong_candidate_at_pinned_head")
+    try:
+        restored=base64.b64decode(
+            "".join(contents["content"].splitlines()),validate=True)
+    except (ValueError,base64.binascii.Error) as exc:
+        raise ValueError("github_witness_invalid_candidate_base64") from exc
+    if restored!=raw or hashlib.sha256(restored).hexdigest()!=recalculated["sha256"]:
+        raise ValueError("github_witness_remote_candidate_bytes_differ")
+    # A verified real 200/GET received prior to cutoff witnesses existence
+    # before T-12, but NOT the first remote receipt.
+    if (not frozen.astimezone(timezone.utc)<ref_when<=content_when
+            or not content_when<cutoff.astimezone(timezone.utc)):
+        raise ValueError("github_witness_not_observed_strictly_before_T12")
+    history_when,history,history_headers=_witness_get(
+        send_fn,"/commits?"+urllib.parse.urlencode({
+            "sha":head,"path":path,"per_page":100}))
+    if (not isinstance(history,list) or len(history)!=1
+            or any(k.lower()=="link" and 'rel="next"' in v
+                   for k,v in history_headers.items())):
+        raise ValueError("github_witness_incomplete_or_mutated_candidate_history")
+    initial=history[0].get("sha") if type(history[0]) is dict else None
+    if type(initial) is not str or not SHA40.fullmatch(initial):
+        raise ValueError("github_witness_invalid_first_add_commit")
+    commit_when,commit,_=_witness_get(send_fn,"/commits/"+initial)
+    parents=commit.get("parents") if type(commit) is dict else None
+    files=commit.get("files") if type(commit) is dict else None
+    if (commit.get("sha")!=initial or type(parents) is not list
+            or len(parents)!=1 or type(parents[0]) is not dict
+            or type(parents[0].get("sha")) is not str
+            or not SHA40.fullmatch(parents[0]["sha"])
+            or type(files) is not list or
+            not any(type(f) is dict and f.get("filename")==path
+                    and f.get("status")=="added"
+                    and f.get("sha")==recalculated["git_blob_sha1"]
+                    for f in files)):
+        raise ValueError("github_witness_first_add_commit_not_authenticated")
+    parent=parents[0]["sha"]
+    absent_at,absent,_=_witness_get(
+        send_fn,"/contents/"+path+"?"+urllib.parse.urlencode({"ref":parent}),
+        expected_status=404)
+    if absent is not None:
+        raise ValueError("github_witness_parent_expected_missing")
+    compare_when,comparison,comparison_headers=_witness_get(
+        send_fn,"/compare/"+LEDGER_BOOTSTRAP_HEAD_SHA+"..."+head)
+    if (type(comparison) is not dict
+            or comparison.get("status")!="ahead"
+            or comparison.get("behind_by")!=0
+            or type(comparison.get("ahead_by")) is not int
+            or not 1<=comparison["ahead_by"]<=200
+            or comparison.get("total_commits")!=comparison["ahead_by"]
+            or type(comparison.get("commits")) is not list
+            or len(comparison["commits"])!=comparison["ahead_by"]
+            or comparison.get("base_commit",{}).get("sha")!=LEDGER_BOOTSTRAP_HEAD_SHA
+            or any(k.lower()=="link" and 'rel="next"' in v
+                   for k,v in comparison_headers.items())):
+        raise ValueError("github_witness_unproven_linear_current_branch")
+    seen={x.get("sha") for x in comparison["commits"] if type(x) is dict}
+    if initial not in seen or head not in seen or parent not in seen and parent!=LEDGER_BOOTSTRAP_HEAD_SHA:
+        raise ValueError("github_witness_missing_commit_from_ancestry")
+    # Inspection timestamps should not move backward between GitHub calls.
+    times=(ref_when,content_when,history_when,commit_when,absent_at,compare_when)
+    if any(a>b for a,b in zip(times,times[1:])):
+        raise ValueError("github_witness_inconsistent_server_date_order")
+    return {
+        "schema":"FOUR_MODE_TRIPLE_SOURCE_READONLY_FIRST_ADD_OBSERVATION_V1",
+        "status":"pinned_branch_unique_add_and_existence_preT12_unattested_first_receipt",
+        "repository":REPO,
+        "branch":RESEARCH_ONLY_LEDGER_BRANCH,
+        "race_code":recalculated["race_code"],
+        "candidate_path":path,
+        "candidate_sha256":recalculated["sha256"],
+        "candidate_git_blob_sha1":recalculated["git_blob_sha1"],
+        "observed_branch_head_sha":head,
+        "branch_initial_bootstrap_commit_sha":LEDGER_BOOTSTRAP_HEAD_SHA,
+        "observed_first_add_commit_sha":initial,
+        "observed_first_add_parent_sha":parent,
+        "github_server_observed_existing_at_utc":content_when.isoformat(),
+        "candidate_existed_before_T12_at_observation":True,
+        "unique_candidate_path_add_in_current_history":True,
+        "candidate_parent_did_not_contain_path":True,
+        "observed_branch_ancestry_from_bootstrap":True,
+        "github_network_responses_independently_authenticated":False,
+        "first_remote_candidate_receipt_verified":False,
+        "remote_branch_force_push_history_excluded":False,
+        "upstream_first_source_receipts_authenticated":False,
+        "complete_capture_and_rescue_run_inventory_verified":False,
+        "eligible_for_300_plus_300":False,
+        "formal":False,"model_improvement_proven":False,
+        "promotion_allowed":False,"production_changed":False,
+        "warning":"GitHub GET/Date shows existence, NOT first remote receipt. "
+                  "Current linear branch history does not exclude previous "
+                  "forced history rewrites or missed attempts. Mocked fetches "
+                  "provide only algorithm tests. Formal scoring prohibited.",
+    }
