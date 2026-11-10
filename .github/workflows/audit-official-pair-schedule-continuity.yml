@@ -96,6 +96,18 @@ jobs:
           python -m scripts.audit_t12_scheduled_transitive_routes \
             --pinned-checkout pinned-workflow-main \
             --output reports/official_t12_51_scheduled_transitive_static.json
+      - name: Checkout contemporaneous Nov10 main for separate exact-Git-source audit
+        uses: actions/checkout@v4
+        with:
+          ref: dbf10676cd874e46e51e725c75c34fa15d895978
+          path: contemporary-nov10-main
+          persist-credentials: false
+      - name: Trace Nov10 contemporary main routes without rewriting historic baseline
+        run: |
+          python -m scripts.audit_t12_scheduled_transitive_routes \
+            --pinned-checkout contemporary-nov10-main \
+            --exact-commit dbf10676cd874e46e51e725c75c34fa15d895978 \
+            --output reports/official_t12_nov10_contemporary_main_transitive_static.json
       - name: Audit immutable main official-source collection topology (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -341,5 +353,6 @@ jobs:
             reports/official_t12_scheduled_source_topology.json
             reports/official_t12_all_main_workflow_inventory.json
             reports/official_t12_51_scheduled_transitive_static.json
+            reports/official_t12_nov10_contemporary_main_transitive_static.json
           if-no-files-found: error
           retention-days: 30

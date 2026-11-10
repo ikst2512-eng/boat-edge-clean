@@ -33,6 +33,33 @@ def report(files, workflows=None):
 
 
 class TransitiveStaticSafety(unittest.TestCase):
+    def test_distinct_exact_commit_is_not_relabelled_as_old_main(self):
+        from scripts.audit_t12_full_workflow_inventory import PINNED
+        sha = "dbf10676cd874e46e51e725c75c34fa15d895978"
+        self.assertNotEqual(sha, PINNED)
+        workflows = {PREFIX + "periodic.yml": SCHEDULED}
+        paths = {"scripts/entry.py": b"print('ok')\n", **workflows}
+        report = inspect(workflows, paths, paths.get, strict=False, commit=sha)
+        self.assertEqual(report["main_sha"], sha)
+        self.assertEqual(report["schema"], "T12_EXACT_COMMIT_TRANSITIVE_STATIC_V1")
+        self.assertFalse(report["legacy_pinned_count_assertions"])
+        self.assertEqual(report["scheduled_workflows"], 1)
+        self.assertFalse(report["formal"])
+        self.assertIsNone(report["formal_accuracy_denominator"])
+
+    def test_mutable_or_mismatched_commit_rejected(self):
+        from scripts.audit_t12_full_workflow_inventory import PINNED
+        workflows = {PREFIX + "periodic.yml": SCHEDULED}
+        paths = {"scripts/entry.py": b"pass\n", **workflows}
+        for bad in ("main", "0" * 41, None, ""):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                inspect(workflows, paths, paths.get, strict=False, commit=bad)
+        with self.assertRaises(ValueError):
+            inspect(workflows, paths, paths.get, strict=True,
+                    commit="dbf10676cd874e46e51e725c75c34fa15d895978")
+        self.assertEqual(PINNED, inspect(workflows, paths, paths.get,
+                                         strict=False)["main_sha"])
+
     def test_pinned_fixture_has_only_one_schedule(self):
         result = report({"scripts/entry.py": b"import json\n"})
         self.assertEqual(result["scheduled_workflows"], 1)

@@ -230,7 +230,10 @@ def dynamic_process_sites(source):
     return sorted(sites, key=lambda x: (x["line"], x["api"]))
 
 
-def inspect(workflows, paths, load, strict=True):
+def inspect(workflows, paths, load, strict=True, commit=PINNED):
+    if (not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
+            or (strict and commit != PINNED)):
+        raise ValueError("untrusted or nonlegacy scanned commit")
     scheduled = []
     for p, source in workflows.items():
         events = _events(source.decode("utf-8"))
@@ -336,7 +339,9 @@ def inspect(workflows, paths, load, strict=True):
                         "dynamic_import", "dynamic_code", "dynamic_shell",
                         "local_action_unexpanded", "nested_local_action_unexpanded",
                         "missing_source", "unparseable_python", "file_limit"}
-    return {"schema": "T12_PINNED_TRANSITIVE_STATIC_V1", "main_sha": PINNED,
+    return {"schema": ("T12_PINNED_TRANSITIVE_STATIC_V1" if strict else
+                       "T12_EXACT_COMMIT_TRANSITIVE_STATIC_V1"),
+            "main_sha": commit, "legacy_pinned_count_assertions": strict,
             "workflows": len(workflows), "scheduled_workflows": len(scheduled),
             "scheduled_with_candidate_chain": sum(bool(x["racelist_candidate_chains"]) for x in rows),
             "scheduled_with_unresolved": sum(bool(x["unresolved"]) for x in rows),
@@ -367,12 +372,17 @@ def inspect(workflows, paths, load, strict=True):
             "limitations": "Literal static graph only. Process buckets derive from a literal executable prefix or unknown expressions, not observed execution; git can perform network calls. Reached imports may be unused; dynamic dispatch, local/external actions and HTTP source receipts remain unproven."}
 
 
-def scan(root):
+def scan(root, *, commit=PINNED):
+    # Always require an immutable, exact Git commit; NEVER accept a mutable
+    # ref such as 'main'. Historical 149/51 assertions remain unchanged.
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("nonimmutable exact Git commit")
     root = Path(root)
-    if not root.is_dir() or root.is_symlink() or git(root, "rev-parse", "HEAD").decode().strip() != PINNED:
-        raise ValueError("not pinned main checkout")
+    if (not root.is_dir() or root.is_symlink()
+            or git(root, "rev-parse", "HEAD").decode().strip() != commit):
+        raise ValueError("not requested exact-commit checkout")
     paths = {}
-    for record in git(root, "ls-tree", "-rz", PINNED).split(b"\0"):
+    for record in git(root, "ls-tree", "-rz", commit).split(b"\0"):
         if record:
             header, raw_path = record.split(b"\t", 1)
             mode, kind, sha = header.split()
@@ -389,15 +399,21 @@ def scan(root):
             cache[p] = raw
         return cache[p]
     workflows = {p: load(p) for p in paths if re.fullmatch(r"\.github/workflows/[^/]+\.ya?ml", p)}
-    return inspect(workflows, paths, load)
+    result = inspect(workflows, paths, load, strict=commit == PINNED,
+                     commit=commit)
+    result["exact_git_checkout_sha_verified"] = True
+    result["source_blob_sha1_verified_during_read"] = True
+    return result
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pinned-checkout", required=True)
+    parser.add_argument("--exact-commit", default=PINNED,
+                        help="immutable 40-hex Git commit; default old evidence baseline")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    result = scan(args.pinned_checkout)
+    result = scan(args.pinned_checkout, commit=args.exact_commit)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
