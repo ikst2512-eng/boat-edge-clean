@@ -86,6 +86,47 @@ def job_commands(text):
     return runs, uses
 
 
+def _literal_argv_prefix(arg):
+    """First contiguous argv literals only; never inspect after a dynamic gap."""
+    if isinstance(arg, (ast.List, ast.Tuple)):
+        prefix = []
+        for value in arg.elts:
+            if isinstance(value, ast.Constant) and type(value.value) is str:
+                prefix.append(value.value)
+            else:
+                break
+        return prefix
+    if isinstance(arg, ast.BinOp) and isinstance(arg.op, ast.Add):
+        # ['python', '-m', 'safe.static.module'] + user_flags is a
+        # potential static edge, but any dynamic left-hand prefix is unknown.
+        return _literal_argv_prefix(arg.left)
+    return []
+
+
+def _partial_command_links(argv, paths):
+    """Conservatively follow a fixed executable+script/module, not argv data.
+
+    Unknown trailing arguments may alter execution; the caller MUST retain
+    dynamic_subprocess. This is graph reachability only, not run/HTTP proof.
+    """
+    if not argv:
+        return set()
+    executable = argv[0].rsplit("/", 1)[-1]
+    if (not re.fullmatch(r"python(?:3(?:\\.\\d+)?)?", executable)
+            and executable not in ("bash", "sh")):
+        return set()
+    cmd = " ".join([executable, *argv[1:]])
+    match = (PY.match(cmd) if executable.startswith("python") else SH.match(cmd))
+    if not match:
+        return set()
+    if executable.startswith("python"):
+        module, file = match.groups()
+        path = module_path(module, paths) if module else file.removeprefix("./")
+    else:
+        path = match.group(1).removeprefix("./")
+    return {path} if path in paths else set()
+
+
 def python_links(text, paths):
     try:
         tree = ast.parse(text)
@@ -123,6 +164,10 @@ def python_links(text, paths):
                 elif isinstance(x, (ast.Tuple, ast.List)) and all(isinstance(y, ast.Constant) and isinstance(y.value, str) for y in x.elts):
                     links.update(literal_links(" ".join(y.value for y in x.elts), paths))
                 else:
+                    # A literal executable+module in mixed/dynamic argv is a
+                    # potential reachability edge. Dynamic arguments remain
+                    # unresolved: NEVER certify execution or source collection.
+                    links.update(_partial_command_links(_literal_argv_prefix(x), paths))
                     unknown.add("dynamic_subprocess")
             if fn in ("eval", "exec", "runpy.run_path"):
                 unknown.add("dynamic_code")
