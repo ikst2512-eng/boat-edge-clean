@@ -19,6 +19,15 @@ class ResultCollectorTests(unittest.TestCase):
             "collected_at_jst":"2026-11-03T12:02:00+09:00",
         }
 
+    def test_result_writer_uses_current_main_without_losing_pr_test_head(self):
+        workflow = (Path(__file__).resolve().parent /
+                    ".github/workflows/collect-clean-results.yml").read_text()
+        self.assertIn("ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}", workflow)
+        self.assertIn("github.event_name == 'pull_request' ||", workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("git add -- confirmed_results/", workflow)
+        self.assertIn("git -c rebase.autoStash=true rebase origin/main", workflow)
+
     def test_workflow_run_fallback_never_trusts_pr_or_foreign_repo(self):
         workflow = (Path(__file__).resolve().parent /
                     ".github/workflows/collect-clean-results.yml").read_text()
