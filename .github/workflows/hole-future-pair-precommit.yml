@@ -148,6 +148,27 @@ jobs:
             --processing-reserve-seconds 30 \
             --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
             --output research_20261110_t12_polling_counterfactual_nonformal.json
+          # Sensitivity: official inputs are assumed available only 2m or
+          # 1m before T-12. No claim these releases were observed.
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 120 \
+            --processing-reserve-seconds 30 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead120_phase0_nonformal.json
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 60 \
+            --processing-reserve-seconds 30 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead60_phase0_nonformal.json
+          python -m research.hole_pair_t12_polling_cadence_simulator \
+            --original-report research_main_20261110_original_sources_nonformal.json \
+            --source-lead-seconds 60 \
+            --processing-reserve-seconds 30 \
+            --poll-phase-offset-seconds 45 \
+            --first-git-source-sighting-hint-jst "2026-11-10T07:44:30+09:00" \
+            --output research_20261110_lead60_phase45_nonformal.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -163,6 +184,14 @@ jobs:
           assert r['results_opened'] is False
           assert r['formal'] is False
           assert r['production_promotion_allowed'] is False
+          for suffix in ('lead120_phase0','lead60_phase0','lead60_phase45'):
+              rr=json.loads(Path('research_20261110_'+suffix+'_nonformal.json').read_text())
+              assert rr['original_races_from_verified_git_snapshot'] == 150
+              assert rr['formal'] is False and rr['production_promotion_allowed'] is False
+              assert rr['actual_workflow_or_candidates_dispatched'] is False
+              assert rr['official_source_arrival_authenticated'] is False
+              assert rr['prospective_pilot_formally_eligible'] == 0
+              assert rr['prospective_confirmation_formally_eligible'] == 0
           PY
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'pull_request'
@@ -171,6 +200,9 @@ jobs:
           path: |
             research_main_20261110_original_sources_nonformal.json
             research_20261110_t12_polling_counterfactual_nonformal.json
+            research_20261110_lead120_phase0_nonformal.json
+            research_20261110_lead60_phase0_nonformal.json
+            research_20261110_lead60_phase45_nonformal.json
           if-no-files-found: error
           retention-days: 30
       - name: Prove Nov 5 is excluded before opening any forecast
