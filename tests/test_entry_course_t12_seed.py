@@ -129,6 +129,36 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"missed_cutoff"):
             validate_base(raw(),CODE,
                 now=datetime(2026,11,3,18,21,tzinfo=JST))
+    def test_scheduled_batch_has_capacity_for_seven_overlapping_day_races(self):
+        # Source: immutable published-day deadline snapshot. This is an
+        # offline selection-capacity test, NOT evidence any T-12 data existed
+        # in real time or was remotely persisted.
+        from inspect import signature
+        import json
+        from pathlib import Path
+        day="20261110"
+        full=json.loads((Path(__file__).resolve().parent.parent/
+                         "schedule_snapshots"/(day+".json")).read_text())
+        rows=[]
+        for venue in full["venues"]:
+            for race in venue["races"]:
+                rows.append({
+                    "レースコード":day+str(venue["jcd"]).zfill(2)+
+                                str(race["race_no"]).zfill(2),
+                    "電話投票締切予定":race["deadline"],
+                })
+        self.assertEqual(len(rows),156)
+        sample=datetime(2026,11,10,10,35,tzinfo=JST)
+        limited=near_t12(rows,day,now=sample,max_per_run=5)
+        complete=near_t12(rows,day,now=sample,max_per_run=10)
+        self.assertEqual(len(limited),5)
+        self.assertEqual(len(complete),7)
+        self.assertTrue(set(limited).issubset(complete))
+        # Only seed_once's default cap changes: near_t12 remains selectable
+        # and its caller must still enforce strict time-based publication.
+        self.assertEqual(signature(seed_once).parameters["max_per_run"].default,10)
+        self.assertEqual(len(near_t12(rows,day,now=sample)),5)
+
     def test_five_simultaneous_research_races_not_truncated_to_four(self):
         rows=[{"レースコード":f"2026110307{i:02d}",
                "電話投票締切予定":clock}
