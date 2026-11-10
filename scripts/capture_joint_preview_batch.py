@@ -14,6 +14,7 @@ from clean_schedule import clean_schedule
 from scripts.capture_official_beforeinfo_json import capture as capture_before
 from scripts.capture_official_odds_receipt import capture as capture_odds
 from scripts.capture_official_racelist_receipt import capture as capture_racelist
+from scripts.audit_official_racelist_receipt import audit_racelist_with_official_deadline
 from scripts.audit_joint_official_receipts import audit_pair
 from scripts.audit_three_official_t12_originals import audit_three_originals
 from scripts.joint_t12_decision import decision
@@ -44,7 +45,8 @@ def candidates(schedule, now):
 
 def collect(root, identifier, *, clock=None, schedule_fetch=None,
             before=None, odds=None, auditor=None, event=None,
-            include_racelist=False, card=None, triple_auditor=None):
+            include_racelist=False, card=None, triple_auditor=None,
+            racelist_auditor=None):
     if type(include_racelist) is not bool:
         raise ValueError('include_racelist must be boolean')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,31}', identifier):
@@ -66,6 +68,7 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
               'eligible_candidates': 0, 'beforeinfo_originals_saved': 0,
               'official_odds_originals_saved': 0, 'complete_pairs_before_t12': 0,
               'official_racelist_originals_saved': 0,
+              'verified_racelist_six_registration_matches': 0,
               'complete_three_originals_before_t12': 0,
               'three_originals_not_forecast_certification': True,
               'observations': []}
@@ -130,8 +133,32 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                     if receipt.utcoffset() != timedelta(hours=9) or receipt > cutoff:
                         item['three_source_status'] = 'racelist_after_t12'
                         continue
+                    # Validate saved racelist bytes and the six racer
+                    # registration IDs against the independently saved
+                    # beforeinfo even if exhibitions have not been published.
+                    card_dir = root/'observations'/card_id/code[:8]/code
+                    before_dir = root/'observations'/before_id/code[:8]/code
+                    card_check = (racelist_auditor or
+                                  audit_racelist_with_official_deadline)(
+                        card_dir, before_dir, code)
+                    item['racelist_audit'] = card_check
+                    card_valid = (
+                        card_check.get('race_code') == code
+                        and card_check.get('original_hash_verified') is True
+                        and card_check.get('six_racers_verified') is True
+                        and card_check.get('racer_registration_identities_agree') is True
+                        and card_check.get('received_by_t12') is True
+                        and card_check.get('beforeinfo_received_by_t12') is True
+                        and card_check.get('full_t12_source_certified') is False
+                        and card_check.get('forecast_usable') is False
+                    )
+                    item['racelist_six_registration_match_verified'] = bool(card_valid)
+                    report['verified_racelist_six_registration_matches'] += int(card_valid)
+                    if not card_valid:
+                        item['three_source_status'] = 'racelist_identity_incomplete'
+                        continue
                     if item['status'] != 'pair_complete':
-                        item['three_source_status'] = 'racelist_saved_pair_incomplete'
+                        item['three_source_status'] = 'racelist_verified_pair_incomplete'
                         continue
                     joined = (triple_auditor or audit_three_originals)(
                         root/'observations'/card_id/code[:8]/code,
@@ -177,6 +204,7 @@ if __name__ == '__main__':
     report = collect('official_joint_evidence',identifier,include_racelist=True)
     print('OFFICIAL_THREE_SOURCE_RESEARCH_COUNTS '+json.dumps({
         'racelist_originals_saved':report['official_racelist_originals_saved'],
+        'verified_racelist_six_registration_matches':report['verified_racelist_six_registration_matches'],
         'complete_three_originals_before_t12':report['complete_three_originals_before_t12'],
         'not_formal_source_or_forecast_certification':True,
         'missing_third_source_reasons':[
@@ -188,7 +216,7 @@ if __name__ == '__main__':
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
             out.write('\n### Official raw preview/odds pairs (research only)\n'+
-                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}; racelist originals: {report['official_racelist_originals_saved']}; three-source research complete: {report['complete_three_originals_before_t12']}.\n"+
+                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}; racelist originals: {report['official_racelist_originals_saved']}; six-registration matches: {report['verified_racelist_six_registration_matches']}; three-source research complete: {report['complete_three_originals_before_t12']}.\n"+
                       'No complete source triplet certifies model consumption, final entry, first remote forecast save or accuracy.\n')
     if report['status']=='source_capture_failed':
         raise SystemExit(1)
