@@ -26,4 +26,21 @@ class Tests(unittest.TestCase):
    code="202610310101"
    data=("レースコード,3連単_組番,3連単_払戻金\n"+code+",1-2-3,500\n"+code+",1-2-3,500\n").encode()
    with self.assertRaises(ValueError):parse("20261031",data,tmp)
+ def test_payout_rescue_reuses_only_trusted_main_result_collector(self):
+  # Static workflow contract. Exact-head Actions must additionally validate
+  # YAML parsing and the real job; this does NOT claim live payout ingestion.
+  config=(Path(__file__).resolve().parent/".github/workflows/collect-clean-payouts.yml").read_text(encoding="utf-8")
+  self.assertEqual(config.count("  workflow_run:"),1)
+  self.assertIn("workflows: ['CLEAN independent confirmed result collection']",config)
+  self.assertIn("types: [completed]",config)
+  self.assertIn("github.event.workflow_run.head_branch == 'main'",config)
+  self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",config)
+  self.assertIn('["schedule","workflow_dispatch","push","workflow_run"]',config)
+  self.assertIn("github.event_name != 'workflow_run'",config)
+  self.assertEqual(config.count("- cron:"),1)
+  self.assertIn("group: clean-payout-evidence-writer",config)
+  self.assertIn("git diff --cached --name-only --diff-filter=CDMRTUX",config)
+  self.assertIn("git rebase origin/main",config)
+  self.assertIn("github.event_name != 'pull_request'",config)
+
 if __name__=="__main__":unittest.main()
