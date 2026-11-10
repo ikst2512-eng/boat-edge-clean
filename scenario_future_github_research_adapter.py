@@ -196,6 +196,24 @@ class GitHubOnlyCreateWire:
             raise ValueError("github_create_ack_not_matching_candidate")
         if self._last_put_server_date_utc is None:
             raise ValueError("github_create_ack_server_date_missing")
+        try:
+            frozen_payload=_json(raw)
+            server_response=datetime.fromisoformat(self._last_put_server_date_utc)
+            frozen_at=datetime.fromisoformat(
+                frozen_payload["frozen_local_clock_self_report_jst"])
+            cutoff=datetime.fromisoformat(
+                frozen_payload["T_minus_12_cutoff_jst"])
+        except (KeyError, ValueError, TypeError) as exc:
+            raise ValueError("github_create_ack_frozen_cutoff_unreadable") from exc
+        if (frozen_at.utcoffset()!=timedelta(hours=9)
+                or cutoff.utcoffset()!=timedelta(hours=9)
+                or server_response.utcoffset()!=timedelta(0)
+                or not frozen_at.astimezone(timezone.utc)
+                       <=server_response<cutoff.astimezone(timezone.utc)):
+            # A local clock and an HTTP 201 alone never make a late write
+            # admissible. The HTTP PUT might have already succeeded remotely
+            # even when this conservative check fails; never erase it.
+            raise ValueError("github_create_response_not_between_freeze_and_T12")
         self.create_ack_observation={
             "schema":"FOUR_MODE_RESEARCH_GITHUB_CREATE_201_RESPONSE_OBSERVATION_V1",
             "repository":REPO,
