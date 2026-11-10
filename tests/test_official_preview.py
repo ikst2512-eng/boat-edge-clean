@@ -47,6 +47,25 @@ class OfficialPreviewTests(unittest.TestCase):
         p=copy.deepcopy(PAYLOAD);p['maindata']['sttenjiinfolist'][0]['st']=''
         self.assertIsNone(self.call(p)[0])
 
+    def test_render_start_st_matches_official_inspector_for_late_and_valid_numeric_forms(self):
+        from scripts.inspect_official_beforeinfo_json import inspect
+        for st in ('F.01', 'L.02', '.08', '0.08'):
+            payload=copy.deepcopy(PAYLOAD)
+            payload['maindata']['sttenjiinfolist'][0]['st']=st
+            with self.subTest(start_st=st):
+                self.assertTrue(inspect(payload)['start_exhibition_six_valid_rows'])
+                data,audit=self.call(payload)
+                self.assertEqual(audit['status'], 'ok')
+                self.assertEqual(data['start_exhibition'][0]['st'],st)
+        for st in ('', 'F01', 'L02', 'F.01x', '6.999'):
+            payload=copy.deepcopy(PAYLOAD)
+            payload['maindata']['sttenjiinfolist'][0]['st']=st
+            with self.subTest(invalid_start_st=st):
+                self.assertFalse(inspect(payload)['start_exhibition_six_valid_rows'])
+                data,audit=self.call(payload)
+                self.assertIsNone(data)
+                self.assertNotEqual(audit['status'],'ok')
+
     def test_missing_official_measurements_are_audited_without_fabricating_values(self):
         p=copy.deepcopy(PAYLOAD)
         p['maindata']['teiinfolist'][0]['extime']=''
