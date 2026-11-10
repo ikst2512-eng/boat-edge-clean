@@ -13,6 +13,22 @@ class RealPreviewProbeTests(unittest.TestCase):
   kwargs={'now':NOW,'schedule_fetch':lambda day:(200,{'races':[RACE]}),'card_fetch':card}
   self.assertEqual(len(verify_current_adapter('2026/11/04.csv',**kwargs)),1)
   self.assertEqual(verify_current_adapter('2026/11/03.csv',**kwargs),[])
+ def test_start_exhibition_requires_inspector_compatible_st(self):
+  kwargs={'now':NOW,'schedule_fetch':lambda day:(200,{'races':[RACE]})}
+  for value in ('F.01','L.02','.08','0.08'):
+   def valid_card(*args):
+    data=card()
+    data['beforeinfo']['start_exhibition'][0]['st']=value
+    return data
+   with self.subTest(valid_st=value):
+    self.assertEqual(len(verify_current_adapter('2026/11/04.csv',card_fetch=valid_card,**kwargs)),1)
+  for value in ('F01','L02','F.01x','6.999'):
+   def invalid_card(*args):
+    data=card()
+    data['beforeinfo']['start_exhibition'][0]['st']=value
+    return data
+   with self.subTest(invalid_st=value):
+    self.assertEqual(verify_current_adapter('2026/11/04.csv',card_fetch=invalid_card,**kwargs),[])
  def test_missing_preview_and_late_receipt_are_not_success(self):
   def missing(*args):return {'race_key':'20261104-01-11'}
   def late(*args):
