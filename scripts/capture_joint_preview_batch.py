@@ -107,11 +107,11 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                 report['complete_pairs_before_t12'] += item['status'] == 'pair_complete'
                 if not include_racelist:
                     continue
-                # Preserve the two-original audit regardless of the optional
-                # third source's availability; never reclassify a good pair.
-                if item['status'] != 'pair_complete':
-                    item['three_source_status'] = 'pair_not_complete'
-                    continue
+                # The racelist can be published BEFORE exhibitions. Preserve
+                # it independently even when the beforeinfo/odds pair is
+                # incomplete; never call this a complete three-original set.
+                # Always finish the two-original attempt first so a slow
+                # racecard request cannot cause a T-12 odds miss.
                 cutoff = datetime.fromisoformat(deadline) - timedelta(minutes=12)
                 # Upstream beforeinfo provides the official deadline. The
                 # racelist request has an 18-second timeout; reserve 25s.
@@ -129,6 +129,9 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
                     receipt = datetime.fromisoformat(c['received_at_jst'])
                     if receipt.utcoffset() != timedelta(hours=9) or receipt > cutoff:
                         item['three_source_status'] = 'racelist_after_t12'
+                        continue
+                    if item['status'] != 'pair_complete':
+                        item['three_source_status'] = 'racelist_saved_pair_incomplete'
                         continue
                     joined = (triple_auditor or audit_three_originals)(
                         root/'observations'/card_id/code[:8]/code,
