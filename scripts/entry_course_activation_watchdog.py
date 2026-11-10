@@ -20,6 +20,16 @@ TARGETS={
 COOLDOWN=timedelta(minutes=5)
 ACTIVE_PROTECTION=timedelta(minutes=30)
 PREVIEW_WORKFLOW="research-live-preview-evidence.yml"
+PREVIEW_WATCHDOG_MARK="entry-course-activation-watchdog"
+
+
+def dispatch_payload(file):
+    """Tag only the optional independent preview rescue, never T12/T2."""
+    if file==PREVIEW_WORKFLOW:
+        return {"ref":"main","inputs":{"rescue_origin":PREVIEW_WATCHDOG_MARK}}
+    if file in TARGETS.values():
+        return {"ref":"main"}
+    raise ValueError("entry_watchdog_dispatch_target_unknown")
 
 
 def _timestamp(value):
@@ -174,7 +184,7 @@ def main():
         return result["workflow_runs"]
     def dispatch(file):
         _call(f"actions/workflows/{quote(file)}/dispatches",token,
-              method="POST",fields={"ref":"main"})
+              method="POST",fields=dispatch_payload(file))
     report=run_once(now=now,fetch_runs=fetch_runs,dispatch=dispatch)
     # A preview service outage must not cancel T12/T2 rescue actions already
     # taken. Save an honest independent diagnostic before returning failure.

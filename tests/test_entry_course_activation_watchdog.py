@@ -2,7 +2,8 @@ import unittest
 from datetime import datetime,timedelta,timezone
 
 from scripts.entry_course_activation_watchdog import (
-    dispatch_decision,run_once,preview_fallback,PREVIEW_WORKFLOW,TARGETS,JST,
+    dispatch_decision,run_once,preview_fallback,PREVIEW_WORKFLOW,
+    PREVIEW_WATCHDOG_MARK,dispatch_payload,TARGETS,JST,
 )
 
 NOW=datetime(2026,11,4,10,12,tzinfo=JST)
@@ -229,6 +230,19 @@ class ActivationTests(unittest.TestCase):
             preview_fallback(NOW,lambda file,kind:None,
                              lambda _:self.fail("malformed preview triggered dispatch"))
         self.assertEqual(requested,list(TARGETS.values()))
+
+    def test_watchdog_dispatch_labels_only_preview_and_not_t12_or_t2(self):
+        self.assertEqual(dispatch_payload(PREVIEW_WORKFLOW),
+            {"ref":"main","inputs":{"rescue_origin":PREVIEW_WATCHDOG_MARK}})
+        for file in TARGETS.values():
+            self.assertEqual(dispatch_payload(file),{"ref":"main"})
+        with self.assertRaisesRegex(ValueError,"dispatch_target_unknown"):
+            dispatch_payload("other.yml")
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        workflow=(root/".github/workflows/research-live-preview-evidence.yml").read_text()
+        self.assertIn("rescue_origin:",workflow)
+        self.assertIn("watchdog-requested",workflow)
 
     def test_preview_guard_preserves_cron_and_workflow_concurrency(self):
         from pathlib import Path

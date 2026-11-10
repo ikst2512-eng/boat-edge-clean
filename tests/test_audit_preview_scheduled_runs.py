@@ -78,6 +78,24 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
         self.assertEqual(output["cron_health"],"severely_sparse_cron_observation")
         self.assertEqual(output["saved_races"],"unverified_from_run_status")
 
+    def test_watchdog_labeled_dispatch_is_separate_from_unmarked_manual(self):
+        now=datetime(2026,11,10,23,17,tzinfo=timezone(timedelta(hours=9)))
+        def row(id,label):
+            return {"id":id,"event":"workflow_dispatch",
+                    "head_branch":"main",
+                    "created_at":"2026-11-10T11:46:14Z",
+                    "display_title":label}
+        labeled="Research independent late preview evidence [watchdog-requested]"
+        report=research_day_health([],[row(1,labeled),
+            row(2,"Research independent late preview evidence")],
+            day=date(2026,11,10),observed_at=now)
+        self.assertEqual(report["observed_schedule_runs"],0)
+        self.assertEqual(report["observed_workflow_dispatch_runs"],2)
+        self.assertEqual(report["watchdog_tagged_dispatch_runs"],1)
+        self.assertEqual(report["untagged_dispatch_runs"],1)
+        self.assertEqual(report["cron_health"],"no_cron_run_observed")
+        self.assertEqual(report["saved_races"],"unverified_from_run_status")
+
     def test_manual_dispatch_never_masks_missing_schedule(self):
         now=datetime(2026,11,10,23,17,tzinfo=timezone(timedelta(hours=9)))
         dispatched=[{"id":10,"event":"workflow_dispatch",

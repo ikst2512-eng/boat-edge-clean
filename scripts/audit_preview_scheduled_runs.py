@@ -54,6 +54,7 @@ def daily_capture_health(runs, today, scheduled_audit):
 
 
 RESEARCH_WORKFLOW="research-live-preview-evidence.yml"
+RESEARCH_RESCUE_RUN_LABEL="Research independent late preview evidence [watchdog-requested]"
 JST=timezone(timedelta(hours=9))
 # The source has one configured tick every five minutes, 09:00--21:55 JST.
 RESEARCH_PLANNED_DAILY_SLOTS=13*12
@@ -75,6 +76,7 @@ def research_day_health(scheduled, dispatched, *, day, observed_at):
                 if start+timedelta(hours=hour,minutes=minute)<=now)
     seen=set()
     observed={"schedule":0,"workflow_dispatch":0}
+    tagged_watchdog_dispatches=0
     last={"schedule":None,"workflow_dispatch":None}
     for expected,rows in (("schedule",scheduled),("workflow_dispatch",dispatched)):
         for row in rows:
@@ -97,6 +99,10 @@ def research_day_health(scheduled, dispatched, *, day, observed_at):
             if row.get("head_branch")!="main":
                 continue
             observed[expected]+=1
+            if (expected=="workflow_dispatch" and
+                    row.get("display_title")==RESEARCH_RESCUE_RUN_LABEL):
+                # A self-declared hint, not independently certified origin.
+                tagged_watchdog_dispatches+=1
             stamp=when.isoformat()
             if last[expected] is None or stamp>last[expected]:
                 last[expected]=stamp
@@ -110,11 +116,13 @@ def research_day_health(scheduled, dispatched, *, day, observed_at):
             "expected_five_minute_slots_due":planned,
             "observed_schedule_runs":count,
             "observed_workflow_dispatch_runs":observed["workflow_dispatch"],
+            "watchdog_tagged_dispatch_runs":tagged_watchdog_dispatches,
+            "untagged_dispatch_runs":observed["workflow_dispatch"]-tagged_watchdog_dispatches,
             "missing_schedule_runs_vs_configured_slots_lower_bound":max(0,planned-count),
             "last_scheduled_run_jst":last["schedule"],
             "last_dispatch_run_jst":last["workflow_dispatch"],
             "cron_health":status,
-            "dispatch_attribution":"manual_or_watchdog_not_distinguishable_from_run_event",
+            "dispatch_attribution":"watchdog_marker_self_declared_not_independent_proof",
             "saved_races":"unverified_from_run_status",
             "t12_certification":"unverified_from_run_status"}
 
@@ -178,7 +186,7 @@ def main():
             file.write(f"Last 24h scheduled runs: {report['scheduled_last_24h']} ({report['schedule_health']}).\n")
             file.write(f"Today JST scheduled: {report['today_scheduled_runs']}; missing: {report['schedule_missing_today']}; all failed: {report['all_today_captures_failed']}; workflow: {report['workflow_state']}.\n")
             file.write("**Saved six-lane race pairs cannot be derived from run status.** Inspect evidence artifacts separately.\n")
-            file.write(f"Research 5-min Cron: {research['observed_schedule_runs']}/{research['expected_five_minute_slots_due']} due slots; workflow_dispatch (manual/watchdog mixed): {research['observed_workflow_dispatch_runs']}; status: {research['cron_health']}.\n")
+            file.write(f"Research 5-min Cron: {research['observed_schedule_runs']}/{research['expected_five_minute_slots_due']} due slots; workflow_dispatch: {research['observed_workflow_dispatch_runs']} (watchdog-tagged: {research['watchdog_tagged_dispatch_runs']}, untagged: {research['untagged_dispatch_runs']}); status: {research['cron_health']}.\n")
             file.write("Research Cron attempts, rescue dispatches, source capture and T-12 certified original writes are different metrics.\n")
     if report["schedule_missing_today"]:
         raise SystemExit("NO_SCHEDULED_PREVIEW_CAPTURE_TODAY: nightly audit fails closed")

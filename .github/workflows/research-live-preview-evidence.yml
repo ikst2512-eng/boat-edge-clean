@@ -1,4 +1,6 @@
 name: Research independent late preview evidence
+# The label is an untrusted dispatch hint, not first-seen proof of source data.
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.rescue_origin == 'entry-course-activation-watchdog' && 'Research independent late preview evidence [watchdog-requested]' || 'Research independent late preview evidence' }}
 on:
   pull_request:
     paths:
@@ -22,6 +24,11 @@ on:
     # GitHub schedules can be delayed; timestamps and deadline gates remain authoritative.
     - cron: '*/5 0-12 * * *'
   workflow_dispatch:
+    inputs:
+      rescue_origin:
+        description: 'Optional watchdog-requested label (not source or first-commit certification)'
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
