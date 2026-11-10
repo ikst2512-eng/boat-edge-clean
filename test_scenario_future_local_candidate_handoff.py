@@ -25,7 +25,8 @@ ALL=["-".join(map(str,x)) for x in permutations(range(1,7),3)]
 def fake_gateway(p):
     signature=hashlib.sha256(json.dumps({
         "scenarios":p["scenario_hypotheses"],
-        "weights":p["mode_weights"],
+        "weights":{mode:{world:float(v) for world,v in ws.items()}
+                   for mode,ws in p["mode_weights"].items()},
     },sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()).hexdigest()
     source={key:ch*64 for key,ch in [
         ("racelist","a"),("beforeinfo","b"),("odds120","c")]}
