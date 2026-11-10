@@ -36,6 +36,7 @@ class GitHubMockAPI:
         self.missing_create_date=False
         self.ambiguous_create_date=False
         self.cached_missing_404=False
+        self.create_date_text="Wed, 11 Nov 2026 06:09:01 GMT"
 
     def __call__(self, request):
         url=request.full_url
@@ -84,7 +85,7 @@ class GitHubMockAPI:
             "commit":{"sha":"1"*40},
         }
         headers={} if self.missing_create_date else {
-            "Date":"Wed, 11 Nov 2026 06:09:01 GMT",
+            "Date":self.create_date_text,
         }
         if self.ambiguous_create_date:
             headers["dAtE"]="Wed, 11 Nov 2026 06:09:02 GMT"
@@ -148,6 +149,22 @@ class ActualWireWithOnlyFakeTransportTests(unittest.TestCase):
             self.assertEqual(self.h.puts,1)
             # The PUT MAY have reached GitHub despite a failed acknowledgment.
             # Never automatically retry with a changed body or claim no write.
+            self.assertEqual(len(self.h.files),1)
+
+    def test_late_or_earlier_than_freeze_github_201_not_credited(self):
+        for date in (
+            "Wed, 11 Nov 2026 06:18:00 GMT",  # exactly T-minus-12
+            "Wed, 11 Nov 2026 06:18:01 GMT",  # later than cutoff
+            "Wed, 11 Nov 2026 06:07:59 GMT",  # earlier than local freeze
+        ):
+            self.h=GitHubMockAPI()
+            self.h.create_date_text=date
+            self.w=GitHubOnlyCreateWire("fake-unit-token",send=self.h)
+            with self.subTest(date=date),self.assertRaisesRegex(
+                    ValueError,"github_create_response_not_between_freeze_and_T12"):
+                self.invoke()
+            self.assertIsNone(self.w.create_ack_observation)
+            self.assertEqual(self.h.puts,1)
             self.assertEqual(len(self.h.files),1)
 
     def test_existing_other_bytes_never_overwritten(self):
