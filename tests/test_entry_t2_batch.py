@@ -350,6 +350,25 @@ class BatchTests(unittest.TestCase):
                 card_reader=lambda *args:self.fail("local original must not be used"),
                 waku_fetch=lambda url:self.fail("no unsafe Waku10 capture"))
             self.assertEqual(result["status"],"t2_missing_expected_t12_baselines")
+    def test_unattended_rejects_hours_old_remote_baseline_without_rewriting_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards,_=setup(tmp,1)
+            archived=__import__("test_entry_waku10_pilot").fixture()[0]
+            archived.update({
+                "model_version":"national-beta0.4-exploratory-v1",
+                # Old predeadline forecast, generated 21 minutes before cutoff.
+                "source_title_received_jst":archived["generated_at"],
+                "source_cards_received_jst":archived["generated_at"]})
+            folder=Path(tmp)/"entry-course-ledger"/"t12_baselines"/"20261103"
+            folder.mkdir(parents=True)
+            original_bytes=json.dumps(archived).encode()
+            path=folder/"202611030708.json"
+            path.write_bytes(original_bytes)
+            selected=__import__("entry_course_collector").candidates(
+                tmp,now=NOW,require_durable_t12=True)
+            self.assertEqual(selected,[])
+            self.assertEqual(path.read_bytes(),original_bytes)
+
     def test_unattended_mode_uses_durable_original_over_conflicting_local(self):
         with tempfile.TemporaryDirectory() as tmp:
             cards,raw_csv=setup(tmp,1)
@@ -362,8 +381,11 @@ class BatchTests(unittest.TestCase):
             original=__import__("test_entry_waku10_pilot").fixture()[0]
             original.update({
                 "model_version":"national-beta0.4-exploratory-v1",
-                "source_title_received_jst":original["generated_at"],
-                "source_cards_received_jst":original["generated_at"]})
+                # This scenario models a valid *T-12* remote baseline, not
+                # the intentionally earlier 18:00 generic preview fixture.
+                "generated_at":"2026-11-03T18:15:00+09:00",
+                "source_title_received_jst":"2026-11-03T18:15:00+09:00",
+                "source_cards_received_jst":"2026-11-03T18:15:00+09:00"})
             (durable/"202611030708.json").write_text(json.dumps(original))
             selected=__import__("entry_course_collector").candidates(
                 tmp,now=NOW,require_durable_t12=True)
@@ -385,8 +407,11 @@ class BatchTests(unittest.TestCase):
             original=__import__("test_entry_waku10_pilot").fixture()[0]
             original.update({
                 "model_version":"national-beta0.4-exploratory-v1",
-                "source_title_received_jst":original["generated_at"],
-                "source_cards_received_jst":original["generated_at"]})
+                # This scenario models a valid *T-12* remote baseline, not
+                # the intentionally earlier 18:00 generic preview fixture.
+                "generated_at":"2026-11-03T18:15:00+09:00",
+                "source_title_received_jst":"2026-11-03T18:15:00+09:00",
+                "source_cards_received_jst":"2026-11-03T18:15:00+09:00"})
             target=durable/"202611030708.json"
             for bad in ("rank","digest","future_receipt","cutoff_receipt"):
                 with self.subTest(bad=bad):
