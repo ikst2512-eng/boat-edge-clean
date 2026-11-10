@@ -25,6 +25,8 @@ test('current source correctly reports separate blocking reasons, not a release'
   assert.equal(r.recovery_dispatch_has_no_slot_input,true);
   assert.equal(r.recovery_source_hard_lock_present,true);
   assert.ok(r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
+  assert.ok(r.blockers.includes('NATIVE_CAPTURE_SLOT_INPUT_DECLARATION_MISSING'));
+  assert.ok(r.blockers.includes('RECOVERY_DISPATCH_HAS_NO_CAPTURE_SLOT_INPUT'));
   assert.ok(r.blockers.includes('NATIVE_PUBLISHER_SOURCE_RECEIPT_INCOMPLETE'));
   assert.ok(r.blockers.includes('CROSS_PROVIDER_ATOMIC_DEDUPLICATION_UNPROVEN'));
   assert.ok(r.blockers.includes('REAL_CLOUDFLARE_CRON_CPU_EVIDENCE_ABSENT'));
@@ -45,7 +47,10 @@ test('synthetic slot inputs alone never authorize recovery',()=>{
   assert.equal(r.native_four_workflow_has_slot_input,true);
   assert.equal(r.recovery_dispatch_has_no_slot_input,false);
   assert.equal(r.release_approved,false);
-  assert.ok(!r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
+  assert.equal(r.native_run_capture_slot_binding_proven,false);
+  assert.ok(r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
+  assert.ok(!r.blockers.includes('NATIVE_CAPTURE_SLOT_INPUT_DECLARATION_MISSING'));
+  assert.ok(!r.blockers.includes('RECOVERY_DISPATCH_HAS_NO_CAPTURE_SLOT_INPUT'));
   assert.ok(r.blockers.includes('CROSS_PROVIDER_ATOMIC_DEDUPLICATION_UNPROVEN'));
   assert.ok(r.blockers.includes('REAL_CLOUDFLARE_CRON_CPU_EVIDENCE_ABSENT'));
 });
@@ -78,6 +83,42 @@ test('missing or malformed native inputs fail closed',()=>{
   assert.ok(r.blockers.includes('NATIVE_PUBLISHER_SOURCE_UNVERIFIABLE'));
   assert.ok(r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
 });
+test('missing collector sources cannot be mistaken for absence of execution-time clocks',()=>{
+  for(const kind of ['cleanCollector','fourCollector']){
+    const modified=mutate(x=>{delete x.files[kind];});
+    const r=auditRecoveryReleaseNoGo(modified);
+    assert.equal(r.release_status,'NO_GO');
+    assert.equal(r.native_collectors_source_available,false);
+    assert.equal(r.native_run_capture_slot_binding_proven,false);
+    assert.ok(r.blockers.includes('NATIVE_CAPTURE_COLLECTOR_SOURCE_UNVERIFIABLE'));
+    assert.ok(r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
+  }
+});
+
+test('altered source with apparent clock fix cannot certify run-to-race binding',()=>{
+  const changed=mutate(x=>{
+    for(const k of ['cleanWorkflow','fourWorkflow']){
+      x.files[k]=x.files[k].replace(/^  workflow_dispatch:\s*$/m,
+        '  workflow_dispatch:\n    inputs:\n      capture_slot:\n        required: true');
+    }
+    x.files.recoveryPolicy=x.files.recoveryPolicy.replace(
+      "JSON.stringify({ref: 'main', return_run_details: true})",
+      "JSON.stringify({ref: 'main', return_run_details: true, inputs: {capture_slot: '2026-11-10T07:00:00+09:00'}})");
+    x.files.cleanCollector=x.files.cleanCollector.replaceAll('datetime.now(JST)','fixed_slot_time');
+    x.files.fourCollector=x.files.fourCollector.replaceAll('datetime.now(JST)','fixed_slot_time');
+  });
+  const r=auditRecoveryReleaseNoGo(changed);
+  assert.equal(r.native_clean_workflow_has_slot_input,true);
+  assert.equal(r.native_four_workflow_has_slot_input,true);
+  assert.equal(r.recovery_dispatch_has_no_slot_input,false);
+  assert.equal(r.native_collectors_source_available,true);
+  assert.ok(!r.blockers.includes('NATIVE_CAPTURE_DEPENDS_ON_EXECUTION_TIME'));
+  assert.equal(r.native_run_capture_slot_binding_proven,false);
+  assert.equal(r.current_main_native_source_equality_independently_proven,false);
+  assert.ok(r.blockers.includes('DISPATCH_TO_NATIVE_CAPTURE_SLOT_BINDING_UNPROVEN'));
+  assert.equal(r.release_approved,false);
+});
+
 test('NO-GO CLI deterministically exits nonzero without secrets or live claims',()=>{
   const cli=fileURLToPath(new URL('../scripts/audit_cloudflare_recovery_no_go.mjs',import.meta.url));
   const child=spawnSync(process.execPath,[cli],{encoding:'utf8',timeout:15000});
