@@ -68,7 +68,7 @@ class RealMainSourceSnapshotTests(unittest.TestCase):
         self.assertFalse(result["whole_day_official_schedule_verified"])
 
     def test_populated_beforeinfo_field_still_never_promotes_to_official(self):
-        tree, fetch = fixture([(CODE, sample(beforeinfo={"boats": [1, 2, 3, 4, 5, 6]})])
+        tree, fetch = fixture([(CODE, sample(beforeinfo={"boats": [1, 2, 3, 4, 5, 6]}))])
         result = g.audit(DAY, SOURCE, REFERENCE, tree, fetch)
         self.assertEqual(result["beforeinfo_field_not_officially_verified"], 1)
         self.assertEqual(result["same_race_official_t12_origins_authenticated"], 0)
