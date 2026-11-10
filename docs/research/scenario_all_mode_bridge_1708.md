@@ -274,3 +274,44 @@ validates any specific wind-bearing/tide-station semantics, #1693
 evaluates a *separately registered* future hypothesis 300+300 without
 outcome leakage, and #1706/#1707 independently recover and render
 only an approved model. This Draft cannot be merged automatically.
+
+
+## 2026-11-10 update — restore authentic exhibition-second units in the unregistered lab
+
+The 40–90s exhibition-time unit mismatch was fixed **only** in
+#1698's `position_sensitive_conditioned_lab.py` (unregistered
+experimental lab), changing its range to **5–10s**, alongside a
+6.7s synthetic fixture and a test that rejects the old 47s input.
+No production selector, preregistered method SHA or 300+300 candidate
+was changed. The owner PR's two Actions workflows passed:
+[isolated conditional lab #42776115254](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42776115254) and
+[position research checks #42776115160](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42776115160).
+
+This #1710 integration now reads the **immutable corrected #1698**
+commit `e152b57033f825e02343b004a9c013a8998f9954`, validates
+module blob SHA `0019978a4e27a1235d0b466c11f514bd7105f261`,
+then uses real-second `exhibition_st_s` and
+`exhibition_time_s` as *explicit uncalibrated research inputs*.
+No artificial ×10 conversion and no wind/tide/motor/wall/final-entry
+imputation. Exhibition course/tilt are still metadata only, not scored.
+
+The added positive/negative tests prove:
+- True-second exhibition time changes the 120 score board if its
+  hypothetical coefficient is nonzero;
+- A zero time coefficient preserves the board under time variation;
+- Exhibition ST changes the board under a positive hypothesis;
+- Missing or unauthenticated other features cannot be silently supplied;
+- All 4 existing modes remain available with 5/10/16/22 comparative
+  budgets, plus an isolated scenario-supported hole comparator.
+
+Latest exact-head [research CI #42776275920](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42776275920)
+**passed 38/38 tests (28 independent + 10 real-code cross-PR integration)**.
+This is structural/synthetic validation and does **not** verify real
+official HTTP T−12 source receipt, independent first remote Git save,
+forecast accuracy/calibration, live model promotion or site rendering.
+The old failure and temporary ST-only workaround remain recorded
+above as historical change context, NOT the current effective input
+policy.
+
+Both #1698 and #1710 remain Drafts. The existing frozen candidate
+and raw prediction archives remain untouched; do not auto-merge main.
