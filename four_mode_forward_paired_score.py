@@ -445,6 +445,146 @@ def review_upstream_t12_source_pair_handoff(report):
     }
 
 
+def review_upstream_pre_source_remote_existence(source_report, witness_report):
+    """Join #1694's exact prior-blob remote-existence witness; no first-receipt claim.
+
+    A GitHub Actions run created_at is an independent UPPER BOUND on the
+    remote commit's existence, not the Git push's FIRST acceptance instant.
+    This routine never authenticates untrusted inputs; CI separately pins
+    their GitHub artifact/run and exact archive/member SHA256.
+    """
+    source_review = review_upstream_t12_source_pair_handoff(source_report)
+    if (type(witness_report) is not dict or
+            has_embedded_outcome(witness_report) or
+            witness_report.get("schema") !=
+                "T12_NOV10_REMOTE_ADDED_BLOB_WITNESS_V1" or
+            witness_report.get("formal") is not False or
+            witness_report.get("accuracy_scoring_allowed") is not False or
+            witness_report.get("exact_first_remote_git_acceptance_instants_verified") != 0 or
+            witness_report.get("forecasts_proven_to_consume_official_originals") != 0 or
+            witness_report.get("full_three_source_forecasts_verified") != 0 or
+            witness_report.get("new_formal_certifications") != 0 or
+            witness_report.get("formal_accuracy_denominator") is not None):
+        raise ValueError("untrusted_or_overclaimed_remote_existence_witness")
+
+    witness_rows = witness_report.get("race_rows")
+    source_rows = source_report["race_rows"]
+    expected = {r["race_code"] for r in source_rows}
+    if (source_report.get("day_jst") != "20261110" or
+            type(witness_rows) is not list or
+            len(witness_rows) != len(source_rows) or
+            witness_report.get("source_races") != len(source_rows) or
+            witness_report.get("immutable_forecast_blobs_witnessed") !=
+                2 * len(source_rows) or
+            witness_report.get("remote_commit_existed_before_official_sources") !=
+                2 * len(source_rows) or
+            {r.get("race_code") for r in witness_rows if type(r) is dict}
+                != expected):
+        raise ValueError("remote_witness_cross_race_or_count_mismatch")
+
+    seen = set()
+    pinned_mode_commit = {}
+    pinned_mode_run = {}
+    joined_rows = []
+    verified_bounds = 0
+    mode_folders = {"clean": "prospective_predictions",
+                    "v2_four_mode": "four_mode_forecasts"}
+    for row in witness_rows:
+        if (type(row) is not dict or row.get("race_code") in seen or
+                row.get("formal") is not False):
+            raise ValueError("remote_witness_duplicate_or_formal")
+        code = row["race_code"]
+        seen.add(code)
+        original = next(r for r in source_rows if r["race_code"] == code)
+        published = clock(original["last_original_source_received_jst"])
+        cutoff = clock(original["official_t12_cutoff_jst"])
+        if (clock(row.get("last_source_received_jst")) != published or
+                clock(row.get("official_t12_cutoff_jst")) != cutoff):
+            raise ValueError("remote_witness_source_clocks_not_same_race")
+        forecasts = row.get("forecasts")
+        if type(forecasts) is not dict or set(forecasts) != set(mode_folders):
+            raise ValueError("remote_witness_both_prior_forecasts_required")
+        modes = {}
+        for mode, folder in mode_folders.items():
+            item = forecasts[mode]
+            if (type(item) is not dict or item.get("formal") is not False or
+                    item.get("added_path") != f"{folder}/{code}.json" or
+                    item.get("exact_file_git_blob_sha1_matched") is not True or
+                    item.get("existing_blob_predates_official_source") is not True or
+                    item.get("first_remote_acceptance_instant_proven") is not False or
+                    item.get("actual_original_byte_model_consumption_proven") is not False):
+                raise ValueError("remote_witness_prior_blob_identity_or_false_proof")
+            commit = item.get("added_git_commit")
+            run_id = item.get("independent_github_run_id")
+            if (type(commit) is not str or
+                    re.fullmatch(r"[0-9a-f]{40}", commit) is None or
+                    type(run_id) is not int or run_id <= 0):
+                raise ValueError("remote_witness_unbound_commit_or_run")
+            try:
+                existed_by = datetime.fromisoformat(
+                    item["github_remote_existed_no_later_utc"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("missing_remote_existence_clock") from exc
+            generated = clock(
+                original["frozen_forecasts"][mode]["generated_at_jst"])
+            if (existed_by.utcoffset() != timedelta(0) or
+                    not generated <= existed_by < published or
+                    not existed_by < cutoff):
+                raise ValueError("remote_existence_does_not_precede_official_sources")
+            if mode in pinned_mode_commit and (
+                    pinned_mode_commit[mode] != commit or
+                    pinned_mode_run[mode] != run_id):
+                raise ValueError("remote_witness_cross_race_commit_substitution")
+            pinned_mode_commit[mode] = commit
+            pinned_mode_run[mode] = run_id
+            verified_bounds += 1
+            modes[mode] = {
+                "file_added_relative_to_commit_parent_reference_only": True,
+                "witness_git_commit_reference_only": commit,
+                "witness_actions_run_id_reference_only": run_id,
+                "github_commit_existed_no_later_utc_reference_only":
+                    existed_by.isoformat(),
+                "original_blob_existed_before_official_pair_reference_only": True,
+                "independent_first_remote_acceptance_instant_verified": False,
+                "official_original_bytes_consumed_by_model": False,
+                "candidate_eligible_for_registered_600": False,
+            }
+        joined_rows.append({
+            "race_code": code,
+            "original_beforeinfo_odds_pair_complete_by_t12_reference_only":
+                original["source_pair_complete_by_t12"],
+            "same_race_official_racelist_original_present": False,
+            "prior_forecast_remote_existence_bounds": modes,
+            "existing_forecast_disqualified_from_post_source_study": True,
+            "blocking_gates": next(
+                x["blocking_gates"] for x in source_review["race_rows"]
+                if x["race_code"] == code),
+            "formal": False,
+        })
+    return {
+        "schema": "FOUR_MODE_PRIOR_REMOTE_EXISTENCE_CAUSAL_ORDER_HANDOFF_V1",
+        "status": "old_forecast_exists_before_official_pair_NOT_FIRST_REMOTE",
+        "upstream_source_report_run_id": source_review["upstream_source_run_id"],
+        "upstream_source_artifact_id": source_review["upstream_source_artifact_id"],
+        "old_forecast_commit_existence_upper_bounds": verified_bounds,
+        "first_remote_git_acceptance_instants_proven": 0,
+        "new_source_consuming_candidate_forecasts": 0,
+        "new_forecast_remote_acceptance_verified": 0,
+        "race_rows": sorted(joined_rows, key=lambda r: r["race_code"]),
+        "upstream_witness_archive_independently_authenticated_here": False,
+        "pilot_added": 0,
+        "confirmation_added": 0,
+        "formal_candidate_pairs_added": 0,
+        "formal": False,
+        "model_improvement_proven": False,
+        "model_promotion_allowed": False,
+        "warning": "An independently observed GitHub run is an upper bound "
+                   "on a prior commit's REMOTE EXISTENCE, never the FIRST Git "
+                   "push acceptance instant. Those unchanged prior forecast "
+                   "blobs cannot consume later official raw originals.",
+    }
+
+
 def score(pre_result_rows, results, p):
     protocol_check(p)
     if not isinstance(pre_result_rows,list) or not isinstance(results,dict):
@@ -662,6 +802,8 @@ def main():
     ap.add_argument("--results",type=Path)
     ap.add_argument("--upstream-t12-report",type=Path,
                     help="Read-only #1694 T12 same-race blocker handoff; no result scoring")
+    ap.add_argument("--upstream-remote-witness",type=Path,
+                    help="Optional paired #1694 Git remote-existence upper-bound report")
     args=ap.parse_args()
     p=protocol_check(json.loads(PROTOCOL.read_text(encoding="utf-8")))
     if args.upstream_t12_report is not None:
@@ -670,10 +812,20 @@ def main():
         target = args.upstream_t12_report
         if target.is_symlink() or not target.is_file() or target.stat().st_size > 2_000_000:
             raise ValueError("invalid_upstream_t12_report_file")
-        print(json.dumps(review_upstream_t12_source_pair_handoff(
-            json.loads(target.read_text(encoding="utf-8"))),
-            ensure_ascii=False, sort_keys=True))
+        source_report = json.loads(target.read_text(encoding="utf-8"))
+        if args.upstream_remote_witness is not None:
+            witness_path = args.upstream_remote_witness
+            if (witness_path.is_symlink() or not witness_path.is_file() or
+                    witness_path.stat().st_size > 2_000_000):
+                raise ValueError("invalid_upstream_remote_witness_file")
+            report = review_upstream_pre_source_remote_existence(
+                source_report, json.loads(witness_path.read_text(encoding="utf-8")))
+        else:
+            report = review_upstream_t12_source_pair_handoff(source_report)
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
         return
+    if args.upstream_remote_witness is not None:
+        raise ValueError("remote_witness_requires_upstream_t12_report")
     if args.pre_result_roster is None or args.results is None:
         # The normal no-input CI path must expose explicit 0/300 + 0/300
         # status instead of displaying only a generic valid-protocol flag.
