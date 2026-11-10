@@ -614,6 +614,67 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
+      - name: Audit all scheduled venues against archived real exhibition CSV (diagnostic)
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const {chromium}=require('playwright');
+          function csv(line){let arr=[],part='',quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){part+='"';i++}else quoted=!quoted;}else if(ch===','&&!quoted){arr.push(part);part='';}else part+=ch;}arr.push(part);return arr}
+          (async()=>{
+            const snapshot=JSON.parse(fs.readFileSync('schedule_snapshots/20261110.json','utf8'));
+            assert.equal(snapshot.date,'2026-11-10');
+            const browser=await chromium.launch({headless:true});
+            try{
+              const page=await browser.newPage();
+              const url='https://boatracecsv.github.io/data/previews/original_exhibition/2026/11/10.csv';
+              const response=await page.request.get(url,{timeout:25000});
+              assert.equal(response.status(),200,'independent CSV unavailable');
+              const lines=(await response.text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(csv);
+              const names=lines.shift();assert.ok(names.length>=36,'original lane columns');
+              const col=Object.fromEntries(names.map((name,i)=>[name,i]));
+              assert.equal(Object.keys(col).length,names.length,'duplicated source fields');
+              const entries=new Map();
+              for(const row of lines){
+                assert.equal(row.length,names.length,'truncated CSV row');
+                const code=row[col['レースコード']];
+                assert.match(code,/^20261110\d{4}$/);
+                assert.ok(!entries.has(code),'duplicated race '+code);
+                const count=Number(row[col['計測数']]);
+                assert.ok(Number.isInteger(count)&&count>=1&&count<=3,'invalid measurement count '+code);
+                for(let lane=1;lane<=6;lane++){
+                  assert.ok(row[col['艇'+lane+'_選手名']]?.trim(),'racer missing '+code+' lane '+lane);
+                  for(let k=1;k<=count;k++){
+                    const label=row[col['計測項目'+k]],value=row[col['艇'+lane+'_値'+k]];
+                    assert.ok(label?.trim()&&value!==undefined&&value.trim()!=='','metric missing '+code+' lane '+lane+' metric '+k);
+                  }
+                }
+                entries.set(code,row);
+              }
+              const planned=new Set();
+              for(const venue of snapshot.venues){
+                const jcd=String(venue.jcd).padStart(2,'0');
+                for(const race of venue.races){
+                  const code='20261110'+jcd+String(race.race_no).padStart(2,'0');
+                  assert.ok(!planned.has(code),'duplicate scheduled race '+code);
+                  planned.add(code);
+                  const row=entries.get(code);
+                  assert.ok(row,'scheduled race absent '+code);
+                  assert.equal(Number(row[col['レース場']]),Number(jcd),'venue mismatch '+code);
+                  assert.equal(Number(String(row[col['レース回']]).replace(/R$/i,'')),Number(race.race_no),'race mismatch '+code);
+                  assert.equal(row[col['締切時刻']],race.deadline,'deadline mismatch '+code);
+                }
+              }
+              assert.equal(entries.size,planned.size,'unexpected/missing source races');
+              assert.equal(snapshot.venues.length,13,'observed venue cohort has changed');
+              assert.equal(planned.size,156,'observed scheduled count has changed');
+              const result={date:'2026-11-10',scheduled_venues:snapshot.venues.length,scheduled_races:planned.size,csv_races:entries.size,matched:planned.size,missing:0,source:'independent archived CSV',scope:'source schema and identity only; not published DOM or formal T-12'};
+              console.log('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_MATCH',JSON.stringify(result));
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Real 2026-11-10 exhibition CSV and saved schedule: 13 active venues / 156 scheduled races matched, 0 missing. Inactive venues are not classified as non-provided. Original source receipt is not certified T-12.\n');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('PUBLIC_EXHIBITION_SCHEDULE_SOURCE_UNVERIFIED',String(e));process.exit(1)});
+          JS
       - name: Replay archived official six-boat source on published exhibition UI (diagnostic)
         timeout-minutes: 3
         continue-on-error: true
