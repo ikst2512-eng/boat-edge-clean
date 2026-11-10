@@ -9,6 +9,7 @@ from math import comb, isfinite
 from pathlib import Path
 
 from collect_clean_results import BASE as CONFIRMED_RESULT_SOURCE_BASE
+from four_mode_official_future_lineage_preflight import has_embedded_outcome
 
 PROTOCOL = Path(__file__).resolve().parent / "research/four_mode_all_modes_forward_protocol_20261106.json"
 COUNTS = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
@@ -47,8 +48,7 @@ def validate_tickets(v, size):
 
 
 def freeze(row, p):
-    if not isinstance(row, dict) or any(k in row for k in
-       ("result", "finish_order", "winning_ticket", "confirmed_at_jst", "payout")):
+    if not isinstance(row, dict) or has_embedded_outcome(row):
         raise ValueError("outcome_leak_in_pre_result_roster")
     # A future scenario-conditional model is a DISTINCT unregistered study.
     # Its presence must never silently consume the 2026-11-06 frozen 600 slots.
@@ -220,8 +220,7 @@ def preflight_unregistered_scenario_bridge(baseline, bridge):
         "promotion_allowed",
     )
     if (any(bridge.get(field) is not False for field in must_be_false)
-            or any(field in bridge for field in (
-                "finish_order", "confirmed_result", "winning_ticket", "payout"))):
+            or has_embedded_outcome(bridge)):
         raise ValueError("outcome_or_forged_scenario_certification")
     modes = bridge.get("existing_four_mode_selector_on_mixture")
     if type(modes) is not dict or set(modes) != set(COUNTS):
