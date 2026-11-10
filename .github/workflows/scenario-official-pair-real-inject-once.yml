@@ -22,8 +22,8 @@ jobs:
           python-version: '3.12'
       - name: Fail-closed source-contract tests (no fake racelist)
         run: |
-          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py scenario_archived_rates_ablation.py scenario_future_three_original_gateway.py
-          python -m unittest -v test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway
+          python -m py_compile scenario_official_pair_research_input.py scenario_actual_pair_four_mode_replay.py scenario_exhibition_all_mode_runner.py scenario_archived_rates_ablation.py scenario_future_three_original_gateway.py scenario_official_racelist_rates.py
+          python -m unittest -v test_scenario_official_pair_research_input test_scenario_archived_rates_ablation test_scenario_future_three_original_gateway test_scenario_official_racelist_rates
       - name: Fetch exactly pinned existing position-sensitive #1698 model
         run: |
           set -euo pipefail
@@ -158,6 +158,7 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
           from scripts.audit_three_official_t12_originals import audit_three_originals
+          from scenario_official_racelist_rates import extract_six_official_racelist_rates
           from scenario_future_three_original_gateway import validate_audited_source_pairing
           tmp=Path(os.environ["RUNNER_TEMP"])
           source=tmp/"real-triple-incomplete.zip"
@@ -180,6 +181,17 @@ jobs:
               assert a["component_checks"]["racecard_six_registrations"] is True
               assert a["component_checks"]["racer_registration_ids_match"] is True
               assert a["component_checks"]["odds_120"] is True
+              stats=extract_six_official_racelist_rates(
+                  (location("card_")/"racelist.html").read_bytes())
+              expected_national={
+                  "202611101207":[7.19,6.83,6.87,7.24,7.03,6.99],
+                  "202611100708":[6.77,5.65,3.16,6.76,6.48,2.65],
+              }
+              assert stats["national_rates"] == expected_national[code]
+              assert stats["rates_extracted_from_original_html_not_csv"]
+              assert [row["registration_id"] for row in stats["boats"]] == [
+                  a["registrations_by_lane"][str(i)] for i in range(1,7)]
+              assert not stats["formal"] and not stats["forecast_usable"]
               assert a["all_research_components_observed_by_t12"] is False
               assert a["missing_components"]
               assert a["full_t12_source_certified"] is False
@@ -192,6 +204,9 @@ jobs:
               rows.append({
                   "race_code":code,
                   "real_three_originals_SHA_and_six_roster_reverified":True,
+                  "national_win_rate_six_from_official_racelist_original":stats["national_rates"],
+                  "mean_ST_six_from_official_racelist_original":stats["average_st"],
+                  "local_win_rate_six_from_official_racelist_original":stats["local_rates"],
                   "real_exhibition_missing":a["missing_components"],
                   "existing_future_gateway_rejected":True,
                   "formal":False, "future_candidate_generated":False,
