@@ -15,8 +15,8 @@ const assetTypes = {
 };
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const guarded = html.match(/if\(url\.href!==location\.href&&!window\.__boatEdgeNavigationOwnsHistory\)history\.replaceState\(null,'',url\);/g) || [];
-if (guarded.length !== 2) {
-  throw Error('DRAFT_URL_WRITES_MUST_BE_IDEMPOTENT: expected both render and setView guards');
+if (guarded.length !== 1) {
+  throw Error('DRAFT_URL_WRITES_MUST_BE_IDEMPOTENT: expected the single guarded base URL writer');
 }
 
 const server = http.createServer((request, response) => {
