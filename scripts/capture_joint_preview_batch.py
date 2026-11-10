@@ -172,11 +172,20 @@ def collect(root, identifier, *, clock=None, schedule_fetch=None,
 if __name__ == '__main__':
     identifier = 'run'+os.environ['GITHUB_RUN_ID'] if os.environ.get('GITHUB_RUN_ID') else datetime.now(JST).strftime('local_%Y%m%d_%H%M%S_%f')
     report = collect('official_joint_evidence',identifier,include_racelist=True)
+    print('OFFICIAL_THREE_SOURCE_RESEARCH_COUNTS '+json.dumps({
+        'racelist_originals_saved':report['official_racelist_originals_saved'],
+        'complete_three_originals_before_t12':report['complete_three_originals_before_t12'],
+        'not_formal_source_or_forecast_certification':True,
+        'missing_third_source_reasons':[
+            {'race_code':x['race_code'],'status':x.get('three_source_status','not_attempted')}
+            for x in report['observations'] if x.get('three_source_status') !=
+            'three_originals_research_complete'
+        ]},ensure_ascii=False),flush=True)
     print('OFFICIAL_JOINT_BATCH '+json.dumps(report,ensure_ascii=False),flush=True)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
             out.write('\n### Official raw preview/odds pairs (research only)\n'+
-                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}.\n"+
-                      'This does not certify racecard, final entry, forecasts or accuracy.\n')
+                      f"Status: {report['status']}; eligible: {report['eligible_candidates']}; beforeinfo originals: {report['beforeinfo_originals_saved']}; odds originals: {report['official_odds_originals_saved']}; complete before T-12: {report['complete_pairs_before_t12']}; racelist originals: {report['official_racelist_originals_saved']}; three-source research complete: {report['complete_three_originals_before_t12']}.\n"+
+                      'No complete source triplet certifies model consumption, final entry, first remote forecast save or accuracy.\n')
     if report['status']=='source_capture_failed':
         raise SystemExit(1)
