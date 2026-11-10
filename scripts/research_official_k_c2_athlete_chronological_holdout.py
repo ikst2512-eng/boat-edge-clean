@@ -81,13 +81,18 @@ def official_rows(artifact_path: Path):
                     continue
                 by_course = {e["course"]: e for e in r["entries"]}
                 first, second = by_course[1], by_course[2]
+                by_boat = {e["boat"]: e for e in r["entries"]}
                 reg1, reg2 = first["athlete_registration"], second["athlete_registration"]
-                if (not isinstance(reg1,str) or not isinstance(reg2,str)
-                        or len(reg1)!=4 or len(reg2)!=4
-                        or not reg1.isdigit() or not reg2.isdigit()):
+                boat1, boat2 = by_boat[1], by_boat[2]
+                boat1_reg, boat2_reg = boat1["athlete_registration"], boat2["athlete_registration"]
+                if any(not isinstance(reg,str) or len(reg)!=4 or not reg.isdigit()
+                       for reg in (reg1,reg2,boat1_reg,boat2_reg)):
                     raise ValueError("registration_missing_or_invalid:" + r["code"])
                 rows.append({"day":day,"month":day[4:6],"venue":r["venue"],
                              "c1_registration":reg1,"c2_registration":reg2,
+                             "boat1_registration":boat1_reg,"boat2_registration":boat2_reg,
+                             "boat1_actual_course":boat1["course"],
+                             "boat2_actual_course":boat2["course"],
                              "c1_escape":binary["c1_escapement"],
                              "c2_sashi":binary["c2_sashi"]})
     if (raw_races,c1_eligible,c1_wins,len(rows)) != (14249,14090,7811,13815):
@@ -96,9 +101,15 @@ def official_rows(artifact_path: Path):
         raise ValueError("eligible_days_not_92")
     return rows, whole_sha, by_day
 
-def losses_for_target(training, holdout, target):
+def losses_for_target(training, holdout, target, identity_role="actual_course"):
     if target not in FIELDS:
         raise ValueError("unsupported_target")
+    if identity_role == "actual_course":
+        identity1, identity2 = "c1_registration", "c2_registration"
+    elif identity_role == "boat_number":
+        identity1, identity2 = "boat1_registration", "boat2_registration"
+    else:
+        raise ValueError("unsupported_identity_role")
     n = len(training)
     global_p = sum(r[target] for r in training)/n
     v = defaultdict(lambda: [0,0])
@@ -114,7 +125,7 @@ def losses_for_target(training, holdout, target):
     a1, a2 = defaultdict(lambda:[0.,0]), defaultdict(lambda:[0.,0])
     for r in training:
         residual = r[target]-venue_p(r["venue"])
-        for store, key in ((a1,r["c1_registration"]),(a2,r["c2_registration"])):
+        for store, key in ((a1,r[identity1]),(a2,r[identity2])):
             rec = store[key]
             rec[0] += residual
             rec[1] += 1
@@ -125,7 +136,7 @@ def losses_for_target(training, holdout, target):
     repeat1=repeat2=0
     for r in holdout:
         base=venue_p(r["venue"])
-        key1,key2=r["c1_registration"],r["c2_registration"]
+        key1,key2=r[identity1],r[identity2]
         repeat1 += int(key1 in a1)
         repeat2 += int(key2 in a2)
         residue1,n1=a1.get(key1,(0.,0))
@@ -144,7 +155,7 @@ def losses_for_target(training, holdout, target):
             s=stats[model];s["n"]+=1;s["bs"]+=b;s["ls"]+=l;s["p"]+=p;s["wins"]+=y
             t=by_day[r["day"]][model];t["n"]+=1;t["bs"]+=b;t["ls"]+=l
 
-    out={"training_n":len(training),"holdout_n":len(holdout),
+    out={"identity_role":identity_role,"training_n":len(training),"holdout_n":len(holdout),
          "training_target_rate":round(global_p,8),
          "distinct_c1_training_athletes":len(a1),
          "distinct_c2_training_athletes":len(a2),
