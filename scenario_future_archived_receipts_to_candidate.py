@@ -253,6 +253,14 @@ def run_observed_archives(
         outcome["status"]=result["status"]
         outcome["github_create_attempted"]=True
         outcome["local_pre_T12_readback_observed"]=result["local_pre_T12_readback_observed"]
+        # If the injected adapter is the authenticated GitHub Contents wire,
+        # keep the 201 response Date+commit for a separate independent check.
+        # An injected test callback or already-existing identical candidate
+        # has NO new 201 response, so never synthesize one.
+        ack=getattr(writer,"create_ack_observation",None)
+        if isinstance(writer,GitHubOnlyCreateWire) and result["status"].startswith("create_only") and type(ack) is not dict:
+            raise ValueError("missing_GitHub_create_response_observation")
+        outcome["github_create_response_observation_unattested"]=ack
     return outcome
 
 
