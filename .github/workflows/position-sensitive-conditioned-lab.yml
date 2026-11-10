@@ -14,6 +14,8 @@ on:
       - 'test_position_sensitive_cross_pr_t12_bridge.py'
       - 'position_sensitive_pinned_1694_artifact_handoff.py'
       - 'test_position_sensitive_pinned_1694_artifact_handoff.py'
+      - 'position_sensitive_cross_mode_overlap_audit.py'
+      - 'test_position_sensitive_cross_mode_overlap_audit.py'
       - 'docs/research/conditioned_second_third_feature_lab_20261109.md'
       - '.github/workflows/position-sensitive-conditioned-lab.yml'
   workflow_dispatch:
@@ -35,7 +37,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Synthetic only; no outcome, network or external runner dependencies
-        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit test_position_sensitive_feature_ablation test_position_sensitive_conditional_decomposition test_position_sensitive_cross_pr_t12_bridge test_position_sensitive_pinned_1694_artifact_handoff
+        run: python -m unittest -v test_position_sensitive_conditioned_lab test_position_sensitive_source_packet_audit test_position_sensitive_feature_ablation test_position_sensitive_conditional_decomposition test_position_sensitive_cross_pr_t12_bridge test_position_sensitive_pinned_1694_artifact_handoff test_position_sensitive_cross_mode_overlap_audit
       - name: Ensure preregistered 300+300 model and baseline blobs unchanged
         run: |
           python - <<'PY'
@@ -172,11 +174,35 @@ jobs:
           }
           print("NOV10_MAIN_INPUT_ONLY_POSITION_RANKING="+json.dumps(compact, sort_keys=True))
           PY
+          python position_sensitive_cross_mode_overlap_audit.py \
+            --day 20261110 \
+            --root "$PINNED_MAIN_SNAPSHOT" \
+            --output nov10-within-four-mode-overlap.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("nov10-main-input-only-topk.json").read_text())
+          b=json.loads(Path("nov10-within-four-mode-overlap.json").read_text())
+          n=a["original_records"]
+          if (n != 150 or b["original_records"] != n or
+                  b["exact_v2_replays"] != n or
+                  b["within_race_overlap"]["original"]["narrow_subset_hit_races"] != n or
+                  b["within_race_overlap"]["frozen_candidate"]["narrow_subset_hit_races"] != n or
+                  b["formal"] is not False or b["production_changed"] is not False
+                  or b["independently_scored_results"] != 0):
+              raise SystemExit("cross_mode_nested_overlap_drift")
+          print("NOV10_NARROW_HIT_ALWAYS_NESTED", json.dumps({
+              "records":n,"original_nested":n,"candidate_nested":n,
+              "formal":False,
+          },sort_keys=True))
+          PY
       - name: Preserve Nov10 pinned main rate-only turnover audit
         uses: actions/upload-artifact@v4
         with:
           name: position-sensitive-nov10-main-input-only-${{ github.run_id }}
-          path: nov10-main-input-only-topk.json
+          path: |
+            nov10-main-input-only-topk.json
+            nov10-within-four-mode-overlap.json
           if-no-files-found: error
           retention-days: 14
       - name: Download EXACT pinned successful #1694 read-only audit artifact
