@@ -50,4 +50,32 @@ class Tests(unittest.TestCase):
   self.assertIn("if git push origin HEAD:main; then",workflow)
   self.assertIn("payout append retries exhausted",workflow)
 
+ def test_new_payouts_request_existing_pages_publish_only_after_git_success(self):
+  root=Path(__file__).resolve().parent
+  writer=(root/".github/workflows/collect-clean-payouts.yml").read_text(encoding="utf-8")
+  pages=(root/".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
+  self.assertIn("new_payouts: ${{ steps.append_payouts.outputs.new_payouts }}",writer)
+  self.assertIn("id: append_payouts",writer)
+  self.assertIn('if git push origin HEAD:main; then',writer)
+  self.assertIn('echo "new_payouts=true" >> "$GITHUB_OUTPUT"',writer)
+  self.assertLess(writer.index('if git push origin HEAD:main; then'),
+                  writer.index('echo "new_payouts=true" >> "$GITHUB_OUTPUT"'))
+  self.assertIn("needs: collect",writer)
+  self.assertIn("needs.collect.result == 'success'",writer)
+  self.assertIn("needs.collect.outputs.new_payouts == 'true'",writer)
+  self.assertIn("github.event_name != 'pull_request'",writer)
+  self.assertIn("actions: write",writer)
+  self.assertIn("contents: read",writer)
+  self.assertIn('test "$GITHUB_REPOSITORY" = "ikst2512-eng/boat-edge-clean"',writer)
+  self.assertIn('{"ref":"main"}',writer)
+  self.assertIn("actions/workflows/deploy-pages.yml/dispatches",writer)
+  self.assertIn("PAYOUT_PAGES_DISPATCH_REQUESTED",writer)
+  self.assertIn("'payout_evidence/**'",pages)
+  self.assertIn("  workflow_dispatch:",pages)
+  self.assertEqual(writer.count("- cron:"),1)
+  self.assertNotIn("  schedule:",pages)
+  # Regression: a normal GitHub Actions GITHUB_TOKEN push does not wake
+  # Pages itself, so workflow_dispatch must NOT be replaced by push-only.
+  self.assertIn("actions/workflows/deploy-pages.yml/dispatches",writer)
+
 if __name__=="__main__":unittest.main()
