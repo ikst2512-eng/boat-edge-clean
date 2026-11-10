@@ -569,7 +569,32 @@ jobs:
               await page.locator('#candidateCards > details.candidate-history-card').first().locator('summary').click();
               if(!(await page.locator('#candidateCards > details.candidate-history-card').first().locator('.candidate-tickets').first().innerText()).includes('-'))
                 throw Error('candidate_saved_tickets_missing');
+              // Independently saved payout / confirmed finish is part of the
+              // user's actual retained-history workflow, not a sample/mock.
+              const payoutPage=new URL('candidates.html?date=2026-11-10',process.env.PAGE_URL).href;
+              const loaded=await page.goto(payoutPage,{waitUntil:'domcontentloaded',timeout:30000});
+              if(!loaded||loaded.status()!==200)throw Error('candidate_payout_page_http_'+loaded?.status());
+              const paidCode='202611100401';
+              const paidSelector='#candidateCards > details.candidate-history-card[data-race-code="'+paidCode+'"]';
+              await page.waitForFunction(code=>{
+                const row=document.querySelector('#candidateCards > details.candidate-history-card[data-race-code="'+code+'"]');
+                return Boolean(row)&&document.querySelector('#candidateStatus')?.textContent?.includes('払戻照合済み ');
+              },paidCode,{timeout:30000});
+              const paid=page.locator(paidSelector);
+              await paid.locator('summary').click();
+              const payoutEvidence=await paid.evaluate(el=>({
+                raceCode:el.dataset.raceCode,summary:el.querySelector('summary')?.textContent,
+                amount:[...el.querySelectorAll('.candidate-detail p')].map(n=>n.textContent)
+                  .find(x=>x.includes('3連単払戻：'))||'',
+                researchDisclaimer:el.querySelector('.candidate-detail')?.textContent?.includes('正式認定')||false
+              }));
+              if(payoutEvidence.raceCode!==paidCode||
+                 !payoutEvidence.summary.includes('確定 1-5-2')||
+                 !payoutEvidence.amount.includes('8,910円（100円あたり・独立保存原本照合済み）')||
+                 !payoutEvidence.researchDisclaimer)
+                throw Error('candidate_saved_payout_public_mismatch_'+JSON.stringify(payoutEvidence));
               if(errors.length)throw Error('candidate_page_js_errors_'+errors.join(';').slice(0,300));
+              console.log('CLEAN_CANDIDATE_PAYOUT_PUBLIC_PASS',JSON.stringify(payoutEvidence));
               console.log('CLEAN_CANDIDATE_PUBLIC_DISPLAY',JSON.stringify(evidence));
               summary('Published stored candidate archive: **'+(evidence.count>6?'DISPLAY_OBSERVED':'ZERO_OR_UNVERIFIED')+
                 '** '+JSON.stringify(evidence).slice(0,1100));
