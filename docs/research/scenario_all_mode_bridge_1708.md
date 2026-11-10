@@ -384,3 +384,18 @@ Removed redundant expensive calculations: previously each of four mode lenses re
 Added full exact-ticket equality regression: the optimized 4-call path is compared against all four outputs of the previous existing `run_exhibition_scenario_lab` method on exactly the same pinned #1698 callback. Checks all 5/10/16/22 output tickets, each mixed-board SHA, and per-scenario board hashes. Negative tests still reject unnormalized weights, false formal provenance, missing/inconsistent official six features, and false final entry. Existing synthetic 3-distinct-Top1 result remains a *demonstration of model structure*, not live accuracy or a requirement for four separate picks.
 
 **Final research CI** [#42786647565](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42786647565) **SUCCESS: 28 core research tests + 22 pinned #1698 integration tests = 50 PASS**, including exact output parity. The lower raw test count reflects **intentional deletion of redundant prototype tests**, not skipped end-to-end validation. No changes to live predictor, main, Render, archived model forecasts, preregistered coefficients, source collector or independent 300+300 accreditation.
+
+
+## 2026-11-10 ②担当：実保存6艇勝率×既存公式展示の2種類入力感度比較（非正式）
+
+**目的**: 先行の実HTTP展示3/4レース再演で使った「全艇全国勝率5.0」の中立仮説を、**mainに実在していた凍結V2全国勝率6艇ベクトル**に置換して、4モードの順位が本当に動くかを結果を読まずに測る。#1710 の既存 `scenario_actual_pair_four_mode_replay.py` / #1698のハッシュ固定条件付き数学を再利用、既存予想と原本は変更しない。
+
+- 既存の研究Draft #1710 へ `scenario_archived_rates_ablation.py` と拒否テスト `test_scenario_archived_rates_ablation.py` を追加。既存の一度きり実原本検証 workflow `scenario-official-pair-real-inject-once.yml` **だけ**に、凍結main `1e8b6b86e4c700bcf10b5dfcb4cdaa981799bb78` から4ファイルを `git show` で展開し**各Git blob SHAを照合**する工程を追加。新cron/本番収集/保存予想変更はなし。
+- 4原本：`202611091110` blob `492f9d73`、`202611091710` blob `75252b29`、`202611101202` blob `d7801a87`、`202611102211` blob `f6f20088`。すべて保存時の `beforeinfo=optional_not_in_snapshot`。**公式racelistに由来する確証はなく、既存CSV系V2原本から抽出した数字**。予想自己申告生成時刻と既存公式原本受領自己申告時計の順序は検査するが、独立初回遠隔受領を証明しない。
+- 既存実公式beforeinfo＋odds ZIP 2本、#1698 fixed Git blob、#1710シナリオ重み・2/3着条件付き係数・展示ST/展示タイム/展示進入を固定し、①「中立全国勝率5×6」対「V2保存全国勝率6艇」の入力だけ変更、②「保存全国勝率6艇」を固定したまま**未検証の各世界の1着log-shift [3.5]だけ全艇0へ**変更。②の除去は正式採用ではなく研究用の単一因子アブレーションであり、確率の再学習ではない。
+- **完走証拠**：CI [#42797077372](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42797077372) `completed/success`、実行HEAD `04e4a84c996a8c7487c2327c39a252ff64ccd86c`。PR-only bridge regression [#42797090440](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42797090440) `success`。生成成果物 [#13753901951](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42797077372/artifacts/13753901951) ZIP SHA256 `7238ffe171c0549e13a61cb8d9bfc161a6c0dfcbc07a0c2e6060c70706e58690`、ZIP全CRC正常。公式展示STが揃った3レースのみ研究演算、福岡11Rは欠測で拒否。
+- **実際に12ボードで変わった数**（3完全レース×4モード。モデル入力感度、結果照合ではない）：
+  - 6艇勝率 中立5→保存V2実数値：120票SHA変化 **12/12**、Top1券変更 **1/12**、選出券集合変更 **4/12**。内訳：絞り0/3・本命0/3・バランス1/3・穴3/3で券集合変更。Top1は穴モード住之江2Rのみ。
+  - 6艇保存勝率を固定して**未校正の1着シナリオlog-shiftを除去**：120票SHA変化 **12/12**、Top1券変更 **7/12**、選出券集合変更 **10/12**。これは「仮説の強さ」への感度であり、正解や有効性の証拠ではない。
+- **解釈**：この3レースの *特定の* 仮説シナリオ強度・重みでは、全国勝率入力より**未校正の頭仮説によって上位買い目が左右されやすい**。モード間の見かけ上の差を的中精度改善とみなさない。これらの3レースで係数をチューニングしない。#1710に追加した研究コードと #1698固定済み事前登録0.50/0.25は別ID、既存コホートを変更しない。
+- 依存/次段階：#1713/#1694の**同一将来レース公式racelist＋beforeinfo展示/ST6艇＋オッズ120＋T−12源受信時刻**と、実モデル消費fingerprint及び独立FIRST候補遠隔保存が必要。①③の責任分界を守る。別IDでシナリオ係数を事前凍結し、#1693の300予備+300独立確認で既存と同予算Top1/3/5/10・lost/gained・確率校正を評価。Top5/10を悪化させる場合や証拠欠落時は本番禁止。**本件は formal=0/600、forecast_usable=false、improvement_proven=false、本番配備なし。**
