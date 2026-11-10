@@ -1,6 +1,6 @@
 import unittest
-from datetime import datetime, timezone, date
-from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health
+from datetime import datetime, timezone, date, timedelta
+from scripts.audit_preview_scheduled_runs import summarize, daily_capture_health, capture_window_health, audit_target_day, collect_schedule_history
 
 NOW = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
 
@@ -61,6 +61,158 @@ class ScheduledCaptureAuditTests(unittest.TestCase):
     def test_invalid_timestamps_not_recent(self):
         result = summarize([{"event":"schedule", "created_at":"invalid"}], now=NOW)
         self.assertEqual(result["scheduled_last_24h"], 0)
+
+    def test_real_off_window_success_does_not_prove_daytime_capture(self):
+        rows=[{"id":41880259578,"event":"schedule",
+               "created_at":"2026-11-04T17:45:45Z",
+               "run_started_at":"2026-11-04T17:45:45Z",
+               "status":"completed","conclusion":"success"}]
+        result=capture_window_health(rows,date(2026,11,5),True)
+        self.assertEqual(result["today_in_nominal_window_run_ids"],[])
+        self.assertEqual(result["today_outside_nominal_window_run_ids"],[41880259578])
+        self.assertTrue(result["no_in_window_capture_start_today"])
+        self.assertFalse(result["window_check_is_t12_evidence"])
+
+    def test_valid_daytime_start_excludes_manual_and_other_day(self):
+        rows=[
+            {"id":101,"event":"schedule","created_at":"2026-11-04T23:08:00Z",
+             "run_started_at":"2026-11-04T23:08:00Z"},
+            {"id":102,"event":"workflow_dispatch","created_at":"2026-11-04T23:09:00Z",
+             "run_started_at":"2026-11-04T23:09:00Z"},
+            {"id":103,"event":"schedule","created_at":"2026-11-03T23:08:00Z",
+             "run_started_at":"2026-11-03T23:08:00Z"},
+        ]
+        result=capture_window_health(rows,date(2026,11,5),True)
+        self.assertEqual(result["today_in_nominal_window_run_ids"],[101])
+        self.assertEqual(result["today_outside_nominal_window_run_ids"],[])
+        self.assertFalse(result["no_in_window_capture_start_today"])
+
+    def test_missing_or_reversed_start_cannot_prove_daytime(self):
+        rows=[
+            {"id":201,"event":"schedule","created_at":"2026-11-04T23:08:00Z"},
+            {"id":202,"event":"schedule","created_at":"2026-11-04T23:08:00Z",
+             "run_started_at":"2026-11-04T23:07:00Z"},
+            {"id":203,"event":"schedule","created_at":"2026-11-04T23:08:00Z",
+             "run_started_at":"invalid"},
+        ]
+        result=capture_window_health(rows,date(2026,11,5),True)
+        self.assertEqual(result["today_in_nominal_window_run_ids"],[])
+        self.assertEqual(result["today_unknown_start_run_ids"],[201,202,203])
+        self.assertTrue(result["no_in_window_capture_start_today"])
+
+    def test_delayed_nightly_audit_targets_previous_capture_day(self):
+        # Nominal 11/04 23:17 JST audit executes after JST midnight.
+        now=datetime(2026,11,4,17,45,tzinfo=timezone.utc)
+        self.assertEqual(audit_target_day(now,True),date(2026,11,4))
+        self.assertEqual(audit_target_day(now,False),date(2026,11,5))
+        rows=[{"id":301,"event":"schedule",
+               "created_at":"2026-11-04T11:00:00Z",
+               "run_started_at":"2026-11-04T11:00:00Z"}]
+        target=audit_target_day(now,True)
+        self.assertEqual(capture_window_health(rows,target,True)["today_in_nominal_window_run_ids"],[301])
+
+    def test_on_time_nightly_and_pre_slot_boundary(self):
+        at_slot=datetime(2026,11,5,14,17,tzinfo=timezone.utc)  # 23:17 JST
+        before=at_slot-timedelta(seconds=1)
+        self.assertEqual(audit_target_day(at_slot,True),date(2026,11,5))
+        self.assertEqual(audit_target_day(before,True),date(2026,11,4))
+
+    def test_audit_target_day_rejects_naive_clock(self):
+        with self.assertRaisesRegex(ValueError,"timezone-aware"):
+            audit_target_day(datetime(2026,11,5,2,30),True)
+
+    def test_pagination_includes_older_same_day_runs(self):
+        first=[{"id":1000+i,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+                "run_started_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        second=[{"id":1100+i,"event":"schedule","created_at":"2026-11-04T02:00:00Z",
+                 "run_started_at":"2026-11-04T02:00:00Z",
+                 "status":"completed","conclusion":"failure"} for i in range(100)]
+        third=[{"id":1200+i,"event":"schedule","created_at":"2026-11-02T12:00:00Z",
+                "run_started_at":"2026-11-02T12:00:00Z"} for i in range(5)]
+        pages={1:first,2:second,3:third}
+        requested=[]
+        def fetch(page):
+            requested.append(page)
+            return {"total_count":205,"workflow_runs":pages[page]}
+        result=collect_schedule_history(fetch,date(2026,11,4))
+        self.assertEqual(requested,[1,2,3])
+        self.assertEqual(result["history_rows_inspected"],205)
+        self.assertEqual(result["history_pages_read"],3)
+        self.assertTrue(result["full_day_metadata_coverage"])
+        day=daily_capture_health(result["workflow_runs"],date(2026,11,4),True)
+        self.assertEqual(day["today_scheduled_runs"],200)
+
+    def test_truncated_page_is_not_successful_coverage(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            return {"total_count":201,"workflow_runs":page if n==1 else []}
+        with self.assertRaisesRegex(ValueError,"truncated_schedule_history_page"):
+            collect_schedule_history(fetch,date(2026,11,4))
+
+    def test_duplicate_across_pages_is_rejected(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            return {"total_count":101,"workflow_runs":page if n==1 else [
+                {"id":1,"event":"schedule","created_at":"2026-11-03T12:00:00Z"}]}
+        with self.assertRaisesRegex(ValueError,"invalid_or_duplicate"):
+            collect_schedule_history(fetch,date(2026,11,4))
+
+    def test_source_failure_propagates_without_success(self):
+        from urllib.error import HTTPError
+        def denied(_):
+            raise HTTPError("https://api.github.com",403,"Forbidden",None,None)
+        with self.assertRaises(HTTPError):
+            collect_schedule_history(denied,date(2026,11,4))
+
+    def test_page_count_drift_is_rejected(self):
+        page=[{"id":i+1,"event":"schedule","created_at":"2026-11-04T12:00:00Z"} for i in range(100)]
+        def fetch(n):
+            if n==1:
+                return {"total_count":201,"workflow_runs":page}
+            return {"total_count":202,"workflow_runs":[]}
+        with self.assertRaisesRegex(ValueError,"schedule_listing_changed"):
+            collect_schedule_history(fetch,date(2026,11,4))
+
+    def test_daytime_failure_cannot_be_masked_by_nighttime_success(self):
+        runs=[
+            {"id":401,"event":"schedule","created_at":"2026-11-04T11:00:00Z",
+             "run_started_at":"2026-11-04T11:00:00Z",
+             "status":"completed","conclusion":"failure"},
+            {"id":402,"event":"schedule","created_at":"2026-11-04T14:25:45Z",
+             "run_started_at":"2026-11-04T14:25:45Z",
+             "status":"completed","conclusion":"success"},
+        ]
+        day=date(2026,11,4)
+        health=capture_window_health(runs,day,True)
+        self.assertEqual(health["today_in_window_failed_run_ids"],[401])
+        self.assertEqual(health["today_in_window_successful_run_ids"],[])
+        self.assertTrue(health["no_successful_in_window_capture_today"])
+        self.assertFalse(daily_capture_health(runs,day,True)["all_today_captures_failed"])
+
+    def test_genuine_in_window_success_satisfies_schedule_health_only(self):
+        runs=[
+            {"id":410,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+             "run_started_at":"2026-11-04T12:00:00Z",
+             "status":"completed","conclusion":"success"},
+            {"id":411,"event":"schedule","created_at":"2026-11-04T17:45:00Z",
+             "run_started_at":"2026-11-04T17:45:00Z",
+             "status":"completed","conclusion":"failure"},
+        ]
+        health=capture_window_health(runs,date(2026,11,4),True)
+        self.assertEqual(health["today_in_window_successful_run_ids"],[410])
+        self.assertFalse(health["no_successful_in_window_capture_today"])
+        self.assertFalse(health["window_check_is_t12_evidence"])
+
+    def test_pending_in_window_run_is_not_confirmed_success(self):
+        runs=[
+            {"id":420,"event":"schedule","created_at":"2026-11-04T12:00:00Z",
+             "run_started_at":"2026-11-04T12:00:00Z",
+             "status":"in_progress","conclusion":None},
+        ]
+        health=capture_window_health(runs,date(2026,11,4),True)
+        self.assertEqual(health["today_in_window_pending_or_unknown_run_ids"],[420])
+        self.assertTrue(health["no_successful_in_window_capture_today"])
+        self.assertFalse(capture_window_health(runs,date(2026,11,4),False)["no_successful_in_window_capture_today"])
 
 if __name__ == "__main__":
     unittest.main()
