@@ -258,9 +258,22 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
                 continue
             # Only the FIRST invocation may create a fresh original. The
             # immutable ledger's create-only write rejects concurrent races.
-            predictor(code[:8],code[8:10],code[10:12])
-            path=record_path(code)
-            raw=path.read_bytes()
+            if predictor is predict and record_path is _record_path:
+                # The ordinary research model intentionally returns cached
+                # research_snapshots unchanged. For a NEW T-12 baseline,
+                # acquire/compute fresh input in a separate throwaway folder.
+                # Do not delete, alter or retrospectively retimestamp the
+                # immutable ordinary research record.
+                from tempfile import TemporaryDirectory
+                with TemporaryDirectory(prefix="boat-edge-t12-") as isolated:
+                    predictor(code[:8],code[8:10],code[10:12],
+                              output_dir=isolated)
+                    raw=(Path(isolated)/(code+".json")).read_bytes()
+            else:
+                # Test/diagnostic injectors retain their three-argument
+                # predictor + record_path behavior.
+                predictor(code[:8],code[8:10],code[10:12])
+                raw=record_path(code).read_bytes()
             states.append(dict(race_code=code,
                                **publish_base(raw,code,read,create,clock=now,
                                               expected_deadline=expected_deadlines[code])))
