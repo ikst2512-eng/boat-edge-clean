@@ -90,6 +90,51 @@ test('collector never retries ambiguous or HTTP error and never echoes token',as
   await assert.rejects(()=>request({fetcher:poison}),
     /cloudflare_query_response_contains_secret_pattern/);
 });
+test('Cloudflare API streaming response is bounded before buffering, even without Content-Length',async()=>{
+  const urls=[];
+  const fetcher=async(url)=>{
+    urls.push(url);
+    return new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(12*1024*1024+1));
+        controller.close();
+      },
+    }),{status:200});
+  };
+  await assert.rejects(()=>request({fetcher}),/cloudflare_query_response_oversize/);
+  assert.deepEqual(urls,[ENDPOINT]); // No second POST or retry.
+});
+
+test('announced oversize Cloudflare response aborts before reading body',async()=>{
+  let reads=0;
+  const fetcher=async()=>({
+    status:200,
+    headers:{get:()=>String(12*1024*1024+1)},
+    body:{getReader(){reads++;throw Error('must_not_read');}},
+  });
+  await assert.rejects(()=>request({fetcher}),/cloudflare_query_response_oversize/);
+  assert.equal(reads,0);
+});
+
+test('genuine ReadableStream-shaped synthetic responses retain both original bodies',async()=>{
+  let n=0;
+  const fetcher=async(url,opts)=>{
+    n++;
+    assert.equal(url,ENDPOINT);
+    return new Response(JSON.stringify({
+      success:true,errors:[],
+      result:{run:{status:'STARTED',id:'stream-mock-'+n,
+        accountId:ACCOUNT,query:{parameters:JSON.parse(opts.body).parameters}}},
+    }),{status:200,headers:{'content-type':'application/json'}});
+  };
+  const result=await request({fetcher});
+  assert.equal(n,2);
+  assert.equal(result.account_id,ACCOUNT);
+  assert.equal(result.events_query.response.result.run.id,'stream-mock-1');
+  assert.equal(result.sampling_query.response.result.run.id,'stream-mock-2');
+  assert.doesNotMatch(JSON.stringify(result),new RegExp(TOKEN));
+});
+
 test('offline evidence is private, non-overwriting, saved unchanged, never a live success',async()=>{
   const {fetcher}=mockedApi();
   const data=await request({fetcher});
