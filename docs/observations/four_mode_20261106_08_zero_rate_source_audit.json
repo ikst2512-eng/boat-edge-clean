@@ -1,0 +1,113 @@
+{
+  "schema": "FOUR_MODE_ZERO_RATE_SOURCE_RECONCILIATION_V1",
+  "title": "2026-11-06 to 2026-11-08 JST four-mode source evidence — zero national win rate vs cutoff",
+  "research_only": true,
+  "official_source_authenticity_independently_verified": false,
+  "remote_first_seen_independently_verified": false,
+  "method": "SHA256-check GitHub Actions capture artifact ZIPs, inspect raw immutable-in-job source bytes and their receipt JSON, enumerate six-lane national_win_rate fields, compare with capture_status.json (source acceptance, cutoff skips, exclusions and local save counts) and the actual source/model positive-rate guards. No network re-fetch, no post-result edits, no forecast regeneration.",
+  "original_artifacts": [
+    {
+      "day": "20261106",
+      "run_id": 42142593707,
+      "artifact_id": 13467284567,
+      "artifact_sha256": "33a0896d220ed10de979f99ef93dde11421a8670590dd91744ddcd5ff1e2c30e",
+      "source_kind": "third_party_pre_race_csv",
+      "source_receipt_jst": "2026-11-06T10:15:35.761763+09:00",
+      "source_sha256": "802fa2dffaf7db932ba86e28924e2432f99160779c502b4d06f640e67eb72f75",
+      "source_races": 156,
+      "zero_rate_source_races": 13,
+      "source_negative_nonfinite_or_non_numeric_values": 0,
+      "saved": 130,
+      "cutoff_skipped": 14,
+      "zero_rate_excluded": 12,
+      "zero_rate_skipped_by_cutoff": 1,
+      "excluded_zero_rate_race_codes": [
+        "202611060206",
+        "202611061105",
+        "202611061501",
+        "202611061502",
+        "202611061505",
+        "202611061506",
+        "202611062203",
+        "202611062204",
+        "202611062207",
+        "202611062208",
+        "202611062307",
+        "202611062308"
+      ],
+      "cutoff_zero_rate_race_codes": [
+        "202611061003"
+      ]
+    },
+    {
+      "day": "20261107",
+      "run_id": 42301321999,
+      "artifact_id": 13543204200,
+      "artifact_sha256": "d12d585e7da4ab90ea0ff95ea16e11c6a55ac03fb444633157a2bc5732d75e2a",
+      "source_kind": "nonofficial_openapi_v1_after_csv_404_and_direct_403",
+      "source_receipt_jst": "2026-11-07T07:00:52.460742+09:00",
+      "source_sha256": "f136bab7f63f36363b4e5182ad17082bdc67d5f58f6e0795ba6bad4d0c212ebc",
+      "source_races": 132,
+      "zero_rate_source_races": 10,
+      "source_negative_nonfinite_or_non_numeric_values": 0,
+      "saved": 122,
+      "cutoff_skipped": 0,
+      "zero_rate_excluded": 10,
+      "zero_rate_skipped_by_cutoff": 0,
+      "excluded_zero_rate_race_codes": [
+        "202611070203",
+        "202611070207",
+        "202611071001",
+        "202611071007",
+        "202611071103",
+        "202611071107",
+        "202611072301",
+        "202611072304",
+        "202611072308",
+        "202611072309"
+      ],
+      "cutoff_zero_rate_race_codes": []
+    },
+    {
+      "day": "20261108",
+      "run_id": 42433577233,
+      "artifact_id": 13598726803,
+      "artifact_sha256": "e29c2d99d5239c75faf393dad27117ae21014df62cf466d0720bf9ae9c96cb11",
+      "source_kind": "third_party_pre_race_csv",
+      "source_receipt_jst": "2026-11-08T10:17:12.139830+09:00",
+      "source_sha256": "e70773d27e8893fe5611fdfbd2663b9475e6943514184c9aa2fac250639a3130",
+      "source_races": 132,
+      "zero_rate_source_races": 7,
+      "source_negative_nonfinite_or_non_numeric_values": 0,
+      "saved": 116,
+      "cutoff_skipped": 13,
+      "zero_rate_excluded": 3,
+      "zero_rate_skipped_by_cutoff": 4,
+      "excluded_zero_rate_race_codes": [
+        "202611080201",
+        "202611081107",
+        "202611082308"
+      ],
+      "cutoff_zero_rate_race_codes": [
+        "202611082103",
+        "202611082105",
+        "202611082301",
+        "202611082305"
+      ]
+    }
+  ],
+  "totals": {
+    "source_races": 420,
+    "locally_published_forecasts": 368,
+    "source_zero_rate_races": 30,
+    "cutoff_skipped": 27,
+    "zero_rate_excluded": 25,
+    "source_rows_reconciled_to_capture_status": true
+  },
+  "semantic_guard": "Zero is a numeric source value, not a CSV-decoding error. research_model.probabilities requires each national win rate > 0; clean_openapi_sources.load also filters rates <= 0. Do not impute wins, reinterpret zero as unknown, alter source or treat excluded rows as successful saved forecasts without validated policy and forward study.",
+  "notes": [
+    "GitHub archive presence does not imply official T-minus-12 certification or independently verified remote first-seen.",
+    "For 20261106 and 20261108, the number of zero-rate races that fail due to the earlier cutoff check is derived from matching the raw source race codes with the explicit exclusion list and fixed source-race accounting.",
+    "For 20261107, the source originally returned 132 races, 10 with one zero national win rate; OpenAPI adapter returned 122 valid and rejected 10. Other possible simultaneous validation issues were not independently ruled out."
+  ]
+}

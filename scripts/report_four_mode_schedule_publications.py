@@ -197,6 +197,45 @@ def safe_run_day_jst(run):
         return None
 
 
+
+def attributed_local_publication_race_days(row):
+    """Count race dates from a matched same-job roster, never from run created_at.
+
+    The capture job may start after midnight JST and publish prior-day races.
+    A local same-job roster establishes only artifact consistency; it is not
+    independently verified remote first receipt or official T-12 evidence.
+    """
+    if row.get("final_evidence_verdict_result") != (
+            "published_with_durable_early_observation"):
+        return None
+    expected = row.get("final_evidence_published_count")
+    roster = row.get("research_roster_evidence")
+    integrity = row.get("github_observation_integrity")
+    if (type(expected) is not int or expected <= 0
+            or not isinstance(roster, dict)
+            or roster.get("status") != "matched"
+            or roster.get("matched_races") != expected
+            or not isinstance(integrity, dict)
+            or integrity.get("status") == "mismatch"):
+        return None
+    codes = roster.get("race_codes")
+    if (not isinstance(codes, list) or len(codes) != expected
+            or len(set(code for code in codes if isinstance(code, str))) != expected):
+        return None
+    dates = {}
+    for code in codes:
+        if (not isinstance(code, str) or len(code) != 12
+                or not code.isdigit()):
+            return None
+        date = code[:8]
+        try:
+            datetime.strptime(date, "%Y%m%d")
+        except ValueError:
+            return None
+        dates[date] = dates.get(date, 0) + 1
+    return dates
+
+
 def inspect(run, root):
     """Keep unknown separate from zero; never reclassify local push claims as remote proof."""
     result = {"run_id": run["id"], "created_at": run.get("created_at"),
@@ -402,6 +441,66 @@ def report(history, downloader, limit=12):
     # workers preserve listing order and isolate downloads in separate dirs.
     with ThreadPoolExecutor(max_workers=min(4, len(selected) or 1)) as pool:
         rows = list(pool.map(inspect_one, selected))
+    # A twelve-run evidence window can span multiple JST days. Preserve the
+    # historical all-window totals for compatibility, but never present those
+    # totals as today's publication count. These are artifact-local claims
+    # with final-gate verdicts, NOT independent remote first-seen evidence.
+    by_run_day = {}
+    run_ids_without_day = []
+    for row in rows:
+        run_day = safe_run_day_jst(row)
+        if run_day is None:
+            run_ids_without_day.append(row["run_id"])
+            continue
+        grouped = by_run_day.setdefault(run_day, {
+            "runs_checked": 0,
+            "runs_claiming_push": 0,
+            "final_gate_published_run_count": 0,
+            "final_gate_published_forecast_count": 0,
+            "final_gate_no_new_run_count": 0,
+            "final_gate_failed_run_count": 0,
+            "final_gate_unknown_run_count": 0,
+        })
+        grouped["runs_checked"] += 1
+        grouped["runs_claiming_push"] += (
+            row["publication_outcome"] == "pushed_to_main")
+        grouped["final_gate_published_run_count"] += (
+            row["final_evidence_verdict_result"]
+            == "published_with_durable_early_observation")
+        grouped["final_gate_published_forecast_count"] += (
+            row["final_evidence_published_count"] or 0)
+        grouped["final_gate_no_new_run_count"] += (
+            row["final_evidence_verdict_result"] == "no_new_forecasts")
+        grouped["final_gate_failed_run_count"] += (
+            row["final_evidence_verdict_status"] == "failed")
+        grouped["final_gate_unknown_run_count"] += (
+            row["final_evidence_verdict_status"] != "failed"
+            and row["final_evidence_verdict_result"] is None)
+    # Keep archive *race day* separate from the GitHub run creation day.
+    # A delayed overnight run can legitimately publish the previous day's
+    # candidates. Never credit an unverifiable roster to any race day.
+    by_race_day = {}
+    published_run_ids_without_race_day = []
+    for row in rows:
+        if row["final_evidence_verdict_result"] != (
+                "published_with_durable_early_observation"):
+            continue
+        breakdown = attributed_local_publication_race_days(row)
+        if breakdown is None:
+            published_run_ids_without_race_day.append(row["run_id"])
+            continue
+        run_day = safe_run_day_jst(row)
+        for date, count_for_date in breakdown.items():
+            grouped = by_race_day.setdefault(date, {
+                "artifact_local_forecast_count": 0,
+                "contributing_run_ids": [],
+                "run_ids_created_on_other_or_unknown_jst_day": [],
+            })
+            grouped["artifact_local_forecast_count"] += count_for_date
+            grouped["contributing_run_ids"].append(row["run_id"])
+            if run_day != date:
+                grouped["run_ids_created_on_other_or_unknown_jst_day"].append(
+                    row["run_id"])
     claimed = [r["claimed_added_forecasts"] for r in rows if r["claimed_added_forecasts"] is not None]
     # Failure count alone is misleading when prior artifacts do not contain
     # the new stage verdicts. Report coverage per research step explicitly.
@@ -428,6 +527,11 @@ def report(history, downloader, limit=12):
             "scheduled_runs_checked": len(rows),
             "history_runs_available": len(history["runs"]),
             "history_runs_omitted": max(0, len(history["runs"]) - len(rows)),
+            "publication_evidence_by_run_day_jst": dict(sorted(by_run_day.items())),
+            "artifact_local_publications_by_race_day_jst": dict(sorted(by_race_day.items())),
+            "published_run_ids_without_verified_local_race_day": published_run_ids_without_race_day,
+            "full_day_publication_coverage_verified": False,
+            "run_ids_without_attributable_jst_day": run_ids_without_day,
             "artifacts_present": sum(r["artifact_present"] for r in rows),
             "runs_claiming_push": sum(r["publication_outcome"] == "pushed_to_main" for r in rows),
             "final_gate_published_run_count": sum(
@@ -482,7 +586,9 @@ def report(history, downloader, limit=12):
                 r["run_id"] for r in rows if r["hole_shadow_outcome"] == "failure"],
             "claimed_added_forecasts_sum": sum(claimed) if claimed else None,
             "remote_main_verified": False,
-            "note": "Artifact push claims are not independent proof of remote main ancestry.",
+            "note": ("Artifact-local matched race-code dates are separate from GitHub "
+                     "run dates. Bounded artifacts cannot certify all daily runs, "
+                     "independent remote first receipt, or official T-12 provenance."),
             "runs": rows}
 
 
@@ -506,6 +612,11 @@ def main():
     print("FOUR_MODE_SCHEDULE_PUBLICATION_EVIDENCE=" + json.dumps({
         "scheduled_runs_checked": result["scheduled_runs_checked"],
         "history_runs_omitted": result["history_runs_omitted"],
+        "publication_evidence_by_run_day_jst": result["publication_evidence_by_run_day_jst"],
+        "artifact_local_publications_by_race_day_jst": result["artifact_local_publications_by_race_day_jst"],
+        "published_run_ids_without_verified_local_race_day": result["published_run_ids_without_verified_local_race_day"],
+        "full_day_publication_coverage_verified": False,
+        "run_ids_without_attributable_jst_day": result["run_ids_without_attributable_jst_day"],
         "excluded_race_evidence": [
             {"run_id": row["run_id"],
              "excluded_race_count": row["excluded_race_count"],

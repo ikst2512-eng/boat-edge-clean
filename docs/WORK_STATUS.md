@@ -1,3 +1,44 @@
+## 2026-11-08 21:00 JST｜GitHub定期起動の「ページ完全」と「1日完了」の誤認防止（Draft #1699）
+- 最新main `6b371040fd2fc4398bfa882e6557c333cc0800c8` 変更なし。11/08のGitHub Actions schedule実行はCLEAN6回（最後20:33 JST #42476249795）、4モード3回（最後14:52 JST #42452472315）。見逃しが確実と認定された個別Cron slot数ではなく、観測された実行数。CLEAN最終runは132Rを取得したが締切安全時間外のため新規保存0。研究予想の既存Git初回追加はCLEAN117、4モード116のまま。
+- Cloudflare独立起動の別担当Draft #1697（head `e74222cb21c285e4c633d54f902601dd53b0d69a`）は最新Python/Workerd 2 jobs success/復旧watchdog skip、ワーカー未配備。監視専用`wrangler.observer.toml`は別Worker・Secretsなし・GitHubネットワークコードなしで、最初の有効な実測経路。ただしCloudflare実Cron/CPU 10ms/新規Git first-addは依然未実証、PR CIは実運用の代替不可。他担当修正と重複しない。
+- Draft #1699の`audit_four_mode_daily_schedule_runs.py`には、これまで`full_day_metadata_coverage`が「GitHub API履歴ページの前日境界まで取得できた」だけを指すにもかかわらず「当日全枠完了」と誤読される危険があった。後方互換の既存キーを保持し、新しい`audit_as_of_jst`・`jst_calendar_day_elapsed_at_audit`・`all_nominal_daily_slots_due_at_audit`・`full_calendar_day_schedule_delivery_verified=false`を明示。GitHub created_atだけでは個別予定Cronの配信証明をしない。
+- 追加した朝09:20 JST、当日20:57 JST、翌日03:03 JSTの時刻回帰テストとnaive時計の拒否テストで、ページが揃っていても当日途中や翌日後ですら全56枠実行済みとは認定しない。**監査・表示だけの変更、cron・writer・予想/モデル・mainには反映しない。** PR最新head CIで最終確認し、人手審査までDraftを維持。
+
+## 2026-11-08 20:46 JST｜保存原本監査の不正ZIP耐性強化（Draft #1699）
+- 11/08夜の追加観測：CLEAN schedule run #42476249795 は20:33 JSTごろに成功終了したが、その時点の出走表132行は全てT−12を過ぎ、`PROSPECTIVE_CAPTURE_ZERO`（matching132, eligible0）、新規保存0、前回までのGitアーカイブ117件を維持。遅い定期起動が成功しても朝レースの過去保存は回復しない。20時台時点の11/08定期起動はCLEAN6件・4モード3件。実行成功・原本保存・正式証明を区別。
+- 実物ZIP検査用`scripts/audit_four_mode_source_artifact.py`は、受信原本byte SHAだけでなく、書き込み実装と同じ`SHA256(source URL + NUL + raw bytes)`で算出したファイル名識別子も検証。余計な生原本bin、manifestだけの孤児ファイル、重複/非許可rawパスを全拒否。ZIPの圧縮後4MB、各エントリ2MB、展開後合計8MB、総エントリ128という有界読み込みを追加。これらはZIPのオフライン監査安全性だけを変更し、公式データやモデル値・予想保存へ影響しない。
+- 新規5件の不正ケース（名前ハッシュ不一致、孤児原本、単一エントリ膨張、総展開サイズ超過、ファイル数上限）と既存8件、合わせて13件のローカル単体試験成功。11/06/07/08のGitHub artifact原本ZIPをすべて再度読み込み、原本SHAを保ったまま156=130+14+12、132=122+0+10、132=116+13+3が変化しないことを確認。独立遠隔初見/公式T−12認定ではない。
+- 他担当#1697 Cloudflare・#1694 T−12・#1679 UIとmainは不変更。Draft PR #1699のみ、最終CIと人手審査を必要とする。
+
+## 2026-11-08 20:38 JST｜原本ZIPの締切・勝率除外を再実行可能にする独立監査（Draft #1699追加）
+- 追加した`scripts/audit_four_mode_source_artifact.py`は**読み取り専用・ネットワークなし**でActionsのZIPを検査し、引数のGitHub artifact SHA256とZIP内の原本受信SHA256を検証。CSVの出走表・6艇カード（11/06・08）またはOpenAPIの原文（11/07）を再読し、各レースの締切からT−20安全ゲートと勝率0.0を再計算し、capture.logおよびcapture_status.jsonとの集合一致を必須とする。ソース/予想保存は変更しない。
+- **現物3 ZIPで再実行成功**：11/06は156R＝保存130+受信時刻からのT−20除外14+勝率0.0除外12（0.0は計13R、1Rは先に締切除外）、11/07は132R＝保存122+非公式OpenAPIでの0.0の10件フィルタ（タイトル/カード404、直接403は事実のまま）、11/08は132R＝保存116+T−20除外13+0.0除外3（0.0計7R、4Rは先に締切除外）。3日合計保存368、締切27、勝率条件25、原因不明0 **（検証対象は当該runの原本候補だけ）**。
+- 単体テスト`tests/test_audit_four_mode_source_artifact.py`の8件は合格（ZIPダイジェスト不一致、receipt改ざん、title/card不一致、保存漏れ、OpenAPIフィルタ矛盾、巨大ZIPを不合格にする）。既存read-only`four-mode-schedule-inventory.yml`のPR試験へ追加。これは無人収集の本番成功、公式データの真正性、Git遠隔first-seen、予想正式認定を主張しない。
+- 11/08 19:48 JSTのCLEAN救済 #42472938681は、eligible5/既存保存5/新規保存0（正常終了と新規Git追加は別）。20時台の再確認時点で11/08に観測した4モード本体schedule3件、CLEAN本体schedule5件から増加なし。Cloudflare外部起動のDraft #1697は未配備・別担当。mainは引き続き不変更、Draft #1699の手動審査とexact-head CI待ち。
+
+## 2026-11-08｜11/06〜08公式原本ではない公開ソースのZIP再監査：勝率0.0と締切除外の完全内訳
+- **新規の一次証拠**：GitHub Actions 4モード初回取得のartifact ZIP #13467284567（11/06、SHA256 `33a0896d...`）、#13543204200（11/07、`d12d585e...`）、#13598726803（11/08、`e29c2d99...`）をダウンロードし、各ZIP digestをGitHub manifestと一致確認。ZIP内の元HTTPバイトとreceipt JSONのSHA256を検証してから6艇の全国勝率をレース別に点検。結果を監査原票 `docs/observations/four_mode_20261106_08_zero_rate_source_audit.json` に保存。情報源は公開CSV/非公式OpenAPIであり、公式性・独立の外部初見/T−12認定ではない。
+- 11/06:156R中CSV全国勝率0.0を含む13R（数値変換不能・0〜10逸脱は0）。当日の保存130、T−20 cutoff14、勝率0.0によるモデル除外12で件数一致。0.0のうち1Rは先に締切ゲートへ掛かっている。
+- 11/07:非公式OpenAPI原文132Rのうち全国勝率0.0を含む10R。アダプタは0を認めずvalid122/rejected10、T−20 cutoff0、保存122。通常CSV title/cardsは404、直接HoldingList2は403だった事実を維持。
+- 11/08:CSV132R中全国勝率0.0を含む7R（数値変換不能・0〜10逸脱は0）。保存116、T−20 cutoff13、勝率0.0によるモデル除外3。0.0のうち4Rは先に締切ゲートに掛かった。
+- **3日合計**420R=保存368+締切除外27+勝率0.0を含むレースの除外25。CSV破損の推測ではなく、`research_model.probabilities` が `0 < rate < 20` を要求し、`clean_openapi_sources.load` も同じ正の値ガードを実施する設計と一致。0.0が真値か無実績の意味かは未証明。値の補完・モデル変更・事後予想追加・正式認定は禁止。モデル入力ポリシーの将来検討は③に委譲し、当担当の変更範囲は読み取り専用監査と証拠保存に限定。
+- 同11/08 19:48 JSTのCLEAN救済 #42472938681は成功終了だがeligible5=already_frozen5、新規保存0。Actions successが新規first-addを意味しないことを再確認。11/08 19:41 JSTのCLEAN評価 #42472482615失敗は11/05保存111件の`first_commit_same_second_unverified`が残存するためで、11/06〜08計356件のローカルgate passとは区別。遠隔first-seen証明ではない。
+- Draft #1699以外に改修PRを増やさず、外部起動#1697、T−12#1694、精度③、UI#1679、main本番は不変更。
+
+## 2026-11-08 JST｜追加レース照合と定期起動不足の可視化（Draft #1699追記）
+- GitHub mainのschedule_snapshots/20261108.json（11場132R）とImmutable first-addコミットをレースコードで照合。CLEAN117/132（未保存15）、4モード116/132（未保存16）。すべてスナップショットに含まれる実レースコード。公式T−12認定や予想精度ではなく、公開日程に対する研究アーカイブ存在率。
+- 4モード初回run #42433577233 の実ログを再解析し、11/08 16件の未保存原因は cutoff_skipped=13、六艇全国勝率の不正=3（202611080201/202611081107/202611082308）と一致。11/06 run #42142593707 は cutoff_skipped=14、勝率不正=12、保存130/156。11/07 run #42301321999 は日次CSV title/race_cards が404、直接HoldingList2が403、非公式OpenAPI代替のvalid122・rejected10、保存122/132。404/403を正常なCSV取得として扱わない。
+- CLEAN初回run #42433227719 は生成118、新規Git117、remaining1は既存の90秒以上の締切安全バッファにより除外。CLEAN未保存15レースの全件原因を個別認定するログは不足。公式/非公式の未取得や数値不正を後付けで埋めない。4モードのT−20とCLEANのT−12は異なるゲートであり、同じrace_codeの存在差を自動的にGit保存失敗扱いしない。
+- 4モードのGitHub純scheduleは11/06=4件、11/07=4件、11/08 18:00 JSTまで=3件と予定56件/日より大幅に少ない。Draft #1699の読み取り専用 `audit_four_mode_daily_schedule_runs.py` にJST日付と監査時刻を使った予定起動数（5分観測猶予）・実runとの差分を追加。単に1件成功しただけで56件相当と見なさず、created_atによる厳密cron枠へのひも付けは未証明としてwarningのみ。収集リトライやcron自体は変更しない。
+- CI #42471362144 はPR head `1ddbef9d09901d130f6af529ea82dd0b72e43d60` でsuccess（本番schedule実行ではない）。この後のdocs追記はテストheadと異なるため、最終headで再検証する。main無変更。外部起動はDraft #1697の担当、T−12/UI/研究にも手を加えない。
+
+## 2026-11-08 18:00 JST｜収集保存実測・日次監査の翌日誤警報（Draft #1699）
+- 実際の Actions `schedule` / `workflow_dispatch` を JST日付で抽出。11/06：CLEAN schedule5/dispatch5・4モード schedule4/dispatch2、11/07：5/3・4/2、11/08 18:00まで：5/4・3/1。11/03〜05も4モード schedule は5/4/4回で、定刻56回/日に達しておらず、正常な定期起動期間とは言えない。実行成功を保存成功に読み替えない。
+- 収集run原ログとGit first-add変更を照合。11/06 CLEAN生成132→初回Git追加132、4モードステージ130→初回Git追加130。11/07 CLEAN107→107、4モード122→122。11/08 CLEAN生成118・締切ガード除外1→初回Git追加117、4モード116→116。main原本は不変更。4モード11/08救済 #42460268986 は Actions success でも新規候補0・push0。リサーチ `formal=false`、独立の遠隔first-seen/T−12/正式精度は未認定。
+- 11/08 03:03 JSTの遅延inventory #42399320145が同日07:07の最初の定期収集より前に20261108を監査し、schedule件数0・liveness0の2誤警報を出した。同日15:05のinventory #42453325263はschedule3回・成功。収集障害の根拠と混同しない。
+- Draft PR #1699 は既存 `four-mode-schedule-inventory.yml` にJST日付selectorを接続し、08:00未満は直前日、以降は当日を3つの読み取り専用監査に共通指定。日付境界テスト追加。収集workflow、保存原本、T−12、UI、Cloudflare、Render、AIモデルの変更なし。**未統合・CI/本番の改善未認定**。
+- 最優先で残る実問題はGitHub scheduleの大幅な発火不足。Cloudflare Free独立起動案は既存Draft #1697担当と重複するため変更しない。#1699のexact-head CI/人手審査と、#1697の外部実行・重複抑制・初回保存証拠を別々に確認する。main自動統合禁止。
+
 ## 2026-11-06 JST 収集・保存最優先監査：CLEAN初回Git時刻ガードをmain適用
 - 11/05の基準はCLEAN=111件、4モード=106件（Git tree実列挙）。CLEAN原本111件のGit初回コミッター秒時刻はgenerated_atのサブ秒を区別できず証明未達。既存分類・原本は変更しない。
 - 11/06の01時台JST、main Git tree列挙で新規初回保存CLEAN=0件・4モード=0件。07時台からの本収集前につき、新規収集・生成件数は実ログ未取得で未計測。収集ジョブ失敗は観測0件（成功証明ではない）。
