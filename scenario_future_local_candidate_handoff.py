@@ -68,7 +68,7 @@ def _outcomes_present(value):
     return False
 
 
-def prepare_local_candidate(gateway, registered_protocol, frozen_at_jst):
+def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, frozen_at_jst):
     if (type(gateway) is not dict or type(registered_protocol) is not dict
             or _outcomes_present(gateway)
             or _outcomes_present(registered_protocol)
@@ -118,7 +118,7 @@ def prepare_local_candidate(gateway, registered_protocol, frozen_at_jst):
     cutoff=_jst(lineage.get("cutoff_jst"))
     if deadline-timedelta(minutes=12)!=cutoff or not begin<=deadline<=end:
         raise ValueError("unregistered_future_deadline")
-    generated=_jst(gateway.get("candidate_generated_at_jst"))
+    generated=_jst(generated_at_jst)
     frozen=_jst(frozen_at_jst)
     latest_source=_jst(lineage.get("latest_three_original_receipt_claim_jst"))
     if (not latest_source < generated <= frozen
