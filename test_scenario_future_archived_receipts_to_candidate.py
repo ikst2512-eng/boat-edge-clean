@@ -213,6 +213,126 @@ class ArchivedTripleSourceOperatorTests(unittest.TestCase):
                     "eligible_for_300_plus_300","formal","promotion_allowed"):
             self.assertFalse(obs[key])
 
+    def _write_official_shaped_synthetic_raw_and_manifests(self):
+        """Materialize synthetic official-shaped originals, never a live race.
+
+        Unlike the other fixture tests, this runs the ACTUAL receipt auditor,
+        6-lane original parsers and pinned #1693 semantic replay. Source
+        strings are fabricated and MUST NOT become a live/official record.
+        """
+        from datetime import timedelta
+        from urllib.parse import urlencode
+        from test_scenario_official_racelist_rates import (
+            synthetic_racelist, RATES,
+        )
+        code=self.source["race_code"]
+        day,venue,no=code[:8],code[8:10],str(int(code[10:]))
+        params=urlencode({"hd":day,"jcd":venue,"rno":no})
+        official={
+            "racelist":"https://www.boatrace.jp/owpc/pc/race/racelist?"+params,
+            "beforeinfo":"https://www.boatrace.jp/owsp/sp/spdata?type=beforeinfo&"+params,
+            "odds120":"https://www.boatrace.jp/owpc/pc/race/odds3t?"+params,
+        }
+        n=self.source["normalized_source_claim"]
+        ids=n["racelist_registration_ids"]
+        before={"maindata":{
+            "hd":day,"jcd":venue,"rno":no,"deadline":"15:30",
+            "teiinfolist":[{
+                "teino":str(i),"racerno":ids[i-1],
+                "extime":str(n["exhibition_times"][i-1]),
+                "tilt":str(n["exhibition_tilts"][i-1]),
+            } for i in range(1,7)],
+            "sttenjiinfolist":[{
+                "teino":str(i),"cs":str(n["exhibition_courses"][i-1]),
+                "st":f'{n["exhibition_st"][i-1]:.2f}',
+            } for i in range(1,7)],
+        }}
+        # This is a deliberately synthetic 20x6 HTML 3T grid. The actual
+        # production odds parser must independently verify all 120 combos.
+        odds_rows=[]
+        for index in range(20):
+            cells=[]
+            for first in range(1,7):
+                remain=[j for j in range(1,7) if j!=first]
+                second=remain[index//4]
+                third=[j for j in remain if j!=second][index%4]
+                cells.extend(
+                    [str(second),str(third),"10.0"] if index%4==0
+                    else [str(third),"10.0"])
+            odds_rows.append("<tr>"+"".join("<td>"+v+"</td>" for v in cells)+"</tr>")
+        odds_html=(
+            "<html><body><table>"+"".join(odds_rows)+"</table></body></html>"
+        ).encode("utf-8")
+        raw={
+            "racelist":synthetic_racelist(ids=ids,rates=RATES),
+            "beforeinfo":json.dumps(before).encode("utf-8"),
+            "odds120":odds_html,
+        }
+        for kind,folder in self.dirs.items():
+            original=self.source["originals"][kind]
+            when=datetime.fromisoformat(original["received_at_jst"])
+            manifest={
+                "race_code":code,
+                "request_started_at_jst":(when-timedelta(seconds=2)).isoformat(),
+                "received_at_jst":when.isoformat(),
+                "sha256":hashlib.sha256(raw[kind]).hexdigest(),
+                "bytes":len(raw[kind]),
+                RECEIPT_URL_KEYS[kind]:official[kind],
+                "status":{
+                    "racelist":"official_racelist_html_observed_research_only",
+                    "beforeinfo":"official_json_observed_not_t12_certified",
+                    "odds120":"official_odds_observed_research_only",
+                }[kind],
+            }
+            if kind=="odds120":
+                manifest["deadline_at_jst"]=self.source["deadline_jst"]
+            (folder/FILES[kind]).write_bytes(raw[kind])
+            (folder/"manifest.json").write_text(
+                json.dumps(manifest,ensure_ascii=False),encoding="utf-8")
+        return raw
+
+    def test_official_shaped_raw_uses_real_auditor_replayer_and_pinned_math(self):
+        if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
+            self.skipTest("requires exact pinned #1693 and #1698 modules")
+        from scripts.audit_three_official_t12_originals import audit_three_originals
+        from scenario_future_local_candidate_handoff import (
+            RESEARCH_ONLY_LEDGER_BRANCH,
+        )
+        import four_mode_official_raw_semantic_replay as semantics
+        import position_sensitive_conditioned_lab as conditional
+        raw=self._write_official_shaped_synthetic_raw_and_manifests()
+        dirs=tuple(self.dirs[k] for k in ("racelist","beforeinfo","odds120"))
+        audited=audit_three_originals(*dirs)
+        self.assertEqual(audited["race_code"],"202611111710")
+        self.assertTrue(audited["three_originals_hash_verified"])
+        self.assertTrue(audited["all_research_components_observed_by_t12"])
+        self.assertEqual(len(audited["component_checks"]),12)
+        self.assertTrue(all(audited["component_checks"].values()))
+        self.assertEqual(audited["missing_components"],[])
+        self.assertFalse(audited["forecast_usable"])
+        observed_clock=iter(self.clock_times)
+        result=run_observed_archives(
+            *dirs,lambda:next(observed_clock),
+            semantics.replay, semantics._beforeinfo_features,
+            conditional.experimental_conditional_board,
+            publish=False,
+        )
+        self.assertEqual(result["status"],"complete_source_model_handoff_local_only")
+        self.assertEqual(result["four_mode_ticket_budgets"],
+                         {"narrow":5,"hit":10,"balance":16,"hole":22})
+        self.assertEqual(len(result["candidate_sha256"]),64)
+        self.assertEqual(len(result["candidate_git_blob_sha1"]),40)
+        for key in (
+            "official_source_first_remote_receipts_independently_verified",
+            "candidate_first_remote_receipt_verified",
+            "github_create_attempted","formal",
+            "eligible_for_300_plus_300","model_improvement_proven",
+            "promotion_allowed","production_changed",
+        ):
+            self.assertFalse(result[key],key)
+        # No new API request, no file in either GitHub research ledger or main.
+        self.assertEqual(result["race_code"],"202611111710")
+
     def test_external_parser_import_requires_exact_source_blobs(self):
         if os.environ.get("RESEARCH_1698_PIN_REQUIRED")!="1":
             self.skipTest("requires both pinned #1693 and #1698 fetched in CI")
