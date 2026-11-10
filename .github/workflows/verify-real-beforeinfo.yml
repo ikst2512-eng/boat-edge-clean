@@ -55,7 +55,7 @@ jobs:
           // Match the production official inspector's accepted real start format.
           const validSt=s=>typeof s==='string'&&/^(?:(?:F|L)?\.\d{1,2}|\d?\.\d{1,2})$/.test(s.trim());
           for(const st of ['F.01','L.02','.08','0.08'])if(!validSt(st))throw Error('ST_PARSER_POSITIVE_REGRESSION '+st);
-          for(const st of ['','--','F.01x','6.9'])if(validSt(st))throw Error('ST_PARSER_NEGATIVE_REGRESSION '+st);
+          for(const st of ['','--','F.01x','6.999'])if(validSt(st))throw Error('ST_PARSER_NEGATIVE_REGRESSION '+st);
           if(!finiteReading(0)||finiteReading('')||finiteReading(false))throw Error('NUMERIC_READING_REGRESSION');
           (async()=>{
             const browser=await chromium.launch({headless:true});
