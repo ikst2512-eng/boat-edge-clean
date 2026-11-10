@@ -46,8 +46,9 @@ class PriorArtifactTest(unittest.TestCase):
                         headers={"Authorization":"Bearer SECRET","X-GitHub-Api-Version":"2022-11-28"})
         redirected=handler.redirect_request(request,None,302,"Found",{},
                 "https://objects.githubusercontent.com/artifact/archive.zip?sig=opaque")
-        self.assertIsNone(redirected.get_header("Authorization"))
-        self.assertIsNone(redirected.get_header("X-GitHub-Api-Version"))
+        forwarded_headers={header.lower() for header in redirected.headers}
+        self.assertNotIn("authorization",forwarded_headers)
+        self.assertNotIn("x-github-api-version",forwarded_headers)
         self.assertEqual(redirected.full_url.split("?")[0],
                 "https://objects.githubusercontent.com/artifact/archive.zip")
         same_origin=handler.redirect_request(request,None,302,"Found",{},
