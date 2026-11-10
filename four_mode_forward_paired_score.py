@@ -296,8 +296,26 @@ def review_upstream_t12_source_pair_handoff(report):
             report.get("same_race_complete_official_three_originals") != 0 or
             report.get("verified_model_original_byte_consumption") != 0 or
             report.get("verified_first_forecast_remote_acceptances") != 0 or
-            report.get("source_originals_individually_replayed") is not True):
+            report.get("source_originals_individually_replayed") is not True or
+            report.get("original_zip_directly_rehashed_inside_ci") is not False or
+            has_embedded_outcome(report)):
         raise ValueError("invalid_or_overclaimed_upstream_t12_report")
+    if (type(report.get("source_run_id")) is not int or
+            report["source_run_id"] <= 0 or
+            type(report.get("source_artifact_id")) is not int or
+            report["source_artifact_id"] <= 0 or
+            type(report.get("source_original_zip_sha256_from_metadata")) is not str or
+            not SHA.fullmatch(report["source_original_zip_sha256_from_metadata"]) or
+            type(report.get("pinned_forecast_ref")) is not str or
+            not re.fullmatch(r"[0-9a-f]{40}", report["pinned_forecast_ref"])):
+        raise ValueError("unbound_upstream_source_zip_or_forecast_identity")
+    try:
+        published = datetime.fromisoformat(
+            report["github_server_source_archive_published_at_utc"])
+    except (TypeError, KeyError, ValueError) as exc:
+        raise ValueError("missing_upstream_independent_source_zip_clock") from exc
+    if published.utcoffset() != timedelta(0):
+        raise ValueError("upstream_source_zip_clock_not_utc")
     day = report.get("day_jst")
     codes = report.get("race_rows")
     if (type(day) is not str or not re.fullmatch(r"20[0-9]{6}", day)
@@ -333,7 +351,9 @@ def review_upstream_t12_source_pair_handoff(report):
         if (last.date().strftime("%Y%m%d") != day
                 or cutoff.date().strftime("%Y%m%d") != day
                 or (pair and not last <= cutoff)
-                or type(row.get("independent_source_zip_published_by_t12")) is not bool):
+                or type(row.get("independent_source_zip_published_by_t12")) is not bool
+                or row["independent_source_zip_published_by_t12"] is not
+                (published + timedelta(seconds=1) <= cutoff)):
             raise ValueError("upstream_t12_source_clocks_conflict")
         forecasts = row.get("frozen_forecasts")
         if type(forecasts) is not dict or set(forecasts) != {"clean", "v2_four_mode"}:
@@ -399,8 +419,14 @@ def review_upstream_t12_source_pair_handoff(report):
         "status": "upstream_source_pair_replay_blockers_only",
         "upstream_auditor": "Draft_1694",
         "upstream_race_count": len(codes),
-        "upstream_source_run_id": report.get("source_run_id"),
-        "upstream_source_artifact_id": report.get("source_artifact_id"),
+        "upstream_source_run_id": report["source_run_id"],
+        "upstream_source_artifact_id": report["source_artifact_id"],
+        "upstream_original_source_zip_sha256_reference_only":
+            report["source_original_zip_sha256_from_metadata"],
+        "upstream_pinned_forecast_commit_reference_only":
+            report["pinned_forecast_ref"],
+        "upstream_source_zip_published_at_utc_reference_only":
+            published.isoformat(),
         "upstream_report_identity_independently_authenticated_here": False,
         "race_rows": per_race,
         "blocking_gate_counts": dict(sorted(counts.items())),
