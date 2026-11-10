@@ -32,6 +32,52 @@ class ActivationTests(unittest.TestCase):
                     dispatch=lambda f:self.fail("outside hours"))
                 self.assertEqual(out["targets"]["t12"]["decision"],
                                  "outside_research_hours")
+    def test_early_08_jst_t12_only_and_no_early_t2(self):
+        # 08:35 JST race: T-12 is 08:23 and eligible selection 08:09-08:21.
+        early=NOW.replace(hour=8,minute=12)
+        dispatched=[]
+        output=run_once(now=early,fetch_runs=lambda f,e:[],
+                        dispatch=lambda f:dispatched.append(f))
+        self.assertEqual(dispatched,[TARGETS["t12"]])
+        self.assertEqual(output["targets"]["t12"]["decision"],
+                         "dispatch_missing_research_job")
+        self.assertEqual(output["targets"]["t2"]["decision"],
+                         "outside_research_hours")
+        self.assertFalse(output["targets"]["t2"]["dispatch_requested"])
+        self.assertFalse(output["independent_first_seen_verified"])
+        self.assertFalse(output["unattended_scheduled_capture_verified"])
+
+    def test_early_t12_respects_recent_run_and_active_guard(self):
+        early=NOW.replace(hour=8,minute=12)
+        recent={"event":"workflow_dispatch","created_at":
+                (early-timedelta(minutes=2)).isoformat(),"status":"completed",
+                "head_branch":"main","conclusion":"failure"}
+        self.assertEqual(dispatch_decision(early,[recent],kind="t12"),
+                         "research_run_recently_started")
+        active=dict(recent,created_at=(early-timedelta(minutes=16)).isoformat(),
+                    status="in_progress",conclusion=None)
+        self.assertEqual(dispatch_decision(early,[active],kind="t12"),
+                         "research_job_already_active")
+        with self.assertRaisesRegex(ValueError,"target_invalid"):
+            dispatch_decision(early,[],kind="unknown")
+
+    def test_existing_crons_cover_08_jst_without_new_workflow(self):
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        seed=(root/".github/workflows/entry-course-t12-baseline.yml").read_text()
+        rescue=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("cron: '*/5 23,0-13 * * *'",seed)
+        self.assertIn("cron: '3,18,33,48 23,0-13 * * *'",rescue)
+        self.assertEqual(seed.count("- cron:"),1)
+        self.assertEqual(rescue.count("- cron:"),1)
+        from entry_course_t12_seed import near_t12
+        rows=[{"レースコード":"202611102101",
+               "電話投票締切予定":"08:35"}]
+        self.assertEqual(near_t12(rows,"20261110",now=datetime(
+            2026,11,10,8,12,tzinfo=JST)),["202611102101"])
+        self.assertEqual(near_t12(rows,"20261110",now=datetime(
+            2026,11,10,8,24,tzinfo=JST)),[])
+
     def test_recent_real_schedule_prevents_duplicate_dispatch(self):
         self.assertEqual(dispatch_decision(NOW,[event(minutes=4)]),
                          "research_run_recently_started")
