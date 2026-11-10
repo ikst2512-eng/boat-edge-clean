@@ -27,6 +27,8 @@ on:
       - research/test_hole_pair_source_blob_drift_audit.py
       - research/hole_pair_prospective_evidence_gap_ledger.py
       - research/test_hole_pair_prospective_evidence_gap_ledger.py
+      - research/hole_pair_real_main_snapshot_gate.py
+      - research/test_hole_pair_real_main_snapshot_gate.py
       - research/hole_pair_manual_capture.py
       - research/test_hole_pair_manual_capture.py
       - test_hole_pair_remote_receipt_evidence.py
@@ -75,6 +77,8 @@ jobs:
         run: python -m unittest -v research/test_hole_pair_source_blob_drift_audit.py
       - name: Audit frozen hole candidate first-receipt and official evidence gaps (offline)
         run: python -m unittest -v research/test_hole_pair_prospective_evidence_gap_ledger.py
+      - name: Test real-main original Git blob census (synthetic only)
+        run: python -m unittest -v research/test_hole_pair_real_main_snapshot_gate.py
       - name: Test manual-only research capture driver (no real dispatch)
         run: python -m unittest -v research/test_hole_pair_manual_capture.py
       - name: Audit default-branch manual-dispatch registration (read-only)
@@ -95,6 +99,46 @@ jobs:
           print('DISPATCH_PREREQUISITE',r['default_branch_dispatch_prerequisite_satisfied'])
           print('BLOCKERS',r['blockers'])
           PY
+      - name: Audit actual pinned Nov 10 main source original 150 forecasts (read only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The object ID is deliberately fixed, never selected from a mutable tip.
+          # Fetch only source Git objects; no result data, secrets or repo writes.
+          git fetch --no-tags --depth=1 origin c4d39245cbc96b6c680585a68c3b9adf6ddeb921
+          python -m research.hole_pair_real_main_snapshot_gate \
+            --day 20261110 \
+            --source-commit c4d39245cbc96b6c680585a68c3b9adf6ddeb921 \
+            --reference-clock-jst "2026-11-10T16:33:00+09:00" \
+            --output research_main_20261110_original_sources_nonformal.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('research_main_20261110_original_sources_nonformal.json').read_text())
+          assert data['original_main_forecast_ids_examined'] == 150
+          assert data['original_git_blob_sha1_verified_count'] == 150
+          assert data['original_source_sha256_computed_count'] == 150
+          assert data['result_files_read'] is False
+          assert data['formal'] is False
+          assert data['prospective_pilot_formally_eligible'] == 0
+          assert data['prospective_confirmation_formally_eligible'] == 0
+          assert data['whole_day_official_schedule_verified'] is False
+          assert data['first_independent_signed_candidate_receipts_authenticated'] == 0
+          print('ACTUAL_MAIN_SOURCE_AUDIT_REPORT_NONFORMAL', {
+              k:v for k,v in data.items() if k.endswith('_count') or
+              k in ('original_main_forecast_ids_examined','declared_t12_elapsed_at_reference',
+                    'declared_t12_still_future_at_reference',
+                    'optional_beforeinfo_absent_from_forecast')
+          })
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: hole-pair-actual-nov10-main-source-audit-nonformal
+          path: research_main_20261110_original_sources_nonformal.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Prove Nov 5 is excluded before opening any forecast
         run: |
           python hole_future_pair_precommit.py 202611050101 > research_not_eligible.json
