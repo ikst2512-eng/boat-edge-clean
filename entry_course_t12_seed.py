@@ -204,6 +204,27 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
             "independent_first_seen_verified":False}
 
 
+def _fresh_t12_prediction_bytes(code):
+    """Run the unchanged research model in an empty, isolated snapshot store.
+
+    Earlier research_snapshots/<race>.json files are immutable research
+    history and must not be mistaken for a fresh T-12 model generation.
+    One GitHub Actions seed process runs sequentially; the temporary STORE
+    override is restored before returning, even when the source fails.
+    """
+    import tempfile
+    import research_model
+    from unittest.mock import patch
+    with tempfile.TemporaryDirectory(prefix="boat-edge-t12-") as root:
+        isolated=Path(root)
+        with patch.object(research_model,"STORE",isolated):
+            predict(code[:8],code[8:10],code[10:12])
+            original=isolated/(code+".json")
+            if original.is_symlink() or not original.is_file():
+                raise ValueError("t12_fresh_model_original_missing")
+            return original.read_bytes()
+
+
 def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
               record_path=_record_path, ledger_ops=None, max_per_run=10):
     """Use unchanged predict() and its original on-disk T-12 evidence."""
@@ -258,9 +279,15 @@ def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
                 continue
             # Only the FIRST invocation may create a fresh original. The
             # immutable ledger's create-only write rejects concurrent races.
-            predictor(code[:8],code[8:10],code[10:12])
-            path=record_path(code)
-            raw=path.read_bytes()
+            if predictor is predict and record_path is _record_path:
+                # Main unattended path always generates new T-12-timed bytes
+                # without mutating existing local research_snapshots.
+                raw=_fresh_t12_prediction_bytes(code)
+            else:
+                # Preserve the explicit dependency-injection interface used
+                # by deterministic test/replay fixtures.
+                predictor(code[:8],code[8:10],code[10:12])
+                raw=record_path(code).read_bytes()
             states.append(dict(race_code=code,
                                **publish_base(raw,code,read,create,clock=now,
                                               expected_deadline=expected_deadlines[code])))
