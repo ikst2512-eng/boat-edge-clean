@@ -707,6 +707,26 @@ assert.equal(guardedCandidate({...safeCandidate,source_deadline_jst:'2026-11-04T
 assert.equal(guardedCandidate({...safeCandidate,generated_at:'2026-11-04T16:20:00+09:00'},Date.parse('2026-11-04T16:00:00+09:00')),false,'future-dated generation is rejected');
 
 
+// Readability contract: BOATERS-like high-density comparison without turning
+// action targets into tiny controls or re-separating independent original data.
+const compactStyle=html.slice(html.indexOf('/* Compact race information density,'));
+assert.ok(compactStyle.startsWith('/* Compact race information density,'),'compact design overrides must load after old styles');
+for(const expected of [
+ '.four-mode-forecast-grid .four-mode-forecast-ticket .four-mode-combo{font-size:15px}',
+ '.four-mode-forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr))',
+ '.race-detail-shortcuts button{font-size:11px!important;min-height:42px',
+ '#raceDataSection[data-view="exhibit"] .exhibition-values{',
+ '#raceDataSection[data-view="exhibit"] .exhibition-original-values{',
+ '#raceDataSection[data-view="exhibit"] .exhibition-boat{',
+ 'grid-template-columns:repeat(4,minmax(0,1fr))',
+ 'grid-template-columns:repeat(3,minmax(0,1fr))'
+]){
+ assert.ok(compactStyle.includes(expected),'compact six-boat layout missing '+expected);
+}
+assert.ok(script.includes("if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);"),'compact rows must keep original feed per exact boat');
+assert.ok(!compactStyle.includes('display:none!important}\n#raceDataSection[data-view="exhibit"] .exhibition-boat'),'six-boat comparison must remain visible');
+console.log('PASS: compact two-column forecasts, 6-boat exhibition rows and original measurements');
+
 // Integrated exhibition: use the exact production CSV parser and async
 // original-exhibition renderer against a deterministic DOM stub (no live data).
 // This catches shifted-lane values, duplicate rows, incomplete source schemas,
