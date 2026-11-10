@@ -1,5 +1,11 @@
 name: CLEAN independently verified trifecta payouts
 on:
+  # Reuse completed trusted main result-collection jobs to wake payouts
+  # when GitHub's independent payout Cron is skipped or severely delayed.
+  # This is an additional event for this EXISTING workflow, not a new writer.
+  workflow_run:
+    workflows: ['CLEAN independent confirmed result collection']
+    types: [completed]
   workflow_dispatch:
   push:
     branches: [main]
@@ -15,6 +21,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
+    # A workflow_run can originate from a pull_request or foreign branch.
+    # Those must never get this writer's contents:write permissions.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       contains(fromJSON('["schedule","workflow_dispatch","push","workflow_run"]'),
+                github.event.workflow_run.event))
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
