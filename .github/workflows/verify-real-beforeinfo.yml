@@ -40,7 +40,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 4
         run: |
-          cat > /tmp/clean-live-official-pages.cjs <<'JS'
+          cat > .clean-live-official-pages.cjs <<'JS'
           const {chromium}=require('playwright');
           const fs=require('node:fs');
           const base='https://boat-edge-clean.onrender.com';
@@ -125,5 +125,5 @@ jobs:
             finally{await ctx.close();await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
-          node --check /tmp/clean-live-official-pages.cjs
-          node /tmp/clean-live-official-pages.cjs
+          node --check .clean-live-official-pages.cjs
+          node .clean-live-official-pages.cjs
