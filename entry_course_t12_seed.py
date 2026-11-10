@@ -198,7 +198,7 @@ def publish_base(raw, code, remote_read, remote_create, *, clock,
 
 
 def seed_once(*, now, fetch_title=None, fallback_title=None, predictor=predict,
-              record_path=_record_path, ledger_ops=None, max_per_run=5):
+              record_path=_record_path, ledger_ops=None, max_per_run=10):
     """Use unchanged predict() and its original on-disk T-12 evidence."""
     first=now()
     rows,day,title_digest,title_source=_title(first,fetch=fetch_title,fallback=fallback_title)
