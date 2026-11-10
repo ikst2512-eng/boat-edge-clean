@@ -14,8 +14,7 @@ import copy
 import re
 
 from scenario_exhibition_all_mode_runner import _compute_exhibition_scenario_boards
-from scenario_four_mode_bridge import compose_scenario_research
-from scenario_mode_specific_lens_research import MODES, BUDGETS
+from scenario_four_mode_bridge import compose_scenario_research, MODES, BUDGETS
 
 SCHEMA = "SCENARIO_MODE_SPECIFIC_EXHIBITION_END_TO_END_RESEARCH_V1"
 STUDY = re.compile(r"EXPLORATORY_ONLY_[A-Z0-9_]{4,46}\Z")
