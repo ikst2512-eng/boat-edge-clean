@@ -135,6 +135,58 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
         self.assertEqual(original["mode_result"]["mixed_120_board_sha256"],
                          after["mode_result"]["mixed_120_board_sha256"])
 
+    def test_exhibition_entry_course_changes_conditional_board_only_when_activated(self):
+        # These are EXHIBITION courses by boat, not boat numbers or final entry.
+        # #1692's official K study documented that boat 2 is not always course 2.
+        plans = copy.deepcopy(self.plans)
+        plans["third_attack"]["position_coefficients"]["entry_course"] = {
+            "second": 0.35, "third": 0.15}
+        original = self.run_lab(plans=plans)
+        self.assertIn("entry_course",
+                      original["feature_fields_actually_activated_by_scenario"]["third_attack"])
+        self.assertTrue(original["exhibition_course_proxy_used_in_hypothesis"])
+        self.assertFalse(original["two_course_wall_feature_or_final_entry_used"])
+        self.assertIn("not_final_actual_entry", original["entry_course_input_semantics"])
+        changed = copy.deepcopy(self.projection)
+        changed["exhibition_features_by_boat"][0]["exhibition_course_only"] = 2
+        changed["exhibition_features_by_boat"][1]["exhibition_course_only"] = 1
+        with self.assertRaisesRegex(ValueError, "exhibition_projection_vector_digest_mismatch"):
+            self.run_lab(projection=changed, plans=plans)
+        changed["exhibition_features_sha256"] = hashlib.sha256(
+            json.dumps(changed["exhibition_features_by_boat"], sort_keys=True,
+                       separators=(",", ":"), ensure_ascii=False
+                      ).encode("utf-8")
+        ).hexdigest()
+        after = self.run_lab(projection=changed, plans=plans)
+        self.assertNotEqual(original["mode_result"]["mixed_120_board_sha256"],
+                            after["mode_result"]["mixed_120_board_sha256"])
+        self.assertFalse(after["actual_entry_wind_tide_motor_or_wall_used"])
+        self.assertFalse(after["forecast_usable"])
+        self.assertFalse(after["formal"])
+
+        # The exact same course-switch must have NO effect at zero coefficient.
+        zero_plans = copy.deepcopy(plans)
+        zero_plans["third_attack"]["position_coefficients"]["entry_course"] = {
+            "second": 0.0, "third": 0.0}
+        base = self.run_lab(plans=zero_plans)
+        switched = self.run_lab(projection=changed, plans=zero_plans)
+        self.assertEqual(base["mode_result"]["mixed_120_board_sha256"],
+                         switched["mode_result"]["mixed_120_board_sha256"])
+        self.assertFalse(switched["exhibition_course_proxy_used_in_hypothesis"])
+        self.assertIn("exhibition_course_only",
+                      switched["projection_features_present_but_not_scored"])
+
+    def test_duplicate_exhibition_courses_stay_rejected_with_rehashed_projection(self):
+        changed = copy.deepcopy(self.projection)
+        changed["exhibition_features_by_boat"][1]["exhibition_course_only"] = 1
+        changed["exhibition_features_sha256"] = hashlib.sha256(
+            json.dumps(changed["exhibition_features_by_boat"], sort_keys=True,
+                       separators=(",", ":"), ensure_ascii=False
+                      ).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaisesRegex(ValueError, "exhibition_roster_not_six_distinct"):
+            self.run_lab(projection=changed)
+
     def test_weight_hypotheses_change_mixture_without_forced_variation(self):
         first = self.run_lab()
         changed = copy.deepcopy(self.plans)
@@ -205,7 +257,10 @@ class PinnedConditionalIntegrationTests(unittest.TestCase):
         self.assertFalse(out["mode_result"]["separate_scenario_hole_research"]["official_odds_used"])
         self.assertFalse(out["mode_result"]["separate_scenario_hole_research"]["expected_value_claim"])
         self.assertEqual(out["feature_fields_passed_to_conditional_lab"],
-                         ["exhibition_st_s", "exhibition_time_s"])
+                         ["entry_course", "exhibition_st_s", "exhibition_time_s"])
+        self.assertFalse(out["exhibition_course_proxy_used_in_hypothesis"])
+        self.assertIn("exhibition_course_only", out["projection_features_present_but_not_scored"])
+        self.assertFalse(out["two_course_wall_feature_or_final_entry_used"])
         self.assertNotIn("exhibition_time_s", out["projection_features_present_but_not_scored"])
         self.assertEqual(out["exhibition_time_s_status"],
                          "available_for_explicit_hypothesis_only")
