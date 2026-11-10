@@ -20,6 +20,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
+    outputs:
+      new_payouts: ${{ steps.append_payouts.outputs.new_payouts }}
     # workflow_run can be fired by PRs or external branches; only the trusted
     # same-repository main result collector can wake a privileged payout write.
     # Preserve PR's read-only probe, but block feature-branch manual dispatch.
@@ -72,6 +74,7 @@ jobs:
               print(collect((now-timedelta(days=days_back)).strftime("%Y%m%d")))
           PY
       - name: Commit immutable, result-matched payout records
+        id: append_payouts
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
@@ -100,3 +103,38 @@ jobs:
             fi
             sleep "$attempt"
           done
+          # Only a successful new immutable Git push may request an extra
+          # publication. No-op, failed pushes and PR checks never dispatch.
+          echo "new_payouts=true" >> "$GITHUB_OUTPUT"
+
+  publish-new-payouts:
+    # Same existing Pages workflow, no new Cron or collector. GitHub's
+    # GITHUB_TOKEN push cannot trigger ordinary push workflows, so explicitly
+    # dispatch only after a successful NEW payout Git commit.
+    needs: collect
+    if: >-
+      ${{ github.event_name != 'pull_request' &&
+          needs.collect.result == 'success' &&
+          needs.collect.outputs.new_payouts == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch existing Pages publication for newly saved payouts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "ikst2512-eng/boat-edge-clean"
+          curl --fail --show-error --silent --retry 3 --retry-all-errors --retry-delay 3 \
+            --request POST \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            --data '{"ref":"main"}' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/deploy-pages.yml/dispatches" \
+            --output /dev/null
+          echo "PAYOUT_PAGES_DISPATCH_REQUESTED: new payout files committed; Pages deployment still requires separate successful verification"
