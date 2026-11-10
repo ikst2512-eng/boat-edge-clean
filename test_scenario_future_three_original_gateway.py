@@ -3,6 +3,7 @@
 No real official source, model accuracy, independent Git acceptance, or
 registered future cohort is claimed by any fixture in this test module.
 """
+import base64
 import copy
 from datetime import datetime, timedelta
 import hashlib
@@ -17,6 +18,7 @@ from scenario_future_three_original_gateway import (
     run_future_triple_experiment,
 )
 from test_scenario_official_exhibition_projection import fixture, replay_stub
+from test_scenario_official_racelist_rates import synthetic_racelist, RATES
 from test_scenario_mode_specific_exhibition_end_to_end import hypotheses, weights
 
 
@@ -34,6 +36,15 @@ def future_synthetic():
     source = shift(source)
     candidate = shift(candidate)
     normalized = source["normalized_source_claim"]
+    # A fixture with real-like TD structure, NOT an official HTTP observation.
+    # Ensure the model must use six source-HTML values rather than arbitrary
+    # old V2 saved rates. Preserve the raw SHA/normalization chain.
+    raw = synthetic_racelist(ids=normalized["racelist_registration_ids"],rates=RATES)
+    digest=hashlib.sha256(raw).hexdigest()
+    source["originals"]["racelist"]["raw_base64"]=base64.b64encode(raw).decode("ascii")
+    source["originals"]["racelist"]["sha256"]=digest
+    normalized["source_sha256"]["racelist"]=digest
+    candidate["consumed_source_sha256"]["racelist"]=digest
     candidate["consumed_normalized_claim_sha256"] = hashlib.sha256(json.dumps(
         normalized, sort_keys=True, ensure_ascii=False,
         separators=(",",":")).encode()).hexdigest()
@@ -188,6 +199,20 @@ class FutureTripleSourceGatewayTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"three_originals"):
             self.check(s=s)
 
+    def test_rates_must_match_same_race_original_html(self):
+        # Fake 5.0 fallback and borrowed rates from a different race are not
+        # acceptable even with identical source/forecast clocks.
+        with self.assertRaisesRegex(
+                ValueError,"national_win_rates_or_registration"):
+            run_future_triple_experiment(
+                self.audit,self.s,self.c,replay_stub,[5.0]*6,
+                hypotheses(),weights(),lambda *args:None)
+        with self.assertRaisesRegex(
+                ValueError,"national_win_rates_or_registration"):
+            run_future_triple_experiment(
+                self.audit,self.s,self.c,replay_stub,list(reversed(RATES)),
+                hypotheses(),weights(),lambda *args:None)
+
     def test_result_leak_and_bad_rates_before_runner(self):
         for rates in ([5]*5,[5]*7,[5,5,5,-1,5,5],
                       [5,5,5,float("nan"),5,5], [5,5,5,"6",5,5]):
@@ -206,7 +231,7 @@ class Pinned1698FutureGatewayIntegrationTests(unittest.TestCase):
             "position_sensitive_conditioned_lab").experimental_conditional_board
         output=run_future_triple_experiment(
             triple_fixture(source),source,candidate,replay_stub,
-            [5.3,5.9,6.1,4.6,6.0,5.1],hypotheses(),weights(),cb)
+            list(RATES),hypotheses(),weights(),cb)
         self.assertEqual(output["study_id"],STUDY)
         self.assertEqual(set(output["research_mode_tickets"]),
                          {"narrow","hit","balance","hole"})
@@ -214,6 +239,10 @@ class Pinned1698FutureGatewayIntegrationTests(unittest.TestCase):
                           output["research_mode_tickets"].items()},
                          {"narrow":5,"hit":10,"balance":16,"hole":22})
         self.assertTrue(output["candidate_source_consumption_structurally_replayed"])
+        self.assertTrue(output["national_win_rate_from_official_original_structurally_verified"])
+        self.assertEqual(output["six_national_win_rates_from_same_original_html"],RATES)
+        self.assertEqual(output["six_average_ST_from_same_original_html_not_scored"],[.16]*6)
+        self.assertFalse(output["official_racelist_HTTP_authenticity_independently_verified"])
         for field in ("formal","forecast_usable",
                       "eligible_for_existing_1693_600_races",
                       "eligible_for_new_300_plus_300_races",
