@@ -1,3 +1,8 @@
+## 2026-11-10 夜｜CSVソース障害と公式展示LIVE 24値の判定を分離（#1727後続）
+- **実変更**：[main `8f815b5b`](https://github.com/ikst2512-eng/boat-edge-clean/commit/8f815b5b5570137cf57eff0dbc3f93057b189aad)で既存 `.github/workflows/verify-real-beforeinfo.yml` の**CSVソースプローブ1ステップのみ独立診断**へ変更。過去定期 [#42713908162](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42713908162) はCSVファイルHTTP 404でジョブが失敗していた。今後はその原因を `CSV_SOURCE_PROBE_OUTCOME` とGitHub警告に明示し、CSV障害のみで「実レース公式→Render→Pages 24値が不一致」と見なさない。
+- **ハードゲート維持**：実レース `LIVE_OFFICIAL_PAGES_E2E_PASS` の厳密な24値・締切前照合を**非ブロッキングにはしない**（`continue-on-error` は従来どおりPR診断時のみ）。公式ソース未公開、Render不一致、Pages未表示、締切超過、開催対象なしは `LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED` として失敗のまま。Actionが緑でもCSV診断失敗は別表示し、保存・正式T−12の証拠に算入しない。
+- **確認範囲**：workflow blob `8e80bae2` のmain保存を再取得。19:35 JSTの**既存Cron維持**、新PR・Cron・採点/予想原本/結果/払戻・本番UIコード変更なし。実LIVEレース24/24 PASSは**まだ0件**、この修正後の該当Workflow schedule/dispatch実測は未実行。11/11 20:15 JSTの有効な既存監査タスクにCSV判定・公式/Render/Pages 24値・受領時刻の別照合を追加、時刻は維持。V1期限12/10維持。
+
 ## 2026-11-10 夜｜公式展示LIVE 24値の誤認定防止・監査出力強化（既存Workflow）
 - **main `8daf1e2c08ddda8e658af852f224d14a161d82ff`**：既存 `.github/workflows/verify-real-beforeinfo.yml` のみ修正。元の `19:35 JST` schedule、既存 `workflow_dispatch`、比較範囲（公式beforeinfo JSON→Render API→実Pagesブラウザ6艇×4測定値）、締切前PASS条件は維持。新PR・Cron・予想原本・結果・払戻・保存ソースの変更なし。
 - **見つかった監査穴**：旧式 `Date.parse(source_audit.beforeinfo.fetched_at)>=deadline` は、日時空欄・不正値で `NaN` となっても条件が偽になるため、`status=ok` など他の条件が揃えば不正な受領時刻を通してしまう。タイムゾーン付きISO 8601で日時が実際に解釈でき、締切より前である場合だけ認める `validPredeadlineReceipt` を追加。空・文字列不正・時刻帯欠落・締切同時刻を拒否し、締切1秒前の小数秒付き正例を許す回帰チェックを既存JSに内包。
