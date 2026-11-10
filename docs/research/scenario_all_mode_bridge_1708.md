@@ -660,3 +660,15 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - [最新CI #42831523176](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42831523176) **completed/success**、頭 `763b68e11d9973a71a33ba8a75d9be9c83cd97d7`。通常**114件（4skip）**＋固定#1698数学を含む統合**43件全てPASS**。201サーバーDateのT−12境界（期限時刻ちょうど/期限後/凍結前）3ケースを意図的に失敗させるテストを追加。旧研究の頭係数3.5/配分/先行研究原本/成績は一切後付け変更していない。
 
 **現時点の計数**：正式将来pilot **0/300**・独立confirmation **0/300**、実レース研究candidateのfirst Git remote保存 **0**、合成E2Eと研究規約1ファイルのGitHub実書込成功を混同しない。次は③収集ジョブの11/11 08時台実原本/締切T−12/サーバ応答が成立した**同じ未来レース**だけ、既存の③から単発②研究へ渡す。なお単発CLIは現状**自動連携ではない**ため、11/11に自然にモデル候補が書かれると先取りして主張しない。本番main/Render/Pages予想は不変更。
+
+
+## 2026-11-11 00時台｜#1710本物の1693再検証で発見した候補生成順序の不整合・保存バイパスの封鎖
+
+**観測された実際の失敗**：[CI #42839272465](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42839272465) で、公式形式の合成racelist/beforeinfo/odds120を**実**`audit_three_official_t12_originals`＋固定#1693のraw semantic replay＋固定#1698数理へ渡すテストを追加したところ、`ValueError: missing_method_byte_identity`で失敗。旧来のテストは`replay_stub`を使い、この本物の#1693契約を実際には通していなかった。原因は#1693`preflight`が候補生成**後**の`candidate_method_sha256`・4モード`candidate_tickets`を要求するのに、#1710の新しいrunnerが候補生成**前**に呼び出していた順序矛盾。コードの実装だけ完成扱いにすると、翌実レースの完全原本でも停止していた。
+
+**修正**（11/10時点で凍結済み#1693/#1698/#1710数理や係数3.5は不変更）：
+- 既存の公式3原本検査器と、凍結#1693の実`_beforeinfo_features`・既存出走表パーサー・120オッズパーサーで、**計算前に同一生バイト・受領時計・6艇・SHAを再照合**。ここで仮買い目を一切作らない。
+- 実際の`run_future_triple_experiment`が固定4モード5/10/16/22票を算出した後、候補の`candidate_tickets`を**その実計算の順位だけ**で構成。`candidate_method_sha256`は2026-11-10固定protocolが記録したモデル10個のGit blob SHAと外部#1693/#1698コードSHAから決定的に計算。ここで初めて**固定の本物の#1693 `four_mode_official_raw_semantic_replay.replay`を全5段階実行**し、そこで失敗したらfreeze/remote PUTを一切しない。
+- 直接`gateway.json`のみを渡す`scenario_future_github_research_adapter.py --publish`は**禁止**した。JSONのSHAや署名を自前で合わせた合成候補は、公式元原本の真正な再検査なしでも作成可能なため、誤ってGitHubに記録する危険があった。遠隔PUTは**3原本ディレクトリから始める`scenario_future_archived_receipts_to_candidate.py --publish`だけ**に限定し、監査者・生原本パーサー・#1693/#1698条件付き計算の実ソースGit blobを都度検査。モックcallback、模擬auditor、未登録コードはPUT**前**に拒否。旧CLIはdry-runとread-only Git first-add監査には引き続き使用可。
+- 初回の失敗[#42839272465](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42839272465)は履歴保全。[順序修正CI #42840221246](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42840221246) **success**。[保存バイパス封鎖CI #42840863442](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42840863442) **success**。通常テスト **117件（6skip）**、外部実モデル・本物パーサーを固定SHAで別途取得した統合 **45件全PASS**。公式形式の**合成**原本→本物の三原本監査→本物#1693完全raw replay→固定#1698 math→4モード→**模擬GitHub201/readback**を正常に実行。反例として偽parser callbackによるpublish、gatewayのみのpublishを実際に遮断。
+- **正確な認定境界**：以上は合成原本と模擬GitHub HTTPでの実装検証であり、11/11開催中の真正公式HTTP取得や独立受領、モデルの実測的中率ではない。研究Ledgerの予想candidate実ファイル0件。正式0/300＋0/300、head3.5未採用。本番main/Render/Pages・旧候補/結果原本・Cron変更なし。**コード接続の正常系は通ったが、③が真の同一レースT−12公式3原本＋ST6を前受領できることと、実Git first-remote受信は未実証**。GitHub protocolや買い目順位に対する後付け変更なし。
