@@ -9,6 +9,8 @@ const MODES = [['narrow','絞り'],['hit','本命'],['balance','バランス'],[
 const RACES = [
   {code:'202611061006', date:'2026-11-06', venue:10, race:6},
   {code:'202611071006', date:'2026-11-07', venue:10, race:6},
+  // Newly saved main archive from November 10; must be visible after release.
+  {code:'202611100401', date:'2026-11-10', venue:4, race:1},
 ];
 const key = r => r.code.slice(0,8)+'-'+r.code.slice(8,10)+'-'+r.code.slice(10);
 
@@ -109,6 +111,33 @@ async function verify(page, engine, race) {
       assert.equal(nav.saved?.date,second.date);
       assert.equal(nav.saved?.race,second.race);
       assert.equal(nav.saved?.view,'forecast');
+
+      // Newest committed day: verify the display is not limited to old fixtures.
+      const newest=RACES[2];
+      await page.evaluate(({date,venue,race})=>{
+        datePinned=true;venueTouched=true;
+        s.date=date;s.venue=venue-1;s.race=race;render();
+      },newest);
+      await verify(page,engine,newest);
+      const latestNav=await page.evaluate(()=>({
+        date:new URL(location.href).searchParams.get('date'),
+        venue:new URL(location.href).searchParams.get('venue'),
+        race:new URL(location.href).searchParams.get('race'),
+        state:history.state?.snapshot
+      }));
+      assert.equal(latestNav.date,newest.date);
+      assert.equal(latestNav.venue,String(newest.venue));
+      assert.equal(latestNav.race,String(newest.race));
+      assert.equal(latestNav.state?.date,newest.date);
+      assert.equal(latestNav.state?.race,newest.race);
+      // Real history back must restore the previous day without retaining
+      // the newer race's ticket/probability rows.
+      await page.evaluate(()=>history.back());
+      await page.waitForFunction(previous=>sameRaceKey()===previous &&
+        history.state?.snapshot?.date==='2026-11-07',key(second),{timeout:20000});
+      await verify(page,engine,second);
+      console.log('LIVE_PUBLISHED_RECENT_ARCHIVE_AND_BACK_PASS '+
+        JSON.stringify({engine,newest:newest.code,restored:second.code,sourceUnmodified:true}));
       assert.ok(!errors.some(e=>/SecurityError|history\.replaceState|history\.pushState/.test(e)),
         'Navigation history error '+JSON.stringify(errors.slice(-5)));
       console.log('LIVE_PUBLISHED_FOUR_MODE_NAVIGATION_PASS '+JSON.stringify({
