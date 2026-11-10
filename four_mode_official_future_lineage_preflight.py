@@ -27,7 +27,38 @@ CODE = re.compile(r"20[0-9]{10}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 COMBOS = {"-".join(p) for p in permutations("123456", 3)}
 BLOCKED = {"finish_order", "winning_ticket", "confirmed_result", "result",
-           "confirmed_at_jst", "payout", "winning_combo"}
+           "confirmed_at_jst", "payout", "winning_combo",
+           "post_race_weather", "post_race_entry", "final_entry_course",
+           "official_result"}
+
+
+def has_embedded_outcome(data):
+    """Inspect JSON-like metadata recursively, including otherwise unused fields.
+
+    A hidden result under auxiliary metadata is still post-result leakage;
+    top-level-only checks cannot safely accept the purported pre-result input.
+    An input containing cycles is never produced by JSON, but is bounded here
+    for direct Python callers rather than allowing endless recursion.
+    """
+    pending = [data]
+    visited = set()
+    while pending:
+        node = pending.pop()
+        if type(node) not in (dict, list, tuple):
+            continue
+        identity = id(node)
+        if identity in visited:
+            continue
+        visited.add(identity)
+        if len(visited) > 100_000:
+            raise ValueError("oversized_nested_pre_result_input")
+        if type(node) is dict:
+            if any(key in BLOCKED for key in node):
+                return True
+            pending.extend(node.values())
+        else:
+            pending.extend(node)
+    return False
 
 
 def _jst(value):
@@ -53,7 +84,7 @@ def preflight(source_bundle, candidate):
     if (type(source_bundle) is not dict or type(candidate) is not dict or
             source_bundle.get("schema") != SCHEMA):
         raise ValueError("invalid_lineage_schema")
-    if (BLOCKED.intersection(source_bundle) or BLOCKED.intersection(candidate)
+    if (has_embedded_outcome(source_bundle) or has_embedded_outcome(candidate)
             or source_bundle.get("formal") is True or candidate.get("formal") is True):
         raise ValueError("outcome_or_forged_formal_in_pre_result_input")
     code = source_bundle.get("race_code")
@@ -71,7 +102,7 @@ def preflight(source_bundle, candidate):
         raise ValueError("missing_or_extra_official_original")
     if type(normalized) is not dict or normalized.get("race_code") != code:
         raise ValueError("missing_normalized_claim_or_race")
-    if BLOCKED.intersection(normalized):
+    if has_embedded_outcome(normalized):
         raise ValueError("outcome_leak_in_normalized_claim")
     raw_digests = {}
     source_times = []
