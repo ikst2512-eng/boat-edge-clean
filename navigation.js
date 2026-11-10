@@ -89,9 +89,12 @@ window.addEventListener('popstate',event=>{
  s.date=v.date;s.venue=v.venue;s.race=v.race;
  if(originalSetView)originalSetView(v.view);
  if(v.view==='card'&&typeof setRaceCardPane==='function')setRaceCardPane(v.pane==='rates'?'rates':'card');
-  if(v.view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
+ if(v.view==='forecast'&&typeof setForecastPane==='function')setForecastPane('prediction');
  if(originalRender)originalRender();
- history.replaceState(state,'',location.href);
+ // popstate already restored the destination entry. Avoid an identical
+ // replaceState during back/forward to preserve WebKit's history quota.
+ if(history.state!==state&&JSON.stringify(history.state)!==JSON.stringify(state))
+  history.replaceState(state,'',location.href);
  restoring=false;
 });
 // The only back control is in index.html; browser history takes precedence.
