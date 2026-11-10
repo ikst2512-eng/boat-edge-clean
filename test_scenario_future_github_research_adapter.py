@@ -33,6 +33,9 @@ class GitHubMockAPI:
         self.bad_content=False
         self.force_put_status=None
         self.age_header=False
+        self.missing_create_date=False
+        self.ambiguous_create_date=False
+        self.cached_missing_404=False
 
     def __call__(self, request):
         url=request.full_url
@@ -46,7 +49,7 @@ class GitHubMockAPI:
             self.reads+=1
             raw=self.files.get(expected)
             if raw is None:
-                return (404, {}, b'{"message":"not found"}')
+                return (404, {"Age":"5"} if self.cached_missing_404 else {}, b'{"message":"not found"}')
             content=raw if not self.bad_content else raw+b"tampered"
             body={
                 "path":"scenario_four_mode_research/202611111710.json",
@@ -80,7 +83,12 @@ class GitHubMockAPI:
             },
             "commit":{"sha":"1"*40},
         }
-        return (201,{},json.dumps(response).encode())
+        headers={} if self.missing_create_date else {
+            "Date":"Wed, 11 Nov 2026 06:09:01 GMT",
+        }
+        if self.ambiguous_create_date:
+            headers["dAtE"]="Wed, 11 Nov 2026 06:09:02 GMT"
+        return (201,headers,json.dumps(response).encode())
 
 
 class ActualWireWithOnlyFakeTransportTests(unittest.TestCase):
@@ -108,6 +116,39 @@ class ActualWireWithOnlyFakeTransportTests(unittest.TestCase):
         self.assertEqual(list(self.h.files.values()),[self.prep["bytes"]])
         self.assertFalse(result["first_remote_candidate_receipt_verified"])
         self.assertFalse(result["formal"])
+        ack=self.w.create_ack_observation
+        self.assertEqual(ack["github_create_response_date_utc"],
+                         "2026-11-11T06:09:01+00:00")
+        self.assertEqual(ack["create_response_commit_sha"],"1"*40)
+        self.assertEqual(ack["candidate_sha256"],self.prep["sha256"])
+        self.assertEqual(ack["candidate_git_blob_sha1"],self.prep["git_blob_sha1"])
+        for key in ("first_remote_candidate_receipt_verified",
+                    "unique_first_add_git_history_verified",
+                    "official_source_first_remote_receipts_verified",
+                    "complete_attempt_inventory_verified",
+                    "eligible_for_300_plus_300","formal","promotion_allowed"):
+            self.assertFalse(ack[key],key)
+
+    def test_refuse_cached_404_before_any_remote_write(self):
+        self.h.cached_missing_404=True
+        with self.assertRaisesRegex(ValueError,"github_cached_response_forbidden"):
+            self.invoke()
+        self.assertEqual(self.h.puts,0)
+        self.assertIsNone(self.w.create_ack_observation)
+
+    def test_create_201_server_date_missing_or_duplicated_is_not_success(self):
+        for failure in ("missing_create_date","ambiguous_create_date"):
+            self.h=GitHubMockAPI()
+            self.w=GitHubOnlyCreateWire("fake-unit-token",send=self.h)
+            setattr(self.h,failure,True)
+            with self.subTest(failure=failure),self.assertRaisesRegex(
+                    ValueError,"github_witness_missing_or_duplicate_header:Date"):
+                self.invoke()
+            self.assertIsNone(self.w.create_ack_observation)
+            self.assertEqual(self.h.puts,1)
+            # The PUT MAY have reached GitHub despite a failed acknowledgment.
+            # Never automatically retry with a changed body or claim no write.
+            self.assertEqual(len(self.h.files),1)
 
     def test_existing_other_bytes_never_overwritten(self):
         key=API+"/contents/"+self.prep["path"]
