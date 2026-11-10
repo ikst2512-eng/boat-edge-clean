@@ -62,7 +62,8 @@ def _clock(raw, day):
 
 def checked_rows(report):
     """Reject self-promoting, inconsistent or selectively omitted audit rows."""
-    if type(report) is not dict or set(report) != REQUIRED_REPORT:
+    if (type(report) is not dict or set(report) != REQUIRED_REPORT
+            or report.get("schema") != SOURCE_SCHEMA):
         raise ValueError("untrusted_original_snapshot_report_schema")
     day = report["capture_day_jst"]
     if (type(day) is not str or not re.fullmatch(r"20\d{6}", day)
