@@ -1,5 +1,14 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-10: requested-account provenance is a required V2 acceptance condition
+
+The V2 offline audit previously checked that the event and calculation runs had equal `run.accountId` values, but **not** that either belonged to the operator's original Cloudflare account. Two mutually matching foreign-account responses would therefore satisfy that part of the scope check. This has been corrected without allowing any live dispatch.
+
+For `BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V2`, retain an explicit `account_id` field (the **32-character account ID**, not an API token) in the private evidence envelope alongside `utc_day`, `worker` and `deployment_id`. The auditor now requires `events_query.response.result.run.accountId` and `sampling_query.response.result.run.accountId` to **both** equal this exact value. A missing/malformed `account_id`, two equally foreign IDs, or either mismatched response fails closed. The owner-executed `scripts/collect_cloudflare_observer_telemetry.mjs` now writes the account ID it actually targeted. No token or Authorization header is saved.
+
+**Historical V2 synthetic artifacts without `account_id` do not qualify** under the strengthened audit. Do not retroactively populate a guessed account ID to make old fixtures pass; retain the original JSON and rerun an owner-authorized evidence query with the actual selected account. Even a matching account ID remains an *operator-controlled consistency assertion* rather than independent Cloudflare origin authentication. The full-day Cron, CPU and Github first-add release blockers are unchanged.
+
+
 ## 2026-11-10: optional owner-executed live telemetry export (no deployment / no GitHub)
 
 The repository now contains **scripts/collect_cloudflare_observer_telemetry.mjs**, an owner-operated alternative to copying two Cloudflare Telemetry Query API responses by hand. It calls only
