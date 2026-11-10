@@ -507,3 +507,25 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 **観測**：T−12基準の4分以内に受領した4例は3/4が展示ST6艇、7分以上早い2例は0/2。同じ2.94分前でも欠測があり、事例は偏りがあるため「4分以内なら必ず揃う」や「早期受領が欠測の唯一原因」と断定しない。展示STの実公開がその時点で未完了の場合は、T−12前の候補へ補間・後付けすることを禁止。6件中**公式racelist+beforeinfo ST6艇+odds120が同一受信セットで全部揃ったレース=0**（前半は出走表原本なし、後半はSTなし）。出走表・オッズだけの正式結果採点なし。これは研究の入力可用性診断で、**independent FIRST Git receipt 0、formal=0/600、production=不変更**。
 
 **③への短期是正点**：既存の**単一T−12収集ワークフロー**で、締切時刻に対してbeforeinfoがどの時刻に6件揃ったかを、collector-run ID・原文SHA・受領時刻・T−12 marginで記録する。出走表は古い時刻でも良いかを公式源/選手番号更新の性質で吟味する一方、展示STは実公開時刻が必要。早い段階で取得した0/6を同レースのT−12完備と誤認しない。「予想生成13:21 JSTの旧原本を20時台にGit初追加した事実」をT−12の新規直前情報取得と混同しない。完全例が出るまでは既存#1710の`scenario_future_three_original_gateway`がfail closedのまま。翌11/11 08時台の実Cronと初回Git受領はまだ監査未完了であり、完了の先取りをしない。
+
+
+## 2026-11-10 ②実測：全6原本の欠落原因を排他的分類し、T−12／展示後の判定を分離
+
+### 今回の実行証拠
+- 新たなスクレイパ・Cron・候補・研究IDを作らず、既存 `.github/workflows/scenario-official-pair-real-inject-once.yml` に**全6レースの観測原本の欠落理由を排他的に集計する断言**を追加。原本に無いSTを0埋め/後からT−12入力へ移送せず、実 source ZIP（artifact `13652131213/13740574410/13749433042`）の固定SHA照合を継続。
+- [実GitHub Actions #42811768897](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811768897) **completed/success**、commit `3722742780a2a280ba1b9bb715391087147d3ec0`。成果物 [#13763050282](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811768897/artifacts/13763050282)、ZIP SHA256 `31f0f99204ef0cb60c18ca6504723d25eaedfb764fe0e4c55b657fa95f29fa5a`。GitHub digestと別ダウンロードSHA一致、ZIP CRC OK、4 JSON全件parse成功。レース別 source-state は `research-real-six-source-T12-timing.json`。
+- **6/6全サンプルを分類し、成功レースだけ抜き出していない**：
+  - `MISSING_RACELIST`（ST6艇あり/出走表原文なし）**3件**：`202611091110`、`202611091710`、`202611101202`。
+  - `MISSING_ST6`（出走表原文あり/ST6艇なし）**2件**：`202611100708`、`202611101207`。
+  - `MISSING_RACELIST_AND_ST6` **1件**：`202611102211`。
+  - `COMPLETE_3_ORIGINALS` **0件**。これらを正式的中/不的中や成績向上に算入しない。
+- **注意**：source原本にST6艇が記録されていない理由は、公式側未公開・取得タイミング・API応答差・収集実装側の欠測のどれか未確定。記録がない事実だけで「公式未公開」と断定しない。beforeinfo 受領時刻も収集者自己申告、GitHubの**初回独立remote受付証明ではない**。
+
+### 次の評価ゲート：同一レースで混ぜない2つの時点
+- **T−12基準の早期予想**：この時点までに実際に保存・受領証明された公式原本でのみ候補を固定する。ST6艇が欠測なら、**ST依存の#1710候補は不適格**。STが後に公開されてもT−12の空欄を補完しない。既存#1693の凍結旧母集団・採点器とは混ぜない。
+- **展示公開後の直前研究**：T−12後に6艇展示/STが揃ったなら、同じレースでも**異なる情報時点の新規研究**として扱う。既存の `research-live-preview-evidence` / T−2研究経路を収集責任者③が運用し、別の研究ID・事前登録・独立初回Git受領・T−2截止前のsource clockがそろうまでは**形式的な的中率評価はしない**。既存11/10凍結 `EXPLORATORY_ONLY_FUTURE_TRIPLE_SCENARIO_RESEARCH` の600枠へ遅延入力を混入しない。新しいCronや2重収集者は作らない。
+- **受入れ/母集団の定義**：①全attempt（schedule/dispatch/watchdog/欠落）をレース×対象時点別に台帳化、②同一レース公式racelist 6選手+beforeinfo ST6+odds120の原文SHA/受領JSTと候補自己申告時計、③独立 Git first-add（create-only）とGitHub上の初回受領時刻、④結果LASTで既存 paired Top1/3/5/10 を判定。**eligible/全対象レース・ST欠測割合・場所別/時間帯別欠測率**を結果と同時に報告し、完備したレースだけの選択バイアスを可視化する。未取得を当たり/外れに算入しない。
+- [実研究プレビュー #42810989409](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810989409) は成功だが、保存した `collection_summary.json`・`batch_report.json`・`late_research_archive_report.json`・`late_research_topn_report.json` を直接確認すると、**新規原本/候補0件、paired0件**。ジョブ成功＝実候補保存ではない。
+- [既存本番の独立予想証拠監査 #42808744551](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42808744551) は失敗扱いで正しい。既存V2原本724件のうち613件はローカル証跡チェック通過、111件は`first_commit_same_second_unverified`で拒否、**全件の独立 Git first remote 受領は別未証明**。この613件を#1710の新研究600へ加算しない。
+
+**結論**：GitHub上の今回の改善は「全6件の実ソース欠落の排他的分類と正式採点拒否の証拠を保存」したもので、公式3原本の新取得/候補の初回Git遠隔保存/実測精度改善は依然0。#1710 Draft、既存モデル・原本・main/Pages/Render・所有者③のCronは変更していない。
