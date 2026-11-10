@@ -184,8 +184,8 @@ class SourceEventVetoTests(unittest.TestCase):
                 audit(poisoned, {CODE: claim()})
 
     def test_empty_source_day_has_no_authorized_source_events(self):
-        tree, reader = fixture([])
-        report = source_audit(DAY, SOURCE, REFERENCE, tree, reader)
+        # Git ls-tree prints zero bytes, not a newline, for an empty tree.
+        report = source_audit(DAY, SOURCE, REFERENCE, "", lambda blob: None)
         self.assertEqual(audit(report)["original_source_races_examined"], 0)
         self.assertEqual(audit(report)["authorized_dispatch_events"], 0)
         self.assertFalse(audit(report)["official_full_day_schedule_verified"])
