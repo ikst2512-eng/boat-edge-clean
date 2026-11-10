@@ -11,6 +11,7 @@ on:
       - navigation.js
       - 'prospective_predictions/**'
       - 'confirmed_results/**'
+      - 'payout_evidence/**' # Human/app main commits; GITHUB_TOKEN payout writer uses explicit workflow_dispatch.
       - 'schedule_snapshots/**'
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
