@@ -21,6 +21,16 @@
 
 ## 最新の引継ぎ：本番の実態／次にやること
 
+**最新スナップショット：2026-11-10 23時台 JST（以降の過去記録より優先）**
+- **本番で確認できた機能**：main `1ddb26bf`時点の公開Pages/Render `index.html`・`navigation.js` は双方一致。無加工の公開Chromium/WebKitでCORS 200/404/422、保存4モード5/10/16/22点、履歴・4主タブ・戻る/進むがPASS（[Actions #42824633355](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42824633355)）。これはその時点の**公開フロント**の証拠であり、mainの全バックエンド変更がRenderにデプロイ済みとは言わない。
+- **統合済／整理済**：UI [#1707](https://github.com/ikst2512-eng/boat-edge-clean/pull/1707)、候補履歴 [#1703](https://github.com/ikst2512-eng/boat-edge-clean/pull/1703) はmerged。診断限定 [#1712](https://github.com/ikst2512-eng/boat-edge-clean/pull/1712) は公開検証成功後、独立の本番採用機能がないと確認してclosed（非merged）。大型 [#1679](https://github.com/ikst2512-eng/boat-edge-clean/pull/1679) は今もDraft/open・統合禁止。重複解消だけでなくsingleflight等の独自差分があるため、確認なしに削除しない。
+- **翌11/11の未達実測**：08時台T−12実保存（既存09:15自動監査）、19:35 JST公式展示24値のschedule、欠落または失敗時の既存watchdog救済（19:40台の欠落救済／19:50台の明確な失敗への1回リトライ）、20:15 JST有効な自動監査。実開催6艇×4の公式→Render→公開Pagesの締切前一致が確認されるまでは**LIVE24値PASS=未認定**。T−12 Git初回登録・公式受領・実機iPhone Safari・Render最新backend deploy SHA・70%実測的中率は別ゲート。
+- **公式展示検証器を最小修正**：[main `d1ffba95`](https://github.com/ikst2512-eng/boat-edge-clean/commit/d1ffba95c0a8fdbca475419a52903d0ffc8693af) で「公式取得時刻は締切前だけでなく、Render APIのHTTP応答受信より前」「ソースSHA256は64桁」を要求。保存済み2026-11-04桐生11Rの24値正例と不正時刻・欠落ハッシュ等の拒否を事前検算。新Cron/PRは作成せず、**修正後の正式live E2Eは実測待ち**。
+- **次のサイト工程**：11/13の阻害要因整理→11/20 UI公開ゲート→11/24候補・予想・結果の長期履歴→12/1 6艇展示→12/10 V1完成。PRの数やCIのみで「公開完成」としない。最新の作業詳細は [WORK_STATUS](docs/WORK_STATUS.md) と [AGENTS](AGENTS.md) を読む。
+
+**以下は各時点の履歴的な引継ぎ記録。最新スナップショットを優先する。**
+
+
 **2026-11-10 夜・公式展示の実レース総合検証：検証基盤公開済み／実測合格は未達**：[PR #1719](https://github.com/ikst2512-eng/boat-edge-clean/pull/1719) を main `482b1353` に統合。既存の `verify-real-beforeinfo.yml` を再利用し、**Cronを追加せず** 既存の1日1回の時刻を21:40→**19:35 JST**へ変更。開催中の同一レースで公式beforeinfo JSON→公開Render API→実GitHub Pagesのスマホ幅Chromiumを照合し、6艇の登録番号＋展示タイム/チルト/展示ST/進入の24値が一致して初めて PASS。公式/日程/Renderの締切不一致も棄却する追加ガードを main `17c045be` に反映。 [PR CI #42810686750](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810686750) は基本検証とブラウザ起動の環境確認に成功したが、20:50 JST付近で締切前の対象なし `LIVE_OFFICIAL_PAGES_E2E_UNVERIFIED [NO_STILL_OPEN_RACE_WITHIN_60_MIN]`。**公開E2Eの実測 PASS は0件**。次の実際のscheduled/dispatch runで原本と公開DOMの24値が一致したログを確認するまで未完了とする。過去原本を使う公開再現24/24・オリ展72/72は別の既達証拠。実機iPhone SafariとRenderの最新deploy SHAはこの検査では未確認。研究予想・締切前の正式認定は変更なし。
 **2026-11-10 20:46 JST 自動起動の実測アップデート（以前の記録に追加）**：研究元 `research-live-preview-evidence.yml` は5分ごとのCron設定だが11/09 JSTのschedule実行は2回、11/10 JST 20:41まで1回。実行不足は事実だが、GitHub側の遅延/失効など単一原因は未断定。既存の`entry-course-activation-watchdog.yml`（10分fallback、push／既存workflow_run入力）へ**独立した研究用プレビュー収集の二次起動**を追加し、新しいCron/PRなしでmainへ反映（`e9684c3a1f9d70f56d6dccc5205db8ac817068eb`）。[監視 #42810131813](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810131813)は20テストPASS、研究用`workflow_dispatch`発行成功、[受信 #42810162379](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810162379)は実行SUCCESS。次の[監視 #42810195733](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42810195733)は起動直後を検知して重複発行を抑制。研究用のCSV収集ワークフローに同一refの同時実行抑止を追加。11/10 20:46の救済runは新規候補**保存0**、独立T−12証拠0。11/10 15:37頃の既存schedule収集では研究候補**1件保存**（レースコード`202611100702`、[実行 #42769768447](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42769768447)）。成功したActionsを保存数や正式精度と混同しない。**11/11朝08 JSTの自動T−12初回保存は引き続き未検証。**
 
