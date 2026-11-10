@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-TOPS = ("top3", "top5", "top10")
+TOPS = ("top1", "top3", "top5", "top10")
 FIELDS = ("baseline", "candidate", "gained", "lost")
 
 
@@ -58,7 +58,7 @@ def paired_scores(report):
         # gain/loss identity alone would accept an impossible hit trajectory
         # if both upstream reports contained the same corrupted flags.
         for field in ("baseline", "candidate"):
-            if not (verified["top3"][field] <= verified["top5"][field]
+            if not (verified["top1"][field] <= verified["top3"][field] <= verified["top5"][field]
                     <= verified["top10"][field]):
                 raise ValueError("impossible_topn_hit_progression")
         mapping[code] = verified

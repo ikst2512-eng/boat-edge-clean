@@ -8,7 +8,7 @@ import argparse
 import json
 from pathlib import Path
 
-TOPS = ("top3", "top5", "top10")
+TOPS = ("top1", "top3", "top5", "top10")
 FIELDS = ("baseline", "candidate", "gained", "lost")
 MATCHED = "bounded_frozen_roster_matched"
 CAPTURE_SCHEMA = "V2_THIRD_RATE_FROZEN_NIGHTLY_ARTIFACT_AUDIT_V1"
@@ -70,6 +70,12 @@ def _valid_daily_partition(capture):
                        != values["gained"] - values["lost"]
                     or (values["gained"] and values["lost"])):
                 return False
+        # An actual winning ticket cannot hit a smaller TopN while missing a larger one.
+        # Check at the final report boundary even if upstream reconciliation was forged.
+        if any(not (topn["top1"][field] <= topn["top3"][field]
+                    <= topn["top5"][field] <= topn["top10"][field])
+               for field in ("baseline", "candidate")):
+            return False
         by_race[code] = topn
     paired_total = 0
     all_day_codes = []
