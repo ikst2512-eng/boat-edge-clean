@@ -82,6 +82,22 @@ class ActivationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"target_invalid"):
             dispatch_decision(early,[],kind="unknown")
 
+    def test_existing_clean_schedule_can_wake_t12_without_new_cron(self):
+        # Completion of an independent CLEAN schedule is only a wakeup event:
+        # it is not a T12 schedule run, source receipt, or saved forecast.
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        clean=(root/".github/workflows/clean-prospective.yml").read_text()
+        watcher=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        self.assertIn("cron: '4,19,34,49 23 * * *'",clean)
+        self.assertIn('- "Four-mode prospective capture (research only)"',watcher)
+        self.assertIn('- "CLEAN prospective pre-cutoff capture"',watcher)
+        self.assertIn("github.event.workflow_run.event == 'schedule'",watcher)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",watcher)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository",watcher)
+        self.assertEqual(watcher.count("- cron:"),1)
+        self.assertNotIn("forecast_record: true",watcher)
+
     def test_existing_crons_cover_08_jst_without_new_workflow(self):
         from pathlib import Path
         root=Path(__file__).resolve().parent.parent
