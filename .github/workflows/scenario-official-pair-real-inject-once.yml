@@ -227,6 +227,97 @@ jobs:
           assert check == report
           print(json.dumps(report,ensure_ascii=False))
           PY
+      - name: Verify REAL T-minus-12 source-publication window on six pinned archives (no results)
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib,json,os
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          sources=[
+              ("nov9-source-original.zip",42567310743,("202611091110","202611091710"),False),
+              ("nov10-source-original.zip",42769768447,("202611101202","202611102211"),False),
+              ("real-triple-incomplete.zip",42786724704,("202611101207","202611100708"),True),
+          ]
+          rows=[]
+          for file,run,codes,has_card in sources:
+              with ZipFile(tmp/file) as z:
+                  assert z.testzip() is None
+                  for code in codes:
+                      day=code[:8]
+                      def original(kind,name):
+                          return z.read(
+                              f"official_joint_evidence/observations/{kind}_run{run}/{day}/{code}/{name}")
+                      b=original("before","beforeinfo.json")
+                      bm=json.loads(original("before","manifest.json"))
+                      o=original("odds","original.html")
+                      om=json.loads(original("odds","manifest.json"))
+                      info=json.loads(b)["maindata"]
+                      deadline=datetime.strptime(day+info["deadline"],"%Y%m%d%H:%M").replace(
+                          tzinfo=timezone(timedelta(hours=9)))
+                      cutoff=deadline-timedelta(minutes=12)
+                      received=[]
+                      for raw,meta in ((b,bm),(o,om)):
+                          assert meta["race_code"]==code
+                          assert meta["sha256"]==hashlib.sha256(raw).hexdigest()
+                          stamp=datetime.fromisoformat(meta["received_at_jst"])
+                          assert stamp.utcoffset()==timedelta(hours=9) and stamp<cutoff
+                          received.append(stamp)
+                      if has_card:
+                          card=original("card","racelist.html")
+                          cm=json.loads(original("card","manifest.json"))
+                          assert cm["race_code"]==code
+                          assert cm["sha256"]==hashlib.sha256(card).hexdigest()
+                          stamp=datetime.fromisoformat(cm["received_at_jst"])
+                          assert stamp.utcoffset()==timedelta(hours=9) and stamp<cutoff
+                          received.append(stamp)
+                      exhibition=info.get("sttenjiinfolist")
+                      complete=(type(exhibition) is list and len(exhibition)==6
+                                and bm["start_exhibition_six_valid_rows"] is True)
+                      margin=round((cutoff-received[0]).total_seconds()/60,4)
+                      rows.append({
+                          "race_code":code,"official_deadline_jst":deadline.isoformat(),
+                          "T_minus_12_cutoff_jst":cutoff.isoformat(),
+                          "beforeinfo_received_jst_source_claim":received[0].isoformat(),
+                          "odds_received_jst_source_claim":received[1].isoformat(),
+                          "beforeinfo_minutes_before_T12_cutoff":margin,
+                          "start_exhibition_six_complete":complete,
+                          "start_exhibition_observed_rows":(
+                              len(exhibition) if type(exhibition) is list else None),
+                          "racelist_original_present":has_card,
+                          "complete_three_originals":has_card and complete,
+                          "independent_remote_FIRST_candidate_receipt":False,"formal":False,
+                      })
+          rows.sort(key=lambda r:r["race_code"])
+          near=[r for r in rows if 0<=r["beforeinfo_minutes_before_T12_cutoff"]<4]
+          early=[r for r in rows if r["beforeinfo_minutes_before_T12_cutoff"]>=7]
+          assert len(rows)==6 and len(near)==4 and len(early)==2
+          assert sum(r["start_exhibition_six_complete"] for r in near)==3
+          assert sum(r["start_exhibition_six_complete"] for r in early)==0
+          assert sum(r["complete_three_originals"] for r in rows)==0
+          result={
+              "schema":"RESEARCH_REAL_SIX_SOURCE_TIMING_V1",
+              "source_artifact_ids":[13652131213,13740574410,13749433042],
+              "under_four_minutes_before_T12":{"races":len(near),"ST6_complete":3},
+              "at_least_seven_minutes_before_T12":{"races":len(early),"ST6_complete":0},
+              "simultaneous_three_originals_and_ST6":0,
+              "collector_clock_self_report_not_independent_first_remote":True,
+              "results_read":False,"new_forecast_published":False,"formal":False,
+              "warning":"Selective six-source retrospective observation: not a timing optimum, causal test or prospective accuracy proof.",
+              "races":rows,
+          }
+          out=tmp/"research-real-six-source-T12-timing.json"
+          out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          assert json.loads(out.read_text(encoding="utf-8"))==result
+          print("SIX_REAL_SOURCE_TIMING",json.dumps({
+              "under_4m":result["under_four_minutes_before_T12"],
+              "at_least_7m":result["at_least_seven_minutes_before_T12"],
+              "complete_triples":result["simultaneous_three_originals_and_ST6"],
+              "formal":False,
+          },sort_keys=True))
+          PY
       - name: Retain ONLY derived hypothetical rankings / evidence status
         uses: actions/upload-artifact@v4
         with:
@@ -235,5 +326,6 @@ jobs:
             ${{ runner.temp }}/research-actual-4mode-two-source.json
             ${{ runner.temp }}/research-archived-rates-vs-neutral.json
             ${{ runner.temp }}/research-real-triple-negative-evidence.json
+            ${{ runner.temp }}/research-real-six-source-T12-timing.json
           retention-days: 7
           if-no-files-found: error
