@@ -109,6 +109,16 @@ class FutureLocalCandidateHandoffTests(unittest.TestCase):
             self.assertFalse(first[flag])
         self.assertFalse(row["first_remote_candidate_receipt_verified"])
         self.assertFalse(row["eligible_for_300_plus_300"])
+        self.assertEqual(
+            row["distinct_new_study_primary_metric"],
+            "paired_top1_exact_trifecta_by_mode")
+        self.assertEqual(
+            row["prospective_metric_applicability_not_results"]["narrow"],
+            {"top1":True,"top3":True,"top5":True,"top10":False})
+        for mode in ("hit","balance","hole"):
+            self.assertTrue(
+                row["prospective_metric_applicability_not_results"][mode]["top10"])
+        self.assertTrue(row["top10_for_narrow_must_never_mean_top5"])
 
     def test_hypothesis_or_method_or_blob_drift_is_rejected(self):
         g=copy.deepcopy(self.g)
