@@ -229,6 +229,78 @@ jobs:
                   or report.get("formal") is not False):
               raise SystemExit("unexpected_pinned_upstream_audit_report")
           pathlib.Path("four_mode_upstream_t12_20261110.json").write_bytes(report_bytes)
+
+          # A distinct, later #1694 audit run witnessed the EXISTENCE of the
+          # unchanged original forecast Git blobs before their official raw
+          # sources arrived. It did NOT witness FIRST Git remote acceptance.
+          witness_run_id = 42785714984
+          witness_artifact_id = 13749521670
+          witness_zip_sha = "9f8cf0276695dc93e8febb378cac5507bb8caed94bf624e3a22d0a6f4a256239"
+          witness_member = "official_t12_nov10_remote_added_blob_witness.json"
+          witness_member_sha = "f25deb06ea42af6be22d89226467c3809a090959a85b09d7fe79663c04eb0e7a"
+          witness_run = json.loads(get(
+              f"https://api.github.com/repos/{repo}/actions/runs/{witness_run_id}"))
+          if (witness_run.get("id") != witness_run_id
+                  or witness_run.get("workflow_id") != 410481101
+                  or witness_run.get("name") !=
+                  "Audit official-pair schedule continuity (read only)"
+                  or witness_run.get("event") != "pull_request"
+                  or witness_run.get("status") != "completed"
+                  or witness_run.get("conclusion") != "success"
+                  or witness_run.get("head_branch") !=
+                  "audit/t12-nov06-day-isolation-20261106"
+                  or witness_run.get("head_sha") !=
+                  "e7ad91a833e9de8a5d2f376e84d2d8beeeac7bff"
+                  or (witness_run.get("head_repository") or {}).get(
+                      "full_name") != repo):
+              raise SystemExit("untrusted_upstream_added_blob_witness_ci_run")
+          witness_api = (
+              f"https://api.github.com/repos/{repo}/actions/artifacts/{witness_artifact_id}")
+          witness_meta = json.loads(get(witness_api))
+          if (witness_meta.get("id") != witness_artifact_id
+                  or witness_meta.get("name") !=
+                  f"official-pair-schedule-audit-{witness_run_id}"
+                  or witness_meta.get("digest") != "sha256:" + witness_zip_sha
+                  or witness_meta.get("expired") is not False
+                  or (witness_meta.get("workflow_run") or {}).get("id") !=
+                  witness_run_id):
+              raise SystemExit("untrusted_remote_existence_witness_artifact")
+          witness_zip = get(witness_api + "/zip")
+          if hashlib.sha256(witness_zip).hexdigest() != witness_zip_sha:
+              raise SystemExit("remote_existence_witness_zip_sha_drift")
+          with zipfile.ZipFile(io.BytesIO(witness_zip)) as z:
+              names = z.namelist()
+              if (len(names) != len(set(names))
+                      or names.count(witness_member) != 1
+                      or names.count(member_name) != 1):
+                  raise SystemExit("remote_witness_members_missing_or_duplicate")
+              for item in z.infolist():
+                  if (item.file_size > 2_000_000
+                          or ".." in pathlib.PurePosixPath(item.filename).parts
+                          or item.filename.startswith("/")):
+                      raise SystemExit("unsafe_remote_witness_zip_member")
+              if z.testzip() is not None:
+                  raise SystemExit("remote_witness_zip_crc_failed")
+              witness_bytes = z.read(witness_member)
+              upstream_same_bytes = z.read(member_name)
+          if (hashlib.sha256(witness_bytes).hexdigest() != witness_member_sha
+                  or upstream_same_bytes != report_bytes):
+              raise SystemExit("remote_witness_not_bound_to_same_source_replay_bytes")
+          witness = json.loads(witness_bytes)
+          if (witness.get("schema") != "T12_NOV10_REMOTE_ADDED_BLOB_WITNESS_V1"
+                  or witness.get("source_races") != 2
+                  or witness.get("immutable_forecast_blobs_witnessed") != 4
+                  or witness.get("remote_commit_existed_before_official_sources") != 4
+                  or witness.get("exact_first_remote_git_acceptance_instants_verified") != 0
+                  or witness.get("forecasts_proven_to_consume_official_originals") != 0
+                  or witness.get("new_formal_certifications") != 0
+                  or witness.get("formal") is not False):
+              raise SystemExit("witness_first_remote_or_post_source_forgery")
+          pathlib.Path("four_mode_upstream_remote_witness_20261110.json").write_bytes(
+              witness_bytes)
+          print("NOV10_UPSTREAM_WITNESS_RUN_PIN_VERIFIED:" + str(witness_run_id))
+          print("NOV10_REMOTE_EXISTENCE_WITNESS_JSON_SHA256_VERIFIED:" +
+                witness_member_sha)
           print("NOV10_UPSTREAM_AUDIT_RUN_PIN_VERIFIED:" + str(run_id))
           print("NOV10_UPSTREAM_AUDIT_ZIP_SHA256_VERIFIED:" + zip_sha)
           print("NOV10_UPSTREAM_AUDIT_JSON_SHA256_VERIFIED:" + member_sha)
@@ -256,6 +328,39 @@ jobs:
                          for r in rows.values())):
               raise SystemExit("real_nov10_official_blockers_hidden_or_reclassified")
           print("NOV10_REAL_PINNED_SOURCE_TO_FOUR_MODE_BLOCKERS_PASS:2:FORMAL=0")
+          PY
+          python four_mode_forward_paired_score.py --upstream-t12-report four_mode_upstream_t12_20261110.json --upstream-remote-witness four_mode_upstream_remote_witness_20261110.json > four_mode_prior_remote_existence_20261110.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path(
+              "four_mode_prior_remote_existence_20261110.json").read_text(encoding="utf-8"))
+          rows = {r["race_code"]: r for r in report["race_rows"]}
+          if (report.get("schema") !=
+                  "FOUR_MODE_PRIOR_REMOTE_EXISTENCE_CAUSAL_ORDER_HANDOFF_V1"
+                  or set(rows) != {"202611101202", "202611102211"}
+                  or report.get("old_forecast_commit_existence_upper_bounds") != 4
+                  or report.get("first_remote_git_acceptance_instants_proven") != 0
+                  or report.get("new_source_consuming_candidate_forecasts") != 0
+                  or report.get("pilot_added") != 0
+                  or report.get("confirmation_added") != 0
+                  or report.get("formal") is not False
+                  or report.get("model_promotion_allowed") is not False):
+              raise SystemExit("remote_existence_misclassified_as_first_remote_or_formal")
+          for race, detail in rows.items():
+              if (detail.get("existing_forecast_disqualified_from_post_source_study")
+                      is not True or
+                      set(detail.get("prior_forecast_remote_existence_bounds", {}))
+                      != {"clean", "v2_four_mode"}):
+                  raise SystemExit("missing_same_race_prior_remote_existence:" + race)
+              for mode, f in detail["prior_forecast_remote_existence_bounds"].items():
+                  if (f.get("original_blob_existed_before_official_pair_reference_only")
+                          is not True or
+                          f.get("independent_first_remote_acceptance_instant_verified")
+                          is not False or
+                          f.get("candidate_eligible_for_registered_600") is not False):
+                      raise SystemExit("misclassified_immutable_pre_source_forecast:" + mode)
+          print("NOV10_OLD_REMOTE_EXISTS_PRE_SOURCE:4:FIRST_RECEIPT=0:FORMAL=0")
           PY
       - name: Test pre-result frozen all-mode candidate invariants
         run: python -m unittest -v test_four_mode_all_mode_same_job_shadow
@@ -1026,6 +1131,8 @@ jobs:
             four_mode_nov09_observed_job_attempts.json
             four_mode_upstream_t12_20261110.json
             four_mode_t12_blockers_20261110.json
+            four_mode_upstream_remote_witness_20261110.json
+            four_mode_prior_remote_existence_20261110.json
             four_mode_nov05_08_postrace_source_observation.json
             four_mode_nov05_08_public_source_raw/
             four_mode_current_raw_csv_status.json
