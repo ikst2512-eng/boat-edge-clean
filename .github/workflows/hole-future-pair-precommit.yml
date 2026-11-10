@@ -33,6 +33,7 @@ on:
       - research/test_hole_pair_t12_polling_cadence_simulator.py
       - research/hole_pair_official_event_veto_audit.py
       - research/test_hole_pair_official_event_veto_audit.py
+      - docs/research/hole_pair_nov10_official_source_event_veto_20261110.md
       - docs/research/hole_pair_t12_polling_cadence_sensitivity_20261110.md
       - docs/research/hole_pair_nov10_150_original_source_readiness_20261110.md
       - research/hole_pair_manual_capture.py
