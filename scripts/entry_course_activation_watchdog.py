@@ -218,11 +218,24 @@ def official_live_probe_fallback(now, fetch_runs, dispatch):
             if at>local+timedelta(minutes=1):
                 raise ValueError("official_probe_watchdog_future_run")
             if at.date()==local.date() and (at.hour>19 or (at.hour==19 and at.minute>=15)):
-                observed.append((event,at))
-    report["observed_schedule_runs"]=sum(event=="schedule" for event,_ in observed)
-    report["observed_dispatch_runs"]=sum(event=="workflow_dispatch" for event,_ in observed)
+                observed.append((event,at,row["status"],row.get("conclusion")))
+    report["observed_schedule_runs"]=sum(row[0]=="schedule" for row in observed)
+    report["observed_dispatch_runs"]=sum(row[0]=="workflow_dispatch" for row in observed)
+    report["observed_failed_schedule_runs"]=sum(
+        event=="schedule" and status=="completed" and conclusion=="failure"
+        for event,_,status,conclusion in observed)
     if observed:
-        report["decision"]="official_probe_started_already"
+        # One bounded retry when the primary 19:35 verification DEFINITIVELY
+        # failed. Unknown/active/successful runs and any prior dispatch suppress
+        # duplicates. This never counts a workflow launch as live evidence.
+        failed_primary_only=(local.minute>=50 and
+            report["observed_failed_schedule_runs"]==1 and len(observed)==1)
+        if failed_primary_only:
+            dispatch(OFFICIAL_PROBE_WORKFLOW)
+            report["dispatch_requested"]=True
+            report["decision"]="requested_retry_after_failed_official_probe"
+        else:
+            report["decision"]="official_probe_started_already"
         return report
     dispatch(OFFICIAL_PROBE_WORKFLOW)
     report["dispatch_requested"]=True
