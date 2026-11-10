@@ -57,7 +57,7 @@ jobs:
             let matched=0;
             try{
               const schedule=await get(ctx,base+'/api/clean-schedule?date='+hd);
-              if(!Array.isArray(schedule.data.races))throw Error('schedule_races_missing');
+              if(schedule.data.date!==hd||!Array.isArray(schedule.data.races))throw Error('schedule_date_or_races_missing');
               const now=Date.now();
               const candidates=schedule.data.races.filter(r=>{
                 const deadline=Date.parse(r.deadline_jst||'');
@@ -73,7 +73,7 @@ jobs:
                   const src=await get(ctx,officialUrl);
                   if(src.url!==officialUrl)throw Error('official_redirect');
                   const main=src.data.maindata;
-                  if(!main||String(main.hd)!==hd||Number(main.jcd)!==venue||Number(main.rno)!==rno||!valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))throw Error('official_identity_or_six_missing');
+                  if(!main||String(main.hd)!==hd||Number(main.jcd)!==venue||Number(main.rno)!==rno||String(main.deadline)!==race.deadline_jst.slice(11,16)||!valid6(main.teiinfolist)||!valid6(main.sttenjiinfolist))throw Error('official_identity_deadline_or_six_missing');
                   const byLane=(arr,l)=>arr.find(x=>Number(x.teino??x.lane)===l);
                   const courses=main.sttenjiinfolist.map(x=>Number(x.cs)).sort((a,b)=>a-b);
                   if(courses.join(',')!=='1,2,3,4,5,6')throw Error('official_courses_invalid');
@@ -87,7 +87,8 @@ jobs:
                   const apiUrl=base+'/api/clean-racecard?hd='+hd+'&jcd='+venue+'&rno='+rno;
                   const api=await get(ctx,apiUrl),d=api.data;
                   if(api.received>=deadline||src.received>=deadline)throw Error('receipt_not_predeadline');
-                  if(d.race_key!==hd+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
+                  if(d.meta?.phase!=='PRE_RESULT'||d.meta?.deadline!==main.deadline||
+          d.race_key!==hd+'-'+String(venue).padStart(2,'0')+'-'+String(rno).padStart(2,'0')||
                     d.source_audit?.beforeinfo?.status!=='ok'||Date.parse(d.source_audit.beforeinfo.fetched_at)>=deadline||
                     !valid6(d.racers)||!valid6(d.beforeinfo?.racers)||!valid6(d.beforeinfo?.start_exhibition))throw Error('public_api_missing_verified_six');
                   for(let l=1;l<=6;l++){
