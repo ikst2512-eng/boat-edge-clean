@@ -13,6 +13,8 @@ import math
 
 from clean_four_modes import rank_modes
 
+MODES = ("narrow", "hit", "balance", "hole")
+BUDGETS = {"narrow": 5, "hit": 10, "balance": 16, "hole": 22}
 TICKETS = frozenset(permutations(range(1, 7), 3))
 SCENARIOS = frozenset({
     "escape_wall",       # one-course escape with two-course wall
@@ -89,9 +91,7 @@ def compose_scenario_research(scenario_boards, scenario_weights):
         raise ValueError("mixture_probability_mass_invalid")
     ranked = sorted(combined.items(), key=lambda row: (-row[1], row[0]))
     modes = rank_modes(ranked)  # SAME existing selector: 5 / 10 / 16 / 22.
-    if {mode: len(rows["tickets"]) for mode, rows in modes.items()} != {
-        "narrow": 5, "hit": 10, "balance": 16, "hole": 22
-    }:
+    if {mode: len(rows["tickets"]) for mode, rows in modes.items()} != BUDGETS:
         raise ValueError("existing_mode_count_contract_changed")
 
     def contribution(ticket, scenario):
@@ -149,7 +149,7 @@ def compose_scenario_research(scenario_boards, scenario_weights):
             "official_odds_used": False,
             "expected_value_claim": False,
         },
-        "mode_ticket_budgets": {"narrow": 5, "hit": 10, "balance": 16, "hole": 22},
+        "mode_ticket_budgets": dict(BUDGETS),
         "source_feature_provenance_independently_verified": False,
         "verified_official_six_exhibition_and_120_odds": False,
         "first_remote_receipt_verified": False,
