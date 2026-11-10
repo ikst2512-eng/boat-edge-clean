@@ -32,10 +32,10 @@ jobs:
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin 6de21c9d1584f354161fde47293af72cca8d0100
+          git fetch --no-tags --depth=1 origin e152b57033f825e02343b004a9c013a8998f9954
           mkdir -p "$RUNNER_TEMP/position1698"
-          git show 6de21c9d1584f354161fde47293af72cca8d0100:position_sensitive_conditioned_lab.py > "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py"
-          test "$(git hash-object "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py")" = "1e58fd62134a3aa4121b636e12005d04b5026748"
+          git show e152b57033f825e02343b004a9c013a8998f9954:position_sensitive_conditioned_lab.py > "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py"
+          test "$(git hash-object "$RUNNER_TEMP/position1698/position_sensitive_conditioned_lab.py")" = "0019978a4e27a1235d0b466c11f514bd7105f261"
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
