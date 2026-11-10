@@ -35,6 +35,15 @@ header small{color:#c8e3f8;font-size:11px;letter-spacing:.07em}
 .exhibition-metric span{display:block;font-size:11px;color:#5b6f89;margin-bottom:3px}
 .exhibition-metric strong{font-size:18px;font-variant-numeric:tabular-nums;color:#122c4a}
 .exhibition-metric.wide{grid-column:1/-1}
+.exhibition-original{margin-top:9px;border-top:1px solid #dce6f0;padding-top:9px}
+.exhibition-original-heading{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12px;font-weight:800;color:#1e517d}
+.exhibition-original-heading small{font-size:10px;font-weight:500;color:#627a90}
+.exhibition-original-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.exhibition-original-metric{background:#eaf3fc;border-radius:6px;padding:8px 5px;min-width:0;text-align:center}
+.exhibition-original-metric span{display:block;font-size:11px;color:#476983;overflow-wrap:anywhere}
+.exhibition-original-metric strong{display:block;font-size:17px;font-variant-numeric:tabular-nums;color:#173c5c;overflow-wrap:anywhere}
+.exhibition-original-pending{grid-column:1/-1;font-size:12px;color:#657b91;margin:0;padding:7px}
+.exhibition-original-status{grid-column:1/-1;background:#f2f7fc;border-left:3px solid #7297b9;padding:8px;font-size:12px;line-height:1.6}
 
 .deadline-list{display:grid;gap:5px;max-height:none;overflow:visible}.deadline-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;text-align:left;min-height:46px;border-radius:7px}.deadline-item .deadline-time{font-weight:900;font-size:16px;font-variant-numeric:tabular-nums}.deadline-item .deadline-label{flex:1;font-size:13px}.deadline-item.passed{opacity:.67}.deadline-item.selected{border-color:#116aba;background:#e9f3ff;color:#144d86}.result-summary{padding:15px;background:#eef6ff;border-radius:8px}.result-combo{font-weight:900;font-size:27px;letter-spacing:.03em}.result-payout{font-weight:800;margin-top:7px}.view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.view-tabs button{min-width:0;padding:10px 2px;font-size:13px}@media(min-width:700px){.deadline-list{grid-template-columns:repeat(3,minmax(0,1fr))}} .result-comparison{margin-top:12px}.comparison-title{font-weight:800;margin:0 0 9px}.comparison-row{display:flex;justify-content:space-between;gap:8px;padding:9px 2px;border-bottom:1px solid #dce4ee;font-size:14px}.comparison-hit{color:#087f54;font-weight:900}.comparison-miss{color:#9a3442;font-weight:800}#deadlineSection{border-color:#bbd6ee;background:linear-gradient(180deg,#f0f7ff,#fff 72%)}#deadlineSection h2{font-size:18px}.deadline-list{grid-template-columns:repeat(1,minmax(0,1fr));gap:8px}.deadline-item{border:1px solid #bdd4e9;background:#fff;box-shadow:0 2px 5px #173c620e;min-height:57px}.deadline-item .deadline-time{color:#1266ad;font-size:19px}.deadline-item .deadline-label{font-size:15px;font-weight:750}#venueChooser{margin-top:10px}#venueChooser summary{cursor:pointer;list-style:none;border:1px solid #ccdae9;border-radius:6px;padding:11px 13px;color:#145a9e;font-weight:750;background:#f3f8ff}#venueChooser summary::after{content:' ▼';float:right}#venueChooser[open] summary{margin-bottom:9px}#forecast{border-top:3px solid #1465b0}.view-tabs{position:sticky;top:0;z-index:5;background:#f2f5f9;padding:5px 0}@media(min-width:700px){.deadline-list{grid-template-columns:repeat(3,minmax(0,1fr))}.deadline-item{min-height:75px}} .view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;position:sticky;top:0;z-index:20;background:#f2f5f9;padding:8px 0}.view-tabs [role="tab"]{min-width:0;border-radius:7px;padding:13px 2px;font-size:13px;font-weight:800}.view-tabs [role="tab"][aria-selected="true"]{background:#1463ad;color:white;border-color:#1463ad;box-shadow:0 2px 6px #12467420}#raceDataSection[hidden],#forecast[hidden],#resultSection[hidden],.race-data-scroll[hidden],#exhibitionGrid[hidden]{display:none!important}/* CLEAN fixed layout: race discovery -> race selector -> single detail tab */
 :root{--edge-primary:#125da4;--edge-dark:#14283f;--edge-line:#dce6ef;--edge-bg:#f3f7fb}
@@ -1258,35 +1267,64 @@ function mergeVerifiedRaceSnapshots(previous,raw){
 
 function csvFields(line){const out=[];let value='',quoted=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++}else quoted=!quoted;}else if(c===','&&!quoted){out.push(value);value='';}else value+=c;}out.push(value);return out;}
 async function loadOriginalExhibition(key,token,grid){
- const id='originalExhibitionDetails';let root=document.getElementById(id);
- if(!root){root=document.createElement('section');root.id=id;root.className='exhibition-weather';grid.append(root);}
- root.replaceChildren();
- const status=document.createElement('p');status.className='muted';status.textContent='各場オリジナル展示を確認中…';root.append(status);
+ // Keep the original-exhibition CSV independent of official beforeinfo.
+ // Map all measurements by explicit lane, not CSV row order or venue guesswork.
+ const status=grid.querySelector('#originalExhibitionStatus');
+ const holders=Array.from({length:6},(_,i)=>grid.querySelector('[data-original-exhibition-lane="'+(i+1)+'"]'));
+ if(!status||holders.some(node=>!node))return;
+ const current=()=>token===window.raceDataRequestId&&key===sameRaceKey()&&activeView==='exhibit'&&grid.isConnected&&holders.every(node=>node.isConnected);
+ const unavailable=(message)=>{
+  if(!current())return;
+  status.textContent=message;
+  for(const holder of holders){
+   holder.replaceChildren();
+   const p=document.createElement('p');p.className='exhibition-original-pending';p.textContent='オリ展：未取得';holder.append(p);
+  }
+ };
  try{
   const url='https://boatracecsv.github.io/data/previews/original_exhibition/'+key.slice(0,4)+'/'+key.slice(4,6)+'/'+key.slice(6,8)+'.csv';
   const response=await fetchTimed(url,{cache:'no-store'});
-  if(!response.ok)throw Error('SOURCE_HTTP_'+response.status);
+  if(!response.ok){
+   if(response.status===404){unavailable('オリ展：未配信・公開待ち（通常展示はそのまま表示）');return}
+   throw Error('ORIGINAL_SOURCE_HTTP_'+response.status);
+  }
   const data=await response.text();if(data.length>2000000)throw Error('ORIGINAL_TOO_LARGE');
   const rows=data.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).map(csvFields),headers=rows.shift();
-  if(!headers||!headers.includes('レースコード')||!headers.includes('計測数'))throw Error('ORIGINAL_SCHEMA');
+  if(!headers||!headers.includes('レースコード')||!headers.includes('計測数')||new Set(headers).size!==headers.length)throw Error('ORIGINAL_SCHEMA');
   const index=Object.fromEntries(headers.map((h,i)=>[h,i]));
-  const record=rows.filter(row=>row[index['レースコード']]===key.replaceAll('-',''));
-  if(token!==window.raceDataRequestId||key!==sameRaceKey()||activeView!=='exhibit')return;
-  if(record.length===0){status.textContent='オリジナル展示：未配信／公開待ち（通常の展示情報・予想は別途表示）';return;}
-  if(record.length!==1)throw Error('ORIGINAL_DUPLICATE');
-  const row=record[0],count=Number(row[index['計測数']]);
+  const records=rows.filter(row=>row[index['レースコード']]===key.replaceAll('-',''));
+  if(!current())return;
+  if(records.length===0){unavailable('オリ展：対象レース未配信・公開待ち（通常展示は別途表示中）');return}
+  if(records.length!==1)throw Error('ORIGINAL_DUPLICATE_RACE');
+  const row=records[0],count=Number(row[index['計測数']]);
   if(!Number.isInteger(count)||count<1||count>3)throw Error('ORIGINAL_COUNT');
   const labels=[];
-  for(let k=1;k<=count;k++){const label=row[index['計測項目'+k]];if(typeof label!=='string'||!label.trim()||label.length>32)throw Error('ORIGINAL_LABEL');labels.push(label.trim());}
-  root.replaceChildren();const title=document.createElement('strong');title.textContent='各場オリジナル展示（配信項目名をそのまま表示）';root.append(title);
-  for(let lane=1;lane<=6;lane++){
-   const line=document.createElement('div');line.className='course-record-line';
-   const vals=labels.map((label,i)=>{const col='艇'+lane+'_値'+(i+1);const value=row[index[col]];return label+' '+(typeof value==='string'&&value.trim()?value.trim():'—');});
-   line.textContent=lane+'号艇｜'+vals.join('　');root.append(line);
+  for(let k=1;k<=count;k++){
+   const label=row[index['計測項目'+k]];
+   if(typeof label!=='string'||!label.trim()||label.length>32)throw Error('ORIGINAL_LABEL');
+   labels.push(label.trim());
   }
- }catch(error){
-  if(token===window.raceDataRequestId&&key===sameRaceKey())status.textContent='オリジナル展示：未取得（通常の展示情報・予想は継続）';
- }
+  // Verify every boat column before painting any boat. Missing columns or
+  // duplicates must never be presented as measurements from another boat.
+  const dataByLane=Array.from({length:6},(_,i)=>labels.map((label,k)=>{
+   const col='艇'+(i+1)+'_値'+(k+1),position=index[col];
+   if(!Number.isInteger(position)||position>=row.length)throw Error('ORIGINAL_COLUMN_MISSING');
+   const value=row[position];
+   if(typeof value!=='string'||value.length>64)throw Error('ORIGINAL_VALUE_INVALID');
+   return {label,value:value.trim()||'—'};
+  }));
+  if(!current())return;
+  for(let lane=1;lane<=6;lane++){
+   const holder=holders[lane-1];holder.replaceChildren();
+   for(const item of dataByLane[lane-1]){
+    const metric=document.createElement('div');metric.className='exhibition-original-metric';
+    const name=document.createElement('span');name.textContent=item.label;
+    const value=document.createElement('strong');value.textContent=item.value;
+    metric.append(name,value);holder.append(metric);
+   }
+  }
+  status.textContent='オリ展：独立CSVから6艇分を取得・各艇内に表示｜CSVの締切前保存時刻は未検証（予想に混入させません）';
+ }catch(_){unavailable('オリ展：元データを取得・検証できません（通常展示はそのまま表示）')}
 }
 let displayedRaceKey='';
 let forecastPreviewRequestId=0;
@@ -1471,9 +1509,10 @@ async function loadRaceData(force=false){
   const validEntry=actual.length===6&&actual.every(v=>Number.isInteger(v)&&v>=1&&v<=6)&&new Set(actual).size===6&&entryAudit?.status==='ok'&&/^[a-f0-9]{64}$/.test(entryAudit.sha256||'')&&Number.isFinite(entryAt)&&entryAt<raceDeadline&&entryAt<=Date.now()+300000;
   entryNote.textContent=validEntry?'実進入（保存記録）：'+actual.map((lane,i)=>(i+1)+'コース '+lane+'号艇').join(' ／ '):'実進入：未取得・未検証（枠番を進入順として代用しません）';
   exhibitGrid.append(entryNote);
-  // The original exhibition feed is an independent per-race source. Its
-  // documented item labels are authoritative: never infer labels by venue.
-  if(activeView==='exhibit')loadOriginalExhibition(key,token,exhibitGrid);
+  const originalStatus=document.createElement('p');originalStatus.id='originalExhibitionStatus';
+  originalStatus.className='exhibition-original-status';originalStatus.setAttribute('role','status');
+  originalStatus.textContent='オリ展：独立配信元を確認中（号艇ごとの欄に表示）';
+  exhibitGrid.append(originalStatus);
   const laneColors=['#a3afbf','#24384d','#db4246','#2579c9','#d3ac18','#25895e'];
   for(let lane=1;lane<=6;lane++){
    const racer=racers.find(r=>r.lane===lane)||{name:'未提供'},ex=byLane(preview,lane),st=byLane(starts,lane);
@@ -1485,8 +1524,20 @@ async function loadRaceData(force=false){
    const measures=[['展示タイム',txt(ex.exhibition_time)],['展示ST',typeof st.st==='string'&&/^(?:F|L)?\.?\d+(?:\.\d+)?$/i.test(st.st.trim())?st.st.trim():txt(st.st)],['チルト',txt(ex.tilt)],['平均ST',txt(racer.avg_st)]];
 
    measures.forEach(([label,value],i)=>{const item=document.createElement('div');item.className='exhibition-metric';const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;item.append(small,strong);vals.append(item)});
-   card.append(vals);exhibitGrid.append(card);
+   card.append(vals);
+   const original=document.createElement('section');original.className='exhibition-original';
+   original.setAttribute('aria-label',lane+'号艇のオリ展');
+   const heading=document.createElement('div');heading.className='exhibition-original-heading';
+   heading.append('オリ展');
+   const note=document.createElement('small');note.textContent='各場の配信項目';heading.append(note);original.append(heading);
+   const metrics=document.createElement('div');metrics.className='exhibition-original-values';
+   metrics.dataset.originalExhibitionLane=String(lane);
+   const loading=document.createElement('p');loading.className='exhibition-original-pending';loading.textContent='オリ展：確認中…';
+   metrics.append(loading);original.append(metrics);card.append(original);
+   exhibitGrid.append(card);
   }
+  // All six official exhibition cards exist before independent CSV is merged.
+  if(activeView==='exhibit')void loadOriginalExhibition(key,token,exhibitGrid);
   const stamp=raw.source_audit.race_card.fetched_at;
   displayedRaceKey=key;
   source.textContent='データ元：BOAT EDGE保存済み事前情報｜取得記録 '+stamp+'｜Git初回登録時刻は未照合｜未提供値は「—」';
