@@ -24,6 +24,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: independent-late-preview-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   capture:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime,timedelta,timezone
 
 from scripts.entry_course_activation_watchdog import (
-    dispatch_decision,run_once,TARGETS,JST,
+    dispatch_decision,run_once,preview_fallback,PREVIEW_WORKFLOW,TARGETS,JST,
 )
 
 NOW=datetime(2026,11,4,10,12,tzinfo=JST)
@@ -182,4 +182,61 @@ class ActivationTests(unittest.TestCase):
                     run_once(now=NOW,
                         fetch_runs=lambda f,e:[malformed],
                         dispatch=lambda _:self.fail("malformed run triggered dispatch"))
+
+    def test_preview_fallback_uses_existing_event_without_new_cron(self):
+        requested=[]
+        called=[]
+        def fetch(file,kind):
+            called.append((file,kind))
+            return []
+        result=preview_fallback(NOW,fetch,lambda file:requested.append(file))
+        self.assertEqual(called,[(PREVIEW_WORKFLOW,"schedule"),
+                                 (PREVIEW_WORKFLOW,"workflow_dispatch")])
+        self.assertEqual(requested,[PREVIEW_WORKFLOW])
+        self.assertTrue(result["dispatch_requested"])
+        self.assertFalse(result["trigger_is_schedule"])
+        self.assertFalse(result["saved_forecast_verified"])
+
+    def test_preview_fallback_does_not_run_at_8_or_after_22(self):
+        for hour in (7,8,22,23):
+            with self.subTest(hour=hour):
+                result=preview_fallback(NOW.replace(hour=hour),
+                    lambda *a:self.fail("outside preview hours should not query API"),
+                    lambda _:self.fail("outside preview hours dispatched"))
+                self.assertEqual(result["decision"],"outside_preview_hours")
+                self.assertFalse(result["dispatch_requested"])
+
+    def test_preview_recent_or_active_prevents_duplicate_dispatch(self):
+        for row,expected in (
+            (event(minutes=3,kind="schedule"),"research_run_recently_started"),
+            (event(minutes=2,kind="workflow_dispatch"),"research_run_recently_started"),
+            (event(minutes=15,kind="workflow_dispatch",status="in_progress"),
+             "research_job_already_active"),
+        ):
+            with self.subTest(expected=expected):
+                result=preview_fallback(NOW,
+                    lambda file,event_name:[row] if row["event"]==event_name else [],
+                    lambda _:self.fail("Duplicate preview capture"))
+                self.assertEqual(result["decision"],expected)
+                self.assertFalse(result["dispatch_requested"])
+
+    def test_preview_failure_is_separate_from_primary_t12_t2_preflight(self):
+        requested=[]
+        run_once(now=NOW,fetch_runs=lambda file,kind:[],
+                 dispatch=lambda file:requested.append(file))
+        self.assertEqual(requested,list(TARGETS.values()))
+        with self.assertRaisesRegex(ValueError,"preview_watchdog_api_runs_invalid"):
+            preview_fallback(NOW,lambda file,kind:None,
+                             lambda _:self.fail("malformed preview triggered dispatch"))
+        self.assertEqual(requested,list(TARGETS.values()))
+
+    def test_preview_guard_preserves_cron_and_workflow_concurrency(self):
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        watcher=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        preview=(root/".github/workflows/research-live-preview-evidence.yml").read_text()
+        self.assertEqual(watcher.count("- cron:"),1)
+        self.assertIn("cancel-in-progress: false",preview)
+        self.assertIn("independent-late-preview-",preview)
+
 if __name__=="__main__":unittest.main()

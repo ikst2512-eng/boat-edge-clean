@@ -38,7 +38,7 @@ jobs:
           python-version: '3.12'
       - name: Validate fallback dispatch policy
         run: python -m unittest discover -s tests -p test_entry_course_activation_watchdog.py -v
-      - name: Dispatch missing T12/T2 research runs (not a scheduled evidence claim)
+      - name: Dispatch missing T12/T2 plus independent preview research (not scheduled proof)
         run: python scripts/entry_course_activation_watchdog.py
         env:
           GH_TOKEN: ${{ github.token }}

@@ -19,6 +19,7 @@ TARGETS={
 }
 COOLDOWN=timedelta(minutes=5)
 ACTIVE_PROTECTION=timedelta(minutes=30)
+PREVIEW_WORKFLOW="research-live-preview-evidence.yml"
 
 
 def _timestamp(value):
@@ -124,6 +125,38 @@ def run_once(*, now, fetch_runs, dispatch):
     return report
 
 
+def preview_fallback(now, fetch_runs, dispatch):
+    """Best-effort independent source capture fallback after critical T12/T2 rescue.
+
+    No new cron; uses the existing watchdog event cadence. A failure in this
+    *extra* lookup never prevents the T12/T2 dispatch preflight from running.
+    Workflow dispatch is not a scheduled observation or a saved forecast.
+    """
+    if not isinstance(now,datetime) or now.utcoffset() is None:
+        raise ValueError("entry_preview_watchdog_clock_invalid")
+    local=now.astimezone(JST)
+    record={"workflow":PREVIEW_WORKFLOW,"decision":"outside_preview_hours",
+            "observed_schedule_runs":0,"observed_dispatch_runs":0,
+            "dispatch_requested":False,"trigger_is_schedule":False,
+            "saved_forecast_verified":False}
+    if not 9<=local.hour<22:
+        return record
+    runs=[]
+    for event in ("schedule","workflow_dispatch"):
+        observed=fetch_runs(PREVIEW_WORKFLOW,event)
+        if not isinstance(observed,list):
+            raise ValueError("entry_preview_watchdog_api_runs_invalid")
+        runs.extend(observed)
+    decision=dispatch_decision(now,runs,kind="t2")
+    record.update(decision=decision,
+                  observed_schedule_runs=sum(r.get("event")=="schedule" for r in runs),
+                  observed_dispatch_runs=sum(r.get("event")=="workflow_dispatch" for r in runs))
+    if decision=="dispatch_missing_research_job":
+        dispatch(PREVIEW_WORKFLOW)
+        record["dispatch_requested"]=True
+    return record
+
+
 def main():
     repo=os.environ.get("GITHUB_REPOSITORY")
     if repo!=REPO:
@@ -143,11 +176,24 @@ def main():
         _call(f"actions/workflows/{quote(file)}/dispatches",token,
               method="POST",fields={"ref":"main"})
     report=run_once(now=now,fetch_runs=fetch_runs,dispatch=dispatch)
+    # A preview service outage must not cancel T12/T2 rescue actions already
+    # taken. Save an honest independent diagnostic before returning failure.
+    preview_error=None
+    try:
+        report["independent_preview"]=preview_fallback(now,fetch_runs,dispatch)
+    except Exception as exc:
+        preview_error=exc
+        report["independent_preview"]={"workflow":PREVIEW_WORKFLOW,
+                "decision":"unverified_preview_fallback_failure",
+                "error_type":type(exc).__name__,"dispatch_requested":False,
+                "trigger_is_schedule":False,"saved_forecast_verified":False}
     path=Path("entry-course-evidence/activation-watchdog.json")
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(report,sort_keys=True,ensure_ascii=False)+"\n",
                     encoding="utf-8")
     print("ENTRY_COURSE_ACTIVATION_WATCHDOG="+json.dumps(report,sort_keys=True))
+    if preview_error is not None:
+        raise preview_error
 
 
 if __name__=="__main__":
