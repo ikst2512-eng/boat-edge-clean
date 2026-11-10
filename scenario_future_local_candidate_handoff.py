@@ -13,6 +13,7 @@ import hashlib
 from itertools import permutations
 import json
 import math
+from pathlib import Path
 import re
 
 SCHEMA = "FOUR_MODE_TRIPLE_SOURCE_LOCAL_FROZEN_CANDIDATE_V1"
@@ -23,6 +24,68 @@ ALL_COMBOS = {"-".join(map(str,x)) for x in permutations(range(1,7),3)}
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
 OFFICIAL_MIN_DAY = "20261111"
 MIN_REMAINING_SECONDS = 60
+# Immutable November 10 protocol Git blob, created before future cohort starts.
+# Its first remote commit alone does not prove any later candidate's timestamp.
+PINNED_PROTOCOL_BLOB_SHA1 = "bf60d2879065d1f9ecbd6b442db17fcb8fbcb8b7"
+PROTOCOL_PATH = Path(__file__).resolve().parent / (
+    "research/four_mode_triple_source_forward_protocol_20261110.json"
+)
+PINNED_METHOD_NAMES = frozenset({
+    "research_model.py",
+    "clean_four_modes.py",
+    "scenario_exhibition_all_mode_runner.py",
+    "scenario_mode_specific_exhibition_end_to_end.py",
+    "scenario_official_exhibition_projection.py",
+    "scenario_first_head_research.py",
+    "scenario_four_mode_bridge.py",
+    "scenario_future_three_original_gateway.py",
+    "scenario_official_racelist_rates.py",
+    "scripts/audit_three_official_t12_originals.py",
+})
+
+def _git_blob_sha1(raw):
+    return hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
+
+def _reject_json_duplicates(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("frozen_study_duplicate_protocol_key")
+        result[key] = value
+    return result
+
+def require_registered_study_and_unchanged_model(protocol):
+    """Fail if runtime is using any protocol/model other than precommitted Nov 10.
+
+    This does not authenticate remote Git or validate generated clock claims.
+    """
+    if type(protocol) is not dict or not PROTOCOL_PATH.is_file():
+        raise ValueError("preregistered_protocol_missing_or_wrong_type")
+    raw = PROTOCOL_PATH.read_bytes()
+    if not raw or len(raw) > 15000 or _git_blob_sha1(raw) != PINNED_PROTOCOL_BLOB_SHA1:
+        raise ValueError("preregistered_protocol_file_git_blob_mismatch")
+    try:
+        pinned = json.loads(
+            raw, object_pairs_hook=_reject_json_duplicates,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("preregistered_protocol_nonfinite")))
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError("preregistered_protocol_unreadable") from exc
+    if protocol != pinned:
+        raise ValueError("preregistered_protocol_argument_modified")
+    methods = pinned.get("method_git_blob_sha1")
+    if type(methods) is not dict or set(methods) != PINNED_METHOD_NAMES:
+        raise ValueError("preregistered_model_manifest_invalid")
+    for name, sha in methods.items():
+        p = PROTOCOL_PATH.parent.parent / name
+        if (type(sha) is not str or not re.fullmatch(r"[a-f0-9]{40}",sha)
+                or not p.is_file() or _git_blob_sha1(p.read_bytes()) != sha):
+            raise ValueError("preregistered_method_source_changed:" + name)
+    # Checked-out files are not proof of independent GitHub receipt; this is
+    # the necessary runtime identity check before a candidate is prepared.
+    return True
+
 BLOCKED_FIELDS = frozenset({
     "finish_order","winning_ticket","confirmed_result","result",
     "confirmed_at_jst","payout","winning_combo","official_result",
@@ -83,6 +146,7 @@ def prepare_local_candidate(gateway, registered_protocol, generated_at_jst, froz
             or registered_protocol.get("new_pilot_admitted") != 0
             or registered_protocol.get("new_confirmation_admitted") != 0):
         raise ValueError("unregistered_or_postresult_candidate")
+    require_registered_study_and_unchanged_model(registered_protocol)
     assert_no_promotion = (
         "formal","forecast_usable","calibrated_probabilities",
         "accuracy_improvement_proven","production_changed",
