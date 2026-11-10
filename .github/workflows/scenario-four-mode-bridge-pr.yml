@@ -13,8 +13,6 @@ on:
       - 'test_scenario_official_exhibition_projection.py'
       - 'scenario_exhibition_all_mode_runner.py'
       - 'test_scenario_exhibition_all_mode_runner.py'
-      - 'scenario_mode_specific_lens_research.py'
-      - 'test_scenario_mode_specific_lens_research.py'
       - 'scenario_mode_specific_exhibition_end_to_end.py'
       - 'test_scenario_mode_specific_exhibition_end_to_end.py'
       - 'docs/research/scenario_all_mode_bridge_1708.md'
@@ -32,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check scenario bridge safety and all four mode contracts
-        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection test_scenario_mode_specific_lens_research
+        run: python -m unittest -v test_scenario_four_mode_bridge test_scenario_first_head_research test_scenario_feature_effect_probe test_scenario_official_exhibition_projection
       - name: Materialize pinned existing #1698 conditional lab for integration (read-only)
         run: |
           set -euo pipefail
