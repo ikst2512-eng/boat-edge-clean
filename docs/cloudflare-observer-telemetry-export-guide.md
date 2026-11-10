@@ -1,5 +1,12 @@
 # Cloudflare Free observer evidence collection and offline audit (NO DEPLOY by CI)
 
+## 2026-11-10: API response size is bounded while streaming
+
+The owner-operated collector now enforces a **12 MiB per-query response limit during stream consumption** rather than calling `Response.text()` before checking the size. Oversized announced `Content-Length` values are rejected before reading; a stream exceeding the cap is cancelled before a second query is issued. A valid Fetch `ReadableStream` response still retains its exact JSON response fields in the private evidence envelope. This protects the operator's machine against unbounded in-memory buffering and leaves the production Cloudflare Worker/Render/GitHub schedules untouched. An HTTP error, oversized response or incomplete response set does not authorize any retry of recovery dispatch.
+
+The offline test runner simulates these cases with intercepted Fetch responses; **none of these tests queried Cloudflare**. A passing safety test is not a proof of a real Observer deployment or a full day of 192 Cron invocations.
+
+
 ## 2026-11-10: requested-account provenance is a required V2 acceptance condition
 
 The V2 offline audit previously checked that the event and calculation runs had equal `run.accountId` values, but **not** that either belonged to the operator's original Cloudflare account. Two mutually matching foreign-account responses would therefore satisfy that part of the scope check. This has been corrected without allowing any live dispatch.
