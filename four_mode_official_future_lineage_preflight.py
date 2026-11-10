@@ -84,6 +84,10 @@ def preflight(source_bundle, candidate):
     if (type(source_bundle) is not dict or type(candidate) is not dict or
             source_bundle.get("schema") != SCHEMA):
         raise ValueError("invalid_lineage_schema")
+    # Preserve the sharper normalized-source diagnostic while examining
+    # *all* other metadata recursively for hidden postrace information.
+    if has_embedded_outcome(source_bundle.get("normalized_source_claim")):
+        raise ValueError("outcome_leak_in_normalized_claim")
     if (has_embedded_outcome(source_bundle) or has_embedded_outcome(candidate)
             or source_bundle.get("formal") is True or candidate.get("formal") is True):
         raise ValueError("outcome_or_forged_formal_in_pre_result_input")
