@@ -1,7 +1,7 @@
 // No actual Cloudflare or GitHub network. These tests intercept ALL requests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,readFileSync,rmSync,statSync} from 'node:fs';
+import {mkdtempSync,readFileSync,rmSync,statSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -118,6 +118,17 @@ test('never save an evidence artifact within source checkout or relative path',a
   assert.throws(()=>persistObserverEvidence(data,'local.json'),
     /output_must_be_absolute_path/);
 });
+test('symlinked private export parent cannot redirect evidence into checkout',async()=>{
+  const {fetcher}=mockedApi(),data=await request({fetcher});
+  const dir=mkdtempSync(join(tmpdir(),'boat-edge-observer-symlink-'));
+  try{
+    const root=fileURLToPath(new URL('../',import.meta.url));
+    symlinkSync(root,join(dir,'to-repo'),'dir');
+    assert.throws(()=>persistObserverEvidence(data,join(dir,'to-repo','not-an-export.json')),
+      /output_inside_source_checkout_disallowed/);
+  }finally{rmSync(dir,{force:true,recursive:true});}
+});
+
 test('CLI without explicit --execute never reads secrets or contacts Cloudflare',()=>{
   const path=fileURLToPath(new URL('../scripts/collect_cloudflare_observer_telemetry.mjs',import.meta.url));
   const env={...process.env,CLOUDFLARE_ACCOUNT_ID:ACCOUNT,CLOUDFLARE_OBSERVABILITY_TOKEN:TOKEN};
