@@ -165,7 +165,7 @@ jobs:
               await page.goto('file://'+process.cwd()+'/index.html',{waitUntil:'domcontentloaded'});
               await page.locator('#venues button').first().waitFor({timeout:15000});
               await page.waitForFunction(()=>document.documentElement.dataset.cleanNavigationInit==='1',null,{timeout:15000});
-              if(await page.locator('.race-detail-shortcuts button').count()!==5)throw Error('navigation.js five race tabs missing');
+              if(await page.locator('.race-detail-shortcuts button').count()!==4)throw Error('navigation.js four race tabs missing');
               if(await page.locator('#venues button').count()!==24)throw Error('home must offer 24 venues');
               if(await page.locator('#races button').count()!==12)throw Error('home must offer 12 race choices');
               await page.locator('#venues button').nth(11).click();
@@ -581,12 +581,14 @@ jobs:
                 throw Error('PUBLIC_CANDIDATE_PAGE_UNAVAILABLE '+candidateResponse.status());
               console.log('CLEAN_PAGES_CANDIDATE_NAV_VERIFIED',candidateHref,reviewHref);
               const shortcuts=page.locator('.race-detail-shortcuts button');
-              if(await shortcuts.count()!==5)throw Error('Published five race shortcuts missing');
+              if(await shortcuts.count()!==4)throw Error('Published four race shortcuts missing');
               if(await page.locator('#forecast>.forecast-detail-tabs:visible').count()!==0)throw Error('Duplicate forecast tabs visible');
               if(await page.locator('#forecastQuick:visible').count()!==0)throw Error('Duplicate race picker visible');
-              await page.locator('.race-detail-shortcuts button[data-race-view="stats"]').click();
-              if(await page.locator('#forecast>.forecast-stats-pane:visible').count()!==1)throw Error('Published rates tab missing');
-              if(await page.locator('#forecast>.forecast-combined-race:visible').count())throw Error('Published rates pane still showing prediction');
+              await page.locator('.race-detail-shortcuts button[data-race-view="card"]').click();
+              if(await page.locator('#raceCardSubtabs:visible').count()!==1)throw Error('Published card subtabs missing');
+              await page.locator('[data-race-card-pane="rates"]').click();
+              if(await page.locator('#raceCardStatistics:visible').count()!==1)throw Error('Published racecard rates not visible');
+              if(await page.locator('#forecast>.forecast-combined-race:visible').count())throw Error('Published prediction shown inside racecard');
               await page.locator('.race-detail-shortcuts button[data-race-view="forecast"]').click();
               if(await page.locator('#forecast .forecast-statistics:visible').count())throw Error('Published prediction still showing rates');
               for(const view of ['forecast','card','exhibit','result']){
@@ -598,10 +600,10 @@ jobs:
               if(overflow>1)throw Error('Mobile horizontal overflow: '+overflow+'px');
               // Actual archived-result values are asserted by the dedicated
               // 'Verify published CLEAN confirmed result in browser' step above.
-              // Keep this step focused on the five navigation tabs.
+              // Keep this step focused on the four navigation tabs and racecard subtabs.
               if(faults.length)throw Error('Public JS errors: '+faults.join('; '));
               console.log('DEPLOYED_BROWSER_PASS',process.env.PAGE_URL);
-              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 5 tabs; archived result separately verified)\n');
+              require('node:fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,'Public browser navigation: **PASS** (24 venues, 12 races, 4 tabs + card statistics; archived result separately verified)\n');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
