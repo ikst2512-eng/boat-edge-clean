@@ -106,6 +106,30 @@ assert.equal(merge(newerCard,older).racers[0].name,'card-2026-10-24T10:40:00+09:
 assert.equal(merge(null,newerCard).racers[0].name,'card-2026-10-24T10:40:00+09:00');
 const unverified=snap('2026-10-24T10:45:00+09:00','2026-10-24T10:46:00+09:00',false);
 assert.equal(merge(older,unverified).beforeinfo.racers[0].name,'preview-2026-10-24T10:36:00+09:00');
+// Exercise the real official-exhibition missing-data explanation, not a test-only copy.
+const gapStart=script.indexOf('function explainOfficialPreviewGap(');
+const gapEnd=script.indexOf('\nfunction mergeVerifiedRaceSnapshots(',gapStart);
+assert.ok(gapStart>=0&&gapEnd>gapStart,'missing public official field-level diagnosis');
+const explainGap=vm.runInNewContext(script.slice(gapStart,gapEnd)+';explainOfficialPreviewGap');
+const partialOfficial={
+ official_fallback:{
+  reason:'incomplete_official_exhibition',
+  official_measurement_counts:{racers:6,exhibition_time:5,tilt:6,start_rows:6,start_valid_six:false},
+  missing_official_fields:['exhibition_time','start_exhibition']
+ }
+};
+assert.match(explainGap(partialOfficial),/展示タイム 5\/6艇/);
+assert.match(explainGap(partialOfficial),/チルト 6\/6艇/);
+assert.match(explainGap(partialOfficial),/スタート展示 未検証（6\/6行受信）/);
+assert.match(explainGap(partialOfficial),/推測値は表示しません/);
+assert.match(explainGap({official_fallback:{reason:'official_racer_or_absence_mismatch'}}),/登録番号または欠場情報/);
+assert.match(explainGap({official_fallback:{reason:'official_race_or_deadline_mismatch'}}),/対象レース・締切時刻/);
+assert.match(explainGap({official_fallback:{reason:'receipt_not_before_deadline'}}),/締切前の取得完了を確認できない/);
+assert.match(explainGap({official_fallback:{reason:'incomplete_official_exhibition',
+ official_measurement_counts:{exhibition_time:7,tilt:6,start_rows:6,start_valid_six:false},
+ missing_official_fields:['exhibition_time']}}),/未取得／公開待ち／取得記録の検証待ち/);
+assert.match(explainGap({status:'not_verified_historical'}),/未取得／公開待ち／取得記録の検証待ち/);
+assert.ok(script.includes('explainOfficialPreviewGap(raw.source_audit?.beforeinfo)'),'exhibition tab must use audited missing-data diagnosis');
 assert.ok(script.includes('cardAt>Date.now()+300000'),'race-card timestamp in the future must be rejected');
 assert.ok(script.includes('previewAt<=Date.now()+300000'),'future exhibition data must not be treated as verified');
 assert.ok(html.includes('id="mobileRaceCards"'),'mobile six-lane comparison exists');
