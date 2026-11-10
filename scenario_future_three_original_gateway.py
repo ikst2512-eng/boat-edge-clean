@@ -24,6 +24,13 @@ from scenario_mode_specific_exhibition_end_to_end import (
 )
 
 STUDY = "EXPLORATORY_ONLY_FUTURE_TRIPLE_SCENARIO_RESEARCH"
+
+def _canonical_sha256(value):
+    """Stable content identity only; NOT a trusted timestamp or remote receipt."""
+    return hashlib.sha256(json.dumps(
+        value, sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
+
 MIN_DAY = "20261111"  # Prior Nov 9/10 retrospective replays are NEVER future candidates.
 CHECKS = frozenset({
     "racecard_original_hash_verified", "racecard_six_registrations",
@@ -222,11 +229,34 @@ def run_future_triple_experiment(audit, source_bundle, candidate,
             "research_board_sha256": math_out["four_mode_research_tickets"][mode][
                 "distinct_120_mixture_digest"],
         }
+    # Bind the actual six source-derived rates, original HTTP hashes, ST
+    # projection, uncalibrated hypotheses, generation claim, ranked tickets,
+    # and complete-board checksums. Replaying from the SAME inputs must yield
+    # identical content IDs; changing any of them must change the ID. This
+    # is not independent first remote Git acceptance or preregistration.
+    input_digest = _canonical_sha256({
+        "race_code": source_check["race_code"],
+        "source_original_sha256": source_check["source_sha256_claims"],
+        "source_normalized_sha256": projection["normalized_source_sha256"],
+        "source_exhibition_vector_sha256": projection["exhibition_features_sha256"],
+        "candidate_generation_self_reported_jst": candidate["generated_at_jst"],
+        "national_win_rates": rate_audit["national_rates"],
+        "scenarios": scenarios,
+        "mode_weights": mode_weights,
+    })
+    ranked_digest = _canonical_sha256({
+        "input_digest_sha256": input_digest,
+        "modes": rows,
+        "individual_scenario_board_sha256": math_out["scenario_board_sha256"],
+    })
     return {
         "schema": "FUTURE_THREE_ORIGINAL_FOUR_MODE_RESEARCH_GATEWAY_V1",
         "study_id": STUDY,
         "race_code": source_check["race_code"],
         "source_lineage_preflight": source_check,
+        "model_input_content_sha256_research_only": input_digest,
+        "four_mode_ranked_output_content_sha256_research_only": ranked_digest,
+        "source_to_candidate_remote_receipt_proven": False,
         "six_national_win_rates_from_same_original_html": rate_audit["national_rates"],
         "six_local_win_rates_from_same_original_html": rate_audit["local_rates"],
         "six_average_ST_from_same_original_html_not_scored": rate_audit["average_st"],
