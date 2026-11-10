@@ -4,9 +4,10 @@ on:
     - cron: '*/10 * * * *'
   # GitHub may delay/skip cron. Reuse the EXISTING result collector after
   # independently scheduled or watchdog-dispatched capture, regardless of whether capture succeeded.
+  # CLEAN's later 22:28 JST last slot extends catch-up beyond four-mode's 20:52.
   # A failed capture does not imply the result CSV is unavailable.
   workflow_run:
-    workflows: ['Four-mode prospective capture (research only)']
+    workflows: ['Four-mode prospective capture (research only)', 'CLEAN prospective pre-cutoff capture']
     types: [completed]
   workflow_dispatch:
     inputs:
