@@ -677,6 +677,13 @@ class FourModeForwardTests(unittest.TestCase):
             "day_jst": "20261110",
             "source_run_id": 42769768447,
             "source_artifact_id": 13740574410,
+            "source_original_zip_sha256_from_metadata":
+                "cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd",
+            "pinned_forecast_ref":
+                "c4d39245cbc96b6c680585a68c3b9adf6ddeb921",
+            "github_server_source_archive_published_at_utc":
+                "2026-11-10T06:38:25+00:00",
+            "original_zip_directly_rehashed_inside_ci": False,
             "source_originals_individually_replayed": True,
             "original_source_candidate_races": 2,
             "complete_two_original_races": 1,
@@ -761,6 +768,70 @@ class FourModeForwardTests(unittest.TestCase):
                     del row["frozen_forecasts"]["v2_four_mode"]
                 with self.assertRaises(ValueError):
                     review_upstream_t12_source_pair_handoff(r)
+
+    def test_upstream_report_github_source_archive_clock_recomputed(self):
+        base = self.nov10_official_pair_report_reference_shape()
+        r = review_upstream_t12_source_pair_handoff(base)
+        self.assertEqual(
+            r["upstream_source_zip_published_at_utc_reference_only"],
+            "2026-11-10T06:38:25+00:00")
+        self.assertEqual(
+            r["upstream_original_source_zip_sha256_reference_only"],
+            base["source_original_zip_sha256_from_metadata"])
+        self.assertEqual(
+            r["upstream_pinned_forecast_commit_reference_only"],
+            base["pinned_forecast_ref"])
+        for changed in ("later_zip_publication", "cross_day_zip", "false_zip_by_t12",
+                        "naive_zip", "wrong_timezone", "missing_zip_clock"):
+            with self.subTest(changed=changed):
+                report = self.nov10_official_pair_report_reference_shape()
+                if changed == "later_zip_publication":
+                    report["github_server_source_archive_published_at_utc"] = (
+                        "2026-11-10T06:50:00+00:00")
+                elif changed == "cross_day_zip":
+                    report["github_server_source_archive_published_at_utc"] = (
+                        "2026-11-11T06:38:25+00:00")
+                elif changed == "false_zip_by_t12":
+                    report["race_rows"][0][
+                        "independent_source_zip_published_by_t12"] = False
+                elif changed == "naive_zip":
+                    report["github_server_source_archive_published_at_utc"] = (
+                        "2026-11-10T06:38:25")
+                elif changed == "wrong_timezone":
+                    report["github_server_source_archive_published_at_utc"] = (
+                        "2026-11-10T15:38:25+09:00")
+                else:
+                    del report["github_server_source_archive_published_at_utc"]
+                with self.assertRaises(ValueError):
+                    review_upstream_t12_source_pair_handoff(report)
+
+    def test_upstream_report_source_archive_and_original_forecast_identity_rejected(self):
+        for field, bad in (
+            ("source_run_id", 0),
+            ("source_run_id", True),
+            ("source_artifact_id", "13740574410"),
+            ("source_original_zip_sha256_from_metadata", "a"*64),
+            ("source_original_zip_sha256_from_metadata", "not_sha256"),
+            ("pinned_forecast_ref", "main"),
+            ("pinned_forecast_ref", "0"*64),
+            ("original_zip_directly_rehashed_inside_ci", True),
+        ):
+            with self.subTest(field=field,bad=bad):
+                report = self.nov10_official_pair_report_reference_shape()
+                report[field] = bad
+                # A well-formed alternative source digest is not
+                # authenticated here; no claim of matching known original.
+                if field == "source_original_zip_sha256_from_metadata" and bad == "a"*64:
+                    x = review_upstream_t12_source_pair_handoff(report)
+                    self.assertFalse(
+                        x["upstream_report_identity_independently_authenticated_here"])
+                else:
+                    with self.assertRaises(ValueError):
+                        review_upstream_t12_source_pair_handoff(report)
+        report = self.nov10_official_pair_report_reference_shape()
+        report["attached"] = {"confirmed_result": "1-2-3"}
+        with self.assertRaises(ValueError):
+            review_upstream_t12_source_pair_handoff(report)
 
 
 if __name__ == "__main__":
