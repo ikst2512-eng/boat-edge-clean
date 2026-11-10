@@ -268,6 +268,77 @@ class T12SeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"immutable_conflict"):
             publish_base(raw(),CODE,lambda path:b"changed",
                          lambda p,d:self.fail("write"),clock=lambda:NOW)
+    def test_new_t12_uses_isolated_fresh_source_without_rewriting_old_snapshot(self):
+        import research_model
+        from unittest.mock import patch
+        class FixedDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return NOW
+        src_titles=[{"レースコード":CODE,"電話投票締切予定":"18:33"}]
+        src_cards=[dict({"レースコード":CODE},
+                        **{f"艇{i}_全国勝率":str(5+i/10) for i in range(1,7)})]
+        def source(url):
+            return ((src_titles,NOW,"a"*64) if "/title/" in url
+                    else (src_cards,NOW,"b"*64))
+        with tempfile.TemporaryDirectory() as tmp:
+            local=Path(tmp)/"original_snapshots"
+            local.mkdir()
+            prior=base()
+            prior["generated_at"]=(NOW-timedelta(hours=2)).isoformat()
+            prior["source_title_received_jst"]=prior["generated_at"]
+            prior["source_cards_received_jst"]=prior["generated_at"]
+            original=json.dumps(prior,ensure_ascii=False,sort_keys=True).encode()
+            original_path=local/(CODE+".json")
+            original_path.write_bytes(original)
+            durable={}
+            with (patch.object(research_model,"STORE",local),
+                  patch.object(research_model,"datetime",FixedDatetime),
+                  patch.object(research_model,"read_rows",side_effect=source),
+                  patch.object(research_model,"model_provenance",return_value={
+                      "model_git_sha":"c"*40,"model_source_sha256":"d"*64,
+                      "model_dependency_scope":"research_model.py_only_not_complete_environment"})):
+                # Ordinary API still reuses the old immutable research record.
+                self.assertEqual(research_model.predict("20261103","07","08")["generated_at"],
+                                 prior["generated_at"])
+                # T-12 must make a genuinely new original from new sources.
+                report=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+                    ledger_ops=(durable.get,lambda key,value:durable.setdefault(key,value)))
+            self.assertEqual(report["status"],"t12_generation_attempted")
+            self.assertEqual(report["newly_stored_count"],1)
+            self.assertEqual(report["failed_count"],0)
+            self.assertEqual(original_path.read_bytes(),original)
+            published=json.loads(durable["t12_baselines/20261103/"+CODE+".json"])
+            self.assertEqual(published["generated_at"],NOW.isoformat())
+            self.assertEqual(published["source_title_received_jst"],NOW.isoformat())
+            self.assertEqual(published["source_cards_received_jst"],NOW.isoformat())
+            self.assertEqual(published["input_source_kind"],"public_pre_race_csv")
+            self.assertNotEqual(durable["t12_baselines/20261103/"+CODE+".json"],original)
+            self.assertEqual(published["predictions"],
+                ["-".join(map(str,t)) for t,p in probabilities(published["national_win_rates"])[:10]])
+            self.assertFalse(report["research_only"] is False)
+
+    def test_t12_fresh_source_failure_does_not_publish_cached_original(self):
+        import research_model
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            local=Path(tmp)/"original_snapshots"
+            local.mkdir()
+            old=base()
+            old["generated_at"]=(NOW-timedelta(hours=2)).isoformat()
+            local_original=json.dumps(old).encode()
+            (local/(CODE+".json")).write_bytes(local_original)
+            created=[]
+            with (patch.object(research_model,"STORE",local),
+                  patch.object(research_model,"read_rows",
+                               side_effect=ValueError("invalid fresh source"))):
+                report=seed_once(now=lambda:NOW,fetch_title=lambda url:title(),
+                    ledger_ops=(lambda p:None,lambda p,b:created.append(p)))
+            self.assertEqual(report["stored_count"],0)
+            self.assertEqual(report["failed_count"],1)
+            self.assertEqual(created,[])
+            self.assertEqual((local/(CODE+".json")).read_bytes(),local_original)
+
     def test_hours_old_local_prediction_is_never_reclassified_as_t12(self):
         stale=base()
         early=(NOW-timedelta(hours=2)).isoformat()
