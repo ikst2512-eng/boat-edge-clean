@@ -342,6 +342,99 @@ jobs:
               "formal":False,
           },sort_keys=True))
           PY
+      - name: LAST STEP ONLY - 3 archived results vs locked historical hypotheses (NO prospective credit)
+        run: |
+          set -euo pipefail
+          # All model ranks already computed without outcomes in earlier steps.
+          git fetch --no-tags --depth=1 origin 8a674590d645a693dbd9f6fe7f79e8829b878452
+          mkdir -p "$RUNNER_TEMP/confirmed-results-locked"
+          for entry in \
+            202611091110:e6782220657537668ee369181e7f47154d647ccf \
+            202611091710:f9dbb694392a797a939ca8373222fb155962768d \
+            202611101202:a304815c7a534d3e9adf1e697159312cd576e77d; do
+            IFS=: read -r code blob <<< "$entry"
+            git show "8a674590d645a693dbd9f6fe7f79e8829b878452:confirmed_results/$code.json" > "$RUNNER_TEMP/confirmed-results-locked/$code.json"
+            test "$(git hash-object "$RUNNER_TEMP/confirmed-results-locked/$code.json")" = "$blob"
+          done
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from itertools import permutations
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          source=json.loads((tmp/"research-archived-rates-vs-neutral.json").read_text())
+          assert source["results_read"] is False and source["formal"] is False
+          assert source["new_forecasts_published"] is False
+          assert source["complete_exhibition_and_saved_rates"]==3
+          budgets={"narrow":5,"hit":10,"balance":16,"hole":22}
+          legal={"-".join(map(str,x)) for x in permutations(range(1,7),3)}
+          arms=("archived_V2","scenario_head35","scenario_head0_control")
+          codes=("202611091110","202611091710","202611101202")
+          stats={m:{str(n):{arm:0 for arm in arms} for n in (1,3,5,10)}
+                 for m in budgets}
+          rows=[]
+          archive={x["race_code"]:x for x in source["races"]}
+          assert set(archive)==set(codes)|{"202611102211"}
+          assert archive["202611102211"]["status"]=="EXHIBITION_MISSING_REJECTED"
+          for code in codes:
+              r=json.loads((tmp/"confirmed-results-locked"/(code+".json")).read_text())
+              finish=r["finish_order"]
+              assert r["race_code"]==code and r["status"]=="confirmed"
+              assert type(finish) is list and len(finish)==3 and len(set(finish))==3
+              assert all(type(x) is int and 1<=x<=6 for x in finish)
+              winner="-".join(map(str,finish))
+              saved=archive[code]
+              assert saved["status"]=="ARCHIVED_SIX_RATES_PLUS_REAL_EXHIBITION_RESEARCH_ONLY"
+              assert saved["formal"] is False and saved["results_read"] is False
+              selections=saved["unregistered_retrospective_ranked_lists_before_result_read"]
+              assert set(selections)==set(budgets)
+              out={"race_code":code,"confirmed_ticket_from_postrace_source":winner,
+                   "eligible_for_any_formal_future_cohort":False,"modes":{}}
+              for mode,budget in budgets.items():
+                  a=selections[mode]
+                  assert set(a)==set(arms)
+                  assert all(type(xs) is list and len(xs)==budget
+                             and len(set(xs))==budget and set(xs)<=legal
+                             for xs in a.values())
+                  prior=saved["archived_V2_vs_research_topn_exposure_result_blind"][mode]
+                  assert prior["with_uncalibrated_head_shift"]["original_top1"]==a["archived_V2"][0]
+                  assert prior["with_uncalibrated_head_shift"]["hypothetical_top1"]==a["scenario_head35"][0]
+                  assert prior["without_uncalibrated_head_shift"]["hypothetical_top1"]==a["scenario_head0_control"][0]
+                  report={}
+                  for n in (1,3,5,10):
+                      if n>budget:
+                          report["top"+str(n)]={"applicable":False,"reason":"only_"+str(budget)+"_tickets"}
+                          continue
+                      hits={arm:winner in a[arm][:n] for arm in arms}
+                      for arm,yes in hits.items():
+                          stats[mode][str(n)][arm]+=int(yes)
+                      report["top"+str(n)]={
+                          "applicable":True,"hit":hits,
+                          "head35_vs_archived_V2":(
+                              "gained" if hits["scenario_head35"] and not hits["archived_V2"]
+                              else "lost" if hits["archived_V2"] and not hits["scenario_head35"]
+                              else "unchanged")}
+                  out["modes"][mode]=report
+              rows.append(out)
+          assert len(rows)==3
+          result={
+              "schema":"THREE_HISTORICAL_SAME_RACE_RESULT_LAST_DESCRIPTIVE_V1",
+              "classification":"POST_HOC_EXPLORATORY_NOT_PROSPECTIVE_ACCURACY",
+              "source_research_result_blind":"research-archived-rates-vs-neutral.json",
+              "confirmed_results_git_commit":"8a674590d645a693dbd9f6fe7f79e8829b878452",
+              "historical_same_race_descriptive_races":3,
+              "future_300_plus_300_cohort_admitted":0,
+              "hypothesis_calibration_or_improvement_proven":False,
+              "results_read_only_in_last_step_after_model_math":True,
+              "results_used_to_change_model":False,
+              "formal":False,"production_changed":False,
+              "by_mode_and_topN_hit_counts":stats,"rows":rows}
+          output=tmp/"research-historical-three-race-result-last-DESCRIPTIVE.json"
+          output.write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          assert json.loads(output.read_text())==result
+          print("LOCKED_HISTORICAL_RESULT_LAST_NOT_ACCURACY_PROOF",
+                json.dumps({"races":3,"hit_counts":stats,"formal":False},
+                           ensure_ascii=False))
+          PY
       - name: Retain ONLY derived hypothetical rankings / evidence status
         uses: actions/upload-artifact@v4
         with:
@@ -351,5 +444,6 @@ jobs:
             ${{ runner.temp }}/research-archived-rates-vs-neutral.json
             ${{ runner.temp }}/research-real-triple-negative-evidence.json
             ${{ runner.temp }}/research-real-six-source-T12-timing.json
+            ${{ runner.temp }}/research-historical-three-race-result-last-DESCRIPTIVE.json
           retention-days: 7
           if-no-files-found: error
