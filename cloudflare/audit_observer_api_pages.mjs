@@ -9,6 +9,7 @@ import {OBSERVER_NAME} from './audit_observer_telemetry.mjs';
 
 export const API_SCHEMA='BOAT_EDGE_CLOUDFLARE_TELEMETRY_API_SINGLE_PAGE_V2';
 const DATASET='cloudflare-workers';
+const ACCOUNT_ID=/^[a-f0-9]{32}$/i;
 const isObj = x => x!==null && typeof x==='object' && !Array.isArray(x);
 function canonical(value) {
   if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
@@ -78,6 +79,12 @@ export function auditTelemetryApiPages(input) {
   if(input.schema!==API_SCHEMA)bad('api_schema_invalid');
   if(input.worker!==OBSERVER_NAME)bad('api_worker_mismatch');
   if(!presentId(input.deployment_id))bad('deployment_id_missing');
+  // The two responses can agree with EACH OTHER while both belonging to
+  // a different Cloudflare account than the one the operator queried.
+  // Require an explicit original requested account ID in the envelope;
+  // without it an offline audit cannot establish account-scope consistency.
+  if(!ACCOUNT_ID.test(input.account_id??''))
+    bad('api_requested_account_id_missing_or_invalid');
   const e=input.events_query,s=input.sampling_query;
   const er=e?.request,cr=s?.request;
   const ep=er?.parameters,cp=cr?.parameters;
@@ -127,6 +134,10 @@ export function auditTelemetryApiPages(input) {
   if(!presentId(eRun?.accountId)||eRun.accountId!==sRun?.accountId||
      !presentId(eRun?.id)||!presentId(sRun?.id)||eRun.id===sRun.id)
     bad('api_run_identity_or_account_mismatch');
+  if(ACCOUNT_ID.test(input.account_id??'') &&
+     (eRun?.accountId!==input.account_id ||
+      sRun?.accountId!==input.account_id))
+    bad('api_run_account_not_requested_account');
   // The run's server-echoed *effective* query must still be scoped to the
   // Observer. Validating only the sent request would miss a saved queryId or
   // changed effective parameters that actually queried another dataset.
