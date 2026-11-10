@@ -10,6 +10,8 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from evaluate_clean_prospective_cohort import independently_verified_payout
+
 ROOT = Path(__file__).resolve().parent
 JST = timedelta(hours=9)
 RACE_SUFFIX = r"(0[1-9]|1[0-9]|2[0-4])(0[1-9]|1[0-2])"
@@ -116,6 +118,16 @@ def daily_candidate_history(day, root=ROOT):
         except (ValueError, TypeError, KeyError, OSError, OverflowError):
             pass
         row.update(_confirmed(results / (code + ".json"), code))
+        # Payouts are independent results evidence, never inferred from odds,
+        # forecasts, or the winning ticket. Fail closed if either saved source
+        # is missing, malformed, or inconsistent with the confirmed finish.
+        row["payout_status"] = "unverified"
+        row["payout_yen_per_100"] = None
+        if row["result_status"] == "confirmed_archive":
+            payout = independently_verified_payout(code, root)
+            if payout is not None and payout[0] == row["finish"]:
+                row["payout_status"] = "verified_independent"
+                row["payout_yen_per_100"] = payout[1]
         rows.append(row)
     rows.sort(key=lambda r: (r["deadline_jst"] or "9999", r["race_code"]))
     return 200, {
@@ -129,5 +141,6 @@ def daily_candidate_history(day, root=ROOT):
         "candidate_count": len(rows),
         "research_forecast_count": sum(r["forecast_status"] == "saved_research_unattested" for r in rows),
         "confirmed_result_count": sum(r["result_status"] == "confirmed_archive" for r in rows),
+        "payout_verified_count": sum(r["payout_status"] == "verified_independent" for r in rows),
         "races": rows,
     }
