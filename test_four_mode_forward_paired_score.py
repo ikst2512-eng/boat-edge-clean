@@ -6,7 +6,8 @@ from itertools import permutations
 from four_mode_forward_paired_score import (COUNTS, PROTOCOL, protocol_check, score,
                                        exact_mcnemar_two_sided_reference,
                                        confirmation_holm_reference,
-                                       preflight_unregistered_scenario_bridge)
+                                       preflight_unregistered_scenario_bridge,
+                                       review_upstream_t12_source_pair_handoff)
 
 
 class FourModeForwardTests(unittest.TestCase):
@@ -632,6 +633,134 @@ class FourModeForwardTests(unittest.TestCase):
                 ValueError, "outcome_or_forged_scenario_certification"):
             preflight_unregistered_scenario_bridge(
                 self.row()["baseline"], bridge)
+
+    def nov10_official_pair_report_reference_shape(self):
+        # Representative STRUCTURE from independently audited upstream #1694.
+        # Not downloaded source bytes; the ④ consumer is NOT an origin auditor.
+        dates = [
+            ("202611101202", True, 6, "15:40:00", "15:38:04"),
+            ("202611102211", False, 0, "15:46:00", "15:38:23"),
+        ]
+        rows = []
+        for code, ready, six, limit, last in dates:
+            modes = {}
+            for label, generation in (
+                ("clean", "2026-11-10T07:44:29+09:00"),
+                ("v2_four_mode", "2026-11-10T01:39:35+09:00"),
+            ):
+                modes[label] = {
+                    "generated_at_jst": generation,
+                    "generated_after_pair_sources": False,
+                    "generated_before_t12": True,
+                    "first_forecast_git_remote_acceptance_verified": False,
+                    "actual_model_official_original_bytes_consumption_verified": False,
+                    "formal": False,
+                }
+            rows.append({
+                "race_code": code,
+                "source_pair_complete_by_t12": ready,
+                "exhibition_time_observed_boats": six,
+                "official_odds_120_verified": True,
+                "last_original_source_received_jst":
+                    f"2026-11-10T{last}+09:00",
+                "official_t12_cutoff_jst":
+                    f"2026-11-10T{limit}+09:00",
+                "independent_source_zip_published_by_t12": True,
+                "official_racelist_original_replayed": False,
+                "frozen_forecasts": modes,
+                "model_consumption_proven": False,
+                "first_forecast_git_remote_acceptance_proven": False,
+                "formal": False,
+            })
+        return {
+            "schema": "T12_PINNED_SCHEDULED_PAIR_FROZEN_REPLAY_V1",
+            "day_jst": "20261110",
+            "source_run_id": 42769768447,
+            "source_artifact_id": 13740574410,
+            "source_originals_individually_replayed": True,
+            "original_source_candidate_races": 2,
+            "complete_two_original_races": 1,
+            "matched_immutable_forecasts": 4,
+            "forecasts_generated_after_originals": 0,
+            "same_race_complete_official_three_originals": 0,
+            "verified_model_original_byte_consumption": 0,
+            "verified_first_forecast_remote_acceptances": 0,
+            "new_formal_certifications": 0,
+            "formal_accuracy_denominator": None,
+            "race_rows": rows,
+            "formal": False,
+            "t12_eligible": False,
+            "accuracy_scoring_allowed": False,
+        }
+
+    def test_nov10_upstream_real_shape_handoff_reports_per_race_blockers(self):
+        x = review_upstream_t12_source_pair_handoff(
+            self.nov10_official_pair_report_reference_shape())
+        self.assertEqual(x["upstream_race_count"], 2)
+        by_code = {r["race_code"]: r for r in x["race_rows"]}
+        suminoe = by_code["202611101202"]
+        fukuoka = by_code["202611102211"]
+        self.assertTrue(suminoe[
+            "official_two_source_pair_complete_by_t12_reference_only"])
+        self.assertFalse(fukuoka[
+            "official_two_source_pair_complete_by_t12_reference_only"])
+        self.assertIn("same_race_official_racelist_original_missing",
+                      suminoe["blocking_gates"])
+        self.assertIn("v2_original_generated_before_official_pair",
+                      suminoe["blocking_gates"])
+        self.assertIn(
+            "beforeinfo_exhibition_six_or_odds120_or_cutoff_incomplete",
+            fukuoka["blocking_gates"])
+        self.assertEqual(x["blocking_gate_counts"][
+            "same_race_official_racelist_original_missing"], 2)
+        self.assertEqual(x["formal_candidate_pairs_added"], 0)
+        self.assertEqual(x["pilot_added"], 0)
+        self.assertEqual(x["confirmation_added"], 0)
+        self.assertFalse(x["formal"])
+        self.assertFalse(x["model_promotion_allowed"])
+
+    def test_upstream_forged_formal_duplicate_race_and_totals_rejected(self):
+        for changed in ("formal", "three", "first", "denominator",
+                        "duplicate", "day", "paircount", "aftercount"):
+            with self.subTest(changed=changed):
+                r = self.nov10_official_pair_report_reference_shape()
+                if changed == "formal":
+                    r["formal"] = True
+                elif changed == "three":
+                    r["same_race_complete_official_three_originals"] = 1
+                elif changed == "first":
+                    r["verified_first_forecast_remote_acceptances"] = 1
+                elif changed == "denominator":
+                    r["formal_accuracy_denominator"] = 2
+                elif changed == "duplicate":
+                    r["race_rows"][1]["race_code"] = r["race_rows"][0]["race_code"]
+                elif changed == "day":
+                    r["race_rows"][0]["race_code"] = "202611111202"
+                elif changed == "paircount":
+                    r["complete_two_original_races"] = 2
+                elif changed == "aftercount":
+                    r["forecasts_generated_after_originals"] = 3
+                with self.assertRaises(ValueError):
+                    review_upstream_t12_source_pair_handoff(r)
+
+    def test_upstream_wrong_generation_clock_and_result_leak_rejected(self):
+        for mutation in ("reversed_generation", "fake_after_flag",
+                         "concealed_result", "missing_v2"):
+            with self.subTest(mutation=mutation):
+                r = self.nov10_official_pair_report_reference_shape()
+                row = r["race_rows"][0]
+                if mutation == "reversed_generation":
+                    row["frozen_forecasts"]["v2_four_mode"][
+                        "generated_at_jst"] = "2026-11-10T15:50:00+09:00"
+                elif mutation == "fake_after_flag":
+                    row["frozen_forecasts"]["v2_four_mode"][
+                        "generated_after_pair_sources"] = True
+                elif mutation == "concealed_result":
+                    row["auxiliary"] = [{"post_race_weather": {"mps": 4.5}}]
+                elif mutation == "missing_v2":
+                    del row["frozen_forecasts"]["v2_four_mode"]
+                with self.assertRaises(ValueError):
+                    review_upstream_t12_source_pair_handoff(r)
 
 
 if __name__ == "__main__":
