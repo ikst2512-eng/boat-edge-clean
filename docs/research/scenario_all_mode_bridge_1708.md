@@ -470,3 +470,18 @@ Added full exact-ticket equality regression: the optimized 4-call path is compar
 - #1713 / #1694 が別の将来レースで公式racelist＋beforeinfo展示6艇/ST6艇＋オッズ120の**同レースT−12完備**と独立source/初回Git受領を実証すること。新#1710 gatewayでsource→rate→exhibition→確率盤面→全モード券を計算できる構造は準備済みだが、**実際に完備した将来レースをまだ通したわけではない**。
 - ②側の`3.5`頭log-shiftとモード別重みはあくまで**人手の未校正研究仮説**。今の3レースの結果を見た後に重みを調整しない。別研究ID・採用モデル/係数/コードSHAを将来検証開始より前に登録する必要あり。
 - 新候補の初回Git遠隔保存、全起動run証拠、厳密な結果LASTと既存/別研究300+300、Top5/10非悪化、確率校正、70%候補の実際の将来結果との照合は未成立。**formal0/600、本番採用0**。#1693既存凍結プロトコル・#1698旧候補のfirst_remote/0.50/0.25は不変。研究CIと本番予想は別物。
+
+
+## 2026-11-10 ②担当：最新main収集実行実績と研究候補ローカル不変化（遠隔未保存）
+
+**事実確認（GitHub実行原本）**
+- main `f29453d24d2dbb9dea2af52f99df8f3534ec34f7` 時点で実行された [4モード収集Actions #42807090850](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42807090850) 成果物 [#13757594714](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42807090850/artifacts/13757594714) を再ダウンロードし、ZIP全16ファイルのCRC正常。内部 `four_mode_forecasts/capture_status.json` は当日既存保存 **150**、`last_run_new_count=0`、`cutoff_skipped=6`、対象出走表156、`production_success_proven=false`。`four-mode-evidence/stages.json` は`publication=no_eligible_candidates`。`source-links.json` は `checked=0, hashes_present=0, remote_first_seen_verified=false`。**研究予想150件が公式展示6艇/ST6艇・オッズ120の正式T−12原文を消費したとは解釈しない**。新たにGit候補を初回受領した証拠0。
+- PR #1710は調査開始時 `mergeable=true` へ変化（GitHubの動的判定であり、将来の統合を約束しない）。**研究Draftのため強制merge禁止**。旧#1693/#1698の正式登録母集団および本番のモデル/収集者に変更なし。
+
+**実装（既存#1710 Draftのみ、既存#1698のremote observer/write-onceの理念に合わせ新収集者は追加しない）**
+- `scenario_future_local_candidate_handoff.py` ＋ `test_scenario_future_local_candidate_handoff.py` を追加。既存`scenario_future_three_original_gateway.run_future_triple_experiment`が同一レースの公式3原本の構造監査、6艇公式出走表勝率、全6艇展示/STとT−12前原本、#1698固定数理と#1710凍結仮説の全4モード計算を実行済みの**研究レポート**を入力とする。
+- [GitHub事前登録commit #947f9d6f](https://github.com/ikst2512-eng/boat-edge-clean/commit/947f9d6fe213f01f68ae0efd9c2c71b0a50e56ac) の別研究manifestと未校正世界係数/4モード重み/モデルSHAを照合。先頭艇3.5とゼロ対照や標本300+300の境界は変更禁止。6艇勝率、source→board/券のハッシュ、順位と点数5/10/16/22、全4モードTop1、結果混入、シナリオ係数変更、ギットハッシュ失敗、締切/日付逸脱を拒否。候補は可逆的なcanonical JSONバイトと SHA256/Git blob SHA1を生成するが**GitHubへ一切書き込まない**。ローカルfreeze時刻は自己申告・source受信後・T−12の60秒以上前。自己申告を初回遠隔受領と詐称しない。
+- 初回 [CI #42808629529](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42808629529) ではプロトコルの0/1と実モデルPythonの0.0/1.0による**数値が同じでもJSONハッシュが異なる不具合**を検出。2026-11-10事前登録済みmanifestを改変せず、handoff側でPythonモデルの数値の型へ重みを正規化する修正を実施。
+- [修正後のPR Actions #42808817155](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42808817155) **completed/success**、通常単体テスト82本（固定#1698依存1本skip）＋**固定#1698の実コードで4モード生成を含む34本成功**。synthetic未来レースの同一入力/時刻→同じ候補bytes SHA、重み変更・後付けレース・欠損/違法/重複券・結果漏えい・時計逸脱・遠隔受領偽装の拒否を確認。**これは人工原本であり正式予想ではない**。
+
+**残る依存**：③/#1713の同一将来レース公式3原本T−12全項目の実初回受領が先。次に②候補を**create-onlyの研究専用Git受領先**へ、コードSHA/時刻/衝突規則を保ったまま受け渡す（既存#1698の保存方法を再利用、二重Cron・本番保存への書込みをしない）。別系統の認証済みGitHub API初回受領と全Actions run台帳を独立監査しなければ、formal0/600、評価や本番採用なし。今の候補生成機能は出力規則の**準備・synthetic検証のみ**であり、実際の原本から新候補0件。
