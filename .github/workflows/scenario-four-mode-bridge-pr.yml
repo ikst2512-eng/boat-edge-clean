@@ -66,6 +66,65 @@ jobs:
           test "$(git hash-object "$RUNNER_TEMP/semantic1693/four_mode_official_raw_semantic_replay.py")" = "2f5af32201e3060c57b5a999f0389ce67c3046cb"
           git show d93349e4855d6dc1026dfad1795a99632d7e9a35:four_mode_official_future_lineage_preflight.py > "$RUNNER_TEMP/semantic1693/four_mode_official_future_lineage_preflight.py"
           test "$(git hash-object "$RUNNER_TEMP/semantic1693/four_mode_official_future_lineage_preflight.py")" = "88caa6ee3b324df58e60397d74055a075a8de6a9"
+      - name: Verify source bridge rejects two REAL incomplete triple archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/13749433042/zip" \
+            --output "$RUNNER_TEMP/real-triple-incomplete-bridge.zip"
+          echo "7eddf4704635613f7d8cb18a03f07bcc1f9037efafb52ee26a3723b333a30354  $RUNNER_TEMP/real-triple-incomplete-bridge.zip" | sha256sum --check --status
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from zipfile import ZipFile
+          from scenario_future_archived_receipts_to_candidate import build_archive_bundle
+          from scripts.audit_three_official_t12_originals import audit_three_originals
+          tmp=Path(os.environ["RUNNER_TEMP"])
+          unpack=tmp/"real-triple-incomplete-bridge"
+          with ZipFile(tmp/"real-triple-incomplete-bridge.zip") as zipped:
+              assert zipped.testzip() is None
+              names=zipped.namelist()
+              assert len(names)==len(set(names))==28
+              assert all(not p.startswith("/") and ".." not in Path(p).parts
+                         for p in names)
+              zipped.extractall(unpack)
+          count=0
+          for race in ("202611101207","202611100708"):
+              base=unpack/"official_joint_evidence"/"observations"
+              day=race[:8]
+              dirs=[base/(kind+"_run42786724704")/day/race
+                    for kind in ("card","before","odds")]
+              audit=audit_three_originals(*dirs)
+              assert audit["three_originals_hash_verified"] is True
+              assert audit["all_research_components_observed_by_t12"] is False
+              assert audit["missing_components"]
+              called=[]
+              def forbidden_parser(*args):
+                  called.append("unexpected-parser")
+                  raise AssertionError("source bridge must reject before math")
+              try:
+                  build_archive_bundle(
+                      *dirs,"2026-11-11T15:07:00+09:00",
+                      before_parser=forbidden_parser)
+              except ValueError as exc:
+                  assert str(exc)=="three_official_T12_originals_incomplete",str(exc)
+              else:
+                  raise AssertionError("REAL_INCOMPLETE_SOURCE_GENERATED_CANDIDATE")
+              assert not called
+              count+=1
+          assert count==2
+          print(json.dumps({
+              "real_archives_preflight_rejected":count,
+              "same_race_raw_original_hashes_verified":True,
+              "new_four_mode_candidate_generated":0,
+              "independent_remote_first_receipt_verified":False,
+              "formal":False,
+          },sort_keys=True))
+          PY
       - name: Confirm all-mode scenario composition uses actual reviewed #1698 conditional math
         env:
           RESEARCH_1698_PIN_REQUIRED: '1'
