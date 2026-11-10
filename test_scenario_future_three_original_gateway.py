@@ -243,6 +243,32 @@ class Pinned1698FutureGatewayIntegrationTests(unittest.TestCase):
         self.assertEqual(output["six_national_win_rates_from_same_original_html"],RATES)
         self.assertEqual(output["six_average_ST_from_same_original_html_not_scored"],[.16]*6)
         self.assertFalse(output["official_racelist_HTTP_authenticity_independently_verified"])
+        self.assertRegex(output["model_input_content_sha256_research_only"],
+                         r"^[0-9a-f]{64}$")
+        self.assertRegex(output["four_mode_ranked_output_content_sha256_research_only"],
+                         r"^[0-9a-f]{64}$")
+        self.assertFalse(output["source_to_candidate_remote_receipt_proven"])
+        repeated=run_future_triple_experiment(
+            triple_fixture(source),source,candidate,replay_stub,
+            list(RATES),hypotheses(),weights(),cb)
+        self.assertEqual(
+            output["model_input_content_sha256_research_only"],
+            repeated["model_input_content_sha256_research_only"])
+        self.assertEqual(
+            output["four_mode_ranked_output_content_sha256_research_only"],
+            repeated["four_mode_ranked_output_content_sha256_research_only"])
+        modified_weights=weights()
+        modified_weights["narrow"]["escape_wall"]=0.8
+        modified_weights["narrow"]["two_sashi"]=0.2
+        altered=run_future_triple_experiment(
+            triple_fixture(source),source,candidate,replay_stub,
+            list(RATES),hypotheses(),modified_weights,cb)
+        self.assertNotEqual(
+            output["model_input_content_sha256_research_only"],
+            altered["model_input_content_sha256_research_only"])
+        self.assertNotEqual(
+            output["four_mode_ranked_output_content_sha256_research_only"],
+            altered["four_mode_ranked_output_content_sha256_research_only"])
         for field in ("formal","forecast_usable",
                       "eligible_for_existing_1693_600_races",
                       "eligible_for_new_300_plus_300_races",
