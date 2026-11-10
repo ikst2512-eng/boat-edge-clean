@@ -45,6 +45,7 @@ class CandidateHistoryTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "prospective_predictions").mkdir()
         (self.root / "confirmed_results").mkdir()
+        (self.root / "payout_evidence").mkdir()
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -72,6 +73,63 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertTrue(all(row["result_status"] == "pending" for row in data["races"][1:]))
         self.assertFalse(data["production_forecast"])
         self.assertFalse(data["first_git_add_verified"])
+
+    def test_only_independently_verified_payout_is_shown(self):
+        code = DAY + "0101"
+        self.write("prospective_predictions", code, prediction(code))
+        result = confirmed(code)
+        result["source_sha256"] = "a" * 64
+        self.write("confirmed_results", code, result)
+        payout = {
+            "schema": "CLEAN_TRIFECTA_PAYOUT_EVIDENCE_V1",
+            "race_code": code,
+            "winning_ticket": "1-2-3",
+            "payout_yen_per_100": 8910,
+            "source_url": "https://boatracecsv.github.io/data/results/payouts/2026/11/08.csv",
+            "source_sha256": "b" * 64,
+            "confirmed_result_source_sha256": "a" * 64,
+            "verified_against_confirmed_finish": True,
+            "formal": False,
+        }
+        source = self.write("payout_evidence", code, payout)
+        _, data = daily_candidate_history(DAY, self.root)
+        row = data["races"][0]
+        self.assertEqual(row["payout_status"], "verified_independent")
+        self.assertEqual(row["payout_yen_per_100"], 8910)
+        self.assertEqual(data["payout_verified_count"], 1)
+        self.assertEqual(row["finish"], "1-2-3")
+        self.assertEqual(row["result_status"], "confirmed_archive")
+
+        for bad in [dict(payout, winning_ticket="1-3-2"),
+                    dict(payout, confirmed_result_source_sha256="c" * 64),
+                    dict(payout, payout_yen_per_100=0),
+                    dict(payout, verified_against_confirmed_finish=False)]:
+            with self.subTest(payout=bad):
+                source.write_text(json.dumps(bad), encoding="utf-8")
+                _, response = daily_candidate_history(DAY, self.root)
+                row = response["races"][0]
+                self.assertEqual(row["payout_status"], "unverified")
+                self.assertIsNone(row["payout_yen_per_100"])
+                self.assertEqual(response["payout_verified_count"], 0)
+                self.assertEqual(row["finish"], "1-2-3")
+        source.unlink()
+        _, response = daily_candidate_history(DAY, self.root)
+        self.assertEqual(response["races"][0]["payout_status"], "unverified")
+        self.assertIsNone(response["races"][0]["payout_yen_per_100"])
+
+    def test_result_must_be_verified_before_any_payout(self):
+        code = DAY + "0101"
+        self.write("prospective_predictions", code, prediction(code))
+        self.write("payout_evidence", code, {
+            "race_code": code,
+            "winning_ticket": "1-2-3",
+            "payout_yen_per_100": 800,
+        })
+        _, response = daily_candidate_history(DAY, self.root)
+        row = response["races"][0]
+        self.assertEqual(row["result_status"], "pending")
+        self.assertEqual(row["payout_status"], "unverified")
+        self.assertIsNone(row["payout_yen_per_100"])
 
     def test_broken_prediction_remains_listed_but_never_shows_bad_tickets(self):
         code = DAY + "0101"
