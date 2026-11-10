@@ -3,9 +3,9 @@
 // Query ONLY: two POSTs to the exact Cloudflare Workers Observability query
 // endpoint. NO Worker deployment, GitHub traffic, capture, dispatch or retries.
 // Secrets are never added to the JSON artifact or printed to stdout/stderr.
-import {writeFileSync} from 'node:fs';
+import {writeFileSync,realpathSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {resolve,sep} from 'node:path';
+import {resolve,dirname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildObserverTelemetryQueries, API_SCHEMA, auditTelemetryApiPages}
   from '../cloudflare/audit_observer_api_pages.mjs';
@@ -25,6 +25,13 @@ function allowedOutput(outputPath){
     throw Error('output_must_be_absolute_path');
   const full=resolve(outputPath);
   if(full===REPO_ROOT || full.startsWith(REPO_ROOT+sep))
+    throw Error('output_inside_source_checkout_disallowed');
+  // The path can look external but its parent can be a symlink into Git.
+  // Resolve the existing parent (a missing parent also safely fails).
+  let parent;
+  try{parent=realpathSync(dirname(full))}
+  catch{throw Error('output_parent_unavailable')}
+  if(parent===REPO_ROOT || parent.startsWith(REPO_ROOT+sep))
     throw Error('output_inside_source_checkout_disallowed');
   return full;
 }
@@ -132,6 +139,7 @@ if(invoked){
         'invalid_utc_day','invalid_cloudflare_account_id',
         'cloudflare_observability_token_required','observer_deployment_id_required',
         'output_must_be_absolute_path','output_inside_source_checkout_disallowed',
+        'output_parent_unavailable',
         'utc_day_not_complete_or_ingestion_grace','cloudflare_export_output_not_created',
         'cloudflare_export_artifact_oversize','cloudflare_query_non_200',
         'cloudflare_query_network_or_timeout_failure',
