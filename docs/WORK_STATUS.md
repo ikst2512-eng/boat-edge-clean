@@ -1,3 +1,9 @@
+## 2026-11-10 21:02 JST 公開スマホ：びわこ6R実CSVの部分欠測表示を独立照合
+- **コード修正と公開**：既存 `index.html` の6艇統合オリ展に元CSVの空欄件数を表示し、該当艇の値を `—`、`data-source-value-state=missing` とする（`40f93b55`）。CSV未配信・取得失敗・締切時刻差異とは区別し、欠測＋締切差異は両警告を保持。予想/結果/払戻/CSV原本は未変更。新PR・新Cronなし。
+- **公開Pages実証**：[Actions #42811670005](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811670005) 全ステップsuccess。`202611101106`（びわこ6R）について独立BoatraceCSV 2026/11/10原本の6艇×3項目中6件空欄を実確認。公開390px Chromiumで6艇18欄、空欄6つが `—`、値あり12欄はそのまま、`一部欠測：6/18項目`、横はみ出し0を一対一照合。既存4レース72値、2026-11-10予定156件/CSV156件一致、公式展示過去原本再現24値、欠落4分類、4主タブも同じrunでsuccess。
+- **回帰**：[Actions #42811340928](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811340928) success。欠測のみ・欠測と締切時刻不一致の併発・号艇ごとの値保持を検査。現行mainが別担当のデータ保存更新を受けるため、都度最新コミットを再取得する。
+- **未完了**：開催中の公式beforeinfo→Render API→Pages公開ブラウザで6艇×4値を締切前に同時照合する正式LIVE gateは独立実証0。既存 `verify-real-beforeinfo.yml` の19:35 JST定期実行で将来確認（現在結果を先取りしない）。物理iPhone Safari、T−12予想原本、長期API稼働は別判定。
+
 ## 2026-11-10 20:58 JST 研究Cron/救済起動の分離監査を本番実行
 - **実装main**：`f6c16123ee38ddbb2ee517e6a011b4f8f2834695`。既存`scripts/audit_preview_scheduled_runs.py`に、`research-live-preview-evidence.yml`をJST日付で全ページ確認する*独立*集計を追加。既存`late-preview-capture.yml`の日次監査は保持。研究対象の`schedule`と`workflow_dispatch`を分離し、mainブランチ、実行ID、JST受信日、APIの`total_count`を検査。途中ページ欠落は監査を成功扱いにしない。
 - **実行証拠**：[Actions #42811862768](https://github.com/ikst2512-eng/boat-edge-clean/actions/runs/42811862768) SUCCESS／12ユニットテスト合格。2026-11-10 JST 20:58時点の設定上の5分Cron枠144、観測した`schedule`起動**1件**、`workflow_dispatch`起動**3件**。計画枠との差143件。workflow_dispatchには人手とwatchdog救済が混在し、GitHubイベントだけで帰属を決定しない。毎日全時間が経過すれば予定156枠。Cronの予定は実行保証ではなくGitHub側の未起動原因は未断定。
