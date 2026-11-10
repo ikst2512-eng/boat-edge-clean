@@ -215,6 +215,18 @@ class ActualWireWithOnlyFakeTransportTests(unittest.TestCase):
             GitHubOnlyCreateWire("",send=self.h)
         self.assertEqual(self.h.puts,0)
 
+    def test_gateway_only_publish_is_disabled_even_with_valid_token(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/"self-reported-gateway-only.json"
+            path.write_text(json.dumps(self.g,sort_keys=True)+"\n",encoding="utf-8")
+            with self.assertRaisesRegex(
+                    ValueError,"gateway_only_publish_forbidden_use_archived_originals_runner"):
+                run_from_gateway_file(
+                    path,GENERATED,FROZEN,
+                    publish=True,token="fake-unit-token",send=self.h)
+            self.assertEqual(self.h.puts,0)
+            self.assertEqual(self.h.reads,0)
+
     def test_cli_default_is_strictly_offline_even_if_token_available(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/"mocked-future-gateway.json"
