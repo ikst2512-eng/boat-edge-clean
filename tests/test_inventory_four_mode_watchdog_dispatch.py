@@ -1,6 +1,7 @@
 import unittest
-from datetime import datetime, timezone
-from scripts.inventory_four_mode_watchdog_dispatch import inventory
+from datetime import datetime, timezone, timedelta
+from scripts.inventory_four_mode_watchdog_dispatch import (inventory,
+    audit_current_day_schedule_observations, CLEAN, WATCHDOG)
 
 NOW = datetime(2026, 11, 3, 6, tzinfo=timezone.utc)
 
@@ -228,6 +229,70 @@ class WatchdogInventoryTest(unittest.TestCase):
         self.assertEqual(data["source_coverage"][
             "clean-prospective.yml:workflow_dispatch"
         ]["excluded_nonmain_or_unverified_run_ids"], [908])
+
+    def test_nov10_both_scheduler_shortfalls_are_visible_without_cron_proof(self):
+        # 17:35 JST Nov 10: 42 slots due in each workflow, but only four
+        # GitHub starts observed in the eligible daily capture window.
+        at = datetime(2026, 11, 10, 17, 35,
+                      tzinfo=timezone(timedelta(hours=9)))
+        for workflow, times in (
+                (CLEAN, ("07:56:57", "12:59:31", "13:35:12", "15:12:07")),
+                (WATCHDOG, ("07:44:06", "07:57:41", "08:01:50", "13:06:07"))):
+            with self.subTest(workflow=workflow):
+                runs = [
+                    dict(id=100+i, workflow=workflow, event="schedule",
+                         created_at="2026-11-10T" + moment + "+09:00",
+                         status="completed", conclusion="success")
+                    for i, moment in enumerate(times)]
+                source = {"total_count_reported": len(runs),
+                          "returned": len(runs),
+                          "earliest_created_at": min(x["created_at"] for x in runs),
+                          "descending_by_created_at": False}
+                result = audit_current_day_schedule_observations(
+                    workflow, runs, source, at)
+                self.assertEqual(result["nominal_slots_due_with_five_minute_grace"], 42)
+                self.assertEqual(result["in_window_observed_count"], 4)
+                self.assertEqual(result["observed_pct_of_nominal_due"], 9.52)
+                self.assertEqual(result["schedule_observation_state"],
+                                 "severely_below_nominal_observation")
+                self.assertEqual(len(result["in_window_completed_success_run_ids"]), 4)
+                self.assertFalse(result["per_slot_schedule_delivery_verified"])
+                self.assertFalse(result["new_first_add_proven"])
+
+    def test_schedule_shortfall_not_proven_when_same_day_history_truncated(self):
+        at = datetime(2026, 11, 10, 17, 35,
+                      tzinfo=timezone(timedelta(hours=9)))
+        runs = [dict(id=100, workflow=CLEAN, event="schedule",
+                     created_at="2026-11-10T13:35:12+09:00",
+                     status="completed", conclusion="success")]
+        summary = audit_current_day_schedule_observations(
+            CLEAN, runs, {"total_count_reported": 500, "returned": 1,
+                          "earliest_created_at": runs[0]["created_at"],
+                          "descending_by_created_at": True}, at)
+        self.assertEqual(summary["in_window_observed_count"], 1)
+        self.assertEqual(summary["schedule_observation_state"], "api_coverage_unverified")
+        self.assertFalse(summary["api_page_covers_current_day"])
+
+    def test_before_opening_and_off_window_schedule_do_not_raise_false_alerts(self):
+        at = datetime(2026, 11, 10, 6, 55,
+                      tzinfo=timezone(timedelta(hours=9)))
+        runs = [dict(id=5, workflow=WATCHDOG, event="schedule",
+                     created_at="2026-11-10T04:46:29+09:00",
+                     status="completed", conclusion="success")]
+        result = audit_current_day_schedule_observations(
+            WATCHDOG, runs, {"total_count_reported": 1, "returned": 1,
+                             "earliest_created_at": runs[0]["created_at"],
+                             "descending_by_created_at": True}, at)
+        self.assertEqual(result["nominal_slots_due_with_five_minute_grace"], 0)
+        self.assertIsNone(result["observed_pct_of_nominal_due"])
+        self.assertEqual(result["same_day_off_window_run_ids"], [5])
+        self.assertEqual(result["in_window_observed_count"], 0)
+        self.assertEqual(result["schedule_observation_state"], "no_nominal_slots_due")
+        with self.assertRaises(ValueError):
+            audit_current_day_schedule_observations(
+                CLEAN, [dict(runs[0], workflow=CLEAN),
+                        dict(runs[0], workflow=CLEAN)],
+                {"total_count_reported": 2, "returned": 2}, at)
 
     def test_no_capture_is_unknown_not_zero_minutes(self):
         def fetch(url, token):
