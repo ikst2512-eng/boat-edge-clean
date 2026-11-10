@@ -15,8 +15,8 @@ permissions:
   contents: read
 jobs:
   real-source:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Verify current-source probe classification
@@ -24,7 +24,12 @@ jobs:
       - name: Verify official six-boat values and missing-field diagnostics
         run: python -m unittest discover -s tests -p test_official_preview.py -v
       - name: Probe current real HTTPS CSV/official adapter (no fixture)
+        if: github.event_name != 'pull_request'
         run: python scripts/verify_real_beforeinfo_source.py
+      - uses: actions/setup-node@v4
+        if: always()
+        with:
+          node-version: '22'
       - name: Install existing Playwright browser for read-only live Pages verification
         if: always()
         run: |
@@ -35,7 +40,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 4
         run: |
-          node - <<'JS'
+          cat > /tmp/clean-live-official-pages.cjs <<'JS'
           const {chromium}=require('playwright');
           const fs=require('node:fs');
           const base='https://boat-edge-clean.onrender.com';
@@ -120,3 +125,5 @@ jobs:
             finally{await ctx.close();await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
+          node --check /tmp/clean-live-official-pages.cjs
+          node /tmp/clean-live-official-pages.cjs
