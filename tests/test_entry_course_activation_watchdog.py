@@ -4,6 +4,7 @@ from datetime import datetime,timedelta,timezone
 from scripts.entry_course_activation_watchdog import (
     dispatch_decision,run_once,preview_fallback,PREVIEW_WORKFLOW,
     PREVIEW_WATCHDOG_MARK,dispatch_payload,TARGETS,JST,
+    OFFICIAL_PROBE_WORKFLOW,official_live_probe_fallback,
 )
 
 NOW=datetime(2026,11,4,10,12,tzinfo=JST)
@@ -279,6 +280,81 @@ class ActivationTests(unittest.TestCase):
         workflow=(root/".github/workflows/research-live-preview-evidence.yml").read_text()
         self.assertIn("rescue_origin:",workflow)
         self.assertIn("watchdog-requested",workflow)
+
+    def test_official_probe_fallback_one_window_no_new_cron(self):
+        now=datetime(2026,11,11,19,43,tzinfo=JST)
+        requested=[]
+        api=[]
+        def fetch(file,event_name):
+            api.append((file,event_name))
+            return []
+        rec=official_live_probe_fallback(
+            now,fetch,lambda target:requested.append(target))
+        self.assertEqual(requested,[OFFICIAL_PROBE_WORKFLOW])
+        self.assertEqual(api,[(OFFICIAL_PROBE_WORKFLOW,"schedule"),
+                              (OFFICIAL_PROBE_WORKFLOW,"workflow_dispatch")])
+        self.assertEqual(rec["decision"],"requested_missing_official_probe")
+        self.assertTrue(rec["dispatch_requested"])
+        self.assertFalse(rec["trigger_is_schedule"])
+        self.assertFalse(rec["live_24_values_verified"])
+        self.assertFalse(rec["formal_t12_certified"])
+        self.assertEqual(dispatch_payload(OFFICIAL_PROBE_WORKFLOW),{"ref":"main"})
+        from pathlib import Path
+        root=Path(__file__).resolve().parent.parent
+        watcher=(root/".github/workflows/entry-course-activation-watchdog.yml").read_text()
+        official=(root/".github/workflows/verify-real-beforeinfo.yml").read_text()
+        self.assertEqual(watcher.count("- cron:"),1)
+        self.assertEqual(official.count("- cron:"),1)
+        self.assertIn("cron: '35 10 * * *'",official)
+
+    def test_official_probe_does_not_dispatch_outside_single_hour(self):
+        for h,m in ((18,59),(19,35),(19,39),(20,0),(22,0),(8,0)):
+            with self.subTest(hour=h,minute=m):
+                at=datetime(2026,11,11,h,m,tzinfo=JST)
+                rec=official_live_probe_fallback(at,
+                    lambda *args:self.fail("outside window API access"),
+                    lambda *_:self.fail("outside window dispatch"))
+                self.assertEqual(rec["decision"],"outside_official_probe_window")
+
+    def test_official_probe_recent_schedule_or_dispatch_suppresses_duplicates(self):
+        now=datetime(2026,11,11,19,43,tzinfo=JST)
+        for kind,minute in (("schedule",35),("workflow_dispatch",41),
+                            ("workflow_dispatch",17)):
+            row={"event":kind,"created_at":now.replace(minute=minute).isoformat(),
+                 "head_branch":"main","status":"completed"}
+            with self.subTest(kind=kind,minute=minute):
+                rec=official_live_probe_fallback(now,
+                    lambda _,event_name:[row] if event_name==kind else [],
+                    lambda *_:self.fail("duplicate official probe"))
+                self.assertEqual(rec["decision"],"official_probe_started_already")
+                self.assertFalse(rec["dispatch_requested"])
+        # A separate PR or yesterday's dispatch is not evidence today.
+        old={"event":"workflow_dispatch","created_at":
+             datetime(2026,11,10,19,40,tzinfo=JST).isoformat(),
+             "head_branch":"main","status":"completed"}
+        pr=dict(old,created_at=now.isoformat(),event="pull_request")
+        requested=[]
+        result=official_live_probe_fallback(now,
+            lambda _,event_name:[old,pr] if event_name=="workflow_dispatch" else [],
+            lambda f:requested.append(f))
+        self.assertTrue(result["dispatch_requested"])
+        self.assertEqual(requested,[OFFICIAL_PROBE_WORKFLOW])
+
+    def test_official_probe_malformed_run_fails_closed(self):
+        at=datetime(2026,11,11,19,43,tzinfo=JST)
+        base={"event":"schedule","head_branch":"main",
+              "created_at":at.isoformat(),"status":"completed"}
+        for row in [None,dict(base,status="unknown"),
+                    dict(base,created_at="not-a-date"),
+                    dict(base,created_at=at.replace(minute=59).isoformat())]:
+            with self.subTest(row=row):
+                with self.assertRaises(ValueError):
+                    official_live_probe_fallback(at,
+                        lambda _,event_name:[row] if event_name=="schedule" else [],
+                        lambda *_:self.fail("malformed API triggered dispatch"))
+        with self.assertRaisesRegex(ValueError,"runs_invalid"):
+            official_live_probe_fallback(at,
+                lambda *_:None,lambda *_:self.fail("invalid API triggered dispatch"))
 
     def test_preview_guard_preserves_cron_and_workflow_concurrency(self):
         from pathlib import Path
