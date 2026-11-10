@@ -119,16 +119,23 @@ class JointBatchTests(unittest.TestCase):
    card.assert_not_called()
    joined.assert_not_called()
 
- def test_incomplete_pair_never_requests_third_original(self):
+ def test_incomplete_pair_can_preserve_early_racelist_but_not_join(self):
   with tempfile.TemporaryDirectory() as root:
-   card=Mock()
+   card=Mock(return_value={
+     'status':'official_racelist_html_observed_research_only',
+     'received_at_jst':'2026-11-04T20:00:10+09:00'})
    joined=Mock()
    report=self.run_collect(
      root,include_racelist=True,card=card,triple_auditor=joined,
      auditor=lambda *args:{'both_complete_before_t12':False})
-   self.assertEqual(report['observations'][0]['three_source_status'],'pair_not_complete')
-   card.assert_not_called();joined.assert_not_called()
+   self.assertEqual(report['observations'][0]['three_source_status'],
+                    'racelist_saved_pair_incomplete')
+   self.assertEqual(report['official_racelist_originals_saved'],1)
+   self.assertEqual(report['complete_pairs_before_t12'],0)
+   card.assert_called_once()
+   joined.assert_not_called()
    self.assertEqual(report['complete_three_originals_before_t12'],0)
+   self.assertFalse(report['forecast_usable'])
 
  def test_failed_racelist_preserves_original_good_pair_and_reason(self):
   with tempfile.TemporaryDirectory() as root:
