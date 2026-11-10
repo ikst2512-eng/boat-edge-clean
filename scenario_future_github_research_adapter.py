@@ -185,8 +185,9 @@ def _read_limited_unlinked(path):
 
 
 def run_from_gateway_file(path, generated_at_jst, frozen_at_jst,
-                          publish=False, token=None, send=None):
-    """Actual GitHub path available only when publish=True, token provided."""
+                          publish=False, token=None, send=None,
+                          observe_first_add=False):
+    """Validated offline, explicit create-only publish, or read-only witness."""
     from scenario_future_local_candidate_handoff import PROTOCOL_PATH
     protocol=_read_limited_unlinked(PROTOCOL_PATH)
     gateway=_read_limited_unlinked(path)
@@ -202,11 +203,18 @@ def run_from_gateway_file(path, generated_at_jst, frozen_at_jst,
         "first_remote_candidate_receipt_verified":False,
         "model_improvement_proven":False,"production_changed":False,
     }
+    if type(publish) is not bool or type(observe_first_add) is not bool:
+        raise ValueError("only_explicit_boolean_action_modes")
+    if publish and observe_first_add:
+        raise ValueError("cannot_publish_and_observe_same_invocation")
+    if observe_first_add:
+        return inspect_candidate_observed_first_add(
+            prepared,gateway,protocol,generated_at_jst,frozen_at_jst,
+            send=send,
+        )
     if publish is False:
         return dict(base,status="validated_local_only_no_github_write",
                     github_create_attempted=False)
-    if publish is not True:
-        raise ValueError("publish_must_be_explicit_boolean")
     wire=GitHubOnlyCreateWire(token,send)
     state=publish_local_candidate_write_once(
         prepared,gateway,protocol,generated_at_jst,frozen_at_jst,
@@ -223,13 +231,17 @@ def main():
     parser.add_argument("--gateway-json",required=True)
     parser.add_argument("--generated-at-jst",required=True)
     parser.add_argument("--frozen-at-jst",required=True)
-    parser.add_argument("--publish",action="store_true",
-                        help="Opt-in real GitHub research-only create/readback")
+    operation=parser.add_mutually_exclusive_group()
+    operation.add_argument("--publish",action="store_true",
+                           help="Opt-in actual create-only research candidate")
+    operation.add_argument("--observe-first-add",action="store_true",
+                           help="Read-only GitHub Date/commit/parent/ancestry witness")
     args=parser.parse_args()
     output=run_from_gateway_file(
         args.gateway_json,args.generated_at_jst,args.frozen_at_jst,
         publish=args.publish,
-        token=os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"))
+        token=os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"),
+        observe_first_add=args.observe_first_add)
     print(json.dumps(output,ensure_ascii=False,sort_keys=True))
 
 
