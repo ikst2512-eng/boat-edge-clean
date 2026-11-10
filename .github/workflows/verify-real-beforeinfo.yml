@@ -24,8 +24,17 @@ jobs:
       - name: Verify official six-boat values and missing-field diagnostics
         run: python -m unittest discover -s tests -p test_official_preview.py -v
       - name: Probe current real HTTPS CSV/official adapter (no fixture)
+        id: csv_probe
         if: github.event_name != 'pull_request'
+        continue-on-error: true # Independent upstream CSV diagnostic; live 24-value E2E remains the hard gate.
         run: python scripts/verify_real_beforeinfo_source.py
+      - name: Report upstream CSV diagnostic separately from LIVE E2E
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          echo "CSV_SOURCE_PROBE_OUTCOME=${{ steps.csv_probe.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.csv_probe.outcome }}" != "success" ]; then
+            echo "::warning::CSV_SOURCE_PROBE_FAILED: upstream CSV is unavailable or invalid; do not count it as source coverage or a LIVE 24-value PASS."
+          fi
       - uses: actions/setup-node@v4
         if: always()
         with:
