@@ -29,6 +29,8 @@ on:
       - scripts/audit_t12_saved_three_original_replay.py
       - tests/test_audit_t12_saved_three_original_replay.py
       - scripts/audit_t12_same_race_proof_chain.py
+      - scripts/audit_t12_source_forecast_join.py
+      - tests/test_audit_t12_source_forecast_join.py
       - tests/test_audit_t12_same_race_proof_chain.py
       - scripts/audit_t12_scheduled_source_topology.py
       - tests/test_audit_t12_scheduled_source_topology.py
@@ -71,6 +73,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_audit_t12_remote_artifact_publication.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_saved_three_original_replay.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_same_race_proof_chain.py' -v
+          python -m unittest discover -s tests -p 'test_audit_t12_source_forecast_join.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_source_topology.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_full_workflow_inventory.py' -v
           python -m unittest discover -s tests -p 'test_audit_t12_scheduled_transitive_routes.py' -v
@@ -264,6 +267,27 @@ jobs:
             --nov09-two reports/official_t12_nov09_source_vs_forecast.json \
             --nov09-remote reports/official_t12_nov09_remote_archive_time.json \
             --output reports/official_t12_same_race_proof_chain.json
+      - name: Extract Nov10 actual official-source artifact (pinned read-only)
+        uses: actions/download-artifact@v4
+        with:
+          name: independent-late-preview-42769768447
+          run-id: 42769768447
+          github-token: ${{ github.token }}
+          path: historical-artifacts/run-42769768447
+      - name: Reconcile Nov10 real source originals with pinned existing CLEAN/V2 forecasts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m scripts.audit_t12_source_forecast_join \
+            --repo "$REPOSITORY" \
+            --extracted-root historical-artifacts/run-42769768447 \
+            --run-id 42769768447 \
+            --artifact-id 13740574410 \
+            --digest cdfdeae53222a5b7852ba5cf5b6b44080247ec074c8d3dbaf53c4a32fe9706dd \
+            --forecast-ref c4d39245cbc96b6c680585a68c3b9adf6ddeb921 \
+            --expected-races 202611101202,202611102211 \
+            --output reports/official_t12_nov10_pair_frozen.json
       - name: Inspect CURRENT JST racing day's collector and durable originals (read only)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -300,6 +324,7 @@ jobs:
             reports/official_t12_nov09_remote_archive_time.json
             reports/official_t12_nov03_pinned_three_originals.json
             reports/official_t12_same_race_proof_chain.json
+            reports/official_t12_nov10_pair_frozen.json
             reports/official_t12_scheduled_source_topology.json
             reports/official_t12_all_main_workflow_inventory.json
             reports/official_t12_51_scheduled_transitive_static.json
