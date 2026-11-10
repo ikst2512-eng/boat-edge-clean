@@ -22,7 +22,7 @@ HEX = re.compile(r"[0-9a-f]{64}\Z")
 ID = re.compile(r"EXPLORATORY_ONLY_[A-Z0-9_]{4,46}\Z")
 # #1698 unregistered lab now accepts actual 5–10s exhibition time.
 # These remain hypothetical effects, not calibrated importance.
-FIELDS = frozenset({"exhibition_st_s", "exhibition_time_s"})
+FIELDS = frozenset({"exhibition_st_s", "exhibition_time_s", "entry_course"})
 MISSING = frozenset({
     "actual_entry_course", "motor_2ren_pct", "wind_speed_mps",
     "wind_from_true_deg", "start_heading_true_deg",
@@ -124,7 +124,9 @@ def _projected(projection):
     return [
         {"boat": i,
          "exhibition_time_s": by_boat[i]["exhibition_time_s"],
-         "exhibition_st_s": by_boat[i]["exhibition_st_s"]}
+         "exhibition_st_s": by_boat[i]["exhibition_st_s"],
+         # This is PRE-RACE EXHIBITION entry by boat, never final actual entry.
+         "exhibition_course_only": by_boat[i]["exhibition_course_only"]}
         for i in range(1, 7)
     ]
 
@@ -193,13 +195,16 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
     if not callable(conditional_lab_callback):
         raise ValueError("existing_1698_conditional_lab_callback_required")
     base = probabilities(six_national_rates)  # unchanged main baseline
-    # Pass both exhibition measurements in their actual source seconds.
-    # No artificial ×10 conversion, final-entry inference or wind/tide fill.
+    # Pass exhibition ST, time and course; course is a PRE-RACE proxy, not
+    # independently observed final entry or a two-course wall statistic.
+    # The pinned #1698 callback consumes a feature only for nonzero coefficients.
     evidence = {"boats": [{"boat": b["boat"],
                            "exhibition_st_s": b["exhibition_st_s"],
-                           "exhibition_time_s": b["exhibition_time_s"]}
+                           "exhibition_time_s": b["exhibition_time_s"],
+                           "entry_course": b["exhibition_course_only"]}
                           for b in boats], "context": {}}
     boards = {}
+    activated_by_scenario = {}
     for name in sorted(plans):
         plan = plans[name]
         first = hypothetical_head_board(
@@ -213,6 +218,7 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
             key for key, p in coeffs.items()
             if p["second"] != 0 or p["third"] != 0
         }
+        activated_by_scenario[name] = sorted(active)
         conditioned = conditional_lab_callback(
             copy.deepcopy(first["ranked_board"]), copy.deepcopy(evidence),
             copy.deepcopy(coeffs),
@@ -229,9 +235,16 @@ def run_exhibition_scenario_lab(projection, six_national_rates, plans,
         "projection_normalized_source_sha256": projection["normalized_source_sha256"],
         "mode_result": mixed,
         "feature_fields_passed_to_conditional_lab": sorted(FIELDS),
+        "feature_fields_actually_activated_by_scenario": activated_by_scenario,
         "projection_features_present_but_not_scored": [
-            "exhibition_tilt", "exhibition_course_only"
+            "exhibition_tilt",
+            *([] if any("entry_course" in fields for fields in
+                       activated_by_scenario.values()) else ["exhibition_course_only"]),
         ],
+        "entry_course_input_semantics": "synthetic_projection_exhibition_only_not_final_actual_entry",
+        "exhibition_course_proxy_used_in_hypothesis": any(
+            "entry_course" in fields for fields in activated_by_scenario.values()),
+        "two_course_wall_feature_or_final_entry_used": False,
         "exhibition_time_s_status": "available_for_explicit_hypothesis_only",
         "feature_values_from_projection_only": True,
         "national_rates_predeadline_original_independently_verified": False,
